@@ -20,6 +20,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libdrm \
 	libhardware \
 	liblog \
+	libsync \
 	libutils \
 
 LOCAL_C_INCLUDES := \
@@ -27,6 +28,7 @@ LOCAL_C_INCLUDES := \
 	external/libdrm \
 	external/libdrm/include/drm \
 	system/core/include/utils \
+	system/core/libsync/include \
 
 LOCAL_CFLAGS :=
 LOCAL_SRC_FILES := hwcomposer.cpp

@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/param.h>
+#include <sys/resource.h>
+#include <pthread.h>
 
 #include <cutils/log.h>
 
@@ -28,6 +30,8 @@
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
+
+#include <sync/sync.h>
 
 #include <gralloc_drm.h>
 #include <gralloc_drm_priv.h>
@@ -45,7 +49,29 @@ static const uint32_t panel_types[] = {
 	DRM_MODE_CONNECTOR_DSI,
 };
 
+struct hwc_drm_bo {
+	int fd;			/* TODO: This is bad voodoo, remove it */
+	uint32_t width;
+	uint32_t height;
+	uint32_t format;
+	uint32_t pitches[4];
+	uint32_t offsets[4];
+	uint32_t gem_handles[4];
+	uint32_t fb_id;
+	int acquire_fence_fd;
+};
+
+struct hwc_worker {
+	pthread_t thread;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
+	bool exit;
+};
+
 struct hwc_drm_display {
+	struct hwc_context_t *ctx;
+	int display;
+
 	uint32_t connector_id;
 
 	drmModeModeInfoPtr configs;
@@ -53,6 +79,11 @@ struct hwc_drm_display {
 
 	int active_config;
 	uint32_t active_crtc;
+
+	struct hwc_worker set_worker;
+
+	struct hwc_drm_bo front;
+	struct hwc_drm_bo back;
 };
 
 struct hwc_context_t {
@@ -136,45 +167,6 @@ static int hwc_prepare(hwc_composer_device_1_t */* dev */, size_t num_displays,
 	return ret;
 }
 
-static int hwc_bo_add_fb(hwc_context_t */* ctx */, struct gralloc_drm_bo_t *bo)
-{
-	uint32_t pitches[4] = { 0, 0, 0, 0 };
-	uint32_t handles[4] = { 0, 0, 0, 0 };
-	uint32_t offsets[4] = { 0, 0, 0, 0 };
-	int drm_format;
-
-	pitches[0] = bo->handle->stride;
-	handles[0] = bo->fb_handle;
-
-	switch(bo->handle->format) {
-		case HAL_PIXEL_FORMAT_RGB_888:
-			drm_format = DRM_FORMAT_BGR888;
-			break;
-		case HAL_PIXEL_FORMAT_BGRA_8888:
-			drm_format = DRM_FORMAT_ARGB8888;
-			break;
-		case HAL_PIXEL_FORMAT_RGBX_8888:
-			drm_format = DRM_FORMAT_XBGR8888;
-			break;
-		case HAL_PIXEL_FORMAT_RGBA_8888:
-			drm_format = DRM_FORMAT_ABGR8888;
-			break;
-		case HAL_PIXEL_FORMAT_RGB_565:
-			drm_format = DRM_FORMAT_BGR565;
-			break;
-		case HAL_PIXEL_FORMAT_YV12:
-			drm_format = DRM_FORMAT_YVU420;
-			break;
-		default:
-			ALOGE("error resolving drm format");
-			return -EINVAL;
-	}
-
-	return drmModeAddFB2(bo->drm->fd, bo->handle->width, bo->handle->height,
-		drm_format, handles, pitches, offsets, (uint32_t *) &bo->fb_id,
-		0);
-}
-
 static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b)
 {
 	return a->clock == b->clock &&
@@ -194,19 +186,220 @@ static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b)
 		!strcmp(a->name, b->name);
 }
 
+static int hwc_modeset_required(struct hwc_drm_display *hd,
+			bool *modeset_required)
+{
+	drmModeCrtcPtr crtc;
+	drmModeModeInfoPtr m;
+
+	crtc = drmModeGetCrtc(hd->ctx->fd, hd->active_crtc);
+	if (!crtc) {
+		ALOGE("Failed to get crtc for display %d", hd->display);
+		return -ENODEV;
+	}
+
+	m = &hd->configs[hd->active_config];
+
+	/* Do a modeset if we haven't done one, or the mode has changed */
+	if (!crtc->mode_valid || !hwc_mode_is_equal(m, &crtc->mode))
+		*modeset_required = true;
+	else
+		*modeset_required = false;
+
+	drmModeFreeCrtc(crtc);
+
+	return 0;
+}
+
+static void hwc_flip_handler(int /* fd */, unsigned int /* sequence */,
+		unsigned int /* tv_sec */, unsigned int /* tv_usec */,
+		void */* user_data */)
+{
+}
+
+static int hwc_flip(struct hwc_drm_display *hd)
+{
+	fd_set fds;
+	drmEventContext event_context;
+	int ret;
+	bool modeset_required;
+
+	ret = hwc_modeset_required(hd, &modeset_required);
+	if (ret) {
+		ALOGE("Failed to determine if modeset is required %d", ret);
+		return ret;
+	}
+	if (modeset_required) {
+		ret = drmModeSetCrtc(hd->ctx->fd, hd->active_crtc,
+			hd->back.fb_id, 0, 0, &hd->connector_id, 1,
+			&hd->configs[hd->active_config]);
+		if (ret) {
+			ALOGE("Modeset failed for crtc %d",
+				hd->active_crtc);
+			return ret;
+		}
+		return 0;
+	}
+
+	FD_ZERO(&fds);
+	FD_SET(hd->ctx->fd, &fds);
+
+	event_context.version = DRM_EVENT_CONTEXT_VERSION;
+	event_context.page_flip_handler = hwc_flip_handler;
+
+	ret = drmModePageFlip(hd->ctx->fd, hd->active_crtc, hd->back.fb_id,
+			DRM_MODE_PAGE_FLIP_EVENT, hd);
+	if (ret) {
+		ALOGE("Failed to flip buffer for crtc %d",
+			hd->active_crtc);
+		return ret;
+	}
+
+	do {
+		ret = select(hd->ctx->fd + 1, &fds, NULL, NULL, NULL);
+	} while (ret == -1 && errno == EINTR);
+
+	if (ret != 1) {
+		ALOGE("Failed waiting for flip to complete\n");
+		return -EINVAL;
+	}
+	drmHandleEvent(hd->ctx->fd, &event_context);
+
+	return 0;
+}
+
+static int hwc_wait_and_set(struct hwc_drm_display *hd)
+{
+	int ret;
+
+	ret = drmModeAddFB2(hd->back.fd, hd->back.width, hd->back.height,
+		hd->back.format, hd->back.gem_handles, hd->back.pitches,
+		hd->back.offsets, &hd->back.fb_id, 0);
+	if (ret) {
+		ALOGE("could not create drm fb %d", ret);
+		return ret;
+	}
+
+	if (hd->back.acquire_fence_fd >= 0) {
+		ret = sync_wait(hd->back.acquire_fence_fd, -1);
+		if (ret) {
+			ALOGE("Failed to wait for acquire %d", ret);
+			return ret;
+		}
+	}
+
+	ret = hwc_flip(hd);
+	if (ret) {
+		ALOGE("Failed to perform flip\n");
+		return ret;
+	}
+
+	if (hd->front.fb_id) {
+		ret = drmModeRmFB(hd->front.fd, hd->front.fb_id);
+		if (ret) {
+			ALOGE("Failed to rm fb from front %d", ret);
+			return ret;
+		}
+	}
+	hd->front = hd->back;
+
+	memset(&hd->back, 0, sizeof(hd->back));
+	hd->back.acquire_fence_fd = -1;
+
+	return ret;
+}
+
+static void *hwc_set_worker(void *arg)
+{
+	struct hwc_drm_display *hd = (struct hwc_drm_display *)arg;
+	int ret;
+
+	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
+
+	ret = pthread_mutex_lock(&hd->set_worker.lock);
+	if (ret) {
+		ALOGE("Failed to lock set lock %d", ret);
+		return NULL;
+	}
+
+	do {
+		ret = pthread_cond_wait(&hd->set_worker.cond,
+				&hd->set_worker.lock);
+		if (ret) {
+			ALOGE("Failed to wait on set condition %d", ret);
+			break;
+		} else if (hd->set_worker.exit) {
+			break;
+		}
+
+		ret = hwc_wait_and_set(hd);
+		if (ret)
+			ALOGE("Failed to wait and set %d", ret);
+	} while (true);
+
+	ret = pthread_mutex_unlock(&hd->set_worker.lock);
+	if (ret) {
+		ALOGE("Failed to unlock set lock %d", ret);
+		return NULL;
+	}
+
+	return NULL;
+}
+
+static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format)
+{
+	switch(hal_format) {
+	case HAL_PIXEL_FORMAT_RGB_888:
+		return DRM_FORMAT_BGR888;
+	case HAL_PIXEL_FORMAT_BGRA_8888:
+		return DRM_FORMAT_ARGB8888;
+	case HAL_PIXEL_FORMAT_RGBX_8888:
+		return DRM_FORMAT_XBGR8888;
+	case HAL_PIXEL_FORMAT_RGBA_8888:
+		return DRM_FORMAT_ABGR8888;
+	case HAL_PIXEL_FORMAT_RGB_565:
+		return DRM_FORMAT_BGR565;
+	case HAL_PIXEL_FORMAT_YV12:
+		return DRM_FORMAT_YVU420;
+	default:
+		ALOGE("Cannot convert hal format to drm format %u", hal_format);
+		return -EINVAL;
+	}
+}
+
+/* TODO: NUKE THIS */
+static int hwc_convert_gralloc_handle_to_drm_bo(hwc_context_t *ctx,
+		buffer_handle_t handle, struct hwc_drm_bo *bo)
+{
+	gralloc_drm_t *drm = ctx->gralloc_module->drm;
+	gralloc_drm_handle_t *gr_handle;
+	struct gralloc_drm_bo_t *gralloc_bo;
+
+	gr_handle = (gralloc_drm_handle_t *)handle;
+
+	gralloc_bo = gr_handle->data;
+	if (!gralloc_bo) {
+		ALOGE("Could not get drm bo from handle");
+		return -EINVAL;
+	}
+
+	bo->fd = drm->fd;
+	bo->width = gr_handle->width;
+	bo->height = gr_handle->height;
+	bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
+	bo->pitches[0] = gr_handle->stride;
+	bo->gem_handles[0] = gralloc_bo->fb_handle;
+
+	return 0;
+}
+
 static int hwc_set_display(hwc_context_t *ctx, int display,
 			hwc_display_contents_1_t* display_contents)
 {
 	struct hwc_drm_display *hd = NULL;
-	drmModeCrtcPtr crtc;
-	drmModeModeInfoPtr m;
 	hwc_layer_1_t *layer = NULL;
 	int ret, i;
-
-	/* TODO: NUKE THIS */
-	gralloc_drm_t *drm = ctx->gralloc_module->drm;
-	gralloc_drm_handle_t *gr_handle;
-	struct gralloc_drm_bo_t *bo;
+	uint32_t fb_id;
 
 	ret = hwc_get_drm_display(ctx, display, &hd);
 	if (ret)
@@ -237,49 +430,46 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		}
 	}
 
-	gr_handle = (gralloc_drm_handle_t *)layer->handle;
-
-	bo = gr_handle->data;
-	if (!bo) {
-		ALOGE("Could not get drm bo from handle");
-		return -EINVAL;
-	}
-
-	if (!bo->fb_id) {
-		ret = hwc_bo_add_fb(ctx, bo);
-		if (ret) {
-			ALOGE("could not create drm fb %d", ret);
-			return ret;
-		}
-	}
-
-	crtc = drmModeGetCrtc(ctx->fd, hd->active_crtc);
-	if (!crtc) {
-		ALOGE("Failed to get crtc for display %d", display);
-		return -ENODEV;
-	}
-
-	m = &hd->configs[hd->active_config];
-
-	/* Do a modeset if we haven't done one, or the mode has changed */
-	if (!crtc->mode_valid || !hwc_mode_is_equal(m, &crtc->mode)) {
-		ret = drmModeSetCrtc(ctx->fd, crtc->crtc_id, bo->fb_id, 0, 0,
-			&hd->connector_id, 1, m);
-		if (ret) {
-			ALOGE("Modeset failed for crtc %d", crtc->crtc_id);
-			goto out;
-		}
-		goto out;
-	}
-
-	ret = drmModePageFlip(ctx->fd, crtc->crtc_id, bo->fb_id, 0, 0);
+	ret = pthread_mutex_lock(&hd->set_worker.lock);
 	if (ret) {
-		ALOGE("Failed to flip buffer for crtc %d", crtc->crtc_id);
+		ALOGE("Failed to lock set lock in set() %d", ret);
+		return ret;
+	}
+
+	if (hd->back.gem_handles[0]) {
+		ALOGE("Failing set, back buffer already exists");
+		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = hwc_convert_gralloc_handle_to_drm_bo(ctx, layer->handle,
+			&hd->back);
+	if (ret) {
+		ALOGE("Failed to convert gralloc handle to drm bo %d", ret);
+		goto out;
+	}
+
+	hd->back.acquire_fence_fd = layer->acquireFenceFd;
+	layer->releaseFenceFd = -1;
+
+	ret = pthread_cond_signal(&hd->set_worker.cond);
+	if (ret) {
+		ALOGE("Failed to signal set worker %d", ret);
+		goto out;
+	}
+
+	ret = pthread_mutex_unlock(&hd->set_worker.lock);
+	if (ret) {
+		ALOGE("Failed to unlock set lock in set() %d", ret);
+		return ret;
+	}
+
+	return ret;
 
 out:
-	drmModeFreeCrtc(crtc);
+	if (pthread_mutex_unlock(&hd->set_worker.lock))
+		ALOGE("Failed to unlock set lock in set error handler");
+
 	return ret;
 }
 
@@ -710,13 +900,86 @@ out:
 	return ret;
 }
 
+static int hwc_destroy_worker(struct hwc_worker *worker)
+{
+	int ret;
+
+	ret = pthread_mutex_lock(&worker->lock);
+	if (ret) {
+		ALOGE("Failed to lock in destroy() %d", ret);
+		return ret;
+	}
+
+	worker->exit = true;
+
+	ret |= pthread_cond_signal(&worker->cond);
+	if (ret)
+		ALOGE("Failed to signal cond in destroy() %d", ret);
+
+	ret |= pthread_mutex_unlock(&worker->lock);
+	if (ret)
+		ALOGE("Failed to unlock in destroy() %d", ret);
+
+	ret |= pthread_join(worker->thread, NULL);
+	if (ret && ret != ESRCH)
+		ALOGE("Failed to join thread in destroy() %d", ret);
+
+	return ret;
+}
+
+static void hwc_destroy_display(struct hwc_drm_display *hd)
+{
+	int ret;
+
+	if (hwc_destroy_worker(&hd->set_worker))
+		ALOGE("Destroy set worker failed");
+}
+
 static int hwc_device_close(struct hw_device_t *dev)
 {
 	struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
+	int i;
 
+	for (i = 0; i < MAX_NUM_DISPLAYS; i++)
+		hwc_destroy_display(&ctx->displays[i]);
+
+	drmClose(ctx->fd);
 	free(ctx);
 
 	return 0;
+}
+
+static int hwc_initialize_worker(struct hwc_drm_display *hd,
+			struct hwc_worker *worker, void *(*routine)(void*))
+{
+	int ret;
+
+	ret = pthread_cond_init(&worker->cond, NULL);
+	if (ret) {
+		ALOGE("Failed to create worker condition %d", ret);
+		return ret;
+	}
+
+	ret = pthread_mutex_init(&worker->lock, NULL);
+	if (ret) {
+		ALOGE("Failed to initialize worker lock %d", ret);
+		goto err_cond;
+	}
+
+	worker->exit = false;
+
+	ret = pthread_create(&worker->thread, NULL, routine, hd);
+	if (ret) {
+		ALOGE("Could not create worker thread %d", ret);
+		goto err_lock;
+	}
+	return 0;
+
+err_lock:
+	pthread_mutex_destroy(&worker->lock);
+err_cond:
+	pthread_cond_destroy(&worker->cond);
+	return ret;
 }
 
 static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
@@ -729,8 +992,16 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	if (ret)
 		return ret;
 
+	hd->ctx = ctx;
+	hd->display = display;
 	hd->active_config = -1;
 	hd->connector_id = connector_id;
+
+	ret = hwc_initialize_worker(hd, &hd->set_worker, hwc_set_worker);
+	if (ret) {
+		ALOGE("Failed to create set worker %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
