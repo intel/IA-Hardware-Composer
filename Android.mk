@@ -16,6 +16,9 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+# TODO: We should specify this in device.mk
+BUFFER_IMPORTER := gralloc
+
 LOCAL_SHARED_LIBRARIES := \
 	libdrm \
 	libhardware \
@@ -32,6 +35,12 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_CFLAGS :=
 LOCAL_SRC_FILES := hwcomposer.cpp
+
+ifeq ($(strip $(BUFFER_IMPORTER)),gralloc)
+LOCAL_C_INCLUDES += external/drm_gralloc
+LOCAL_SRC_FILES += hwcomposer_import_drm_gralloc.cpp
+endif
+
 LOCAL_MODULE := hwcomposer.drm
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_RELATIVE_PATH := hw

@@ -26,16 +26,13 @@
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <drm/drm_fourcc.h>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
 #include <sync/sync.h>
 
-#include <gralloc_drm.h>
-#include <gralloc_drm_priv.h>
-#include <gralloc_drm_handle.h>
+#include "drm_hwcomposer.h"
 
 #define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
 
@@ -47,18 +44,6 @@ static const uint32_t panel_types[] = {
 	DRM_MODE_CONNECTOR_LVDS,
 	DRM_MODE_CONNECTOR_eDP,
 	DRM_MODE_CONNECTOR_DSI,
-};
-
-struct hwc_drm_bo {
-	int fd;			/* TODO: This is bad voodoo, remove it */
-	uint32_t width;
-	uint32_t height;
-	uint32_t format;
-	uint32_t pitches[4];
-	uint32_t offsets[4];
-	uint32_t gem_handles[4];
-	uint32_t fb_id;
-	int acquire_fence_fd;
 };
 
 struct hwc_worker {
@@ -90,9 +75,9 @@ struct hwc_context_t {
 	hwc_composer_device_1_t device;
 
 	int fd;
-	struct drm_module_t *gralloc_module; /* TODO: NUKE THIS */
 
 	hwc_procs_t const *procs;
+	struct hwc_import_context *import_ctx;
 
 	struct hwc_drm_display displays[MAX_NUM_DISPLAYS];
 	int num_displays;
@@ -165,6 +150,20 @@ static int hwc_prepare(hwc_composer_device_1_t */* dev */, size_t num_displays,
 	}
 
 	return ret;
+}
+
+/*
+ * TODO: This hack allows us to use the importer's fd to drm to add and remove
+ * framebuffers. The reason it exists is because gralloc doesn't export its
+ * bo's, so we have to use its file descriptor to drm for some operations. Once
+ * gralloc behaves, we can remove this.
+ */
+static int hwc_get_fd_for_bo(struct hwc_context_t *ctx, struct hwc_drm_bo *bo)
+{
+	if (bo->importer_fd >= 0)
+		return bo->importer_fd;
+
+	return ctx->fd;
 }
 
 static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b)
@@ -272,9 +271,10 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd)
 {
 	int ret;
 
-	ret = drmModeAddFB2(hd->back.fd, hd->back.width, hd->back.height,
-		hd->back.format, hd->back.gem_handles, hd->back.pitches,
-		hd->back.offsets, &hd->back.fb_id, 0);
+	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, &hd->back),
+		hd->back.width, hd->back.height, hd->back.format,
+		hd->back.gem_handles, hd->back.pitches, hd->back.offsets,
+		&hd->back.fb_id, 0);
 	if (ret) {
 		ALOGE("could not create drm fb %d", ret);
 		return ret;
@@ -295,7 +295,8 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd)
 	}
 
 	if (hd->front.fb_id) {
-		ret = drmModeRmFB(hd->front.fd, hd->front.fb_id);
+		ret = drmModeRmFB(hwc_get_fd_for_bo(hd->ctx, &hd->front),
+				hd->front.fb_id);
 		if (ret) {
 			ALOGE("Failed to rm fb from front %d", ret);
 			return ret;
@@ -344,53 +345,6 @@ static void *hwc_set_worker(void *arg)
 	}
 
 	return NULL;
-}
-
-static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format)
-{
-	switch(hal_format) {
-	case HAL_PIXEL_FORMAT_RGB_888:
-		return DRM_FORMAT_BGR888;
-	case HAL_PIXEL_FORMAT_BGRA_8888:
-		return DRM_FORMAT_ARGB8888;
-	case HAL_PIXEL_FORMAT_RGBX_8888:
-		return DRM_FORMAT_XBGR8888;
-	case HAL_PIXEL_FORMAT_RGBA_8888:
-		return DRM_FORMAT_ABGR8888;
-	case HAL_PIXEL_FORMAT_RGB_565:
-		return DRM_FORMAT_BGR565;
-	case HAL_PIXEL_FORMAT_YV12:
-		return DRM_FORMAT_YVU420;
-	default:
-		ALOGE("Cannot convert hal format to drm format %u", hal_format);
-		return -EINVAL;
-	}
-}
-
-/* TODO: NUKE THIS */
-static int hwc_convert_gralloc_handle_to_drm_bo(hwc_context_t *ctx,
-		buffer_handle_t handle, struct hwc_drm_bo *bo)
-{
-	gralloc_drm_t *drm = ctx->gralloc_module->drm;
-	gralloc_drm_handle_t *gr_handle;
-	struct gralloc_drm_bo_t *gralloc_bo;
-
-	gr_handle = (gralloc_drm_handle_t *)handle;
-
-	gralloc_bo = gr_handle->data;
-	if (!gralloc_bo) {
-		ALOGE("Could not get drm bo from handle");
-		return -EINVAL;
-	}
-
-	bo->fd = drm->fd;
-	bo->width = gr_handle->width;
-	bo->height = gr_handle->height;
-	bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
-	bo->pitches[0] = gr_handle->stride;
-	bo->gem_handles[0] = gralloc_bo->fb_handle;
-
-	return 0;
 }
 
 static int hwc_set_display(hwc_context_t *ctx, int display,
@@ -442,10 +396,10 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		goto out;
 	}
 
-	ret = hwc_convert_gralloc_handle_to_drm_bo(ctx, layer->handle,
-			&hd->back);
+	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
+				&hd->back);
 	if (ret) {
-		ALOGE("Failed to convert gralloc handle to drm bo %d", ret);
+		ALOGE("Failed to import handle to drm bo %d", ret);
 		goto out;
 	}
 
@@ -938,12 +892,17 @@ static void hwc_destroy_display(struct hwc_drm_display *hd)
 static int hwc_device_close(struct hw_device_t *dev)
 {
 	struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
-	int i;
+	int ret, i;
 
 	for (i = 0; i < MAX_NUM_DISPLAYS; i++)
 		hwc_destroy_display(&ctx->displays[i]);
 
 	drmClose(ctx->fd);
+
+	ret = hwc_import_destroy(ctx->import_ctx);
+	if (ret)
+		ALOGE("Could not destroy import %d", ret);
+
 	free(ctx);
 
 	return 0;
@@ -1100,11 +1059,9 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 		return -ENOMEM;
 	}
 
-	/* TODO: NUKE THIS */
-	ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-			(const hw_module_t **)&ctx->gralloc_module);
+	ret = hwc_import_init(&ctx->import_ctx);
 	if (ret) {
-		ALOGE("Failed to open gralloc module");
+		ALOGE("Failed to initialize import context");
 		goto out;
 	}
 
