@@ -268,28 +268,28 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 	return 0;
 }
 
-static int hwc_wait_and_set(struct hwc_drm_display *hd)
+static int hwc_wait_and_set(struct hwc_drm_display *hd,
+			struct hwc_drm_bo *buf)
 {
 	int ret;
-	struct hwc_drm_bo buf = hd->buf_queue.front();
 
-	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, &buf), buf.width,
-		buf.height, buf.format, buf.gem_handles, buf.pitches,
-		buf.offsets, &buf.fb_id, 0);
+	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, buf), buf->width,
+		buf->height, buf->format, buf->gem_handles, buf->pitches,
+		buf->offsets, &buf->fb_id, 0);
 	if (ret) {
 		ALOGE("could not create drm fb %d", ret);
 		return ret;
 	}
 
-	if (buf.acquire_fence_fd >= 0) {
-		ret = sync_wait(buf.acquire_fence_fd, -1);
+	if (buf->acquire_fence_fd >= 0) {
+		ret = sync_wait(buf->acquire_fence_fd, -1);
 		if (ret) {
 			ALOGE("Failed to wait for acquire %d", ret);
 			return ret;
 		}
 	}
 
-	ret = hwc_flip(hd, &buf);
+	ret = hwc_flip(hd, buf);
 	if (ret) {
 		ALOGE("Failed to perform flip\n");
 		return ret;
@@ -303,8 +303,8 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd)
 			return ret;
 		}
 	}
-	hd->front = buf;
-	hd->buf_queue.pop();
+	hd->front = *buf;
+
 	return ret;
 }
 
@@ -315,32 +315,45 @@ static void *hwc_set_worker(void *arg)
 
 	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
-	ret = pthread_mutex_lock(&hd->set_worker.lock);
-	if (ret) {
-		ALOGE("Failed to lock set lock %d", ret);
-		return NULL;
-	}
-
 	do {
-		ret = pthread_cond_wait(&hd->set_worker.cond,
-				&hd->set_worker.lock);
+		struct hwc_drm_bo buf;
+
+		ret = pthread_mutex_lock(&hd->set_worker.lock);
 		if (ret) {
-			ALOGE("Failed to wait on set condition %d", ret);
-			break;
-		} else if (hd->set_worker.exit) {
-			break;
+			ALOGE("Failed to lock set lock %d", ret);
+			return NULL;
 		}
 
-		ret = hwc_wait_and_set(hd);
+		if (hd->set_worker.exit)
+			goto out;
+
+		if (hd->buf_queue.empty()) {
+			ret = pthread_cond_wait(&hd->set_worker.cond,
+					&hd->set_worker.lock);
+			if (ret) {
+				ALOGE("Failed to wait on condition %d", ret);
+				goto out;
+			}
+		}
+
+		buf = hd->buf_queue.front();
+		hd->buf_queue.pop();
+
+		ret = pthread_mutex_unlock(&hd->set_worker.lock);
+		if (ret) {
+			ALOGE("Failed to unlock set lock %d", ret);
+			return NULL;
+		}
+
+		ret = hwc_wait_and_set(hd, &buf);
 		if (ret)
 			ALOGE("Failed to wait and set %d", ret);
 	} while (true);
 
+out:
 	ret = pthread_mutex_unlock(&hd->set_worker.lock);
-	if (ret) {
-		ALOGE("Failed to unlock set lock %d", ret);
-		return NULL;
-	}
+	if (ret)
+		ALOGE("Failed to unlock set lock while exiting %d", ret);
 
 	return NULL;
 }
@@ -385,21 +398,20 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		}
 	}
 
+	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
+				&buf);
+	if (ret) {
+		ALOGE("Failed to import handle to drm bo %d", ret);
+		return ret;
+	}
+	buf.acquire_fence_fd = layer->acquireFenceFd;
+	layer->releaseFenceFd = -1;
+
 	ret = pthread_mutex_lock(&hd->set_worker.lock);
 	if (ret) {
 		ALOGE("Failed to lock set lock in set() %d", ret);
 		return ret;
 	}
-
-	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
-				&buf);
-	if (ret) {
-		ALOGE("Failed to import handle to drm bo %d", ret);
-		goto out;
-	}
-	buf.acquire_fence_fd = layer->acquireFenceFd;
-	layer->releaseFenceFd = -1;
-
 	hd->buf_queue.push(buf);
 
 	ret = pthread_cond_signal(&hd->set_worker.cond);
