@@ -21,6 +21,7 @@
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <pthread.h>
+#include <queue>
 
 #include <cutils/log.h>
 
@@ -67,8 +68,8 @@ struct hwc_drm_display {
 
 	struct hwc_worker set_worker;
 
+	std::queue<struct hwc_drm_bo> buf_queue;
 	struct hwc_drm_bo front;
-	struct hwc_drm_bo back;
 };
 
 struct hwc_context_t {
@@ -216,7 +217,7 @@ static void hwc_flip_handler(int /* fd */, unsigned int /* sequence */,
 {
 }
 
-static int hwc_flip(struct hwc_drm_display *hd)
+static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 {
 	fd_set fds;
 	drmEventContext event_context;
@@ -229,8 +230,8 @@ static int hwc_flip(struct hwc_drm_display *hd)
 		return ret;
 	}
 	if (modeset_required) {
-		ret = drmModeSetCrtc(hd->ctx->fd, hd->active_crtc,
-			hd->back.fb_id, 0, 0, &hd->connector_id, 1,
+		ret = drmModeSetCrtc(hd->ctx->fd, hd->active_crtc, buf->fb_id,
+			0, 0, &hd->connector_id, 1,
 			&hd->configs[hd->active_config]);
 		if (ret) {
 			ALOGE("Modeset failed for crtc %d",
@@ -246,7 +247,7 @@ static int hwc_flip(struct hwc_drm_display *hd)
 	event_context.version = DRM_EVENT_CONTEXT_VERSION;
 	event_context.page_flip_handler = hwc_flip_handler;
 
-	ret = drmModePageFlip(hd->ctx->fd, hd->active_crtc, hd->back.fb_id,
+	ret = drmModePageFlip(hd->ctx->fd, hd->active_crtc, buf->fb_id,
 			DRM_MODE_PAGE_FLIP_EVENT, hd);
 	if (ret) {
 		ALOGE("Failed to flip buffer for crtc %d",
@@ -270,25 +271,25 @@ static int hwc_flip(struct hwc_drm_display *hd)
 static int hwc_wait_and_set(struct hwc_drm_display *hd)
 {
 	int ret;
+	struct hwc_drm_bo buf = hd->buf_queue.front();
 
-	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, &hd->back),
-		hd->back.width, hd->back.height, hd->back.format,
-		hd->back.gem_handles, hd->back.pitches, hd->back.offsets,
-		&hd->back.fb_id, 0);
+	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, &buf), buf.width,
+		buf.height, buf.format, buf.gem_handles, buf.pitches,
+		buf.offsets, &buf.fb_id, 0);
 	if (ret) {
 		ALOGE("could not create drm fb %d", ret);
 		return ret;
 	}
 
-	if (hd->back.acquire_fence_fd >= 0) {
-		ret = sync_wait(hd->back.acquire_fence_fd, -1);
+	if (buf.acquire_fence_fd >= 0) {
+		ret = sync_wait(buf.acquire_fence_fd, -1);
 		if (ret) {
 			ALOGE("Failed to wait for acquire %d", ret);
 			return ret;
 		}
 	}
 
-	ret = hwc_flip(hd);
+	ret = hwc_flip(hd, &buf);
 	if (ret) {
 		ALOGE("Failed to perform flip\n");
 		return ret;
@@ -302,11 +303,8 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd)
 			return ret;
 		}
 	}
-	hd->front = hd->back;
-
-	memset(&hd->back, 0, sizeof(hd->back));
-	hd->back.acquire_fence_fd = -1;
-
+	hd->front = buf;
+	hd->buf_queue.pop();
 	return ret;
 }
 
@@ -352,8 +350,11 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 {
 	struct hwc_drm_display *hd = NULL;
 	hwc_layer_1_t *layer = NULL;
+	struct hwc_drm_bo buf;
 	int ret, i;
 	uint32_t fb_id;
+
+	memset(&buf, 0, sizeof(buf));
 
 	ret = hwc_get_drm_display(ctx, display, &hd);
 	if (ret)
@@ -390,21 +391,16 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		return ret;
 	}
 
-	if (hd->back.gem_handles[0]) {
-		ALOGE("Failing set, back buffer already exists");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
-				&hd->back);
+				&buf);
 	if (ret) {
 		ALOGE("Failed to import handle to drm bo %d", ret);
 		goto out;
 	}
-
-	hd->back.acquire_fence_fd = layer->acquireFenceFd;
+	buf.acquire_fence_fd = layer->acquireFenceFd;
 	layer->releaseFenceFd = -1;
+
+	hd->buf_queue.push(buf);
 
 	ret = pthread_cond_signal(&hd->set_worker.cond);
 	if (ret) {
@@ -1053,7 +1049,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 		return -EINVAL;
 	}
 
-	ctx = (hwc_context_t *)calloc(1, sizeof(*ctx));
+	ctx = new hwc_context_t();
 	if (!ctx) {
 		ALOGE("Failed to allocate hwc context");
 		return -ENOMEM;
