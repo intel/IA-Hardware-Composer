@@ -32,6 +32,7 @@
 #include <hardware/hwcomposer.h>
 
 #include <sync/sync.h>
+#include <sw_sync.h>
 
 #include "drm_hwcomposer.h"
 
@@ -70,6 +71,9 @@ struct hwc_drm_display {
 
 	std::queue<struct hwc_drm_bo> buf_queue;
 	struct hwc_drm_bo front;
+
+	int timeline_fd;
+	unsigned timeline_next;
 };
 
 struct hwc_context_t {
@@ -348,6 +352,10 @@ static void *hwc_set_worker(void *arg)
 		ret = hwc_wait_and_set(hd, &buf);
 		if (ret)
 			ALOGE("Failed to wait and set %d", ret);
+
+		ret = sw_sync_timeline_inc(hd->timeline_fd, 1);
+		if (ret)
+			ALOGE("Failed to increment sync timeline %d", ret);
 	} while (true);
 
 out:
@@ -405,13 +413,23 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		return ret;
 	}
 	buf.acquire_fence_fd = layer->acquireFenceFd;
-	layer->releaseFenceFd = -1;
 
 	ret = pthread_mutex_lock(&hd->set_worker.lock);
 	if (ret) {
 		ALOGE("Failed to lock set lock in set() %d", ret);
 		return ret;
 	}
+
+	/*
+	 * TODO: Retire and release can use the same sync point here b/c hwc is
+	 * restricted to one layer. Once that is no longer true, this will need
+	 * to change
+	 */
+	hd->timeline_next++;
+	display_contents->retireFenceFd = sw_sync_fence_create(hd->timeline_fd,
+					"drm_hwc_retire", hd->timeline_next);
+	layer->releaseFenceFd = sw_sync_fence_create(hd->timeline_fd,
+					"drm_hwc_release", hd->timeline_next);
 	hd->buf_queue.push(buf);
 
 	ret = pthread_cond_signal(&hd->set_worker.cond);
@@ -441,11 +459,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 	struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
 	int ret = 0, i;
 
-	/* TODO: Handle acquire & release fences */
-
 	for (i = 0; i < (int)num_displays && i < MAX_NUM_DISPLAYS; i++) {
-		display_contents[i]->retireFenceFd = -1; /* TODO: sync */
-
 		ret = hwc_set_display(ctx, i, display_contents[i]);
 	}
 
@@ -963,6 +977,13 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	hd->display = display;
 	hd->active_config = -1;
 	hd->connector_id = connector_id;
+
+	ret = sw_sync_timeline_create();
+	if (ret < 0) {
+		ALOGE("Failed to create sw sync timeline %d", ret);
+		return ret;
+	}
+	hd->timeline_fd = ret;
 
 	ret = hwc_initialize_worker(hd, &hd->set_worker, hwc_set_worker);
 	if (ret) {

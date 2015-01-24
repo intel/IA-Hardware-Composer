@@ -33,6 +33,7 @@ LOCAL_C_INCLUDES := \
 	external/libdrm/include/drm \
 	external/stlport/stlport \
 	system/core/include/utils \
+	system/core/libsync \
 	system/core/libsync/include \
 
 LOCAL_CFLAGS :=
