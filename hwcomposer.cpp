@@ -66,6 +66,7 @@ struct hwc_drm_display {
 
 	int active_config;
 	uint32_t active_crtc;
+	int active_pipe;
 
 	struct hwc_worker set_worker;
 
@@ -74,6 +75,9 @@ struct hwc_drm_display {
 
 	int timeline_fd;
 	unsigned timeline_next;
+
+	struct hwc_worker vsync_worker;
+	bool enable_vsync_events;
 };
 
 struct hwc_context_t {
@@ -466,13 +470,138 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 	return ret;
 }
 
-static int hwc_event_control(struct hwc_composer_device_1 */* dev */,
-			int /* display */, int /* event */, int /* enabled */)
+static int hwc_wait_for_vsync(struct hwc_drm_display *hd)
 {
+	drmVBlank vblank;
+	int ret;
+	uint32_t high_crtc;
+	int64_t timestamp;
+
+	if (hd->active_pipe == -1)
+		return -EINVAL;
+
+	memset(&vblank, 0, sizeof(vblank));
+
+	high_crtc = (hd->active_pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
+	vblank.request.type = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE |
+		(high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+	vblank.request.sequence = 1;
+
+	ret = drmWaitVBlank(hd->ctx->fd, &vblank);
+	if (ret) {
+		ALOGE("Failed to wait for vblank %d", ret);
+		return ret;
+	}
+
+	if (hd->ctx->procs->vsync) {
+		timestamp = vblank.reply.tval_sec * 1000 * 1000 * 1000 +
+			vblank.reply.tval_usec * 1000;
+		hd->ctx->procs->vsync(hd->ctx->procs, hd->display, timestamp);
+	}
+
+	return 0;
+}
+
+static void *hwc_vsync_worker(void *arg)
+{
+	struct hwc_drm_display *hd = (struct hwc_drm_display *)arg;
+	struct hwc_worker *w = &hd->vsync_worker;
 	int ret;
 
-	/* TODO */
+	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
+
+	do {
+		ret = pthread_mutex_lock(&w->lock);
+		if (ret) {
+			ALOGE("Failed to lock vsync lock %d", ret);
+			return NULL;
+		}
+
+		if (hd->active_pipe == -1) {
+			ALOGE("Pipe is no longer active, disable events");
+			hd->enable_vsync_events = false;
+		}
+
+		if (!hd->enable_vsync_events) {
+			ret = pthread_cond_wait(&w->cond, &w->lock);
+			if (ret) {
+				ALOGE("Failed to wait on vsync cond %d", ret);
+				break;
+			}
+		}
+
+		if (w->exit)
+			break;
+
+		ret = pthread_mutex_unlock(&w->lock);
+		if (ret) {
+			ALOGE("Failed to unlock vsync lock %d", ret);
+			return NULL;
+		}
+
+		if (!hd->enable_vsync_events)
+			continue;
+
+		ret = hwc_wait_for_vsync(hd);
+		if (ret)
+			ALOGE("Failed to wait for vsync %d", ret);
+
+	} while (true);
+
+out:
+	ret = pthread_mutex_unlock(&hd->set_worker.lock);
+	if (ret)
+		ALOGE("Failed to unlock set lock while exiting %d", ret);
+
+	return NULL;
+}
+
+static int hwc_event_control(struct hwc_composer_device_1* dev, int display,
+			int event, int enabled)
+{
+	struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
+	struct hwc_drm_display *hd = NULL;
+	int ret;
+
+	ret = hwc_get_drm_display(ctx, display, &hd);
+	if (ret)
+		return ret;
+
+	if (event != HWC_EVENT_VSYNC || (enabled != 0 && enabled != 1))
+		return -EINVAL;
+
+	if (hd->active_pipe == -1) {
+		ALOGD("Can't service events for display %d, no pipe", display);
+		return -EINVAL;
+	}
+
+	ret = pthread_mutex_lock(&hd->vsync_worker.lock);
+	if (ret) {
+		ALOGE("Failed to lock vsync lock %d", ret);
+		return ret;
+	}
+
+	hd->enable_vsync_events = !!enabled;
+
+	ret = pthread_cond_signal(&hd->vsync_worker.cond);
+	if (ret) {
+		ALOGE("Failed to signal vsync thread %d", ret);
+		goto out;
+	}
+
+	ret = pthread_mutex_unlock(&hd->vsync_worker.lock);
+	if (ret) {
+		ALOGE("Failed to unlock vsync lock %d", ret);
+		return ret;
+	}
+
 	return 0;
+
+out:
+	if (pthread_mutex_unlock(&hd->vsync_worker.lock))
+		ALOGE("Failed to unlock vsync worker in error path");
+
+	return ret;
 }
 
 static int hwc_set_power_mode(struct hwc_composer_device_1* dev, int display,
@@ -835,6 +964,7 @@ static int hwc_set_active_config(struct hwc_composer_device_1* dev, int display,
 
 	/* We no longer have an active_crtc */
 	hd->active_crtc = 0;
+	hd->active_pipe = -1;
 
 	/* First, try to use the currently-connected encoder */
 	if (c->encoder_id) {
@@ -865,6 +995,21 @@ static int hwc_set_active_config(struct hwc_composer_device_1* dev, int display,
 
 	hd->active_crtc = crtc_id;
 	hd->active_config = index;
+
+	/* Find the pipe corresponding to the crtc_id */
+	for (i = 0; i < r->count_crtcs; i++) {
+		/* We've already tried this earlier */
+		if (r->crtcs[i] == crtc_id) {
+			hd->active_pipe = i;
+			break;
+		}
+	}
+	/* This should never happen... hehehe */
+	if (hd->active_pipe == -1) {
+		ALOGE("Active crtc was not found in resources!!");
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/* TODO: Once we have atomic, set the crtc timing info here */
 
@@ -909,6 +1054,9 @@ static void hwc_destroy_display(struct hwc_drm_display *hd)
 
 	if (hwc_destroy_worker(&hd->set_worker))
 		ALOGE("Destroy set worker failed");
+
+	if (hwc_destroy_worker(&hd->vsync_worker))
+		ALOGE("Destroy vsync worker failed");
 }
 
 static int hwc_device_close(struct hw_device_t *dev)
@@ -976,6 +1124,7 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	hd->ctx = ctx;
 	hd->display = display;
 	hd->active_config = -1;
+	hd->active_pipe = -1;
 	hd->connector_id = connector_id;
 
 	ret = sw_sync_timeline_create();
@@ -991,7 +1140,19 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 		return ret;
 	}
 
+	ret = hwc_initialize_worker(hd, &hd->vsync_worker, hwc_vsync_worker);
+	if (ret) {
+		ALOGE("Failed to create vsync worker %d", ret);
+		goto err;
+	}
+
 	return 0;
+
+err:
+	if (hwc_destroy_worker(&hd->set_worker))
+		ALOGE("Failed to destroy set worker");
+
+	return ret;
 }
 
 static int hwc_enumerate_displays(struct hwc_context_t *ctx)
