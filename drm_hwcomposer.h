@@ -16,6 +16,10 @@
 
 struct hwc_import_context;
 
+enum {
+       GRALLOC_MODULE_PERFORM_DRM_IMPORT = 0xffeeff00
+};
+
 struct hwc_drm_bo {
 	uint32_t width;
 	uint32_t height;

@@ -17,7 +17,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 # TODO: We should specify this in device.mk
-BUFFER_IMPORTER := gralloc
+BUFFER_IMPORTER := nvidia-gralloc
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
@@ -40,9 +40,13 @@ LOCAL_C_INCLUDES := \
 LOCAL_CFLAGS :=
 LOCAL_SRC_FILES := hwcomposer.cpp
 
-ifeq ($(strip $(BUFFER_IMPORTER)),gralloc)
+ifeq ($(strip $(BUFFER_IMPORTER)),drm-gralloc)
 LOCAL_C_INCLUDES += external/drm_gralloc
 LOCAL_SRC_FILES += hwcomposer_import_drm_gralloc.cpp
+endif
+ifeq ($(strip $(BUFFER_IMPORTER)),nvidia-gralloc)
+LOCAL_C_INCLUDES += external/drm_gralloc
+LOCAL_SRC_FILES += hwcomposer_import_nv_gralloc.cpp
 endif
 
 LOCAL_MODULE := hwcomposer.drm
