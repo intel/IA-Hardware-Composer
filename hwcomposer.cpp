@@ -1116,6 +1116,36 @@ err_cond:
 	return ret;
 }
 
+/*
+ * TODO: This function sets the active config to the first one in the list. This
+ * should be fixed such that it selects the preferred mode for the display, or
+ * some other, saner, method of choosing the config.
+ */
+static int hwc_set_initial_config(struct hwc_drm_display *hd)
+{
+	int ret;
+	uint32_t config;
+	size_t num_configs = 1;
+
+	ret = hwc_get_display_configs(&hd->ctx->device, hd->display, &config,
+		&num_configs);
+	if (ret) {
+		ALOGE("Failed to get display configs d=%d ret=%d", hd->display,
+			ret);
+	}
+	if (!num_configs)
+		return 0;
+
+	ret = hwc_set_active_config(&hd->ctx->device, hd->display, 0);
+	if (ret) {
+		ALOGE("Failed to set active config d=%d ret=%d", hd->display,
+			ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 			uint32_t connector_id)
 {
@@ -1138,6 +1168,13 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 		return ret;
 	}
 	hd->timeline_fd = ret;
+
+	ret = hwc_set_initial_config(hd);
+	if (ret) {
+		ALOGE("Failed to set initial config for d=%d ret=%d", display,
+			ret);
+		return ret;
+	}
 
 	ret = hwc_initialize_worker(hd, &hd->set_worker, hwc_set_worker);
 	if (ret) {
