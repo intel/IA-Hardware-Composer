@@ -64,7 +64,7 @@ struct hwc_drm_display {
 	drmModeModeInfoPtr configs;
 	uint32_t num_configs;
 
-	int active_config;
+	drmModeModeInfo active_mode;
 	uint32_t active_crtc;
 	int active_pipe;
 	bool initial_modeset_required;
@@ -213,7 +213,7 @@ static int hwc_modeset_required(struct hwc_drm_display *hd,
 		return -ENODEV;
 	}
 
-	m = &hd->configs[hd->active_config];
+	m = &hd->active_mode;
 
 	/* Do a modeset if we haven't done one, or the mode has changed */
 	if (!crtc->mode_valid || !hwc_mode_is_equal(m, &crtc->mode))
@@ -247,7 +247,7 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 	if (modeset_required) {
 		ret = drmModeSetCrtc(hd->ctx->fd, hd->active_crtc, buf->fb_id,
 			0, 0, &hd->connector_id, 1,
-			&hd->configs[hd->active_config]);
+			&hd->active_mode);
 		if (ret) {
 			ALOGE("Modeset failed for crtc %d",
 				hd->active_crtc);
@@ -724,7 +724,6 @@ static int hwc_get_display_configs(struct hwc_composer_device_1* dev,
 	if (hd->configs)
 		free(hd->configs);
 
-	hd->active_config = -1;
 	hd->configs = (drmModeModeInfoPtr)calloc(c->count_modes,
 					sizeof(*hd->configs));
 	if (!hd->configs) {
@@ -843,34 +842,21 @@ static int hwc_get_active_config(struct hwc_composer_device_1* dev, int display)
 {
 	struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
 	struct hwc_drm_display *hd = NULL;
-	drmModeConnectorPtr c;
-	int ret;
+	int ret, i, index = -1;
 
 	ret = hwc_get_drm_display(ctx, display, &hd);
 	if (ret)
 		return ret;
 
-	if (hd->active_config < 0)
-		return -1;
-
-	c = drmModeGetConnector(ctx->fd, hd->connector_id);
-	if (!c) {
-		ALOGE("Failed to get connector %d", display);
-		return -ENODEV;
+	/* Find the current mode in the config list */
+	for (i = 0; i < (int)hd->num_configs; i++) {
+		if (hwc_mode_is_equal(&hd->configs[i], &hd->active_mode)) {
+			index = i;
+			break;
+		}
 	}
 
-	ret = hwc_check_config_valid(ctx, c, display, hd->active_config);
-	if (ret) {
-		ALOGE("Config is no longer valid %d", hd->active_config);
-		ret = -1;
-		goto out;
-	}
-
-	ret = hd->active_config;
-
-out:
-	drmModeFreeConnector(c);
-	return ret;
+	return index;
 }
 
 static bool hwc_crtc_is_bound(struct hwc_context_t *ctx, uint32_t crtc_id)
@@ -956,9 +942,8 @@ static int hwc_set_active_config(struct hwc_composer_device_1* dev, int display,
 		goto out;
 	}
 
-	ret = hwc_check_config_valid(ctx, c, display, index);
-	if (ret) {
-		ALOGE("Provided config is no longer valid %u", index);
+	if (index >= c->count_modes) {
+		ALOGE("Index is out-of-bounds %d/%d", index, c->count_modes);
 		ret = -ENOENT;
 		goto out;
 	}
@@ -1001,7 +986,8 @@ static int hwc_set_active_config(struct hwc_composer_device_1* dev, int display,
 	}
 
 	hd->active_crtc = crtc_id;
-	hd->active_config = index;
+
+	memcpy(&hd->active_mode, &hd->configs[index], sizeof(hd->active_mode));
 
 	/* Find the pipe corresponding to the crtc_id */
 	for (i = 0; i < r->count_crtcs; i++) {
@@ -1130,7 +1116,6 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 
 	hd->ctx = ctx;
 	hd->display = display;
-	hd->active_config = -1;
 	hd->active_pipe = -1;
 	hd->initial_modeset_required = true;
 	hd->connector_id = connector_id;
