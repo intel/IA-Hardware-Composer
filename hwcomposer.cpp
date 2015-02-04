@@ -721,8 +721,15 @@ static int hwc_get_display_configs(struct hwc_composer_device_1* dev,
 		return -ENODEV;
 	}
 
-	if (hd->configs)
+	if (hd->configs) {
 		free(hd->configs);
+		hd->configs = NULL;
+	}
+
+	if (c->connection == DRM_MODE_DISCONNECTED) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	hd->configs = (drmModeModeInfoPtr)calloc(c->count_modes,
 					sizeof(*hd->configs));
