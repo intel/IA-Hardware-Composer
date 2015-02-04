@@ -149,6 +149,10 @@ static int hwc_prepare(hwc_composer_device_1_t */* dev */, size_t num_displays,
 	/* TODO: Check flags for HWC_GEOMETRY_CHANGED */
 
 	for (i = 0; i < (int)num_displays && i < MAX_NUM_DISPLAYS; i++) {
+
+		if (!display_contents[i])
+			continue;
+
 		for (j = 0; j < (int)display_contents[i]->numHwLayers; j++) {
 			ret = hwc_prepare_layer(
 					&display_contents[i]->hwLayers[j]);
@@ -471,7 +475,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 	int ret = 0, i;
 
 	for (i = 0; i < (int)num_displays && i < MAX_NUM_DISPLAYS; i++) {
-		ret = hwc_set_display(ctx, i, display_contents[i]);
+		if (display_contents[i])
+			ret = hwc_set_display(ctx, i, display_contents[i]);
 	}
 
 	return ret;
