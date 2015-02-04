@@ -67,6 +67,7 @@ struct hwc_drm_display {
 	int active_config;
 	uint32_t active_crtc;
 	int active_pipe;
+	bool initial_modeset_required;
 
 	struct hwc_worker set_worker;
 
@@ -199,6 +200,12 @@ static int hwc_modeset_required(struct hwc_drm_display *hd,
 {
 	drmModeCrtcPtr crtc;
 	drmModeModeInfoPtr m;
+
+	if (hd->initial_modeset_required) {
+		*modeset_required = true;
+		hd->initial_modeset_required = false;
+		return 0;
+	}
 
 	crtc = drmModeGetCrtc(hd->ctx->fd, hd->active_crtc);
 	if (!crtc) {
@@ -1125,6 +1132,7 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	hd->display = display;
 	hd->active_config = -1;
 	hd->active_pipe = -1;
+	hd->initial_modeset_required = true;
 	hd->connector_id = connector_id;
 
 	ret = sw_sync_timeline_create();
