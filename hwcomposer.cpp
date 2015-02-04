@@ -31,6 +31,7 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
+#include <cutils/properties.h>
 #include <sync/sync.h>
 #include <sw_sync.h>
 
@@ -1276,6 +1277,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 {
 	int ret = 0;
 	struct hwc_context_t *ctx;
+	char path[PROPERTY_VALUE_MAX];
 
 	if (strcmp(name, HWC_HARDWARE_COMPOSER)) {
 		ALOGE("Invalid module name- %s", name);
@@ -1294,8 +1296,9 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 		goto out;
 	}
 
+	property_get("hwc.drm.device", path, HWCOMPOSER_DRM_DEVICE);
 	/* TODO: Use drmOpenControl here instead */
-	ctx->fd = open(HWCOMPOSER_DRM_DEVICE, O_RDWR);
+	ctx->fd = open(path, O_RDWR);
 	if (ctx->fd < 0) {
 		ALOGE("Failed to open dri- %s", strerror(-errno));
 		goto out;

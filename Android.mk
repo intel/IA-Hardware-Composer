@@ -20,6 +20,7 @@ include $(CLEAR_VARS)
 BUFFER_IMPORTER := gralloc
 
 LOCAL_SHARED_LIBRARIES := \
+	libcutils \
 	libdrm \
 	libhardware \
 	liblog \
