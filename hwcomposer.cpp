@@ -166,20 +166,6 @@ static int hwc_prepare(hwc_composer_device_1_t */* dev */, size_t num_displays,
 	return ret;
 }
 
-/*
- * TODO: This hack allows us to use the importer's fd to drm to add and remove
- * framebuffers. The reason it exists is because gralloc doesn't export its
- * bo's, so we have to use its file descriptor to drm for some operations. Once
- * gralloc behaves, we can remove this.
- */
-static int hwc_get_fd_for_bo(struct hwc_context_t *ctx, struct hwc_drm_bo *bo)
-{
-	if (bo->importer_fd >= 0)
-		return bo->importer_fd;
-
-	return ctx->fd;
-}
-
 static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b)
 {
 	return a->clock == b->clock &&
@@ -290,9 +276,10 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 static int hwc_wait_and_set(struct hwc_drm_display *hd,
 			struct hwc_drm_bo *buf)
 {
-	int ret;
+	struct drm_gem_close args;
+	int ret, i;
 
-	ret = drmModeAddFB2(hwc_get_fd_for_bo(hd->ctx, buf), buf->width,
+	ret = drmModeAddFB2(hd->ctx->fd, buf->width,
 		buf->height, buf->format, buf->gem_handles, buf->pitches,
 		buf->offsets, &buf->fb_id, 0);
 	if (ret) {
@@ -315,12 +302,19 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 	}
 
 	if (hd->front.fb_id) {
-		ret = drmModeRmFB(hwc_get_fd_for_bo(hd->ctx, &hd->front),
-				hd->front.fb_id);
+		ret = drmModeRmFB(hd->ctx->fd, hd->front.fb_id);
 		if (ret) {
 			ALOGE("Failed to rm fb from front %d", ret);
 			return ret;
 		}
+	}
+
+	memset(&args, 0, sizeof(args));
+	for (i = 0; i < ARRAY_SIZE(hd->front.gem_handles); i++) {
+		if (!hd->front.gem_handles[i])
+			continue;
+		args.handle = hd->front.gem_handles[i];
+		drmIoctl(hd->ctx->fd, DRM_IOCTL_GEM_CLOSE, &args);
 	}
 	hd->front = *buf;
 
@@ -1129,11 +1123,7 @@ static int hwc_set_initial_config(struct hwc_drm_display *hd)
 
 	ret = hwc_get_display_configs(&hd->ctx->device, hd->display, &config,
 		&num_configs);
-	if (ret) {
-		ALOGE("Failed to get display configs d=%d ret=%d", hd->display,
-			ret);
-	}
-	if (!num_configs)
+	if (ret || !num_configs)
 		return 0;
 
 	ret = hwc_set_active_config(&hd->ctx->device, hd->display, 0);

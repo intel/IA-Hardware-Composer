@@ -85,13 +85,16 @@ static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format)
 	}
 }
 
-int hwc_create_bo_from_import(int /* fd */, hwc_import_context *ctx,
+int hwc_create_bo_from_import(int fd, hwc_import_context *ctx,
 			buffer_handle_t handle, struct hwc_drm_bo *bo)
 {
-	gralloc_drm_t *drm = ctx->gralloc_module->drm;
-	gralloc_drm_handle_t *gr_handle;
+	gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
 	struct gralloc_drm_bo_t *gralloc_bo;
-	gr_handle = (gralloc_drm_handle_t *)handle;
+	uint32_t gem_handle;
+	int ret;
+
+	if (!gr_handle)
+		return -EINVAL;
 
 	gralloc_bo = gr_handle->data;
 	if (!gralloc_bo) {
@@ -99,12 +102,18 @@ int hwc_create_bo_from_import(int /* fd */, hwc_import_context *ctx,
 		return -EINVAL;
 	}
 
-	bo->importer_fd = drm->fd;
+	ret = drmPrimeFDToHandle(fd, gr_handle->prime_fd, &gem_handle);
+	if (ret) {
+		ALOGE("failed to import prime fd %d ret=%d",
+			gr_handle->prime_fd, ret);
+		return ret;
+	}
+
 	bo->width = gr_handle->width;
 	bo->height = gr_handle->height;
 	bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
 	bo->pitches[0] = gr_handle->stride;
-	bo->gem_handles[0] = gralloc_bo->fb_handle;
+	bo->gem_handles[0] = gem_handle;
 	bo->offsets[0] = 0;
 
 	return 0;
