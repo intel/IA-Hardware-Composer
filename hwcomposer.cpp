@@ -1294,12 +1294,6 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 		goto out;
 	}
 
-	ret = drmSetMaster(ctx->fd);
-	if (ret) {
-		ALOGE("Failed to set hwcomposer as drm master %d", ret);
-		goto out;
-	}
-
 	ret = hwc_enumerate_displays(ctx);
 	if (ret) {
 		ALOGE("Failed to enumerate displays: %s", strerror(ret));
