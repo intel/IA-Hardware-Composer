@@ -279,20 +279,22 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 	struct drm_gem_close args;
 	int ret, i;
 
+	if (buf->acquire_fence_fd >= 0) {
+		ret = sync_wait(buf->acquire_fence_fd, -1);
+		close(buf->acquire_fence_fd);
+		buf->acquire_fence_fd = -1;
+		if (ret) {
+			ALOGE("Failed to wait for acquire %d", ret);
+			return ret;
+		}
+	}
+
 	ret = drmModeAddFB2(hd->ctx->fd, buf->width,
 		buf->height, buf->format, buf->gem_handles, buf->pitches,
 		buf->offsets, &buf->fb_id, 0);
 	if (ret) {
 		ALOGE("could not create drm fb %d", ret);
 		return ret;
-	}
-
-	if (buf->acquire_fence_fd >= 0) {
-		ret = sync_wait(buf->acquire_fence_fd, -1);
-		if (ret) {
-			ALOGE("Failed to wait for acquire %d", ret);
-			return ret;
-		}
 	}
 
 	ret = hwc_flip(hd, buf);
@@ -388,11 +390,12 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 
 	ret = hwc_get_drm_display(ctx, display, &hd);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (!hd->active_crtc) {
 		ALOGE("There is no active crtc for display %d", display);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto out;
 	}
 
 	/*
@@ -419,14 +422,15 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 				&buf);
 	if (ret) {
 		ALOGE("Failed to import handle to drm bo %d", ret);
-		return ret;
+		goto out;
 	}
 	buf.acquire_fence_fd = layer->acquireFenceFd;
+	layer->acquireFenceFd = -1;
 
 	ret = pthread_mutex_lock(&hd->set_worker.lock);
 	if (ret) {
 		ALOGE("Failed to lock set lock in set() %d", ret);
-		return ret;
+		goto out;
 	}
 
 	/*
@@ -442,22 +446,25 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 	hd->buf_queue.push(buf);
 
 	ret = pthread_cond_signal(&hd->set_worker.cond);
-	if (ret) {
+	if (ret)
 		ALOGE("Failed to signal set worker %d", ret);
-		goto out;
-	}
 
-	ret = pthread_mutex_unlock(&hd->set_worker.lock);
-	if (ret) {
-		ALOGE("Failed to unlock set lock in set() %d", ret);
-		return ret;
-	}
-
-	return ret;
+	if (pthread_mutex_unlock(&hd->set_worker.lock))
+		ALOGE("Failed to unlock set lock in set()");
 
 out:
-	if (pthread_mutex_unlock(&hd->set_worker.lock))
-		ALOGE("Failed to unlock set lock in set error handler");
+	/* Close input fences. */
+	for (i = 0; i < (int)display_contents->numHwLayers; i++) {
+		layer = &display_contents->hwLayers[i];
+		if (layer->acquireFenceFd >= 0) {
+			close(layer->acquireFenceFd);
+			layer->acquireFenceFd = -1;
+		}
+	}
+	if (display_contents->outbufAcquireFenceFd >= 0) {
+		close(display_contents->outbufAcquireFenceFd);
+		display_contents->outbufAcquireFenceFd = -1;
+	}
 
 	return ret;
 }
