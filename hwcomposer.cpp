@@ -1194,6 +1194,7 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 		return ret;
 	}
 	hd->timeline_fd = ret;
+	hd->timeline_next = 0;
 
 	ret = hwc_set_initial_config(hd);
 	if (ret) {
