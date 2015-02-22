@@ -318,8 +318,7 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 			continue;
 
 		/* check for duplicate handle in buf_queue */
-		bool found = false;
-		std::list<struct hwc_drm_bo>::iterator bi;
+		bool found;
 
 		ret = pthread_mutex_lock(&hd->set_worker.lock);
 		if (ret) {
@@ -328,12 +327,16 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 		}
 
 		found = false;
-		for (bi = hd->buf_queue.begin();
+		for (std::list<struct hwc_drm_bo>::iterator bi = hd->buf_queue.begin();
 		     bi != hd->buf_queue.end();
 		     ++bi)
 			for (int j = 0; j < ARRAY_SIZE(bi->gem_handles); j++)
-				if (hd->front.gem_handles[i] == bi->gem_handles[j])
+				if (hd->front.gem_handles[i] == bi->gem_handles[j] )
 					found = true;
+
+		for (int j = 0; j < ARRAY_SIZE(buf->gem_handles); j++)
+			if (hd->front.gem_handles[i] == buf->gem_handles[j])
+				found = true;
 
 		if (!found) {
 			args.handle = hd->front.gem_handles[i];
