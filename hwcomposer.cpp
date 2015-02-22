@@ -290,26 +290,10 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 		}
 	}
 
-	ret = drmModeAddFB2(hd->ctx->fd, buf->width,
-		buf->height, buf->format, buf->gem_handles, buf->pitches,
-		buf->offsets, &buf->fb_id, 0);
-	if (ret) {
-		ALOGE("could not create drm fb %d", ret);
-		return ret;
-	}
-
 	ret = hwc_flip(hd, buf);
 	if (ret) {
 		ALOGE("Failed to perform flip\n");
 		return ret;
-	}
-
-	if (hd->front.fb_id) {
-		ret = drmModeRmFB(hd->ctx->fd, hd->front.fb_id);
-		if (ret) {
-			ALOGE("Failed to rm fb from front %d", ret);
-			return ret;
-		}
 	}
 
 	memset(&args, 0, sizeof(args));
@@ -345,6 +329,15 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 		if (pthread_mutex_unlock(&hd->set_worker.lock))
 			ALOGE("Failed to unlock set lock in wait_and_set() %d", ret);
 	}
+
+	if (hd->front.fb_id) {
+		ret = drmModeRmFB(hd->ctx->fd, hd->front.fb_id);
+		if (ret) {
+			ALOGE("Failed to rm fb from front %d", ret);
+			return ret;
+		}
+	}
+
 	hd->front = *buf;
 
 	return ret;
@@ -460,6 +453,14 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 	}
 	buf.acquire_fence_fd = layer->acquireFenceFd;
 	layer->acquireFenceFd = -1;
+
+	ret = drmModeAddFB2(hd->ctx->fd, buf.width,
+		buf.height, buf.format, buf.gem_handles, buf.pitches,
+		buf.offsets, &buf.fb_id, 0);
+	if (ret) {
+		ALOGE("could not create drm fb %d", ret);
+		goto out;
+	}
 
 	/*
 	 * TODO: Retire and release can use the same sync point here b/c hwc is
