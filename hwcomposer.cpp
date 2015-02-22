@@ -1194,7 +1194,14 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 		return ret;
 	}
 	hd->timeline_fd = ret;
-	hd->timeline_next = 0;
+
+	/*
+	 * Initialize timeline_next to 1, because point 0 will be the very first
+	 * set operation. Since we increment every time set() is called,
+	 * initializing to 0 would cause an off-by-one error where
+	 * surfaceflinger would composite on the front buffer.
+	 */
+	hd->timeline_next = 1;
 
 	ret = hwc_set_initial_config(hd);
 	if (ret) {
