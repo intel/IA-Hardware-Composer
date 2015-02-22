@@ -18,10 +18,10 @@
 
 #include <fcntl.h>
 #include <errno.h>
+#include <list>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <pthread.h>
-#include <queue>
 
 #include <cutils/log.h>
 
@@ -72,7 +72,7 @@ struct hwc_drm_display {
 
 	struct hwc_worker set_worker;
 
-	std::queue<struct hwc_drm_bo> buf_queue;
+	std::list<struct hwc_drm_bo> buf_queue;
 	struct hwc_drm_bo front;
 
 	int timeline_fd;
@@ -316,8 +316,31 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 	for (i = 0; i < ARRAY_SIZE(hd->front.gem_handles); i++) {
 		if (!hd->front.gem_handles[i])
 			continue;
-		args.handle = hd->front.gem_handles[i];
-		drmIoctl(hd->ctx->fd, DRM_IOCTL_GEM_CLOSE, &args);
+
+		/* check for duplicate handle in buf_queue */
+		bool found = false;
+		std::list<struct hwc_drm_bo>::iterator bi;
+
+		ret = pthread_mutex_lock(&hd->set_worker.lock);
+		if (ret) {
+			ALOGE("Failed to lock set lock in wait_and_set() %d", ret);
+			continue;
+		}
+
+		found = false;
+		for (bi = hd->buf_queue.begin();
+		     bi != hd->buf_queue.end();
+		     ++bi)
+			for (int j = 0; j < ARRAY_SIZE(bi->gem_handles); j++)
+				if (hd->front.gem_handles[i] == bi->gem_handles[j])
+					found = true;
+
+		if (!found) {
+			args.handle = hd->front.gem_handles[i];
+			drmIoctl(hd->ctx->fd, DRM_IOCTL_GEM_CLOSE, &args);
+		}
+		if (pthread_mutex_unlock(&hd->set_worker.lock))
+			ALOGE("Failed to unlock set lock in wait_and_set() %d", ret);
 	}
 	hd->front = *buf;
 
@@ -353,7 +376,7 @@ static void *hwc_set_worker(void *arg)
 		}
 
 		buf = hd->buf_queue.front();
-		hd->buf_queue.pop();
+		hd->buf_queue.pop_front();
 
 		ret = pthread_mutex_unlock(&hd->set_worker.lock);
 		if (ret) {
@@ -419,6 +442,13 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		}
 	}
 
+
+	ret = pthread_mutex_lock(&hd->set_worker.lock);
+	if (ret) {
+		ALOGE("Failed to lock set lock in set() %d", ret);
+		goto out;
+	}
+
 	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
 				&buf);
 	if (ret) {
@@ -427,12 +457,6 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 	}
 	buf.acquire_fence_fd = layer->acquireFenceFd;
 	layer->acquireFenceFd = -1;
-
-	ret = pthread_mutex_lock(&hd->set_worker.lock);
-	if (ret) {
-		ALOGE("Failed to lock set lock in set() %d", ret);
-		goto out;
-	}
 
 	/*
 	 * TODO: Retire and release can use the same sync point here b/c hwc is
@@ -444,7 +468,7 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 					"drm_hwc_retire", hd->timeline_next);
 	layer->releaseFenceFd = sw_sync_fence_create(hd->timeline_fd,
 					"drm_hwc_release", hd->timeline_next);
-	hd->buf_queue.push(buf);
+	hd->buf_queue.push_back(buf);
 
 	ret = pthread_cond_signal(&hd->set_worker.cond);
 	if (ret)
