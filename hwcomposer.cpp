@@ -296,45 +296,39 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
 		return ret;
 	}
 
-	memset(&args, 0, sizeof(args));
-	for (i = 0; i < ARRAY_SIZE(hd->front.gem_handles); i++) {
-		if (!hd->front.gem_handles[i])
-			continue;
+	if (hwc_import_bo_release(hd->ctx->fd, hd->ctx->import_ctx, &hd->front)) {
+		memset(&args, 0, sizeof(args));
+		for (i = 0; i < ARRAY_SIZE(hd->front.gem_handles); i++) {
+			if (!hd->front.gem_handles[i])
+				continue;
 
-		/* check for duplicate handle in buf_queue */
-		bool found;
+			/* check for duplicate handle in buf_queue */
+			bool found;
 
-		ret = pthread_mutex_lock(&hd->set_worker.lock);
-		if (ret) {
-			ALOGE("Failed to lock set lock in wait_and_set() %d", ret);
-			continue;
-		}
+			ret = pthread_mutex_lock(&hd->set_worker.lock);
+			if (ret) {
+				ALOGE("Failed to lock set lock in wait_and_set() %d", ret);
+				continue;
+			}
 
-		found = false;
-		for (std::list<struct hwc_drm_bo>::iterator bi = hd->buf_queue.begin();
-		     bi != hd->buf_queue.end();
-		     ++bi)
-			for (int j = 0; j < ARRAY_SIZE(bi->gem_handles); j++)
-				if (hd->front.gem_handles[i] == bi->gem_handles[j] )
+			found = false;
+			for (std::list<struct hwc_drm_bo>::iterator bi = hd->buf_queue.begin();
+			     bi != hd->buf_queue.end();
+			     ++bi)
+				for (int j = 0; j < ARRAY_SIZE(bi->gem_handles); j++)
+					if (hd->front.gem_handles[i] == bi->gem_handles[j] )
+						found = true;
+
+			for (int j = 0; j < ARRAY_SIZE(buf->gem_handles); j++)
+				if (hd->front.gem_handles[i] == buf->gem_handles[j])
 					found = true;
 
-		for (int j = 0; j < ARRAY_SIZE(buf->gem_handles); j++)
-			if (hd->front.gem_handles[i] == buf->gem_handles[j])
-				found = true;
-
-		if (!found) {
-			args.handle = hd->front.gem_handles[i];
-			drmIoctl(hd->ctx->fd, DRM_IOCTL_GEM_CLOSE, &args);
-		}
-		if (pthread_mutex_unlock(&hd->set_worker.lock))
-			ALOGE("Failed to unlock set lock in wait_and_set() %d", ret);
-	}
-
-	if (hd->front.fb_id) {
-		ret = drmModeRmFB(hd->ctx->fd, hd->front.fb_id);
-		if (ret) {
-			ALOGE("Failed to rm fb from front %d", ret);
-			return ret;
+			if (!found) {
+				args.handle = hd->front.gem_handles[i];
+				drmIoctl(hd->ctx->fd, DRM_IOCTL_GEM_CLOSE, &args);
+			}
+			if (pthread_mutex_unlock(&hd->set_worker.lock))
+				ALOGE("Failed to unlock set lock in wait_and_set() %d", ret);
 		}
 	}
 
@@ -445,7 +439,7 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 		goto out;
 	}
 
-	ret = hwc_create_bo_from_import(ctx->fd, ctx->import_ctx, layer->handle,
+	ret = hwc_import_bo_create(ctx->fd, ctx->import_ctx, layer->handle,
 				&buf);
 	if (ret) {
 		ALOGE("Failed to import handle to drm bo %d", ret);
@@ -453,14 +447,6 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
 	}
 	buf.acquire_fence_fd = layer->acquireFenceFd;
 	layer->acquireFenceFd = -1;
-
-	ret = drmModeAddFB2(hd->ctx->fd, buf.width,
-		buf.height, buf.format, buf.gem_handles, buf.pitches,
-		buf.offsets, &buf.fb_id, 0);
-	if (ret) {
-		ALOGE("could not create drm fb %d", ret);
-		goto out;
-	}
 
 	/*
 	 * TODO: Retire and release can use the same sync point here b/c hwc is

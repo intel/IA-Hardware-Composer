@@ -85,7 +85,7 @@ static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format)
 	}
 }
 
-int hwc_create_bo_from_import(int fd, hwc_import_context *ctx,
+int hwc_import_bo_create(int fd, hwc_import_context *ctx,
 			buffer_handle_t handle, struct hwc_drm_bo *bo)
 {
 	gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
@@ -116,5 +116,26 @@ int hwc_create_bo_from_import(int fd, hwc_import_context *ctx,
 	bo->gem_handles[0] = gem_handle;
 	bo->offsets[0] = 0;
 
-	return 0;
+	ret = drmModeAddFB2(fd, bo->width, bo->height, bo->format,
+			bo->gem_handles, bo->pitches, bo->offsets,
+			&bo->fb_id, 0);
+	if (ret) {
+		ALOGE("could not create drm fb %d", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+bool hwc_import_bo_release(int fd, hwc_import_context *ctx,
+			struct hwc_drm_bo *bo)
+{
+	(void)ctx;
+
+	if (bo->fb_id)
+		if (drmModeRmFB(fd, bo->fb_id))
+			ALOGE("Failed to rm fb");
+
+	/* hwc may close the gem handles now. */
+	return true;
 }

@@ -17,7 +17,29 @@
 struct hwc_import_context;
 
 enum {
-       GRALLOC_MODULE_PERFORM_DRM_IMPORT = 0xffeeff00
+	/* perform(const struct gralloc_module_t *mod,
+	 *	   int op,
+	 *	   int drm_fd,
+	 *	   buffer_handle_t buffer,
+	 *	   struct hwc_drm_bo *bo);
+	 */
+	GRALLOC_MODULE_PERFORM_DRM_IMPORT = 0xffeeff00,
+
+	/* perform(const struct gralloc_module_t *mod,
+	 *	   int op,
+	 *	   buffer_handle_t buffer,
+	 *	   void (*free_callback)(void *),
+	 *	   void *priv);
+	 */
+	GRALLOC_MODULE_PERFORM_SET_IMPORTER_PRIVATE = 0xffeeff01,
+
+	/* perform(const struct gralloc_module_t *mod,
+	 *	   int op,
+	 *	   buffer_handle_t buffer,
+	 *	   void (*free_callback)(void *),
+	 *	   void **priv);
+	 */
+	GRALLOC_MODULE_PERFORM_GET_IMPORTER_PRIVATE = 0xffeeff02,
 };
 
 struct hwc_drm_bo {
@@ -29,13 +51,12 @@ struct hwc_drm_bo {
 	uint32_t gem_handles[4];
 	uint32_t fb_id;
 	int acquire_fence_fd;
-
-	/* TODO: This is bad voodoo, remove it once drm_gralloc uses dma_buf */
-	int importer_fd;
 };
 
 int hwc_import_init(struct hwc_import_context **ctx);
 int hwc_import_destroy(struct hwc_import_context *ctx);
 
-int hwc_create_bo_from_import(int fd, struct hwc_import_context *ctx,
+int hwc_import_bo_create(int fd, struct hwc_import_context *ctx,
 			buffer_handle_t buf, struct hwc_drm_bo *bo);
+bool hwc_import_bo_release(int fd, hwc_import_context *ctx,
+			struct hwc_drm_bo *bo);
