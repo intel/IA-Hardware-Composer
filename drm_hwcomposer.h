@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <stdbool.h>
+#include <stdint.h>
+
 struct hwc_import_context;
 
 enum {
@@ -58,5 +61,5 @@ int hwc_import_destroy(struct hwc_import_context *ctx);
 
 int hwc_import_bo_create(int fd, struct hwc_import_context *ctx,
 			buffer_handle_t buf, struct hwc_drm_bo *bo);
-bool hwc_import_bo_release(int fd, hwc_import_context *ctx,
+bool hwc_import_bo_release(int fd, struct hwc_import_context *ctx,
 			struct hwc_drm_bo *bo);
