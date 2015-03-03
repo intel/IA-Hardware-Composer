@@ -74,12 +74,14 @@ struct hwc_drm_display {
 
 	std::list<struct hwc_drm_bo> buf_queue;
 	struct hwc_drm_bo front;
+	pthread_mutex_t flip_lock;
+	pthread_cond_t flip_cond;
 
 	int timeline_fd;
 	unsigned timeline_next;
 
-	struct hwc_worker vsync_worker;
 	bool enable_vsync_events;
+	unsigned int vsync_sequence;
 };
 
 struct hwc_context_t {
@@ -92,6 +94,8 @@ struct hwc_context_t {
 
 	struct hwc_drm_display displays[MAX_NUM_DISPLAYS];
 	int num_displays;
+
+	struct hwc_worker event_worker;
 };
 
 static int hwc_get_drm_display(struct hwc_context_t *ctx, int display,
@@ -167,6 +171,124 @@ static int hwc_prepare(hwc_composer_device_1_t */* dev */, size_t num_displays,
 	return ret;
 }
 
+static int hwc_queue_vblank_event(struct hwc_drm_display *hd)
+{
+	drmVBlank vblank;
+	int ret;
+	uint32_t high_crtc;
+	int64_t timestamp;
+
+	if (hd->active_pipe == -1) {
+		ALOGE("Active pipe is -1 disp=%d", hd->display);
+		return -EINVAL;
+	}
+
+	memset(&vblank, 0, sizeof(vblank));
+
+	high_crtc = (hd->active_pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
+	vblank.request.type = (drmVBlankSeqType)(DRM_VBLANK_ABSOLUTE |
+			DRM_VBLANK_NEXTONMISS | DRM_VBLANK_EVENT |
+			(high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+	vblank.request.signal = (unsigned long)hd;
+	vblank.request.sequence = hd->vsync_sequence + 1;
+
+	ret = drmWaitVBlank(hd->ctx->fd, &vblank);
+	if (ret) {
+		ALOGE("Failed to wait for vblank %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void hwc_vblank_event_handler(int /* fd */, unsigned int sequence,
+		unsigned int tv_sec, unsigned int tv_usec,
+		void *user_data)
+{
+	struct hwc_drm_display *hd = (struct hwc_drm_display *)user_data;
+	int64_t timestamp;
+	int ret;
+
+	if (!hd->enable_vsync_events || !hd->ctx->procs->vsync)
+		return;
+
+	/*
+	 * Discard duplicate vsync (can happen when enabling vsync events while
+	 * already processing vsyncs).
+	 */
+	if (sequence <= hd->vsync_sequence)
+		return;
+
+	hd->vsync_sequence = sequence;
+	ret = hwc_queue_vblank_event(hd);
+	if (ret)
+		ALOGE("Failed to queue vblank event ret=%d", ret);
+
+	timestamp = (int64_t)tv_sec * 1000 * 1000 * 1000 +
+			(int64_t)tv_usec * 1000;
+	hd->ctx->procs->vsync(hd->ctx->procs, hd->display, timestamp);
+}
+
+static void hwc_flip_event_handler(int /* fd */, unsigned int /* sequence */,
+		unsigned int /* tv_sec */, unsigned int /* tv_usec */,
+		void *user_data)
+{
+	struct hwc_drm_display *hd = (struct hwc_drm_display *)user_data;
+	int ret;
+	int64_t timestamp;
+
+	ret = pthread_mutex_lock(&hd->flip_lock);
+	if (ret) {
+		ALOGE("Failed to lock flip lock ret=%d", ret);
+		return;
+	}
+
+	ret = pthread_cond_signal(&hd->flip_cond);
+	if (ret) {
+		ALOGE("Failed to signal flip condition ret=%d", ret);
+		goto out;
+	}
+
+out:
+	ret = pthread_mutex_unlock(&hd->flip_lock);
+	if (ret) {
+		ALOGE("Failed to unlock flip lock ret=%d", ret);
+		return;
+	}
+}
+
+static void *hwc_event_worker(void *arg)
+{
+	struct hwc_context_t *ctx = (struct hwc_context_t *)arg;
+	int ret;
+	fd_set fds;
+	drmEventContext event_context;
+
+	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
+
+	do {
+		FD_ZERO(&fds);
+		FD_SET(ctx->fd, &fds);
+
+		event_context.version = DRM_EVENT_CONTEXT_VERSION;
+		event_context.page_flip_handler = hwc_flip_event_handler;
+		event_context.vblank_handler = hwc_vblank_event_handler;
+
+		do {
+			ret = select(ctx->fd + 1, &fds, NULL, NULL, NULL);
+		} while (ret == -1 && errno == EINTR);
+
+		if (ret != 1) {
+			ALOGE("Failed waiting for drm event\n");
+			continue;
+		}
+
+		drmHandleEvent(ctx->fd, &event_context);
+	} while (true);
+
+	return NULL;
+}
+
 static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b)
 {
 	return a->clock == b->clock &&
@@ -217,16 +339,8 @@ static int hwc_modeset_required(struct hwc_drm_display *hd,
 	return 0;
 }
 
-static void hwc_flip_handler(int /* fd */, unsigned int /* sequence */,
-		unsigned int /* tv_sec */, unsigned int /* tv_usec */,
-		void */* user_data */)
-{
-}
-
 static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 {
-	fd_set fds;
-	drmEventContext event_context;
 	int ret;
 	bool modeset_required;
 
@@ -247,12 +361,6 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 		return 0;
 	}
 
-	FD_ZERO(&fds);
-	FD_SET(hd->ctx->fd, &fds);
-
-	event_context.version = DRM_EVENT_CONTEXT_VERSION;
-	event_context.page_flip_handler = hwc_flip_handler;
-
 	ret = drmModePageFlip(hd->ctx->fd, hd->active_crtc, buf->fb_id,
 			DRM_MODE_PAGE_FLIP_EVENT, hd);
 	if (ret) {
@@ -261,15 +369,11 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf)
 		return ret;
 	}
 
-	do {
-		ret = select(hd->ctx->fd + 1, &fds, NULL, NULL, NULL);
-	} while (ret == -1 && errno == EINTR);
-
-	if (ret != 1) {
-		ALOGE("Failed waiting for flip to complete\n");
-		return -EINVAL;
+	ret = pthread_cond_wait(&hd->flip_cond, &hd->flip_lock);
+	if (ret) {
+		ALOGE("Failed to wait on condition %d", ret);
+		return ret;
 	}
-	drmHandleEvent(hd->ctx->fd, &event_context);
 
 	return 0;
 }
@@ -344,6 +448,12 @@ static void *hwc_set_worker(void *arg)
 
 	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
+	ret = pthread_mutex_lock(&hd->flip_lock);
+	if (ret) {
+		ALOGE("Failed to lock flip lock ret=%d", ret);
+		return NULL;
+	}
+
 	do {
 		struct hwc_drm_bo buf;
 
@@ -387,6 +497,11 @@ out:
 	ret = pthread_mutex_unlock(&hd->set_worker.lock);
 	if (ret)
 		ALOGE("Failed to unlock set lock while exiting %d", ret);
+
+	ret = pthread_mutex_unlock(&hd->flip_lock);
+	if (ret)
+		ALOGE("Failed to unlock flip lock ret=%d", ret);
+
 
 	return NULL;
 }
@@ -498,92 +613,6 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 	return ret;
 }
 
-static int hwc_wait_for_vsync(struct hwc_drm_display *hd)
-{
-	drmVBlank vblank;
-	int ret;
-	uint32_t high_crtc;
-	int64_t timestamp;
-
-	if (hd->active_pipe == -1)
-		return -EINVAL;
-
-	memset(&vblank, 0, sizeof(vblank));
-
-	high_crtc = (hd->active_pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
-	vblank.request.type = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE |
-		(high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
-	vblank.request.sequence = 1;
-
-	ret = drmWaitVBlank(hd->ctx->fd, &vblank);
-	if (ret) {
-		ALOGE("Failed to wait for vblank %d", ret);
-		return ret;
-	}
-
-	if (hd->ctx->procs->vsync) {
-		timestamp = vblank.reply.tval_sec * 1000 * 1000 * 1000 +
-			vblank.reply.tval_usec * 1000;
-		hd->ctx->procs->vsync(hd->ctx->procs, hd->display, timestamp);
-	}
-
-	return 0;
-}
-
-static void *hwc_vsync_worker(void *arg)
-{
-	struct hwc_drm_display *hd = (struct hwc_drm_display *)arg;
-	struct hwc_worker *w = &hd->vsync_worker;
-	int ret;
-
-	setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
-
-	do {
-		ret = pthread_mutex_lock(&w->lock);
-		if (ret) {
-			ALOGE("Failed to lock vsync lock %d", ret);
-			return NULL;
-		}
-
-		if (hd->active_pipe == -1) {
-			ALOGE("Pipe is no longer active, disable events");
-			hd->enable_vsync_events = false;
-		}
-
-		if (!hd->enable_vsync_events) {
-			ret = pthread_cond_wait(&w->cond, &w->lock);
-			if (ret) {
-				ALOGE("Failed to wait on vsync cond %d", ret);
-				break;
-			}
-		}
-
-		if (w->exit)
-			break;
-
-		ret = pthread_mutex_unlock(&w->lock);
-		if (ret) {
-			ALOGE("Failed to unlock vsync lock %d", ret);
-			return NULL;
-		}
-
-		if (!hd->enable_vsync_events)
-			continue;
-
-		ret = hwc_wait_for_vsync(hd);
-		if (ret)
-			ALOGE("Failed to wait for vsync %d", ret);
-
-	} while (true);
-
-out:
-	ret = pthread_mutex_unlock(&hd->set_worker.lock);
-	if (ret)
-		ALOGE("Failed to unlock set lock while exiting %d", ret);
-
-	return NULL;
-}
-
 static int hwc_event_control(struct hwc_composer_device_1* dev, int display,
 			int event, int enabled)
 {
@@ -603,33 +632,25 @@ static int hwc_event_control(struct hwc_composer_device_1* dev, int display,
 		return -EINVAL;
 	}
 
-	ret = pthread_mutex_lock(&hd->vsync_worker.lock);
-	if (ret) {
-		ALOGE("Failed to lock vsync lock %d", ret);
-		return ret;
-	}
-
 	hd->enable_vsync_events = !!enabled;
 
-	ret = pthread_cond_signal(&hd->vsync_worker.cond);
-	if (ret) {
-		ALOGE("Failed to signal vsync thread %d", ret);
-		goto out;
-	}
+	if (!hd->enable_vsync_events)
+		return 0;
 
-	ret = pthread_mutex_unlock(&hd->vsync_worker.lock);
+	/*
+	 * Note that it's possible that the event worker is already waiting for
+	 * a vsync, and this will be a duplicate request. In that event, we'll
+	 * end up firing the event handler twice, and it will discard the second
+	 * event. Not ideal, but not worth introducing a bunch of additional
+	 * logic/locks/state for.
+	 */
+	ret = hwc_queue_vblank_event(hd);
 	if (ret) {
-		ALOGE("Failed to unlock vsync lock %d", ret);
+		ALOGE("Failed to queue vblank event ret=%d", ret);
 		return ret;
 	}
 
 	return 0;
-
-out:
-	if (pthread_mutex_unlock(&hd->vsync_worker.lock))
-		ALOGE("Failed to unlock vsync worker in error path");
-
-	return ret;
 }
 
 static int hwc_set_power_mode(struct hwc_composer_device_1* dev, int display,
@@ -1075,9 +1096,6 @@ static void hwc_destroy_display(struct hwc_drm_display *hd)
 
 	if (hwc_destroy_worker(&hd->set_worker))
 		ALOGE("Destroy set worker failed");
-
-	if (hwc_destroy_worker(&hd->vsync_worker))
-		ALOGE("Destroy vsync worker failed");
 }
 
 static int hwc_device_close(struct hw_device_t *dev)
@@ -1088,19 +1106,22 @@ static int hwc_device_close(struct hw_device_t *dev)
 	for (i = 0; i < MAX_NUM_DISPLAYS; i++)
 		hwc_destroy_display(&ctx->displays[i]);
 
+	if (hwc_destroy_worker(&ctx->event_worker))
+		ALOGE("Destroy event worker failed");
+
 	drmClose(ctx->fd);
 
 	ret = hwc_import_destroy(ctx->import_ctx);
 	if (ret)
 		ALOGE("Could not destroy import %d", ret);
 
-	free(ctx);
+	delete ctx;
 
 	return 0;
 }
 
-static int hwc_initialize_worker(struct hwc_drm_display *hd,
-			struct hwc_worker *worker, void *(*routine)(void*))
+static int hwc_initialize_worker(struct hwc_worker *worker,
+			void *(*routine)(void*), void *arg)
 {
 	int ret;
 
@@ -1118,7 +1139,7 @@ static int hwc_initialize_worker(struct hwc_drm_display *hd,
 
 	worker->exit = false;
 
-	ret = pthread_create(&worker->thread, NULL, routine, hd);
+	ret = pthread_create(&worker->thread, NULL, routine, arg);
 	if (ret) {
 		ALOGE("Could not create worker thread %d", ret);
 		goto err_lock;
@@ -1173,11 +1194,25 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	hd->active_pipe = -1;
 	hd->initial_modeset_required = true;
 	hd->connector_id = connector_id;
+	hd->enable_vsync_events = false;
+	hd->vsync_sequence = 0;
+
+	ret = pthread_mutex_init(&hd->flip_lock, NULL);
+	if (ret) {
+		ALOGE("Failed to initialize flip lock %d", ret);
+		return ret;
+	}
+
+	ret = pthread_cond_init(&hd->flip_cond, NULL);
+	if (ret) {
+		ALOGE("Failed to intiialize flip condition %d", ret);
+		goto err_flip_lock;
+	}
 
 	ret = sw_sync_timeline_create();
 	if (ret < 0) {
 		ALOGE("Failed to create sw sync timeline %d", ret);
-		return ret;
+		goto err_flip_cond;
 	}
 	hd->timeline_fd = ret;
 
@@ -1193,26 +1228,25 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display,
 	if (ret) {
 		ALOGE("Failed to set initial config for d=%d ret=%d", display,
 			ret);
-		return ret;
+		goto err_sync_timeline;
 	}
 
-	ret = hwc_initialize_worker(hd, &hd->set_worker, hwc_set_worker);
+	ret = hwc_initialize_worker(&hd->set_worker, hwc_set_worker, hd);
 	if (ret) {
 		ALOGE("Failed to create set worker %d\n", ret);
-		return ret;
-	}
-
-	ret = hwc_initialize_worker(hd, &hd->vsync_worker, hwc_vsync_worker);
-	if (ret) {
-		ALOGE("Failed to create vsync worker %d", ret);
-		goto err;
+		goto err_sync_timeline;
 	}
 
 	return 0;
 
-err:
-	if (hwc_destroy_worker(&hd->set_worker))
-		ALOGE("Failed to destroy set worker");
+err_sync_timeline:
+	close(hd->timeline_fd);
+
+err_flip_cond:
+	pthread_cond_destroy(&hd->flip_cond);
+
+err_flip_lock:
+	pthread_mutex_destroy(&hd->flip_lock);
 
 	return ret;
 }
@@ -1223,6 +1257,12 @@ static int hwc_enumerate_displays(struct hwc_context_t *ctx)
 	drmModeResPtr res;
 	drmModeConnectorPtr *conn_list;
 	int ret = 0, i, j;
+
+	ret = hwc_initialize_worker(&ctx->event_worker, hwc_event_worker, ctx);
+	if (ret) {
+		ALOGE("Failed to create event worker %d\n", ret);
+		return ret;
+	}
 
 	res = drmModeGetResources(ctx->fd);
 	if (!res) {
@@ -1291,6 +1331,9 @@ out:
 	if (res)
 		drmModeFreeResources(res);
 
+	if (ret)
+		hwc_destroy_worker(&ctx->event_worker);
+
 	return ret;
 }
 
@@ -1356,7 +1399,7 @@ out:
 	if (ctx->fd >= 0)
 		close(ctx->fd);
 
-	free(ctx);
+	delete ctx;
 	return ret;
 }
 
