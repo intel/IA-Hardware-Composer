@@ -1094,7 +1094,7 @@ static int hwc_device_close(struct hw_device_t *dev)
 	if (ret)
 		ALOGE("Could not destroy import %d", ret);
 
-	free(ctx);
+	delete ctx;
 
 	return 0;
 }
@@ -1356,7 +1356,7 @@ out:
 	if (ctx->fd >= 0)
 		close(ctx->fd);
 
-	free(ctx);
+	delete ctx;
 	return ret;
 }
 
