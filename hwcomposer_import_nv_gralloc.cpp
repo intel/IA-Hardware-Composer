@@ -19,6 +19,7 @@
 #include <cutils/log.h>
 #include <hardware/gralloc.h>
 
+#include <stdlib.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "drm_hwcomposer.h"
