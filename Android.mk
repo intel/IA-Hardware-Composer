@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(strip $(BOARD_USES_DRM_HWCOMPOSER)),true)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
@@ -54,3 +55,5 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
+
+endif
