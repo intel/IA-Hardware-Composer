@@ -27,115 +27,98 @@
 #include "drm_hwcomposer.h"
 
 struct hwc_import_context {
-	struct drm_module_t *gralloc_module;
+  struct drm_module_t *gralloc_module;
 };
 
-int hwc_import_init(struct hwc_import_context **ctx)
-{
-	int ret;
-	struct hwc_import_context *import_ctx;
+int hwc_import_init(struct hwc_import_context **ctx) {
+  struct hwc_import_context *import_ctx;
 
-	import_ctx = (struct hwc_import_context *)calloc(1,
-				sizeof(*import_ctx));
-	if (!ctx) {
-		ALOGE("Failed to allocate gralloc import context");
-		return -ENOMEM;
-	}
+  import_ctx = (struct hwc_import_context *)calloc(1, sizeof(*import_ctx));
+  if (!ctx) {
+    ALOGE("Failed to allocate gralloc import context");
+    return -ENOMEM;
+  }
 
-	ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-			(const hw_module_t **)&import_ctx->gralloc_module);
-	if (ret) {
-		ALOGE("Failed to open gralloc module");
-		goto err;
-	}
+  int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
+                      (const hw_module_t **)&import_ctx->gralloc_module);
+  if (ret) {
+    ALOGE("Failed to open gralloc module");
+    free(import_ctx);
+    return ret;
+  }
 
-	*ctx = import_ctx;
+  *ctx = import_ctx;
 
-	return 0;
-
-err:
-	free(import_ctx);
-	return ret;
+  return 0;
 }
 
-int hwc_import_destroy(struct hwc_import_context *ctx)
-{
-	free(ctx);
-	return 0;
+int hwc_import_destroy(struct hwc_import_context *ctx) {
+  free(ctx);
+  return 0;
 }
 
-static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format)
-{
-	switch(hal_format) {
-	case HAL_PIXEL_FORMAT_RGB_888:
-		return DRM_FORMAT_BGR888;
-	case HAL_PIXEL_FORMAT_BGRA_8888:
-		return DRM_FORMAT_ARGB8888;
-	case HAL_PIXEL_FORMAT_RGBX_8888:
-		return DRM_FORMAT_XBGR8888;
-	case HAL_PIXEL_FORMAT_RGBA_8888:
-		return DRM_FORMAT_ABGR8888;
-	case HAL_PIXEL_FORMAT_RGB_565:
-		return DRM_FORMAT_BGR565;
-	case HAL_PIXEL_FORMAT_YV12:
-		return DRM_FORMAT_YVU420;
-	default:
-		ALOGE("Cannot convert hal format to drm format %u", hal_format);
-		return -EINVAL;
-	}
+static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format) {
+  switch (hal_format) {
+    case HAL_PIXEL_FORMAT_RGB_888:
+      return DRM_FORMAT_BGR888;
+    case HAL_PIXEL_FORMAT_BGRA_8888:
+      return DRM_FORMAT_ARGB8888;
+    case HAL_PIXEL_FORMAT_RGBX_8888:
+      return DRM_FORMAT_XBGR8888;
+    case HAL_PIXEL_FORMAT_RGBA_8888:
+      return DRM_FORMAT_ABGR8888;
+    case HAL_PIXEL_FORMAT_RGB_565:
+      return DRM_FORMAT_BGR565;
+    case HAL_PIXEL_FORMAT_YV12:
+      return DRM_FORMAT_YVU420;
+    default:
+      ALOGE("Cannot convert hal format to drm format %u", hal_format);
+      return -EINVAL;
+  }
 }
 
 int hwc_import_bo_create(int fd, hwc_import_context *ctx,
-			buffer_handle_t handle, struct hwc_drm_bo *bo)
-{
-	gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
-	struct gralloc_drm_bo_t *gralloc_bo;
-	uint32_t gem_handle;
-	int ret;
+                         buffer_handle_t handle, struct hwc_drm_bo *bo) {
+  gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
+  if (!gr_handle)
+    return -EINVAL;
 
-	if (!gr_handle)
-		return -EINVAL;
+  struct gralloc_drm_bo_t *gralloc_bo = gr_handle->data;
+  if (!gralloc_bo) {
+    ALOGE("Could not get drm bo from handle");
+    return -EINVAL;
+  }
 
-	gralloc_bo = gr_handle->data;
-	if (!gralloc_bo) {
-		ALOGE("Could not get drm bo from handle");
-		return -EINVAL;
-	}
+  uint32_t gem_handle;
+  int ret = drmPrimeFDToHandle(fd, gr_handle->prime_fd, &gem_handle);
+  if (ret) {
+    ALOGE("failed to import prime fd %d ret=%d", gr_handle->prime_fd, ret);
+    return ret;
+  }
 
-	ret = drmPrimeFDToHandle(fd, gr_handle->prime_fd, &gem_handle);
-	if (ret) {
-		ALOGE("failed to import prime fd %d ret=%d",
-			gr_handle->prime_fd, ret);
-		return ret;
-	}
+  bo->width = gr_handle->width;
+  bo->height = gr_handle->height;
+  bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
+  bo->pitches[0] = gr_handle->stride;
+  bo->gem_handles[0] = gem_handle;
+  bo->offsets[0] = 0;
 
-	bo->width = gr_handle->width;
-	bo->height = gr_handle->height;
-	bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
-	bo->pitches[0] = gr_handle->stride;
-	bo->gem_handles[0] = gem_handle;
-	bo->offsets[0] = 0;
+  ret = drmModeAddFB2(fd, bo->width, bo->height, bo->format, bo->gem_handles,
+                      bo->pitches, bo->offsets, &bo->fb_id, 0);
+  if (ret) {
+    ALOGE("could not create drm fb %d", ret);
+    return ret;
+  }
 
-	ret = drmModeAddFB2(fd, bo->width, bo->height, bo->format,
-			bo->gem_handles, bo->pitches, bo->offsets,
-			&bo->fb_id, 0);
-	if (ret) {
-		ALOGE("could not create drm fb %d", ret);
-		return ret;
-	}
-
-	return ret;
+  return ret;
 }
 
-bool hwc_import_bo_release(int fd, hwc_import_context *ctx,
-			struct hwc_drm_bo *bo)
-{
-	(void)ctx;
+bool hwc_import_bo_release(int fd, hwc_import_context */* ctx */,
+                           struct hwc_drm_bo *bo) {
+  if (bo->fb_id)
+    if (drmModeRmFB(fd, bo->fb_id))
+      ALOGE("Failed to rm fb");
 
-	if (bo->fb_id)
-		if (drmModeRmFB(fd, bo->fb_id))
-			ALOGE("Failed to rm fb");
-
-	/* hwc may close the gem handles now. */
-	return true;
+  /* hwc may close the gem handles now. */
+  return true;
 }
