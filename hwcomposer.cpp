@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <list>
+#include <map>
 #include <pthread.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -38,7 +39,6 @@
 
 #define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
 
-#define MAX_NUM_DISPLAYS 3
 #define UM_PER_INCH 25400
 
 namespace android {
@@ -50,7 +50,7 @@ struct hwc_worker {
   bool exit;
 };
 
-struct hwc_drm_display {
+typedef struct hwc_drm_display {
   struct hwc_context_t *ctx;
   int display;
 
@@ -68,32 +68,22 @@ struct hwc_drm_display {
 
   bool enable_vsync_events;
   unsigned int vsync_sequence;
-};
+} hwc_drm_display_t;
 
 struct hwc_context_t {
-  hwc_composer_device_1_t device;
+  // map of display:hwc_drm_display_t
+  typedef std::map<int, hwc_drm_display_t> DisplayMap;
+  typedef DisplayMap::iterator DisplayMapIter;
 
+  hwc_composer_device_1_t device;
   hwc_procs_t const *procs;
   struct hwc_import_context *import_ctx;
 
-  struct hwc_drm_display displays[MAX_NUM_DISPLAYS];
-  int num_displays;
-
   struct hwc_worker event_worker;
 
+  DisplayMap displays;
   DrmResources drm;
 };
-
-static int hwc_get_drm_display(struct hwc_context_t *ctx, int display,
-                               struct hwc_drm_display **hd) {
-  if (display >= MAX_NUM_DISPLAYS) {
-    ALOGE("Requested display is out-of-bounds %d %d", display,
-          MAX_NUM_DISPLAYS);
-    return -EINVAL;
-  }
-  *hd = &ctx->displays[display];
-  return 0;
-}
 
 static int hwc_prepare_layer(hwc_layer_1_t *layer) {
   /* TODO: We can't handle background right now, defer to sufaceFlinger */
@@ -134,7 +124,7 @@ static int hwc_prepare(hwc_composer_device_1_t * /* dev */, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
   /* TODO: Check flags for HWC_GEOMETRY_CHANGED */
 
-  for (int i = 0; i < (int)num_displays && i < MAX_NUM_DISPLAYS; ++i) {
+  for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
 
@@ -441,13 +431,7 @@ static void hwc_close_fences(hwc_display_contents_1_t *display_contents) {
 
 static int hwc_set_display(hwc_context_t *ctx, int display,
                            hwc_display_contents_1_t *display_contents) {
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret) {
-    hwc_close_fences(display_contents);
-    return ret;
-  }
-
+  struct hwc_drm_display *hd = &ctx->displays[display];
   DrmCrtc *crtc = hd->ctx->drm.GetCrtcForDisplay(display);
   if (!crtc) {
     ALOGE("There is no active crtc for display %d", display);
@@ -476,7 +460,7 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
     }
   }
 
-  ret = pthread_mutex_lock(&hd->set_worker.lock);
+  int ret = pthread_mutex_lock(&hd->set_worker.lock);
   if (ret) {
     ALOGE("Failed to lock set lock in set() %d", ret);
     hwc_close_fences(display_contents);
@@ -523,7 +507,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
 
   int ret = 0;
-  for (int i = 0; i < (int)num_displays && i < MAX_NUM_DISPLAYS; ++i) {
+  for (int i = 0; i < (int)num_displays; ++i) {
     if (display_contents[i])
       ret = hwc_set_display(ctx, i, display_contents[i]);
   }
@@ -534,11 +518,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 static int hwc_event_control(struct hwc_composer_device_1 *dev, int display,
                              int event, int enabled) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret)
-    return ret;
-
+  struct hwc_drm_display *hd = &ctx->displays[display];
   if (event != HWC_EVENT_VSYNC || (enabled != 0 && enabled != 1))
     return -EINVAL;
 
@@ -560,7 +540,7 @@ static int hwc_event_control(struct hwc_composer_device_1 *dev, int display,
    * event. Not ideal, but not worth introducing a bunch of additional
    * logic/locks/state for.
    */
-  ret = hwc_queue_vblank_event(hd);
+  int ret = hwc_queue_vblank_event(hd);
   if (ret) {
     ALOGE("Failed to queue vblank event ret=%d", ret);
     return ret;
@@ -620,11 +600,7 @@ static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
     return 0;
 
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret)
-    return ret;
-
+  hwc_drm_display_t *hd = &ctx->displays[display];
   hd->config_ids.clear();
 
   DrmConnector *connector = ctx->drm.GetConnectorForDisplay(display);
@@ -633,7 +609,7 @@ static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
     return -ENODEV;
   }
 
-  ret = connector->UpdateModes();
+  int ret = connector->UpdateModes();
   if (ret) {
     ALOGE("Failed to update display modes %d", ret);
     return ret;
@@ -704,11 +680,6 @@ static int hwc_get_display_attributes(struct hwc_composer_device_1 *dev,
 static int hwc_get_active_config(struct hwc_composer_device_1 *dev,
                                  int display) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret)
-    return ret;
-
   DrmConnector *c = ctx->drm.GetConnectorForDisplay(display);
   if (!c) {
     ALOGE("Failed to get DrmConnector for display %d", display);
@@ -716,6 +687,7 @@ static int hwc_get_active_config(struct hwc_composer_device_1 *dev,
   }
 
   DrmMode mode = c->active_mode();
+  hwc_drm_display_t *hd = &ctx->displays[display];
   for (size_t i = 0; i < hd->config_ids.size(); ++i) {
     if (hd->config_ids[i] == mode.id())
       return i;
@@ -726,17 +698,13 @@ static int hwc_get_active_config(struct hwc_composer_device_1 *dev,
 static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
                                  int index) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret)
-    return ret;
-
+  hwc_drm_display_t *hd = &ctx->displays[display];
   if (index >= (int)hd->config_ids.size()) {
     ALOGE("Invalid config index %d passed in", index);
     return -EINVAL;
   }
 
-  ret =
+  int ret =
       ctx->drm.SetDisplayActiveMode(display, hd->config_ids[index]);
   if (ret) {
     ALOGE("Failed to set config for display %d", display);
@@ -778,8 +746,9 @@ static void hwc_destroy_display(struct hwc_drm_display *hd) {
 static int hwc_device_close(struct hw_device_t *dev) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
 
-  for (int i = 0; i < MAX_NUM_DISPLAYS; ++i)
-    hwc_destroy_display(&ctx->displays[i]);
+  for (hwc_context_t::DisplayMapIter iter = ctx->displays.begin();
+       iter != ctx->displays.end(); ++iter)
+    hwc_destroy_display(&iter->second);
 
   if (hwc_destroy_worker(&ctx->event_worker))
     ALOGE("Destroy event worker failed");
@@ -825,7 +794,7 @@ static int hwc_initialize_worker(struct hwc_worker *worker,
  * should be fixed such that it selects the preferred mode for the display, or
  * some other, saner, method of choosing the config.
  */
-static int hwc_set_initial_config(struct hwc_drm_display *hd) {
+static int hwc_set_initial_config(hwc_drm_display_t *hd) {
   uint32_t config;
   size_t num_configs = 1;
   int ret = hwc_get_display_configs(&hd->ctx->device, hd->display, &config,
@@ -843,17 +812,13 @@ static int hwc_set_initial_config(struct hwc_drm_display *hd) {
 }
 
 static int hwc_initialize_display(struct hwc_context_t *ctx, int display) {
-  struct hwc_drm_display *hd = NULL;
-  int ret = hwc_get_drm_display(ctx, display, &hd);
-  if (ret)
-    return ret;
-
+  hwc_drm_display_t *hd = &ctx->displays[display];
   hd->ctx = ctx;
   hd->display = display;
   hd->enable_vsync_events = false;
   hd->vsync_sequence = 0;
 
-  ret = pthread_mutex_init(&hd->flip_lock, NULL);
+  int ret = pthread_mutex_init(&hd->flip_lock, NULL);
   if (ret) {
     ALOGE("Failed to initialize flip lock %d", ret);
     return ret;
