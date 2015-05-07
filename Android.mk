@@ -25,15 +25,12 @@ LOCAL_SHARED_LIBRARIES := \
 	libdrm \
 	libhardware \
 	liblog \
-	libstlport \
 	libsync \
 	libutils \
 
 LOCAL_C_INCLUDES := \
-	bionic \
 	external/libdrm \
 	external/libdrm/include/drm \
-	external/stlport/stlport \
 	system/core/include/utils \
 	system/core/libsync \
 	system/core/libsync/include \
