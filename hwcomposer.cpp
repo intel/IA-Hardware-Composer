@@ -20,10 +20,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <list>
 #include <pthread.h>
+#include <stdlib.h>
 #include <sys/param.h>
 #include <sys/resource.h>
+
+#include <list>
+
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
