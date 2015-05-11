@@ -35,7 +35,16 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync \
 	system/core/libsync/include \
 
-LOCAL_SRC_FILES := hwcomposer.cpp compositor.cpp
+LOCAL_SRC_FILES := \
+	compositor.cpp \
+	drmresources.cpp \
+	drmconnector.cpp \
+	drmcrtc.cpp \
+	drmencoder.cpp \
+	drmmode.cpp \
+	drmplane.cpp \
+	drmproperty.cpp \
+	hwcomposer.cpp
 
 ifeq ($(strip $(BUFFER_IMPORTER)),drm-gralloc)
 LOCAL_C_INCLUDES += external/drm_gralloc
