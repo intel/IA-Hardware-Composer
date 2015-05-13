@@ -279,6 +279,7 @@ static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf) {
       ALOGE("Modeset failed for crtc %d", crtc->id());
       return ret;
     }
+    crtc->set_requires_modeset(false);
     return 0;
   }
 
