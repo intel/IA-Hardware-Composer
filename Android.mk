@@ -48,6 +48,7 @@ LOCAL_SRC_FILES := \
 	drmproperty.cpp \
 	hwcomposer.cpp \
         nvimporter.cpp \
+	vsyncworker.cpp \
 	worker.cpp
 
 ifeq ($(strip $(BOARD_DRM_HWCOMPOSER_BUFFER_IMPORTER)),nvidia-gralloc)
