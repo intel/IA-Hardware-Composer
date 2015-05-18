@@ -55,7 +55,7 @@ class DrmCrtc {
   uint32_t height_;
 
   DrmMode mode_;
-  bool modeValid_;
+  bool mode_valid_;
 };
 }
 

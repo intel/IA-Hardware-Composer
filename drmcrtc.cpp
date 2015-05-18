@@ -32,7 +32,7 @@ DrmCrtc::DrmCrtc(drmModeCrtcPtr c, unsigned pipe)
       width_(c->width),
       height_(c->height),
       mode_(&c->mode),
-      modeValid_(c->mode_valid) {
+      mode_valid_(c->mode_valid) {
 }
 
 DrmCrtc::~DrmCrtc() {
