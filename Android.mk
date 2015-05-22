@@ -44,7 +44,8 @@ LOCAL_SRC_FILES := \
 	drmmode.cpp \
 	drmplane.cpp \
 	drmproperty.cpp \
-	hwcomposer.cpp
+	hwcomposer.cpp \
+	worker.cpp
 
 ifeq ($(strip $(BUFFER_IMPORTER)),drm-gralloc)
 LOCAL_C_INCLUDES += external/drm_gralloc
