@@ -14,50 +14,58 @@
  * limitations under the License.
  */
 
-#include <stdlib.h>
+#define LOG_TAG "hwc-drm-generic-importer"
 
-#include <cutils/log.h>
+#include "importer.h"
+#include "drmresources.h"
+#include "drmgenericimporter.h"
 
 #include <drm/drm_fourcc.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
+#include <cutils/log.h>
 #include <gralloc_drm.h>
 #include <gralloc_drm_priv.h>
 #include <gralloc_drm_handle.h>
+#include <hardware/gralloc.h>
 
-#include "drm_hwcomposer.h"
+namespace android {
 
-struct hwc_import_context {
-  struct drm_module_t *gralloc_module;
-};
+#ifdef USE_DRM_GENERIC_IMPORTER
+// static
+Importer *Importer::CreateInstance(DrmResources *drm) {
+  DrmGenericImporter *importer = new DrmGenericImporter(drm);
+  if (!importer)
+    return NULL;
 
-int hwc_import_init(struct hwc_import_context **ctx) {
-  struct hwc_import_context *import_ctx;
-
-  import_ctx = (struct hwc_import_context *)calloc(1, sizeof(*import_ctx));
-  if (!ctx) {
-    ALOGE("Failed to allocate gralloc import context");
-    return -ENOMEM;
+  int ret = importer->Init();
+  if (ret) {
+    ALOGE("Failed to initialize the nv importer %d", ret);
+    delete importer;
+    return NULL;
   }
+  return importer;
+}
+#endif
 
+DrmGenericImporter::DrmGenericImporter(DrmResources *drm) : drm_(drm) {
+}
+
+DrmGenericImporter::~DrmGenericImporter() {
+}
+
+int DrmGenericImporter::Init() {
   int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-                      (const hw_module_t **)&import_ctx->gralloc_module);
+                          (const hw_module_t **)&gralloc_);
   if (ret) {
     ALOGE("Failed to open gralloc module");
-    free(import_ctx);
     return ret;
   }
-
-  *ctx = import_ctx;
-
   return 0;
 }
 
-int hwc_import_destroy(struct hwc_import_context *ctx) {
-  free(ctx);
-  return 0;
-}
-
-static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format) {
+uint32_t DrmGenericImporter::ConvertHalFormatToDrm(uint32_t hal_format) {
   switch (hal_format) {
     case HAL_PIXEL_FORMAT_RGB_888:
       return DRM_FORMAT_BGR888;
@@ -77,8 +85,7 @@ static uint32_t hwc_convert_hal_format_to_drm_format(uint32_t hal_format) {
   }
 }
 
-int hwc_import_bo_create(int fd, hwc_import_context *ctx,
-                         buffer_handle_t handle, struct hwc_drm_bo *bo) {
+int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
   if (!gr_handle)
     return -EINVAL;
@@ -90,21 +97,22 @@ int hwc_import_bo_create(int fd, hwc_import_context *ctx,
   }
 
   uint32_t gem_handle;
-  int ret = drmPrimeFDToHandle(fd, gr_handle->prime_fd, &gem_handle);
+  int ret = drmPrimeFDToHandle(drm_->fd(), gr_handle->prime_fd, &gem_handle);
   if (ret) {
     ALOGE("failed to import prime fd %d ret=%d", gr_handle->prime_fd, ret);
     return ret;
   }
 
+  memset(bo, 0, sizeof(hwc_drm_bo_t));
   bo->width = gr_handle->width;
   bo->height = gr_handle->height;
-  bo->format = hwc_convert_hal_format_to_drm_format(gr_handle->format);
+  bo->format = ConvertHalFormatToDrm(gr_handle->format);
   bo->pitches[0] = gr_handle->stride;
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;
 
-  ret = drmModeAddFB2(fd, bo->width, bo->height, bo->format, bo->gem_handles,
-                      bo->pitches, bo->offsets, &bo->fb_id, 0);
+  ret = drmModeAddFB2(drm_->fd(), bo->width, bo->height, bo->format,
+                      bo->gem_handles, bo->pitches, bo->offsets, &bo->fb_id, 0);
   if (ret) {
     ALOGE("could not create drm fb %d", ret);
     return ret;
@@ -113,12 +121,25 @@ int hwc_import_bo_create(int fd, hwc_import_context *ctx,
   return ret;
 }
 
-bool hwc_import_bo_release(int fd, hwc_import_context */* ctx */,
-                           struct hwc_drm_bo *bo) {
+int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
   if (bo->fb_id)
-    if (drmModeRmFB(fd, bo->fb_id))
+    if (drmModeRmFB(drm_->fd(), bo->fb_id))
       ALOGE("Failed to rm fb");
 
-  /* hwc may close the gem handles now. */
-  return true;
+  struct drm_gem_close gem_close;
+  memset(&gem_close, 0, sizeof(gem_close));
+  int num_gem_handles = sizeof(bo->gem_handles) / sizeof(bo->gem_handles[0]);
+  for (int i = 0; i < num_gem_handles; i++) {
+    if (!bo->gem_handles[i])
+      continue;
+
+    gem_close.handle = bo->gem_handles[i];
+    int ret = drmIoctl(drm_->fd(), DRM_IOCTL_GEM_CLOSE, &gem_close);
+    if (ret)
+      ALOGE("Failed to close gem handle %d %d", i, ret);
+    else
+      bo->gem_handles[i] = 0;
+  }
+  return 0;
+}
 }
