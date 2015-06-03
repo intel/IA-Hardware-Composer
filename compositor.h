@@ -17,6 +17,8 @@
 #ifndef DRM_HWCOMPOSER_COMPOSITOR_H_
 #define DRM_HWCOMPOSER_COMPOSITOR_H_
 
+#include "importer.h"
+
 struct hwc_layer_1;
 struct hwc_drm_bo;
 
@@ -57,7 +59,11 @@ class Composition {
 
   // Adds the given layer, whose handle has been imported into the given buffer
   // object, to the given display of the composition. The layer may be modified
-  // to include a releaseFenceFd. Returns 0 on success.
+  // to include a releaseFenceFd.
+  //
+  // Upon success, the compositor takes ownership of bo and is responsible
+  // for calling importer->ReleaseBuffer(bo), where importer is the importer
+  // provided on CreateComposition(). Returns 0 on success.
   virtual int AddLayer(int display, hwc_layer_1 *layer, hwc_drm_bo *bo) = 0;
 
   // Gets the number of successful AddLayer calls that can be made on the
@@ -80,7 +86,7 @@ class Compositor {
   virtual Targeting *targeting() = 0;
 
   // Starts a fresh composition.
-  virtual Composition *CreateComposition() = 0;
+  virtual Composition *CreateComposition(Importer *importer) = 0;
 
   // On success returns a syncpoint fd that will be signaled when composition is
   // complete or -1 if compositing was completed by this method's return. On
