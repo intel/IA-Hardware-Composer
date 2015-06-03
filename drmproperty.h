@@ -27,6 +27,7 @@ namespace android {
 enum DrmPropertyType {
   DRM_PROPERTY_TYPE_INT,
   DRM_PROPERTY_TYPE_ENUM,
+  DRM_PROPERTY_TYPE_OBJECT,
   DRM_PROPERTY_TYPE_INVALID,
 };
 

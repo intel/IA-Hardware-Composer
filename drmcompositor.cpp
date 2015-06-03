@@ -101,36 +101,6 @@ int DrmCompositor::QueueComposition(Composition *composition) {
   return 0;
 }
 
-int DrmCompositor::PerformModeset(DrmCompositionLayerMap_t::iterator begin,
-                                  DrmCompositionLayerMap_t::iterator end) {
-  DrmCompositionLayer *layer = NULL;
-  for (DrmCompositionLayerMap_t::iterator iter = begin; iter != end; ++iter) {
-    if (iter->second.layer.compositionType == HWC_FRAMEBUFFER_TARGET) {
-      layer = &iter->second;
-      break;
-    }
-  }
-  int display = begin->first;
-  if (!layer) {
-    ALOGE("Could not find target framebuffer for display %d", display);
-    return -ENOENT;
-  }
-
-  drmModeModeInfo m;
-  DrmConnector *connector = drm_->GetConnectorForDisplay(display);
-  connector->active_mode().ToModeModeInfo(&m);
-
-  uint32_t connectors = connector->id();
-  int ret = drmModeSetCrtc(drm_->fd(), layer->crtc->id(), layer->bo.fb_id, 0, 0,
-                           &connectors, 1, &m);
-  if (ret)
-    ALOGE("Failed set crtc for disp %d/%d", display, ret);
-  else
-    layer->crtc->set_requires_modeset(false);
-
-  return ret;
-}
-
 int DrmCompositor::CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
                                     DrmCompositionLayerMap_t::iterator end) {
   int ret = 0;
@@ -150,14 +120,6 @@ int DrmCompositor::CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
     layer->acquireFenceFd = -1;
   }
 
-  DrmCrtc *crtc = begin->second.crtc;
-  if (crtc->requires_modeset()) {
-    ret = PerformModeset(begin, end);
-    if (ret)
-      ALOGE("Failed modeset on display %d", begin->first);
-    return ret;
-  }
-
   drmModePropertySetPtr pset = drmModePropertySetAlloc();
   if (!pset) {
     ALOGE("Failed to allocate property set");
@@ -171,7 +133,7 @@ int DrmCompositor::CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
 
     ret =
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
-                              crtc->id()) ||
+                              begin->second.crtc->id()) ||
         drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
                               comp->bo.fb_id) ||
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_x_property().id(),

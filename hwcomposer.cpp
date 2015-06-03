@@ -181,13 +181,8 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
     for (int j = 0; j < num_layers; j++) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
-      if (crtc->requires_modeset()) {
-        if (layer->compositionType == HWC_OVERLAY)
-          layer->compositionType = HWC_FRAMEBUFFER;
-      } else {
-        if (layer->compositionType == HWC_FRAMEBUFFER)
-          layer->compositionType = HWC_OVERLAY;
-      }
+      if (layer->compositionType == HWC_FRAMEBUFFER)
+        layer->compositionType = HWC_OVERLAY;
     }
   }
 
@@ -254,17 +249,6 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     if (!display_contents[i])
       continue;
 
-    DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
-    if (!crtc) {
-      ALOGE("No crtc for display %d", i);
-      hwc_set_cleanup(num_displays, display_contents, composition);
-      return -ENODEV;
-    }
-    bool use_target = false;
-    if (crtc->requires_modeset()) {
-      use_target = true;
-    }
-
     hwc_display_contents_1_t *dc = display_contents[i];
     int j;
     unsigned num_layers = 0;
@@ -273,16 +257,14 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
         continue;
-      if ((use_target && layer->compositionType == HWC_FRAMEBUFFER_TARGET) ||
-          layer->compositionType == HWC_OVERLAY) {
+      if (layer->compositionType == HWC_OVERLAY)
         num_layers++;
-      }
     }
 
     unsigned num_planes = composition->GetRemainingLayers(i, num_layers);
     bool use_pre_compositor = false;
 
-    if (!use_target && num_layers > num_planes) {
+    if (num_layers > num_planes) {
       use_pre_compositor = true;
       // Reserve one of the planes for the result of the pre compositor.
       num_planes--;
@@ -292,13 +274,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
         continue;
-      if (use_target) {
-        if (layer->compositionType != HWC_FRAMEBUFFER_TARGET)
-          continue;
-      } else {
-        if (layer->compositionType != HWC_OVERLAY)
-          continue;
-      }
+      if (layer->compositionType != HWC_OVERLAY)
+        continue;
 
       ret = hwc_add_layer(i, ctx, layer, composition);
       if (ret) {
@@ -606,12 +583,28 @@ static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
     return -EINVAL;
   }
 
-  int ret = ctx->drm.SetDisplayActiveMode(display, hd->config_ids[index]);
+  DrmConnector *c = ctx->drm.GetConnectorForDisplay(display);
+  if (!c) {
+    ALOGE("Failed to get connector for display %d", display);
+    return -ENODEV;
+  }
+  DrmMode mode;
+  for (DrmConnector::ModeIter iter = c->begin_modes(); iter != c->end_modes();
+       ++iter) {
+    if (iter->id() == hd->config_ids[index]) {
+      mode = *iter;
+      break;
+    }
+  }
+  if (mode.id() != hd->config_ids[index]) {
+    ALOGE("Could not find active mode for %d/%d", index, hd->config_ids[index]);
+    return -ENOENT;
+  }
+  int ret = ctx->drm.SetDisplayActiveMode(display, mode);
   if (ret) {
-    ALOGE("Failed to set config for display %d", display);
+    ALOGE("Failed to set active config %d", ret);
     return ret;
   }
-
   return ret;
 }
 

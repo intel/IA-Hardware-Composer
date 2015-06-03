@@ -101,13 +101,20 @@ int DrmResources::Init() {
       break;
     }
 
-    DrmCrtc *crtc = new DrmCrtc(c, i);
+    DrmCrtc *crtc = new DrmCrtc(this, c, i);
 
     drmModeFreeCrtc(c);
 
     if (!crtc) {
       ALOGE("Failed to allocate crtc %d", res->crtcs[i]);
       ret = -ENOMEM;
+      break;
+    }
+
+    ret = crtc->Init();
+    if (ret) {
+      ALOGE("Failed to initialize crtc %d", res->crtcs[i]);
+      delete crtc;
       break;
     }
     crtcs_.push_back(crtc);
@@ -315,43 +322,143 @@ int DrmResources::TryEncoderForDisplay(int display, DrmEncoder *enc) {
   return -EAGAIN;
 }
 
-int DrmResources::SetDisplayActiveMode(int display, uint32_t mode_id) {
-  DrmEncoder *enc;
-  int ret;
+int DrmResources::CreateDisplayPipe(DrmConnector *connector) {
+  int display = connector->display();
+  /* Try to use current setup first */
+  if (connector->encoder()) {
+    int ret = TryEncoderForDisplay(display, connector->encoder());
+    if (!ret) {
+      return 0;
+    } else if (ret != -EAGAIN) {
+      ALOGE("Could not set mode %d/%d", display, ret);
+      return ret;
+    }
+  }
 
-  DrmConnector *con = GetConnectorForDisplay(display);
-  if (!con) {
+  for (DrmConnector::EncoderIter iter = connector->begin_possible_encoders();
+       iter != connector->end_possible_encoders(); ++iter) {
+    int ret = TryEncoderForDisplay(display, *iter);
+    if (!ret) {
+      connector->set_encoder(*iter);
+      return 0;
+    } else if (ret != -EAGAIN) {
+      ALOGE("Could not set mode %d/%d", display, ret);
+      return ret;
+    }
+  }
+  ALOGE("Could not find a suitable encoder/crtc for display %d",
+        connector->display());
+  return -ENODEV;
+}
+
+int DrmResources::CreatePropertyBlob(void *data, size_t length,
+                                     uint32_t *blob_id) {
+  struct drm_mode_create_blob create_blob;
+  memset(&create_blob, 0, sizeof(create_blob));
+  create_blob.length = length;
+  create_blob.data = (__u64)data;
+
+  int ret = drmIoctl(fd_, DRM_IOCTL_MODE_CREATEPROPBLOB, &create_blob);
+  if (ret) {
+    ALOGE("Failed to create mode property blob %d", ret);
+    return ret;
+  }
+  *blob_id = create_blob.blob_id;
+  return 0;
+}
+
+int DrmResources::DestroyPropertyBlob(uint32_t blob_id) {
+  struct drm_mode_destroy_blob destroy_blob;
+  memset(&destroy_blob, 0, sizeof(destroy_blob));
+  destroy_blob.blob_id = (__u32)blob_id;
+  int ret = drmIoctl(fd_, DRM_IOCTL_MODE_DESTROYPROPBLOB, &destroy_blob);
+  if (ret) {
+    ALOGE("Failed to destroy mode property blob %d", ret);
+    return ret;
+  }
+  return 0;
+}
+
+int DrmResources::SetDisplayActiveMode(int display, const DrmMode &mode) {
+  DrmConnector *connector = GetConnectorForDisplay(display);
+  if (!connector) {
     ALOGE("Could not locate connector for display %d", display);
     return -ENODEV;
   }
 
-  /* Try to use current setup first */
-  enc = con->encoder();
-  if (enc) {
-    ret = TryEncoderForDisplay(display, enc);
-    if (!ret) {
-      con->set_encoder(enc);
-      return con->set_active_mode(mode_id);
-    } else if (ret != -EAGAIN) {
-      ALOGE("Could not set mode %d/%d", display, ret);
-      return ret;
-    }
+  int ret = CreateDisplayPipe(connector);
+  if (ret) {
+    ALOGE("Failed CreateDisplayPipe with %d", ret);
+    return ret;
   }
 
-  for (DrmConnector::EncoderIter iter = con->begin_possible_encoders();
-       iter != con->end_possible_encoders(); ++iter) {
-    ret = TryEncoderForDisplay(display, *iter);
-    if (!ret) {
-      con->set_encoder(*iter);
-      return con->set_active_mode(mode_id);
-    } else if (ret != -EAGAIN) {
-      ALOGE("Could not set mode %d/%d", display, ret);
-      return ret;
-    }
+  DrmCrtc *crtc = connector->encoder()->crtc();
+  DrmProperty old_mode;
+  ret = GetCrtcProperty(*crtc, crtc->mode_property().name().c_str(), &old_mode);
+  if (ret) {
+    ALOGE("Failed to get old mode property from crtc %d", crtc->id());
+    return ret;
   }
 
-  ALOGE("Could not find a suitable encoder/crtc for display %d", display);
-  return -EINVAL;
+  struct drm_mode_modeinfo drm_mode;
+  memset(&drm_mode, 0, sizeof(drm_mode));
+  mode.ToDrmModeModeInfo(&drm_mode);
+
+  uint32_t blob_id;
+  ret =
+      CreatePropertyBlob(&drm_mode, sizeof(struct drm_mode_modeinfo), &blob_id);
+  if (ret) {
+    ALOGE("Failed to create mode property blob %d", ret);
+    return ret;
+  }
+
+  drmModePropertySetPtr pset = drmModePropertySetAlloc();
+  if (!pset) {
+    ALOGE("Failed to allocate property set");
+    DestroyPropertyBlob(blob_id);
+    return -ENOMEM;
+  }
+
+  ret = drmModePropertySetAdd(pset, crtc->id(), crtc->mode_property().id(),
+                              blob_id) ||
+        drmModePropertySetAdd(pset, connector->id(),
+                              connector->crtc_id_property().id(), crtc->id());
+  if (ret) {
+    ALOGE("Failed to add blob %d to pset", blob_id);
+    DestroyPropertyBlob(blob_id);
+    drmModePropertySetFree(pset);
+    return ret;
+  }
+
+  ret =
+      drmModePropertySetCommit(fd_, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL, pset);
+
+  drmModePropertySetFree(pset);
+
+  if (ret) {
+    ALOGE("Failed to commit pset ret=%d\n", ret);
+    DestroyPropertyBlob(blob_id);
+    return ret;
+  }
+
+  connector->set_active_mode(mode);
+
+  uint64_t old_blob_id;
+  ret = old_mode.value(&old_blob_id);
+  if (ret) {
+    ALOGE("Could not get old blob id value %d", ret);
+    return ret;
+  }
+  if (!old_blob_id)
+    return 0;
+
+  ret = DestroyPropertyBlob(old_blob_id);
+  if (ret) {
+    ALOGE("Failed to destroy old mode property blob", old_blob_id);
+    return ret;
+  }
+
+  return 0;
 }
 
 int DrmResources::SetDpmsMode(int display, uint64_t mode) {
@@ -359,13 +466,6 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
     ALOGE("Invalid dpms mode %d", mode);
     return -EINVAL;
   }
-
-  DrmCrtc *crtc = GetCrtcForDisplay(display);
-  if (!crtc) {
-    ALOGE("Failed to get DrmCrtc for display %d", display);
-    return -ENODEV;
-  }
-  crtc->set_requires_modeset(true);
 
   DrmConnector *c = GetConnectorForDisplay(display);
   if (!c) {
@@ -414,6 +514,11 @@ int DrmResources::GetProperty(uint32_t obj_id, uint32_t obj_type,
 int DrmResources::GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
                                    DrmProperty *property) {
   return GetProperty(plane.id(), DRM_MODE_OBJECT_PLANE, prop_name, property);
+}
+
+int DrmResources::GetCrtcProperty(const DrmCrtc &crtc, const char *prop_name,
+                                  DrmProperty *property) {
+  return GetProperty(crtc.id(), DRM_MODE_OBJECT_CRTC, prop_name, property);
 }
 
 int DrmResources::GetConnectorProperty(const DrmConnector &connector,

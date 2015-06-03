@@ -51,17 +51,24 @@ class DrmResources {
 
   int GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
                        DrmProperty *property);
+  int GetCrtcProperty(const DrmCrtc &crtc, const char *prop_name,
+                      DrmProperty *property);
   int GetConnectorProperty(const DrmConnector &connector, const char *prop_name,
                            DrmProperty *property);
 
   uint32_t next_mode_id();
-  int SetDisplayActiveMode(int display, uint32_t mode_id);
+  int SetDisplayActiveMode(int display, const DrmMode &mode);
   int SetDpmsMode(int display, uint64_t mode);
 
  private:
   int TryEncoderForDisplay(int display, DrmEncoder *enc);
   int GetProperty(uint32_t obj_id, uint32_t obj_type, const char *prop_name,
                   DrmProperty *property);
+
+  int CreateDisplayPipe(DrmConnector *connector);
+
+  int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
+  int DestroyPropertyBlob(uint32_t blob_id);
 
   int fd_;
   uint32_t mode_id_;

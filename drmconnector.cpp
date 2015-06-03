@@ -50,6 +50,11 @@ int DrmConnector::Init() {
     ALOGE("Could not get DPMS property\n");
     return ret;
   }
+  ret = drm_->GetConnectorProperty(*this, "CRTC_ID", &crtc_id_property_);
+  if (ret) {
+    ALOGE("Could not get CRTC_ID property\n");
+    return ret;
+  }
   return 0;
 }
 
@@ -105,19 +110,16 @@ const DrmMode &DrmConnector::active_mode() const {
   return active_mode_;
 }
 
-int DrmConnector::set_active_mode(uint32_t mode_id) {
-  for (std::vector<DrmMode>::const_iterator iter = modes_.begin();
-       iter != modes_.end(); ++iter) {
-    if (iter->id() == mode_id) {
-      active_mode_ = *iter;
-      return 0;
-    }
-  }
-  return -ENOENT;
+void DrmConnector::set_active_mode(const DrmMode &mode) {
+  active_mode_ = mode;
 }
 
 const DrmProperty &DrmConnector::dpms_property() const {
   return dpms_property_;
+}
+
+const DrmProperty &DrmConnector::crtc_id_property() const {
+  return crtc_id_property_;
 }
 
 DrmConnector::ModeIter DrmConnector::begin_modes() const {

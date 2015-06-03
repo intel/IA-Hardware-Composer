@@ -59,8 +59,6 @@ class DrmCompositor : public Compositor {
 
   int CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
                        DrmCompositionLayerMap_t::iterator end);
-  int PerformModeset(DrmCompositionLayerMap_t::iterator begin,
-                     DrmCompositionLayerMap_t::iterator end);
 
   DrmResources *drm_;
 

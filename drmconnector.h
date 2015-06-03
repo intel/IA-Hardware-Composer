@@ -53,9 +53,10 @@ class DrmConnector {
   ModeIter begin_modes() const;
   ModeIter end_modes() const;
   const DrmMode &active_mode() const;
-  int set_active_mode(uint32_t mode_id);
+  void set_active_mode(const DrmMode &mode);
 
   const DrmProperty &dpms_property() const;
+  const DrmProperty &crtc_id_property() const;
 
   EncoderIter begin_possible_encoders() const;
   EncoderIter end_possible_encoders() const;
@@ -84,6 +85,7 @@ class DrmConnector {
   std::vector<DrmMode> modes_;
 
   DrmProperty dpms_property_;
+  DrmProperty crtc_id_property_;
 
   std::vector<DrmEncoder *> possible_encoders_;
 };
