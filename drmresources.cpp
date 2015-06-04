@@ -33,7 +33,7 @@
 
 namespace android {
 
-DrmResources::DrmResources() : fd_(-1), mode_id_(0) {
+DrmResources::DrmResources() : fd_(-1), mode_id_(0), compositor_(this) {
 }
 
 DrmResources::~DrmResources() {
@@ -235,7 +235,7 @@ int DrmResources::Init() {
   if (ret)
     return ret;
 
-  return 0;
+  return compositor_.Init();
 }
 
 int DrmResources::fd() const {
@@ -381,6 +381,10 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
   }
 
   return 0;
+}
+
+DrmCompositor *DrmResources::compositor() {
+  return &compositor_;
 }
 
 int DrmResources::GetProperty(uint32_t obj_id, uint32_t obj_type,

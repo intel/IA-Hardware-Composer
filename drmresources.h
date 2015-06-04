@@ -17,6 +17,7 @@
 #ifndef ANDROID_DRM_H_
 #define ANDROID_DRM_H_
 
+#include "drmcompositor.h"
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
@@ -46,6 +47,7 @@ class DrmResources {
   DrmConnector *GetConnectorForDisplay(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
+  DrmCompositor *compositor();
 
   int GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
                        DrmProperty *property);
@@ -68,6 +70,7 @@ class DrmResources {
   std::vector<DrmEncoder *> encoders_;
   std::vector<DrmCrtc *> crtcs_;
   std::vector<DrmPlane *> planes_;
+  DrmCompositor compositor_;
 };
 }
 

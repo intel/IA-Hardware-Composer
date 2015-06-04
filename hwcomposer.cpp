@@ -38,8 +38,6 @@
 #include <sw_sync.h>
 #include <sync/sync.h>
 
-#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
-
 #define UM_PER_INCH 25400
 
 namespace android {
@@ -56,16 +54,6 @@ typedef struct hwc_drm_display {
   int display;
 
   std::vector<uint32_t> config_ids;
-
-  struct hwc_worker set_worker;
-
-  std::list<struct hwc_drm_bo> buf_queue;
-  struct hwc_drm_bo front;
-  pthread_mutex_t flip_lock;
-  pthread_cond_t flip_cond;
-
-  int timeline_fd;
-  unsigned timeline_next;
 
   bool enable_vsync_events;
   unsigned int vsync_sequence;
@@ -93,59 +81,70 @@ struct hwc_context_t {
   Importer *importer;
 };
 
-static int hwc_prepare_layer(hwc_layer_1_t *layer) {
-  /* TODO: We can't handle background right now, defer to sufaceFlinger */
-  if (layer->compositionType == HWC_BACKGROUND) {
-    layer->compositionType = HWC_FRAMEBUFFER;
-    ALOGV("Can't handle background layers yet");
-
-    /* TODO: Support sideband compositions */
-  } else if (layer->compositionType == HWC_SIDEBAND) {
-    layer->compositionType = HWC_FRAMEBUFFER;
-    ALOGV("Can't handle sideband content yet");
-  }
-
-  layer->hints = 0;
-
-  /* TODO: Handle cursor by setting compositionType=HWC_CURSOR_OVERLAY */
-  if (layer->flags & HWC_IS_CURSOR_LAYER) {
-    ALOGV("Can't handle async cursors yet");
-  }
-
-  /* TODO: Handle transformations */
-  if (layer->transform) {
-    ALOGV("Can't handle transformations yet");
-  }
-
-  /* TODO: Handle blending & plane alpha*/
-  if (layer->blending == HWC_BLENDING_PREMULT ||
-      layer->blending == HWC_BLENDING_COVERAGE) {
-    ALOGV("Can't handle blending yet");
-  }
-
-  /* TODO: Handle cropping & scaling */
-
-  return 0;
-}
-
-static int hwc_prepare(hwc_composer_device_1_t * /* dev */, size_t num_displays,
+static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
-  /* TODO: Check flags for HWC_GEOMETRY_CHANGED */
+  // XXX: Once we have a GL compositor, just make everything HWC_OVERLAY
+  struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
+  Composition *composition =
+      ctx->drm.compositor()->CreateComposition(ctx->importer);
+  if (!composition) {
+    ALOGE("Drm composition init failed");
+    return -EINVAL;
+  }
 
   for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
 
-    for (int j = 0; j < (int)display_contents[i]->numHwLayers; ++j) {
-      int ret = hwc_prepare_layer(&display_contents[i]->hwLayers[j]);
-      if (ret) {
-        ALOGE("Failed to prepare layer %d:%d", j, i);
-        return ret;
-      }
+    int num_layers = display_contents[i]->numHwLayers;
+    int num_planes = composition->GetRemainingLayers(i, num_layers);
+
+    // XXX: Should go away with atomic modeset
+    DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
+    if (!crtc) {
+      ALOGE("No crtc for display %d", i);
+      delete composition;
+      return -ENODEV;
+    }
+    if (crtc->requires_modeset())
+      num_planes = 0;
+
+    for (int j = std::max(0, num_layers - num_planes); j < num_layers; j++) {
+      if (j >= num_planes)
+        break;
+
+      hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
+      if (layer->compositionType == HWC_FRAMEBUFFER)
+        layer->compositionType = HWC_OVERLAY;
     }
   }
 
+  delete composition;
   return 0;
+}
+
+static void hwc_set_cleanup(size_t num_displays,
+                            hwc_display_contents_1_t **display_contents,
+                            Composition *composition) {
+  for (int i = 0; i < (int)num_displays; ++i) {
+    if (!display_contents[i])
+      continue;
+
+    hwc_display_contents_1_t *dc = display_contents[i];
+    for (size_t j = 0; j < dc->numHwLayers; ++j) {
+      hwc_layer_1_t *layer = &dc->hwLayers[j];
+      if (layer->acquireFenceFd >= 0) {
+        close(layer->acquireFenceFd);
+        layer->acquireFenceFd = -1;
+      }
+    }
+    if (dc->outbufAcquireFenceFd >= 0) {
+      close(dc->outbufAcquireFenceFd);
+      dc->outbufAcquireFenceFd = -1;
+    }
+  }
+
+  delete composition;
 }
 
 static int hwc_queue_vblank_event(struct hwc_drm_display *hd) {
@@ -199,29 +198,6 @@ static void hwc_vblank_event_handler(int /* fd */, unsigned int sequence,
   hd->ctx->procs->vsync(hd->ctx->procs, hd->display, timestamp);
 }
 
-static void hwc_flip_event_handler(int /* fd */, unsigned int /* sequence */,
-                                   unsigned int /* tv_sec */,
-                                   unsigned int /* tv_usec */,
-                                   void *user_data) {
-  struct hwc_drm_display *hd = (struct hwc_drm_display *)user_data;
-
-  int ret = pthread_mutex_lock(&hd->flip_lock);
-  if (ret) {
-    ALOGE("Failed to lock flip lock ret=%d", ret);
-    return;
-  }
-
-  ret = pthread_cond_signal(&hd->flip_cond);
-  if (ret)
-    ALOGE("Failed to signal flip condition ret=%d", ret);
-
-  ret = pthread_mutex_unlock(&hd->flip_lock);
-  if (ret) {
-    ALOGE("Failed to unlock flip lock ret=%d", ret);
-    return;
-  }
-}
-
 static void *hwc_event_worker(void *arg) {
   setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
 
@@ -233,7 +209,7 @@ static void *hwc_event_worker(void *arg) {
 
     drmEventContext event_context;
     event_context.version = DRM_EVENT_CONTEXT_VERSION;
-    event_context.page_flip_handler = hwc_flip_event_handler;
+    event_context.page_flip_handler = NULL;
     event_context.vblank_handler = hwc_vblank_event_handler;
 
     int ret;
@@ -252,272 +228,95 @@ static void *hwc_event_worker(void *arg) {
   return NULL;
 }
 
-static bool hwc_mode_is_equal(drmModeModeInfoPtr a, drmModeModeInfoPtr b) {
-  return a->clock == b->clock && a->hdisplay == b->hdisplay &&
-         a->hsync_start == b->hsync_start && a->hsync_end == b->hsync_end &&
-         a->htotal == b->htotal && a->hskew == b->hskew &&
-         a->vdisplay == b->vdisplay && a->vsync_start == b->vsync_start &&
-         a->vsync_end == b->vsync_end && a->vtotal == b->vtotal &&
-         a->vscan == b->vscan && a->vrefresh == b->vrefresh &&
-         a->flags == b->flags && a->type == b->type &&
-         !strcmp(a->name, b->name);
-}
-
-static int hwc_flip(struct hwc_drm_display *hd, struct hwc_drm_bo *buf) {
-  DrmCrtc *crtc = hd->ctx->drm.GetCrtcForDisplay(hd->display);
-  if (!crtc) {
-    ALOGE("Failed to get crtc for display %d", hd->display);
-    return -ENODEV;
+static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
+                         Composition *composition) {
+  hwc_drm_bo_t bo;
+  int ret = ctx->importer->ImportBuffer(layer->handle, &bo);
+  if (ret) {
+    ALOGE("Failed to import handle to bo %d", ret);
+    return ret;
   }
 
-  DrmConnector *connector = hd->ctx->drm.GetConnectorForDisplay(hd->display);
-  if (!connector) {
-    ALOGE("Failed to get connector for display %d", hd->display);
-    return -ENODEV;
-  }
-
-  int ret;
-  if (crtc->requires_modeset()) {
-    drmModeModeInfo drm_mode;
-    connector->active_mode().ToModeModeInfo(&drm_mode);
-    uint32_t connector_id = connector->id();
-    ret = drmModeSetCrtc(hd->ctx->drm.fd(), crtc->id(), buf->fb_id, 0, 0,
-                         &connector_id, 1, &drm_mode);
-    if (ret) {
-      ALOGE("Modeset failed for crtc %d", crtc->id());
-      return ret;
-    }
-    crtc->set_requires_modeset(false);
+  ret = composition->AddLayer(display, layer, &bo);
+  if (!ret)
     return 0;
-  }
 
-  ret = drmModePageFlip(hd->ctx->drm.fd(), crtc->id(), buf->fb_id,
-                        DRM_MODE_PAGE_FLIP_EVENT, hd);
-  if (ret) {
-    ALOGE("Failed to flip buffer for crtc %d", crtc->id());
-    return ret;
-  }
+  int destroy_ret = ctx->importer->ReleaseBuffer(&bo);
+  if (destroy_ret)
+    ALOGE("Failed to destroy buffer %d", destroy_ret);
 
-  ret = pthread_cond_wait(&hd->flip_cond, &hd->flip_lock);
-  if (ret) {
-    ALOGE("Failed to wait on condition %d", ret);
-    return ret;
-  }
-
-  return 0;
-}
-
-static int hwc_wait_and_set(struct hwc_drm_display *hd,
-                            struct hwc_drm_bo *buf) {
-  int ret;
-  if (buf->acquire_fence_fd >= 0) {
-    ret = sync_wait(buf->acquire_fence_fd, -1);
-    close(buf->acquire_fence_fd);
-    buf->acquire_fence_fd = -1;
-    if (ret) {
-      ALOGE("Failed to wait for acquire %d", ret);
-      return ret;
-    }
-  }
-
-  ret = hwc_flip(hd, buf);
-  if (ret) {
-    ALOGE("Failed to perform flip\n");
-    return ret;
-  }
-
-  if (!hd->ctx->importer->ReleaseBuffer(buf)) {
-    struct drm_gem_close args;
-    memset(&args, 0, sizeof(args));
-    for (int i = 0; i < ARRAY_SIZE(hd->front.gem_handles); ++i) {
-      if (!hd->front.gem_handles[i])
-        continue;
-
-      ret = pthread_mutex_lock(&hd->set_worker.lock);
-      if (ret) {
-        ALOGE("Failed to lock set lock in wait_and_set() %d", ret);
-        continue;
-      }
-
-      /* check for duplicate handle in buf_queue */
-      bool found = false;
-      for (std::list<struct hwc_drm_bo>::iterator bi = hd->buf_queue.begin();
-           bi != hd->buf_queue.end(); ++bi)
-        for (int j = 0; j < ARRAY_SIZE(bi->gem_handles); ++j)
-          if (hd->front.gem_handles[i] == bi->gem_handles[j])
-            found = true;
-
-      for (int j = 0; j < ARRAY_SIZE(buf->gem_handles); ++j)
-        if (hd->front.gem_handles[i] == buf->gem_handles[j])
-          found = true;
-
-      if (!found) {
-        args.handle = hd->front.gem_handles[i];
-        drmIoctl(hd->ctx->drm.fd(), DRM_IOCTL_GEM_CLOSE, &args);
-      }
-      if (pthread_mutex_unlock(&hd->set_worker.lock))
-        ALOGE("Failed to unlock set lock in wait_and_set() %d", ret);
-    }
-  }
-
-  hd->front = *buf;
-
-  return ret;
-}
-
-static void *hwc_set_worker(void *arg) {
-  setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
-
-  struct hwc_drm_display *hd = (struct hwc_drm_display *)arg;
-  int ret = pthread_mutex_lock(&hd->flip_lock);
-  if (ret) {
-    ALOGE("Failed to lock flip lock ret=%d", ret);
-    return NULL;
-  }
-
-  do {
-    ret = pthread_mutex_lock(&hd->set_worker.lock);
-    if (ret) {
-      ALOGE("Failed to lock set lock %d", ret);
-      return NULL;
-    }
-
-    if (hd->set_worker.exit)
-      break;
-
-    if (hd->buf_queue.empty()) {
-      ret = pthread_cond_wait(&hd->set_worker.cond, &hd->set_worker.lock);
-      if (ret) {
-        ALOGE("Failed to wait on condition %d", ret);
-        break;
-      }
-    }
-
-    struct hwc_drm_bo buf;
-    buf = hd->buf_queue.front();
-    hd->buf_queue.pop_front();
-
-    ret = pthread_mutex_unlock(&hd->set_worker.lock);
-    if (ret) {
-      ALOGE("Failed to unlock set lock %d", ret);
-      return NULL;
-    }
-
-    ret = hwc_wait_and_set(hd, &buf);
-    if (ret)
-      ALOGE("Failed to wait and set %d", ret);
-
-    ret = sw_sync_timeline_inc(hd->timeline_fd, 1);
-    if (ret)
-      ALOGE("Failed to increment sync timeline %d", ret);
-  } while (true);
-
-  ret = pthread_mutex_unlock(&hd->set_worker.lock);
-  if (ret)
-    ALOGE("Failed to unlock set lock while exiting %d", ret);
-
-  ret = pthread_mutex_unlock(&hd->flip_lock);
-  if (ret)
-    ALOGE("Failed to unlock flip lock ret=%d", ret);
-
-  return NULL;
-}
-
-static void hwc_close_fences(hwc_display_contents_1_t *display_contents) {
-  for (int i = 0; i < (int)display_contents->numHwLayers; ++i) {
-    hwc_layer_1_t *layer = &display_contents->hwLayers[i];
-    if (layer->acquireFenceFd >= 0) {
-      close(layer->acquireFenceFd);
-      layer->acquireFenceFd = -1;
-    }
-  }
-  if (display_contents->outbufAcquireFenceFd >= 0) {
-    close(display_contents->outbufAcquireFenceFd);
-    display_contents->outbufAcquireFenceFd = -1;
-  }
-}
-
-static int hwc_set_display(hwc_context_t *ctx, int display,
-                           hwc_display_contents_1_t *display_contents) {
-  struct hwc_drm_display *hd = &ctx->displays[display];
-  DrmCrtc *crtc = hd->ctx->drm.GetCrtcForDisplay(display);
-  if (!crtc) {
-    ALOGE("There is no active crtc for display %d", display);
-    hwc_close_fences(display_contents);
-    return -ENOENT;
-  }
-
-  /*
-   * TODO: We can only support one hw layer atm, so choose either the
-   * first one or the framebuffer target.
-   */
-  hwc_layer_1_t *layer = NULL;
-  if (!display_contents->numHwLayers) {
-    return 0;
-  } else if (display_contents->numHwLayers == 1) {
-    layer = &display_contents->hwLayers[0];
-  } else {
-    int i;
-    for (i = 0; i < (int)display_contents->numHwLayers; ++i) {
-      layer = &display_contents->hwLayers[i];
-      if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
-        break;
-    }
-    if (i == (int)display_contents->numHwLayers) {
-      ALOGE("Could not find a suitable layer for display %d", display);
-    }
-  }
-
-  int ret = pthread_mutex_lock(&hd->set_worker.lock);
-  if (ret) {
-    ALOGE("Failed to lock set lock in set() %d", ret);
-    hwc_close_fences(display_contents);
-    return ret;
-  }
-
-  struct hwc_drm_bo buf;
-  ret = ctx->importer->ImportBuffer(layer->handle, &buf);
-  if (ret) {
-    ALOGE("Failed to import handle to drm bo %d", ret);
-    hwc_close_fences(display_contents);
-    return ret;
-  }
-  buf.acquire_fence_fd = layer->acquireFenceFd;
-  layer->acquireFenceFd = -1;
-
-  /*
-   * TODO: Retire and release can use the same sync point here b/c hwc is
-   * restricted to one layer. Once that is no longer true, this will need
-   * to change
-   */
-  ++hd->timeline_next;
-  display_contents->retireFenceFd = sw_sync_fence_create(
-      hd->timeline_fd, "drm_hwc_retire", hd->timeline_next);
-  layer->releaseFenceFd = sw_sync_fence_create(
-      hd->timeline_fd, "drm_hwc_release", hd->timeline_next);
-  hd->buf_queue.push_back(buf);
-
-  ret = pthread_cond_signal(&hd->set_worker.cond);
-  if (ret)
-    ALOGE("Failed to signal set worker %d", ret);
-
-  if (pthread_mutex_unlock(&hd->set_worker.lock))
-    ALOGE("Failed to unlock set lock in set()");
-
-  hwc_close_fences(display_contents);
   return ret;
 }
 
 static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **display_contents) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-
-  int ret = 0;
-  for (int i = 0; i < (int)num_displays; ++i) {
-    if (display_contents[i])
-      ret = hwc_set_display(ctx, i, display_contents[i]);
+  Composition *composition =
+      ctx->drm.compositor()->CreateComposition(ctx->importer);
+  if (!composition) {
+    ALOGE("Drm composition init failed");
+    hwc_set_cleanup(num_displays, display_contents, NULL);
+    return -EINVAL;
   }
 
+  int ret;
+  for (int i = 0; i < (int)num_displays; ++i) {
+    if (!display_contents[i])
+      continue;
+
+    DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
+    if (!crtc) {
+      ALOGE("No crtc for display %d", i);
+      hwc_set_cleanup(num_displays, display_contents, composition);
+      return -ENODEV;
+    }
+
+    hwc_display_contents_1_t *dc = display_contents[i];
+    unsigned num_layers = dc->numHwLayers;
+    unsigned num_planes = composition->GetRemainingLayers(i, num_layers);
+    bool use_target = false;
+    // XXX: We don't need to check for modeset required with atomic modeset
+    if (crtc->requires_modeset() || num_layers > num_planes)
+      use_target = true;
+
+    // XXX: Won't need to worry about FB_TARGET with GL Compositor
+    for (int j = 0; use_target && j < (int)num_layers; ++j) {
+      hwc_layer_1_t *layer = &dc->hwLayers[j];
+      if (layer->compositionType != HWC_FRAMEBUFFER_TARGET)
+        continue;
+
+      ret = hwc_add_layer(i, ctx, layer, composition);
+      if (ret) {
+        ALOGE("Add layer failed %d", ret);
+        hwc_set_cleanup(num_displays, display_contents, composition);
+        return ret;
+      }
+      --num_planes;
+      break;
+    }
+
+    for (int j = 0; num_planes && j < (int)num_layers; ++j) {
+      hwc_layer_1_t *layer = &dc->hwLayers[j];
+      if (layer->compositionType != HWC_OVERLAY)
+        continue;
+
+      ret = hwc_add_layer(i, ctx, layer, composition);
+      if (ret) {
+        ALOGE("Add layer failed %d", ret);
+        hwc_set_cleanup(num_displays, display_contents, composition);
+        return ret;
+      }
+      --num_planes;
+    }
+  }
+
+  ret = ctx->drm.compositor()->QueueComposition(composition);
+  if (ret) {
+    ALOGE("Failed to queue the composition");
+    hwc_set_cleanup(num_displays, display_contents, composition);
+    return ret;
+  }
+  hwc_set_cleanup(num_displays, display_contents, NULL);
   return ret;
 }
 
@@ -744,17 +543,8 @@ static int hwc_destroy_worker(struct hwc_worker *worker) {
   return ret;
 }
 
-static void hwc_destroy_display(struct hwc_drm_display *hd) {
-  if (hwc_destroy_worker(&hd->set_worker))
-    ALOGE("Destroy set worker failed");
-}
-
 static int hwc_device_close(struct hw_device_t *dev) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
-
-  for (hwc_context_t::DisplayMapIter iter = ctx->displays.begin();
-       iter != ctx->displays.end(); ++iter)
-    hwc_destroy_display(&iter->second);
 
   if (hwc_destroy_worker(&ctx->event_worker))
     ALOGE("Destroy event worker failed");
@@ -819,63 +609,13 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display) {
   hd->enable_vsync_events = false;
   hd->vsync_sequence = 0;
 
-  int ret = pthread_mutex_init(&hd->flip_lock, NULL);
-  if (ret) {
-    ALOGE("Failed to initialize flip lock %d", ret);
-    return ret;
-  }
-
-  ret = pthread_cond_init(&hd->flip_cond, NULL);
-  if (ret) {
-    ALOGE("Failed to intiialize flip condition %d", ret);
-    pthread_mutex_destroy(&hd->flip_lock);
-    return ret;
-  }
-
-  ret = sw_sync_timeline_create();
-  if (ret < 0) {
-    ALOGE("Failed to create sw sync timeline %d", ret);
-    pthread_cond_destroy(&hd->flip_cond);
-    pthread_mutex_destroy(&hd->flip_lock);
-    return ret;
-  }
-  hd->timeline_fd = ret;
-
-  /*
-   * Initialize timeline_next to 1, because point 0 will be the very first
-   * set operation. Since we increment every time set() is called,
-   * initializing to 0 would cause an off-by-one error where
-   * surfaceflinger would composite on the front buffer.
-   */
-  hd->timeline_next = 1;
-
-  ret = hwc_set_initial_config(hd);
+  int ret = hwc_set_initial_config(hd);
   if (ret) {
     ALOGE("Failed to set initial config for d=%d ret=%d", display, ret);
-    close(hd->timeline_fd);
-    pthread_cond_destroy(&hd->flip_cond);
-    pthread_mutex_destroy(&hd->flip_lock);
-    return ret;
-  }
-
-  ret = hwc_initialize_worker(&hd->set_worker, hwc_set_worker, hd);
-  if (ret) {
-    ALOGE("Failed to create set worker %d\n", ret);
-    close(hd->timeline_fd);
-    pthread_cond_destroy(&hd->flip_cond);
-    pthread_mutex_destroy(&hd->flip_lock);
     return ret;
   }
 
   return 0;
-}
-
-static void hwc_free_conn_list(drmModeConnectorPtr *conn_list, int num_conn) {
-  for (int i = 0; i < num_conn; ++i) {
-    if (conn_list[i])
-      drmModeFreeConnector(conn_list[i]);
-  }
-  free(conn_list);
 }
 
 static int hwc_enumerate_displays(struct hwc_context_t *ctx) {
