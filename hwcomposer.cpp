@@ -18,6 +18,7 @@
 
 #include "drm_hwcomposer.h"
 #include "drmresources.h"
+#include "importer.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -75,14 +76,21 @@ struct hwc_context_t {
   typedef std::map<int, hwc_drm_display_t> DisplayMap;
   typedef DisplayMap::iterator DisplayMapIter;
 
+  hwc_context_t() : procs(NULL), importer(NULL) {
+  }
+
+  ~hwc_context_t() {
+    delete importer;
+  }
+
   hwc_composer_device_1_t device;
   hwc_procs_t const *procs;
-  struct hwc_import_context *import_ctx;
 
   struct hwc_worker event_worker;
 
   DisplayMap displays;
   DrmResources drm;
+  Importer *importer;
 };
 
 static int hwc_prepare_layer(hwc_layer_1_t *layer) {
@@ -318,8 +326,7 @@ static int hwc_wait_and_set(struct hwc_drm_display *hd,
     return ret;
   }
 
-  if (hwc_import_bo_release(hd->ctx->drm.fd(), hd->ctx->import_ctx,
-                            &hd->front)) {
+  if (!hd->ctx->importer->ReleaseBuffer(buf)) {
     struct drm_gem_close args;
     memset(&args, 0, sizeof(args));
     for (int i = 0; i < ARRAY_SIZE(hd->front.gem_handles); ++i) {
@@ -469,9 +476,7 @@ static int hwc_set_display(hwc_context_t *ctx, int display,
   }
 
   struct hwc_drm_bo buf;
-  memset(&buf, 0, sizeof(buf));
-  ret =
-      hwc_import_bo_create(ctx->drm.fd(), ctx->import_ctx, layer->handle, &buf);
+  ret = ctx->importer->ImportBuffer(layer->handle, &buf);
   if (ret) {
     ALOGE("Failed to import handle to drm bo %d", ret);
     hwc_close_fences(display_contents);
@@ -754,12 +759,7 @@ static int hwc_device_close(struct hw_device_t *dev) {
   if (hwc_destroy_worker(&ctx->event_worker))
     ALOGE("Destroy event worker failed");
 
-  int ret = hwc_import_destroy(ctx->import_ctx);
-  if (ret)
-    ALOGE("Could not destroy import %d", ret);
-
   delete ctx;
-
   return 0;
 }
 
@@ -912,9 +912,9 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     return ret;
   }
 
-  ret = hwc_import_init(&ctx->import_ctx);
-  if (ret) {
-    ALOGE("Failed to initialize import context");
+  ctx->importer = Importer::CreateInstance(&ctx->drm);
+  if (!ctx->importer) {
+    ALOGE("Failed to create importer instance");
     delete ctx;
     return ret;
   }
