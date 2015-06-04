@@ -19,6 +19,7 @@
 #include "drm_hwcomposer.h"
 #include "drmresources.h"
 #include "importer.h"
+#include "vsyncworker.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -42,21 +43,13 @@
 
 namespace android {
 
-struct hwc_worker {
-  pthread_t thread;
-  pthread_mutex_t lock;
-  pthread_cond_t cond;
-  bool exit;
-};
-
 typedef struct hwc_drm_display {
   struct hwc_context_t *ctx;
   int display;
 
   std::vector<uint32_t> config_ids;
 
-  bool enable_vsync_events;
-  unsigned int vsync_sequence;
+  VSyncWorker vsync_worker;
 } hwc_drm_display_t;
 
 struct hwc_context_t {
@@ -73,8 +66,6 @@ struct hwc_context_t {
 
   hwc_composer_device_1_t device;
   hwc_procs_t const *procs;
-
-  struct hwc_worker event_worker;
 
   DisplayMap displays;
   DrmResources drm;
@@ -145,87 +136,6 @@ static void hwc_set_cleanup(size_t num_displays,
   }
 
   delete composition;
-}
-
-static int hwc_queue_vblank_event(struct hwc_drm_display *hd) {
-  DrmCrtc *crtc = hd->ctx->drm.GetCrtcForDisplay(hd->display);
-  if (!crtc) {
-    ALOGE("Failed to get crtc for display");
-    return -ENODEV;
-  }
-
-  drmVBlank vblank;
-  memset(&vblank, 0, sizeof(vblank));
-
-  uint32_t high_crtc = (crtc->pipe() << DRM_VBLANK_HIGH_CRTC_SHIFT);
-  vblank.request.type = (drmVBlankSeqType)(
-      DRM_VBLANK_ABSOLUTE | DRM_VBLANK_NEXTONMISS | DRM_VBLANK_EVENT |
-      (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
-  vblank.request.signal = (unsigned long)hd;
-  vblank.request.sequence = hd->vsync_sequence + 1;
-
-  int ret = drmWaitVBlank(hd->ctx->drm.fd(), &vblank);
-  if (ret) {
-    ALOGE("Failed to wait for vblank %d", ret);
-    return ret;
-  }
-
-  return 0;
-}
-
-static void hwc_vblank_event_handler(int /* fd */, unsigned int sequence,
-                                     unsigned int tv_sec, unsigned int tv_usec,
-                                     void *user_data) {
-  struct hwc_drm_display *hd = (struct hwc_drm_display *)user_data;
-
-  if (!hd->enable_vsync_events || !hd->ctx->procs->vsync)
-    return;
-
-  /*
-   * Discard duplicate vsync (can happen when enabling vsync events while
-   * already processing vsyncs).
-   */
-  if (sequence <= hd->vsync_sequence)
-    return;
-
-  hd->vsync_sequence = sequence;
-  int ret = hwc_queue_vblank_event(hd);
-  if (ret)
-    ALOGE("Failed to queue vblank event ret=%d", ret);
-
-  int64_t timestamp =
-      (int64_t)tv_sec * 1000 * 1000 * 1000 + (int64_t)tv_usec * 1000;
-  hd->ctx->procs->vsync(hd->ctx->procs, hd->display, timestamp);
-}
-
-static void *hwc_event_worker(void *arg) {
-  setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
-
-  struct hwc_context_t *ctx = (struct hwc_context_t *)arg;
-  do {
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(ctx->drm.fd(), &fds);
-
-    drmEventContext event_context;
-    event_context.version = DRM_EVENT_CONTEXT_VERSION;
-    event_context.page_flip_handler = NULL;
-    event_context.vblank_handler = hwc_vblank_event_handler;
-
-    int ret;
-    do {
-      ret = select(ctx->drm.fd() + 1, &fds, NULL, NULL, NULL);
-    } while (ret == -1 && errno == EINTR);
-
-    if (ret != 1) {
-      ALOGE("Failed waiting for drm event\n");
-      continue;
-    }
-
-    drmHandleEvent(ctx->drm.fd(), &event_context);
-  } while (true);
-
-  return NULL;
 }
 
 static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
@@ -322,36 +232,12 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
 static int hwc_event_control(struct hwc_composer_device_1 *dev, int display,
                              int event, int enabled) {
-  struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  struct hwc_drm_display *hd = &ctx->displays[display];
   if (event != HWC_EVENT_VSYNC || (enabled != 0 && enabled != 1))
     return -EINVAL;
 
-  DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(display);
-  if (!crtc) {
-    ALOGD("Can't service events for display %d, no crtc", display);
-    return -EINVAL;
-  }
-
-  hd->enable_vsync_events = !!enabled;
-
-  if (!hd->enable_vsync_events)
-    return 0;
-
-  /*
-   * Note that it's possible that the event worker is already waiting for
-   * a vsync, and this will be a duplicate request. In that event, we'll
-   * end up firing the event handler twice, and it will discard the second
-   * event. Not ideal, but not worth introducing a bunch of additional
-   * logic/locks/state for.
-   */
-  int ret = hwc_queue_vblank_event(hd);
-  if (ret) {
-    ALOGE("Failed to queue vblank event ret=%d", ret);
-    return ret;
-  }
-
-  return 0;
+  struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
+  hwc_drm_display_t *hd = &ctx->displays[display];
+  return hd->vsync_worker.VSyncControl(enabled);
 }
 
 static int hwc_set_power_mode(struct hwc_composer_device_1 *dev, int display,
@@ -396,6 +282,11 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
 
   ctx->procs = procs;
+
+  for (hwc_context_t::DisplayMapIter iter = ctx->displays.begin();
+       iter != ctx->displays.end(); ++iter) {
+    iter->second.vsync_worker.SetProcs(procs);
+  }
 }
 
 static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
@@ -519,64 +410,9 @@ static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
   return ret;
 }
 
-static int hwc_destroy_worker(struct hwc_worker *worker) {
-  int ret = pthread_mutex_lock(&worker->lock);
-  if (ret) {
-    ALOGE("Failed to lock in destroy() %d", ret);
-    return ret;
-  }
-
-  worker->exit = true;
-
-  ret |= pthread_cond_signal(&worker->cond);
-  if (ret)
-    ALOGE("Failed to signal cond in destroy() %d", ret);
-
-  ret |= pthread_mutex_unlock(&worker->lock);
-  if (ret)
-    ALOGE("Failed to unlock in destroy() %d", ret);
-
-  ret |= pthread_join(worker->thread, NULL);
-  if (ret && ret != ESRCH)
-    ALOGE("Failed to join thread in destroy() %d", ret);
-
-  return ret;
-}
-
 static int hwc_device_close(struct hw_device_t *dev) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
-
-  if (hwc_destroy_worker(&ctx->event_worker))
-    ALOGE("Destroy event worker failed");
-
   delete ctx;
-  return 0;
-}
-
-static int hwc_initialize_worker(struct hwc_worker *worker,
-                                 void *(*routine)(void *), void *arg) {
-  int ret = pthread_cond_init(&worker->cond, NULL);
-  if (ret) {
-    ALOGE("Failed to create worker condition %d", ret);
-    return ret;
-  }
-
-  ret = pthread_mutex_init(&worker->lock, NULL);
-  if (ret) {
-    ALOGE("Failed to initialize worker lock %d", ret);
-    pthread_cond_destroy(&worker->cond);
-    return ret;
-  }
-
-  worker->exit = false;
-
-  ret = pthread_create(&worker->thread, NULL, routine, arg);
-  if (ret) {
-    ALOGE("Could not create worker thread %d", ret);
-    pthread_mutex_destroy(&worker->lock);
-    pthread_cond_destroy(&worker->cond);
-    return ret;
-  }
   return 0;
 }
 
@@ -606,12 +442,16 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display) {
   hwc_drm_display_t *hd = &ctx->displays[display];
   hd->ctx = ctx;
   hd->display = display;
-  hd->enable_vsync_events = false;
-  hd->vsync_sequence = 0;
 
   int ret = hwc_set_initial_config(hd);
   if (ret) {
     ALOGE("Failed to set initial config for d=%d ret=%d", display, ret);
+    return ret;
+  }
+
+  ret = hd->vsync_worker.Init(&ctx->drm, display);
+  if (ret) {
+    ALOGE("Failed to create event worker for display %d %d\n", display, ret);
     return ret;
   }
 
@@ -662,13 +502,6 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   ret = hwc_enumerate_displays(ctx);
   if (ret) {
     ALOGE("Failed to enumerate displays: %s", strerror(ret));
-    delete ctx;
-    return ret;
-  }
-
-  ret = hwc_initialize_worker(&ctx->event_worker, hwc_event_worker, ctx);
-  if (ret) {
-    ALOGE("Failed to create event worker %d\n", ret);
     delete ctx;
     return ret;
   }
