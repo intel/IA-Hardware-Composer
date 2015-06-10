@@ -26,6 +26,7 @@
 
 #include <pthread.h>
 #include <queue>
+#include <sstream>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -49,6 +50,7 @@ class DrmCompositor : public Compositor {
 
   virtual int QueueComposition(Composition *composition);
   virtual int Composite();
+  virtual void Dump(std::ostringstream *out) const;
 
   bool HaveQueuedComposites() const;
 
@@ -73,6 +75,11 @@ class DrmCompositor : public Compositor {
 
   // mutable since we need to acquire in HaveQueuedComposites
   mutable pthread_mutex_t lock_;
+
+  // State tracking progress since our last Dump(). These are mutable since
+  // we need to reset them on every Dump() call.
+  mutable uint64_t dump_frames_composited_;
+  mutable uint64_t dump_last_timestamp_ns_;
 };
 }
 

@@ -22,7 +22,9 @@
 #include "drmresources.h"
 
 #include <pthread.h>
+#include <sstream>
 #include <stdlib.h>
+#include <time.h>
 
 #include <cutils/log.h>
 #include <sync/sync.h>
@@ -34,7 +36,13 @@ DrmCompositor::DrmCompositor(DrmResources *drm)
       worker_(this),
       active_composition_(NULL),
       frame_no_(0),
-      initialized_(false) {
+      initialized_(false),
+      dump_frames_composited_(0),
+      dump_last_timestamp_ns_(0) {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts))
+    return;
+  dump_last_timestamp_ns_ = ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
 }
 
 DrmCompositor::~DrmCompositor() {
@@ -218,6 +226,7 @@ int DrmCompositor::Composite() {
 
   DrmComposition *composition = composite_queue_.front();
   composite_queue_.pop();
+  ++dump_frames_composited_;
 
   ret = pthread_mutex_unlock(&lock_);
   if (ret) {
@@ -266,5 +275,32 @@ bool DrmCompositor::HaveQueuedComposites() const {
   }
 
   return empty_ret;
+}
+
+void DrmCompositor::Dump(std::ostringstream *out) const {
+  uint64_t cur_ts;
+
+  int ret = pthread_mutex_lock(&lock_);
+  if (ret)
+    return;
+
+  uint64_t num_frames = dump_frames_composited_;
+  dump_frames_composited_ = 0;
+
+  struct timespec ts;
+  ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  ret |= pthread_mutex_unlock(&lock_);
+  if (ret)
+    return;
+
+  cur_ts = ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+  uint64_t num_ms = (cur_ts - dump_last_timestamp_ns_) / (1000 * 1000);
+  unsigned fps = num_ms ? (num_frames * 1000) / (num_ms) : 0;
+
+  *out << "DrmCompositor: num_frames=" << num_frames << " num_ms=" << num_ms <<
+          " fps=" << fps << "\n";
+
+  dump_last_timestamp_ns_ = cur_ts;
 }
 }
