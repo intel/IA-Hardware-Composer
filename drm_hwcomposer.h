@@ -60,6 +60,7 @@ typedef struct hwc_drm_bo {
   uint32_t gem_handles[4];
   uint32_t fb_id;
   int acquire_fence_fd;
+  void *priv;
 } hwc_drm_bo_t;
 
 int hwc_import_init(struct hwc_import_context **ctx);
