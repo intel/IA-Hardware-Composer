@@ -20,6 +20,7 @@
 #include "importer.h"
 #include "nvimporter.h"
 
+#include <stdatomic.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -70,6 +71,7 @@ int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   memset(bo, 0, sizeof(hwc_drm_bo_t));
   NvBuffer_t *buf = GrallocGetNvBuffer(handle);
   if (buf) {
+    atomic_fetch_add(&buf->ref, 1);
     *bo = buf->bo;
     return 0;
   }
@@ -79,7 +81,13 @@ int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
     ALOGE("Failed to allocate new NvBuffer_t");
     return -ENOMEM;
   }
+  buf->bo.priv = buf;
   buf->importer = this;
+
+  // We initialize the reference count to 2 since NvGralloc is still using this
+  // buffer (will be cleared in the NvGrallocRelease), and the other
+  // reference is for HWC (this ImportBuffer call).
+  atomic_init(&buf->ref, 2);
 
   int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DRM_IMPORT,
                               drm_->fd(), handle, &buf->bo);
@@ -113,16 +121,24 @@ int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return 0;
 }
 
-int NvImporter::ReleaseBuffer(hwc_drm_bo_t * /* bo */) {
-  /* Stub this out since we don't want hwc releasing buffers */
+int NvImporter::ReleaseBuffer(hwc_drm_bo_t * bo) {
+  NvBuffer_t *buf = (NvBuffer_t *)bo->priv;
+  if (!buf) {
+    ALOGE("Freeing bo %ld, buf is NULL!", bo->fb_id);
+    return 0;
+  }
+  if (atomic_fetch_sub(&buf->ref, 1) > 1)
+    return 0;
+
+  ReleaseBufferImpl(bo);
+  delete buf;
   return 0;
 }
 
 // static
-void NvImporter::ReleaseBufferCallback(void *nv_buffer) {
-  NvBuffer_t *buf = (NvBuffer_t *)nv_buffer;
-  buf->importer->ReleaseBufferImpl(&buf->bo);
-  delete buf;
+void NvImporter::NvGrallocRelease(void *nv_buffer) {
+  NvBuffer_t *buf = (NvBuffer *)nv_buffer;
+  buf->importer->ReleaseBuffer(&buf->bo);
 }
 
 void NvImporter::ReleaseBufferImpl(hwc_drm_bo_t *bo) {
@@ -152,13 +168,13 @@ NvImporter::NvBuffer_t *NvImporter::GrallocGetNvBuffer(buffer_handle_t handle) {
   void *priv = NULL;
   int ret =
       gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_GET_IMPORTER_PRIVATE,
-                        handle, ReleaseBufferCallback, &priv);
+                        handle, NvGrallocRelease, &priv);
   return ret ? NULL : (NvBuffer_t *)priv;
 }
 
 int NvImporter::GrallocSetNvBuffer(buffer_handle_t handle, NvBuffer_t *buf) {
   return gralloc_->perform(gralloc_,
                            GRALLOC_MODULE_PERFORM_SET_IMPORTER_PRIVATE, handle,
-                           ReleaseBufferCallback, buf);
+                           NvGrallocRelease, buf);
 }
 }
