@@ -19,6 +19,8 @@
 
 #include "importer.h"
 
+#include <sstream>
+
 struct hwc_layer_1;
 struct hwc_drm_bo;
 
@@ -98,6 +100,9 @@ class Compositor {
   // on a worker thread. Each Composite call handles one composition that was
   // submitted via QueueComposition in FIFO order. Returns 0 on success.
   virtual int Composite() = 0;
+
+  // Dumps state from the Compositor to the out stream
+  virtual void Dump(std::ostringstream *out) const;
 };
 
 }  // namespace android

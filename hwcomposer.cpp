@@ -72,6 +72,16 @@ struct hwc_context_t {
   Importer *importer;
 };
 
+static void hwc_dump(struct hwc_composer_device_1* dev, char *buff,
+                     int buff_len) {
+  struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
+  std::ostringstream out;
+
+  ctx->drm.compositor()->Dump(&out);
+  std::string out_str = out.str();
+  strncpy(buff, out_str.c_str(), std::min((size_t)buff_len, out_str.length()));
+}
+
 static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
   // XXX: Once we have a GL compositor, just make everything HWC_OVERLAY
@@ -511,6 +521,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   ctx->device.common.module = const_cast<hw_module_t *>(module);
   ctx->device.common.close = hwc_device_close;
 
+  ctx->device.dump = hwc_dump;
   ctx->device.prepare = hwc_prepare;
   ctx->device.set = hwc_set;
   ctx->device.eventControl = hwc_event_control;
