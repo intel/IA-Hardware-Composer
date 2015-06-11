@@ -20,6 +20,8 @@
 #include "drmresources.h"
 #include "importer.h"
 
+#include <stdatomic.h>
+
 #include <hardware/gralloc.h>
 
 namespace android {
@@ -38,9 +40,10 @@ class NvImporter : public Importer {
   typedef struct NvBuffer {
     NvImporter *importer;
     hwc_drm_bo_t bo;
+    atomic_int ref;
   } NvBuffer_t;
 
-  static void ReleaseBufferCallback(void *nv_buffer);
+  static void NvGrallocRelease(void *nv_buffer);
   void ReleaseBufferImpl(hwc_drm_bo_t *bo);
 
   NvBuffer_t *GrallocGetNvBuffer(buffer_handle_t handle);
