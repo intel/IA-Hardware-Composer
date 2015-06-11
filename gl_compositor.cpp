@@ -343,9 +343,15 @@ int GLCompositor::Init() {
   };
   // clang-format on
 
-  const EGLint config_attribs[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-                                   EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8,
-                                   EGL_BLUE_SIZE, 8, EGL_NONE};
+  const EGLint config_attribs[] = {EGL_RENDERABLE_TYPE,
+                                   EGL_OPENGL_ES2_BIT,
+                                   EGL_RED_SIZE,
+                                   8,
+                                   EGL_GREEN_SIZE,
+                                   8,
+                                   EGL_BLUE_SIZE,
+                                   8,
+                                   EGL_NONE};
 
   const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
 
@@ -586,7 +592,7 @@ int GLCompositor::EndContext() {
       priv_->saved_egl_ctx != eglGetCurrentContext()) {
     if (!eglMakeCurrent(priv_->saved_egl_display, priv_->saved_egl_read,
                         priv_->saved_egl_draw, priv_->saved_egl_ctx)) {
-      ALOGE("Failed to make the OpenGL ES Context current: %s",
+      ALOGE("Failed to make the old OpenGL ES Context current: %s",
             get_egl_error());
       return 1;
     }
