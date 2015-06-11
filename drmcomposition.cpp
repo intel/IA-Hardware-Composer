@@ -29,7 +29,7 @@
 
 namespace android {
 
-static const bool kUseOverlayPlanes = false;
+static const bool kUseOverlayPlanes = true;
 
 DrmCompositionLayer::DrmCompositionLayer() : crtc(NULL), plane(NULL) {
   memset(&layer, 0, sizeof(layer));
