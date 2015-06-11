@@ -16,6 +16,8 @@
 
 #include "compositor.h"
 
+#include <sstream>
+
 namespace android {
 
 Targeting::~Targeting() {
@@ -25,6 +27,9 @@ Composition::~Composition() {
 }
 
 Compositor::~Compositor() {
+}
+
+void Compositor::Dump(std::ostringstream */* out */) const {
 }
 
 }  // namespace android
