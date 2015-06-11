@@ -670,7 +670,7 @@ int GLCompositor::GenerateShaders() {
 "    if (alphaCover <= 0.5/255.0)                                           \n"
 "      break;                                                               \n"
 "  }                                                                        \n"
-"  oFragColor = vec4(color, 1.0);                                           \n"
+"  oFragColor = vec4(color, 1.0 - alphaCover);                              \n"
 "}                                                                          \n";
   // clang-format on
 
@@ -804,7 +804,7 @@ int GLCompositor::DoComposition(const GLComposition &composition) {
 
   glViewport(0, 0, frame_width, frame_height);
 
-  glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
   glBindBuffer(GL_ARRAY_BUFFER, priv_->vertex_buffer);
