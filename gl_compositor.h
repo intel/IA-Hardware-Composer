@@ -35,7 +35,7 @@ class GLCompositor : public Compositor, public Targeting {
   virtual int CreateTarget(sp<android::GraphicBuffer> &buffer);
   virtual void SetTarget(int target);
   virtual void ForgetTarget(int target);
-  virtual Composition *CreateComposition();
+  virtual Composition *CreateComposition(Importer *importer);
   virtual int QueueComposition(Composition *composition);
   virtual int Composite();
 

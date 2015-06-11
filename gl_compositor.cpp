@@ -149,7 +149,8 @@ class GLComposition : public Composition {
     hwc_drm_bo bo;
   };
 
-  GLComposition(GLCompositor *owner) : compositor(owner), target_handle(-1) {
+  GLComposition(GLCompositor *owner, Importer *imp)
+      : compositor(owner), importer(imp), target_handle(-1) {
   }
 
   virtual ~GLComposition() {
@@ -188,7 +189,7 @@ class GLComposition : public Composition {
     layer_datum.layer = *layer;
     layer_datum.bo = *bo;
 
-    return 0;
+    return importer->ReleaseBuffer(bo);
   }
 
   virtual unsigned GetRemainingLayers(int display, unsigned num_needed) const {
@@ -197,6 +198,7 @@ class GLComposition : public Composition {
   }
 
   GLCompositor *compositor;
+  Importer *importer;
   int target_handle;
   std::vector<LayerData> layer_data;
 };
@@ -532,12 +534,12 @@ void GLCompositor::CheckAndDestroyTarget(int target_handle) {
   }
 }
 
-Composition *GLCompositor::CreateComposition() {
+Composition *GLCompositor::CreateComposition(Importer *importer) {
   if (priv_->current_target >= 0 &&
       (unsigned)priv_->current_target < priv_->targets.size()) {
     GLTarget *target = &priv_->targets[priv_->current_target];
     if (target->is_some()) {
-      GLComposition *composition = new GLComposition(this);
+      GLComposition *composition = new GLComposition(this, importer);
       composition->target_handle = priv_->current_target;
       target->composition_count++;
       priv_->compositions.push_back(composition);
