@@ -20,10 +20,14 @@ include $(CLEAR_VARS)
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libdrm \
+	libEGL \
+	libGLESv2 \
 	libhardware \
 	liblog \
 	libsync \
-	libutils \
+	libui \
+	libutils
+
 
 LOCAL_C_INCLUDES := \
 	external/libdrm \
@@ -44,7 +48,9 @@ LOCAL_SRC_FILES := \
 	drmmode.cpp \
 	drmplane.cpp \
 	drmproperty.cpp \
+	gl_compositor.cpp \
 	hwcomposer.cpp \
+	seperate_rects.cpp \
 	vsyncworker.cpp \
 	worker.cpp
 
