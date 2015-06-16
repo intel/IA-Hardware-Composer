@@ -18,36 +18,41 @@
 #define ANDROID_DRM_CRTC_H_
 
 #include "drmmode.h"
+#include "drmproperty.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>
 
 namespace android {
 
+class DrmResources;
+
 class DrmCrtc {
  public:
-  DrmCrtc(drmModeCrtcPtr c, unsigned pipe);
+  DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe);
   ~DrmCrtc();
+
+  int Init();
 
   uint32_t id() const;
   unsigned pipe() const;
-
-  bool requires_modeset() const;
-  void set_requires_modeset(bool requires_modeset);
 
   int display() const;
   void set_display(int display);
 
   bool can_bind(int display) const;
 
+  const DrmProperty &active_property() const;
+  const DrmProperty &mode_property() const;
+
  private:
   DrmCrtc(const DrmCrtc &);
+
+  DrmResources *drm_;
 
   uint32_t id_;
   unsigned pipe_;
   int display_;
-
-  bool requires_modeset_;
 
   uint32_t x_;
   uint32_t y_;
@@ -56,6 +61,9 @@ class DrmCrtc {
 
   DrmMode mode_;
   bool mode_valid_;
+
+  DrmProperty active_property_;
+  DrmProperty mode_property_;
 };
 }
 

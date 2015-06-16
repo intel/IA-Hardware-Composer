@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "hwc-drm-crtc"
+
 #include "drmcrtc.h"
 #include "drmresources.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>
 
+#include <cutils/log.h>
+
 namespace android {
 
-DrmCrtc::DrmCrtc(drmModeCrtcPtr c, unsigned pipe)
-    : id_(c->crtc_id),
+DrmCrtc::DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe)
+    : drm_(drm),
+      id_(c->crtc_id),
       pipe_(pipe),
       display_(-1),
-      requires_modeset_(true),
       x_(c->x),
       y_(c->y),
       width_(c->width),
@@ -38,6 +42,21 @@ DrmCrtc::DrmCrtc(drmModeCrtcPtr c, unsigned pipe)
 DrmCrtc::~DrmCrtc() {
 }
 
+int DrmCrtc::Init() {
+  int ret = drm_->GetCrtcProperty(*this, "ACTIVE", &active_property_);
+  if (ret) {
+    ALOGE("Failed to get ACTIVE property");
+    return ret;
+  }
+
+  ret = drm_->GetCrtcProperty(*this, "MODE_ID", &mode_property_);
+  if (ret) {
+    ALOGE("Failed to get MODE_ID property");
+    return ret;
+  }
+  return 0;
+}
+
 uint32_t DrmCrtc::id() const {
   return id_;
 }
@@ -46,24 +65,23 @@ unsigned DrmCrtc::pipe() const {
   return pipe_;
 }
 
-bool DrmCrtc::requires_modeset() const {
-  return requires_modeset_;
-}
-
-void DrmCrtc::set_requires_modeset(bool requires_modeset) {
-  requires_modeset_ = requires_modeset;
-}
-
 int DrmCrtc::display() const {
   return display_;
 }
 
 void DrmCrtc::set_display(int display) {
   display_ = display;
-  requires_modeset_ = true;
 }
 
 bool DrmCrtc::can_bind(int display) const {
   return display_ == -1 || display_ == display;
+}
+
+const DrmProperty &DrmCrtc::active_property() const {
+  return active_property_;
+}
+
+const DrmProperty &DrmCrtc::mode_property() const {
+  return mode_property_;
 }
 }

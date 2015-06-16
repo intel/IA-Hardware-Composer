@@ -30,7 +30,7 @@ class DrmMode {
   ~DrmMode();
 
   bool operator==(const drmModeModeInfo &m) const;
-  void ToModeModeInfo(drmModeModeInfo *m) const;
+  void ToDrmModeModeInfo(drm_mode_modeinfo *m) const;
 
   uint32_t id() const;
   void set_id(uint32_t id);

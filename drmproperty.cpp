@@ -67,6 +67,8 @@ void DrmProperty::Init(drmModePropertyPtr p, uint64_t value) {
     type_ = DRM_PROPERTY_TYPE_INT;
   else if (flags_ & DRM_MODE_PROP_ENUM)
     type_ = DRM_PROPERTY_TYPE_ENUM;
+  else if (flags_ & DRM_MODE_PROP_OBJECT)
+    type_ = DRM_PROPERTY_TYPE_OBJECT;
 }
 
 uint32_t DrmProperty::id() const {
@@ -91,6 +93,10 @@ int DrmProperty::value(uint64_t *value) const {
         return -ENOENT;
 
       *value = enums_[value_].value_;
+      return 0;
+
+    case DRM_PROPERTY_TYPE_OBJECT:
+      *value = value_;
       return 0;
 
     default:

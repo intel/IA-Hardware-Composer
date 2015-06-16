@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 #include <string>
-
 #include <xf86drmMode.h>
 
 namespace android {
@@ -75,7 +74,7 @@ bool DrmMode::operator==(const drmModeModeInfo &m) const {
          type_ == m.type;
 }
 
-void DrmMode::ToModeModeInfo(drmModeModeInfo *m) const {
+void DrmMode::ToDrmModeModeInfo(drm_mode_modeinfo *m) const {
   m->clock = clock_;
   m->hdisplay = h_display_;
   m->hsync_start = h_sync_start_;
