@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "hwc-drm-compositor"
 
 #include "drmcompositor.h"
@@ -25,6 +26,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <time.h>
+#include <utils/Trace.h>
 
 #include <cutils/log.h>
 #include <sync/sync.h>
@@ -174,6 +176,7 @@ int DrmCompositor::CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
 }
 
 int DrmCompositor::Composite() {
+  ATRACE_CALL();
   int ret = pthread_mutex_lock(&lock_);
   if (ret) {
     ALOGE("Failed to acquire compositor lock %d", ret);
