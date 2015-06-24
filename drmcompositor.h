@@ -18,22 +18,13 @@
 #define ANDROID_DRM_COMPOSITOR_H_
 
 #include "compositor.h"
-#include "drm_hwcomposer.h"
-#include "drmcomposition.h"
-#include "drmcompositorworker.h"
-#include "drmplane.h"
+#include "drmdisplaycompositor.h"
 #include "importer.h"
 
-#include <pthread.h>
-#include <queue>
+#include <map>
 #include <sstream>
 
-#include <hardware/hardware.h>
-#include <hardware/hwcomposer.h>
-
 namespace android {
-
-class Drm;
 
 class DrmCompositor : public Compositor {
  public:
@@ -52,32 +43,13 @@ class DrmCompositor : public Compositor {
   virtual int Composite();
   virtual void Dump(std::ostringstream *out) const;
 
-  bool HaveQueuedComposites() const;
-
  private:
-  DrmCompositor(const DrmCompositor &);
-
-  int CompositeDisplay(DrmCompositionLayerMap_t::iterator begin,
-                       DrmCompositionLayerMap_t::iterator end);
+  DrmCompositor(const DrmCompositor &) = delete;
 
   DrmResources *drm_;
 
-  DrmCompositorWorker worker_;
-
-  std::queue<DrmComposition *> composite_queue_;
-  DrmComposition *active_composition_;
-
-  uint64_t frame_no_;
-
-  bool initialized_;
-
-  // mutable since we need to acquire in HaveQueuedComposites
-  mutable pthread_mutex_t lock_;
-
-  // State tracking progress since our last Dump(). These are mutable since
-  // we need to reset them on every Dump() call.
-  mutable uint64_t dump_frames_composited_;
-  mutable uint64_t dump_last_timestamp_ns_;
+  // mutable for Dump() propagation
+  mutable std::map<int, DrmDisplayCompositor> compositor_map_;
 };
 }
 
