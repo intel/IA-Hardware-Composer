@@ -21,11 +21,11 @@
 
 namespace android {
 
-class DrmCompositor;
+class DrmDisplayCompositor;
 
 class DrmCompositorWorker : public Worker {
  public:
-  DrmCompositorWorker(DrmCompositor *compositor);
+  DrmCompositorWorker(DrmDisplayCompositor *compositor);
   ~DrmCompositorWorker();
 
   int Init();
@@ -33,7 +33,7 @@ class DrmCompositorWorker : public Worker {
  protected:
   virtual void Routine();
 
-  DrmCompositor *compositor_;
+  DrmDisplayCompositor *compositor_;
 };
 }
 

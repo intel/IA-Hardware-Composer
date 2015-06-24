@@ -16,7 +16,7 @@
 
 #define LOG_TAG "hwc-drm-compositor-worker"
 
-#include "drmcompositor.h"
+#include "drmdisplaycompositor.h"
 #include "drmcompositorworker.h"
 #include "worker.h"
 
@@ -27,7 +27,7 @@
 
 namespace android {
 
-DrmCompositorWorker::DrmCompositorWorker(DrmCompositor *compositor)
+DrmCompositorWorker::DrmCompositorWorker(DrmDisplayCompositor *compositor)
     : Worker("drm-compositor", HAL_PRIORITY_URGENT_DISPLAY),
       compositor_(compositor) {
 }

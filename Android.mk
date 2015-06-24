@@ -44,6 +44,8 @@ LOCAL_SRC_FILES := \
         drmcompositorworker.cpp \
 	drmconnector.cpp \
 	drmcrtc.cpp \
+        drmdisplaycomposition.cpp \
+        drmdisplaycompositor.cpp \
 	drmencoder.cpp \
 	drmmode.cpp \
 	drmplane.cpp \
