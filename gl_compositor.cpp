@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "GLCompositor"
 
 #include <sstream>
@@ -35,6 +36,7 @@
 
 #include <ui/GraphicBuffer.h>
 #include <ui/PixelFormat.h>
+#include <utils/Trace.h>
 
 #include <cutils/properties.h>
 #include <sync/sync.h>
@@ -756,6 +758,7 @@ int GLCompositor::GenerateShaders() {
 }
 
 int GLCompositor::DoComposition(const GLComposition &composition) {
+  ATRACE_CALL();
   int ret = 0;
   size_t i;
   std::vector<struct texture_from_handle> layer_textures;

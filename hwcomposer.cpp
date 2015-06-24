@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "hwcomposer-drm"
 
 #include "drm_hwcomposer.h"
@@ -41,6 +42,7 @@
 #include <sync/sync.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/PixelFormat.h>
+#include <utils/Trace.h>
 
 #define UM_PER_INCH 25400
 #define HWC_FB_BUFFERS 3
@@ -235,6 +237,7 @@ static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
 
 static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **display_contents) {
+  ATRACE_CALL();
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   Composition *composition =
       ctx->drm.compositor()->CreateComposition(ctx->importer);
