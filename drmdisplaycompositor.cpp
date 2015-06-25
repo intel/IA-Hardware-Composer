@@ -93,8 +93,15 @@ int DrmDisplayCompositor::Init(DrmResources *drm, int display) {
 
 int DrmDisplayCompositor::QueueComposition(
     std::unique_ptr<DrmDisplayComposition> composition) {
-  if (composition->GetCompositionLayers()->empty())
+  switch (composition->type()) {
+  case DRM_COMPOSITION_TYPE_FRAME:
+    break;
+  case DRM_COMPOSITION_TYPE_EMPTY:
     return 0;
+  default:
+    ALOGE("Unknown composition type %d/%d", composition->type(), display_);
+    return -ENOENT;
+  }
 
   int ret = pthread_mutex_lock(&lock_);
   if (ret) {
@@ -206,12 +213,19 @@ int DrmDisplayCompositor::Composite() {
     return ret;
   }
 
-  ret = ApplyFrame(composition.get());
-  if (ret) {
-    ALOGE("Composite failed for display %d", display_);
-    return ret;
+  switch (composition->type()) {
+  case DRM_COMPOSITION_TYPE_FRAME:
+    ret = ApplyFrame(composition.get());
+    if (ret) {
+      ALOGE("Composite failed for display %d", display_);
+      return ret;
+    }
+    ++dump_frames_composited_;
+    break;
+  default:
+    ALOGE("Unknown composition type %d", composition->type());
+    return -EINVAL;
   }
-  ++dump_frames_composited_;
 
   if (active_composition_)
     active_composition_->FinishComposition();

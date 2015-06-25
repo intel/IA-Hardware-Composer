@@ -39,7 +39,11 @@ DrmCompositionLayer::~DrmCompositionLayer() {
 }
 
 DrmDisplayComposition::DrmDisplayComposition()
-    : drm_(NULL), importer_(NULL), timeline_fd_(-1), timeline_(0) {
+    : drm_(NULL),
+      importer_(NULL),
+      type_(DRM_COMPOSITION_TYPE_EMPTY),
+      timeline_fd_(-1),
+      timeline_(0) {
 }
 
 DrmDisplayComposition::~DrmDisplayComposition() {
@@ -69,9 +73,20 @@ int DrmDisplayComposition::Init(DrmResources *drm, Importer *importer) {
   return 0;
 }
 
+DrmCompositionType DrmDisplayComposition::type() const {
+  return type_;
+}
+
+bool DrmDisplayComposition::validate_composition_type(DrmCompositionType des) {
+  return type_ == DRM_COMPOSITION_TYPE_EMPTY || type_ == des;
+}
+
 int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
                                     DrmCrtc *crtc, DrmPlane *plane) {
   if (layer->transform != 0)
+    return -EINVAL;
+
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
     return -EINVAL;
 
   ++timeline_;
@@ -90,6 +105,7 @@ int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
 
   layer->acquireFenceFd = -1;  // We own this now
   layers_.push_back(c_layer);
+  type_ = DRM_COMPOSITION_TYPE_FRAME;
   return 0;
 }
 
