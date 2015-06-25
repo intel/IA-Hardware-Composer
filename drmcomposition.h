@@ -41,6 +41,7 @@ class DrmComposition : public Composition {
 
   virtual unsigned GetRemainingLayers(int display, unsigned num_needed) const;
   virtual int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
+  int AddDpmsMode(int display, uint32_t dpms_mode);
 
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
 
