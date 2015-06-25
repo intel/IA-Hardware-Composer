@@ -31,6 +31,7 @@ namespace android {
 enum DrmCompositionType {
   DRM_COMPOSITION_TYPE_EMPTY,
   DRM_COMPOSITION_TYPE_FRAME,
+  DRM_COMPOSITION_TYPE_DPMS,
 };
 
 typedef struct DrmCompositionLayer {
@@ -55,10 +56,12 @@ class DrmDisplayComposition {
 
   int AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo, DrmCrtc *crtc,
                DrmPlane *plane);
+  int AddDpmsMode(uint32_t dpms_mode);
 
   int FinishComposition();
 
   DrmCompositionLayerVector_t *GetCompositionLayers();
+  uint32_t dpms_mode() const;
 
  private:
   DrmDisplayComposition(const DrmDisplayComposition &) = delete;
@@ -74,6 +77,7 @@ class DrmDisplayComposition {
   int timeline_;
 
   DrmCompositionLayerVector_t layers_;
+  uint32_t dpms_mode_;
 };
 }
 

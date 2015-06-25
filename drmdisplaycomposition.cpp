@@ -26,6 +26,7 @@
 #include <cutils/log.h>
 #include <sw_sync.h>
 #include <sync/sync.h>
+#include <xf86drmMode.h>
 
 namespace android {
 
@@ -43,7 +44,8 @@ DrmDisplayComposition::DrmDisplayComposition()
       importer_(NULL),
       type_(DRM_COMPOSITION_TYPE_EMPTY),
       timeline_fd_(-1),
-      timeline_(0) {
+      timeline_(0),
+      dpms_mode_(DRM_MODE_DPMS_ON) {
 }
 
 DrmDisplayComposition::~DrmDisplayComposition() {
@@ -109,6 +111,14 @@ int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
   return 0;
 }
 
+int DrmDisplayComposition::AddDpmsMode(uint32_t dpms_mode) {
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_DPMS))
+    return -EINVAL;
+  dpms_mode_ = dpms_mode;
+  type_ = DRM_COMPOSITION_TYPE_DPMS;
+  return 0;
+}
+
 int DrmDisplayComposition::FinishComposition() {
   int ret = sw_sync_timeline_inc(timeline_fd_, timeline_);
   if (ret)
@@ -119,5 +129,9 @@ int DrmDisplayComposition::FinishComposition() {
 
 DrmCompositionLayerVector_t *DrmDisplayComposition::GetCompositionLayers() {
   return &layers_;
+}
+
+uint32_t DrmDisplayComposition::dpms_mode() const {
+  return dpms_mode_;
 }
 }

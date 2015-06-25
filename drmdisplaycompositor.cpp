@@ -40,6 +40,7 @@ DrmDisplayCompositor::DrmDisplayCompositor()
       worker_(this),
       frame_no_(0),
       initialized_(false),
+      active_(false),
       dump_frames_composited_(0),
       dump_last_timestamp_ns_(0) {
   struct timespec ts;
@@ -95,6 +96,15 @@ int DrmDisplayCompositor::QueueComposition(
     std::unique_ptr<DrmDisplayComposition> composition) {
   switch (composition->type()) {
   case DRM_COMPOSITION_TYPE_FRAME:
+    if (!active_)
+      return -ENODEV;
+    break;
+  case DRM_COMPOSITION_TYPE_DPMS:
+    /*
+     * Update the state as soon as we get it so we can start/stop queuing
+     * frames asap.
+     */
+    active_ = (composition->dpms_mode() == DRM_MODE_DPMS_ON);
     break;
   case DRM_COMPOSITION_TYPE_EMPTY:
     return 0;
@@ -189,6 +199,23 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   return ret;
 }
 
+int DrmDisplayCompositor::ApplyDpms(DrmDisplayComposition *display_comp) {
+  DrmConnector *conn = drm_->GetConnectorForDisplay(display_);
+  if (!conn) {
+    ALOGE("Failed to get DrmConnector for display %d", display_);
+    return -ENODEV;
+  }
+
+  const DrmProperty &prop = conn->dpms_property();
+  int ret = drmModeConnectorSetProperty(drm_->fd(), conn->id(), prop.id(),
+                                        display_comp->dpms_mode());
+  if (ret) {
+    ALOGE("Failed to set DPMS property for connector %d", conn->id());
+    return ret;
+  }
+  return 0;
+}
+
 int DrmDisplayCompositor::Composite() {
   ATRACE_CALL();
   int ret = pthread_mutex_lock(&lock_);
@@ -222,6 +249,11 @@ int DrmDisplayCompositor::Composite() {
     }
     ++dump_frames_composited_;
     break;
+  case DRM_COMPOSITION_TYPE_DPMS:
+    ret = ApplyDpms(composition.get());
+    if (ret)
+      ALOGE("Failed to apply dpms for display %d", display_);
+    return ret;
   default:
     ALOGE("Unknown composition type %d", composition->type());
     return -EINVAL;
