@@ -49,6 +49,7 @@ LOCAL_SRC_FILES := \
 	drmplane.cpp \
 	drmproperty.cpp \
 	gl_compositor.cpp \
+	glworker.cpp \
 	hwcomposer.cpp \
 	seperate_rects.cpp \
 	vsyncworker.cpp \
