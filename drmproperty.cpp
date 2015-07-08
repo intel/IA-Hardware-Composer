@@ -69,6 +69,9 @@ void DrmProperty::Init(drmModePropertyPtr p, uint64_t value) {
     type_ = DRM_PROPERTY_TYPE_ENUM;
   else if (flags_ & DRM_MODE_PROP_OBJECT)
     type_ = DRM_PROPERTY_TYPE_OBJECT;
+  else if (flags_ & DRM_MODE_PROP_BLOB)
+    type_ = DRM_PROPERTY_TYPE_BLOB;
+
 }
 
 uint32_t DrmProperty::id() const {
@@ -80,6 +83,11 @@ std::string DrmProperty::name() const {
 }
 
 int DrmProperty::value(uint64_t *value) const {
+  if (type_ == DRM_PROPERTY_TYPE_BLOB) {
+    *value = value_;
+    return 0;
+  }
+
   if (values_.size() == 0)
     return -ENOENT;
 
