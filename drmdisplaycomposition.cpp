@@ -51,7 +51,7 @@ DrmDisplayComposition::DrmDisplayComposition()
 DrmDisplayComposition::~DrmDisplayComposition() {
   for (DrmCompositionLayerVector_t::iterator iter = layers_.begin();
        iter != layers_.end(); ++iter) {
-    if (importer_)
+    if (importer_ && iter->bo.fb_id)
       importer_->ReleaseBuffer(&iter->bo);
 
     if (iter->layer.acquireFenceFd >= 0)
@@ -116,6 +116,14 @@ int DrmDisplayComposition::AddDpmsMode(uint32_t dpms_mode) {
     return -EINVAL;
   dpms_mode_ = dpms_mode;
   type_ = DRM_COMPOSITION_TYPE_DPMS;
+  return 0;
+}
+
+int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
+  DrmCompositionLayer_t c_layer;
+  c_layer.crtc = NULL;
+  c_layer.plane = plane;
+  layers_.push_back(c_layer);
   return 0;
 }
 

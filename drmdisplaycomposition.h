@@ -56,6 +56,7 @@ class DrmDisplayComposition {
 
   int AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo, DrmCrtc *crtc,
                DrmPlane *plane);
+  int AddPlaneDisable(DrmPlane *plane);
   int AddDpmsMode(uint32_t dpms_mode);
 
   int FinishComposition();

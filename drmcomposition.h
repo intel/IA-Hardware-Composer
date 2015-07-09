@@ -43,7 +43,10 @@ class DrmComposition : public Composition {
   virtual int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
   int AddDpmsMode(int display, uint32_t dpms_mode);
 
+  int DisableUnusedPlanes();
+
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
+  DrmDisplayComposition *GetDisplayComposition(int display);
 
  private:
   DrmComposition(const DrmComposition &) = delete;
