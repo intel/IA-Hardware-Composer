@@ -77,7 +77,7 @@ unsigned DrmComposition::GetRemainingLayers(int display,
     if ((*iter)->GetCrtcSupported(*crtc))
       ++num_planes;
   }
-  for (std::deque<DrmPlane *>::const_iterator iter = overlay_planes_.begin();
+  for (std::vector<DrmPlane *>::const_iterator iter = overlay_planes_.begin();
        iter != overlay_planes_.end(); ++iter) {
     if ((*iter)->GetCrtcSupported(*crtc))
       ++num_planes;
@@ -103,7 +103,7 @@ int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
       break;
     }
   }
-  for (std::deque<DrmPlane *>::iterator iter = overlay_planes_.begin();
+  for (std::vector<DrmPlane *>::iterator iter = overlay_planes_.begin();
        !plane && iter != overlay_planes_.end(); ++iter) {
     if ((*iter)->GetCrtcSupported(*crtc)) {
       plane = *iter;
