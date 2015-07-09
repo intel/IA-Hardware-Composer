@@ -48,7 +48,7 @@ class GLCompositor : public Compositor, public Targeting {
   int BeginContext();
   int EndContext();
   int GenerateShaders();
-  int DoComposition(const GLComposition &composition);
+  int DoComposition(GLComposition *composition);
   int DoFenceWait(int acquireFenceFd);
   int CreateTextureFromHandle(buffer_handle_t handle,
                               struct texture_from_handle *tex);
