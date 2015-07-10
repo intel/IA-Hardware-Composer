@@ -71,6 +71,7 @@ int DrmCompositor::QueueComposition(Composition *composition) {
         drm_composition->TakeDisplayComposition(display));
     if (ret) {
       ALOGE("Failed to queue composition for display %d", display);
+      delete composition;
       return ret;
     }
   }

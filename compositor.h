@@ -90,6 +90,8 @@ class Compositor {
   // Starts a fresh composition.
   virtual Composition *CreateComposition(Importer *importer) = 0;
 
+  // Transfers ownership of composition to the Compositor (whether or not this
+  // call returns success) for compositing.
   // On success returns a syncpoint fd that will be signaled when composition is
   // complete or -1 if compositing was completed by this method's return. On
   // error returns an integer less than -1. The composition is invalid after
