@@ -303,7 +303,7 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
 
   cur_ts = ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
   uint64_t num_ms = (cur_ts - dump_last_timestamp_ns_) / (1000 * 1000);
-  unsigned fps = num_ms ? (num_frames * 1000) / (num_ms) : 0;
+  float fps = num_ms ? (num_frames * 1000.0f) / (num_ms) : 0.0f;
 
   *out << "--DrmDisplayCompositor[" << display_
        << "]: num_frames=" << num_frames << " num_ms=" << num_ms
