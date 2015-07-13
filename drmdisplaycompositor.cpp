@@ -278,7 +278,17 @@ int DrmDisplayCompositor::Composite() {
   if (active_composition_)
     active_composition_->FinishComposition();
 
+  ret = pthread_mutex_lock(&lock_);
+  if (ret)
+    ALOGE("Failed to acquire lock for active_composition swap");
+
   active_composition_.swap(composition);
+
+  if (!ret)
+    ret = pthread_mutex_unlock(&lock_);
+    if (ret)
+      ALOGE("Failed to release lock for active_composition swap");
+
   return ret;
 }
 
@@ -313,6 +323,12 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
   struct timespec ts;
   ret = clock_gettime(CLOCK_MONOTONIC, &ts);
 
+  DrmCompositionLayerVector_t layers;
+  if (active_composition_)
+    layers = *active_composition_->GetCompositionLayers();
+  else
+    ret = -EAGAIN;
+
   ret |= pthread_mutex_unlock(&lock_);
   if (ret)
     return;
@@ -326,5 +342,30 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
        << " fps=" << fps << "\n";
 
   dump_last_timestamp_ns_ = cur_ts;
+
+  *out << "---- DrmDisplayCompositor Layers: num=" << layers.size() << "\n";
+  for (DrmCompositionLayerVector_t::iterator iter = layers.begin();
+       iter != layers.end(); ++iter) {
+    hwc_layer_1_t *layer = &iter->layer;
+    DrmPlane *plane = iter->plane;
+
+    *out << "------ DrmDisplayCompositor Layer: plane=" << plane->id() << " ";
+
+    DrmCrtc *crtc = iter->crtc;
+    if (!crtc) {
+      *out << "disabled\n";
+      continue;
+    }
+
+    *out << "crtc=" << crtc->id() << " crtc[x/y/w/h]=" <<
+        layer->displayFrame.left << "/" << layer->displayFrame.top << "/" <<
+        layer->displayFrame.right - layer->displayFrame.left << "/" <<
+        layer->displayFrame.bottom - layer->displayFrame.top << " " <<
+        " src[x/y/w/h]=" << layer->sourceCropf.left << "/" <<
+        layer->sourceCropf.top << "/" <<
+        layer->sourceCropf.right - layer->sourceCropf.left << "/" <<
+        layer->sourceCropf.bottom - layer->sourceCropf.top << "\n";
+  }
+
 }
 }
