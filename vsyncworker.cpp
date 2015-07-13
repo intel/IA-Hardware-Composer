@@ -113,13 +113,13 @@ int VSyncWorker::SyntheticWaitVBlank(int64_t *timestamp) {
   struct timespec vsync;
   int ret = clock_gettime(CLOCK_MONOTONIC, &vsync);
 
-  int64_t refresh = 60;  // Default to 60Hz refresh rate
+  float refresh = 60.0f;  // Default to 60Hz refresh rate
   DrmConnector *conn = drm_->GetConnectorForDisplay(display_);
-  if (conn && conn->active_mode().v_refresh())
+  if (conn && conn->active_mode().v_refresh() != 0.0f)
     refresh = conn->active_mode().v_refresh();
   else
-    ALOGW("Vsync worker active with conn=%p refresh=%d\n", conn,
-          conn ? conn->active_mode().v_refresh() : -1);
+    ALOGW("Vsync worker active with conn=%p refresh=%f\n", conn,
+          conn ? conn->active_mode().v_refresh() : 0.0f);
 
   int64_t phased_timestamp = GetPhasedVSync(
       kOneSecondNs / refresh, vsync.tv_sec * kOneSecondNs + vsync.tv_nsec);

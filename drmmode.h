@@ -48,7 +48,7 @@ class DrmMode {
   uint32_t v_sync_end() const;
   uint32_t v_total() const;
   uint32_t v_scan() const;
-  uint32_t v_refresh() const;
+  float v_refresh() const;
 
   uint32_t flags() const;
   uint32_t type() const;
@@ -71,7 +71,6 @@ class DrmMode {
   uint32_t v_sync_end_;
   uint32_t v_total_;
   uint32_t v_scan_;
-  uint32_t v_refresh_;
 
   uint32_t flags_;
   uint32_t type_;
