@@ -118,6 +118,10 @@ int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
   return composition_map_[display]->AddLayer(layer, bo, crtc, plane);
 }
 
+int DrmComposition::AddDpmsMode(int display, uint32_t dpms_mode) {
+  return composition_map_[display]->AddDpmsMode(dpms_mode);
+}
+
 std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
     int display) {
   return std::move(composition_map_[display]);

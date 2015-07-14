@@ -47,6 +47,7 @@ class DrmDisplayCompositor {
   DrmDisplayCompositor(const DrmDisplayCompositor &) = delete;
 
   int ApplyFrame(DrmDisplayComposition *display_comp);
+  int ApplyDpms(DrmDisplayComposition *display_comp);
 
   DrmResources *drm_;
   int display_;
@@ -59,6 +60,7 @@ class DrmDisplayCompositor {
   uint64_t frame_no_;
 
   bool initialized_;
+  bool active_;
 
   // mutable since we need to acquire in HaveQueuedComposites
   mutable pthread_mutex_t lock_;

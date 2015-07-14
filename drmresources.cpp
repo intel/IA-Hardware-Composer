@@ -467,19 +467,22 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
     return -EINVAL;
   }
 
-  DrmConnector *c = GetConnectorForDisplay(display);
-  if (!c) {
-    ALOGE("Failed to get DrmConnector for display %d", display);
-    return -ENODEV;
+  DrmComposition *comp = (DrmComposition *)compositor_.CreateComposition(NULL);
+  if (!comp) {
+    ALOGE("Failed to create composition for dpms on %d", display);
+    return -ENOMEM;
   }
-
-  const DrmProperty &prop = c->dpms_property();
-  int ret = drmModeConnectorSetProperty(fd_, c->id(), prop.id(), mode);
+  int ret = comp->AddDpmsMode(display, mode);
   if (ret) {
-    ALOGE("Failed to set DPMS property for connector %d", c->id());
+    ALOGE("Failed to add dpms %ld to composition on %d %d", mode, display, ret);
+    delete comp;
     return ret;
   }
-
+  ret = compositor_.QueueComposition((Composition *)comp);
+  if (ret) {
+    ALOGE("Failed to queue dpms composition on %d %d", display, ret);
+    return ret;
+  }
   return 0;
 }
 
