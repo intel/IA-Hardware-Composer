@@ -157,9 +157,25 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     }
 
     DrmPlane *plane = iter->plane;
+    DrmCrtc *crtc = iter->crtc;
+
+    // Disable the plane if there's no crtc
+    if (!crtc) {
+      ret =
+          drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
+                                0) ||
+          drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
+                                0);
+      if (ret) {
+        ALOGE("Failed to add plane %d disable to pset", plane->id());
+        break;
+      }
+      continue;
+    }
+
     ret =
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
-                              iter->crtc->id()) ||
+                              crtc->id()) ||
         drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
                               iter->bo.fb_id) ||
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_x_property().id(),

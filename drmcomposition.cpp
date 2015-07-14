@@ -126,4 +126,49 @@ std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
     int display) {
   return std::move(composition_map_[display]);
 }
+
+int DrmComposition::DisableUnusedPlanes() {
+  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
+       iter != drm_->end_connectors(); ++iter) {
+    int display = (*iter)->display();
+    DrmDisplayComposition *comp = GetDisplayComposition(display);
+
+    /*
+     * Leave empty compositions alone
+     * TODO: re-visit this and potentially disable leftover planes after the
+     *       active compositions have gobbled up all they can
+     */
+    if (comp->type() == DRM_COMPOSITION_TYPE_EMPTY)
+      continue;
+
+    DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
+    if (!crtc) {
+      ALOGE("Failed to find crtc for display %d", display);
+      continue;
+    }
+
+    for (std::vector<DrmPlane *>::iterator iter = primary_planes_.begin();
+         iter != primary_planes_.end(); ++iter) {
+      if ((*iter)->GetCrtcSupported(*crtc)) {
+        comp->AddPlaneDisable(*iter);
+        primary_planes_.erase(iter);
+        break;
+      }
+    }
+    for (std::vector<DrmPlane *>::iterator iter = overlay_planes_.begin();
+         iter != overlay_planes_.end();) {
+      if ((*iter)->GetCrtcSupported(*crtc)) {
+        comp->AddPlaneDisable(*iter);
+        iter = overlay_planes_.erase(iter);
+      } else {
+        iter++;
+      }
+    }
+  }
+  return 0;
+}
+
+DrmDisplayComposition *DrmComposition::GetDisplayComposition(int display) {
+  return composition_map_[display].get();
+}
 }
