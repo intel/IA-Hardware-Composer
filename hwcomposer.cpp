@@ -407,9 +407,10 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
   }
 
   ret = ctx->drm.compositor()->QueueComposition(composition);
+  composition = NULL;
   if (ret) {
     ALOGE("Failed to queue the composition");
-    hwc_set_cleanup(num_displays, display_contents, composition);
+    hwc_set_cleanup(num_displays, display_contents, NULL);
     return ret;
   }
   hwc_set_cleanup(num_displays, display_contents, NULL);
