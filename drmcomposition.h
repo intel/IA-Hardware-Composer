@@ -19,6 +19,7 @@
 
 #include "compositor.h"
 #include "drm_hwcomposer.h"
+#include "drmdisplaycomposition.h"
 #include "drmplane.h"
 #include "importer.h"
 
@@ -31,22 +32,9 @@
 
 namespace android {
 
-typedef struct DrmCompositionLayer {
-  DrmCompositionLayer();
-  ~DrmCompositionLayer();
-
-  hwc_layer_1_t layer;
-  hwc_drm_bo_t bo;
-  DrmCrtc *crtc;
-  DrmPlane *plane;
-} DrmCompositionLayer_t;
-
-typedef std::multimap<int, DrmCompositionLayer> DrmCompositionLayerMap_t;
-typedef std::pair<int, DrmCompositionLayer> DrmCompositionLayerPair_t;
-
 class DrmComposition : public Composition {
  public:
-  DrmComposition(DrmResources *drm, Importer *importer, uint64_t frame_no);
+  DrmComposition(DrmResources *drm, Importer *importer);
   ~DrmComposition();
 
   virtual int Init();
@@ -54,23 +42,24 @@ class DrmComposition : public Composition {
   virtual unsigned GetRemainingLayers(int display, unsigned num_needed) const;
   virtual int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
 
-  int FinishComposition();
-
-  DrmCompositionLayerMap_t *GetCompositionMap();
+  std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
 
  private:
+  DrmComposition(const DrmComposition &) = delete;
+
   DrmResources *drm_;
   Importer *importer_;
 
-  uint64_t frame_no_;
-
-  int timeline_fd_;
-  int timeline_;
-
   std::vector<DrmPlane *> primary_planes_;
   std::deque<DrmPlane *> overlay_planes_;
-  DrmCompositionLayerMap_t composition_map_;
+
+  /*
+   * This _must_ be read-only after it's passed to QueueComposition. Otherwise
+   * locking is required to maintain consistency across the compositor threads.
+   */
+  std::map<int, std::unique_ptr<DrmDisplayComposition>> composition_map_;
 };
+
 }
 
 #endif  // ANDROID_DRM_COMPOSITION_H_

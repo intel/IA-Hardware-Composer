@@ -31,22 +31,8 @@ namespace android {
 
 static const bool kUseOverlayPlanes = true;
 
-DrmCompositionLayer::DrmCompositionLayer() : crtc(NULL), plane(NULL) {
-  memset(&layer, 0, sizeof(layer));
-  layer.acquireFenceFd = -1;
-  memset(&bo, 0, sizeof(bo));
-}
-
-DrmCompositionLayer::~DrmCompositionLayer() {
-}
-
-DrmComposition::DrmComposition(DrmResources *drm, Importer *importer,
-                               uint64_t frame_no)
-    : drm_(drm),
-      importer_(importer),
-      frame_no_(frame_no),
-      timeline_fd_(-1),
-      timeline_(0) {
+DrmComposition::DrmComposition(DrmResources *drm, Importer *importer)
+    : drm_(drm), importer_(importer) {
   for (DrmResources::PlaneIter iter = drm_->begin_planes();
        iter != drm_->end_planes(); ++iter) {
     if ((*iter)->type() == DRM_PLANE_TYPE_PRIMARY)
@@ -57,25 +43,23 @@ DrmComposition::DrmComposition(DrmResources *drm, Importer *importer,
 }
 
 DrmComposition::~DrmComposition() {
-  for (DrmCompositionLayerMap_t::iterator iter = composition_map_.begin();
-       iter != composition_map_.end(); ++iter) {
-    importer_->ReleaseBuffer(&iter->second.bo);
-
-    if (iter->second.layer.acquireFenceFd >= 0)
-      close(iter->second.layer.acquireFenceFd);
-  }
-
-  if (timeline_fd_ >= 0)
-    close(timeline_fd_);
 }
 
 int DrmComposition::Init() {
-  int ret = sw_sync_timeline_create();
-  if (ret < 0) {
-    ALOGE("Failed to create sw sync timeline %d", ret);
-    return ret;
+  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
+       iter != drm_->end_connectors(); ++iter) {
+    int display = (*iter)->display();
+    composition_map_[display].reset(new DrmDisplayComposition());
+    if (!composition_map_[display]) {
+      ALOGE("Failed to allocate new display composition\n");
+      return -ENOMEM;
+    }
+    int ret = composition_map_[(*iter)->display()]->Init(drm_, importer_);
+    if (ret) {
+      ALOGE("Failed to init display composition for %d", (*iter)->display());
+      return ret;
+    }
   }
-  timeline_fd_ = ret;
   return 0;
 }
 
@@ -83,7 +67,7 @@ unsigned DrmComposition::GetRemainingLayers(int display,
                                             unsigned num_needed) const {
   DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
   if (!crtc) {
-    ALOGW("Failed to find crtc for display %d", display);
+    ALOGE("Failed to find crtc for display %d", display);
     return 0;
   }
 
@@ -103,65 +87,39 @@ unsigned DrmComposition::GetRemainingLayers(int display,
 
 int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
                              hwc_drm_bo *bo) {
-  if (layer->transform != 0)
-    return -EINVAL;
-
   DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
   if (!crtc) {
-    ALOGE("Could not find crtc for display %d", display);
+    ALOGE("Failed to find crtc for display %d", display);
     return -ENODEV;
   }
 
-  ++timeline_;
-  layer->releaseFenceFd =
-      sw_sync_fence_create(timeline_fd_, "drm_fence", timeline_);
-  if (layer->releaseFenceFd < 0) {
-    ALOGE("Could not create release fence %d", layer->releaseFenceFd);
-    return layer->releaseFenceFd;
-  }
-
-  DrmCompositionLayer_t c_layer;
-  c_layer.layer = *layer;
-  c_layer.bo = *bo;
-  c_layer.crtc = crtc;
-
-  // First try to find a primary plane for the layer, then fallback on overlays
+  // Find a plane for the layer
+  DrmPlane *plane = NULL;
   for (std::vector<DrmPlane *>::iterator iter = primary_planes_.begin();
        iter != primary_planes_.end(); ++iter) {
     if ((*iter)->GetCrtcSupported(*crtc)) {
-      c_layer.plane = (*iter);
+      plane = *iter;
       primary_planes_.erase(iter);
       break;
     }
   }
   for (std::deque<DrmPlane *>::iterator iter = overlay_planes_.begin();
-       !c_layer.plane && iter != overlay_planes_.end(); ++iter) {
+       !plane && iter != overlay_planes_.end(); ++iter) {
     if ((*iter)->GetCrtcSupported(*crtc)) {
-      c_layer.plane = (*iter);
+      plane = *iter;
       overlay_planes_.erase(iter);
       break;
     }
   }
-  if (!c_layer.plane) {
-    close(layer->releaseFenceFd);
-    layer->releaseFenceFd = -1;
+  if (!plane) {
+    ALOGE("Failed to find plane for display %d", display);
     return -ENOENT;
   }
-
-  layer->acquireFenceFd = -1;  // We own this now
-  composition_map_.insert(DrmCompositionLayerPair_t(display, c_layer));
-  return 0;
+  return composition_map_[display]->AddLayer(layer, bo, crtc, plane);
 }
 
-int DrmComposition::FinishComposition() {
-  int ret = sw_sync_timeline_inc(timeline_fd_, timeline_);
-  if (ret)
-    ALOGE("Failed to increment sync timeline %d", ret);
-
-  return ret;
-}
-
-DrmCompositionLayerMap_t *DrmComposition::GetCompositionMap() {
-  return &composition_map_;
+std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
+    int display) {
+  return std::move(composition_map_[display]);
 }
 }
