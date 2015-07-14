@@ -28,6 +28,7 @@
 #include <time.h>
 #include <vector>
 
+#include <drm/drm_mode.h>
 #include <cutils/log.h>
 #include <sync/sync.h>
 #include <utils/Trace.h>
@@ -173,6 +174,38 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
       continue;
     }
 
+    uint64_t rotation;
+    switch (layer->transform) {
+      case HWC_TRANSFORM_FLIP_H:
+        rotation = 1 << DRM_REFLECT_X;
+        break;
+      case HWC_TRANSFORM_FLIP_V:
+        rotation = 1 << DRM_REFLECT_Y;
+        break;
+      case HWC_TRANSFORM_ROT_90:
+        rotation = 1 << DRM_ROTATE_90;
+        break;
+      case HWC_TRANSFORM_ROT_180:
+        rotation = 1 << DRM_ROTATE_180;
+        break;
+      case HWC_TRANSFORM_ROT_270:
+        rotation = 1 << DRM_ROTATE_270;
+        break;
+      case 0:
+        rotation = 0;
+        break;
+      default:
+        ALOGE("Invalid transform value 0x%x given", layer->transform);
+        ret = -EINVAL;
+        break;
+    }
+    // TODO: Once we have atomic test, this should fall back to GL
+    if (rotation && plane->rotation_property().id() == 0) {
+      ALOGE("Rotation is not supported on plane %d", plane->id());
+      ret = -EINVAL;
+      break;
+    }
+
     ret =
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
                               crtc->id()) ||
@@ -201,6 +234,16 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     if (ret) {
       ALOGE("Failed to add plane %d to set", plane->id());
       break;
+    }
+
+    if (plane->rotation_property().id()) {
+      ret = drmModePropertySetAdd(
+              pset, plane->id(), plane->rotation_property().id(), rotation);
+      if (ret) {
+        ALOGE("Failed to add rotation property %d to plane %d",
+              plane->rotation_property().id(), plane->id());
+        break;
+      }
     }
   }
 
@@ -364,7 +407,8 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
         " src[x/y/w/h]=" << layer->sourceCropf.left << "/" <<
         layer->sourceCropf.top << "/" <<
         layer->sourceCropf.right - layer->sourceCropf.left << "/" <<
-        layer->sourceCropf.bottom - layer->sourceCropf.top << "\n";
+        layer->sourceCropf.bottom - layer->sourceCropf.top <<  " transform=" <<
+        layer->transform << "\n";
   }
 
 }

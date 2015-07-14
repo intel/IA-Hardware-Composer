@@ -85,9 +85,6 @@ bool DrmDisplayComposition::validate_composition_type(DrmCompositionType des) {
 
 int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
                                     DrmCrtc *crtc, DrmPlane *plane) {
-  if (layer->transform != 0)
-    return -EINVAL;
-
   if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
     return -EINVAL;
 
