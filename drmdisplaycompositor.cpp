@@ -189,9 +189,9 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
             pset, plane->id(), plane->crtc_h_property().id(),
             layer->displayFrame.bottom - layer->displayFrame.top) ||
         drmModePropertySetAdd(pset, plane->id(), plane->src_x_property().id(),
-                              layer->sourceCropf.left) ||
+                              (int)(layer->sourceCropf.left) << 16) ||
         drmModePropertySetAdd(pset, plane->id(), plane->src_y_property().id(),
-                              layer->sourceCropf.top) ||
+                              (int)(layer->sourceCropf.top) << 16) ||
         drmModePropertySetAdd(
             pset, plane->id(), plane->src_w_property().id(),
             (int)(layer->sourceCropf.right - layer->sourceCropf.left) << 16) ||
