@@ -407,11 +407,11 @@ static int CreateTextureFromHandle(EGLDisplay egl_display,
   return 0;
 }
 
-GLWorker::Compositor::Compositor()
+GLWorkerCompositor::GLWorkerCompositor()
     : egl_display_(EGL_NO_DISPLAY), egl_ctx_(EGL_NO_CONTEXT) {
 }
 
-int GLWorker::Compositor::Init() {
+int GLWorkerCompositor::Init() {
   int ret = 0;
   const char *egl_extensions;
   const char *gl_extensions;
@@ -502,14 +502,14 @@ int GLWorker::Compositor::Init() {
   return 0;
 }
 
-GLWorker::Compositor::~Compositor() {
+GLWorkerCompositor::~GLWorkerCompositor() {
   if (egl_display_ != EGL_NO_DISPLAY && egl_ctx_ != EGL_NO_CONTEXT)
     if (eglDestroyContext(egl_display_, egl_ctx_) == EGL_FALSE)
       ALOGE("Failed to destroy OpenGL ES Context: %s", GetEGLError());
 }
 
-int GLWorker::Compositor::Composite(hwc_layer_1 *layers, size_t num_layers,
-                                    sp<GraphicBuffer> framebuffer) {
+int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
+                                  sp<GraphicBuffer> framebuffer) {
   ATRACE_CALL();
   int ret = 0;
   size_t i;
@@ -654,7 +654,7 @@ int GLWorker::Compositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   return ret;
 }
 
-int GLWorker::DoComposition(Compositor &compositor, Work *work) {
+int GLWorker::DoComposition(GLWorkerCompositor &compositor, Work *work) {
   int ret =
       compositor.Composite(work->layers, work->num_layers, work->framebuffer);
 
@@ -800,7 +800,7 @@ void GLWorker::WorkerRoutine() {
 
   TRY(pthread_mutex_lock(&lock_), "lock GLThread", return );
 
-  Compositor compositor;
+  GLWorkerCompositor compositor;
 
   TRY(compositor.Init(), "initialize GL", goto out_signal_done);
 
