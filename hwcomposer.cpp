@@ -235,6 +235,21 @@ static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
   return ret;
 }
 
+static void hwc_add_layer_to_retire_fence(hwc_layer_1_t *layer,
+    hwc_display_contents_1_t *display_contents) {
+  if (layer->releaseFenceFd < 0)
+    return;
+
+  if (display_contents->retireFenceFd >= 0) {
+    int old_retire_fence = display_contents->retireFenceFd;
+    display_contents->retireFenceFd = sync_merge("dc_retire", old_retire_fence,
+                                                 layer->releaseFenceFd);
+    close(old_retire_fence);
+  } else {
+    display_contents->retireFenceFd = dup(layer->releaseFenceFd);
+  }
+}
+
 static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **display_contents) {
   ATRACE_CALL();
@@ -286,6 +301,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
         hwc_set_cleanup(num_displays, display_contents, composition);
         return ret;
       }
+      hwc_add_layer_to_retire_fence(layer, dc);
+
       --num_planes;
     }
 
@@ -400,6 +417,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
         hwc_set_cleanup(num_displays, display_contents, composition);
         return ret;
       }
+      hwc_add_layer_to_retire_fence(&composite_layer, dc);
 
       fb->set_release_fence_fd(composite_layer.releaseFenceFd);
       hd->fb_idx = (hd->fb_idx + 1) % HWC_FB_BUFFERS;
