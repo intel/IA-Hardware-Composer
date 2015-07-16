@@ -30,6 +30,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include <ui/GraphicBuffer.h>
+
 struct hwc_layer_1;
 
 namespace android {
@@ -77,6 +79,24 @@ struct AutoEGLImageAndGLTexture {
   }
 };
 
+class GLWorkerCompositor {
+ public:
+  GLWorkerCompositor();
+  ~GLWorkerCompositor();
+
+  int Init();
+
+  int Composite(hwc_layer_1 *layers, size_t num_layers,
+                sp<GraphicBuffer> framebuffer);
+
+ private:
+  EGLDisplay egl_display_;
+  EGLContext egl_ctx_;
+
+  std::vector<AutoGLProgram> blend_programs_;
+  AutoGLBuffer vertex_buffer_;
+};
+
 class GLWorker {
  public:
   struct Work {
@@ -87,24 +107,6 @@ class GLWorker {
 
     Work() = default;
     Work(const Work &rhs) = delete;
-  };
-
-  class Compositor {
-   public:
-    Compositor();
-    ~Compositor();
-
-    int Init();
-
-    int Composite(hwc_layer_1 *layers, size_t num_layers,
-                  sp<GraphicBuffer> framebuffer);
-
-   private:
-    EGLDisplay egl_display_;
-    EGLContext egl_ctx_;
-
-    std::vector<AutoGLProgram> blend_programs_;
-    AutoGLBuffer vertex_buffer_;
   };
 
   GLWorker();
@@ -126,7 +128,7 @@ class GLWorker {
   int worker_ret_;
 
   void WorkerRoutine();
-  int DoComposition(Compositor &compositor, Work *work);
+  int DoComposition(GLWorkerCompositor &compositor, Work *work);
 
   int SignalWorker(Work *work, bool worker_exit);
 
