@@ -95,22 +95,22 @@ int DrmDisplayCompositor::Init(DrmResources *drm, int display) {
 int DrmDisplayCompositor::QueueComposition(
     std::unique_ptr<DrmDisplayComposition> composition) {
   switch (composition->type()) {
-  case DRM_COMPOSITION_TYPE_FRAME:
-    if (!active_)
-      return -ENODEV;
-    break;
-  case DRM_COMPOSITION_TYPE_DPMS:
-    /*
-     * Update the state as soon as we get it so we can start/stop queuing
-     * frames asap.
-     */
-    active_ = (composition->dpms_mode() == DRM_MODE_DPMS_ON);
-    break;
-  case DRM_COMPOSITION_TYPE_EMPTY:
-    return 0;
-  default:
-    ALOGE("Unknown composition type %d/%d", composition->type(), display_);
-    return -ENOENT;
+    case DRM_COMPOSITION_TYPE_FRAME:
+      if (!active_)
+        return -ENODEV;
+      break;
+    case DRM_COMPOSITION_TYPE_DPMS:
+      /*
+       * Update the state as soon as we get it so we can start/stop queuing
+       * frames asap.
+       */
+      active_ = (composition->dpms_mode() == DRM_MODE_DPMS_ON);
+      break;
+    case DRM_COMPOSITION_TYPE_EMPTY:
+      return 0;
+    default:
+      ALOGE("Unknown composition type %d/%d", composition->type(), display_);
+      return -ENOENT;
   }
 
   int ret = pthread_mutex_lock(&lock_);
@@ -241,22 +241,22 @@ int DrmDisplayCompositor::Composite() {
   }
 
   switch (composition->type()) {
-  case DRM_COMPOSITION_TYPE_FRAME:
-    ret = ApplyFrame(composition.get());
-    if (ret) {
-      ALOGE("Composite failed for display %d", display_);
+    case DRM_COMPOSITION_TYPE_FRAME:
+      ret = ApplyFrame(composition.get());
+      if (ret) {
+        ALOGE("Composite failed for display %d", display_);
+        return ret;
+      }
+      ++dump_frames_composited_;
+      break;
+    case DRM_COMPOSITION_TYPE_DPMS:
+      ret = ApplyDpms(composition.get());
+      if (ret)
+        ALOGE("Failed to apply dpms for display %d", display_);
       return ret;
-    }
-    ++dump_frames_composited_;
-    break;
-  case DRM_COMPOSITION_TYPE_DPMS:
-    ret = ApplyDpms(composition.get());
-    if (ret)
-      ALOGE("Failed to apply dpms for display %d", display_);
-    return ret;
-  default:
-    ALOGE("Unknown composition type %d", composition->type());
-    return -EINVAL;
+    default:
+      ALOGE("Unknown composition type %d", composition->type());
+      return -EINVAL;
   }
 
   if (active_composition_)
