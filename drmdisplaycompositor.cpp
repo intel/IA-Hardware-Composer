@@ -21,7 +21,9 @@
 #include "drmcrtc.h"
 #include "drmplane.h"
 #include "drmresources.h"
+#include "glworker.h"
 
+#include <algorithm>
 #include <pthread.h>
 #include <sstream>
 #include <stdlib.h>
@@ -42,6 +44,7 @@ DrmDisplayCompositor::DrmDisplayCompositor()
       frame_no_(0),
       initialized_(false),
       active_(false),
+      framebuffer_index_(0),
       dump_frames_composited_(0),
       dump_last_timestamp_ns_(0) {
   struct timespec ts;
@@ -132,8 +135,125 @@ int DrmDisplayCompositor::QueueComposition(
   return 0;
 }
 
+static bool drm_composition_layer_has_plane(
+    const DrmCompositionLayer_t &comp_layer) {
+  if (comp_layer.plane != NULL)
+    if (comp_layer.plane->type() == DRM_PLANE_TYPE_OVERLAY ||
+        comp_layer.plane->type() == DRM_PLANE_TYPE_PRIMARY)
+      return true;
+  return false;
+}
+
+static bool drm_composition_layer_has_no_plane(
+    const DrmCompositionLayer_t &comp_layer) {
+  return comp_layer.plane == NULL;
+}
+
+int DrmDisplayCompositor::ApplyPreComposite(
+    DrmDisplayComposition *display_comp) {
+  int ret = 0;
+  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
+
+  auto last_layer = find_if(layers->rbegin(), layers->rend(),
+                            drm_composition_layer_has_plane);
+  if (last_layer == layers->rend()) {
+    ALOGE("Frame has no overlays");
+    return -EINVAL;
+  }
+
+  DrmCompositionLayer_t &comp_layer = *last_layer;
+  DrmPlane *stolen_plane = NULL;
+  std::swap(stolen_plane, comp_layer.plane);
+
+  DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
+  if (connector == NULL) {
+    ALOGE("Failed to determine display mode: no connector for display %d",
+          display_);
+    return -ENODEV;
+  }
+
+  const DrmMode &mode = connector->active_mode();
+  DrmFramebuffer &fb = framebuffers_[framebuffer_index_];
+  ret = fb.WaitReleased(-1);
+  if (ret) {
+    ALOGE("Failed to wait for framebuffer release %d", ret);
+    return ret;
+  }
+  fb.set_release_fence_fd(-1);
+  if (!fb.Allocate(mode.h_display(), mode.v_display())) {
+    ALOGE("Failed to allocate framebuffer with size %dx%d", mode.h_display(),
+          mode.v_display());
+    return -ENOMEM;
+  }
+
+  std::vector<hwc_layer_1_t> pre_comp_layers;
+  for (const auto &comp_layer : *layers)
+    if (comp_layer.plane == NULL)
+      pre_comp_layers.push_back(comp_layer.layer);
+
+  if (!pre_compositor_) {
+    pre_compositor_.reset(new GLWorkerCompositor());
+    ret = pre_compositor_->Init();
+    if (ret) {
+      ALOGE("Failed to initialize OpenGL compositor %d", ret);
+      return ret;
+    }
+  }
+  ret = pre_compositor_->CompositeAndFinish(
+      pre_comp_layers.data(), pre_comp_layers.size(), fb.buffer());
+  if (ret) {
+    ALOGE("Failed to composite layers");
+    return ret;
+  }
+
+  layers->erase(std::remove_if(layers->begin(), layers->end(),
+                               drm_composition_layer_has_no_plane),
+                layers->end());
+
+  hwc_layer_1_t pre_comp_output_layer;
+  memset(&pre_comp_output_layer, 0, sizeof(pre_comp_output_layer));
+  pre_comp_output_layer.compositionType = HWC_OVERLAY;
+  pre_comp_output_layer.handle = fb.buffer()->handle;
+  pre_comp_output_layer.acquireFenceFd = -1;
+  pre_comp_output_layer.releaseFenceFd = -1;
+  pre_comp_output_layer.planeAlpha = 0xff;
+  pre_comp_output_layer.visibleRegionScreen.numRects = 1;
+  pre_comp_output_layer.visibleRegionScreen.rects =
+      &pre_comp_output_layer.displayFrame;
+  pre_comp_output_layer.sourceCropf.top =
+      pre_comp_output_layer.displayFrame.top = 0;
+  pre_comp_output_layer.sourceCropf.left =
+      pre_comp_output_layer.displayFrame.left = 0;
+  pre_comp_output_layer.sourceCropf.right =
+      pre_comp_output_layer.displayFrame.right = fb.buffer()->getWidth();
+  pre_comp_output_layer.sourceCropf.bottom =
+      pre_comp_output_layer.displayFrame.bottom = fb.buffer()->getHeight();
+
+  ret = display_comp->AddLayer(&pre_comp_output_layer,
+                               drm_->GetCrtcForDisplay(display_), stolen_plane);
+  if (ret) {
+    ALOGE("Failed to add composited layer %d", ret);
+    return ret;
+  }
+
+  fb.set_release_fence_fd(pre_comp_output_layer.releaseFenceFd);
+  framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
+
+  return ret;
+}
+
 int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   int ret = 0;
+
+  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
+  bool use_pre_comp = std::any_of(layers->begin(), layers->end(),
+                                  drm_composition_layer_has_no_plane);
+
+  if (use_pre_comp) {
+    ret = ApplyPreComposite(display_comp);
+    if (ret)
+      return ret;
+  }
 
   drmModePropertySetPtr pset = drmModePropertySetAlloc();
   if (!pset) {
@@ -141,7 +261,6 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     return -ENOMEM;
   }
 
-  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
   for (DrmCompositionLayerVector_t::iterator iter = layers->begin();
        iter != layers->end(); ++iter) {
     hwc_layer_1_t *layer = &iter->layer;
