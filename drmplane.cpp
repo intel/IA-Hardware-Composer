@@ -120,6 +120,10 @@ int DrmPlane::Init() {
     return ret;
   }
 
+  ret = drm_->GetPlaneProperty(*this, "rotation", &rotation_property_);
+  if (ret)
+    ALOGE("Could not get rotation property");
+
   return 0;
 }
 
@@ -173,5 +177,9 @@ const DrmProperty &DrmPlane::src_w_property() const {
 
 const DrmProperty &DrmPlane::src_h_property() const {
   return src_h_property_;
+}
+
+const DrmProperty &DrmPlane::rotation_property() const {
+  return rotation_property_;
 }
 }
