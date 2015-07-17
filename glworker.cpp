@@ -17,6 +17,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "GLWorker"
 
+#include <algorithm>
 #include <string>
 #include <sstream>
 
@@ -48,6 +49,21 @@ namespace android {
 
 typedef seperate_rects::Rect<float> FRect;
 typedef seperate_rects::RectSet<uint64_t, float> FRectSet;
+
+// clang-format off
+// Column-major order:
+// float mat[4] = { 1, 2, 3, 4 } ===
+// [ 1 3 ]
+// [ 2 4 ]
+float kTextureTransformMatrices[] = {
+   1.0f,  0.0f,  0.0f,  1.0f, // identity matrix
+  -1.0f,  0.0f,  0.0f,  1.0f, // HWC_TRANSFORM_FLIP_H;
+   1.0f,  0.0f,  0.0f, -1.0f, // HWC_TRANSFORM_FLIP_V;
+   0.0f,  1.0f, -1.0f,  0.0f, // HWC_TRANSFORM_ROT_90;
+  -1.0f,  0.0f,  0.0f, -1.0f, // HWC_TRANSFORM_ROT_180;
+   0.0f, -1.0f,  1.0f,  0.0f, // HWC_TRANSFORM_ROT_270;
+};
+// clang-format on
 
 static const char *GetGLError(void) {
   switch (glGetError()) {
@@ -175,6 +191,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "uniform vec4 uViewport;                                                    \n"
 "uniform sampler2D uLayerTextures[LAYER_COUNT];                             \n"
 "uniform vec4 uLayerCrop[LAYER_COUNT];                                      \n"
+"uniform mat2 uTexMatrix[LAYER_COUNT];                                      \n"
 "in vec2 vPosition;                                                         \n"
 "in vec2 vTexCoords;                                                        \n"
 "out vec2 fTexCoords[LAYER_COUNT];                                          \n"
@@ -182,6 +199,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "  for (int i = 0; i < LAYER_COUNT; i++) {                                  \n"
 "    fTexCoords[i] = (uLayerCrop[i].xy + vTexCoords * uLayerCrop[i].zw) /   \n"
 "                     vec2(textureSize(uLayerTextures[i], 0));              \n"
+"    fTexCoords[i] *= uTexMatrix[i];                                        \n"
 "  }                                                                        \n"
 "  vec2 scaledPosition = uViewport.xy + vPosition * uViewport.zw;           \n"
 "  gl_Position = vec4(scaledPosition * vec2(2.0) - vec2(1.0), 0.0, 1.0);    \n"
@@ -281,6 +299,7 @@ struct RenderingCommand {
     unsigned texture_index;
     float crop_bounds[4];
     float alpha;
+    float texture_matrix[4];
   };
 
   float bounds[4];
@@ -343,6 +362,33 @@ static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
               crop_rect.bounds[b % 2] + bound_percent * crop_size[b % 2];
         }
 
+        float *src_tex_mat;
+        switch (layer.transform) {
+          case HWC_TRANSFORM_FLIP_H:
+            src_tex_mat = &kTextureTransformMatrices[4];
+            break;
+          case HWC_TRANSFORM_FLIP_V:
+            src_tex_mat = &kTextureTransformMatrices[8];
+            break;
+          case HWC_TRANSFORM_ROT_90:
+            src_tex_mat = &kTextureTransformMatrices[12];
+            break;
+          case HWC_TRANSFORM_ROT_180:
+            src_tex_mat = &kTextureTransformMatrices[16];
+            break;
+          case HWC_TRANSFORM_ROT_270:
+            src_tex_mat = &kTextureTransformMatrices[20];
+            break;
+          default:
+            ALOGE(
+                "Unknown transform for layer: defaulting to identity "
+                "transform");
+          case 0:
+            src_tex_mat = &kTextureTransformMatrices[0];
+            break;
+        }
+        std::copy_n(src_tex_mat, 4, src.texture_matrix);
+
         if (layer.blending == HWC_BLENDING_NONE) {
           src.alpha = 1.0f;
           // This layer is opaque. There is no point in using layers below this
@@ -397,8 +443,8 @@ static int CreateTextureFromHandle(EGLDisplay egl_display,
   glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glBindTexture(GL_TEXTURE_2D, 0);
 
   out->image.reset(image);
@@ -614,6 +660,7 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
     GLint gl_tex_loc = glGetUniformLocation(program, "uLayerTextures");
     GLint gl_crop_loc = glGetUniformLocation(program, "uLayerCrop");
     GLint gl_alpha_loc = glGetUniformLocation(program, "uLayerAlpha");
+    GLint gl_tex_matrix_loc = glGetUniformLocation(program, "uTexMatrix");
     glUniform4f(gl_viewport_loc, cmd.bounds[0] / (float)frame_width,
                 cmd.bounds[1] / (float)frame_height,
                 (cmd.bounds[2] - cmd.bounds[0]) / (float)frame_width,
@@ -625,8 +672,9 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
       glUniform4f(gl_crop_loc + src_index, src.crop_bounds[0],
                   src.crop_bounds[1], src.crop_bounds[2] - src.crop_bounds[0],
                   src.crop_bounds[3] - src.crop_bounds[1]);
-
       glUniform1i(gl_tex_loc + src_index, src_index);
+      glUniformMatrix2fv(gl_tex_matrix_loc + src_index, 1, GL_FALSE,
+                         src.texture_matrix);
       glActiveTexture(GL_TEXTURE0 + src_index);
       glBindTexture(GL_TEXTURE_2D,
                     layer_textures[src.texture_index].texture.get());
