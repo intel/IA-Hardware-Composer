@@ -45,6 +45,7 @@ DrmDisplayComposition::DrmDisplayComposition()
       type_(DRM_COMPOSITION_TYPE_EMPTY),
       timeline_fd_(-1),
       timeline_(0),
+      timeline_current_(0),
       dpms_mode_(DRM_MODE_DPMS_ON) {
 }
 
@@ -58,8 +59,11 @@ DrmDisplayComposition::~DrmDisplayComposition() {
       close(iter->layer.acquireFenceFd);
   }
 
-  if (timeline_fd_ >= 0)
+  if (timeline_fd_ >= 0) {
+    FinishComposition();
     close(timeline_fd_);
+    timeline_fd_ = -1;
+  }
 }
 
 int DrmDisplayComposition::Init(DrmResources *drm, Importer *importer) {
@@ -125,9 +129,15 @@ int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
 }
 
 int DrmDisplayComposition::FinishComposition() {
-  int ret = sw_sync_timeline_inc(timeline_fd_, timeline_);
+  int timeline_increase = timeline_ - timeline_current_;
+  if (timeline_increase <= 0)
+    return 0;
+
+  int ret = sw_sync_timeline_inc(timeline_fd_, timeline_increase);
   if (ret)
     ALOGE("Failed to increment sync timeline %d", ret);
+  else
+    timeline_current_ = timeline_;
 
   return ret;
 }
