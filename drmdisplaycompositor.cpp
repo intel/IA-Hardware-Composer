@@ -162,11 +162,10 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
 
     // Disable the plane if there's no crtc
     if (!crtc) {
-      ret =
-          drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
-                                0) ||
-          drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
-                                0);
+      ret = drmModePropertySetAdd(pset, plane->id(),
+                                  plane->crtc_property().id(), 0) ||
+            drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
+                                  0);
       if (ret) {
         ALOGE("Failed to add plane %d disable to pset", plane->id());
         break;
@@ -199,6 +198,9 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
         ret = -EINVAL;
         break;
     }
+    if (ret)
+      break;
+
     // TODO: Once we have atomic test, this should fall back to GL
     if (rotation && plane->rotation_property().id() == 0) {
       ALOGE("Rotation is not supported on plane %d", plane->id());
@@ -237,8 +239,8 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     }
 
     if (plane->rotation_property().id()) {
-      ret = drmModePropertySetAdd(
-              pset, plane->id(), plane->rotation_property().id(), rotation);
+      ret = drmModePropertySetAdd(pset, plane->id(),
+                                  plane->rotation_property().id(), rotation);
       if (ret) {
         ALOGE("Failed to add rotation property %d to plane %d",
               plane->rotation_property().id(), plane->id());
@@ -329,8 +331,8 @@ int DrmDisplayCompositor::Composite() {
 
   if (!ret)
     ret = pthread_mutex_unlock(&lock_);
-    if (ret)
-      ALOGE("Failed to release lock for active_composition swap");
+  if (ret)
+    ALOGE("Failed to release lock for active_composition swap");
 
   return ret;
 }
@@ -400,16 +402,16 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
       continue;
     }
 
-    *out << "crtc=" << crtc->id() << " crtc[x/y/w/h]=" <<
-        layer->displayFrame.left << "/" << layer->displayFrame.top << "/" <<
-        layer->displayFrame.right - layer->displayFrame.left << "/" <<
-        layer->displayFrame.bottom - layer->displayFrame.top << " " <<
-        " src[x/y/w/h]=" << layer->sourceCropf.left << "/" <<
-        layer->sourceCropf.top << "/" <<
-        layer->sourceCropf.right - layer->sourceCropf.left << "/" <<
-        layer->sourceCropf.bottom - layer->sourceCropf.top <<  " transform=" <<
-        layer->transform << "\n";
+    *out << "crtc=" << crtc->id()
+         << " crtc[x/y/w/h]=" << layer->displayFrame.left << "/"
+         << layer->displayFrame.top << "/"
+         << layer->displayFrame.right - layer->displayFrame.left << "/"
+         << layer->displayFrame.bottom - layer->displayFrame.top << " "
+         << " src[x/y/w/h]=" << layer->sourceCropf.left << "/"
+         << layer->sourceCropf.top << "/"
+         << layer->sourceCropf.right - layer->sourceCropf.left << "/"
+         << layer->sourceCropf.bottom - layer->sourceCropf.top
+         << " transform=" << layer->transform << "\n";
   }
-
 }
 }
