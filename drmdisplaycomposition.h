@@ -56,6 +56,9 @@ class DrmDisplayComposition {
 
   int AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo, DrmCrtc *crtc,
                DrmPlane *plane);
+  // Like the AddLayer that accepts a hwc_drm_bo_t, but uses Importer to import
+  // the layer->handle itself.
+  int AddLayer(hwc_layer_1_t *layer, DrmCrtc *crtc, DrmPlane *plane);
   int AddPlaneDisable(DrmPlane *plane);
   int AddDpmsMode(uint32_t dpms_mode);
 

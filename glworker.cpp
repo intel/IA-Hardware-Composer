@@ -702,6 +702,14 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   return ret;
 }
 
+int GLWorkerCompositor::CompositeAndFinish(hwc_layer_1 *layers,
+                                           size_t num_layers,
+                                           sp<GraphicBuffer> framebuffer) {
+  int ret = Composite(layers, num_layers, framebuffer);
+  glFinish();
+  return ret;
+}
+
 int GLWorker::DoComposition(GLWorkerCompositor &compositor, Work *work) {
   int ret =
       compositor.Composite(work->layers, work->num_layers, work->framebuffer);
