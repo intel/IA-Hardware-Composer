@@ -76,6 +76,7 @@ class DrmDisplayComposition {
 
   int timeline_fd_;
   int timeline_;
+  int timeline_current_;
 
   DrmCompositionLayerVector_t layers_;
   uint32_t dpms_mode_;
