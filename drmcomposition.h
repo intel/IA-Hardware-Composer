@@ -17,7 +17,6 @@
 #ifndef ANDROID_DRM_COMPOSITION_H_
 #define ANDROID_DRM_COMPOSITION_H_
 
-#include "compositor.h"
 #include "drm_hwcomposer.h"
 #include "drmdisplaycomposition.h"
 #include "drmplane.h"
@@ -32,15 +31,15 @@
 
 namespace android {
 
-class DrmComposition : public Composition {
+class DrmComposition {
  public:
   DrmComposition(DrmResources *drm, Importer *importer);
   ~DrmComposition();
 
-  virtual int Init();
+  int Init();
 
-  virtual unsigned GetRemainingLayers(int display, unsigned num_needed) const;
-  virtual int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
+  unsigned GetRemainingLayers(int display, unsigned num_needed) const;
+  int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
   int AddDpmsMode(int display, uint32_t dpms_mode);
 
   int DisableUnusedPlanes();
