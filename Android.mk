@@ -47,6 +47,7 @@ LOCAL_SRC_FILES := \
 	drmdisplaycomposition.cpp \
 	drmdisplaycompositor.cpp \
 	drmencoder.cpp \
+	drmeventlistener.cpp \
 	drmmode.cpp \
 	drmplane.cpp \
 	drmproperty.cpp \

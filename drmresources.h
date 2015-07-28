@@ -21,6 +21,7 @@
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
+#include "drmeventlistener.h"
 #include "drmplane.h"
 
 #include <stdint.h>
@@ -30,6 +31,7 @@ namespace android {
 class DrmResources {
  public:
   DrmResources();
+  ~DrmResources();
 
   int Init();
 
@@ -49,6 +51,7 @@ class DrmResources {
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
   DrmCompositor *compositor();
+  DrmEventListener *event_listener();
 
   int GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
                        DrmProperty *property);
@@ -79,6 +82,7 @@ class DrmResources {
   std::vector<std::unique_ptr<DrmCrtc>> crtcs_;
   std::vector<std::unique_ptr<DrmPlane>> planes_;
   DrmCompositor compositor_;
+  DrmEventListener event_listener_;
 };
 }
 
