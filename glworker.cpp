@@ -23,6 +23,9 @@
 
 #include <sys/resource.h>
 
+#include <sync/sync.h>
+#include <sw_sync.h>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
@@ -705,6 +708,195 @@ int GLWorkerCompositor::CompositeAndFinish(hwc_layer_1 *layers,
   int ret = Composite(layers, num_layers, framebuffer);
   glFinish();
   return ret;
+}
+
+int GLWorker::DoComposition(GLWorkerCompositor &compositor, Work *work) {
+  int ret =
+      compositor.Composite(work->layers, work->num_layers, work->framebuffer);
+
+  int timeline_fd = work->timeline_fd;
+  work->timeline_fd = -1;
+
+  if (ret) {
+    worker_ret_ = ret;
+    glFinish();
+    sw_sync_timeline_inc(timeline_fd, work->num_layers);
+    close(timeline_fd);
+    return pthread_cond_signal(&work_done_cond_);
+  }
+
+  unsigned timeline_count = work->num_layers + 1;
+  worker_ret_ = sw_sync_fence_create(timeline_fd, "GLComposition done fence",
+                                     timeline_count);
+  ret = pthread_cond_signal(&work_done_cond_);
+
+  glFinish();
+
+  sw_sync_timeline_inc(timeline_fd, timeline_count);
+  close(timeline_fd);
+
+  return ret;
+}
+
+GLWorker::GLWorker() : initialized_(false) {
+}
+
+GLWorker::~GLWorker() {
+  if (!initialized_)
+    return;
+
+  if (SignalWorker(NULL, true) != 0 || pthread_join(thread_, NULL) != 0)
+    pthread_kill(thread_, SIGTERM);
+
+  pthread_cond_destroy(&work_ready_cond_);
+  pthread_cond_destroy(&work_done_cond_);
+  pthread_mutex_destroy(&lock_);
+}
+
+#define TRY(x, n, g)                  \
+  ret = x;                            \
+  if (ret) {                          \
+    ALOGE("Failed to " n " %d", ret); \
+    g;                                \
+  }
+
+#define TRY_RETURN(x, n) TRY(x, n, return ret)
+
+int GLWorker::Init() {
+  int ret = 0;
+
+  worker_work_ = NULL;
+  worker_exit_ = false;
+  worker_ret_ = -1;
+
+  ret = pthread_cond_init(&work_ready_cond_, NULL);
+  if (ret) {
+    ALOGE("Failed to int GLThread condition %d", ret);
+    return ret;
+  }
+
+  ret = pthread_cond_init(&work_done_cond_, NULL);
+  if (ret) {
+    ALOGE("Failed to int GLThread condition %d", ret);
+    pthread_cond_destroy(&work_ready_cond_);
+    return ret;
+  }
+
+  ret = pthread_mutex_init(&lock_, NULL);
+  if (ret) {
+    ALOGE("Failed to init GLThread lock %d", ret);
+    pthread_cond_destroy(&work_ready_cond_);
+    pthread_cond_destroy(&work_done_cond_);
+    return ret;
+  }
+
+  ret = pthread_create(&thread_, NULL, StartRoutine, this);
+  if (ret) {
+    ALOGE("Failed to create GLThread %d", ret);
+    pthread_cond_destroy(&work_ready_cond_);
+    pthread_cond_destroy(&work_done_cond_);
+    pthread_mutex_destroy(&lock_);
+    return ret;
+  }
+
+  initialized_ = true;
+
+  TRY_RETURN(pthread_mutex_lock(&lock_), "lock GLThread");
+
+  while (!worker_exit_ && worker_ret_ != 0)
+    TRY(pthread_cond_wait(&work_done_cond_, &lock_), "wait on condition",
+        goto out_unlock);
+
+  ret = worker_ret_;
+
+out_unlock:
+  int unlock_ret = pthread_mutex_unlock(&lock_);
+  if (unlock_ret) {
+    ret = unlock_ret;
+    ALOGE("Failed to unlock GLThread %d", unlock_ret);
+  }
+  return ret;
+}
+
+int GLWorker::SignalWorker(Work *work, bool worker_exit) {
+  int ret = 0;
+  if (worker_exit_)
+    return -EINVAL;
+  TRY_RETURN(pthread_mutex_lock(&lock_), "lock GLThread");
+  worker_work_ = work;
+  worker_exit_ = worker_exit;
+  ret = pthread_cond_signal(&work_ready_cond_);
+  if (ret) {
+    ALOGE("Failed to signal GLThread caller %d", ret);
+    pthread_mutex_unlock(&lock_);
+    return ret;
+  }
+  ret = pthread_cond_wait(&work_done_cond_, &lock_);
+  if (ret) {
+    ALOGE("Failed to wait on GLThread %d", ret);
+    pthread_mutex_unlock(&lock_);
+    return ret;
+  }
+
+  ret = worker_ret_;
+  if (ret) {
+    pthread_mutex_unlock(&lock_);
+    return ret;
+  }
+  TRY_RETURN(pthread_mutex_unlock(&lock_), "unlock GLThread");
+  return ret;
+}
+
+int GLWorker::DoWork(Work *work) {
+  return SignalWorker(work, false);
+}
+
+void GLWorker::WorkerRoutine() {
+  int ret = 0;
+
+  TRY(pthread_mutex_lock(&lock_), "lock GLThread", return );
+
+  GLWorkerCompositor compositor;
+
+  TRY(compositor.Init(), "initialize GL", goto out_signal_done);
+
+  worker_ret_ = 0;
+  TRY(pthread_cond_signal(&work_done_cond_), "signal GLThread caller",
+      goto out_signal_done);
+
+  while (true) {
+    while (worker_work_ == NULL && !worker_exit_)
+      TRY(pthread_cond_wait(&work_ready_cond_, &lock_), "wait on condition",
+          goto out_signal_done);
+
+    if (worker_exit_) {
+      ret = 0;
+      break;
+    }
+
+    ret = DoComposition(compositor, worker_work_);
+
+    worker_work_ = NULL;
+    if (ret) {
+      break;
+    }
+  }
+
+out_signal_done:
+  worker_exit_ = true;
+  worker_ret_ = ret;
+  TRY(pthread_cond_signal(&work_done_cond_), "signal GLThread caller",
+      goto out_unlock);
+out_unlock:
+  TRY(pthread_mutex_unlock(&lock_), "unlock GLThread", return );
+}
+
+/* static */
+void *GLWorker::StartRoutine(void *arg) {
+  setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
+  GLWorker *worker = (GLWorker *)arg;
+  worker->WorkerRoutine();
+  return NULL;
 }
 
 }  // namespace android
