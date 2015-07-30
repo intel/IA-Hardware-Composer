@@ -17,7 +17,7 @@
 #ifndef ANDROID_DRM_COMPOSITOR_H_
 #define ANDROID_DRM_COMPOSITOR_H_
 
-#include "drmcomposition.h"
+#include "compositor.h"
 #include "drmdisplaycompositor.h"
 #include "importer.h"
 
@@ -26,18 +26,22 @@
 
 namespace android {
 
-class DrmCompositor {
+class DrmCompositor : public Compositor {
  public:
   DrmCompositor(DrmResources *drm);
   ~DrmCompositor();
 
-  int Init();
+  virtual int Init();
 
-  DrmComposition *CreateComposition(Importer *importer);
+  virtual Targeting *targeting() {
+    return NULL;
+  }
 
-  int QueueComposition(DrmComposition *composition);
-  int Composite();
-  void Dump(std::ostringstream *out) const;
+  virtual Composition *CreateComposition(Importer *importer);
+
+  virtual int QueueComposition(Composition *composition);
+  virtual int Composite();
+  virtual void Dump(std::ostringstream *out) const;
 
  private:
   DrmCompositor(const DrmCompositor &) = delete;

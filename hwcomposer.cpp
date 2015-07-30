@@ -110,7 +110,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
 
 static void hwc_set_cleanup(size_t num_displays,
                             hwc_display_contents_1_t **display_contents,
-                            DrmComposition *composition) {
+                            Composition *composition) {
   for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
@@ -133,7 +133,7 @@ static void hwc_set_cleanup(size_t num_displays,
 }
 
 static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
-                         DrmComposition *composition) {
+                         Composition *composition) {
   hwc_drm_bo_t bo;
   int ret = ctx->importer->ImportBuffer(layer->handle, &bo);
   if (ret) {
@@ -171,7 +171,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **display_contents) {
   ATRACE_CALL();
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  DrmComposition *composition =
+  Composition *composition =
       ctx->drm.compositor()->CreateComposition(ctx->importer);
   if (!composition) {
     ALOGE("Drm composition init failed");

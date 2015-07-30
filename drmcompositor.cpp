@@ -47,7 +47,7 @@ int DrmCompositor::Init() {
   return 0;
 }
 
-DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
+Composition *DrmCompositor::CreateComposition(Importer *importer) {
   DrmComposition *composition = new DrmComposition(drm_, importer);
   if (!composition) {
     ALOGE("Failed to allocate drm composition");
@@ -62,8 +62,10 @@ DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
   return composition;
 }
 
-int DrmCompositor::QueueComposition(DrmComposition *composition) {
-  int ret = composition->DisableUnusedPlanes();
+int DrmCompositor::QueueComposition(Composition *composition) {
+  DrmComposition *drm_composition = (DrmComposition *)composition;
+
+  int ret = drm_composition->DisableUnusedPlanes();
   if (ret) {
     ALOGE("Failed to disable unused planes %d", ret);
     return ret;
@@ -73,7 +75,7 @@ int DrmCompositor::QueueComposition(DrmComposition *composition) {
        iter != drm_->end_connectors(); ++iter) {
     int display = (*iter)->display();
     int ret = compositor_map_[display].QueueComposition(
-        composition->TakeDisplayComposition(display));
+        drm_composition->TakeDisplayComposition(display));
     if (ret) {
       ALOGE("Failed to queue composition for display %d", display);
       delete composition;
