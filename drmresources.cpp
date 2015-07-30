@@ -467,7 +467,7 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
     return -EINVAL;
   }
 
-  DrmComposition *comp = compositor_.CreateComposition(NULL);
+  DrmComposition *comp = (DrmComposition *)compositor_.CreateComposition(NULL);
   if (!comp) {
     ALOGE("Failed to create composition for dpms on %d", display);
     return -ENOMEM;
@@ -478,7 +478,7 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
     delete comp;
     return ret;
   }
-  ret = compositor_.QueueComposition(comp);
+  ret = compositor_.QueueComposition((Composition *)comp);
   if (ret) {
     ALOGE("Failed to queue dpms composition on %d %d", display, ret);
     return ret;
