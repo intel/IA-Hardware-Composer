@@ -171,4 +171,8 @@ DrmCompositionLayerVector_t *DrmDisplayComposition::GetCompositionLayers() {
 uint32_t DrmDisplayComposition::dpms_mode() const {
   return dpms_mode_;
 }
+
+Importer *DrmDisplayComposition::importer() const {
+  return importer_;
+}
 }

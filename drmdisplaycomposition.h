@@ -67,6 +67,8 @@ class DrmDisplayComposition {
   DrmCompositionLayerVector_t *GetCompositionLayers();
   uint32_t dpms_mode() const;
 
+  Importer *importer() const;
+
  private:
   DrmDisplayComposition(const DrmDisplayComposition &) = delete;
 

@@ -206,6 +206,10 @@ int DrmDisplayCompositor::ApplyPreComposite(
     return ret;
   }
 
+  for (auto &comp_layer : *layers)
+    if (comp_layer.plane == NULL)
+      display_comp->importer()->ReleaseBuffer(&comp_layer.bo);
+
   layers->erase(std::remove_if(layers->begin(), layers->end(),
                                drm_composition_layer_has_no_plane),
                 layers->end());
