@@ -63,9 +63,26 @@ int DrmComposition::Init() {
   return 0;
 }
 
-unsigned DrmComposition::GetRemainingLayers(int /*display*/,
+unsigned DrmComposition::GetRemainingLayers(int display,
                                             unsigned num_needed) const {
-  return num_needed;
+  DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
+  if (!crtc) {
+    ALOGE("Failed to find crtc for display %d", display);
+    return 0;
+  }
+
+  unsigned num_planes = 0;
+  for (std::vector<DrmPlane *>::const_iterator iter = primary_planes_.begin();
+       iter != primary_planes_.end(); ++iter) {
+    if ((*iter)->GetCrtcSupported(*crtc))
+      ++num_planes;
+  }
+  for (std::vector<DrmPlane *>::const_iterator iter = overlay_planes_.begin();
+       iter != overlay_planes_.end(); ++iter) {
+    if ((*iter)->GetCrtcSupported(*crtc))
+      ++num_planes;
+  }
+  return std::min(num_planes, num_needed);
 }
 
 int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
@@ -93,6 +110,10 @@ int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
       overlay_planes_.erase(iter);
       break;
     }
+  }
+  if (!plane) {
+    ALOGE("Failed to find plane for display %d", display);
+    return -ENOENT;
   }
   return composition_map_[display]->AddLayer(layer, bo, crtc, plane);
 }

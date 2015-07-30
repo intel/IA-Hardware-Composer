@@ -88,8 +88,6 @@ class GLWorkerCompositor {
 
   int Composite(hwc_layer_1 *layers, size_t num_layers,
                 sp<GraphicBuffer> framebuffer);
-  int CompositeAndFinish(hwc_layer_1 *layers, size_t num_layers,
-                         sp<GraphicBuffer> framebuffer);
 
  private:
   EGLDisplay egl_display_;
