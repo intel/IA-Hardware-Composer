@@ -50,7 +50,6 @@ LOCAL_SRC_FILES := \
 	drmmode.cpp \
 	drmplane.cpp \
 	drmproperty.cpp \
-	gl_compositor.cpp \
 	glworker.cpp \
 	hwcomposer.cpp \
 	seperate_rects.cpp \

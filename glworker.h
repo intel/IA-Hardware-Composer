@@ -17,8 +17,6 @@
 #ifndef ANDROID_GL_WORKER_H_
 #define ANDROID_GL_WORKER_H_
 
-#include <pthread.h>
-
 #include <memory>
 #include <vector>
 
@@ -97,44 +95,6 @@ class GLWorkerCompositor {
 
   std::vector<AutoGLProgram> blend_programs_;
   AutoGLBuffer vertex_buffer_;
-};
-
-class GLWorker {
- public:
-  struct Work {
-    hwc_layer_1 *layers;
-    size_t num_layers;
-    int timeline_fd;
-    sp<GraphicBuffer> framebuffer;
-
-    Work() = default;
-    Work(const Work &rhs) = delete;
-  };
-
-  GLWorker();
-  ~GLWorker();
-
-  int Init();
-
-  int DoWork(Work *work);
-
- private:
-  bool initialized_;
-  pthread_t thread_;
-  pthread_mutex_t lock_;
-  pthread_cond_t work_ready_cond_;
-  pthread_cond_t work_done_cond_;
-  Work *worker_work_;
-  bool work_ready_;
-  bool worker_exit_;
-  int worker_ret_;
-
-  void WorkerRoutine();
-  int DoComposition(GLWorkerCompositor &compositor, Work *work);
-
-  int SignalWorker(Work *work, bool worker_exit);
-
-  static void *StartRoutine(void *arg);
 };
 }
 
