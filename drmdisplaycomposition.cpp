@@ -112,6 +112,28 @@ int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
   return 0;
 }
 
+int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, DrmCrtc *crtc,
+                                    DrmPlane *plane) {
+  if (layer->transform != 0)
+    return -EINVAL;
+
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
+    return -EINVAL;
+
+  hwc_drm_bo_t bo;
+  int ret = importer_->ImportBuffer(layer->handle, &bo);
+  if (ret) {
+    ALOGE("Failed to import handle of layer %d", ret);
+    return ret;
+  }
+
+  ret = AddLayer(layer, &bo, crtc, plane);
+  if (ret)
+    importer_->ReleaseBuffer(&bo);
+
+  return ret;
+}
+
 int DrmDisplayComposition::AddDpmsMode(uint32_t dpms_mode) {
   if (!validate_composition_type(DRM_COMPOSITION_TYPE_DPMS))
     return -EINVAL;
