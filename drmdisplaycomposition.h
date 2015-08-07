@@ -23,6 +23,7 @@
 
 #include <vector>
 
+#include <hardware/gralloc.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
@@ -42,6 +43,7 @@ typedef struct DrmCompositionLayer {
   hwc_drm_bo_t bo;
   DrmCrtc *crtc;
   DrmPlane *plane;
+  native_handle_t *handle;
 } DrmCompositionLayer_t;
 typedef std::vector<DrmCompositionLayer_t> DrmCompositionLayerVector_t;
 
@@ -62,6 +64,7 @@ class DrmDisplayComposition {
   int AddPlaneDisable(DrmPlane *plane);
   int AddDpmsMode(uint32_t dpms_mode);
 
+  void RemoveNoPlaneLayers();
   int FinishComposition();
 
   DrmCompositionLayerVector_t *GetCompositionLayers();
@@ -76,6 +79,7 @@ class DrmDisplayComposition {
 
   DrmResources *drm_;
   Importer *importer_;
+  const gralloc_module_t *gralloc_;
 
   DrmCompositionType type_;
 

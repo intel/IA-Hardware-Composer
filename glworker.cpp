@@ -600,11 +600,13 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   }
 
   for (i = 0; i < num_layers; i++) {
-    const struct hwc_layer_1 *layer = &layers[i];
+    struct hwc_layer_1 *layer = &layers[i];
 
     if (ret) {
-      if (layer->acquireFenceFd >= 0)
+      if (layer->acquireFenceFd >= 0) {
         close(layer->acquireFenceFd);
+        layer->acquireFenceFd = -1;
+      }
       continue;
     }
 
@@ -613,6 +615,7 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
                                   &layer_textures.back());
     if (!ret) {
       ret = EGLFenceWait(egl_display_, layer->acquireFenceFd);
+      layer->acquireFenceFd = -1;
     }
     if (ret) {
       layer_textures.pop_back();

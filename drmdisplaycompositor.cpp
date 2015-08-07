@@ -186,11 +186,6 @@ int DrmDisplayCompositor::ApplyPreComposite(
     return -ENOMEM;
   }
 
-  std::vector<hwc_layer_1_t> pre_comp_layers;
-  for (const auto &comp_layer : *layers)
-    if (comp_layer.plane == NULL)
-      pre_comp_layers.push_back(comp_layer.layer);
-
   if (!pre_compositor_) {
     pre_compositor_.reset(new GLWorkerCompositor());
     ret = pre_compositor_->Init();
@@ -199,20 +194,32 @@ int DrmDisplayCompositor::ApplyPreComposite(
       return ret;
     }
   }
+
+  std::vector<hwc_layer_1_t> pre_comp_layers;
+  for (auto &comp_layer : *layers) {
+    if (comp_layer.plane == NULL) {
+      pre_comp_layers.push_back(comp_layer.layer);
+      pre_comp_layers.back().handle = comp_layer.handle;
+      comp_layer.layer.acquireFenceFd = -1;
+    }
+  }
+
   ret = pre_compositor_->CompositeAndFinish(
       pre_comp_layers.data(), pre_comp_layers.size(), fb.buffer());
+
+  for (auto &pre_comp_layer : pre_comp_layers) {
+    if (pre_comp_layer.acquireFenceFd >= 0) {
+      close(pre_comp_layer.acquireFenceFd);
+      pre_comp_layer.acquireFenceFd = -1;
+    }
+  }
+
   if (ret) {
     ALOGE("Failed to composite layers");
     return ret;
   }
 
-  for (auto &comp_layer : *layers)
-    if (comp_layer.plane == NULL)
-      display_comp->importer()->ReleaseBuffer(&comp_layer.bo);
-
-  layers->erase(std::remove_if(layers->begin(), layers->end(),
-                               drm_composition_layer_has_no_plane),
-                layers->end());
+  display_comp->RemoveNoPlaneLayers();
 
   hwc_layer_1_t pre_comp_output_layer;
   memset(&pre_comp_output_layer, 0, sizeof(pre_comp_output_layer));
