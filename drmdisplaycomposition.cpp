@@ -30,7 +30,35 @@
 
 namespace android {
 
-DrmCompositionLayer::DrmCompositionLayer() : crtc(NULL), plane(NULL) {
+static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
+  native_handle_t *new_handle =
+      native_handle_create(handle->numFds, handle->numInts);
+  if (new_handle == NULL)
+    return NULL;
+
+  const int *old_data = handle->data;
+  int *new_data = new_handle->data;
+  for (int i = 0; i < handle->numFds; i++) {
+    *new_data = dup(*old_data);
+    old_data++;
+    new_data++;
+  }
+  memcpy(new_data, old_data, sizeof(int) * handle->numInts);
+
+  return new_handle;
+}
+
+static void free_buffer_handle(native_handle_t *handle) {
+  int ret = native_handle_close(handle);
+  if (ret)
+    ALOGE("Failed to close native handle %d", ret);
+  ret = native_handle_delete(handle);
+  if (ret)
+    ALOGE("Failed to delete native handle %d", ret);
+}
+
+DrmCompositionLayer::DrmCompositionLayer()
+    : crtc(NULL), plane(NULL), handle(NULL) {
   memset(&layer, 0, sizeof(layer));
   layer.acquireFenceFd = -1;
   memset(&bo, 0, sizeof(bo));
@@ -55,6 +83,11 @@ DrmDisplayComposition::~DrmDisplayComposition() {
     if (importer_ && iter->bo.fb_id)
       importer_->ReleaseBuffer(&iter->bo);
 
+    if (iter->handle) {
+      gralloc_->unregisterBuffer(gralloc_, iter->handle);
+      free_buffer_handle(iter->handle);
+    }
+
     if (iter->layer.acquireFenceFd >= 0)
       close(iter->layer.acquireFenceFd);
   }
@@ -70,7 +103,14 @@ int DrmDisplayComposition::Init(DrmResources *drm, Importer *importer) {
   drm_ = drm;
   importer_ = importer;
 
-  int ret = sw_sync_timeline_create();
+  int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
+                          (const hw_module_t **)&gralloc_);
+  if (ret) {
+    ALOGE("Failed to open gralloc module %d", ret);
+    return ret;
+  }
+
+  ret = sw_sync_timeline_create();
   if (ret < 0) {
     ALOGE("Failed to create sw sync timeline %d", ret);
     return ret;
@@ -92,10 +132,24 @@ int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
   if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
     return -EINVAL;
 
+  native_handle_t *handle_copy = dup_buffer_handle(layer->handle);
+  if (handle_copy == NULL) {
+    ALOGE("Failed to duplicate handle");
+    return -ENOMEM;
+  }
+
+  int ret = gralloc_->registerBuffer(gralloc_, handle_copy);
+  if (ret) {
+    ALOGE("Failed to register buffer handle %d", ret);
+    free_buffer_handle(handle_copy);
+    return ret;
+  }
+
   ++timeline_;
   layer->releaseFenceFd =
       sw_sync_fence_create(timeline_fd_, "drm_fence", timeline_);
   if (layer->releaseFenceFd < 0) {
+    free_buffer_handle(handle_copy);
     ALOGE("Could not create release fence %d", layer->releaseFenceFd);
     return layer->releaseFenceFd;
   }
@@ -105,6 +159,7 @@ int DrmDisplayComposition::AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo,
   c_layer.bo = *bo;
   c_layer.crtc = crtc;
   c_layer.plane = plane;
+  c_layer.handle = handle_copy;
 
   layer->acquireFenceFd = -1;  // We own this now
   layers_.push_back(c_layer);
@@ -148,6 +203,32 @@ int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
   c_layer.plane = plane;
   layers_.push_back(c_layer);
   return 0;
+}
+
+void DrmDisplayComposition::RemoveNoPlaneLayers() {
+  for (auto &comp_layer : layers_) {
+    if (comp_layer.plane != NULL)
+      continue;
+
+    if (importer_ && comp_layer.bo.fb_id) {
+      importer_->ReleaseBuffer(&comp_layer.bo);
+    }
+
+    if (comp_layer.handle) {
+      gralloc_->unregisterBuffer(gralloc_, comp_layer.handle);
+      free_buffer_handle(comp_layer.handle);
+    }
+
+    if (comp_layer.layer.acquireFenceFd >= 0) {
+      close(comp_layer.layer.acquireFenceFd);
+      comp_layer.layer.acquireFenceFd = -1;
+    }
+  }
+
+  layers_.erase(
+      std::remove_if(layers_.begin(), layers_.end(),
+                     [](DrmCompositionLayer_t &l) { return l.plane == NULL; }),
+      layers_.end());
 }
 
 int DrmDisplayComposition::FinishComposition() {
