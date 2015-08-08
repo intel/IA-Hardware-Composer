@@ -37,7 +37,6 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include \
 
 LOCAL_SRC_FILES := \
-	compositor.cpp \
 	drmresources.cpp \
         drmcomposition.cpp \
         drmcompositor.cpp \
