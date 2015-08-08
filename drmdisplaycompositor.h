@@ -20,6 +20,7 @@
 #include "drm_hwcomposer.h"
 #include "drmcomposition.h"
 #include "drmcompositorworker.h"
+#include "drmframebuffer.h"
 
 #include <pthread.h>
 #include <queue>
@@ -28,7 +29,11 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
+#define DRM_DISPLAY_BUFFERS 2
+
 namespace android {
+
+class GLWorkerCompositor;
 
 class DrmDisplayCompositor {
  public:
@@ -46,6 +51,7 @@ class DrmDisplayCompositor {
  private:
   DrmDisplayCompositor(const DrmDisplayCompositor &) = delete;
 
+  int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int ApplyFrame(DrmDisplayComposition *display_comp);
   int ApplyDpms(DrmDisplayComposition *display_comp);
 
@@ -61,6 +67,10 @@ class DrmDisplayCompositor {
 
   bool initialized_;
   bool active_;
+
+  int framebuffer_index_;
+  DrmFramebuffer framebuffers_[DRM_DISPLAY_BUFFERS];
+  std::unique_ptr<GLWorkerCompositor> pre_compositor_;
 
   // mutable since we need to acquire in HaveQueuedComposites
   mutable pthread_mutex_t lock_;
