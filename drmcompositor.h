@@ -22,6 +22,7 @@
 #include "importer.h"
 
 #include <map>
+#include <memory>
 #include <sstream>
 
 namespace android {
@@ -35,7 +36,7 @@ class DrmCompositor {
 
   DrmComposition *CreateComposition(Importer *importer);
 
-  int QueueComposition(DrmComposition *composition);
+  int QueueComposition(std::unique_ptr<DrmComposition> composition);
   int Composite();
   void Dump(std::ostringstream *out) const;
 

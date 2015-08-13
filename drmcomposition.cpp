@@ -42,9 +42,6 @@ DrmComposition::DrmComposition(DrmResources *drm, Importer *importer)
   }
 }
 
-DrmComposition::~DrmComposition() {
-}
-
 int DrmComposition::Init() {
   for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
        iter != drm_->end_connectors(); ++iter) {
@@ -54,7 +51,12 @@ int DrmComposition::Init() {
       ALOGE("Failed to allocate new display composition\n");
       return -ENOMEM;
     }
-    int ret = composition_map_[(*iter)->display()]->Init(drm_, importer_);
+    DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
+    if (!crtc) {
+      ALOGE("Failed to find crtc for display %d", display);
+      return -ENODEV;
+    }
+    int ret = composition_map_[(*iter)->display()]->Init(drm_, crtc, importer_);
     if (ret) {
       ALOGE("Failed to init display composition for %d", (*iter)->display());
       return ret;
@@ -63,42 +65,26 @@ int DrmComposition::Init() {
   return 0;
 }
 
-unsigned DrmComposition::GetRemainingLayers(int /*display*/,
-                                            unsigned num_needed) const {
-  return num_needed;
+int DrmComposition::SetLayers(size_t num_displays,
+                              const DrmCompositionDisplayLayersMap *maps) {
+  int ret = 0;
+  for (size_t display_index = 0; display_index < num_displays;
+       display_index++) {
+    const DrmCompositionDisplayLayersMap &map = maps[display_index];
+    int display = map.display;
+
+    ret = composition_map_[display]->SetLayers(
+        map.layers, map.num_layers, map.layer_indices, &primary_planes_,
+        &overlay_planes_);
+    if (ret)
+      return ret;
+  }
+
+  return DisableUnusedPlanes();
 }
 
-int DrmComposition::AddLayer(int display, hwc_layer_1_t *layer,
-                             hwc_drm_bo *bo) {
-  DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
-  if (!crtc) {
-    ALOGE("Failed to find crtc for display %d", display);
-    return -ENODEV;
-  }
-
-  // Find a plane for the layer
-  DrmPlane *plane = NULL;
-  for (std::vector<DrmPlane *>::iterator iter = primary_planes_.begin();
-       iter != primary_planes_.end(); ++iter) {
-    if ((*iter)->GetCrtcSupported(*crtc)) {
-      plane = *iter;
-      primary_planes_.erase(iter);
-      break;
-    }
-  }
-  for (std::vector<DrmPlane *>::iterator iter = overlay_planes_.begin();
-       !plane && iter != overlay_planes_.end(); ++iter) {
-    if ((*iter)->GetCrtcSupported(*crtc)) {
-      plane = *iter;
-      overlay_planes_.erase(iter);
-      break;
-    }
-  }
-  return composition_map_[display]->AddLayer(layer, bo, crtc, plane);
-}
-
-int DrmComposition::AddDpmsMode(int display, uint32_t dpms_mode) {
-  return composition_map_[display]->AddDpmsMode(dpms_mode);
+int DrmComposition::SetDpmsMode(int display, uint32_t dpms_mode) {
+  return composition_map_[display]->SetDpmsMode(dpms_mode);
 }
 
 std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(

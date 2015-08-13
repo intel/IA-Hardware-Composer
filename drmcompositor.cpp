@@ -62,7 +62,8 @@ DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
   return composition;
 }
 
-int DrmCompositor::QueueComposition(DrmComposition *composition) {
+int DrmCompositor::QueueComposition(
+    std::unique_ptr<DrmComposition> composition) {
   int ret = composition->DisableUnusedPlanes();
   if (ret) {
     ALOGE("Failed to disable unused planes %d", ret);
@@ -76,7 +77,6 @@ int DrmCompositor::QueueComposition(DrmComposition *composition) {
         composition->TakeDisplayComposition(display));
     if (ret) {
       ALOGE("Failed to queue composition for display %d", display);
-      delete composition;
       return ret;
     }
   }

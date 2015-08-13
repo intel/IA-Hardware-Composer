@@ -444,7 +444,7 @@ static int CreateTextureFromHandle(EGLDisplay egl_display,
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  out->image.reset(image);
+  out->image.reset(egl_display, image);
   out->texture.reset(texture);
 
   return 0;
@@ -567,13 +567,13 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   GLint frame_height = framebuffer->getHeight();
   EGLSyncKHR finished_sync;
 
-  AutoEGLImageKHR egl_fb_image(
+  AutoEGLDisplayImage egl_fb_image(
+      egl_display_,
       eglCreateImageKHR(egl_display_, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
                         (EGLClientBuffer)framebuffer->getNativeBuffer(),
-                        NULL /* no attribs */),
-      EGLImageDeleter(egl_display_));
+                        NULL /* no attribs */));
 
-  if (egl_fb_image.get() == EGL_NO_IMAGE_KHR) {
+  if (egl_fb_image.image() == EGL_NO_IMAGE_KHR) {
     ALOGE("Failed to make image from target buffer: %s", GetEGLError());
     return -EINVAL;
   }
@@ -583,7 +583,7 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   AutoGLTexture gl_fb_tex_auto(gl_fb_tex);
   glBindTexture(GL_TEXTURE_2D, gl_fb_tex);
   glEGLImageTargetTexture2DOES(GL_TEXTURE_2D,
-                               (GLeglImageOES)egl_fb_image.get());
+                               (GLeglImageOES)egl_fb_image.image());
   glBindTexture(GL_TEXTURE_2D, 0);
 
   GLuint gl_fb;
@@ -610,9 +610,10 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
       continue;
     }
 
-    layer_textures.emplace_back(egl_display_);
+    layer_textures.emplace_back();
     ret = CreateTextureFromHandle(egl_display_, layer->handle,
                                   &layer_textures.back());
+
     if (!ret) {
       ret = EGLFenceWait(egl_display_, layer->acquireFenceFd);
       layer->acquireFenceFd = -1;
