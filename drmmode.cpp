@@ -68,8 +68,7 @@ bool DrmMode::operator==(const drmModeModeInfo &m) const {
          h_total_ == m.htotal && h_skew_ == m.hskew &&
          v_display_ == m.vdisplay && v_sync_start_ == m.vsync_start &&
          v_sync_end_ == m.vsync_end && v_total_ == m.vtotal &&
-         v_scan_ == m.vscan && flags_ == m.flags &&
-         type_ == m.type;
+         v_scan_ == m.vscan && flags_ == m.flags && type_ == m.type;
 }
 
 void DrmMode::ToDrmModeModeInfo(drm_mode_modeinfo *m) const {

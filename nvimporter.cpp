@@ -121,7 +121,7 @@ int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return 0;
 }
 
-int NvImporter::ReleaseBuffer(hwc_drm_bo_t * bo) {
+int NvImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
   NvBuffer_t *buf = (NvBuffer_t *)bo->priv;
   if (!buf) {
     ALOGE("Freeing bo %ld, buf is NULL!", bo->fb_id);

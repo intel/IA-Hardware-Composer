@@ -71,7 +71,6 @@ void DrmProperty::Init(drmModePropertyPtr p, uint64_t value) {
     type_ = DRM_PROPERTY_TYPE_OBJECT;
   else if (flags_ & DRM_MODE_PROP_BLOB)
     type_ = DRM_PROPERTY_TYPE_BLOB;
-
 }
 
 uint32_t DrmProperty::id() const {

@@ -73,7 +73,7 @@ struct hwc_context_t {
   Importer *importer;
 };
 
-static void hwc_dump(struct hwc_composer_device_1* dev, char *buff,
+static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
                      int buff_len) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   std::ostringstream out;
@@ -159,8 +159,8 @@ static void hwc_add_layer_to_retire_fence(hwc_layer_1_t *layer,
 
   if (display_contents->retireFenceFd >= 0) {
     int old_retire_fence = display_contents->retireFenceFd;
-    display_contents->retireFenceFd = sync_merge("dc_retire", old_retire_fence,
-                                                 layer->releaseFenceFd);
+    display_contents->retireFenceFd =
+        sync_merge("dc_retire", old_retire_fence, layer->releaseFenceFd);
     close(old_retire_fence);
   } else {
     display_contents->retireFenceFd = dup(layer->releaseFenceFd);
