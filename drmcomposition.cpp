@@ -24,20 +24,23 @@
 #include <stdlib.h>
 
 #include <cutils/log.h>
+#include <cutils/properties.h>
 #include <sw_sync.h>
 #include <sync/sync.h>
 
 namespace android {
 
-static const bool kUseOverlayPlanes = true;
-
 DrmComposition::DrmComposition(DrmResources *drm, Importer *importer)
     : drm_(drm), importer_(importer) {
+  char use_overlay_planes_prop[PROPERTY_VALUE_MAX];
+  property_get("hwc.drm.use_overlay_planes", use_overlay_planes_prop, "1");
+  bool use_overlay_planes = atoi(use_overlay_planes_prop);
+
   for (DrmResources::PlaneIter iter = drm_->begin_planes();
        iter != drm_->end_planes(); ++iter) {
     if ((*iter)->type() == DRM_PLANE_TYPE_PRIMARY)
       primary_planes_.push_back(*iter);
-    else if (kUseOverlayPlanes && (*iter)->type() == DRM_PLANE_TYPE_OVERLAY)
+    else if (use_overlay_planes && (*iter)->type() == DRM_PLANE_TYPE_OVERLAY)
       overlay_planes_.push_back(*iter);
   }
 }
