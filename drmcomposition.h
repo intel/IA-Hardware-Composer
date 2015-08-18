@@ -31,21 +31,26 @@
 
 namespace android {
 
+struct DrmCompositionDisplayLayersMap {
+  int display;
+  size_t num_layers;
+  hwc_layer_1_t *layers;
+  size_t *layer_indices;
+};
+
 class DrmComposition {
  public:
   DrmComposition(DrmResources *drm, Importer *importer);
-  ~DrmComposition();
 
   int Init();
 
-  unsigned GetRemainingLayers(int display, unsigned num_needed) const;
-  int AddLayer(int display, hwc_layer_1_t *layer, hwc_drm_bo_t *bo);
-  int AddDpmsMode(int display, uint32_t dpms_mode);
-
-  int DisableUnusedPlanes();
+  int SetLayers(size_t num_displays,
+                const DrmCompositionDisplayLayersMap *maps);
+  int SetDpmsMode(int display, uint32_t dpms_mode);
 
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
   DrmDisplayComposition *GetDisplayComposition(int display);
+  int DisableUnusedPlanes();
 
  private:
   DrmComposition(const DrmComposition &) = delete;
@@ -62,7 +67,6 @@ class DrmComposition {
    */
   std::map<int, std::unique_ptr<DrmDisplayComposition>> composition_map_;
 };
-
 }
 
 #endif  // ANDROID_DRM_COMPOSITION_H_

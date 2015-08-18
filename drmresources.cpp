@@ -467,18 +467,17 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
     return -EINVAL;
   }
 
-  DrmComposition *comp = compositor_.CreateComposition(NULL);
+  std::unique_ptr<DrmComposition> comp(compositor_.CreateComposition(NULL));
   if (!comp) {
     ALOGE("Failed to create composition for dpms on %d", display);
     return -ENOMEM;
   }
-  int ret = comp->AddDpmsMode(display, mode);
+  int ret = comp->SetDpmsMode(display, mode);
   if (ret) {
     ALOGE("Failed to add dpms %ld to composition on %d %d", mode, display, ret);
-    delete comp;
     return ret;
   }
-  ret = compositor_.QueueComposition(comp);
+  ret = compositor_.QueueComposition(std::move(comp));
   if (ret) {
     ALOGE("Failed to queue dpms composition on %d %d", display, ret);
     return ret;

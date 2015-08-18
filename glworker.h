@@ -17,7 +17,6 @@
 #ifndef ANDROID_GL_WORKER_H_
 #define ANDROID_GL_WORKER_H_
 
-#include <memory>
 #include <vector>
 
 #define EGL_EGLEXT_PROTOTYPES
@@ -30,52 +29,9 @@
 
 #include <ui/GraphicBuffer.h>
 
-struct hwc_layer_1;
+#include "autogl.h"
 
 namespace android {
-
-#define AUTO_GL_TYPE(name, type, zero, deleter) \
-  struct name##Deleter {                        \
-    typedef type pointer;                       \
-                                                \
-    void operator()(pointer p) const {          \
-      if (p != zero) {                          \
-        deleter;                                \
-      }                                         \
-    }                                           \
-  };                                            \
-  typedef std::unique_ptr<type, name##Deleter> name;
-
-AUTO_GL_TYPE(AutoGLFramebuffer, GLuint, 0, glDeleteFramebuffers(1, &p))
-AUTO_GL_TYPE(AutoGLBuffer, GLuint, 0, glDeleteBuffers(1, &p))
-AUTO_GL_TYPE(AutoGLTexture, GLuint, 0, glDeleteTextures(1, &p))
-AUTO_GL_TYPE(AutoGLShader, GLint, 0, glDeleteShader(p))
-AUTO_GL_TYPE(AutoGLProgram, GLint, 0, glDeleteProgram(p))
-
-struct EGLImageDeleter {
-  typedef EGLImageKHR pointer;
-
-  EGLDisplay egl_display_;
-
-  EGLImageDeleter(EGLDisplay egl_display) : egl_display_(egl_display) {
-  }
-
-  void operator()(EGLImageKHR p) const {
-    if (p != EGL_NO_IMAGE_KHR) {
-      eglDestroyImageKHR(egl_display_, p);
-    }
-  }
-};
-typedef std::unique_ptr<EGLImageKHR, EGLImageDeleter> AutoEGLImageKHR;
-
-struct AutoEGLImageAndGLTexture {
-  AutoEGLImageKHR image;
-  AutoGLTexture texture;
-
-  AutoEGLImageAndGLTexture(EGLDisplay egl_display)
-      : image(EGL_NO_IMAGE_KHR, EGLImageDeleter(egl_display)) {
-  }
-};
 
 class GLWorkerCompositor {
  public:

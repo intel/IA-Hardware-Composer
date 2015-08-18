@@ -154,17 +154,6 @@ int DrmDisplayCompositor::ApplyPreComposite(
   int ret = 0;
   DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
 
-  auto last_layer = find_if(layers->rbegin(), layers->rend(),
-                            drm_composition_layer_has_plane);
-  if (last_layer == layers->rend()) {
-    ALOGE("Frame has no overlays");
-    return -EINVAL;
-  }
-
-  DrmCompositionLayer_t &comp_layer = *last_layer;
-  DrmPlane *stolen_plane = NULL;
-  std::swap(stolen_plane, comp_layer.plane);
-
   DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
   if (connector == NULL) {
     ALOGE("Failed to determine display mode: no connector for display %d",
@@ -184,15 +173,6 @@ int DrmDisplayCompositor::ApplyPreComposite(
     ALOGE("Failed to allocate framebuffer with size %dx%d", mode.h_display(),
           mode.v_display());
     return -ENOMEM;
-  }
-
-  if (!pre_compositor_) {
-    pre_compositor_.reset(new GLWorkerCompositor());
-    ret = pre_compositor_->Init();
-    if (ret) {
-      ALOGE("Failed to initialize OpenGL compositor %d", ret);
-      return ret;
-    }
   }
 
   std::vector<hwc_layer_1_t> pre_comp_layers;
@@ -219,48 +199,35 @@ int DrmDisplayCompositor::ApplyPreComposite(
     return ret;
   }
 
-  display_comp->RemoveNoPlaneLayers();
-
-  hwc_layer_1_t pre_comp_output_layer;
-  memset(&pre_comp_output_layer, 0, sizeof(pre_comp_output_layer));
-  pre_comp_output_layer.compositionType = HWC_OVERLAY;
+  DrmCompositionLayer_t &pre_comp_layer =
+      layers->at(display_comp->pre_composition_layer_index());
+  ret = display_comp->importer()->ImportBuffer(fb.buffer()->handle,
+                                               &pre_comp_layer.bo);
+  if (ret) {
+    ALOGE("Failed to import handle of layer %d", ret);
+    return ret;
+  }
+  hwc_layer_1_t &pre_comp_output_layer = pre_comp_layer.layer;
   pre_comp_output_layer.handle = fb.buffer()->handle;
-  pre_comp_output_layer.acquireFenceFd = -1;
-  pre_comp_output_layer.releaseFenceFd = -1;
-  pre_comp_output_layer.planeAlpha = 0xff;
-  pre_comp_output_layer.visibleRegionScreen.numRects = 1;
   pre_comp_output_layer.visibleRegionScreen.rects =
       &pre_comp_output_layer.displayFrame;
-  pre_comp_output_layer.sourceCropf.top =
-      pre_comp_output_layer.displayFrame.top = 0;
-  pre_comp_output_layer.sourceCropf.left =
-      pre_comp_output_layer.displayFrame.left = 0;
   pre_comp_output_layer.sourceCropf.right =
       pre_comp_output_layer.displayFrame.right = fb.buffer()->getWidth();
   pre_comp_output_layer.sourceCropf.bottom =
       pre_comp_output_layer.displayFrame.bottom = fb.buffer()->getHeight();
 
-  ret = display_comp->AddLayer(&pre_comp_output_layer,
-                               drm_->GetCrtcForDisplay(display_), stolen_plane);
-  if (ret) {
-    ALOGE("Failed to add composited layer %d", ret);
-    return ret;
-  }
-
   fb.set_release_fence_fd(pre_comp_output_layer.releaseFenceFd);
   framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
 
+  display_comp->RemoveNoPlaneLayers();
+  display_comp->SignalPreCompositionDone();
   return ret;
 }
 
 int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   int ret = 0;
 
-  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
-  bool use_pre_comp = std::any_of(layers->begin(), layers->end(),
-                                  drm_composition_layer_has_no_plane);
-
-  if (use_pre_comp) {
+  if (display_comp->pre_composition_layer_index() >= 0) {
     ret = ApplyPreComposite(display_comp);
     if (ret)
       return ret;
@@ -272,6 +239,7 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     return -ENOMEM;
   }
 
+  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
   for (DrmCompositionLayerVector_t::iterator iter = layers->begin();
        iter != layers->end(); ++iter) {
     hwc_layer_1_t *layer = &iter->layer;
@@ -409,6 +377,16 @@ int DrmDisplayCompositor::ApplyDpms(DrmDisplayComposition *display_comp) {
 
 int DrmDisplayCompositor::Composite() {
   ATRACE_CALL();
+
+  if (!pre_compositor_) {
+    pre_compositor_.reset(new GLWorkerCompositor());
+    int ret = pre_compositor_->Init();
+    if (ret) {
+      ALOGE("Failed to initialize OpenGL compositor %d", ret);
+      return ret;
+    }
+  }
+
   int ret = pthread_mutex_lock(&lock_);
   if (ret) {
     ALOGE("Failed to acquire compositor lock %d", ret);

@@ -22,12 +22,14 @@
 #include "importer.h"
 #include "vsyncworker.h"
 
+#include <stdlib.h>
+
+#include <map>
+#include <vector>
+
 #include <errno.h>
 #include <fcntl.h>
-#include <list>
-#include <map>
 #include <pthread.h>
-#include <stdlib.h>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <xf86drm.h>
@@ -109,8 +111,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
 }
 
 static void hwc_set_cleanup(size_t num_displays,
-                            hwc_display_contents_1_t **display_contents,
-                            DrmComposition *composition) {
+                            hwc_display_contents_1_t **display_contents) {
   for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
@@ -128,32 +129,10 @@ static void hwc_set_cleanup(size_t num_displays,
       dc->outbufAcquireFenceFd = -1;
     }
   }
-
-  delete composition;
 }
 
-static int hwc_add_layer(int display, hwc_context_t *ctx, hwc_layer_1_t *layer,
-                         DrmComposition *composition) {
-  hwc_drm_bo_t bo;
-  int ret = ctx->importer->ImportBuffer(layer->handle, &bo);
-  if (ret) {
-    ALOGE("Failed to import handle to bo %d", ret);
-    return ret;
-  }
-
-  ret = composition->AddLayer(display, layer, &bo);
-  if (!ret)
-    return 0;
-
-  int destroy_ret = ctx->importer->ReleaseBuffer(&bo);
-  if (destroy_ret)
-    ALOGE("Failed to destroy buffer %d", destroy_ret);
-
-  return ret;
-}
-
-static void hwc_add_layer_to_retire_fence(hwc_layer_1_t *layer,
-    hwc_display_contents_1_t *display_contents) {
+static void hwc_add_layer_to_retire_fence(
+    hwc_layer_1_t *layer, hwc_display_contents_1_t *display_contents) {
   if (layer->releaseFenceFd < 0)
     return;
 
@@ -171,64 +150,77 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **display_contents) {
   ATRACE_CALL();
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  DrmComposition *composition =
-      ctx->drm.compositor()->CreateComposition(ctx->importer);
+  int ret;
+  std::unique_ptr<DrmComposition> composition(
+      ctx->drm.compositor()->CreateComposition(ctx->importer));
   if (!composition) {
     ALOGE("Drm composition init failed");
-    hwc_set_cleanup(num_displays, display_contents, NULL);
+    hwc_set_cleanup(num_displays, display_contents);
     return -EINVAL;
   }
 
-  int ret;
+  std::vector<DrmCompositionDisplayLayersMap> layers_map;
+  std::vector<std::vector<size_t>> layers_indices;
+  layers_map.reserve(num_displays);
+  layers_indices.reserve(num_displays);
+
   for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
-
     hwc_display_contents_1_t *dc = display_contents[i];
-    int j;
-    unsigned num_layers = 0;
+
+    layers_map.emplace_back();
+    DrmCompositionDisplayLayersMap &map = layers_map[i];
+    map.display = i;
+    map.layers = dc->hwLayers;
+
+    std::vector<size_t> indices_to_composite;
     unsigned num_dc_layers = dc->numHwLayers;
-    for (j = 0; j < (int)num_dc_layers; ++j) {
+    for (int j = 0; j < (int)num_dc_layers; ++j) {
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
         continue;
       if (layer->compositionType == HWC_OVERLAY)
-        num_layers++;
+        indices_to_composite.push_back(j);
     }
 
-    unsigned num_planes = composition->GetRemainingLayers(i, num_layers);
+    map.num_layers = indices_to_composite.size();
+    layers_indices.emplace_back(std::move(indices_to_composite));
+    map.layer_indices = layers_indices.back().data();
+  }
 
-    if (num_layers > num_planes) {
-      ALOGE("Can not composite %u with only %u planes", num_layers, num_planes);
-    }
+  ret = composition->SetLayers(layers_map.size(), layers_map.data());
+  if (ret) {
+    hwc_set_cleanup(num_displays, display_contents);
+    return -EINVAL;
+  }
 
-    for (j = 0; num_planes && j < (int)num_dc_layers; ++j) {
+  ret = ctx->drm.compositor()->QueueComposition(std::move(composition));
+  if (ret) {
+    hwc_set_cleanup(num_displays, display_contents);
+    return -EINVAL;
+  }
+
+  composition.reset(NULL);
+
+  for (int i = 0; i < (int)num_displays; ++i) {
+    if (!display_contents[i])
+      continue;
+    hwc_display_contents_1_t *dc = display_contents[i];
+    unsigned num_dc_layers = dc->numHwLayers;
+    for (int j = 0; j < (int)num_dc_layers; ++j) {
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
         continue;
-      if (layer->compositionType != HWC_OVERLAY)
-        continue;
-
-      ret = hwc_add_layer(i, ctx, layer, composition);
-      if (ret) {
-        ALOGE("Add layer failed %d", ret);
-        hwc_set_cleanup(num_displays, display_contents, composition);
-        return ret;
-      }
-      hwc_add_layer_to_retire_fence(layer, dc);
-
-      --num_planes;
+      if (layer->compositionType == HWC_OVERLAY)
+        hwc_add_layer_to_retire_fence(layer, dc);
     }
   }
 
-  ret = ctx->drm.compositor()->QueueComposition(composition);
-  composition = NULL;
   if (ret) {
     ALOGE("Failed to queue the composition");
-    hwc_set_cleanup(num_displays, display_contents, NULL);
-    return ret;
   }
-  hwc_set_cleanup(num_displays, display_contents, NULL);
+  hwc_set_cleanup(num_displays, display_contents);
   return ret;
 }
 

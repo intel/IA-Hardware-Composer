@@ -18,7 +18,9 @@
 #define ANDROID_DRM_DISPLAY_COMPOSITION_H_
 
 #include "drm_hwcomposer.h"
+#include "drmcrtc.h"
 #include "drmplane.h"
+#include "glworker.h"
 #include "importer.h"
 
 #include <vector>
@@ -37,7 +39,6 @@ enum DrmCompositionType {
 
 typedef struct DrmCompositionLayer {
   DrmCompositionLayer();
-  ~DrmCompositionLayer();
 
   hwc_layer_1_t layer;
   hwc_drm_bo_t bo;
@@ -52,22 +53,22 @@ class DrmDisplayComposition {
   DrmDisplayComposition();
   ~DrmDisplayComposition();
 
-  int Init(DrmResources *drm, Importer *importer);
+  int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer);
 
   DrmCompositionType type() const;
 
-  int AddLayer(hwc_layer_1_t *layer, hwc_drm_bo_t *bo, DrmCrtc *crtc,
-               DrmPlane *plane);
-  // Like the AddLayer that accepts a hwc_drm_bo_t, but uses Importer to import
-  // the layer->handle itself.
-  int AddLayer(hwc_layer_1_t *layer, DrmCrtc *crtc, DrmPlane *plane);
+  int SetLayers(hwc_layer_1_t *layers, size_t num_layers, size_t *layer_indices,
+                std::vector<DrmPlane *> *primary_planes,
+                std::vector<DrmPlane *> *overlay_planes);
   int AddPlaneDisable(DrmPlane *plane);
-  int AddDpmsMode(uint32_t dpms_mode);
+  int SetDpmsMode(uint32_t dpms_mode);
 
   void RemoveNoPlaneLayers();
+  int SignalPreCompositionDone();
   int FinishComposition();
 
   DrmCompositionLayerVector_t *GetCompositionLayers();
+  int pre_composition_layer_index() const;
   uint32_t dpms_mode() const;
 
   Importer *importer() const;
@@ -77,17 +78,24 @@ class DrmDisplayComposition {
 
   bool validate_composition_type(DrmCompositionType desired);
 
+  int CreateNextTimelineFence();
+  int IncreaseTimelineToPoint(int point);
+
   DrmResources *drm_;
+  DrmCrtc *crtc_;
   Importer *importer_;
   const gralloc_module_t *gralloc_;
+  EGLDisplay egl_display_;
 
   DrmCompositionType type_;
 
   int timeline_fd_;
   int timeline_;
   int timeline_current_;
+  int timeline_pre_comp_done_;
 
   DrmCompositionLayerVector_t layers_;
+  int pre_composition_layer_index_;
   uint32_t dpms_mode_;
 };
 }
