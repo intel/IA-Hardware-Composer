@@ -60,7 +60,7 @@ struct hwc_context_t {
   typedef std::map<int, hwc_drm_display_t> DisplayMap;
   typedef DisplayMap::iterator DisplayMapIter;
 
-  hwc_context_t() : procs(NULL), importer(NULL) {
+  hwc_context_t() : procs(NULL), importer(NULL), use_framebuffer_target(false) {
   }
 
   ~hwc_context_t() {
@@ -73,6 +73,7 @@ struct hwc_context_t {
   DisplayMap displays;
   DrmResources drm;
   Importer *importer;
+  bool use_framebuffer_target;
 };
 
 static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
@@ -88,6 +89,15 @@ static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
 static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
+
+  char use_framebuffer_target[PROPERTY_VALUE_MAX];
+  property_get("hwc.drm.use_framebuffer_target", use_framebuffer_target, "0");
+  bool new_use_framebuffer_target = atoi(use_framebuffer_target);
+  if (ctx->use_framebuffer_target != new_use_framebuffer_target)
+    ALOGW("Starting to %s HWC_FRAMEBUFFER_TARGET",
+          new_use_framebuffer_target ? "use" : "not use");
+  ctx->use_framebuffer_target = new_use_framebuffer_target;
+
   for (int i = 0; i < (int)num_displays; ++i) {
     if (!display_contents[i])
       continue;
@@ -102,8 +112,19 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
     for (int j = 0; j < num_layers; j++) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
-      if (layer->compositionType == HWC_FRAMEBUFFER)
-        layer->compositionType = HWC_OVERLAY;
+      if (!ctx->use_framebuffer_target) {
+        if (layer->compositionType == HWC_FRAMEBUFFER)
+          layer->compositionType = HWC_OVERLAY;
+      } else {
+        switch (layer->compositionType) {
+          case HWC_OVERLAY:
+          case HWC_BACKGROUND:
+          case HWC_SIDEBAND:
+          case HWC_CURSOR_OVERLAY:
+            layer->compositionType = HWC_FRAMEBUFFER;
+            break;
+        }
+      }
     }
   }
 
@@ -180,8 +201,21 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
         continue;
-      if (layer->compositionType == HWC_OVERLAY)
-        indices_to_composite.push_back(j);
+      if (!ctx->use_framebuffer_target) {
+        if (layer->compositionType == HWC_OVERLAY)
+          indices_to_composite.push_back(j);
+      } else {
+        if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
+          indices_to_composite.push_back(j);
+      }
+    }
+    if (ctx->use_framebuffer_target) {
+      if (indices_to_composite.size() != 1) {
+        ALOGE("Expected 1 (got %d) layer with HWC_FRAMEBUFFER_TARGET",
+              indices_to_composite.size());
+        hwc_set_cleanup(num_displays, display_contents);
+        return -EINVAL;
+      }
     }
 
     map.num_layers = indices_to_composite.size();
