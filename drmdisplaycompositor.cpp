@@ -184,8 +184,9 @@ int DrmDisplayCompositor::ApplyPreComposite(
     }
   }
 
-  ret = pre_compositor_->CompositeAndFinish(
-      pre_comp_layers.data(), pre_comp_layers.size(), fb.buffer());
+  ret = pre_compositor_->Composite(pre_comp_layers.data(),
+                                   pre_comp_layers.size(), fb.buffer());
+  pre_compositor_->Finish();
 
   for (auto &pre_comp_layer : pre_comp_layers) {
     if (pre_comp_layer.acquireFenceFd >= 0) {

@@ -39,18 +39,39 @@ class GLWorkerCompositor {
   ~GLWorkerCompositor();
 
   int Init();
-
   int Composite(hwc_layer_1 *layers, size_t num_layers,
-                sp<GraphicBuffer> framebuffer);
-  int CompositeAndFinish(hwc_layer_1 *layers, size_t num_layers,
-                         sp<GraphicBuffer> framebuffer);
+                const sp<GraphicBuffer> &framebuffer);
+  void Finish();
 
  private:
+  struct CachedFramebuffer {
+    // If the strong_framebuffer is non-NULL, we are holding a strong reference
+    // until we are sure rendering is done. The weak reference will be equal in
+    // that case.
+    sp<GraphicBuffer> strong_framebuffer;
+    wp<GraphicBuffer> weak_framebuffer;
+    AutoEGLDisplayImage egl_fb_image;
+    AutoGLTexture gl_fb_tex;
+    AutoGLFramebuffer gl_fb;
+
+    CachedFramebuffer(const sp<GraphicBuffer> &gb, AutoEGLDisplayImage &&image,
+                      AutoGLTexture &&tex, AutoGLFramebuffer &&fb);
+
+    bool Promote();
+  };
+
+  CachedFramebuffer *FindCachedFramebuffer(
+      const sp<GraphicBuffer> &framebuffer);
+  CachedFramebuffer *PrepareAndCacheFramebuffer(
+      const sp<GraphicBuffer> &framebuffer);
+
   EGLDisplay egl_display_;
   EGLContext egl_ctx_;
 
   std::vector<AutoGLProgram> blend_programs_;
   AutoGLBuffer vertex_buffer_;
+
+  std::vector<CachedFramebuffer> cached_framebuffers_;
 };
 }
 

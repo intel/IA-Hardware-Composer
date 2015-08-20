@@ -23,6 +23,8 @@
 
 #include <sys/resource.h>
 
+#include <cutils/properties.h>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
@@ -552,7 +554,7 @@ GLWorkerCompositor::~GLWorkerCompositor() {
 }
 
 int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
-                                  sp<GraphicBuffer> framebuffer) {
+                                  const sp<GraphicBuffer> &framebuffer) {
   ATRACE_CALL();
   int ret = 0;
   size_t i;
@@ -565,37 +567,10 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
 
   GLint frame_width = framebuffer->getWidth();
   GLint frame_height = framebuffer->getHeight();
-  EGLSyncKHR finished_sync;
-
-  AutoEGLDisplayImage egl_fb_image(
-      egl_display_,
-      eglCreateImageKHR(egl_display_, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
-                        (EGLClientBuffer)framebuffer->getNativeBuffer(),
-                        NULL /* no attribs */));
-
-  if (egl_fb_image.image() == EGL_NO_IMAGE_KHR) {
-    ALOGE("Failed to make image from target buffer: %s", GetEGLError());
-    return -EINVAL;
-  }
-
-  GLuint gl_fb_tex;
-  glGenTextures(1, &gl_fb_tex);
-  AutoGLTexture gl_fb_tex_auto(gl_fb_tex);
-  glBindTexture(GL_TEXTURE_2D, gl_fb_tex);
-  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D,
-                               (GLeglImageOES)egl_fb_image.image());
-  glBindTexture(GL_TEXTURE_2D, 0);
-
-  GLuint gl_fb;
-  glGenFramebuffers(1, &gl_fb);
-  AutoGLFramebuffer gl_fb_auto(gl_fb);
-  glBindFramebuffer(GL_FRAMEBUFFER, gl_fb);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                         gl_fb_tex, 0);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    ALOGE("Failed framebuffer check for created target buffer: %s",
-          GetGLFramebufferError());
+  CachedFramebuffer *cached_framebuffer =
+      PrepareAndCacheFramebuffer(framebuffer);
+  if (cached_framebuffer == NULL) {
+    ALOGE("Composite failed because of failed framebuffer");
     return -EINVAL;
   }
 
@@ -703,12 +678,103 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   return ret;
 }
 
-int GLWorkerCompositor::CompositeAndFinish(hwc_layer_1 *layers,
-                                           size_t num_layers,
-                                           sp<GraphicBuffer> framebuffer) {
-  int ret = Composite(layers, num_layers, framebuffer);
+void GLWorkerCompositor::Finish() {
+  ATRACE_CALL();
   glFinish();
-  return ret;
+
+  char use_framebuffer_cache_opt[PROPERTY_VALUE_MAX];
+  property_get("hwc.drm.use_framebuffer_cache", use_framebuffer_cache_opt, "1");
+  bool use_framebuffer_cache = atoi(use_framebuffer_cache_opt);
+
+  if (use_framebuffer_cache) {
+    for (auto &fb : cached_framebuffers_)
+      fb.strong_framebuffer.clear();
+  } else {
+    cached_framebuffers_.clear();
+  }
+}
+
+GLWorkerCompositor::CachedFramebuffer::CachedFramebuffer(
+    const sp<GraphicBuffer> &gb, AutoEGLDisplayImage &&image,
+    AutoGLTexture &&tex, AutoGLFramebuffer &&fb)
+    : strong_framebuffer(gb),
+      weak_framebuffer(gb),
+      egl_fb_image(std::move(image)),
+      gl_fb_tex(std::move(tex)),
+      gl_fb(std::move(fb)) {
+}
+
+bool GLWorkerCompositor::CachedFramebuffer::Promote() {
+  if (strong_framebuffer.get() != NULL)
+    return true;
+  strong_framebuffer = weak_framebuffer.promote();
+  return strong_framebuffer.get() != NULL;
+}
+
+GLWorkerCompositor::CachedFramebuffer *
+GLWorkerCompositor::FindCachedFramebuffer(
+    const sp<GraphicBuffer> &framebuffer) {
+  for (auto &fb : cached_framebuffers_)
+    if (fb.weak_framebuffer == framebuffer)
+      return &fb;
+  return NULL;
+}
+
+GLWorkerCompositor::CachedFramebuffer *
+GLWorkerCompositor::PrepareAndCacheFramebuffer(
+    const sp<GraphicBuffer> &framebuffer) {
+  CachedFramebuffer *cached_framebuffer = FindCachedFramebuffer(framebuffer);
+  if (cached_framebuffer != NULL) {
+    if (cached_framebuffer->Promote()) {
+      glBindFramebuffer(GL_FRAMEBUFFER, cached_framebuffer->gl_fb.get());
+      return cached_framebuffer;
+    }
+
+    for (auto it = cached_framebuffers_.begin();
+         it != cached_framebuffers_.end(); ++it) {
+      if (it->weak_framebuffer == framebuffer) {
+        cached_framebuffers_.erase(it);
+        break;
+      }
+    }
+  }
+
+  AutoEGLDisplayImage egl_fb_image(
+      egl_display_,
+      eglCreateImageKHR(egl_display_, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
+                        (EGLClientBuffer)framebuffer->getNativeBuffer(),
+                        NULL /* no attribs */));
+
+  if (egl_fb_image.image() == EGL_NO_IMAGE_KHR) {
+    ALOGE("Failed to make image from target buffer: %s", GetEGLError());
+    return NULL;
+  }
+
+  GLuint gl_fb_tex;
+  glGenTextures(1, &gl_fb_tex);
+  AutoGLTexture gl_fb_tex_auto(gl_fb_tex);
+  glBindTexture(GL_TEXTURE_2D, gl_fb_tex);
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D,
+                               (GLeglImageOES)egl_fb_image.image());
+  glBindTexture(GL_TEXTURE_2D, 0);
+
+  GLuint gl_fb;
+  glGenFramebuffers(1, &gl_fb);
+  AutoGLFramebuffer gl_fb_auto(gl_fb);
+  glBindFramebuffer(GL_FRAMEBUFFER, gl_fb);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                         gl_fb_tex, 0);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    ALOGE("Failed framebuffer check for created target buffer: %s",
+          GetGLFramebufferError());
+    return NULL;
+  }
+
+  cached_framebuffers_.emplace_back(framebuffer, std::move(egl_fb_image),
+                                    std::move(gl_fb_tex_auto),
+                                    std::move(gl_fb_auto));
+  return &cached_framebuffers_.back();
 }
 
 }  // namespace android
