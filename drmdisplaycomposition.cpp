@@ -178,8 +178,6 @@ int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
 
   for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
     hwc_layer_1_t *layer = &layers[layer_indices[layer_index]];
-    if (layer->transform != 0)
-      return -EINVAL;
 
     native_handle_t *handle_copy = dup_buffer_handle(layer->handle);
     if (handle_copy == NULL) {
