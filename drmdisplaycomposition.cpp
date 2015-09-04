@@ -102,7 +102,7 @@ DrmDisplayComposition::~DrmDisplayComposition() {
 int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
                                 Importer *importer) {
   drm_ = drm;
-  crtc_ = crtc;
+  crtc_ = crtc; // Can be NULL if we haven't modeset yet
   importer_ = importer;
 
   int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
