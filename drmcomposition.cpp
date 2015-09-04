@@ -54,11 +54,10 @@ int DrmComposition::Init() {
       ALOGE("Failed to allocate new display composition\n");
       return -ENOMEM;
     }
+
+    // If the display hasn't been modeset yet, this will be NULL
     DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
-    if (!crtc) {
-      ALOGE("Failed to find crtc for display %d", display);
-      return -ENODEV;
-    }
+
     int ret = composition_map_[(*iter)->display()]->Init(drm_, crtc, importer_);
     if (ret) {
       ALOGE("Failed to init display composition for %d", (*iter)->display());
