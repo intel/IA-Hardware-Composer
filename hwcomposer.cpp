@@ -197,6 +197,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
     std::vector<size_t> indices_to_composite;
     unsigned num_dc_layers = dc->numHwLayers;
+    int framebuffer_target_index = -1;
     for (int j = 0; j < (int)num_dc_layers; ++j) {
       hwc_layer_1_t *layer = &dc->hwLayers[j];
       if (layer->flags & HWC_SKIP_LAYER)
@@ -204,6 +205,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       if (!ctx->use_framebuffer_target) {
         if (layer->compositionType == HWC_OVERLAY)
           indices_to_composite.push_back(j);
+        if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
+          framebuffer_target_index = j;
       } else {
         if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
           indices_to_composite.push_back(j);
@@ -215,6 +218,19 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
               indices_to_composite.size());
         hwc_set_cleanup(num_displays, display_contents);
         return -EINVAL;
+      }
+    } else {
+      if (indices_to_composite.empty() && framebuffer_target_index >= 0) {
+        // Fall back to use HWC_FRAMEBUFFER_TARGET if all HWC_OVERLAY layers
+        // are skipped.
+        hwc_layer_1_t *layer = &dc->hwLayers[framebuffer_target_index];
+        if (!layer->handle || (layer->flags & HWC_SKIP_LAYER)) {
+          ALOGE("Expected valid layer with HWC_FRAMEBUFFER_TARGET when all "
+                "HWC_OVERLAY layers are skipped.");
+          hwc_set_cleanup(num_displays, display_contents);
+          return -EINVAL;
+        }
+        indices_to_composite.push_back(framebuffer_target_index);
       }
     }
 
