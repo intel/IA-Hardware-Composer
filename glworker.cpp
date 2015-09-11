@@ -56,11 +56,7 @@ typedef seperate_rects::RectSet<uint64_t, float> FRectSet;
 // [ 2 4 ]
 float kTextureTransformMatrices[] = {
    1.0f,  0.0f,  0.0f,  1.0f, // identity matrix
-  -1.0f,  0.0f,  0.0f,  1.0f, // HWC_TRANSFORM_FLIP_H;
-   1.0f,  0.0f,  0.0f, -1.0f, // HWC_TRANSFORM_FLIP_V;
-   0.0f,  1.0f, -1.0f,  0.0f, // HWC_TRANSFORM_ROT_90;
-  -1.0f,  0.0f,  0.0f, -1.0f, // HWC_TRANSFORM_ROT_180;
-   0.0f, -1.0f,  1.0f,  0.0f, // HWC_TRANSFORM_ROT_270;
+   0.0f,  1.0f,  1.0f,  0.0f, // swap x and y
 };
 // clang-format on
 
@@ -196,9 +192,9 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "out vec2 fTexCoords[LAYER_COUNT];                                          \n"
 "void main() {                                                              \n"
 "  for (int i = 0; i < LAYER_COUNT; i++) {                                  \n"
-"    fTexCoords[i] = (uLayerCrop[i].xy + vTexCoords * uLayerCrop[i].zw) /   \n"
+"    vec2 tempCoords = vTexCoords * uTexMatrix[i];                          \n"
+"    fTexCoords[i] = (uLayerCrop[i].xy + tempCoords * uLayerCrop[i].zw) /   \n"
 "                     vec2(textureSize(uLayerTextures[i], 0));              \n"
-"    fTexCoords[i] *= uTexMatrix[i];                                        \n"
 "  }                                                                        \n"
 "  vec2 scaledPosition = uViewport.xy + vPosition * uViewport.zw;           \n"
 "  gl_Position = vec4(scaledPosition * vec2(2.0) - vec2(1.0), 0.0, 1.0);    \n"
@@ -354,39 +350,49 @@ static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
         cmd.texture_count++;
         src.texture_index = i;
 
-        for (int b = 0; b < 4; b++) {
-          float bound_percent = (cmd.bounds[b] - display_rect.bounds[b % 2]) /
-                                display_size[b % 2];
-          src.crop_bounds[b] =
-              crop_rect.bounds[b % 2] + bound_percent * crop_size[b % 2];
-        }
-
-        float *src_tex_mat;
+        bool swap_xy, flip_xy[2];
         switch (layer.transform) {
           case HWC_TRANSFORM_FLIP_H:
-            src_tex_mat = &kTextureTransformMatrices[4];
+            swap_xy = false; flip_xy[0] = true; flip_xy[1] = false;
             break;
           case HWC_TRANSFORM_FLIP_V:
-            src_tex_mat = &kTextureTransformMatrices[8];
+            swap_xy = false; flip_xy[0] = false; flip_xy[1] = true;
             break;
           case HWC_TRANSFORM_ROT_90:
-            src_tex_mat = &kTextureTransformMatrices[12];
+            swap_xy = true; flip_xy[0] = false; flip_xy[1] = true;
             break;
           case HWC_TRANSFORM_ROT_180:
-            src_tex_mat = &kTextureTransformMatrices[16];
+            swap_xy = false; flip_xy[0] = true; flip_xy[1] = true;
             break;
           case HWC_TRANSFORM_ROT_270:
-            src_tex_mat = &kTextureTransformMatrices[20];
+            swap_xy = true; flip_xy[0] = true; flip_xy[1] = false;
             break;
           default:
             ALOGE(
                 "Unknown transform for layer: defaulting to identity "
                 "transform");
           case 0:
-            src_tex_mat = &kTextureTransformMatrices[0];
+            swap_xy = false; flip_xy[0] = false; flip_xy[1] = false;
             break;
         }
-        std::copy_n(src_tex_mat, 4, src.texture_matrix);
+
+        if (swap_xy)
+          std::copy_n(&kTextureTransformMatrices[4], 4, src.texture_matrix);
+        else
+          std::copy_n(&kTextureTransformMatrices[0], 4, src.texture_matrix);
+
+        for (int j = 0; j < 4; j++) {
+          int b = j ^ (swap_xy ? 1 : 0);
+          float bound_percent = (cmd.bounds[b] - display_rect.bounds[b % 2]) /
+                                display_size[b % 2];
+          if (flip_xy[j % 2]) {
+            src.crop_bounds[j] =
+                crop_rect.bounds[j % 2 + 2] - bound_percent * crop_size[j % 2];
+          } else {
+            src.crop_bounds[j] =
+                crop_rect.bounds[j % 2] + bound_percent * crop_size[j % 2];
+          }
+        }
 
         if (layer.blending == HWC_BLENDING_NONE) {
           src.alpha = 1.0f;
