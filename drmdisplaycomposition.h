@@ -37,16 +37,32 @@ enum DrmCompositionType {
   DRM_COMPOSITION_TYPE_DPMS,
 };
 
-typedef struct DrmCompositionLayer {
-  DrmCompositionLayer();
+struct DrmCompositionLayer {
+  DrmCrtc *crtc = NULL;
+  DrmPlane *plane = NULL;
 
-  hwc_layer_1_t layer;
-  hwc_drm_bo_t bo;
-  DrmCrtc *crtc;
-  DrmPlane *plane;
-  native_handle_t *handle;
-} DrmCompositionLayer_t;
-typedef std::vector<DrmCompositionLayer_t> DrmCompositionLayerVector_t;
+  buffer_handle_t sf_handle = NULL;
+  DrmHwcBuffer buffer;
+  DrmHwcNativeHandle handle;
+  DrmHwcTransform transform = DrmHwcTransform::kIdentity;
+  DrmHwcBlending blending = DrmHwcBlending::kNone;
+  uint8_t alpha = 0xff;
+  DrmHwcRect<float> source_crop;
+  DrmHwcRect<int> display_frame;
+  std::vector<DrmHwcRect<int>> source_damage;
+
+  UniqueFd acquire_fence;
+
+  DrmCompositionLayer() = default;
+  DrmCompositionLayer(DrmCrtc *crtc, DrmHwcLayer &&l);
+  DrmCompositionLayer(DrmCompositionLayer &&l) = default;
+
+  DrmCompositionLayer &operator=(DrmCompositionLayer &&l) = default;
+
+  buffer_handle_t get_usable_handle() const {
+    return handle.get() != NULL ? handle.get() : sf_handle;
+  }
+};
 
 class DrmDisplayComposition {
  public:
@@ -58,7 +74,7 @@ class DrmDisplayComposition {
 
   DrmCompositionType type() const;
 
-  int SetLayers(hwc_layer_1_t *layers, size_t num_layers, size_t *layer_indices,
+  int SetLayers(DrmHwcLayer *layers, size_t num_layers,
                 std::vector<DrmPlane *> *primary_planes,
                 std::vector<DrmPlane *> *overlay_planes);
   int AddPlaneDisable(DrmPlane *plane);
@@ -68,7 +84,7 @@ class DrmDisplayComposition {
   int SignalPreCompositionDone();
   int FinishComposition();
 
-  DrmCompositionLayerVector_t *GetCompositionLayers();
+  std::vector<DrmCompositionLayer> *GetCompositionLayers();
   int pre_composition_layer_index() const;
   uint32_t dpms_mode() const;
 
@@ -97,7 +113,7 @@ class DrmDisplayComposition {
   int timeline_current_;
   int timeline_pre_comp_done_;
 
-  DrmCompositionLayerVector_t layers_;
+  std::vector<DrmCompositionLayer> layers_;
   int pre_composition_layer_index_;
   uint32_t dpms_mode_;
 

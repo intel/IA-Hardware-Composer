@@ -22,7 +22,6 @@
 #include "drmplane.h"
 #include "importer.h"
 
-#include <deque>
 #include <map>
 #include <vector>
 
@@ -33,9 +32,11 @@ namespace android {
 
 struct DrmCompositionDisplayLayersMap {
   int display;
-  size_t num_layers;
-  hwc_layer_1_t *layers;
-  size_t *layer_indices;
+  std::vector<DrmHwcLayer> layers;
+
+  DrmCompositionDisplayLayersMap() = default;
+  DrmCompositionDisplayLayersMap(DrmCompositionDisplayLayersMap &&rhs) =
+      default;
 };
 
 class DrmComposition {
@@ -44,8 +45,7 @@ class DrmComposition {
 
   int Init(uint64_t frame_no);
 
-  int SetLayers(size_t num_displays,
-                const DrmCompositionDisplayLayersMap *maps);
+  int SetLayers(size_t num_displays, DrmCompositionDisplayLayersMap *maps);
   int SetDpmsMode(int display, uint32_t dpms_mode);
 
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);

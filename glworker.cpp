@@ -33,6 +33,8 @@
 
 #include <utils/Trace.h>
 
+#include "drmdisplaycomposition.h"
+
 #include "glworker.h"
 
 #include "seperate_rects.h"
@@ -305,18 +307,15 @@ struct RenderingCommand {
   }
 };
 
-static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
+static void ConstructCommands(DrmCompositionLayer *layers, size_t num_layers,
                               std::vector<RenderingCommand> *commands) {
   std::vector<FRect> in_rects;
   std::vector<FRectSet> out_rects;
   int i;
 
   for (unsigned rect_index = 0; rect_index < num_layers; rect_index++) {
-    const hwc_layer_1 &layer = layers[rect_index];
-    FRect rect;
-    in_rects.push_back(FRect(layer.displayFrame.left, layer.displayFrame.top,
-                             layer.displayFrame.right,
-                             layer.displayFrame.bottom));
+    DrmCompositionLayer &layer = layers[rect_index];
+    in_rects.emplace_back(layer.display_frame);
   }
 
   seperate_frects_64(in_rects, &out_rects);
@@ -326,23 +325,22 @@ static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
     commands->push_back(RenderingCommand());
     RenderingCommand &cmd = commands->back();
 
-    memcpy(cmd.bounds, out_rect.rect.bounds, sizeof(cmd.bounds));
+    for (int i = 0; i < 4; i++)
+      cmd.bounds[i] = out_rect.rect.bounds[i];
 
     uint64_t tex_set = out_rect.id_set.getBits();
     for (unsigned i = num_layers - 1; tex_set != 0x0; i--) {
       if (tex_set & (0x1 << i)) {
         tex_set &= ~(0x1 << i);
 
-        const hwc_layer_1 &layer = layers[i];
+        DrmCompositionLayer &layer = layers[i];
 
-        FRect display_rect(layer.displayFrame.left, layer.displayFrame.top,
-                           layer.displayFrame.right, layer.displayFrame.bottom);
+        FRect display_rect(layer.display_frame);
         float display_size[2] = {
             display_rect.bounds[2] - display_rect.bounds[0],
             display_rect.bounds[3] - display_rect.bounds[1]};
 
-        FRect crop_rect(layer.sourceCropf.left, layer.sourceCropf.top,
-                        layer.sourceCropf.right, layer.sourceCropf.bottom);
+        FRect crop_rect(layer.source_crop);
         float crop_size[2] = {crop_rect.bounds[2] - crop_rect.bounds[0],
                               crop_rect.bounds[3] - crop_rect.bounds[1]};
 
@@ -352,27 +350,39 @@ static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
 
         bool swap_xy, flip_xy[2];
         switch (layer.transform) {
-          case HWC_TRANSFORM_FLIP_H:
-            swap_xy = false; flip_xy[0] = true; flip_xy[1] = false;
+          case DrmHwcTransform::kFlipH:
+            swap_xy = false;
+            flip_xy[0] = true;
+            flip_xy[1] = false;
             break;
-          case HWC_TRANSFORM_FLIP_V:
-            swap_xy = false; flip_xy[0] = false; flip_xy[1] = true;
+          case DrmHwcTransform::kFlipV:
+            swap_xy = false;
+            flip_xy[0] = false;
+            flip_xy[1] = true;
             break;
-          case HWC_TRANSFORM_ROT_90:
-            swap_xy = true; flip_xy[0] = false; flip_xy[1] = true;
+          case DrmHwcTransform::kRotate90:
+            swap_xy = true;
+            flip_xy[0] = false;
+            flip_xy[1] = true;
             break;
-          case HWC_TRANSFORM_ROT_180:
-            swap_xy = false; flip_xy[0] = true; flip_xy[1] = true;
+          case DrmHwcTransform::kRotate180:
+            swap_xy = false;
+            flip_xy[0] = true;
+            flip_xy[1] = true;
             break;
-          case HWC_TRANSFORM_ROT_270:
-            swap_xy = true; flip_xy[0] = true; flip_xy[1] = false;
+          case DrmHwcTransform::kRotate270:
+            swap_xy = true;
+            flip_xy[0] = true;
+            flip_xy[1] = false;
             break;
           default:
             ALOGE(
                 "Unknown transform for layer: defaulting to identity "
                 "transform");
-          case 0:
-            swap_xy = false; flip_xy[0] = false; flip_xy[1] = false;
+          case DrmHwcTransform::kIdentity:
+            swap_xy = false;
+            flip_xy[0] = false;
+            flip_xy[1] = false;
             break;
         }
 
@@ -394,14 +404,14 @@ static void ConstructCommands(const hwc_layer_1 *layers, size_t num_layers,
           }
         }
 
-        if (layer.blending == HWC_BLENDING_NONE) {
+        if (layer.blending == DrmHwcBlending::kNone) {
           src.alpha = 1.0f;
           // This layer is opaque. There is no point in using layers below this
           // one.
           break;
         }
 
-        src.alpha = layer.planeAlpha / 255.0f;
+        src.alpha = layer.alpha / 255.0f;
       }
     }
   }
@@ -559,7 +569,8 @@ GLWorkerCompositor::~GLWorkerCompositor() {
       ALOGE("Failed to destroy OpenGL ES Context: %s", GetEGLError());
 }
 
-int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
+int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
+                                  size_t num_layers,
                                   const sp<GraphicBuffer> &framebuffer) {
   ATRACE_CALL();
   int ret = 0;
@@ -581,23 +592,14 @@ int GLWorkerCompositor::Composite(hwc_layer_1 *layers, size_t num_layers,
   }
 
   for (i = 0; i < num_layers; i++) {
-    struct hwc_layer_1 *layer = &layers[i];
-
-    if (ret) {
-      if (layer->acquireFenceFd >= 0) {
-        close(layer->acquireFenceFd);
-        layer->acquireFenceFd = -1;
-      }
-      continue;
-    }
+    DrmCompositionLayer *layer = &layers[i];
 
     layer_textures.emplace_back();
-    ret = CreateTextureFromHandle(egl_display_, layer->handle,
+    ret = CreateTextureFromHandle(egl_display_, layer->get_usable_handle(),
                                   &layer_textures.back());
 
     if (!ret) {
-      ret = EGLFenceWait(egl_display_, layer->acquireFenceFd);
-      layer->acquireFenceFd = -1;
+      ret = EGLFenceWait(egl_display_, layer->acquire_fence.Release());
     }
     if (ret) {
       layer_textures.pop_back();
