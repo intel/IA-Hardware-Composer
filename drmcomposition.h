@@ -47,6 +47,7 @@ class DrmComposition {
 
   int SetLayers(size_t num_displays, DrmCompositionDisplayLayersMap *maps);
   int SetDpmsMode(int display, uint32_t dpms_mode);
+  int SetDisplayMode(int display, const DrmMode &display_mode);
 
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
   DrmDisplayComposition *GetDisplayComposition(int display);

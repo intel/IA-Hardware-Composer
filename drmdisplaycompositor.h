@@ -70,6 +70,9 @@ class DrmDisplayCompositor {
   bool initialized_;
   bool active_;
 
+  DrmMode next_mode_;
+  bool needs_modeset_;
+
   int framebuffer_index_;
   DrmFramebuffer framebuffers_[DRM_DISPLAY_BUFFERS];
   std::unique_ptr<GLWorkerCompositor> pre_compositor_;
