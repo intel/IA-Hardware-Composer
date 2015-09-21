@@ -15,7 +15,7 @@
  */
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
-#define LOG_TAG "GLWorker"
+#define LOG_TAG "hwc-gl-worker"
 
 #include <algorithm>
 #include <string>
