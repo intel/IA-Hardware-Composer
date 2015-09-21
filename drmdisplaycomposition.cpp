@@ -74,7 +74,8 @@ DrmDisplayComposition::DrmDisplayComposition()
       timeline_current_(0),
       timeline_pre_comp_done_(0),
       pre_composition_layer_index_(-1),
-      dpms_mode_(DRM_MODE_DPMS_ON) {
+      dpms_mode_(DRM_MODE_DPMS_ON),
+      frame_no_(0) {
 }
 
 DrmDisplayComposition::~DrmDisplayComposition() {
@@ -100,10 +101,11 @@ DrmDisplayComposition::~DrmDisplayComposition() {
 }
 
 int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
-                                Importer *importer) {
+                                Importer *importer, uint64_t frame_no) {
   drm_ = drm;
   crtc_ = crtc; // Can be NULL if we haven't modeset yet
   importer_ = importer;
+  frame_no_ = frame_no;
 
   int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
                           (const hw_module_t **)&gralloc_);
@@ -370,6 +372,10 @@ int DrmDisplayComposition::pre_composition_layer_index() const {
 
 uint32_t DrmDisplayComposition::dpms_mode() const {
   return dpms_mode_;
+}
+
+uint64_t DrmDisplayComposition::frame_no() const {
+  return frame_no_;
 }
 
 Importer *DrmDisplayComposition::importer() const {

@@ -42,7 +42,7 @@ class DrmComposition {
  public:
   DrmComposition(DrmResources *drm, Importer *importer);
 
-  int Init();
+  int Init(uint64_t frame_no);
 
   int SetLayers(size_t num_displays,
                 const DrmCompositionDisplayLayersMap *maps);

@@ -45,6 +45,8 @@ class DrmCompositor {
 
   DrmResources *drm_;
 
+  uint64_t frame_no_;
+
   // mutable for Dump() propagation
   mutable std::map<int, DrmDisplayCompositor> compositor_map_;
 };

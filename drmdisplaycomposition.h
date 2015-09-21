@@ -53,7 +53,8 @@ class DrmDisplayComposition {
   DrmDisplayComposition();
   ~DrmDisplayComposition();
 
-  int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer);
+  int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer,
+           uint64_t frame_no);
 
   DrmCompositionType type() const;
 
@@ -70,6 +71,8 @@ class DrmDisplayComposition {
   DrmCompositionLayerVector_t *GetCompositionLayers();
   int pre_composition_layer_index() const;
   uint32_t dpms_mode() const;
+
+  uint64_t frame_no() const;
 
   Importer *importer() const;
 
@@ -97,6 +100,8 @@ class DrmDisplayComposition {
   DrmCompositionLayerVector_t layers_;
   int pre_composition_layer_index_;
   uint32_t dpms_mode_;
+
+  uint64_t frame_no_;
 };
 }
 

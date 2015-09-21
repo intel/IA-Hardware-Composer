@@ -41,7 +41,6 @@ DrmDisplayCompositor::DrmDisplayCompositor()
     : drm_(NULL),
       display_(-1),
       worker_(this),
-      frame_no_(0),
       initialized_(false),
       active_(false),
       framebuffer_index_(0),
