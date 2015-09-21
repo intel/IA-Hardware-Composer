@@ -27,7 +27,7 @@
 
 namespace android {
 
-DrmCompositor::DrmCompositor(DrmResources *drm) : drm_(drm) {
+DrmCompositor::DrmCompositor(DrmResources *drm) : drm_(drm), frame_no_(0) {
 }
 
 DrmCompositor::~DrmCompositor() {
@@ -53,7 +53,7 @@ DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
     ALOGE("Failed to allocate drm composition");
     return NULL;
   }
-  int ret = composition->Init();
+  int ret = composition->Init(++frame_no_);
   if (ret) {
     ALOGE("Failed to initialize drm composition %d", ret);
     delete composition;

@@ -63,8 +63,6 @@ class DrmDisplayCompositor {
   std::queue<std::unique_ptr<DrmDisplayComposition>> composite_queue_;
   std::unique_ptr<DrmDisplayComposition> active_composition_;
 
-  uint64_t frame_no_;
-
   bool initialized_;
   bool active_;
 
