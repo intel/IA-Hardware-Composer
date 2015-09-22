@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <pthread.h>
+#include <sched.h>
 #include <sstream>
 #include <stdlib.h>
 #include <time.h>
@@ -34,6 +35,8 @@
 #include <cutils/log.h>
 #include <sync/sync.h>
 #include <utils/Trace.h>
+
+#define DRM_DISPLAY_COMPOSITOR_MAX_QUEUE_DEPTH 3
 
 namespace android {
 
@@ -120,6 +123,14 @@ int DrmDisplayCompositor::QueueComposition(
   if (ret) {
     ALOGE("Failed to acquire compositor lock %d", ret);
     return ret;
+  }
+
+  // Block the queue if it gets too large. Otherwise, SurfaceFlinger will start
+  // to eat our buffer handles when we get about 1 second behind.
+  while (composite_queue_.size() >= DRM_DISPLAY_COMPOSITOR_MAX_QUEUE_DEPTH) {
+    pthread_mutex_unlock(&lock_);
+    sched_yield();
+    pthread_mutex_lock(&lock_);
   }
 
   composite_queue_.push(std::move(composition));
