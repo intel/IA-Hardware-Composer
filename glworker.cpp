@@ -186,7 +186,6 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "\n"
 "precision mediump int;                                                     \n"
 "uniform vec4 uViewport;                                                    \n"
-"uniform sampler2D uLayerTextures[LAYER_COUNT];                             \n"
 "uniform vec4 uLayerCrop[LAYER_COUNT];                                      \n"
 "uniform mat2 uTexMatrix[LAYER_COUNT];                                      \n"
 "in vec2 vPosition;                                                         \n"
@@ -195,8 +194,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "void main() {                                                              \n"
 "  for (int i = 0; i < LAYER_COUNT; i++) {                                  \n"
 "    vec2 tempCoords = vTexCoords * uTexMatrix[i];                          \n"
-"    fTexCoords[i] = (uLayerCrop[i].xy + tempCoords * uLayerCrop[i].zw) /   \n"
-"                     vec2(textureSize(uLayerTextures[i], 0));              \n"
+"    fTexCoords[i] = uLayerCrop[i].xy + tempCoords * uLayerCrop[i].zw;      \n"
 "  }                                                                        \n"
 "  vec2 scaledPosition = uViewport.xy + vPosition * uViewport.zw;           \n"
 "  gl_Position = vec4(scaledPosition * vec2(2.0) - vec2(1.0), 0.0, 1.0);    \n"
@@ -204,8 +202,9 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 
   const GLchar *fragment_shader_source =
 "\n"
+"#extension GL_OES_EGL_image_external : require                             \n"
 "precision mediump float;                                                   \n"
-"uniform sampler2D uLayerTextures[LAYER_COUNT];                             \n"
+"uniform samplerExternalOES uLayerTextures[LAYER_COUNT];                    \n"
 "uniform float uLayerAlpha[LAYER_COUNT];                                    \n"
 "in vec2 fTexCoords[LAYER_COUNT];                                           \n"
 "out vec4 oFragColor;                                                       \n"
@@ -213,7 +212,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "  vec3 color = vec3(0.0, 0.0, 0.0);                                        \n"
 "  float alphaCover = 1.0;                                                  \n"
 "  for (int i = 0; i < LAYER_COUNT; i++) {                                  \n"
-"    vec4 texSample = texture(uLayerTextures[i], fTexCoords[i]);            \n"
+"    vec4 texSample = texture2D(uLayerTextures[i], fTexCoords[i]);          \n"
 "    float a = texSample.a * uLayerAlpha[i];                                \n"
 "    color += a * alphaCover * texSample.rgb;                               \n"
 "    alphaCover *= 1.0 - a;                                                 \n"
@@ -340,7 +339,13 @@ static void ConstructCommands(DrmCompositionLayer *layers, size_t num_layers,
             display_rect.bounds[2] - display_rect.bounds[0],
             display_rect.bounds[3] - display_rect.bounds[1]};
 
-        FRect crop_rect(layer.source_crop);
+        float tex_width = layer.buffer->width;
+        float tex_height = layer.buffer->height;
+        FRect crop_rect(layer.source_crop.left / tex_width,
+                        layer.source_crop.top / tex_height,
+                        layer.source_crop.right / tex_width,
+                        layer.source_crop.bottom / tex_height);
+
         float crop_size[2] = {crop_rect.bounds[2] - crop_rect.bounds[0],
                               crop_rect.bounds[3] - crop_rect.bounds[1]};
 
@@ -454,13 +459,13 @@ static int CreateTextureFromHandle(EGLDisplay egl_display,
 
   GLuint texture;
   glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, (GLeglImageOES)image);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
   out->image.reset(egl_display, image);
   out->texture.reset(texture);
@@ -548,6 +553,9 @@ int GLWorkerCompositor::Init() {
 
   if (!HasExtension("GL_OES_EGL_image", gl_extensions))
     ALOGW("GL_OES_EGL_image extension not supported");
+
+  if (!HasExtension("GL_OES_EGL_image_external", gl_extensions))
+    ALOGW("GL_OES_EGL_image_external extension not supported");
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
@@ -660,7 +668,7 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
       glUniformMatrix2fv(gl_tex_matrix_loc + src_index, 1, GL_FALSE,
                          src.texture_matrix);
       glActiveTexture(GL_TEXTURE0 + src_index);
-      glBindTexture(GL_TEXTURE_2D,
+      glBindTexture(GL_TEXTURE_EXTERNAL_OES,
                     layer_textures[src.texture_index].texture.get());
     }
 
@@ -670,7 +678,7 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
 
     for (unsigned src_index = 0; src_index < cmd.texture_count; src_index++) {
       glActiveTexture(GL_TEXTURE0 + src_index);
-      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
     }
   }
 
