@@ -30,39 +30,18 @@
 
 namespace android {
 
-static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
-  native_handle_t *new_handle =
-      native_handle_create(handle->numFds, handle->numInts);
-  if (new_handle == NULL)
-    return NULL;
-
-  const int *old_data = handle->data;
-  int *new_data = new_handle->data;
-  for (int i = 0; i < handle->numFds; i++) {
-    *new_data = dup(*old_data);
-    old_data++;
-    new_data++;
-  }
-  memcpy(new_data, old_data, sizeof(int) * handle->numInts);
-
-  return new_handle;
-}
-
-static void free_buffer_handle(native_handle_t *handle) {
-  int ret = native_handle_close(handle);
-  if (ret)
-    ALOGE("Failed to close native handle %d", ret);
-  ret = native_handle_delete(handle);
-  if (ret)
-    ALOGE("Failed to delete native handle %d", ret);
-}
-
-DrmCompositionLayer::DrmCompositionLayer()
-    : crtc(NULL), plane(NULL), handle(NULL) {
-  memset(&layer, 0, sizeof(layer));
-  layer.releaseFenceFd = -1;
-  layer.acquireFenceFd = -1;
-  memset(&bo, 0, sizeof(bo));
+DrmCompositionLayer::DrmCompositionLayer(DrmCrtc *crtc, DrmHwcLayer &&l)
+    : crtc(crtc),
+      sf_handle(l.sf_handle),
+      buffer(std::move(l.buffer)),
+      handle(std::move(l.handle)),
+      transform(l.transform),
+      blending(l.blending),
+      alpha(l.alpha),
+      source_crop(l.source_crop),
+      display_frame(l.display_frame),
+      source_damage(l.source_damage),
+      acquire_fence(std::move(l.acquire_fence)) {
 }
 
 DrmDisplayComposition::DrmDisplayComposition()
@@ -79,20 +58,6 @@ DrmDisplayComposition::DrmDisplayComposition()
 }
 
 DrmDisplayComposition::~DrmDisplayComposition() {
-  for (DrmCompositionLayerVector_t::iterator iter = layers_.begin();
-       iter != layers_.end(); ++iter) {
-    if (importer_ && iter->bo.fb_id)
-      importer_->ReleaseBuffer(&iter->bo);
-
-    if (iter->handle) {
-      gralloc_->unregisterBuffer(gralloc_, iter->handle);
-      free_buffer_handle(iter->handle);
-    }
-
-    if (iter->layer.acquireFenceFd >= 0)
-      close(iter->layer.acquireFenceFd);
-  }
-
   if (timeline_fd_ >= 0) {
     FinishComposition();
     close(timeline_fd_);
@@ -103,18 +68,11 @@ DrmDisplayComposition::~DrmDisplayComposition() {
 int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
                                 Importer *importer, uint64_t frame_no) {
   drm_ = drm;
-  crtc_ = crtc; // Can be NULL if we haven't modeset yet
+  crtc_ = crtc;  // Can be NULL if we haven't modeset yet
   importer_ = importer;
   frame_no_ = frame_no;
 
-  int ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-                          (const hw_module_t **)&gralloc_);
-  if (ret) {
-    ALOGE("Failed to open gralloc module %d", ret);
-    return ret;
-  }
-
-  ret = sw_sync_timeline_create();
+  int ret = sw_sync_timeline_create();
   if (ret < 0) {
     ALOGE("Failed to create sw sync timeline %d", ret);
     return ret;
@@ -170,8 +128,7 @@ int DrmDisplayComposition::IncreaseTimelineToPoint(int point) {
   return ret;
 }
 
-int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
-                                     size_t *layer_indices,
+int DrmDisplayComposition::SetLayers(DrmHwcLayer *layers, size_t num_layers,
                                      std::vector<DrmPlane *> *primary_planes,
                                      std::vector<DrmPlane *> *overlay_planes) {
   int ret = 0;
@@ -179,32 +136,10 @@ int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
     return -EINVAL;
 
   for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    hwc_layer_1_t *layer = &layers[layer_indices[layer_index]];
+    DrmHwcLayer *layer = &layers[layer_index];
 
-    native_handle_t *handle_copy = dup_buffer_handle(layer->handle);
-    if (handle_copy == NULL) {
-      ALOGE("Failed to duplicate handle");
-      return -ENOMEM;
-    }
-
-    int ret = gralloc_->registerBuffer(gralloc_, handle_copy);
-    if (ret) {
-      ALOGE("Failed to register buffer handle %d", ret);
-      free_buffer_handle(handle_copy);
-      return ret;
-    }
-
-    layers_.emplace_back();
-    DrmCompositionLayer_t *c_layer = &layers_.back();
-    c_layer->layer = *layer;
-    c_layer->handle = handle_copy;
-    c_layer->crtc = crtc_;
-
-    ret = importer_->ImportBuffer(layer->handle, &c_layer->bo);
-    if (ret) {
-      ALOGE("Failed to import handle of layer %d", ret);
-      goto fail;
-    }
+    layers_.emplace_back(crtc_, std::move(*layer));
+    DrmCompositionLayer *c_layer = &layers_.back();
 
     if (pre_composition_layer_index_ == -1) {
       c_layer->plane = TakePlane(crtc_, primary_planes, overlay_planes);
@@ -218,27 +153,19 @@ int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
         layers_.emplace_back();
         // c_layer's address might have changed when we resized the vector
         c_layer = &layers_[layers_.size() - 2];
-        DrmCompositionLayer_t &pre_comp_layer = layers_.back();
+        DrmCompositionLayer &pre_comp_layer = layers_.back();
         pre_comp_layer.crtc = crtc_;
-        hwc_layer_1_t &pre_comp_output_layer = pre_comp_layer.layer;
-        memset(&pre_comp_output_layer, 0, sizeof(pre_comp_output_layer));
-        pre_comp_output_layer.compositionType = HWC_OVERLAY;
-        pre_comp_output_layer.acquireFenceFd = -1;
-        pre_comp_output_layer.releaseFenceFd = -1;
-        pre_comp_output_layer.planeAlpha = 0xff;
-        pre_comp_output_layer.visibleRegionScreen.numRects = 1;
-        pre_comp_output_layer.visibleRegionScreen.rects =
-            &pre_comp_output_layer.displayFrame;
 
         pre_composition_layer_index_ = layers_.size() - 1;
 
         // This is all to fix up the previous layer, which has now become part
         // of the set of pre-composition layers because we are stealing its
         // plane.
-        DrmCompositionLayer_t &last_c_layer = layers_[layers_.size() - 3];
+        DrmCompositionLayer &last_c_layer = layers_[layers_.size() - 3];
         std::swap(pre_comp_layer.plane, last_c_layer.plane);
-        hwc_layer_1_t *last_layer = &layers[layer_indices[layer_index - 1]];
-        ret = last_layer->releaseFenceFd = CreateNextTimelineFence();
+        OutputFd &last_release_fence = layers[layer_index - 1].release_fence;
+        last_release_fence.Set(CreateNextTimelineFence());
+        ret = last_release_fence.get();
         if (ret < 0) {
           ALOGE("Could not create release fence %d", ret);
           goto fail;
@@ -249,7 +176,8 @@ int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
     if (c_layer->plane == NULL) {
       // Layers to be pre composited all get the earliest release fences as they
       // will get released soonest.
-      ret = layer->releaseFenceFd = CreateNextTimelineFence();
+      layer->release_fence.Set(CreateNextTimelineFence());
+      ret = layer->release_fence.get();
       if (ret < 0) {
         ALOGE("Could not create release fence %d", ret);
         goto fail;
@@ -260,20 +188,15 @@ int DrmDisplayComposition::SetLayers(hwc_layer_1_t *layers, size_t num_layers,
   timeline_pre_comp_done_ = timeline_;
 
   for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    hwc_layer_1_t *layer = &layers[layer_indices[layer_index]];
-    if (layer->releaseFenceFd >= 0)
+    DrmHwcLayer *layer = &layers[layer_index];
+    if (layer->release_fence.get() >= 0)
       continue;
 
-    ret = layer->releaseFenceFd = CreateNextTimelineFence();
+    ret = layer->release_fence.Set(CreateNextTimelineFence());
     if (ret < 0) {
       ALOGE("Could not create release fence %d", ret);
       goto fail;
     }
-  }
-
-  for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    hwc_layer_1_t *layer = &layers[layer_indices[layer_index]];
-    layer->acquireFenceFd = -1;  // We own this now
   }
 
   type_ = DRM_COMPOSITION_TYPE_FRAME;
@@ -283,13 +206,7 @@ fail:
 
   for (size_t c_layer_index = 0; c_layer_index < layers_.size();
        c_layer_index++) {
-    DrmCompositionLayer_t &c_layer = layers_[c_layer_index];
-    if (c_layer.handle) {
-      gralloc_->unregisterBuffer(gralloc_, c_layer.handle);
-      free_buffer_handle(c_layer.handle);
-    }
-    if (c_layer.bo.fb_id)
-      importer_->ReleaseBuffer(&c_layer.bo);
+    DrmCompositionLayer &c_layer = layers_[c_layer_index];
     if (c_layer.plane != NULL) {
       std::vector<DrmPlane *> *return_to =
           (c_layer.plane->type() == DRM_PLANE_TYPE_PRIMARY) ? primary_planes
@@ -297,15 +214,9 @@ fail:
       return_to->insert(return_to->begin() + c_layer_index, c_layer.plane);
     }
   }
+
   layers_.clear();
 
-  for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    hwc_layer_1_t *layer = &layers[layer_indices[layer_index]];
-    if (layer->releaseFenceFd >= 0) {
-      close(layer->releaseFenceFd);
-      layer->releaseFenceFd = -1;
-    }
-  }
   sw_sync_timeline_inc(timeline_fd_, timeline_ - timeline_current_);
 
   timeline_ = timeline_current_;
@@ -322,35 +233,16 @@ int DrmDisplayComposition::SetDpmsMode(uint32_t dpms_mode) {
 
 int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
   layers_.emplace_back();
-  DrmCompositionLayer_t &c_layer = layers_.back();
+  DrmCompositionLayer &c_layer = layers_.back();
   c_layer.crtc = NULL;
   c_layer.plane = plane;
   return 0;
 }
 
 void DrmDisplayComposition::RemoveNoPlaneLayers() {
-  for (auto &comp_layer : layers_) {
-    if (comp_layer.plane != NULL)
-      continue;
-
-    if (importer_ && comp_layer.bo.fb_id) {
-      importer_->ReleaseBuffer(&comp_layer.bo);
-    }
-
-    if (comp_layer.handle) {
-      gralloc_->unregisterBuffer(gralloc_, comp_layer.handle);
-      free_buffer_handle(comp_layer.handle);
-    }
-
-    if (comp_layer.layer.acquireFenceFd >= 0) {
-      close(comp_layer.layer.acquireFenceFd);
-      comp_layer.layer.acquireFenceFd = -1;
-    }
-  }
-
   layers_.erase(
       std::remove_if(layers_.begin(), layers_.end(),
-                     [](DrmCompositionLayer_t &l) { return l.plane == NULL; }),
+                     [](DrmCompositionLayer &l) { return l.plane == NULL; }),
       layers_.end());
 }
 
@@ -362,7 +254,8 @@ int DrmDisplayComposition::FinishComposition() {
   return IncreaseTimelineToPoint(timeline_);
 }
 
-DrmCompositionLayerVector_t *DrmDisplayComposition::GetCompositionLayers() {
+std::vector<DrmCompositionLayer>
+    *DrmDisplayComposition::GetCompositionLayers() {
   return &layers_;
 }
 

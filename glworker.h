@@ -33,13 +33,15 @@
 
 namespace android {
 
+struct DrmCompositionLayer;
+
 class GLWorkerCompositor {
  public:
   GLWorkerCompositor();
   ~GLWorkerCompositor();
 
   int Init();
-  int Composite(hwc_layer_1 *layers, size_t num_layers,
+  int Composite(DrmCompositionLayer *layers, size_t num_layers,
                 const sp<GraphicBuffer> &framebuffer);
   void Finish();
 

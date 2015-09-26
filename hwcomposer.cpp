@@ -26,6 +26,7 @@
 
 #include <map>
 #include <vector>
+#include <sstream>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -39,12 +40,80 @@
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
+#include <sw_sync.h>
+#include <sync/sync.h>
 #include <utils/Trace.h>
 
 #define UM_PER_INCH 25400
 #define HWC_FB_BUFFERS 3
 
 namespace android {
+
+class DummySwSyncTimeline {
+ public:
+  int Init() {
+    int ret = timeline_fd_.Set(sw_sync_timeline_create());
+    if (ret < 0)
+      return ret;
+    return 0;
+  }
+
+  UniqueFd CreateDummyFence() {
+    int ret = sw_sync_fence_create(timeline_fd_.get(), "dummy fence",
+                                   timeline_pt_ + 1);
+    if (ret < 0) {
+      ALOGE("Failed to create dummy fence %d", ret);
+      return ret;
+    }
+
+    UniqueFd ret_fd(ret);
+
+    ret = sw_sync_timeline_inc(timeline_fd_.get(), 1);
+    if (ret) {
+      ALOGE("Failed to increment dummy sync timeline %d", ret);
+      return ret;
+    }
+
+    ++timeline_pt_;
+    return ret_fd;
+  }
+
+ private:
+  UniqueFd timeline_fd_;
+  int timeline_pt_ = 0;
+};
+
+struct CheckedOutputFd {
+  CheckedOutputFd(int *fd, const char *description,
+                  DummySwSyncTimeline &timeline)
+      : fd_(fd), description_(description), timeline_(timeline) {
+  }
+  CheckedOutputFd(CheckedOutputFd &&rhs)
+      : description_(rhs.description_), timeline_(rhs.timeline_) {
+    std::swap(fd_, rhs.fd_);
+  }
+
+  CheckedOutputFd &operator=(const CheckedOutputFd &rhs) = delete;
+
+  ~CheckedOutputFd() {
+    if (fd_ == NULL)
+      return;
+
+    if (*fd_ >= 0)
+      return;
+
+    *fd_ = timeline_.CreateDummyFence().Release();
+
+    if (*fd_ < 0)
+      ALOGE("Failed to fill %s (%p == %d) before destruction",
+            description_.c_str(), fd_, *fd_);
+  }
+
+ private:
+  int *fd_ = NULL;
+  std::string description_;
+  DummySwSyncTimeline &timeline_;
+};
 
 typedef struct hwc_drm_display {
   struct hwc_context_t *ctx;
@@ -73,8 +142,183 @@ struct hwc_context_t {
   DisplayMap displays;
   DrmResources drm;
   Importer *importer;
+  const gralloc_module_t *gralloc;
+  DummySwSyncTimeline dummy_timeline;
   bool use_framebuffer_target;
 };
+
+static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
+  native_handle_t *new_handle =
+      native_handle_create(handle->numFds, handle->numInts);
+  if (new_handle == NULL)
+    return NULL;
+
+  const int *old_data = handle->data;
+  int *new_data = new_handle->data;
+  for (int i = 0; i < handle->numFds; i++) {
+    *new_data = dup(*old_data);
+    old_data++;
+    new_data++;
+  }
+  memcpy(new_data, old_data, sizeof(int) * handle->numInts);
+
+  return new_handle;
+}
+
+static void free_buffer_handle(native_handle_t *handle) {
+  int ret = native_handle_close(handle);
+  if (ret)
+    ALOGE("Failed to close native handle %d", ret);
+  ret = native_handle_delete(handle);
+  if (ret)
+    ALOGE("Failed to delete native handle %d", ret);
+}
+
+OutputFd &OutputFd::operator=(OutputFd &&rhs) {
+  if (fd_ == NULL) {
+    std::swap(fd_, rhs.fd_);
+  } else {
+    if (*fd_ < 0) {
+      ALOGE("Failed to fill OutputFd %p before assignment", fd_);
+    }
+    fd_ = rhs.fd_;
+    rhs.fd_ = NULL;
+  }
+
+  return *this;
+}
+
+hwc_drm_bo *DrmHwcBuffer::operator->() {
+  if (importer_ == NULL) {
+    ALOGE("Access of none existent BO");
+    exit(1);
+    return NULL;
+  }
+  return &bo_;
+}
+
+void DrmHwcBuffer::Clear() {
+  if (importer_ != NULL) {
+    importer_->ReleaseBuffer(&bo_);
+    importer_ = NULL;
+  }
+}
+
+int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
+  hwc_drm_bo tmp_bo;
+
+  int ret = importer->ImportBuffer(handle, &tmp_bo);
+  if (ret)
+    return ret;
+
+  if (importer_ != NULL) {
+    importer_->ReleaseBuffer(&bo_);
+  }
+
+  importer_ = importer;
+
+  bo_ = tmp_bo;
+
+  return 0;
+}
+
+int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle,
+                                         const gralloc_module_t *gralloc) {
+  native_handle_t *handle_copy = dup_buffer_handle(handle);
+  if (handle_copy == NULL) {
+    ALOGE("Failed to duplicate handle");
+    return -ENOMEM;
+  }
+
+  int ret = gralloc->registerBuffer(gralloc, handle_copy);
+  if (ret) {
+    ALOGE("Failed to register buffer handle %d", ret);
+    free_buffer_handle(handle_copy);
+    return ret;
+  }
+
+  Clear();
+
+  gralloc_ = gralloc;
+  handle_ = handle_copy;
+
+  return 0;
+}
+
+DrmHwcNativeHandle::~DrmHwcNativeHandle() {
+  Clear();
+}
+
+void DrmHwcNativeHandle::Clear() {
+  if (gralloc_ != NULL && handle_ != NULL) {
+    gralloc_->unregisterBuffer(gralloc_, handle_);
+    free_buffer_handle(handle_);
+    gralloc_ = NULL;
+    handle_ = NULL;
+  }
+}
+
+int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
+                                  const gralloc_module_t *gralloc) {
+  sf_handle = sf_layer->handle;
+  int ret = buffer.ImportBuffer(sf_layer->handle, importer);
+  if (ret)
+    return ret;
+
+  ret = handle.CopyBufferHandle(sf_layer->handle, gralloc);
+  if (ret)
+    return ret;
+
+  alpha = sf_layer->planeAlpha;
+
+  switch (sf_layer->transform) {
+    case 0:
+      transform = DrmHwcTransform::kIdentity;
+      break;
+    case HWC_TRANSFORM_FLIP_H:
+      transform = DrmHwcTransform::kFlipH;
+      break;
+    case HWC_TRANSFORM_FLIP_V:
+      transform = DrmHwcTransform::kFlipV;
+      break;
+    case HWC_TRANSFORM_ROT_90:
+      transform = DrmHwcTransform::kRotate90;
+      break;
+    case HWC_TRANSFORM_ROT_180:
+      transform = DrmHwcTransform::kRotate180;
+      break;
+    case HWC_TRANSFORM_ROT_270:
+      transform = DrmHwcTransform::kRotate270;
+      break;
+    default:
+      ALOGE("Invalid transform in hwc_layer_1_t %d", sf_layer->transform);
+      return -EINVAL;
+  }
+
+  switch (sf_layer->blending) {
+    case HWC_BLENDING_NONE:
+      blending = DrmHwcBlending::kNone;
+      break;
+    case HWC_BLENDING_PREMULT:
+      blending = DrmHwcBlending::kPreMult;
+      break;
+    case HWC_BLENDING_COVERAGE:
+      blending = DrmHwcBlending::kCoverage;
+      break;
+    default:
+      ALOGE("Invalid blending in hwc_layer_1_t %d", sf_layer->blending);
+      return -EINVAL;
+  }
+
+  source_crop = DrmHwcRect<float>(
+      sf_layer->sourceCropf.left, sf_layer->sourceCropf.top,
+      sf_layer->sourceCropf.right, sf_layer->sourceCropf.bottom);
+  display_frame = DrmHwcRect<int>(
+      sf_layer->displayFrame.left, sf_layer->displayFrame.top,
+      sf_layer->displayFrame.right, sf_layer->displayFrame.bottom);
+
+  return 0;
+}
 
 static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
                      int buff_len) {
@@ -131,27 +375,6 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
   return 0;
 }
 
-static void hwc_set_cleanup(size_t num_displays,
-                            hwc_display_contents_1_t **display_contents) {
-  for (int i = 0; i < (int)num_displays; ++i) {
-    if (!display_contents[i])
-      continue;
-
-    hwc_display_contents_1_t *dc = display_contents[i];
-    for (size_t j = 0; j < dc->numHwLayers; ++j) {
-      hwc_layer_1_t *layer = &dc->hwLayers[j];
-      if (layer->acquireFenceFd >= 0) {
-        close(layer->acquireFenceFd);
-        layer->acquireFenceFd = -1;
-      }
-    }
-    if (dc->outbufAcquireFenceFd >= 0) {
-      close(dc->outbufAcquireFenceFd);
-      dc->outbufAcquireFenceFd = -1;
-    }
-  }
-}
-
 static void hwc_add_layer_to_retire_fence(
     hwc_layer_1_t *layer, hwc_display_contents_1_t *display_contents) {
   if (layer->releaseFenceFd < 0)
@@ -168,109 +391,133 @@ static void hwc_add_layer_to_retire_fence(
 }
 
 static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
-                   hwc_display_contents_1_t **display_contents) {
+                   hwc_display_contents_1_t **sf_display_contents) {
   ATRACE_CALL();
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  int ret;
-  std::unique_ptr<DrmComposition> composition(
-      ctx->drm.compositor()->CreateComposition(ctx->importer));
-  if (!composition) {
-    ALOGE("Drm composition init failed");
-    hwc_set_cleanup(num_displays, display_contents);
-    return -EINVAL;
-  }
+  int ret = 0;
 
+  std::vector<CheckedOutputFd> checked_output_fences;
+  std::vector<DrmHwcDisplayContents> displays_contents;
   std::vector<DrmCompositionDisplayLayersMap> layers_map;
   std::vector<std::vector<size_t>> layers_indices;
-  layers_map.reserve(num_displays);
+  displays_contents.reserve(num_displays);
+  // layers_map.reserve(num_displays);
   layers_indices.reserve(num_displays);
 
-  for (int i = 0; i < (int)num_displays; ++i) {
-    if (!display_contents[i])
+  // Phase one does nothing that would cause errors. Only take ownership of FDs.
+  for (size_t i = 0; i < num_displays; ++i) {
+    hwc_display_contents_1_t *dc = sf_display_contents[i];
+    displays_contents.emplace_back();
+    DrmHwcDisplayContents &display_contents = displays_contents.back();
+
+    if (!sf_display_contents[i])
       continue;
-    hwc_display_contents_1_t *dc = display_contents[i];
 
-    layers_map.emplace_back();
-    DrmCompositionDisplayLayersMap &map = layers_map[i];
-    map.display = i;
-    map.layers = dc->hwLayers;
+    std::ostringstream display_index_formatter;
+    display_index_formatter << "retire fence for display " << i;
+    std::string display_fence_description(display_index_formatter.str());
+    checked_output_fences.emplace_back(&dc->retireFenceFd,
+                                       display_fence_description.c_str(),
+                                       ctx->dummy_timeline);
+    display_contents.retire_fence = OutputFd(&dc->retireFenceFd);
 
+    size_t num_dc_layers = dc->numHwLayers;
     std::vector<size_t> indices_to_composite;
-    unsigned num_dc_layers = dc->numHwLayers;
     int framebuffer_target_index = -1;
-    for (int j = 0; j < (int)num_dc_layers; ++j) {
-      hwc_layer_1_t *layer = &dc->hwLayers[j];
-      if (layer->flags & HWC_SKIP_LAYER)
+    for (size_t j = 0; j < num_dc_layers; ++j) {
+      hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
+
+      display_contents.layers.emplace_back();
+      DrmHwcLayer &layer = display_contents.layers.back();
+
+      if (sf_layer->flags & HWC_SKIP_LAYER)
         continue;
+
       if (!ctx->use_framebuffer_target) {
-        if (layer->compositionType == HWC_OVERLAY)
+        if (sf_layer->compositionType == HWC_OVERLAY)
           indices_to_composite.push_back(j);
-        if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
+        if (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET)
           framebuffer_target_index = j;
       } else {
-        if (layer->compositionType == HWC_FRAMEBUFFER_TARGET)
+        if (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET)
           indices_to_composite.push_back(j);
       }
+
+      layer.acquire_fence.Set(sf_layer->acquireFenceFd);
+      sf_layer->acquireFenceFd = -1;
+
+      std::ostringstream layer_fence_formatter;
+      layer_fence_formatter << "release fence for layer " << j << " of display "
+                            << i;
+      std::string layer_fence_description(layer_fence_formatter.str());
+      checked_output_fences.emplace_back(&sf_layer->releaseFenceFd,
+                                         layer_fence_description.c_str(),
+                                         ctx->dummy_timeline);
+      layer.release_fence = OutputFd(&sf_layer->releaseFenceFd);
     }
+
     if (ctx->use_framebuffer_target) {
       if (indices_to_composite.size() != 1) {
         ALOGE("Expected 1 (got %d) layer with HWC_FRAMEBUFFER_TARGET",
               indices_to_composite.size());
-        hwc_set_cleanup(num_displays, display_contents);
-        return -EINVAL;
+        ret = -EINVAL;
       }
     } else {
       if (indices_to_composite.empty() && framebuffer_target_index >= 0) {
-        // Fall back to use HWC_FRAMEBUFFER_TARGET if all HWC_OVERLAY layers
-        // are skipped.
-        hwc_layer_1_t *layer = &dc->hwLayers[framebuffer_target_index];
-        if (!layer->handle || (layer->flags & HWC_SKIP_LAYER)) {
-          ALOGE("Expected valid layer with HWC_FRAMEBUFFER_TARGET when all "
-                "HWC_OVERLAY layers are skipped.");
-          hwc_set_cleanup(num_displays, display_contents);
-          return -EINVAL;
+        hwc_layer_1_t *sf_layer = &dc->hwLayers[framebuffer_target_index];
+        if (!sf_layer->handle || (sf_layer->flags & HWC_SKIP_LAYER)) {
+          ALOGE(
+              "Expected valid layer with HWC_FRAMEBUFFER_TARGET when all "
+              "HWC_OVERLAY layers are skipped.");
+          ret = -EINVAL;
         }
         indices_to_composite.push_back(framebuffer_target_index);
       }
     }
+    layers_indices.emplace_back(indices_to_composite);
+  }
 
-    map.num_layers = indices_to_composite.size();
-    layers_indices.emplace_back(std::move(indices_to_composite));
-    map.layer_indices = layers_indices.back().data();
+  if (ret)
+    return ret;
+
+  for (size_t i = 0; i < num_displays; ++i) {
+    hwc_display_contents_1_t *dc = sf_display_contents[i];
+    DrmHwcDisplayContents &display_contents = displays_contents[i];
+    if (!sf_display_contents[i])
+      continue;
+
+    layers_map.emplace_back();
+    DrmCompositionDisplayLayersMap &map = layers_map.back();
+    std::vector<size_t> &indices_to_composite = layers_indices[i];
+    for (size_t j : indices_to_composite) {
+      hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
+
+      DrmHwcLayer &layer = display_contents.layers[j];
+
+      layer.InitFromHwcLayer(sf_layer, ctx->importer, ctx->gralloc);
+      map.layers.emplace_back(std::move(layer));
+    }
+  }
+
+  std::unique_ptr<DrmComposition> composition(
+      ctx->drm.compositor()->CreateComposition(ctx->importer));
+  if (!composition) {
+    ALOGE("Drm composition init failed");
+    return -EINVAL;
   }
 
   ret = composition->SetLayers(layers_map.size(), layers_map.data());
   if (ret) {
-    hwc_set_cleanup(num_displays, display_contents);
     return -EINVAL;
   }
 
   ret = ctx->drm.compositor()->QueueComposition(std::move(composition));
   if (ret) {
-    hwc_set_cleanup(num_displays, display_contents);
     return -EINVAL;
   }
 
   composition.reset(NULL);
 
-  for (int i = 0; i < (int)num_displays; ++i) {
-    if (!display_contents[i])
-      continue;
-    hwc_display_contents_1_t *dc = display_contents[i];
-    unsigned num_dc_layers = dc->numHwLayers;
-    for (int j = 0; j < (int)num_dc_layers; ++j) {
-      hwc_layer_1_t *layer = &dc->hwLayers[j];
-      if (layer->flags & HWC_SKIP_LAYER)
-        continue;
-      if (layer->compositionType == HWC_OVERLAY)
-        hwc_add_layer_to_retire_fence(layer, dc);
-    }
-  }
-
-  if (ret) {
-    ALOGE("Failed to queue the composition");
-  }
-  hwc_set_cleanup(num_displays, display_contents);
   return ret;
 }
 
@@ -548,6 +795,20 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   if (ret) {
     ALOGE("Can't initialize Drm object %d", ret);
     delete ctx;
+    return ret;
+  }
+
+  ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
+                      (const hw_module_t **)&ctx->gralloc);
+  if (ret) {
+    ALOGE("Failed to open gralloc module %d", ret);
+    delete ctx;
+    return ret;
+  }
+
+  ret = ctx->dummy_timeline.Init();
+  if (ret) {
+    ALOGE("Failed to create dummy sw sync timeline %d", ret);
     return ret;
   }
 

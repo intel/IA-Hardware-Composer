@@ -146,7 +146,7 @@ int DrmDisplayCompositor::QueueComposition(
 }
 
 static bool drm_composition_layer_has_plane(
-    const DrmCompositionLayer_t &comp_layer) {
+    const DrmCompositionLayer &comp_layer) {
   if (comp_layer.plane != NULL)
     if (comp_layer.plane->type() == DRM_PLANE_TYPE_OVERLAY ||
         comp_layer.plane->type() == DRM_PLANE_TYPE_PRIMARY)
@@ -155,14 +155,15 @@ static bool drm_composition_layer_has_plane(
 }
 
 static bool drm_composition_layer_has_no_plane(
-    const DrmCompositionLayer_t &comp_layer) {
+    const DrmCompositionLayer &comp_layer) {
   return comp_layer.plane == NULL;
 }
 
 int DrmDisplayCompositor::ApplyPreComposite(
     DrmDisplayComposition *display_comp) {
   int ret = 0;
-  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
+  std::vector<DrmCompositionLayer> *layers =
+      display_comp->GetCompositionLayers();
 
   DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
   if (connector == NULL) {
@@ -185,12 +186,10 @@ int DrmDisplayCompositor::ApplyPreComposite(
     return -ENOMEM;
   }
 
-  std::vector<hwc_layer_1_t> pre_comp_layers;
+  std::vector<DrmCompositionLayer> pre_comp_layers;
   for (auto &comp_layer : *layers) {
     if (comp_layer.plane == NULL) {
-      pre_comp_layers.push_back(comp_layer.layer);
-      pre_comp_layers.back().handle = comp_layer.handle;
-      comp_layer.layer.acquireFenceFd = -1;
+      pre_comp_layers.emplace_back(std::move(comp_layer));
     }
   }
 
@@ -198,36 +197,26 @@ int DrmDisplayCompositor::ApplyPreComposite(
                                    pre_comp_layers.size(), fb.buffer());
   pre_compositor_->Finish();
 
-  for (auto &pre_comp_layer : pre_comp_layers) {
-    if (pre_comp_layer.acquireFenceFd >= 0) {
-      close(pre_comp_layer.acquireFenceFd);
-      pre_comp_layer.acquireFenceFd = -1;
-    }
-  }
-
   if (ret) {
     ALOGE("Failed to composite layers");
     return ret;
   }
 
-  DrmCompositionLayer_t &pre_comp_layer =
+  DrmCompositionLayer &pre_comp_layer =
       layers->at(display_comp->pre_composition_layer_index());
-  ret = display_comp->importer()->ImportBuffer(fb.buffer()->handle,
-                                               &pre_comp_layer.bo);
+  ret = pre_comp_layer.buffer.ImportBuffer(fb.buffer()->handle,
+                                           display_comp->importer());
   if (ret) {
     ALOGE("Failed to import handle of layer %d", ret);
     return ret;
   }
-  hwc_layer_1_t &pre_comp_output_layer = pre_comp_layer.layer;
-  pre_comp_output_layer.handle = fb.buffer()->handle;
-  pre_comp_output_layer.visibleRegionScreen.rects =
-      &pre_comp_output_layer.displayFrame;
-  pre_comp_output_layer.sourceCropf.right =
-      pre_comp_output_layer.displayFrame.right = fb.buffer()->getWidth();
-  pre_comp_output_layer.sourceCropf.bottom =
-      pre_comp_output_layer.displayFrame.bottom = fb.buffer()->getHeight();
+  pre_comp_layer.source_crop = DrmHwcRect<float>(0, 0, fb.buffer()->getWidth(),
+                                                 fb.buffer()->getHeight());
+  pre_comp_layer.display_frame =
+      DrmHwcRect<int>(0, 0, fb.buffer()->getWidth(), fb.buffer()->getHeight());
 
-  fb.set_release_fence_fd(pre_comp_output_layer.releaseFenceFd);
+  // TODO(zachr) get a release fence
+  // fb.set_release_fence_fd(pre_comp_layer.release_fence.Release());
   framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
 
   display_comp->RemoveNoPlaneLayers();
@@ -250,24 +239,22 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     return -ENOMEM;
   }
 
-  DrmCompositionLayerVector_t *layers = display_comp->GetCompositionLayers();
-  for (DrmCompositionLayerVector_t::iterator iter = layers->begin();
-       iter != layers->end(); ++iter) {
-    hwc_layer_1_t *layer = &iter->layer;
-
-    if (layer->acquireFenceFd >= 0) {
-      ret = sync_wait(layer->acquireFenceFd, -1);
+  std::vector<DrmCompositionLayer> *layers =
+      display_comp->GetCompositionLayers();
+  for (DrmCompositionLayer &layer : *layers) {
+    int acquire_fence = layer.acquire_fence.get();
+    if (acquire_fence >= 0) {
+      ret = sync_wait(acquire_fence, -1);
       if (ret) {
-        ALOGE("Failed to wait for acquire %d/%d", layer->acquireFenceFd, ret);
+        ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
         drmModePropertySetFree(pset);
         return ret;
       }
-      close(layer->acquireFenceFd);
-      layer->acquireFenceFd = -1;
+      layer.acquire_fence.Close();
     }
 
-    DrmPlane *plane = iter->plane;
-    DrmCrtc *crtc = iter->crtc;
+    DrmPlane *plane = layer.plane;
+    DrmCrtc *crtc = layer.crtc;
 
     // Disable the plane if there's no crtc
     if (!crtc) {
@@ -282,28 +269,34 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
       continue;
     }
 
+    if (!layer.buffer) {
+      ALOGE("Expected a valid framebuffer for pset");
+      ret = -EINVAL;
+      break;
+    }
+
     uint64_t rotation;
-    switch (layer->transform) {
-      case HWC_TRANSFORM_FLIP_H:
+    switch (layer.transform) {
+      case DrmHwcTransform::kFlipH:
         rotation = 1 << DRM_REFLECT_X;
         break;
-      case HWC_TRANSFORM_FLIP_V:
+      case DrmHwcTransform::kFlipV:
         rotation = 1 << DRM_REFLECT_Y;
         break;
-      case HWC_TRANSFORM_ROT_90:
+      case DrmHwcTransform::kRotate90:
         rotation = 1 << DRM_ROTATE_90;
         break;
-      case HWC_TRANSFORM_ROT_180:
+      case DrmHwcTransform::kRotate180:
         rotation = 1 << DRM_ROTATE_180;
         break;
-      case HWC_TRANSFORM_ROT_270:
+      case DrmHwcTransform::kRotate270:
         rotation = 1 << DRM_ROTATE_270;
         break;
-      case 0:
+      case DrmHwcTransform::kIdentity:
         rotation = 0;
         break;
       default:
-        ALOGE("Invalid transform value 0x%x given", layer->transform);
+        ALOGE("Invalid transform value 0x%x given", layer.transform);
         ret = -EINVAL;
         break;
     }
@@ -321,27 +314,27 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
                               crtc->id()) ||
         drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
-                              iter->bo.fb_id) ||
+                              layer.buffer->fb_id) ||
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_x_property().id(),
-                              layer->displayFrame.left) ||
+                              layer.display_frame.left) ||
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_y_property().id(),
-                              layer->displayFrame.top) ||
+                              layer.display_frame.top) ||
         drmModePropertySetAdd(
             pset, plane->id(), plane->crtc_w_property().id(),
-            layer->displayFrame.right - layer->displayFrame.left) ||
+            layer.display_frame.right - layer.display_frame.left) ||
         drmModePropertySetAdd(
             pset, plane->id(), plane->crtc_h_property().id(),
-            layer->displayFrame.bottom - layer->displayFrame.top) ||
+            layer.display_frame.bottom - layer.display_frame.top) ||
         drmModePropertySetAdd(pset, plane->id(), plane->src_x_property().id(),
-                              (int)(layer->sourceCropf.left) << 16) ||
+                              (int)(layer.source_crop.left) << 16) ||
         drmModePropertySetAdd(pset, plane->id(), plane->src_y_property().id(),
-                              (int)(layer->sourceCropf.top) << 16) ||
+                              (int)(layer.source_crop.top) << 16) ||
         drmModePropertySetAdd(
             pset, plane->id(), plane->src_w_property().id(),
-            (int)(layer->sourceCropf.right - layer->sourceCropf.left) << 16) ||
+            (int)(layer.source_crop.right - layer.source_crop.left) << 16) ||
         drmModePropertySetAdd(
             pset, plane->id(), plane->src_h_property().id(),
-            (int)(layer->sourceCropf.bottom - layer->sourceCropf.top) << 16);
+            (int)(layer.source_crop.bottom - layer.source_crop.top) << 16);
     if (ret) {
       ALOGE("Failed to add plane %d to set", plane->id());
       break;
@@ -412,6 +405,7 @@ int DrmDisplayCompositor::Composite() {
 
   std::unique_ptr<DrmDisplayComposition> composition(
       std::move(composite_queue_.front()));
+
   composite_queue_.pop();
 
   ret = pthread_mutex_unlock(&lock_);
@@ -474,6 +468,22 @@ bool DrmDisplayCompositor::HaveQueuedComposites() const {
   return empty_ret;
 }
 
+struct DrmDumpLayer {
+  int plane_id;
+  int crtc_id;
+  DrmHwcTransform transform;
+  DrmHwcRect<float> source_crop;
+  DrmHwcRect<int> display_frame;
+
+  DrmDumpLayer(DrmCompositionLayer &rhs)
+      : plane_id(rhs.plane->id()),
+        crtc_id(rhs.crtc ? rhs.crtc->id() : -1),
+        transform(rhs.transform),
+        source_crop(rhs.source_crop),
+        display_frame(rhs.display_frame) {
+  }
+};
+
 void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
   uint64_t cur_ts;
 
@@ -487,9 +497,11 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
   struct timespec ts;
   ret = clock_gettime(CLOCK_MONOTONIC, &ts);
 
-  DrmCompositionLayerVector_t layers;
+  std::vector<DrmCompositionLayer> *input_layers =
+      active_composition_->GetCompositionLayers();
+  std::vector<DrmDumpLayer> layers;
   if (active_composition_)
-    layers = *active_composition_->GetCompositionLayers();
+    layers.insert(layers.begin(), input_layers->begin(), input_layers->end());
   else
     ret = -EAGAIN;
 
@@ -508,29 +520,26 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
   dump_last_timestamp_ns_ = cur_ts;
 
   *out << "---- DrmDisplayCompositor Layers: num=" << layers.size() << "\n";
-  for (DrmCompositionLayerVector_t::iterator iter = layers.begin();
+  for (std::vector<DrmDumpLayer>::iterator iter = layers.begin();
        iter != layers.end(); ++iter) {
-    hwc_layer_1_t *layer = &iter->layer;
-    DrmPlane *plane = iter->plane;
+    *out << "------ DrmDisplayCompositor Layer: plane=" << iter->plane_id
+         << " ";
 
-    *out << "------ DrmDisplayCompositor Layer: plane=" << plane->id() << " ";
-
-    DrmCrtc *crtc = iter->crtc;
-    if (!crtc) {
+    if (iter->crtc_id < 0) {
       *out << "disabled\n";
       continue;
     }
 
-    *out << "crtc=" << crtc->id()
-         << " crtc[x/y/w/h]=" << layer->displayFrame.left << "/"
-         << layer->displayFrame.top << "/"
-         << layer->displayFrame.right - layer->displayFrame.left << "/"
-         << layer->displayFrame.bottom - layer->displayFrame.top << " "
-         << " src[x/y/w/h]=" << layer->sourceCropf.left << "/"
-         << layer->sourceCropf.top << "/"
-         << layer->sourceCropf.right - layer->sourceCropf.left << "/"
-         << layer->sourceCropf.bottom - layer->sourceCropf.top
-         << " transform=" << layer->transform << "\n";
+    *out << "crtc=" << iter->crtc_id
+         << " crtc[x/y/w/h]=" << iter->display_frame.left << "/"
+         << iter->display_frame.top << "/"
+         << iter->display_frame.right - iter->display_frame.left << "/"
+         << iter->display_frame.bottom - iter->display_frame.top << " "
+         << " src[x/y/w/h]=" << iter->source_crop.left << "/"
+         << iter->source_crop.top << "/"
+         << iter->source_crop.right - iter->source_crop.left << "/"
+         << iter->source_crop.bottom - iter->source_crop.top
+         << " transform=" << (uint32_t)iter->transform << "\n";
   }
 }
 }

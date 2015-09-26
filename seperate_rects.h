@@ -43,9 +43,17 @@ struct Rect {
       : x1(xx1), y1(yy1), x2(xx2), y2(yy2) {
   }
 
-  Rect(const Rect &rhs) {
+  template <typename T>
+  Rect(const Rect<T> &rhs) {
     for (int i = 0; i < 4; i++)
       bounds[i] = rhs.bounds[i];
+  }
+
+  template <typename T>
+  Rect<TFloat> &operator=(const Rect<T> &rhs) {
+    for (int i = 0; i < 4; i++)
+      bounds[i] = rhs.bounds[i];
+    return *this;
   }
 
   bool operator==(const Rect &rhs) const {

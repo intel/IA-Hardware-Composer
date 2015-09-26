@@ -69,15 +69,15 @@ int DrmComposition::Init(uint64_t frame_no) {
 }
 
 int DrmComposition::SetLayers(size_t num_displays,
-                              const DrmCompositionDisplayLayersMap *maps) {
+                              DrmCompositionDisplayLayersMap *maps) {
   int ret = 0;
   for (size_t display_index = 0; display_index < num_displays;
        display_index++) {
-    const DrmCompositionDisplayLayersMap &map = maps[display_index];
+    DrmCompositionDisplayLayersMap &map = maps[display_index];
     int display = map.display;
 
     ret = composition_map_[display]->SetLayers(
-        map.layers, map.num_layers, map.layer_indices, &primary_planes_,
+        map.layers.data(), map.layers.size(), &primary_planes_,
         &overlay_planes_);
     if (ret)
       return ret;
