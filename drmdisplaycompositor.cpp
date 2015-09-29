@@ -174,7 +174,7 @@ int DrmDisplayCompositor::ApplyPreComposite(
 
   const DrmMode &mode = connector->active_mode();
   DrmFramebuffer &fb = framebuffers_[framebuffer_index_];
-  ret = fb.WaitReleased(-1);
+  ret = fb.WaitReleased(fb.kReleaseWaitTimeoutMs);
   if (ret) {
     ALOGE("Failed to wait for framebuffer release %d", ret);
     return ret;
@@ -244,7 +244,7 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   for (DrmCompositionLayer &layer : *layers) {
     int acquire_fence = layer.acquire_fence.get();
     if (acquire_fence >= 0) {
-      ret = sync_wait(acquire_fence, -1);
+      ret = sync_wait(acquire_fence, kAcquireWaitTimeoutMs);
       if (ret) {
         ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
         drmModePropertySetFree(pset);

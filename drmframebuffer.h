@@ -58,7 +58,8 @@ struct DrmFramebuffer {
         return true;
 
       if (release_fence_fd_ >= 0) {
-        if (sync_wait(release_fence_fd_, -1) != 0) {
+        if (sync_wait(release_fence_fd_, kReleaseWaitTimeoutMs) != 0) {
+          ALOGE("Wait for release fence failed\n");
           return false;
         }
       }
@@ -92,6 +93,10 @@ struct DrmFramebuffer {
     int ret = sync_wait(release_fence_fd_, timeout_milliseconds);
     return ret;
   }
+
+  // Somewhat arbitrarily chosen, but wanted to stay below 3000ms, which is the
+  // system timeout
+  static const int kReleaseWaitTimeoutMs = 1500;
 
  private:
   sp<GraphicBuffer> buffer_;
