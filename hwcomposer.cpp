@@ -409,6 +409,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     hwc_display_contents_1_t *dc = sf_display_contents[i];
     displays_contents.emplace_back();
     DrmHwcDisplayContents &display_contents = displays_contents.back();
+    layers_indices.emplace_back();
+    std::vector<size_t> &indices_to_composite = layers_indices.back();
 
     if (!sf_display_contents[i])
       continue;
@@ -422,7 +424,6 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     display_contents.retire_fence = OutputFd(&dc->retireFenceFd);
 
     size_t num_dc_layers = dc->numHwLayers;
-    std::vector<size_t> indices_to_composite;
     int framebuffer_target_index = -1;
     for (size_t j = 0; j < num_dc_layers; ++j) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
@@ -474,7 +475,6 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
         indices_to_composite.push_back(framebuffer_target_index);
       }
     }
-    layers_indices.emplace_back(indices_to_composite);
   }
 
   if (ret)
