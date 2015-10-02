@@ -35,6 +35,7 @@ enum DrmCompositionType {
   DRM_COMPOSITION_TYPE_EMPTY,
   DRM_COMPOSITION_TYPE_FRAME,
   DRM_COMPOSITION_TYPE_DPMS,
+  DRM_COMPOSITION_TYPE_MODESET,
 };
 
 struct DrmCompositionLayer {
@@ -79,6 +80,7 @@ class DrmDisplayComposition {
                 std::vector<DrmPlane *> *overlay_planes);
   int AddPlaneDisable(DrmPlane *plane);
   int SetDpmsMode(uint32_t dpms_mode);
+  int SetDisplayMode(const DrmMode &display_mode);
 
   void RemoveNoPlaneLayers();
   int SignalPreCompositionDone();
@@ -87,6 +89,7 @@ class DrmDisplayComposition {
   std::vector<DrmCompositionLayer> *GetCompositionLayers();
   int pre_composition_layer_index() const;
   uint32_t dpms_mode() const;
+  const DrmMode &display_mode() const;
 
   uint64_t frame_no() const;
 
@@ -116,6 +119,7 @@ class DrmDisplayComposition {
   std::vector<DrmCompositionLayer> layers_;
   int pre_composition_layer_index_;
   uint32_t dpms_mode_;
+  DrmMode display_mode_;
 
   uint64_t frame_no_;
 };

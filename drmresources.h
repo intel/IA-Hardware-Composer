@@ -60,15 +60,15 @@ class DrmResources {
   int SetDisplayActiveMode(int display, const DrmMode &mode);
   int SetDpmsMode(int display, uint64_t mode);
 
+  int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
+  int DestroyPropertyBlob(uint32_t blob_id);
+
  private:
   int TryEncoderForDisplay(int display, DrmEncoder *enc);
   int GetProperty(uint32_t obj_id, uint32_t obj_type, const char *prop_name,
                   DrmProperty *property);
 
   int CreateDisplayPipe(DrmConnector *connector);
-
-  int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
-  int DestroyPropertyBlob(uint32_t blob_id);
 
   int fd_;
   uint32_t mode_id_;

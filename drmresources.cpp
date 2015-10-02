@@ -242,7 +242,18 @@ int DrmResources::Init() {
   if (ret)
     return ret;
 
-  return compositor_.Init();
+  ret = compositor_.Init();
+  if (ret)
+    return ret;
+
+  for (auto i = begin_connectors(); i != end_connectors(); ++i) {
+    ret = CreateDisplayPipe(*i);
+    if (ret) {
+      ALOGE("Failed CreateDisplayPipe %d with %d", (*i)->id(), ret);
+      return ret;
+    }
+  }
+  return 0;
 }
 
 int DrmResources::fd() const {
@@ -368,96 +379,36 @@ int DrmResources::CreatePropertyBlob(void *data, size_t length,
 }
 
 int DrmResources::DestroyPropertyBlob(uint32_t blob_id) {
+  if (!blob_id)
+    return 0;
+
   struct drm_mode_destroy_blob destroy_blob;
   memset(&destroy_blob, 0, sizeof(destroy_blob));
   destroy_blob.blob_id = (__u32)blob_id;
   int ret = drmIoctl(fd_, DRM_IOCTL_MODE_DESTROYPROPBLOB, &destroy_blob);
   if (ret) {
-    ALOGE("Failed to destroy mode property blob %d", ret);
+    ALOGE("Failed to destroy mode property blob %ld/%d", blob_id, ret);
     return ret;
   }
   return 0;
 }
 
 int DrmResources::SetDisplayActiveMode(int display, const DrmMode &mode) {
-  DrmConnector *connector = GetConnectorForDisplay(display);
-  if (!connector) {
-    ALOGE("Could not locate connector for display %d", display);
-    return -ENODEV;
-  }
-
-  int ret = CreateDisplayPipe(connector);
-  if (ret) {
-    ALOGE("Failed CreateDisplayPipe with %d", ret);
-    return ret;
-  }
-
-  DrmCrtc *crtc = connector->encoder()->crtc();
-  DrmProperty old_mode;
-  ret = GetCrtcProperty(*crtc, crtc->mode_property().name().c_str(), &old_mode);
-  if (ret) {
-    ALOGE("Failed to get old mode property from crtc %d", crtc->id());
-    return ret;
-  }
-
-  struct drm_mode_modeinfo drm_mode;
-  memset(&drm_mode, 0, sizeof(drm_mode));
-  mode.ToDrmModeModeInfo(&drm_mode);
-
-  uint32_t blob_id;
-  ret =
-      CreatePropertyBlob(&drm_mode, sizeof(struct drm_mode_modeinfo), &blob_id);
-  if (ret) {
-    ALOGE("Failed to create mode property blob %d", ret);
-    return ret;
-  }
-
-  drmModePropertySetPtr pset = drmModePropertySetAlloc();
-  if (!pset) {
-    ALOGE("Failed to allocate property set");
-    DestroyPropertyBlob(blob_id);
+  std::unique_ptr<DrmComposition> comp(compositor_.CreateComposition(NULL));
+  if (!comp) {
+    ALOGE("Failed to create composition for dpms on %d", display);
     return -ENOMEM;
   }
-
-  ret = drmModePropertySetAdd(pset, crtc->id(), crtc->mode_property().id(),
-                              blob_id) ||
-        drmModePropertySetAdd(pset, connector->id(),
-                              connector->crtc_id_property().id(), crtc->id());
+  int ret = comp->SetDisplayMode(display, mode);
   if (ret) {
-    ALOGE("Failed to add blob %d to pset", blob_id);
-    DestroyPropertyBlob(blob_id);
-    drmModePropertySetFree(pset);
+    ALOGE("Failed to add mode to composition on %d %d", display, ret);
     return ret;
   }
-
-  ret =
-      drmModePropertySetCommit(fd_, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL, pset);
-
-  drmModePropertySetFree(pset);
-
+  ret = compositor_.QueueComposition(std::move(comp));
   if (ret) {
-    ALOGE("Failed to commit pset ret=%d\n", ret);
-    DestroyPropertyBlob(blob_id);
+    ALOGE("Failed to queue dpms composition on %d %d", display, ret);
     return ret;
   }
-
-  connector->set_active_mode(mode);
-
-  uint64_t old_blob_id;
-  ret = old_mode.value(&old_blob_id);
-  if (ret) {
-    ALOGE("Could not get old blob id value %d", ret);
-    return ret;
-  }
-  if (!old_blob_id)
-    return 0;
-
-  ret = DestroyPropertyBlob(old_blob_id);
-  if (ret) {
-    ALOGE("Failed to destroy old mode property blob", old_blob_id);
-    return ret;
-  }
-
   return 0;
 }
 

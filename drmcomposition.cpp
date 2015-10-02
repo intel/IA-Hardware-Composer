@@ -90,6 +90,10 @@ int DrmComposition::SetDpmsMode(int display, uint32_t dpms_mode) {
   return composition_map_[display]->SetDpmsMode(dpms_mode);
 }
 
+int DrmComposition::SetDisplayMode(int display, const DrmMode &display_mode) {
+  return composition_map_[display]->SetDisplayMode(display_mode);
+}
+
 std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
     int display) {
   return std::move(composition_map_[display]);
@@ -106,7 +110,8 @@ int DrmComposition::DisableUnusedPlanes() {
      * TODO: re-visit this and potentially disable leftover planes after the
      *       active compositions have gobbled up all they can
      */
-    if (comp->type() == DRM_COMPOSITION_TYPE_EMPTY)
+    if (comp->type() == DRM_COMPOSITION_TYPE_EMPTY ||
+        comp->type() == DRM_COMPOSITION_TYPE_MODESET)
       continue;
 
     DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);

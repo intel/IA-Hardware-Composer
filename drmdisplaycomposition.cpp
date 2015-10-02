@@ -231,6 +231,15 @@ int DrmDisplayComposition::SetDpmsMode(uint32_t dpms_mode) {
   return 0;
 }
 
+int DrmDisplayComposition::SetDisplayMode(const DrmMode &display_mode) {
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_MODESET))
+    return -EINVAL;
+  display_mode_ = display_mode;
+  dpms_mode_ = DRM_MODE_DPMS_ON;
+  type_ = DRM_COMPOSITION_TYPE_MODESET;
+  return 0;
+}
+
 int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
   layers_.emplace_back();
   DrmCompositionLayer &c_layer = layers_.back();
@@ -269,6 +278,10 @@ uint32_t DrmDisplayComposition::dpms_mode() const {
 
 uint64_t DrmDisplayComposition::frame_no() const {
   return frame_no_;
+}
+
+const DrmMode &DrmDisplayComposition::display_mode() const {
+  return display_mode_;
 }
 
 Importer *DrmDisplayComposition::importer() const {
