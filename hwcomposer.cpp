@@ -20,6 +20,7 @@
 #include "drm_hwcomposer.h"
 #include "drmresources.h"
 #include "importer.h"
+#include "virtualcompositorworker.h"
 #include "vsyncworker.h"
 
 #include <stdlib.h>
@@ -133,6 +134,7 @@ struct hwc_context_t {
   }
 
   ~hwc_context_t() {
+    virtual_compositor_worker.Exit();
     delete importer;
   }
 
@@ -145,6 +147,7 @@ struct hwc_context_t {
   const gralloc_module_t *gralloc;
   DummySwSyncTimeline dummy_timeline;
   bool use_framebuffer_target;
+  VirtualCompositorWorker virtual_compositor_worker;
 };
 
 static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
@@ -346,17 +349,22 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
     if (!display_contents[i])
       continue;
 
-    DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
-    if (!crtc) {
-      ALOGE("No crtc for display %d", i);
-      return -ENODEV;
+    bool use_framebuffer_target = ctx->use_framebuffer_target;
+    if (i == HWC_DISPLAY_VIRTUAL) {
+      use_framebuffer_target = true;
+    } else {
+      DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
+      if (!crtc) {
+        ALOGE("No crtc for display %d", i);
+        return -ENODEV;
+      }
     }
 
     int num_layers = display_contents[i]->numHwLayers;
     for (int j = 0; j < num_layers; j++) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
-      if (!ctx->use_framebuffer_target) {
+      if (!use_framebuffer_target) {
         if (layer->compositionType == HWC_FRAMEBUFFER)
           layer->compositionType = HWC_OVERLAY;
       } else {
@@ -414,6 +422,11 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
     if (!sf_display_contents[i])
       continue;
+
+    if (i == HWC_DISPLAY_VIRTUAL) {
+      ctx->virtual_compositor_worker.QueueComposite(dc);
+      continue;
+    }
 
     std::ostringstream display_index_formatter;
     display_index_formatter << "retire fence for display " << i;
@@ -576,7 +589,7 @@ static int hwc_query(struct hwc_composer_device_1 * /* dev */, int what,
       *value = 1000 * 1000 * 1000 / 60;
       break;
     case HWC_DISPLAY_TYPES_SUPPORTED:
-      *value = HWC_DISPLAY_PRIMARY | HWC_DISPLAY_EXTERNAL;
+      *value = HWC_DISPLAY_PRIMARY | HWC_DISPLAY_EXTERNAL | HWC_DISPLAY_VIRTUAL;
       break;
   }
   return 0;
@@ -789,6 +802,11 @@ static int hwc_enumerate_displays(struct hwc_context_t *ctx) {
     }
   }
 
+  ret = ctx->virtual_compositor_worker.Init();
+  if (ret) {
+    ALOGE("Failed to initialize virtual compositor worker");
+    return ret;
+  }
   return 0;
 }
 
