@@ -516,6 +516,20 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     return -EINVAL;
   }
 
+  for (size_t i = 0; i < num_displays; ++i) {
+    hwc_display_contents_1_t *dc = sf_display_contents[i];
+    if (!dc)
+      continue;
+
+    size_t num_dc_layers = dc->numHwLayers;
+    for (size_t j = 0; j < num_dc_layers; ++j) {
+      hwc_layer_1_t *layer = &dc->hwLayers[j];
+      if (layer->flags & HWC_SKIP_LAYER)
+        continue;
+      hwc_add_layer_to_retire_fence(layer, dc);
+    }
+  }
+
   composition.reset(NULL);
 
   return ret;
