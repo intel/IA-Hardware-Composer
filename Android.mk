@@ -52,6 +52,7 @@ LOCAL_SRC_FILES := \
 	glworker.cpp \
 	hwcomposer.cpp \
 	seperate_rects.cpp \
+	virtualcompositorworker.cpp \
 	vsyncworker.cpp \
 	worker.cpp
 
