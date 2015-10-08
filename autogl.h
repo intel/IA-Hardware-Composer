@@ -61,9 +61,10 @@ struct AutoEGLDisplayImage {
 
   AutoEGLDisplayImage(const AutoEGLDisplayImage& rhs) = delete;
   AutoEGLDisplayImage(AutoEGLDisplayImage&& rhs) {
-    clear();
-    std::swap(display_, rhs.display_);
-    std::swap(image_, rhs.image_);
+    display_ = rhs.display_;
+    image_ = rhs.image_;
+    rhs.display_ = EGL_NO_DISPLAY;
+    rhs.image_ = EGL_NO_IMAGE_KHR;
   }
 
   ~AutoEGLDisplayImage() {
