@@ -206,6 +206,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "precision mediump float;                                                   \n"
 "uniform samplerExternalOES uLayerTextures[LAYER_COUNT];                    \n"
 "uniform float uLayerAlpha[LAYER_COUNT];                                    \n"
+"uniform float uLayerPremult[LAYER_COUNT];                                  \n"
 "in vec2 fTexCoords[LAYER_COUNT];                                           \n"
 "out vec4 oFragColor;                                                       \n"
 "void main() {                                                              \n"
@@ -214,7 +215,7 @@ static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
 "  for (int i = 0; i < LAYER_COUNT; i++) {                                  \n"
 "    vec4 texSample = texture2D(uLayerTextures[i], fTexCoords[i]);          \n"
 "    float a = texSample.a * uLayerAlpha[i];                                \n"
-"    color += a * alphaCover * texSample.rgb;                               \n"
+"    color += max(a, uLayerPremult[i]) * alphaCover * texSample.rgb;        \n"
 "    alphaCover *= 1.0 - a;                                                 \n"
 "    if (alphaCover <= 0.5/255.0)                                           \n"
 "      break;                                                               \n"
@@ -295,6 +296,7 @@ struct RenderingCommand {
     unsigned texture_index;
     float crop_bounds[4];
     float alpha;
+    float premult;
     float texture_matrix[4];
   };
 
@@ -410,13 +412,14 @@ static void ConstructCommands(DrmCompositionLayer *layers, size_t num_layers,
         }
 
         if (layer.blending == DrmHwcBlending::kNone) {
-          src.alpha = 1.0f;
+          src.alpha = src.premult = 1.0f;
           // This layer is opaque. There is no point in using layers below this
           // one.
           break;
         }
 
         src.alpha = layer.alpha / 255.0f;
+        src.premult = (layer.blending == DrmHwcBlending::kPreMult) ? 1.0f : 0.0f;
       }
     }
   }
@@ -652,6 +655,7 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
     GLint gl_tex_loc = glGetUniformLocation(program, "uLayerTextures");
     GLint gl_crop_loc = glGetUniformLocation(program, "uLayerCrop");
     GLint gl_alpha_loc = glGetUniformLocation(program, "uLayerAlpha");
+    GLint gl_premult_loc = glGetUniformLocation(program, "uLayerPremult");
     GLint gl_tex_matrix_loc = glGetUniformLocation(program, "uTexMatrix");
     glUniform4f(gl_viewport_loc, cmd.bounds[0] / (float)frame_width,
                 cmd.bounds[1] / (float)frame_height,
@@ -661,6 +665,7 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
     for (unsigned src_index = 0; src_index < cmd.texture_count; src_index++) {
       const RenderingCommand::TextureSource &src = cmd.textures[src_index];
       glUniform1f(gl_alpha_loc + src_index, src.alpha);
+      glUniform1f(gl_premult_loc + src_index, src.premult);
       glUniform4f(gl_crop_loc + src_index, src.crop_bounds[0],
                   src.crop_bounds[1], src.crop_bounds[2] - src.crop_bounds[0],
                   src.crop_bounds[3] - src.crop_bounds[1]);
