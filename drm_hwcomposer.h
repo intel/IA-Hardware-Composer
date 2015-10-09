@@ -175,7 +175,7 @@ class DrmHwcBuffer {
     return importer_ != NULL;
   }
 
-  hwc_drm_bo *operator->();
+  const hwc_drm_bo *operator->() const;
 
   void Clear();
 
@@ -257,11 +257,12 @@ struct DrmHwcLayer {
   UniqueFd acquire_fence;
   OutputFd release_fence;
 
-  DrmHwcLayer() = default;
-  DrmHwcLayer(DrmHwcLayer &&rhs) = default;
-
   int InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
                        const gralloc_module_t *gralloc);
+
+  buffer_handle_t get_usable_handle() const {
+    return handle.get() != NULL ? handle.get() : sf_handle;
+  }
 };
 
 struct DrmHwcDisplayContents {

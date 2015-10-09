@@ -191,9 +191,9 @@ OutputFd &OutputFd::operator=(OutputFd &&rhs) {
   return *this;
 }
 
-hwc_drm_bo *DrmHwcBuffer::operator->() {
+const hwc_drm_bo *DrmHwcBuffer::operator->() const {
   if (importer_ == NULL) {
-    ALOGE("Access of none existent BO");
+    ALOGE("Access of non-existent BO");
     exit(1);
     return NULL;
   }
