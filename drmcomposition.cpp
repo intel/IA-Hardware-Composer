@@ -58,10 +58,9 @@ int DrmComposition::Init(uint64_t frame_no) {
     // If the display hasn't been modeset yet, this will be NULL
     DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
 
-    int ret = composition_map_[(*iter)->display()]->Init(drm_, crtc, importer_,
-                                                         frame_no);
+    int ret = composition_map_[display]->Init(drm_, crtc, importer_, frame_no);
     if (ret) {
-      ALOGE("Failed to init display composition for %d", (*iter)->display());
+      ALOGE("Failed to init display composition for %d", display);
       return ret;
     }
   }
