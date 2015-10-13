@@ -52,8 +52,7 @@ AUTO_GL_TYPE(AutoGLShader, GLint, 0, glDeleteShader(p))
 AUTO_GL_TYPE(AutoGLProgram, GLint, 0, glDeleteProgram(p))
 
 struct AutoEGLDisplayImage {
-  AutoEGLDisplayImage() : display_(EGL_NO_DISPLAY), image_(EGL_NO_IMAGE_KHR) {
-  }
+  AutoEGLDisplayImage() = default;
 
   AutoEGLDisplayImage(EGLDisplay display, EGLImageKHR image)
       : display_(display), image_(image) {
@@ -98,8 +97,8 @@ struct AutoEGLDisplayImage {
   }
 
  private:
-  EGLDisplay display_;
-  EGLImageKHR image_;
+  EGLDisplay display_ = EGL_NO_DISPLAY;
+  EGLImageKHR image_ = EGL_NO_IMAGE_KHR;
 };
 
 struct AutoEGLImageAndGLTexture {
