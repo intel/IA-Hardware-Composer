@@ -75,14 +75,13 @@ int DrmComposition::SetLayers(size_t num_displays,
     DrmCompositionDisplayLayersMap &map = maps[display_index];
     int display = map.display;
 
-    ret = composition_map_[display]->SetLayers(
-        map.layers.data(), map.layers.size(), &primary_planes_,
-        &overlay_planes_);
+    ret = composition_map_[display]->SetLayers(map.layers.data(),
+                                               map.layers.size());
     if (ret)
       return ret;
   }
 
-  return DisableUnusedPlanes();
+  return 0;
 }
 
 int DrmComposition::SetDpmsMode(int display, uint32_t dpms_mode) {
@@ -96,6 +95,23 @@ int DrmComposition::SetDisplayMode(int display, const DrmMode &display_mode) {
 std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
     int display) {
   return std::move(composition_map_[display]);
+}
+
+int DrmComposition::Plan(std::map<int, DrmDisplayCompositor> &compositor_map) {
+  int ret = 0;
+  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
+       iter != drm_->end_connectors(); ++iter) {
+    int display = (*iter)->display();
+    DrmDisplayComposition *comp = GetDisplayComposition(display);
+    ret = comp->Plan(compositor_map[display].squash_state(), &primary_planes_,
+                     &overlay_planes_);
+    if (ret) {
+      ALOGE("Failed to plan composition for dislay %d", display);
+      return ret;
+    }
+  }
+
+  return 0;
 }
 
 int DrmComposition::DisableUnusedPlanes() {

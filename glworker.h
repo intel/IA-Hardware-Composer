@@ -33,7 +33,8 @@
 
 namespace android {
 
-struct DrmCompositionLayer;
+struct DrmHwcLayer;
+struct DrmCompositionRegion;
 
 class GLWorkerCompositor {
  public:
@@ -41,8 +42,8 @@ class GLWorkerCompositor {
   ~GLWorkerCompositor();
 
   int Init();
-  int Composite(DrmCompositionLayer *layers, size_t num_layers,
-                const sp<GraphicBuffer> &framebuffer);
+  int Composite(DrmHwcLayer *layers, DrmCompositionRegion *regions,
+                size_t num_regions, const sp<GraphicBuffer> &framebuffer);
   void Finish();
 
  private:
