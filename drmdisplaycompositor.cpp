@@ -300,7 +300,12 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   for (DrmCompositionLayer &layer : *layers) {
     int acquire_fence = layer.acquire_fence.get();
     if (acquire_fence >= 0) {
-      ret = sync_wait(acquire_fence, kAcquireWaitTimeoutMs);
+      for (int i = 0; i < kAcquireWaitTries; ++i) {
+        ret = sync_wait(acquire_fence, kAcquireWaitTimeoutMs);
+        if (ret)
+          ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
+                acquire_fence, i, ret, (i + 1) * kAcquireWaitTimeoutMs);
+      }
       if (ret) {
         ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
         drmModePropertySetFree(pset);
