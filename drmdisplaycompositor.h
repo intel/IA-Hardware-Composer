@@ -51,9 +51,10 @@ class DrmDisplayCompositor {
  private:
   DrmDisplayCompositor(const DrmDisplayCompositor &) = delete;
 
-  // Set to 83ms (~12fps) which is somewhere between a reasonable amount of
-  // time to wait for a long render and a small enough delay to limit jank.
-  static const int kAcquireWaitTimeoutMs = 83;
+  // We'll wait for acquire fences to fire for kAcquireWaitTimeoutMs,
+  // kAcquireWaitTries times, logging a warning in between.
+  static const int kAcquireWaitTries = 5;
+  static const int kAcquireWaitTimeoutMs = 100;
 
   int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int ApplyFrame(DrmDisplayComposition *display_comp);
