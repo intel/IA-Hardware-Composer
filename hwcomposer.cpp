@@ -264,15 +264,14 @@ void DrmHwcNativeHandle::Clear() {
 int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
                                   const gralloc_module_t *gralloc) {
   sf_handle = sf_layer->handle;
-  int ret = buffer.ImportBuffer(sf_layer->handle, importer);
-  if (ret)
-    return ret;
-
-  ret = handle.CopyBufferHandle(sf_layer->handle, gralloc);
-  if (ret)
-    return ret;
-
   alpha = sf_layer->planeAlpha;
+
+  source_crop = DrmHwcRect<float>(
+      sf_layer->sourceCropf.left, sf_layer->sourceCropf.top,
+      sf_layer->sourceCropf.right, sf_layer->sourceCropf.bottom);
+  display_frame = DrmHwcRect<int>(
+      sf_layer->displayFrame.left, sf_layer->displayFrame.top,
+      sf_layer->displayFrame.right, sf_layer->displayFrame.bottom);
 
   switch (sf_layer->transform) {
     case 0:
@@ -313,12 +312,13 @@ int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
       return -EINVAL;
   }
 
-  source_crop = DrmHwcRect<float>(
-      sf_layer->sourceCropf.left, sf_layer->sourceCropf.top,
-      sf_layer->sourceCropf.right, sf_layer->sourceCropf.bottom);
-  display_frame = DrmHwcRect<int>(
-      sf_layer->displayFrame.left, sf_layer->displayFrame.top,
-      sf_layer->displayFrame.right, sf_layer->displayFrame.bottom);
+  int ret = buffer.ImportBuffer(sf_layer->handle, importer);
+  if (ret)
+    return ret;
+
+  ret = handle.CopyBufferHandle(sf_layer->handle, gralloc);
+  if (ret)
+    return ret;
 
   return 0;
 }
@@ -507,7 +507,11 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
       DrmHwcLayer &layer = display_contents.layers[j];
 
-      layer.InitFromHwcLayer(sf_layer, ctx->importer, ctx->gralloc);
+      ret = layer.InitFromHwcLayer(sf_layer, ctx->importer, ctx->gralloc);
+      if (ret) {
+        ALOGE("Failed to init composition from layer %d", ret);
+        return ret;
+      }
       map.layers.emplace_back(std::move(layer));
     }
   }
