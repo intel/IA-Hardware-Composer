@@ -71,8 +71,8 @@ std::ostream &operator<<(std::ostream &os, const IdSet<TUInt> &obj) {
 }
 
 template <typename TNum, typename TId>
-void seperate_rects(const std::vector<Rect<TNum> > &in,
-                    std::vector<RectSet<TId, TNum> > *out) {
+void seperate_rects(const std::vector<Rect<TNum>> &in,
+                    std::vector<RectSet<TId, TNum>> *out) {
   // Overview:
   // This algorithm is a line sweep algorithm that travels from left to right.
   // The sweep stops at each vertical edge of each input rectangle in sorted
@@ -91,8 +91,8 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
 
   // Events are when the sweep line encounters the starting or ending edge of
   // any input rectangle.
-  std::set<SweepEvent<TId, TNum> > sweep_h_events;  // Left or right bounds
-  std::set<SweepEvent<TId, TNum> > sweep_v_events;  // Top or bottom bounds
+  std::set<SweepEvent<TId, TNum>> sweep_h_events;  // Left or right bounds
+  std::set<SweepEvent<TId, TNum>> sweep_v_events;  // Top or bottom bounds
 
   // A started rect is a rectangle whose left, top, bottom edge, and set of
   // rectangle IDs is known. The key of this map includes all that information
@@ -102,7 +102,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
 
   // This is cleared after every event. Its declaration is here to avoid
   // reallocating a vector and its buffers every event.
-  std::vector<std::pair<TNum, IdSet<TId> > > active_regions;
+  std::vector<std::pair<TNum, IdSet<TId>>> active_regions;
 
   // This pass will add rectangle start and end events to be triggered as the
   // algorithm sweeps from left to right.
@@ -120,7 +120,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
     sweep_h_events.insert(evt);
   }
 
-  for (typename std::set<SweepEvent<TId, TNum> >::iterator it =
+  for (typename std::set<SweepEvent<TId, TNum>>::iterator it =
            sweep_h_events.begin();
        it != sweep_h_events.end(); ++it) {
     const SweepEvent<TId, TNum> &h_evt = *it;
@@ -142,14 +142,14 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
     } else {
       v_evt.type = START;
       v_evt.y = rect.top;
-      typename std::set<SweepEvent<TId, TNum> >::iterator start_it =
+      typename std::set<SweepEvent<TId, TNum>>::iterator start_it =
           sweep_v_events.find(v_evt);
       assert(start_it != sweep_v_events.end());
       sweep_v_events.erase(start_it);
 
       v_evt.type = END;
       v_evt.y = rect.bottom;
-      typename std::set<SweepEvent<TId, TNum> >::iterator end_it =
+      typename std::set<SweepEvent<TId, TNum>>::iterator end_it =
           sweep_v_events.find(v_evt);
       assert(end_it != sweep_v_events.end());
       sweep_v_events.erase(end_it);
@@ -159,7 +159,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
     // with the current sweep line. If so, we want to continue marking up the
     // sweep line before actually processing the rectangles the sweep line is
     // intersecting.
-    typename std::set<SweepEvent<TId, TNum> >::iterator next_it = it;
+    typename std::set<SweepEvent<TId, TNum>>::iterator next_it = it;
     ++next_it;
     if (next_it != sweep_h_events.end()) {
       if (next_it->x == h_evt.x) {
@@ -179,7 +179,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
     // 5), active_regions will be [({ 0 }, 3), {}, 5].
     active_regions.clear();
     IdSet<TId> active_set;
-    for (typename std::set<SweepEvent<TId, TNum> >::iterator it =
+    for (typename std::set<SweepEvent<TId, TNum>>::iterator it =
              sweep_v_events.begin();
          it != sweep_v_events.end(); ++it) {
       const SweepEvent<TId, TNum> &v_evt = *it;
@@ -199,7 +199,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
 
 #ifdef RECTS_DEBUG
     std::cout << "x:" << h_evt.x;
-    for (std::vector<std::pair<TNum, IdSet> >::iterator it =
+    for (std::vector<std::pair<TNum, IdSet>>::iterator it =
              active_regions.begin();
          it != active_regions.end(); ++it) {
       std::cout << " " << it->first << "(" << it->second << ")"
@@ -226,7 +226,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
     // case, we have a new rectangle, and the already existing started rectangle
     // will not be marked as seen ("true" in the std::pair) and will get ended
     // by the for loop after this one. This is as intended.
-    for (typename std::vector<std::pair<TNum, IdSet<TId> > >::iterator it =
+    for (typename std::vector<std::pair<TNum, IdSet<TId>>>::iterator it =
              active_regions.begin();
          it != active_regions.end(); ++it) {
       IdSet<TId> region_set = it->second;
@@ -237,8 +237,7 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
       // An important property of active_regions is that each region where a set
       // of rectangles applies is bounded at the bottom by the next (in the
       // vector) region's starting y-coordinate.
-      typename std::vector<std::pair<TNum, IdSet<TId> > >::iterator next_it =
-          it;
+      typename std::vector<std::pair<TNum, IdSet<TId>>>::iterator next_it = it;
       ++next_it;
       assert(next_it != active_regions.end());
 
@@ -300,8 +299,13 @@ void seperate_rects(const std::vector<Rect<TNum> > &in,
   }
 }
 
-void seperate_frects_64(const std::vector<Rect<float> > &in,
-                        std::vector<RectSet<uint64_t, float> > *out) {
+void seperate_frects_64(const std::vector<Rect<float>> &in,
+                        std::vector<RectSet<uint64_t, float>> *out) {
+  seperate_rects(in, out);
+}
+
+void seperate_rects_64(const std::vector<Rect<int>> &in,
+                       std::vector<RectSet<uint64_t, int>> *out) {
   seperate_rects(in, out);
 }
 
