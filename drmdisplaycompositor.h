@@ -59,6 +59,7 @@ class DrmDisplayCompositor {
   int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int ApplyFrame(DrmDisplayComposition *display_comp);
   int ApplyDpms(DrmDisplayComposition *display_comp);
+  int DisablePlanes(DrmDisplayComposition *display_comp);
 
   DrmResources *drm_;
   int display_;

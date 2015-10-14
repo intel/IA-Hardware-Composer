@@ -227,6 +227,40 @@ int DrmDisplayCompositor::ApplyPreComposite(
   return ret;
 }
 
+int DrmDisplayCompositor::DisablePlanes(DrmDisplayComposition *display_comp) {
+  drmModePropertySetPtr pset = drmModePropertySetAlloc();
+  if (!pset) {
+    ALOGE("Failed to allocate property set");
+    return -ENOMEM;
+  }
+
+  int ret;
+  std::vector<DrmCompositionLayer> *layers =
+      display_comp->GetCompositionLayers();
+  for (DrmCompositionLayer &layer : *layers) {
+    DrmPlane *plane = layer.plane;
+    ret = drmModePropertySetAdd(pset, plane->id(),
+                                plane->crtc_property().id(), 0) ||
+          drmModePropertySetAdd(pset, plane->id(), plane->fb_property().id(),
+                                0);
+    if (ret) {
+      ALOGE("Failed to add plane %d disable to pset", plane->id());
+      drmModePropertySetFree(pset);
+      return ret;
+    }
+  }
+
+  ret = drmModePropertySetCommit(drm_->fd(), 0, drm_, pset);
+  if (ret) {
+    ALOGE("Failed to commit pset ret=%d\n", ret);
+    drmModePropertySetFree(pset);
+    return ret;
+  }
+
+  drmModePropertySetFree(pset);
+  return 0;
+}
+
 int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   int ret = 0;
 
@@ -505,7 +539,11 @@ int DrmDisplayCompositor::Composite() {
       ret = ApplyFrame(composition.get());
       if (ret) {
         ALOGE("Composite failed for display %d", display_);
-        return ret;
+
+        // Disable the hw used by the last active composition. This allows us to
+        // signal the release fences from that composition to avoid hanging.
+        if (DisablePlanes(active_composition_.get()))
+          return ret;
       }
       ++dump_frames_composited_;
       break;
