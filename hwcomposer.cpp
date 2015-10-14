@@ -501,6 +501,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
     layers_map.emplace_back();
     DrmCompositionDisplayLayersMap &map = layers_map.back();
+    map.display = i;
     std::vector<size_t> &indices_to_composite = layers_indices[i];
     for (size_t j : indices_to_composite) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
