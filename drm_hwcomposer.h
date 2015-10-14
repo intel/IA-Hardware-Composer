@@ -171,7 +171,7 @@ class DrmHwcBuffer {
     return *this;
   }
 
-  operator bool() {
+  operator bool() const {
     return importer_ != NULL;
   }
 

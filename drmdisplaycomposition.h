@@ -23,6 +23,7 @@
 #include "glworker.h"
 #include "importer.h"
 
+#include <sstream>
 #include <vector>
 
 #include <hardware/gralloc.h>
@@ -122,6 +123,8 @@ class DrmDisplayComposition {
   Importer *importer() const {
     return importer_;
   }
+
+  void Dump(std::ostringstream *out) const;
 
  private:
   bool validate_composition_type(DrmCompositionType desired);

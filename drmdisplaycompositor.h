@@ -69,6 +69,8 @@ class SquashState {
                      const std::vector<bool> &changed_regions);
   void RecordSquashed(const std::vector<bool> &squashed_regions);
 
+  void Dump(std::ostringstream *out) const;
+
  private:
   size_t generation_number_ = 0;
   unsigned valid_history_ = 0;

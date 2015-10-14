@@ -328,4 +328,170 @@ int DrmDisplayComposition::Plan(SquashState *squash,
 
   return 0;
 }
+
+static const char *DrmCompositionTypeToString(DrmCompositionType type) {
+  switch (type) {
+    case DRM_COMPOSITION_TYPE_EMPTY:
+      return "EMPTY";
+    case DRM_COMPOSITION_TYPE_FRAME:
+      return "FRAME";
+    case DRM_COMPOSITION_TYPE_DPMS:
+      return "DPMS";
+    case DRM_COMPOSITION_TYPE_MODESET:
+      return "MODESET";
+    default:
+      return "<invalid>";
+  }
+}
+
+static const char *DPMSModeToString(int dpms_mode) {
+  switch (dpms_mode) {
+    case DRM_MODE_DPMS_ON:
+      return "ON";
+    case DRM_MODE_DPMS_OFF:
+      return "OFF";
+    default:
+      return "<invalid>";
+  }
+}
+
+static void DumpBuffer(const DrmHwcBuffer &buffer, std::ostringstream *out) {
+  if (!buffer) {
+    *out << "buffer=<invalid>";
+    return;
+  }
+
+  *out << "buffer[w/h/format]=";
+  *out << buffer->width << "/" << buffer->height << "/" << buffer->format;
+}
+
+static const char *TransformToString(DrmHwcTransform transform) {
+  switch (transform) {
+    case DrmHwcTransform::kIdentity:
+      return "IDENTITY";
+    case DrmHwcTransform::kFlipH:
+      return "FLIPH";
+    case DrmHwcTransform::kFlipV:
+      return "FLIPV";
+    case DrmHwcTransform::kRotate90:
+      return "ROTATE90";
+    case DrmHwcTransform::kRotate180:
+      return "ROTATE180";
+    case DrmHwcTransform::kRotate270:
+      return "ROTATE270";
+    default:
+      return "<invalid>";
+  }
+}
+
+static const char *BlendingToString(DrmHwcBlending blending) {
+  switch (blending) {
+    case DrmHwcBlending::kNone:
+      return "NONE";
+    case DrmHwcBlending::kPreMult:
+      return "PREMULT";
+    case DrmHwcBlending::kCoverage:
+      return "COVERAGE";
+    default:
+      return "<invalid>";
+  }
+}
+
+static void DumpRegion(const DrmCompositionRegion &region,
+                       std::ostringstream *out) {
+  *out << "frame";
+  region.frame.Dump(out);
+  *out << " source_layers=(";
+
+  const std::vector<size_t> &source_layers = region.source_layers;
+  for (size_t i = 0; i < source_layers.size(); i++) {
+    *out << source_layers[i];
+    if (i < source_layers.size() - 1) {
+      *out << " ";
+    }
+  }
+
+  *out << ")";
+}
+
+void DrmDisplayComposition::Dump(std::ostringstream *out) const {
+  *out << "----DrmDisplayComposition"
+       << " crtc=" << (crtc_ ? crtc_->id() : -1)
+       << " type=" << DrmCompositionTypeToString(type_);
+
+  switch (type_) {
+    case DRM_COMPOSITION_TYPE_DPMS:
+      *out << " dpms_mode=" << DPMSModeToString(dpms_mode_);
+      break;
+    case DRM_COMPOSITION_TYPE_MODESET:
+      *out << " display_mode=" << display_mode_.h_display() << "x"
+           << display_mode_.v_display();
+      break;
+    default:
+      break;
+  }
+
+  *out << " timeline[current/squash/pre-comp/done]=" << timeline_current_ << "/"
+       << timeline_squash_done_ << "/" << timeline_pre_comp_done_ << "/"
+       << timeline_ << "\n";
+
+  *out << "    Layers: count=" << layers_.size() << "\n";
+  for (size_t i = 0; i < layers_.size(); i++) {
+    const DrmHwcLayer &layer = layers_[i];
+    *out << "      [" << i << "] ";
+
+    DumpBuffer(layer.buffer, out);
+
+    *out << " transform=" << TransformToString(layer.transform)
+         << " blending[a=" << (int)layer.alpha
+         << "]=" << BlendingToString(layer.blending) << " source_crop";
+    layer.source_crop.Dump(out);
+    *out << " display_frame";
+    layer.display_frame.Dump(out);
+
+    *out << "\n";
+  }
+
+  *out << "    Planes: count=" << composition_planes_.size() << "\n";
+  for (size_t i = 0; i < composition_planes_.size(); i++) {
+    const DrmCompositionPlane &comp_plane = composition_planes_[i];
+    *out << "      [" << i << "]"
+         << " plane=" << (comp_plane.plane ? comp_plane.plane->id() : -1)
+         << " source_layer=";
+    if (comp_plane.source_layer <= DrmCompositionPlane::kSourceLayerMax) {
+      *out << comp_plane.source_layer;
+    } else {
+      switch (comp_plane.source_layer) {
+        case DrmCompositionPlane::kSourceNone:
+          *out << "NONE";
+          break;
+        case DrmCompositionPlane::kSourcePreComp:
+          *out << "PRECOMP";
+          break;
+        case DrmCompositionPlane::kSourceSquash:
+          *out << "SQUASH";
+          break;
+        default:
+          *out << "<invalid>";
+          break;
+      }
+    }
+
+    *out << "\n";
+  }
+
+  *out << "    Squash Regions: count=" << squash_regions_.size() << "\n";
+  for (size_t i = 0; i < squash_regions_.size(); i++) {
+    *out << "      [" << i << "] ";
+    DumpRegion(squash_regions_[i], out);
+    *out << "\n";
+  }
+
+  *out << "    Pre-Comp Regions: count=" << pre_comp_regions_.size() << "\n";
+  for (size_t i = 0; i < pre_comp_regions_.size(); i++) {
+    *out << "      [" << i << "] ";
+    DumpRegion(pre_comp_regions_[i], out);
+    *out << "\n";
+  }
+}
 }
