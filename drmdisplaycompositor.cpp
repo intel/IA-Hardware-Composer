@@ -472,6 +472,7 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
         fb_id = layer.buffer->fb_id;
         display_frame = layer.display_frame;
         source_crop = layer.source_crop;
+        break;
       }
       case DrmCompositionPlane::kSourceSquash:
         break;
@@ -526,6 +527,7 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
             ALOGE("Invalid transform value 0x%x given", layer.transform);
             break;
         }
+        break;
       }
     }
 
