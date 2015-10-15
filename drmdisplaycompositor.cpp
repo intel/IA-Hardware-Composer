@@ -429,6 +429,7 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     DrmHwcRect<int> display_frame;
     DrmHwcRect<float> source_crop;
     uint64_t rotation = 0;
+    uint64_t alpha = 0xFF;
     switch (comp_plane.source_layer) {
       case DrmCompositionPlane::kSourceNone:
         break;
@@ -475,6 +476,8 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
         fb_id = layer.buffer->fb_id;
         display_frame = layer.display_frame;
         source_crop = layer.source_crop;
+        if (layer.blending == DrmHwcBlending::kPreMult)
+          alpha = layer.alpha;
         switch (layer.transform) {
           case DrmHwcTransform::kFlipH:
             rotation = 1 << DRM_REFLECT_X;
@@ -521,6 +524,13 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
       break;
     }
 
+    // TODO: Once we have atomic test, this should fall back to GL
+    if (alpha != 0xFF && plane->alpha_property().id() == 0) {
+      ALOGE("Alpha is not supported on plane %d", plane->id());
+      ret = -EINVAL;
+      break;
+    }
+
     ret =
         drmModePropertySetAdd(pset, plane->id(), plane->crtc_property().id(),
                               crtc->id()) ||
@@ -555,6 +565,16 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
       if (ret) {
         ALOGE("Failed to add rotation property %d to plane %d",
               plane->rotation_property().id(), plane->id());
+        break;
+      }
+    }
+
+    if (plane->alpha_property().id()) {
+      ret = drmModePropertySetAdd(pset, plane->id(),
+                                  plane->alpha_property().id(), alpha);
+      if (ret) {
+        ALOGE("Failed to add alpha property %d to plane %d",
+              plane->alpha_property().id(), plane->id());
         break;
       }
     }

@@ -124,6 +124,10 @@ int DrmPlane::Init() {
   if (ret)
     ALOGE("Could not get rotation property");
 
+  ret = drm_->GetPlaneProperty(*this, "alpha", &alpha_property_);
+  if (ret)
+    ALOGI("Could not get alpha property");
+
   return 0;
 }
 
@@ -181,5 +185,9 @@ const DrmProperty &DrmPlane::src_h_property() const {
 
 const DrmProperty &DrmPlane::rotation_property() const {
   return rotation_property_;
+}
+
+const DrmProperty &DrmPlane::alpha_property() const {
+  return alpha_property_;
 }
 }
