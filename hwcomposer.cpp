@@ -498,7 +498,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
   for (size_t i = 0; i < num_displays; ++i) {
     hwc_display_contents_1_t *dc = sf_display_contents[i];
     DrmHwcDisplayContents &display_contents = displays_contents[i];
-    if (!sf_display_contents[i])
+    if (!sf_display_contents[i] || i == HWC_DISPLAY_VIRTUAL)
       continue;
 
     layers_map.emplace_back();
@@ -596,7 +596,8 @@ static int hwc_query(struct hwc_composer_device_1 * /* dev */, int what,
       *value = 1000 * 1000 * 1000 / 60;
       break;
     case HWC_DISPLAY_TYPES_SUPPORTED:
-      *value = HWC_DISPLAY_PRIMARY | HWC_DISPLAY_EXTERNAL | HWC_DISPLAY_VIRTUAL;
+      *value = HWC_DISPLAY_PRIMARY_BIT | HWC_DISPLAY_EXTERNAL_BIT |
+               HWC_DISPLAY_VIRTUAL_BIT;
       break;
   }
   return 0;
