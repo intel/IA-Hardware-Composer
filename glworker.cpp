@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <unordered_set>
 
 #include <sys/resource.h>
 
@@ -37,8 +38,6 @@
 
 #include "glworker.h"
 
-#include "seperate_rects.h"
-
 // TODO(zachr): use hwc_drm_bo to turn buffer handles into textures
 #ifndef EGL_NATIVE_HANDLE_ANDROID_NVX
 #define EGL_NATIVE_HANDLE_ANDROID_NVX 0x322A
@@ -47,9 +46,6 @@
 #define MAX_OVERLAPPING_LAYERS 64
 
 namespace android {
-
-typedef seperate_rects::Rect<float> FRect;
-typedef seperate_rects::RectSet<uint64_t, float> FRectSet;
 
 // clang-format off
 // Column-major order:
@@ -319,128 +315,97 @@ struct RenderingCommand {
   };
 
   float bounds[4];
-  unsigned texture_count;
+  unsigned texture_count = 0;
   TextureSource textures[MAX_OVERLAPPING_LAYERS];
-
-  RenderingCommand() : texture_count(0) {
-  }
 };
 
-static void ConstructCommands(DrmCompositionLayer *layers, size_t num_layers,
-                              std::vector<RenderingCommand> *commands) {
-  std::vector<FRect> in_rects;
-  std::vector<FRectSet> out_rects;
-  int i;
+static void ConstructCommand(const DrmHwcLayer *layers,
+                             const DrmCompositionRegion &region,
+                             RenderingCommand &cmd) {
+  std::copy_n(region.frame.bounds, 4, cmd.bounds);
 
-  for (unsigned rect_index = 0; rect_index < num_layers; rect_index++) {
-    DrmCompositionLayer &layer = layers[rect_index];
-    in_rects.emplace_back(layer.display_frame);
-  }
+  for (size_t texture_index : region.source_layers) {
+    const DrmHwcLayer &layer = layers[texture_index];
 
-  seperate_frects_64(in_rects, &out_rects);
+    DrmHwcRect<float> display_rect(layer.display_frame);
+    float display_size[2] = {display_rect.bounds[2] - display_rect.bounds[0],
+                             display_rect.bounds[3] - display_rect.bounds[1]};
 
-  for (unsigned rect_index = 0; rect_index < out_rects.size(); rect_index++) {
-    const FRectSet &out_rect = out_rects[rect_index];
-    commands->push_back(RenderingCommand());
-    RenderingCommand &cmd = commands->back();
+    float tex_width = layer.buffer->width;
+    float tex_height = layer.buffer->height;
+    DrmHwcRect<float> crop_rect(layer.source_crop.left / tex_width,
+                                layer.source_crop.top / tex_height,
+                                layer.source_crop.right / tex_width,
+                                layer.source_crop.bottom / tex_height);
 
-    for (int i = 0; i < 4; i++)
-      cmd.bounds[i] = out_rect.rect.bounds[i];
+    float crop_size[2] = {crop_rect.bounds[2] - crop_rect.bounds[0],
+                          crop_rect.bounds[3] - crop_rect.bounds[1]};
 
-    uint64_t tex_set = out_rect.id_set.getBits();
-    for (unsigned i = num_layers - 1; tex_set != 0x0; i--) {
-      if (tex_set & (0x1 << i)) {
-        tex_set &= ~(0x1 << i);
+    RenderingCommand::TextureSource &src = cmd.textures[cmd.texture_count];
+    cmd.texture_count++;
+    src.texture_index = texture_index;
 
-        DrmCompositionLayer &layer = layers[i];
+    bool swap_xy, flip_xy[2];
+    switch (layer.transform) {
+      case DrmHwcTransform::kFlipH:
+        swap_xy = false;
+        flip_xy[0] = true;
+        flip_xy[1] = false;
+        break;
+      case DrmHwcTransform::kFlipV:
+        swap_xy = false;
+        flip_xy[0] = false;
+        flip_xy[1] = true;
+        break;
+      case DrmHwcTransform::kRotate90:
+        swap_xy = true;
+        flip_xy[0] = false;
+        flip_xy[1] = true;
+        break;
+      case DrmHwcTransform::kRotate180:
+        swap_xy = false;
+        flip_xy[0] = true;
+        flip_xy[1] = true;
+        break;
+      case DrmHwcTransform::kRotate270:
+        swap_xy = true;
+        flip_xy[0] = true;
+        flip_xy[1] = false;
+        break;
+      default:
+        ALOGE("Unknown transform for layer: defaulting to identity transform");
+      case DrmHwcTransform::kIdentity:
+        swap_xy = false;
+        flip_xy[0] = false;
+        flip_xy[1] = false;
+        break;
+    }
 
-        FRect display_rect(layer.display_frame);
-        float display_size[2] = {
-            display_rect.bounds[2] - display_rect.bounds[0],
-            display_rect.bounds[3] - display_rect.bounds[1]};
+    if (swap_xy)
+      std::copy_n(&kTextureTransformMatrices[4], 4, src.texture_matrix);
+    else
+      std::copy_n(&kTextureTransformMatrices[0], 4, src.texture_matrix);
 
-        float tex_width = layer.buffer->width;
-        float tex_height = layer.buffer->height;
-        FRect crop_rect(layer.source_crop.left / tex_width,
-                        layer.source_crop.top / tex_height,
-                        layer.source_crop.right / tex_width,
-                        layer.source_crop.bottom / tex_height);
-
-        float crop_size[2] = {crop_rect.bounds[2] - crop_rect.bounds[0],
-                              crop_rect.bounds[3] - crop_rect.bounds[1]};
-
-        RenderingCommand::TextureSource &src = cmd.textures[cmd.texture_count];
-        cmd.texture_count++;
-        src.texture_index = i;
-
-        bool swap_xy, flip_xy[2];
-        switch (layer.transform) {
-          case DrmHwcTransform::kFlipH:
-            swap_xy = false;
-            flip_xy[0] = true;
-            flip_xy[1] = false;
-            break;
-          case DrmHwcTransform::kFlipV:
-            swap_xy = false;
-            flip_xy[0] = false;
-            flip_xy[1] = true;
-            break;
-          case DrmHwcTransform::kRotate90:
-            swap_xy = true;
-            flip_xy[0] = false;
-            flip_xy[1] = true;
-            break;
-          case DrmHwcTransform::kRotate180:
-            swap_xy = false;
-            flip_xy[0] = true;
-            flip_xy[1] = true;
-            break;
-          case DrmHwcTransform::kRotate270:
-            swap_xy = true;
-            flip_xy[0] = true;
-            flip_xy[1] = false;
-            break;
-          default:
-            ALOGE(
-                "Unknown transform for layer: defaulting to identity "
-                "transform");
-          case DrmHwcTransform::kIdentity:
-            swap_xy = false;
-            flip_xy[0] = false;
-            flip_xy[1] = false;
-            break;
-        }
-
-        if (swap_xy)
-          std::copy_n(&kTextureTransformMatrices[4], 4, src.texture_matrix);
-        else
-          std::copy_n(&kTextureTransformMatrices[0], 4, src.texture_matrix);
-
-        for (int j = 0; j < 4; j++) {
-          int b = j ^ (swap_xy ? 1 : 0);
-          float bound_percent = (cmd.bounds[b] - display_rect.bounds[b % 2]) /
-                                display_size[b % 2];
-          if (flip_xy[j % 2]) {
-            src.crop_bounds[j] =
-                crop_rect.bounds[j % 2 + 2] - bound_percent * crop_size[j % 2];
-          } else {
-            src.crop_bounds[j] =
-                crop_rect.bounds[j % 2] + bound_percent * crop_size[j % 2];
-          }
-        }
-
-        if (layer.blending == DrmHwcBlending::kNone) {
-          src.alpha = src.premult = 1.0f;
-          // This layer is opaque. There is no point in using layers below this
-          // one.
-          break;
-        }
-
-        src.alpha = layer.alpha / 255.0f;
-        src.premult =
-            (layer.blending == DrmHwcBlending::kPreMult) ? 1.0f : 0.0f;
+    for (int j = 0; j < 4; j++) {
+      int b = j ^ (swap_xy ? 1 : 0);
+      float bound_percent =
+          (cmd.bounds[b] - display_rect.bounds[b % 2]) / display_size[b % 2];
+      if (flip_xy[j % 2]) {
+        src.crop_bounds[j] =
+            crop_rect.bounds[j % 2 + 2] - bound_percent * crop_size[j % 2];
+      } else {
+        src.crop_bounds[j] =
+            crop_rect.bounds[j % 2] + bound_percent * crop_size[j % 2];
       }
     }
+
+    if (layer.blending == DrmHwcBlending::kNone) {
+      src.alpha = src.premult = 1.0f;
+      // This layer is opaque. There is no point in using layers below this one.
+      break;
+    }
+
+    src.alpha = layer.alpha / 255.0f;
   }
 }
 
@@ -599,16 +564,16 @@ GLWorkerCompositor::~GLWorkerCompositor() {
       ALOGE("Failed to destroy OpenGL ES Context: %s", GetEGLError());
 }
 
-int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
-                                  size_t num_layers,
+int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
+                                  DrmCompositionRegion *regions,
+                                  size_t num_regions,
                                   const sp<GraphicBuffer> &framebuffer) {
   ATRACE_CALL();
   int ret = 0;
-  size_t i;
   std::vector<AutoEGLImageAndGLTexture> layer_textures;
   std::vector<RenderingCommand> commands;
 
-  if (num_layers == 0) {
+  if (num_regions == 0) {
     return -EALREADY;
   }
 
@@ -621,10 +586,24 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
     return -EINVAL;
   }
 
-  for (i = 0; i < num_layers; i++) {
-    DrmCompositionLayer *layer = &layers[i];
+  std::unordered_set<size_t> layers_used_indices;
+  for (size_t region_index = 0; region_index < num_regions; region_index++) {
+    DrmCompositionRegion &region = regions[region_index];
+    layers_used_indices.insert(region.source_layers.begin(),
+                               region.source_layers.end());
+    commands.emplace_back();
+    ConstructCommand(layers, region, commands.back());
+  }
+
+  for (size_t layer_index = 0; layer_index < MAX_OVERLAPPING_LAYERS;
+       layer_index++) {
+    DrmHwcLayer *layer = &layers[layer_index];
 
     layer_textures.emplace_back();
+
+    if (layers_used_indices.count(layer_index) == 0)
+      continue;
+
     ret = CreateTextureFromHandle(egl_display_, layer->get_usable_handle(),
                                   &layer_textures.back());
 
@@ -639,8 +618,6 @@ int GLWorkerCompositor::Composite(DrmCompositionLayer *layers,
 
   if (ret)
     return ret;
-
-  ConstructCommands(layers, num_layers, &commands);
 
   glViewport(0, 0, frame_width, frame_height);
 
