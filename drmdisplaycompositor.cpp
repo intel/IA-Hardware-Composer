@@ -109,6 +109,34 @@ void SquashState::RecordSquashed(const std::vector<bool> &squashed_regions) {
   }
 }
 
+void SquashState::Dump(std::ostringstream *out) const {
+  *out << "----SquashState generation=" << generation_number_
+       << " history=" << valid_history_ << "\n"
+       << "    Regions: count=" << regions_.size() << "\n";
+  for (size_t i = 0; i < regions_.size(); i++) {
+    const Region &region = regions_[i];
+    *out << "      [" << i << "]"
+         << " history=" << region.change_history << " rect";
+    region.rect.Dump(out);
+    *out << " layers=(";
+    bool first = true;
+    for (size_t layer_index = 0; layer_index < kMaxLayers; layer_index++) {
+      if ((region.layer_refs &
+           std::bitset<kMaxLayers>((size_t)1 << layer_index))
+              .any()) {
+        if (!first)
+          *out << " ";
+        first = false;
+        *out << layer_index;
+      }
+    }
+    *out << ")";
+    if (region.squashed)
+      *out << " squashed";
+    *out << "\n";
+  }
+}
+
 DrmDisplayCompositor::DrmDisplayCompositor()
     : drm_(NULL),
       display_(-1),
@@ -712,5 +740,33 @@ bool DrmDisplayCompositor::HaveQueuedComposites() const {
 }
 
 void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
+  int ret = pthread_mutex_lock(&lock_);
+  if (ret)
+    return;
+
+  uint64_t num_frames = dump_frames_composited_;
+  dump_frames_composited_ = 0;
+
+  struct timespec ts;
+  ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+  if (ret) {
+    pthread_mutex_unlock(&lock_);
+    return;
+  }
+
+  uint64_t cur_ts = ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+  uint64_t num_ms = (cur_ts - dump_last_timestamp_ns_) / (1000 * 1000);
+  float fps = num_ms ? (num_frames * 1000.0f) / (num_ms) : 0.0f;
+
+  *out << "--DrmDisplayCompositor[" << display_
+       << "]: num_frames=" << num_frames << " num_ms=" << num_ms
+       << " fps=" << fps << "\n";
+
+  dump_last_timestamp_ns_ = cur_ts;
+
+  if (active_composition_)
+    active_composition_->Dump(out);
+
+  pthread_mutex_unlock(&lock_);
 }
 }

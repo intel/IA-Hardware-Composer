@@ -18,6 +18,8 @@
 #define DRM_HWCOMPOSER_SEPERATE_RECTS_H_
 
 #include <stdint.h>
+
+#include <sstream>
 #include <vector>
 
 namespace seperate_rects {
@@ -75,6 +77,11 @@ struct Rect {
 
   TFloat area() const {
     return width() * height();
+  }
+
+  void Dump(std::ostringstream *out) const {
+    *out << "[x/y/w/h]=" << left << "/" << top << "/" << width() << "/"
+         << height();
   }
 };
 

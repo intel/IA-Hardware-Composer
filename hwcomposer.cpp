@@ -330,7 +330,9 @@ static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
 
   ctx->drm.compositor()->Dump(&out);
   std::string out_str = out.str();
-  strncpy(buff, out_str.c_str(), std::min((size_t)buff_len, out_str.length()));
+  strncpy(buff, out_str.c_str(),
+          std::min((size_t)buff_len, out_str.length() + 1));
+  buff[buff_len - 1] = '\0';
 }
 
 static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
