@@ -30,6 +30,8 @@
 
 namespace android {
 
+class DrmDisplayCompositor;
+
 struct DrmCompositionDisplayLayersMap {
   int display;
   std::vector<DrmHwcLayer> layers;
@@ -51,6 +53,8 @@ class DrmComposition {
 
   std::unique_ptr<DrmDisplayComposition> TakeDisplayComposition(int display);
   DrmDisplayComposition *GetDisplayComposition(int display);
+
+  int Plan(std::map<int, DrmDisplayCompositor> &compositor_map);
   int DisableUnusedPlanes();
 
  private:

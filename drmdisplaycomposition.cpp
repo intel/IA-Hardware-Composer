@@ -23,6 +23,9 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
+#include <unordered_set>
+
 #include <cutils/log.h>
 #include <sw_sync.h>
 #include <sync/sync.h>
@@ -30,38 +33,15 @@
 
 namespace android {
 
-DrmCompositionLayer::DrmCompositionLayer(DrmCrtc *crtc, DrmHwcLayer &&l)
-    : crtc(crtc),
-      sf_handle(l.sf_handle),
-      buffer(std::move(l.buffer)),
-      handle(std::move(l.handle)),
-      transform(l.transform),
-      blending(l.blending),
-      alpha(l.alpha),
-      source_crop(l.source_crop),
-      display_frame(l.display_frame),
-      source_damage(l.source_damage),
-      acquire_fence(std::move(l.acquire_fence)) {
-}
-
-DrmDisplayComposition::DrmDisplayComposition()
-    : drm_(NULL),
-      importer_(NULL),
-      type_(DRM_COMPOSITION_TYPE_EMPTY),
-      timeline_fd_(-1),
-      timeline_(0),
-      timeline_current_(0),
-      timeline_pre_comp_done_(0),
-      pre_composition_layer_index_(-1),
-      dpms_mode_(DRM_MODE_DPMS_ON),
-      frame_no_(0) {
-}
+const size_t DrmCompositionPlane::kSourceNone;
+const size_t DrmCompositionPlane::kSourcePreComp;
+const size_t DrmCompositionPlane::kSourceSquash;
+const size_t DrmCompositionPlane::kSourceLayerMax;
 
 DrmDisplayComposition::~DrmDisplayComposition() {
   if (timeline_fd_ >= 0) {
-    FinishComposition();
+    SignalCompositionDone();
     close(timeline_fd_);
-    timeline_fd_ = -1;
   }
 }
 
@@ -81,12 +61,75 @@ int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
   return 0;
 }
 
-DrmCompositionType DrmDisplayComposition::type() const {
-  return type_;
-}
-
 bool DrmDisplayComposition::validate_composition_type(DrmCompositionType des) {
   return type_ == DRM_COMPOSITION_TYPE_EMPTY || type_ == des;
+}
+
+int DrmDisplayComposition::CreateNextTimelineFence() {
+  ++timeline_;
+  return sw_sync_fence_create(timeline_fd_, "hwc drm display composition fence",
+                              timeline_);
+}
+
+int DrmDisplayComposition::IncreaseTimelineToPoint(int point) {
+  int timeline_increase = point - timeline_current_;
+  if (timeline_increase <= 0)
+    return 0;
+
+  int ret = sw_sync_timeline_inc(timeline_fd_, timeline_increase);
+  if (ret)
+    ALOGE("Failed to increment sync timeline %d", ret);
+  else
+    timeline_current_ = point;
+
+  return ret;
+}
+
+int DrmDisplayComposition::SetLayers(DrmHwcLayer *layers, size_t num_layers) {
+  int ret = 0;
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
+    return -EINVAL;
+
+  for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
+    layers_.emplace_back(std::move(layers[layer_index]));
+  }
+
+  type_ = DRM_COMPOSITION_TYPE_FRAME;
+  return 0;
+}
+
+int DrmDisplayComposition::SetDpmsMode(uint32_t dpms_mode) {
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_DPMS))
+    return -EINVAL;
+  dpms_mode_ = dpms_mode;
+  type_ = DRM_COMPOSITION_TYPE_DPMS;
+  return 0;
+}
+
+int DrmDisplayComposition::SetDisplayMode(const DrmMode &display_mode) {
+  if (!validate_composition_type(DRM_COMPOSITION_TYPE_MODESET))
+    return -EINVAL;
+  display_mode_ = display_mode;
+  dpms_mode_ = DRM_MODE_DPMS_ON;
+  type_ = DRM_COMPOSITION_TYPE_MODESET;
+  return 0;
+}
+
+int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
+  composition_planes_.emplace_back(
+      DrmCompositionPlane{plane, crtc_, DrmCompositionPlane::kSourceNone});
+  return 0;
+}
+
+static size_t CountUsablePlanes(DrmCrtc *crtc,
+                                std::vector<DrmPlane *> *primary_planes,
+                                std::vector<DrmPlane *> *overlay_planes) {
+  return std::count_if(
+             primary_planes->begin(), primary_planes->end(),
+             [=](DrmPlane *plane) { return plane->GetCrtcSupported(*crtc); }) +
+         std::count_if(
+             overlay_planes->begin(), overlay_planes->end(),
+             [=](DrmPlane *plane) { return plane->GetCrtcSupported(*crtc); });
 }
 
 static DrmPlane *TakePlane(DrmCrtc *crtc, std::vector<DrmPlane *> *planes) {
@@ -109,182 +152,180 @@ static DrmPlane *TakePlane(DrmCrtc *crtc,
   return TakePlane(crtc, overlay_planes);
 }
 
-int DrmDisplayComposition::CreateNextTimelineFence() {
-  ++timeline_;
-  return sw_sync_fence_create(timeline_fd_, "drm_fence", timeline_);
+static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
+  std::vector<size_t> out;
+  size_t msb = sizeof(in) * 8 - 1;
+  uint64_t mask = (uint64_t)1 << msb;
+  for (size_t i = msb; mask != (uint64_t)0; i--, mask >>= 1)
+    if (in & mask)
+      out.push_back(index_map[i]);
+  return out;
 }
 
-int DrmDisplayComposition::IncreaseTimelineToPoint(int point) {
-  int timeline_increase = point - timeline_current_;
-  if (timeline_increase <= 0)
-    return 0;
+static void SeperateLayers(DrmHwcLayer *layers, size_t *used_layers,
+                           size_t num_used_layers,
+                           DrmHwcRect<int> *exclude_rects,
+                           size_t num_exclude_rects,
+                           std::vector<DrmCompositionRegion> &regions) {
+  if (num_used_layers > 64) {
+    ALOGE("Failed to separate layers because there are more than 64");
+    return;
+  }
 
-  int ret = sw_sync_timeline_inc(timeline_fd_, timeline_increase);
-  if (ret)
-    ALOGE("Failed to increment sync timeline %d", ret);
-  else
-    timeline_current_ = point;
+  if (num_used_layers + num_exclude_rects > 64) {
+    ALOGW(
+        "Exclusion rectangles are being truncated to make the rectangle count "
+        "fit into 64");
+    num_exclude_rects = 64 - num_used_layers;
+  }
 
-  return ret;
+  // We inject all the exclude rects into the rects list. Any resulting rect
+  // that includes ANY of the first num_exclude_rects is rejected.
+  std::vector<DrmHwcRect<int>> layer_rects(num_used_layers + num_exclude_rects);
+  std::copy(exclude_rects, exclude_rects + num_exclude_rects,
+            layer_rects.begin());
+  std::transform(
+      used_layers, used_layers + num_used_layers,
+      layer_rects.begin() + num_exclude_rects,
+      [=](size_t layer_index) { return layers[layer_index].display_frame; });
+
+  std::vector<seperate_rects::RectSet<uint64_t, int>> seperate_regions;
+  seperate_rects::seperate_rects_64(layer_rects, &seperate_regions);
+  uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
+
+  for (seperate_rects::RectSet<uint64_t, int> &region : seperate_regions) {
+    if (region.id_set.getBits() & exclude_mask)
+      continue;
+    regions.emplace_back(DrmCompositionRegion{
+        region.rect,
+        SetBitsToVector(region.id_set.getBits() >> num_exclude_rects,
+                        used_layers)});
+  }
 }
 
-int DrmDisplayComposition::SetLayers(DrmHwcLayer *layers, size_t num_layers,
-                                     std::vector<DrmPlane *> *primary_planes,
-                                     std::vector<DrmPlane *> *overlay_planes) {
-  int ret = 0;
-  if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
-    return -EINVAL;
+int DrmDisplayComposition::Plan(SquashState *squash,
+                                std::vector<DrmPlane *> *primary_planes,
+                                std::vector<DrmPlane *> *overlay_planes) {
+  size_t planes_can_use =
+      CountUsablePlanes(crtc_, primary_planes, overlay_planes);
+  if (planes_can_use == 0) {
+    ALOGE("Display %d has no usable planes", crtc_->display());
+    return -ENODEV;
+  }
 
-  for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    DrmHwcLayer *layer = &layers[layer_index];
+  std::vector<int> layer_squash_area(layers_.size());
+  if (squash != NULL && planes_can_use >= 3) {
+    std::vector<bool> changed_regions;
+    squash->GenerateHistory(layers_.data(), changed_regions);
 
-    layers_.emplace_back(crtc_, std::move(*layer));
-    DrmCompositionLayer *c_layer = &layers_.back();
+    std::vector<bool> stable_regions;
+    squash->StableRegionsWithMarginalHistory(changed_regions, stable_regions);
 
-    if (pre_composition_layer_index_ == -1) {
-      c_layer->plane = TakePlane(crtc_, primary_planes, overlay_planes);
-      if (c_layer->plane == NULL) {
-        if (layers_.size() <= 1) {
-          ALOGE("Failed to match any planes to the crtc of this display");
-          ret = -ENODEV;
-          goto fail;
+    squash->RecordHistory(layers_.data(), changed_regions);
+
+    squash->RecordSquashed(stable_regions);
+
+    for (size_t region_index = 0; region_index < stable_regions.size();
+         region_index++) {
+      const SquashState::Region &region = squash->regions()[region_index];
+      if (stable_regions[region_index]) {
+        squash_regions_.emplace_back();
+        DrmCompositionRegion &squash_region = squash_regions_.back();
+        squash_region.frame = region.rect;
+        for (size_t layer_index = 0; layer_index < SquashState::kMaxLayers;
+             layer_index++) {
+          if (region.layer_refs[layer_index]) {
+            squash_region.source_layers.push_back(layer_index);
+            layer_squash_area[layer_index] += squash_region.frame.area();
+          }
         }
-
-        layers_.emplace_back();
-        // c_layer's address might have changed when we resized the vector
-        c_layer = &layers_[layers_.size() - 2];
-        DrmCompositionLayer &pre_comp_layer = layers_.back();
-        pre_comp_layer.crtc = crtc_;
-
-        pre_composition_layer_index_ = layers_.size() - 1;
-
-        // This is all to fix up the previous layer, which has now become part
-        // of the set of pre-composition layers because we are stealing its
-        // plane.
-        DrmCompositionLayer &last_c_layer = layers_[layers_.size() - 3];
-        std::swap(pre_comp_layer.plane, last_c_layer.plane);
-        OutputFd &last_release_fence = layers[layer_index - 1].release_fence;
-        last_release_fence.Set(CreateNextTimelineFence());
-        ret = last_release_fence.get();
-        if (ret < 0) {
-          ALOGE("Could not create release fence %d", ret);
-          goto fail;
-        }
-      }
-    }
-
-    if (c_layer->plane == NULL) {
-      // Layers to be pre composited all get the earliest release fences as they
-      // will get released soonest.
-      layer->release_fence.Set(CreateNextTimelineFence());
-      ret = layer->release_fence.get();
-      if (ret < 0) {
-        ALOGE("Could not create release fence %d", ret);
-        goto fail;
       }
     }
   }
 
+  std::vector<size_t> layers_remaining;
+  for (size_t layer_index = 0; layer_index < layers_.size(); layer_index++) {
+    // Skip layers that were completely squashed
+    if (layer_squash_area[layer_index] >=
+        layers_[layer_index].display_frame.area()) {
+      continue;
+    }
+
+    layers_remaining.push_back(layer_index);
+  }
+
+  size_t layer_to_composite = layers_remaining.size();
+  size_t num_layers_to_pre_composite = 0;
+  if (squash_regions_.size() > 0) {
+    layers_remaining.push_back(DrmCompositionPlane::kSourceSquash);
+  }
+
+  if (layers_remaining.size() > planes_can_use) {
+    layers_remaining.insert(layers_remaining.begin() + layer_to_composite,
+                            DrmCompositionPlane::kSourcePreComp);
+    size_t num_layers_to_pre_composite =
+        layer_to_composite - planes_can_use + 1;
+    size_t first_layer_to_pre_composite = planes_can_use - 1;
+    SeperateLayers(layers_.data(),
+                   &layers_remaining[first_layer_to_pre_composite],
+                   num_layers_to_pre_composite, NULL, 0, pre_comp_regions_);
+    layers_remaining.erase(
+        layers_remaining.begin() + first_layer_to_pre_composite,
+        layers_remaining.begin() + layer_to_composite);
+  }
+
+  for (size_t i : layers_remaining) {
+    composition_planes_.emplace_back(DrmCompositionPlane{
+        TakePlane(crtc_, primary_planes, overlay_planes), crtc_, i});
+  }
+
+  std::unordered_set<DrmHwcLayer *> squash_layers;
+  std::unordered_set<DrmHwcLayer *> pre_comp_layers;
+  std::unordered_set<DrmHwcLayer *> comp_layers;
+
+  for (const DrmCompositionRegion &region : squash_regions_) {
+    for (size_t source_layer_index : region.source_layers) {
+      DrmHwcLayer *source_layer = &layers_[source_layer_index];
+      squash_layers.emplace(source_layer);
+    }
+  }
+
+  for (const DrmCompositionRegion &region : pre_comp_regions_) {
+    for (size_t source_layer_index : region.source_layers) {
+      DrmHwcLayer *source_layer = &layers_[source_layer_index];
+      pre_comp_layers.emplace(source_layer);
+      squash_layers.erase(source_layer);
+    }
+  }
+
+  for (const DrmCompositionPlane &plane : composition_planes_) {
+    if (plane.source_layer <= DrmCompositionPlane::kSourceLayerMax) {
+      DrmHwcLayer *source_layer = &layers_[plane.source_layer];
+      comp_layers.emplace(source_layer);
+      pre_comp_layers.erase(source_layer);
+    }
+  }
+
+  for (DrmHwcLayer *layer : squash_layers) {
+    int ret = layer->release_fence.Set(CreateNextTimelineFence());
+    if (ret < 0)
+      return ret;
+  }
+  timeline_squash_done_ = timeline_;
+
+  for (DrmHwcLayer *layer : pre_comp_layers) {
+    int ret = layer->release_fence.Set(CreateNextTimelineFence());
+    if (ret < 0)
+      return ret;
+  }
   timeline_pre_comp_done_ = timeline_;
 
-  for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
-    DrmHwcLayer *layer = &layers[layer_index];
-    if (layer->release_fence.get() >= 0)
-      continue;
-
-    ret = layer->release_fence.Set(CreateNextTimelineFence());
-    if (ret < 0) {
-      ALOGE("Could not create release fence %d", ret);
-      goto fail;
-    }
+  for (DrmHwcLayer *layer : comp_layers) {
+    int ret = layer->release_fence.Set(CreateNextTimelineFence());
+    if (ret < 0)
+      return ret;
   }
 
-  type_ = DRM_COMPOSITION_TYPE_FRAME;
   return 0;
-
-fail:
-
-  for (size_t c_layer_index = 0; c_layer_index < layers_.size();
-       c_layer_index++) {
-    DrmCompositionLayer &c_layer = layers_[c_layer_index];
-    if (c_layer.plane != NULL) {
-      std::vector<DrmPlane *> *return_to =
-          (c_layer.plane->type() == DRM_PLANE_TYPE_PRIMARY) ? primary_planes
-                                                            : overlay_planes;
-      return_to->insert(return_to->begin() + c_layer_index, c_layer.plane);
-    }
-  }
-
-  layers_.clear();
-
-  sw_sync_timeline_inc(timeline_fd_, timeline_ - timeline_current_);
-
-  timeline_ = timeline_current_;
-  return ret;
-}
-
-int DrmDisplayComposition::SetDpmsMode(uint32_t dpms_mode) {
-  if (!validate_composition_type(DRM_COMPOSITION_TYPE_DPMS))
-    return -EINVAL;
-  dpms_mode_ = dpms_mode;
-  type_ = DRM_COMPOSITION_TYPE_DPMS;
-  return 0;
-}
-
-int DrmDisplayComposition::SetDisplayMode(const DrmMode &display_mode) {
-  if (!validate_composition_type(DRM_COMPOSITION_TYPE_MODESET))
-    return -EINVAL;
-  display_mode_ = display_mode;
-  dpms_mode_ = DRM_MODE_DPMS_ON;
-  type_ = DRM_COMPOSITION_TYPE_MODESET;
-  return 0;
-}
-
-int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
-  layers_.emplace_back();
-  DrmCompositionLayer &c_layer = layers_.back();
-  c_layer.crtc = NULL;
-  c_layer.plane = plane;
-  return 0;
-}
-
-void DrmDisplayComposition::RemoveNoPlaneLayers() {
-  layers_.erase(
-      std::remove_if(layers_.begin(), layers_.end(),
-                     [](DrmCompositionLayer &l) { return l.plane == NULL; }),
-      layers_.end());
-}
-
-int DrmDisplayComposition::SignalPreCompositionDone() {
-  return IncreaseTimelineToPoint(timeline_pre_comp_done_);
-}
-
-int DrmDisplayComposition::FinishComposition() {
-  return IncreaseTimelineToPoint(timeline_);
-}
-
-std::vector<DrmCompositionLayer>
-    *DrmDisplayComposition::GetCompositionLayers() {
-  return &layers_;
-}
-
-int DrmDisplayComposition::pre_composition_layer_index() const {
-  return pre_composition_layer_index_;
-}
-
-uint32_t DrmDisplayComposition::dpms_mode() const {
-  return dpms_mode_;
-}
-
-uint64_t DrmDisplayComposition::frame_no() const {
-  return frame_no_;
-}
-
-const DrmMode &DrmDisplayComposition::display_mode() const {
-  return display_mode_;
-}
-
-Importer *DrmDisplayComposition::importer() const {
-  return importer_;
 }
 }

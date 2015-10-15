@@ -64,11 +64,15 @@ DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
 
 int DrmCompositor::QueueComposition(
     std::unique_ptr<DrmComposition> composition) {
-  int ret = composition->DisableUnusedPlanes();
-  if (ret) {
-    ALOGE("Failed to disable unused planes %d", ret);
+  int ret;
+
+  ret = composition->Plan(compositor_map_);
+  if (ret)
     return ret;
-  }
+
+  ret = composition->DisableUnusedPlanes();
+  if (ret)
+    return ret;
 
   for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
        iter != drm_->end_connectors(); ++iter) {
