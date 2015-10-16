@@ -52,6 +52,7 @@ class DrmPlane {
   const DrmProperty &src_w_property() const;
   const DrmProperty &src_h_property() const;
   const DrmProperty &rotation_property() const;
+  const DrmProperty &alpha_property() const;
 
  private:
   DrmPlane(const DrmPlane &);
@@ -74,6 +75,7 @@ class DrmPlane {
   DrmProperty src_w_property_;
   DrmProperty src_h_property_;
   DrmProperty rotation_property_;
+  DrmProperty alpha_property_;
 };
 }
 
