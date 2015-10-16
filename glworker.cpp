@@ -406,6 +406,7 @@ static void ConstructCommand(const DrmHwcLayer *layers,
     }
 
     src.alpha = layer.alpha / 255.0f;
+    src.premult = (layer.blending == DrmHwcBlending::kPreMult) ? 1.0f : 0.0f;
   }
 }
 
