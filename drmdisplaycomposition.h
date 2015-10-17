@@ -65,7 +65,7 @@ class DrmDisplayComposition {
   int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer,
            uint64_t frame_no);
 
-  int SetLayers(DrmHwcLayer *layers, size_t num_layers);
+  int SetLayers(DrmHwcLayer *layers, size_t num_layers, bool geometry_changed);
   int AddPlaneDisable(DrmPlane *plane);
   int SetDpmsMode(uint32_t dpms_mode);
   int SetDisplayMode(const DrmMode &display_mode);
@@ -131,6 +131,8 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
+  int CreateAndAssignReleaseFences();
+
   DrmResources *drm_ = NULL;
   DrmCrtc *crtc_ = NULL;
   Importer *importer_ = NULL;
@@ -145,6 +147,7 @@ class DrmDisplayComposition {
   int timeline_squash_done_ = 0;
   int timeline_pre_comp_done_ = 0;
 
+  bool geometry_changed_;
   std::vector<DrmHwcLayer> layers_;
   std::vector<DrmCompositionRegion> squash_regions_;
   std::vector<DrmCompositionRegion> pre_comp_regions_;

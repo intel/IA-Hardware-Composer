@@ -40,7 +40,7 @@ class GLWorkerCompositor;
 
 class SquashState {
  public:
-  static const unsigned kHistoryLength = 6;
+  static const unsigned kHistoryLength = 6; // TODO: make this number not magic
   static const unsigned kMaxLayers = 64;
 
   struct Region {
@@ -60,14 +60,14 @@ class SquashState {
   }
 
   void Init(DrmHwcLayer *layers, size_t num_layers);
-  void GenerateHistory(DrmHwcLayer *layers,
+  void GenerateHistory(DrmHwcLayer *layers, size_t num_layers,
                        std::vector<bool> &changed_regions) const;
   void StableRegionsWithMarginalHistory(
       const std::vector<bool> &changed_regions,
       std::vector<bool> &stable_regions) const;
-  void RecordHistory(DrmHwcLayer *layers,
+  void RecordHistory(DrmHwcLayer *layers, size_t num_layers,
                      const std::vector<bool> &changed_regions);
-  void RecordSquashed(const std::vector<bool> &squashed_regions);
+  bool RecordAndCompareSquashed(const std::vector<bool> &squashed_regions);
 
   void Dump(std::ostringstream *out) const;
 
@@ -96,7 +96,7 @@ class DrmDisplayCompositor {
   bool HaveQueuedComposites() const;
 
   SquashState *squash_state() {
-    return NULL;
+    return &squash_state_;
   }
 
  private:
@@ -109,6 +109,7 @@ class DrmDisplayCompositor {
 
   int PrepareFramebuffer(DrmFramebuffer &fb,
                          DrmDisplayComposition *display_comp);
+  int ApplySquash(DrmDisplayComposition *display_comp);
   int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int ApplyFrame(DrmDisplayComposition *display_comp);
   int ApplyDpms(DrmDisplayComposition *display_comp);
@@ -131,6 +132,10 @@ class DrmDisplayCompositor {
   int framebuffer_index_;
   DrmFramebuffer framebuffers_[DRM_DISPLAY_BUFFERS];
   std::unique_ptr<GLWorkerCompositor> pre_compositor_;
+
+  SquashState squash_state_;
+  int squash_framebuffer_index_;
+  DrmFramebuffer squash_framebuffers_[2];
 
   // mutable since we need to acquire in HaveQueuedComposites
   mutable pthread_mutex_t lock_;
