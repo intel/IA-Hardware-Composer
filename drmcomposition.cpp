@@ -75,6 +75,11 @@ int DrmComposition::SetLayers(size_t num_displays,
     DrmCompositionDisplayLayersMap &map = maps[display_index];
     int display = map.display;
 
+    if (!drm_->GetConnectorForDisplay(display)) {
+      ALOGE("Invalid display given to SetLayers %d", display);
+      continue;
+    }
+
     ret = composition_map_[display]->SetLayers(map.layers.data(),
                                                map.layers.size());
     if (ret)
