@@ -46,7 +46,6 @@
 #include <utils/Trace.h>
 
 #define UM_PER_INCH 25400
-#define HWC_FB_BUFFERS 3
 
 namespace android {
 
