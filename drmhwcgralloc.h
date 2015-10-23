@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DRM_HWC_H_
-#define ANDROID_DRM_HWC_H_
+#ifndef ANDROID_DRMHWCGRALLOC_H_
+#define ANDROID_DRMHWCGRALLOC_H_
 
-#include <stdbool.h>
 #include <stdint.h>
-
-#include <hardware/hardware.h>
-#include <hardware/hwcomposer.h>
-
-struct hwc_import_context;
 
 enum {
   /* perform(const struct gralloc_module_t *mod,
@@ -63,12 +57,4 @@ typedef struct hwc_drm_bo {
   void *priv;
 } hwc_drm_bo_t;
 
-int hwc_import_init(struct hwc_import_context **ctx);
-int hwc_import_destroy(struct hwc_import_context *ctx);
-
-int hwc_import_bo_create(int fd, struct hwc_import_context *ctx,
-                         buffer_handle_t buf, struct hwc_drm_bo *bo);
-bool hwc_import_bo_release(int fd, struct hwc_import_context *ctx,
-                           struct hwc_drm_bo *bo);
-
-#endif // ANDROID_DRM_HWC_H_
+#endif // ANDROID_DRMHWCGRALLOC_H_
