@@ -68,6 +68,8 @@ class GLWorkerCompositor {
   CachedFramebuffer *PrepareAndCacheFramebuffer(
       const sp<GraphicBuffer> &framebuffer);
 
+  GLint PrepareAndCacheProgram(unsigned texture_count);
+
   EGLDisplay egl_display_;
   EGLContext egl_ctx_;
 
