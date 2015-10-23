@@ -63,8 +63,14 @@ void SquashState::Init(DrmHwcLayer *layers, size_t num_layers) {
   }
 }
 
-void SquashState::GenerateHistory(DrmHwcLayer *layers,
+void SquashState::GenerateHistory(DrmHwcLayer *layers, size_t num_layers,
                                   std::vector<bool> &changed_regions) const {
+  changed_regions.resize(regions_.size());
+  if (num_layers != last_handles_.size()) {
+    ALOGE("SquashState::GenerateHistory expected %zu layers but got %zu layers",
+          last_handles_.size(), num_layers);
+    return;
+  }
   std::bitset<kMaxLayers> changed_layers;
   for (size_t i = 0; i < last_handles_.size(); i++) {
     DrmHwcLayer *layer = &layers[i];
@@ -73,7 +79,6 @@ void SquashState::GenerateHistory(DrmHwcLayer *layers,
     }
   }
 
-  changed_regions.resize(regions_.size());
   for (size_t i = 0; i < regions_.size(); i++) {
     changed_regions[i] = (regions_[i].layer_refs & changed_layers).any();
   }
@@ -88,8 +93,19 @@ void SquashState::StableRegionsWithMarginalHistory(
   }
 }
 
-void SquashState::RecordHistory(DrmHwcLayer *layers,
+void SquashState::RecordHistory(DrmHwcLayer *layers, size_t num_layers,
                                 const std::vector<bool> &changed_regions) {
+  if (num_layers != last_handles_.size()) {
+    ALOGE("SquashState::RecordHistory expected %zu layers but got %zu layers",
+          last_handles_.size(), num_layers);
+    return;
+  }
+  if (changed_regions.size() != regions_.size()) {
+    ALOGE("SquashState::RecordHistory expected %zu regions but got %zu regions",
+          regions_.size(), changed_regions.size());
+    return;
+  }
+
   for (size_t i = 0; i < last_handles_.size(); i++) {
     DrmHwcLayer *layer = &layers[i];
     last_handles_[i] = layer->sf_handle;
@@ -103,10 +119,23 @@ void SquashState::RecordHistory(DrmHwcLayer *layers,
   valid_history_++;
 }
 
-void SquashState::RecordSquashed(const std::vector<bool> &squashed_regions) {
-  for (size_t i = 0; i < regions_.size(); i++) {
-    regions_[i].squashed = squashed_regions[i];
+bool SquashState::RecordAndCompareSquashed(
+    const std::vector<bool> &squashed_regions) {
+  if (squashed_regions.size() != regions_.size()) {
+    ALOGE(
+        "SquashState::RecordAndCompareSquashed expected %zu regions but got "
+        "%zu regions",
+        regions_.size(), squashed_regions.size());
+    return false;
   }
+  bool changed = false;
+  for (size_t i = 0; i < regions_.size(); i++) {
+    if (regions_[i].squashed != squashed_regions[i]) {
+      regions_[i].squashed = squashed_regions[i];
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 void SquashState::Dump(std::ostringstream *out) const {
@@ -137,6 +166,14 @@ void SquashState::Dump(std::ostringstream *out) const {
   }
 }
 
+static bool UsesSquash(const std::vector<DrmCompositionPlane> &comp_planes) {
+  return std::any_of(comp_planes.begin(), comp_planes.end(),
+                     [](const DrmCompositionPlane &plane) {
+                       return plane.source_layer ==
+                              DrmCompositionPlane::kSourceSquash;
+                     });
+}
+
 DrmDisplayCompositor::DrmDisplayCompositor()
     : drm_(NULL),
       display_(-1),
@@ -145,6 +182,7 @@ DrmDisplayCompositor::DrmDisplayCompositor()
       active_(false),
       needs_modeset_(false),
       framebuffer_index_(0),
+      squash_framebuffer_index_(0),
       dump_frames_composited_(0),
       dump_last_timestamp_ns_(0) {
   struct timespec ts;
@@ -301,6 +339,38 @@ int DrmDisplayCompositor::PrepareFramebuffer(
   return ret;
 }
 
+int DrmDisplayCompositor::ApplySquash(DrmDisplayComposition *display_comp) {
+  int ret = 0;
+
+  DrmFramebuffer &fb = squash_framebuffers_[squash_framebuffer_index_];
+  ret = PrepareFramebuffer(fb, display_comp);
+  if (ret) {
+    ALOGE("Failed to prepare framebuffer for squash %d", ret);
+    return ret;
+  }
+
+  std::vector<DrmCompositionRegion> &regions = display_comp->squash_regions();
+  ret = pre_compositor_->Composite(display_comp->layers().data(),
+                                   regions.data(), regions.size(), fb.buffer());
+  pre_compositor_->Finish();
+
+  if (ret) {
+    ALOGE("Failed to squash layers");
+    return ret;
+  }
+
+  ret = display_comp->CreateNextTimelineFence();
+  if (ret <= 0) {
+    ALOGE("Failed to create squash framebuffer release fence %d", ret);
+    return ret;
+  }
+
+  fb.set_release_fence_fd(ret);
+  display_comp->SignalSquashDone();
+
+  return 0;
+}
+
 int DrmDisplayCompositor::ApplyPreComposite(
     DrmDisplayComposition *display_comp) {
   int ret = 0;
@@ -308,7 +378,7 @@ int DrmDisplayCompositor::ApplyPreComposite(
   DrmFramebuffer &fb = framebuffers_[framebuffer_index_];
   ret = PrepareFramebuffer(fb, display_comp);
   if (ret) {
-    ALOGE("Failed to prepare framebuffer for precomposite %d", ret);
+    ALOGE("Failed to prepare framebuffer for pre-composite %d", ret);
     return ret;
   }
 
@@ -318,13 +388,13 @@ int DrmDisplayCompositor::ApplyPreComposite(
   pre_compositor_->Finish();
 
   if (ret) {
-    ALOGE("Failed to composite layers");
+    ALOGE("Failed to pre-composite layers");
     return ret;
   }
 
   ret = display_comp->CreateNextTimelineFence();
   if (ret <= 0) {
-    ALOGE("Failed to create pre comp framebuffer release fence %d", ret);
+    ALOGE("Failed to create pre-composite framebuffer release fence %d", ret);
     return ret;
   }
 
@@ -374,13 +444,50 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
   std::vector<DrmCompositionPlane> &comp_planes =
       display_comp->composition_planes();
+  std::vector<DrmCompositionRegion> &squash_regions =
+      display_comp->squash_regions();
   std::vector<DrmCompositionRegion> &pre_comp_regions =
       display_comp->pre_comp_regions();
 
-  bool do_pre_comp = pre_comp_regions.size() > 0;
-  DrmFramebuffer *pre_comp_fb;
-  int pre_comp_layer_index = -1;
+  int squash_layer_index = -1;
+  if (squash_regions.size() > 0) {
+    squash_framebuffer_index_ = (squash_framebuffer_index_ + 1) % 2;
+    ret = ApplySquash(display_comp);
+    if (ret)
+      return ret;
 
+    squash_layer_index = layers.size() - 1;
+  } else {
+    if (UsesSquash(comp_planes)) {
+      DrmFramebuffer &fb = squash_framebuffers_[squash_framebuffer_index_];
+      layers.emplace_back();
+      squash_layer_index = layers.size() - 1;
+      DrmHwcLayer &squash_layer = layers.back();
+      ret = squash_layer.buffer.ImportBuffer(fb.buffer()->handle,
+                                             display_comp->importer());
+      if (ret) {
+        ALOGE("Failed to import old squashed framebuffer %d", ret);
+        return ret;
+      }
+      squash_layer.sf_handle = fb.buffer()->handle;
+      squash_layer.source_crop = DrmHwcRect<float>(
+          0, 0, squash_layer.buffer->width, squash_layer.buffer->height);
+      squash_layer.display_frame = DrmHwcRect<int>(
+          0, 0, squash_layer.buffer->width, squash_layer.buffer->height);
+      ret = display_comp->CreateNextTimelineFence();
+
+      if (ret <= 0) {
+        ALOGE("Failed to create squash framebuffer release fence %d", ret);
+        return ret;
+      }
+
+      fb.set_release_fence_fd(ret);
+      ret = 0;
+    }
+  }
+
+  bool do_pre_comp = pre_comp_regions.size() > 0;
+  int pre_comp_layer_index = -1;
   if (do_pre_comp) {
     ret = ApplyPreComposite(display_comp);
     if (ret)
@@ -461,11 +568,18 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     switch (comp_plane.source_layer) {
       case DrmCompositionPlane::kSourceNone:
         break;
+      case DrmCompositionPlane::kSourceSquash: {
+        DrmHwcLayer &layer = layers[squash_layer_index];
+        fb_id = layer.buffer->fb_id;
+        display_frame = layer.display_frame;
+        source_crop = layer.source_crop;
+        break;
+      }
       case DrmCompositionPlane::kSourcePreComp: {
         if (!do_pre_comp) {
           ALOGE(
               "Can not use pre composite framebuffer with no pre composite "
-              "layers");
+              "regions");
           ret = -EINVAL;
           goto out;
         }
@@ -475,8 +589,6 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
         source_crop = layer.source_crop;
         break;
       }
-      case DrmCompositionPlane::kSourceSquash:
-        break;
       default: {
         if (comp_plane.source_layer >= layers.size()) {
           ALOGE("Source layer index %zu out of bounds %zu",
@@ -788,6 +900,8 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
 
   if (active_composition_)
     active_composition_->Dump(out);
+
+  squash_state_.Dump(out);
 
   pthread_mutex_unlock(&lock_);
 }

@@ -80,8 +80,8 @@ int DrmComposition::SetLayers(size_t num_displays,
       continue;
     }
 
-    ret = composition_map_[display]->SetLayers(map.layers.data(),
-                                               map.layers.size());
+    ret = composition_map_[display]->SetLayers(
+        map.layers.data(), map.layers.size(), map.geometry_changed);
     if (ret)
       return ret;
   }

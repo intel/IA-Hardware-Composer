@@ -85,10 +85,12 @@ int DrmDisplayComposition::IncreaseTimelineToPoint(int point) {
   return ret;
 }
 
-int DrmDisplayComposition::SetLayers(DrmHwcLayer *layers, size_t num_layers) {
-  int ret = 0;
+int DrmDisplayComposition::SetLayers(DrmHwcLayer *layers, size_t num_layers,
+                                     bool geometry_changed) {
   if (!validate_composition_type(DRM_COMPOSITION_TYPE_FRAME))
     return -EINVAL;
+
+  geometry_changed_ = geometry_changed;
 
   for (size_t layer_index = 0; layer_index < num_layers; layer_index++) {
     layers_.emplace_back(std::move(layers[layer_index]));
@@ -162,7 +164,7 @@ static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
   return out;
 }
 
-static void SeperateLayers(DrmHwcLayer *layers, size_t *used_layers,
+static void SeparateLayers(DrmHwcLayer *layers, size_t *used_layers,
                            size_t num_used_layers,
                            DrmHwcRect<int> *exclude_rects,
                            size_t num_exclude_rects,
@@ -203,82 +205,7 @@ static void SeperateLayers(DrmHwcLayer *layers, size_t *used_layers,
   }
 }
 
-int DrmDisplayComposition::Plan(SquashState *squash,
-                                std::vector<DrmPlane *> *primary_planes,
-                                std::vector<DrmPlane *> *overlay_planes) {
-  size_t planes_can_use =
-      CountUsablePlanes(crtc_, primary_planes, overlay_planes);
-  if (planes_can_use == 0) {
-    ALOGE("Display %d has no usable planes", crtc_->display());
-    return -ENODEV;
-  }
-
-  std::vector<int> layer_squash_area(layers_.size());
-  if (squash != NULL && planes_can_use >= 3) {
-    std::vector<bool> changed_regions;
-    squash->GenerateHistory(layers_.data(), changed_regions);
-
-    std::vector<bool> stable_regions;
-    squash->StableRegionsWithMarginalHistory(changed_regions, stable_regions);
-
-    squash->RecordHistory(layers_.data(), changed_regions);
-
-    squash->RecordSquashed(stable_regions);
-
-    for (size_t region_index = 0; region_index < stable_regions.size();
-         region_index++) {
-      const SquashState::Region &region = squash->regions()[region_index];
-      if (stable_regions[region_index]) {
-        squash_regions_.emplace_back();
-        DrmCompositionRegion &squash_region = squash_regions_.back();
-        squash_region.frame = region.rect;
-        for (size_t layer_index = 0; layer_index < SquashState::kMaxLayers;
-             layer_index++) {
-          if (region.layer_refs[layer_index]) {
-            squash_region.source_layers.push_back(layer_index);
-            layer_squash_area[layer_index] += squash_region.frame.area();
-          }
-        }
-      }
-    }
-  }
-
-  std::vector<size_t> layers_remaining;
-  for (size_t layer_index = 0; layer_index < layers_.size(); layer_index++) {
-    // Skip layers that were completely squashed
-    if (layer_squash_area[layer_index] >=
-        layers_[layer_index].display_frame.area()) {
-      continue;
-    }
-
-    layers_remaining.push_back(layer_index);
-  }
-
-  size_t layer_to_composite = layers_remaining.size();
-  size_t num_layers_to_pre_composite = 0;
-  if (squash_regions_.size() > 0) {
-    layers_remaining.push_back(DrmCompositionPlane::kSourceSquash);
-  }
-
-  if (layers_remaining.size() > planes_can_use) {
-    layers_remaining.insert(layers_remaining.begin() + layer_to_composite,
-                            DrmCompositionPlane::kSourcePreComp);
-    size_t num_layers_to_pre_composite =
-        layer_to_composite - planes_can_use + 1;
-    size_t first_layer_to_pre_composite = planes_can_use - 1;
-    SeperateLayers(layers_.data(),
-                   &layers_remaining[first_layer_to_pre_composite],
-                   num_layers_to_pre_composite, NULL, 0, pre_comp_regions_);
-    layers_remaining.erase(
-        layers_remaining.begin() + first_layer_to_pre_composite,
-        layers_remaining.begin() + layer_to_composite);
-  }
-
-  for (size_t i : layers_remaining) {
-    composition_planes_.emplace_back(DrmCompositionPlane{
-        TakePlane(crtc_, primary_planes, overlay_planes), crtc_, i});
-  }
-
+int DrmDisplayComposition::CreateAndAssignReleaseFences() {
   std::unordered_set<DrmHwcLayer *> squash_layers;
   std::unordered_set<DrmHwcLayer *> pre_comp_layers;
   std::unordered_set<DrmHwcLayer *> comp_layers;
@@ -327,6 +254,122 @@ int DrmDisplayComposition::Plan(SquashState *squash,
   }
 
   return 0;
+}
+
+int DrmDisplayComposition::Plan(SquashState *squash,
+                                std::vector<DrmPlane *> *primary_planes,
+                                std::vector<DrmPlane *> *overlay_planes) {
+  if (type_ != DRM_COMPOSITION_TYPE_FRAME)
+    return 0;
+
+  size_t planes_can_use =
+      CountUsablePlanes(crtc_, primary_planes, overlay_planes);
+  if (planes_can_use == 0) {
+    ALOGE("Display %d has no usable planes", crtc_->display());
+    return -ENODEV;
+  }
+
+  bool use_squash_framebuffer = false;
+  // Used to determine which layers were entirely squashed
+  std::vector<int> layer_squash_area(layers_.size(), 0);
+  // Used to avoid rerendering regions that were squashed
+  std::vector<DrmHwcRect<int>> exclude_rects;
+  if (squash != NULL && planes_can_use >= 3) {
+    if (geometry_changed_) {
+      squash->Init(layers_.data(), layers_.size());
+    } else {
+      std::vector<bool> changed_regions;
+      squash->GenerateHistory(layers_.data(), layers_.size(), changed_regions);
+
+      std::vector<bool> stable_regions;
+      squash->StableRegionsWithMarginalHistory(changed_regions, stable_regions);
+
+      // Only if SOME region is stable
+      use_squash_framebuffer =
+          std::find(stable_regions.begin(), stable_regions.end(), true) !=
+          stable_regions.end();
+
+      squash->RecordHistory(layers_.data(), layers_.size(), changed_regions);
+
+      // Changes in which regions are squashed triggers a rerender via
+      // squash_regions.
+      bool render_squash = squash->RecordAndCompareSquashed(stable_regions);
+
+      for (size_t region_index = 0; region_index < stable_regions.size();
+           region_index++) {
+        const SquashState::Region &region = squash->regions()[region_index];
+        if (!stable_regions[region_index])
+          continue;
+
+        exclude_rects.emplace_back(region.rect);
+
+        if (render_squash) {
+          squash_regions_.emplace_back();
+          squash_regions_.back().frame = region.rect;
+        }
+
+        int frame_area = region.rect.area();
+        // Source layers are sorted front to back i.e. top layer has lowest
+        // index.
+        for (size_t layer_index = layers_.size();
+             layer_index-- > 0;  // Yes, I double checked this
+             /* See condition */) {
+          if (!region.layer_refs[layer_index])
+            continue;
+          layer_squash_area[layer_index] += frame_area;
+          if (render_squash)
+            squash_regions_.back().source_layers.push_back(layer_index);
+        }
+      }
+    }
+  }
+
+  std::vector<size_t> layers_remaining;
+  for (size_t layer_index = 0; layer_index < layers_.size(); layer_index++) {
+    // Skip layers that were completely squashed
+    if (layer_squash_area[layer_index] >=
+        layers_[layer_index].display_frame.area()) {
+      continue;
+    }
+
+    layers_remaining.push_back(layer_index);
+  }
+
+  if (use_squash_framebuffer)
+    planes_can_use--;
+
+  if (layers_remaining.size() > planes_can_use)
+    planes_can_use--;
+
+  size_t last_composition_layer = 0;
+  for (last_composition_layer = 0;
+       last_composition_layer < layers_remaining.size() && planes_can_use > 0;
+       last_composition_layer++, planes_can_use--) {
+    composition_planes_.emplace_back(
+        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
+                            crtc_, layers_remaining[last_composition_layer]});
+  }
+
+  layers_remaining.erase(layers_remaining.begin(),
+                         layers_remaining.begin() + last_composition_layer);
+
+  if (layers_remaining.size() > 0) {
+    composition_planes_.emplace_back(
+        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
+                            crtc_, DrmCompositionPlane::kSourcePreComp});
+
+    SeparateLayers(layers_.data(), layers_remaining.data(),
+                   layers_remaining.size(), exclude_rects.data(),
+                   exclude_rects.size(), pre_comp_regions_);
+  }
+
+  if (use_squash_framebuffer) {
+    composition_planes_.emplace_back(
+        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
+                            crtc_, DrmCompositionPlane::kSourceSquash});
+  }
+
+  return CreateAndAssignReleaseFences();
 }
 
 static const char *DrmCompositionTypeToString(DrmCompositionType type) {
