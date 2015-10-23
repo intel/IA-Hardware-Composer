@@ -149,13 +149,15 @@ static bool HasExtension(const char *extension, const char *extensions) {
 
 static AutoGLShader CompileAndCheckShader(GLenum type, unsigned source_count,
                                           const GLchar **sources,
-                                          std::string *shader_log) {
+                                          std::ostringstream *shader_log) {
   GLint status;
   AutoGLShader shader(glCreateShader(type));
   if (shader.get() == 0) {
-    *shader_log = "glCreateShader failed";
+    if (shader_log)
+      *shader_log << "Failed glCreateShader call";
     return 0;
   }
+
   glShaderSource(shader.get(), source_count, sources, NULL);
   glCompileShader(shader.get());
   glGetShaderiv(shader.get(), GL_COMPILE_STATUS, &status);
@@ -163,8 +165,14 @@ static AutoGLShader CompileAndCheckShader(GLenum type, unsigned source_count,
     if (shader_log) {
       GLint log_length;
       glGetShaderiv(shader.get(), GL_INFO_LOG_LENGTH, &log_length);
-      shader_log->resize(log_length);
-      glGetShaderInfoLog(shader.get(), log_length, NULL, &(*shader_log)[0]);
+      std::string info_log(log_length, ' ');
+      glGetShaderInfoLog(shader.get(), log_length, NULL, &info_log.front());
+      *shader_log << "Failed to compile shader:\n" << info_log.c_str()
+                  << "\nShader Source:\n";
+      for (unsigned i = 0; i < source_count; i++) {
+        *shader_log << sources[i];
+      }
+      *shader_log << "\n";
     }
     return 0;
   }
@@ -236,73 +244,52 @@ static std::string GenerateFragmentShader(int layer_count) {
   return fragment_shader_stream.str();
 }
 
-static int GenerateShaders(std::vector<AutoGLProgram> *blend_programs) {
-  // Limits: GL_MAX_VARYING_COMPONENTS, GL_MAX_TEXTURE_IMAGE_UNITS,
-  // GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS
-  int i, ret = 1;
-  GLint max_texture_images, status;
-  AutoGLShader vertex_shader, fragment_shader;
-  AutoGLProgram program;
-  std::string shader_log;
+static AutoGLProgram GenerateProgram(unsigned num_textures,
+                                     std::ostringstream *shader_log) {
+  std::string vertex_shader_string = GenerateVertexShader(num_textures);
+  const GLchar *vertex_shader_source = vertex_shader_string.c_str();
+  AutoGLShader vertex_shader = CompileAndCheckShader(
+      GL_VERTEX_SHADER, 1, &vertex_shader_source, shader_log);
+  if (!vertex_shader.get())
+    return 0;
 
-  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_images);
+  std::string fragment_shader_string = GenerateFragmentShader(num_textures);
+  const GLchar *fragment_shader_source = fragment_shader_string.c_str();
+  AutoGLShader fragment_shader = CompileAndCheckShader(
+      GL_FRAGMENT_SHADER, 1, &fragment_shader_source, shader_log);
+  if (!fragment_shader.get())
+    return 0;
 
-  for (i = 1; i <= max_texture_images; i++) {
-    std::string vertex_shader_string = GenerateVertexShader(i);
-    const GLchar *vertex_shader_source = vertex_shader_string.c_str();
-    vertex_shader = CompileAndCheckShader(
-        GL_VERTEX_SHADER, 1, &vertex_shader_source, ret ? &shader_log : NULL);
-    if (!vertex_shader.get()) {
-      if (ret)
-        ALOGE("Failed to make vertex shader:\n%sshader source:\n%s",
-              shader_log.c_str(), vertex_shader_source);
-      break;
-    }
-
-    std::string fragment_shader_string = GenerateFragmentShader(i);
-    const GLchar *fragment_shader_source = fragment_shader_string.c_str();
-    fragment_shader =
-        CompileAndCheckShader(GL_FRAGMENT_SHADER, 1, &fragment_shader_source,
-                              ret ? &shader_log : NULL);
-    if (!fragment_shader.get()) {
-      if (ret)
-        ALOGE("Failed to make fragment shader:\n%sshader source:\n%s",
-              shader_log.c_str(), fragment_shader_source);
-      break;
-    }
-
-    program = AutoGLProgram(glCreateProgram());
-    if (!program.get()) {
-      if (ret)
-        ALOGE("Failed to create program %s", GetGLError());
-      break;
-    }
-
-    glAttachShader(program.get(), vertex_shader.get());
-    glAttachShader(program.get(), fragment_shader.get());
-    glBindAttribLocation(program.get(), 0, "vPosition");
-    glBindAttribLocation(program.get(), 1, "vTexCoords");
-    glLinkProgram(program.get());
-    glDetachShader(program.get(), vertex_shader.get());
-    glDetachShader(program.get(), fragment_shader.get());
-
-    glGetProgramiv(program.get(), GL_LINK_STATUS, &status);
-    if (!status) {
-      if (ret) {
-        GLint log_length;
-        glGetProgramiv(program.get(), GL_INFO_LOG_LENGTH, &log_length);
-        std::string program_log(log_length, ' ');
-        glGetProgramInfoLog(program.get(), log_length, NULL, &program_log[0]);
-        ALOGE("Failed to link program: \n%s", program_log.c_str());
-      }
-      break;
-    }
-
-    ret = 0;
-    blend_programs->emplace_back(std::move(program));
+  AutoGLProgram program(glCreateProgram());
+  if (!program.get()) {
+    if (shader_log)
+      *shader_log << "Failed to create program: " << GetGLError() << "\n";
+    return 0;
   }
 
-  return ret;
+  glAttachShader(program.get(), vertex_shader.get());
+  glAttachShader(program.get(), fragment_shader.get());
+  glBindAttribLocation(program.get(), 0, "vPosition");
+  glBindAttribLocation(program.get(), 1, "vTexCoords");
+  glLinkProgram(program.get());
+  glDetachShader(program.get(), vertex_shader.get());
+  glDetachShader(program.get(), fragment_shader.get());
+
+  GLint status;
+  glGetProgramiv(program.get(), GL_LINK_STATUS, &status);
+  if (!status) {
+    if (shader_log) {
+      GLint log_length;
+      glGetProgramiv(program.get(), GL_INFO_LOG_LENGTH, &log_length);
+      std::string program_log(log_length, ' ');
+      glGetProgramInfoLog(program.get(), log_length, NULL,
+                          &program_log.front());
+      *shader_log << "Failed to link program:\n" << program_log.c_str() << "\n";
+    }
+    return 0;
+  }
+
+  return program;
 }
 
 struct RenderingCommand {
@@ -552,7 +539,10 @@ int GLWorkerCompositor::Init() {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   vertex_buffer_.reset(vertex_buffer);
 
-  if (GenerateShaders(&blend_programs_)) {
+  std::ostringstream shader_log;
+  blend_programs_.emplace_back(GenerateProgram(1, &shader_log));
+  if (blend_programs_.back().get() == 0) {
+    ALOGE("%s", shader_log.str().c_str());
     return 1;
   }
 
@@ -634,19 +624,18 @@ int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
   glEnable(GL_SCISSOR_TEST);
 
   for (const RenderingCommand &cmd : commands) {
-    if (cmd.texture_count <= 0) {
+    if (cmd.texture_count == 0)
       continue;
-    }
 
     // TODO(zachr): handle the case of too many overlapping textures for one
     // area by falling back to rendering as many layers as possible using
     // multiple blending passes.
-    if (cmd.texture_count > blend_programs_.size()) {
+    GLint program = PrepareAndCacheProgram(cmd.texture_count);
+    if (program == 0) {
       ALOGE("Too many layers to render in one area");
       continue;
     }
 
-    GLint program = blend_programs_[cmd.texture_count - 1].get();
     glUseProgram(program);
     GLint gl_viewport_loc = glGetUniformLocation(program, "uViewport");
     GLint gl_crop_loc = glGetUniformLocation(program, "uLayerCrop");
@@ -797,6 +786,24 @@ GLWorkerCompositor::PrepareAndCacheFramebuffer(
                                     std::move(gl_fb_tex_auto),
                                     std::move(gl_fb_auto));
   return &cached_framebuffers_.back();
+}
+
+GLint GLWorkerCompositor::PrepareAndCacheProgram(unsigned texture_count) {
+  if (blend_programs_.size() >= texture_count) {
+    GLint program = blend_programs_[texture_count - 1].get();
+    if (program != 0)
+      return program;
+  }
+
+  AutoGLProgram program = GenerateProgram(texture_count, NULL);
+  if (program.get() != 0) {
+    if (blend_programs_.size() < texture_count)
+      blend_programs_.resize(texture_count);
+    blend_programs_[texture_count - 1] = std::move(program);
+    return blend_programs_[texture_count - 1].get();
+  }
+
+  return 0;
 }
 
 }  // namespace android
