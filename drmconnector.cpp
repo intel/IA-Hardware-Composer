@@ -81,6 +81,8 @@ int DrmConnector::UpdateModes() {
     return -ENODEV;
   }
 
+  state_ = c->connection;
+
   std::vector<DrmMode> new_modes;
   for (int i = 0; i < c->count_modes; ++i) {
     bool exists = false;
@@ -124,6 +126,10 @@ DrmEncoder *DrmConnector::encoder() const {
 
 void DrmConnector::set_encoder(DrmEncoder *encoder) {
   encoder_ = encoder;
+}
+
+drmModeConnection DrmConnector::state() const {
+  return state_;
 }
 
 uint32_t DrmConnector::mm_width() const {
