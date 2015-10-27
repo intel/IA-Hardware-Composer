@@ -35,10 +35,10 @@ static const int kMaxQueueDepth = 3;
 static const int kAcquireWaitTimeoutMs = 50;
 
 VirtualCompositorWorker::VirtualCompositorWorker()
-    : Worker("virtual-compositor", HAL_PRIORITY_URGENT_DISPLAY)
-    , timeline_fd_(-1)
-    , timeline_(0)
-    , timeline_current_(0) {
+    : Worker("virtual-compositor", HAL_PRIORITY_URGENT_DISPLAY),
+      timeline_fd_(-1),
+      timeline_(0),
+      timeline_current_(0) {
 }
 
 VirtualCompositorWorker::~VirtualCompositorWorker() {

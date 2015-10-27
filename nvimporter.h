@@ -29,12 +29,12 @@ namespace android {
 class NvImporter : public Importer {
  public:
   NvImporter(DrmResources *drm);
-  virtual ~NvImporter();
+  ~NvImporter() override;
 
   int Init();
 
-  virtual int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo);
-  virtual int ReleaseBuffer(hwc_drm_bo_t *bo);
+  int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
+  int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
  private:
   typedef struct NvBuffer {

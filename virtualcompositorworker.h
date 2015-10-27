@@ -27,13 +27,13 @@ namespace android {
 class VirtualCompositorWorker : public Worker {
  public:
   VirtualCompositorWorker();
-  ~VirtualCompositorWorker();
+  ~VirtualCompositorWorker() override;
 
   int Init();
   void QueueComposite(hwc_display_contents_1_t *dc);
 
  protected:
-  virtual void Routine();
+  void Routine() override;
 
  private:
   struct VirtualComposition {
