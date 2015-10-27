@@ -208,6 +208,7 @@ enum class DrmHwcBlending : int32_t {
 
 struct DrmHwcLayer {
   buffer_handle_t sf_handle = NULL;
+  int gralloc_buffer_usage = 0;
   DrmHwcBuffer buffer;
   DrmHwcNativeHandle handle;
   DrmHwcTransform transform = DrmHwcTransform::kIdentity;

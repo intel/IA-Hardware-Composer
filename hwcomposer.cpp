@@ -318,6 +318,18 @@ int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
   if (ret)
     return ret;
 
+  ret = gralloc->perform(gralloc, GRALLOC_MODULE_PERFORM_GET_USAGE,
+                         handle.get(), &gralloc_buffer_usage);
+  if (ret) {
+    // TODO(zachr): Once GRALLOC_MODULE_PERFORM_GET_USAGE is implemented, remove
+    // "ret = 0" and enable the error logging code.
+    ret = 0;
+#if 0
+    ALOGE("Failed to get usage for buffer %p (%d)", handle.get(), ret);
+    return ret;
+#endif
+  }
+
   return 0;
 }
 
