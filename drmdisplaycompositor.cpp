@@ -74,9 +74,10 @@ void SquashState::GenerateHistory(DrmHwcLayer *layers, size_t num_layers,
   std::bitset<kMaxLayers> changed_layers;
   for (size_t i = 0; i < last_handles_.size(); i++) {
     DrmHwcLayer *layer = &layers[i];
-    if (last_handles_[i] != layer->sf_handle) {
+    // Protected layers can't be squashed so we treat them as constantly
+    // changing.
+    if (layer->protected_usage() || last_handles_[i] != layer->sf_handle)
       changed_layers.set(i);
-    }
   }
 
   for (size_t i = 0; i < regions_.size(); i++) {

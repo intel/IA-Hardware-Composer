@@ -155,6 +155,11 @@ struct DrmHwcLayer {
   buffer_handle_t get_usable_handle() const {
     return handle.get() != NULL ? handle.get() : sf_handle;
   }
+
+  bool protected_usage() const {
+    return (gralloc_buffer_usage & GRALLOC_USAGE_PROTECTED) ==
+           GRALLOC_USAGE_PROTECTED;
+  }
 };
 
 struct DrmHwcDisplayContents {
