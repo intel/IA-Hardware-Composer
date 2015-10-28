@@ -161,8 +161,8 @@ void NvImporter::ReleaseBufferImpl(hwc_drm_bo_t *bo) {
       ALOGE("Failed to close gem handle %d %d", i, ret);
     } else {
       /* Clear any duplicate gem handle as well but don't close again */
-      for(int j = i + 1; j < num_gem_handles; j++)
-        if(bo->gem_handles[j] == bo->gem_handles[i])
+      for (int j = i + 1; j < num_gem_handles; j++)
+        if (bo->gem_handles[j] == bo->gem_handles[i])
           bo->gem_handles[j] = 0;
       bo->gem_handles[i] = 0;
     }

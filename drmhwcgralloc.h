@@ -64,4 +64,4 @@ typedef struct hwc_drm_bo {
   void *priv;
 } hwc_drm_bo_t;
 
-#endif // ANDROID_DRMHWCGRALLOC_H_
+#endif  // ANDROID_DRMHWCGRALLOC_H_

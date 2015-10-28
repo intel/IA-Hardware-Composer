@@ -108,14 +108,14 @@ class DrmDisplayCompositor {
   class FrameWorker : public Worker {
    public:
     FrameWorker(DrmDisplayCompositor *compositor);
-    ~FrameWorker();
+    ~FrameWorker() override;
 
     int Init();
     void QueueFrame(std::unique_ptr<DrmDisplayComposition> composition,
                     int status);
 
    protected:
-    virtual void Routine();
+    void Routine() override;
 
    private:
     DrmDisplayCompositor *compositor_;

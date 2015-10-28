@@ -27,12 +27,12 @@ namespace android {
 class DrmGenericImporter : public Importer {
  public:
   DrmGenericImporter(DrmResources *drm);
-  virtual ~DrmGenericImporter();
+  ~DrmGenericImporter() override;
 
   int Init();
 
-  virtual int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo);
-  virtual int ReleaseBuffer(hwc_drm_bo_t *bo);
+  int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
+  int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);

@@ -31,7 +31,7 @@ namespace android {
 class VSyncWorker : public Worker {
  public:
   VSyncWorker();
-  ~VSyncWorker();
+  ~VSyncWorker() override;
 
   int Init(DrmResources *drm, int display);
   int SetProcs(hwc_procs_t const *procs);
@@ -39,7 +39,7 @@ class VSyncWorker : public Worker {
   int VSyncControl(bool enabled);
 
  protected:
-  virtual void Routine();
+  void Routine() override;
 
  private:
   int64_t GetPhasedVSync(int64_t frame_ns, int64_t current);
