@@ -71,6 +71,7 @@ class DrmMode {
   uint32_t v_sync_end_;
   uint32_t v_total_;
   uint32_t v_scan_;
+  uint32_t v_refresh_;
 
   uint32_t flags_;
   uint32_t type_;
