@@ -35,7 +35,7 @@
 #include <sync/sync.h>
 #include <utils/Trace.h>
 
-#define DRM_DISPLAY_COMPOSITOR_MAX_QUEUE_DEPTH 3
+#define DRM_DISPLAY_COMPOSITOR_MAX_QUEUE_DEPTH 2
 
 namespace android {
 
@@ -174,10 +174,68 @@ static bool UsesSquash(const std::vector<DrmCompositionPlane> &comp_planes) {
                      });
 }
 
+DrmDisplayCompositor::FrameWorker::FrameWorker(DrmDisplayCompositor *compositor)
+    : Worker("frame-worker", HAL_PRIORITY_URGENT_DISPLAY),
+      compositor_(compositor) {
+}
+
+DrmDisplayCompositor::FrameWorker::~FrameWorker() {
+}
+
+int DrmDisplayCompositor::FrameWorker::Init() {
+  return InitWorker();
+}
+
+void DrmDisplayCompositor::FrameWorker::QueueFrame(
+    std::unique_ptr<DrmDisplayComposition> composition, int status) {
+  Lock();
+  FrameState frame;
+  frame.composition = std::move(composition);
+  frame.status = status;
+  frame_queue_.push(std::move(frame));
+  SignalLocked();
+  Unlock();
+}
+
+void DrmDisplayCompositor::FrameWorker::Routine() {
+  int ret = Lock();
+  if (ret) {
+    ALOGE("Failed to lock worker, %d", ret);
+    return;
+  }
+
+  int wait_ret = 0;
+  if (frame_queue_.empty()) {
+    wait_ret = WaitForSignalOrExitLocked();
+  }
+
+  FrameState frame;
+  if (!frame_queue_.empty()) {
+    frame = std::move(frame_queue_.front());
+    frame_queue_.pop();
+  }
+
+  ret = Unlock();
+  if (ret) {
+    ALOGE("Failed to unlock worker, %d", ret);
+    return;
+  }
+
+  if (wait_ret == -EINTR) {
+    return;
+  } else if (wait_ret) {
+    ALOGE("Failed to wait for signal, %d", wait_ret);
+    return;
+  }
+
+  compositor_->ApplyFrame(std::move(frame.composition), frame.status);
+}
+
 DrmDisplayCompositor::DrmDisplayCompositor()
     : drm_(NULL),
       display_(-1),
       worker_(this),
+      frame_worker_(this),
       initialized_(false),
       active_(false),
       needs_modeset_(false),
@@ -196,6 +254,7 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
     return;
 
   worker_.Exit();
+  frame_worker_.Exit();
 
   int ret = pthread_mutex_lock(&lock_);
   if (ret)
@@ -227,6 +286,12 @@ int DrmDisplayCompositor::Init(DrmResources *drm, int display) {
   if (ret) {
     pthread_mutex_destroy(&lock_);
     ALOGE("Failed to initialize compositor worker %d\n", ret);
+    return ret;
+  }
+  ret = frame_worker_.Init();
+  if (ret) {
+    pthread_mutex_destroy(&lock_);
+    ALOGE("Failed to initialize frame worker %d\n", ret);
     return ret;
   }
 
@@ -438,7 +503,7 @@ int DrmDisplayCompositor::DisablePlanes(DrmDisplayComposition *display_comp) {
   return 0;
 }
 
-int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
+int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
   int ret = 0;
 
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
@@ -496,6 +561,39 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     pre_comp_layer_index = layers.size() - 1;
     framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
   }
+
+  for (DrmCompositionPlane &comp_plane : comp_planes) {
+    switch (comp_plane.source_layer) {
+      case DrmCompositionPlane::kSourceSquash:
+        comp_plane.source_layer = squash_layer_index;
+        break;
+      case DrmCompositionPlane::kSourcePreComp:
+        if (!do_pre_comp) {
+          ALOGE(
+              "Can not use pre composite framebuffer with no pre composite "
+              "regions");
+          return -EINVAL;
+        }
+        comp_plane.source_layer = pre_comp_layer_index;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return ret;
+}
+
+int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
+  int ret = 0;
+
+  std::vector<DrmHwcLayer> &layers = display_comp->layers();
+  std::vector<DrmCompositionPlane> &comp_planes =
+      display_comp->composition_planes();
+  std::vector<DrmCompositionRegion> &pre_comp_regions =
+      display_comp->pre_comp_regions();
+
+  DrmFramebuffer *pre_comp_fb;
 
   DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
   if (!connector) {
@@ -568,27 +666,12 @@ int DrmDisplayCompositor::ApplyFrame(DrmDisplayComposition *display_comp) {
     switch (comp_plane.source_layer) {
       case DrmCompositionPlane::kSourceNone:
         break;
-      case DrmCompositionPlane::kSourceSquash: {
-        DrmHwcLayer &layer = layers[squash_layer_index];
-        fb_id = layer.buffer->fb_id;
-        display_frame = layer.display_frame;
-        source_crop = layer.source_crop;
+      case DrmCompositionPlane::kSourceSquash:
+        ALOGE("Actual source layer index expected for squash layer");
         break;
-      }
-      case DrmCompositionPlane::kSourcePreComp: {
-        if (!do_pre_comp) {
-          ALOGE(
-              "Can not use pre composite framebuffer with no pre composite "
-              "regions");
-          ret = -EINVAL;
-          goto out;
-        }
-        DrmHwcLayer &layer = layers[pre_comp_layer_index];
-        fb_id = layer.buffer->fb_id;
-        display_frame = layer.display_frame;
-        source_crop = layer.source_crop;
+      case DrmCompositionPlane::kSourcePreComp:
+        ALOGE("Actual source layer index expected for pre-comp layer");
         break;
-      }
       default: {
         if (comp_plane.source_layer >= layers.size()) {
           ALOGE("Source layer index %zu out of bounds %zu",
@@ -776,6 +859,38 @@ int DrmDisplayCompositor::ApplyDpms(DrmDisplayComposition *display_comp) {
   return 0;
 }
 
+void DrmDisplayCompositor::ApplyFrame(
+    std::unique_ptr<DrmDisplayComposition> composition, int status) {
+  int ret = status;
+
+  if (!ret)
+    ret = CommitFrame(composition.get());
+
+  if (ret) {
+    ALOGE("Composite failed for display %d", display_);
+
+    // Disable the hw used by the last active composition. This allows us to
+    // signal the release fences from that composition to avoid hanging.
+    if (DisablePlanes(active_composition_.get()))
+      return;
+  }
+  ++dump_frames_composited_;
+
+  if (active_composition_)
+    active_composition_->SignalCompositionDone();
+
+  ret = pthread_mutex_lock(&lock_);
+  if (ret)
+    ALOGE("Failed to acquire lock for active_composition swap");
+
+  active_composition_.swap(composition);
+
+  if (!ret)
+    ret = pthread_mutex_unlock(&lock_);
+  if (ret)
+    ALOGE("Failed to release lock for active_composition swap");
+}
+
 int DrmDisplayCompositor::Composite() {
   ATRACE_CALL();
 
@@ -813,16 +928,8 @@ int DrmDisplayCompositor::Composite() {
 
   switch (composition->type()) {
     case DRM_COMPOSITION_TYPE_FRAME:
-      ret = ApplyFrame(composition.get());
-      if (ret) {
-        ALOGE("Composite failed for display %d", display_);
-
-        // Disable the hw used by the last active composition. This allows us to
-        // signal the release fences from that composition to avoid hanging.
-        if (DisablePlanes(active_composition_.get()))
-          return ret;
-      }
-      ++dump_frames_composited_;
+      ret = PrepareFrame(composition.get());
+      frame_worker_.QueueFrame(std::move(composition), ret);
       break;
     case DRM_COMPOSITION_TYPE_DPMS:
       ret = ApplyDpms(composition.get());
@@ -837,20 +944,6 @@ int DrmDisplayCompositor::Composite() {
       ALOGE("Unknown composition type %d", composition->type());
       return -EINVAL;
   }
-
-  if (active_composition_)
-    active_composition_->SignalCompositionDone();
-
-  ret = pthread_mutex_lock(&lock_);
-  if (ret)
-    ALOGE("Failed to acquire lock for active_composition swap");
-
-  active_composition_.swap(composition);
-
-  if (!ret)
-    ret = pthread_mutex_unlock(&lock_);
-  if (ret)
-    ALOGE("Failed to release lock for active_composition swap");
 
   return ret;
 }

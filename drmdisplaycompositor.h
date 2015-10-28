@@ -40,7 +40,7 @@ class GLWorkerCompositor;
 
 class SquashState {
  public:
-  static const unsigned kHistoryLength = 6; // TODO: make this number not magic
+  static const unsigned kHistoryLength = 6;  // TODO: make this number not magic
   static const unsigned kMaxLayers = 64;
 
   struct Region {
@@ -100,6 +100,28 @@ class DrmDisplayCompositor {
   }
 
  private:
+  struct FrameState {
+    std::unique_ptr<DrmDisplayComposition> composition;
+    int status = 0;
+  };
+
+  class FrameWorker : public Worker {
+   public:
+    FrameWorker(DrmDisplayCompositor *compositor);
+    ~FrameWorker();
+
+    int Init();
+    void QueueFrame(std::unique_ptr<DrmDisplayComposition> composition,
+                    int status);
+
+   protected:
+    virtual void Routine();
+
+   private:
+    DrmDisplayCompositor *compositor_;
+    std::queue<FrameState> frame_queue_;
+  };
+
   DrmDisplayCompositor(const DrmDisplayCompositor &) = delete;
 
   // We'll wait for acquire fences to fire for kAcquireWaitTimeoutMs,
@@ -111,14 +133,19 @@ class DrmDisplayCompositor {
                          DrmDisplayComposition *display_comp);
   int ApplySquash(DrmDisplayComposition *display_comp);
   int ApplyPreComposite(DrmDisplayComposition *display_comp);
-  int ApplyFrame(DrmDisplayComposition *display_comp);
+  int PrepareFrame(DrmDisplayComposition *display_comp);
+  int CommitFrame(DrmDisplayComposition *display_comp);
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
+
+  void ApplyFrame(std::unique_ptr<DrmDisplayComposition> composition,
+                  int status);
 
   DrmResources *drm_;
   int display_;
 
   DrmCompositorWorker worker_;
+  FrameWorker frame_worker_;
 
   std::queue<std::unique_ptr<DrmDisplayComposition>> composite_queue_;
   std::unique_ptr<DrmDisplayComposition> active_composition_;
