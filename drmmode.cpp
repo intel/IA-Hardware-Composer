@@ -36,6 +36,7 @@ DrmMode::DrmMode(drmModeModeInfoPtr m)
       v_sync_end_(m->vsync_end),
       v_total_(m->vtotal),
       v_scan_(m->vscan),
+      v_refresh_(m->vrefresh),
       flags_(m->flags),
       type_(m->type),
       name_(m->name) {
@@ -54,6 +55,7 @@ DrmMode::DrmMode()
       v_sync_end_(0),
       v_total_(0),
       v_scan_(0),
+      v_refresh_(0),
       flags_(0),
       type_(0),
       name_("") {
@@ -83,6 +85,7 @@ void DrmMode::ToDrmModeModeInfo(drm_mode_modeinfo *m) const {
   m->vsync_end = v_sync_end_;
   m->vtotal = v_total_;
   m->vscan = v_scan_;
+  m->vrefresh = v_refresh_;
   m->flags = flags_;
   m->type = type_;
   strncpy(m->name, name_.c_str(), DRM_DISPLAY_MODE_LEN);
@@ -141,7 +144,8 @@ uint32_t DrmMode::v_scan() const {
 }
 
 float DrmMode::v_refresh() const {
-  return clock_ / (float)(v_total_ * h_total_) * 1000.0f;
+  return v_refresh_ ? v_refresh_ * 1.0f :
+                      clock_ / (float)(v_total_ * h_total_) * 1000.0f;
 }
 
 uint32_t DrmMode::flags() const {
