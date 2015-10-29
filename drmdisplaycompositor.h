@@ -17,7 +17,7 @@
 #ifndef ANDROID_DRM_DISPLAY_COMPOSITOR_H_
 #define ANDROID_DRM_DISPLAY_COMPOSITOR_H_
 
-#include "drm_hwcomposer.h"
+#include "drmhwcomposer.h"
 #include "drmcomposition.h"
 #include "drmcompositorworker.h"
 #include "drmframebuffer.h"

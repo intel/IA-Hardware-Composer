@@ -17,7 +17,7 @@
 #ifndef ANDROID_VIRTUAL_COMPOSITOR_WORKER_H_
 #define ANDROID_VIRTUAL_COMPOSITOR_WORKER_H_
 
-#include "drm_hwcomposer.h"
+#include "drmhwcomposer.h"
 #include "worker.h"
 
 #include <queue>

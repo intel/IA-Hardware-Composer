@@ -17,7 +17,7 @@
 #ifndef ANDROID_DRM_DISPLAY_COMPOSITION_H_
 #define ANDROID_DRM_DISPLAY_COMPOSITION_H_
 
-#include "drm_hwcomposer.h"
+#include "drmhwcomposer.h"
 #include "drmcrtc.h"
 #include "drmplane.h"
 #include "glworker.h"
