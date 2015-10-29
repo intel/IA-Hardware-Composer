@@ -585,6 +585,8 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
 }
 
 int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
+  ATRACE_CALL();
+
   int ret = 0;
 
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
