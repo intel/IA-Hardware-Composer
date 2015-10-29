@@ -127,22 +127,17 @@ typedef struct hwc_drm_display {
 struct hwc_context_t {
   // map of display:hwc_drm_display_t
   typedef std::map<int, hwc_drm_display_t> DisplayMap;
-  typedef DisplayMap::iterator DisplayMapIter;
-
-  hwc_context_t() : procs(NULL), importer(NULL) {
-  }
 
   ~hwc_context_t() {
     virtual_compositor_worker.Exit();
-    delete importer;
   }
 
   hwc_composer_device_1_t device;
-  hwc_procs_t const *procs;
+  hwc_procs_t const *procs = NULL;
 
   DisplayMap displays;
   DrmResources drm;
-  Importer *importer;
+  std::unique_ptr<Importer> importer;
   const gralloc_module_t *gralloc;
   DummySwSyncTimeline dummy_timeline;
   VirtualCompositorWorker virtual_compositor_worker;
@@ -173,20 +168,6 @@ static void free_buffer_handle(native_handle_t *handle) {
   ret = native_handle_delete(handle);
   if (ret)
     ALOGE("Failed to delete native handle %d", ret);
-}
-
-OutputFd &OutputFd::operator=(OutputFd &&rhs) {
-  if (fd_ == NULL) {
-    std::swap(fd_, rhs.fd_);
-  } else {
-    if (*fd_ < 0) {
-      ALOGE("Failed to fill OutputFd %p before assignment", fd_);
-    }
-    fd_ = rhs.fd_;
-    rhs.fd_ = NULL;
-  }
-
-  return *this;
 }
 
 const hwc_drm_bo *DrmHwcBuffer::operator->() const {
@@ -501,7 +482,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
 
       DrmHwcLayer &layer = display_contents.layers[j];
 
-      ret = layer.InitFromHwcLayer(sf_layer, ctx->importer, ctx->gralloc);
+      ret = layer.InitFromHwcLayer(sf_layer, ctx->importer.get(), ctx->gralloc);
       if (ret) {
         ALOGE("Failed to init composition from layer %d", ret);
         return ret;
@@ -511,7 +492,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
   }
 
   std::unique_ptr<DrmComposition> composition(
-      ctx->drm.compositor()->CreateComposition(ctx->importer));
+      ctx->drm.compositor()->CreateComposition(ctx->importer.get()));
   if (!composition) {
     ALOGE("Drm composition init failed");
     return -EINVAL;
@@ -600,10 +581,8 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
 
   ctx->procs = procs;
 
-  for (hwc_context_t::DisplayMapIter iter = ctx->displays.begin();
-       iter != ctx->displays.end(); ++iter) {
-    iter->second.vsync_worker.SetProcs(procs);
-  }
+  for (std::pair<const int, hwc_drm_display> &display_entry : ctx->displays)
+    display_entry.second.vsync_worker.SetProcs(procs);
 }
 
 static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
@@ -628,13 +607,12 @@ static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
     return ret;
   }
 
-  for (DrmConnector::ModeIter iter = connector->begin_modes();
-       iter != connector->end_modes(); ++iter) {
+  for (const DrmMode &mode : connector->modes()) {
     size_t idx = hd->config_ids.size();
     if (idx == *num_configs)
       break;
-    hd->config_ids.push_back(iter->id());
-    configs[idx] = iter->id();
+    hd->config_ids.push_back(mode.id());
+    configs[idx] = mode.id();
   }
   *num_configs = hd->config_ids.size();
   return *num_configs == 0 ? -1 : 0;
@@ -651,10 +629,9 @@ static int hwc_get_display_attributes(struct hwc_composer_device_1 *dev,
     return -ENODEV;
   }
   DrmMode mode;
-  for (DrmConnector::ModeIter iter = c->begin_modes(); iter != c->end_modes();
-       ++iter) {
-    if (iter->id() == config) {
-      mode = *iter;
+  for (const DrmMode &conn_mode : c->modes()) {
+    if (conn_mode.id() == config) {
+      mode = conn_mode;
       break;
     }
   }
@@ -723,10 +700,9 @@ static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
     return -ENODEV;
   }
   DrmMode mode;
-  for (DrmConnector::ModeIter iter = c->begin_modes(); iter != c->end_modes();
-       ++iter) {
-    if (iter->id() == hd->config_ids[index]) {
-      mode = *iter;
+  for (const DrmMode &conn_mode : c->modes()) {
+    if (conn_mode.id() == hd->config_ids[index]) {
+      mode = conn_mode;
       break;
     }
   }
@@ -792,11 +768,10 @@ static int hwc_initialize_display(struct hwc_context_t *ctx, int display) {
 
 static int hwc_enumerate_displays(struct hwc_context_t *ctx) {
   int ret;
-  for (DrmResources::ConnectorIter c = ctx->drm.begin_connectors();
-       c != ctx->drm.end_connectors(); ++c) {
-    ret = hwc_initialize_display(ctx, (*c)->display());
+  for (auto &conn : ctx->drm.connectors()) {
+    ret = hwc_initialize_display(ctx, conn->display());
     if (ret) {
-      ALOGE("Failed to initialize display %d", (*c)->display());
+      ALOGE("Failed to initialize display %d", conn->display());
       return ret;
     }
   }
@@ -816,7 +791,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     return -EINVAL;
   }
 
-  struct hwc_context_t *ctx = new hwc_context_t();
+  std::unique_ptr<hwc_context_t> ctx(new hwc_context_t());
   if (!ctx) {
     ALOGE("Failed to allocate hwc context");
     return -ENOMEM;
@@ -825,7 +800,6 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   int ret = ctx->drm.Init();
   if (ret) {
     ALOGE("Can't initialize Drm object %d", ret);
-    delete ctx;
     return ret;
   }
 
@@ -833,7 +807,6 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
                       (const hw_module_t **)&ctx->gralloc);
   if (ret) {
     ALOGE("Failed to open gralloc module %d", ret);
-    delete ctx;
     return ret;
   }
 
@@ -843,17 +816,15 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     return ret;
   }
 
-  ctx->importer = Importer::CreateInstance(&ctx->drm);
+  ctx->importer.reset(Importer::CreateInstance(&ctx->drm));
   if (!ctx->importer) {
     ALOGE("Failed to create importer instance");
-    delete ctx;
     return ret;
   }
 
-  ret = hwc_enumerate_displays(ctx);
+  ret = hwc_enumerate_displays(ctx.get());
   if (ret) {
     ALOGE("Failed to enumerate displays: %s", strerror(ret));
-    delete ctx;
     return ret;
   }
 
@@ -876,6 +847,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   ctx->device.setCursorPositionAsync = NULL; /* TODO: Add cursor */
 
   *dev = &ctx->device.common;
+  ctx.release();
 
   return 0;
 }

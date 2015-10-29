@@ -37,17 +37,6 @@ DrmProperty::DrmProperty(drmModePropertyPtr p, uint64_t value)
   Init(p, value);
 }
 
-DrmProperty::DrmProperty()
-    : id_(0),
-      type_(DRM_PROPERTY_TYPE_INVALID),
-      flags_(0),
-      name_(""),
-      value_(0) {
-}
-
-DrmProperty::~DrmProperty() {
-}
-
 void DrmProperty::Init(drmModePropertyPtr p, uint64_t value) {
   id_ = p->prop_id;
   flags_ = p->flags;

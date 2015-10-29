@@ -31,13 +31,11 @@ class DrmResources;
 
 class DrmConnector {
  public:
-  typedef std::vector<DrmEncoder *>::const_iterator EncoderIter;
-  typedef std::vector<DrmMode>::const_iterator ModeIter;
-
   DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
                DrmEncoder *current_encoder,
                std::vector<DrmEncoder *> &possible_encoders);
-  ~DrmConnector();
+  DrmConnector(const DrmProperty &) = delete;
+  DrmConnector &operator=(const DrmProperty &) = delete;
 
   int Init();
 
@@ -50,16 +48,18 @@ class DrmConnector {
 
   int UpdateModes();
 
-  ModeIter begin_modes() const;
-  ModeIter end_modes() const;
+  const std::vector<DrmMode> &modes() const {
+    return modes_;
+  }
   const DrmMode &active_mode() const;
   void set_active_mode(const DrmMode &mode);
 
   const DrmProperty &dpms_property() const;
   const DrmProperty &crtc_id_property() const;
 
-  EncoderIter begin_possible_encoders() const;
-  EncoderIter end_possible_encoders() const;
+  const std::vector<DrmEncoder *> &possible_encoders() const {
+    return possible_encoders_;
+  }
   DrmEncoder *encoder() const;
   void set_encoder(DrmEncoder *encoder);
 
@@ -67,8 +67,6 @@ class DrmConnector {
   uint32_t mm_height() const;
 
  private:
-  DrmConnector(const DrmConnector &);
-
   DrmResources *drm_;
 
   uint32_t id_;

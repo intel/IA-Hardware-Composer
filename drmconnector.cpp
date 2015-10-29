@@ -41,9 +41,6 @@ DrmConnector::DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
       possible_encoders_(possible_encoders) {
 }
 
-DrmConnector::~DrmConnector() {
-}
-
 int DrmConnector::Init() {
   int ret = drm_->GetConnectorProperty(*this, "DPMS", &dpms_property_);
   if (ret) {
@@ -87,10 +84,9 @@ int DrmConnector::UpdateModes() {
   std::vector<DrmMode> new_modes;
   for (int i = 0; i < c->count_modes; ++i) {
     bool exists = false;
-    for (std::vector<DrmMode>::iterator iter = modes_.begin();
-         iter != modes_.end(); ++iter) {
-      if (*iter == c->modes[i]) {
-        new_modes.push_back(*iter);
+    for (const DrmMode &mode : modes_) {
+      if (mode == c->modes[i]) {
+        new_modes.push_back(mode);
         exists = true;
         break;
       }
@@ -122,28 +118,12 @@ const DrmProperty &DrmConnector::crtc_id_property() const {
   return crtc_id_property_;
 }
 
-DrmConnector::ModeIter DrmConnector::begin_modes() const {
-  return modes_.begin();
-}
-
-DrmConnector::ModeIter DrmConnector::end_modes() const {
-  return modes_.end();
-}
-
 DrmEncoder *DrmConnector::encoder() const {
   return encoder_;
 }
 
 void DrmConnector::set_encoder(DrmEncoder *encoder) {
   encoder_ = encoder;
-}
-
-DrmConnector::EncoderIter DrmConnector::begin_possible_encoders() const {
-  return possible_encoders_.begin();
-}
-
-DrmConnector::EncoderIter DrmConnector::end_possible_encoders() const {
-  return possible_encoders_.end();
 }
 
 uint32_t DrmConnector::mm_width() const {

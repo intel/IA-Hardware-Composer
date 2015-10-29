@@ -31,9 +31,6 @@ DrmEncoder::DrmEncoder(drmModeEncoderPtr e, DrmCrtc *current_crtc,
       possible_crtcs_(possible_crtcs) {
 }
 
-DrmEncoder::~DrmEncoder() {
-}
-
 uint32_t DrmEncoder::id() const {
   return id_;
 }
@@ -44,13 +41,5 @@ DrmCrtc *DrmEncoder::crtc() const {
 
 void DrmEncoder::set_crtc(DrmCrtc *crtc) {
   crtc_ = crtc;
-}
-
-DrmEncoder::CrtcIter DrmEncoder::begin_possible_crtcs() const {
-  return possible_crtcs_.begin();
-}
-
-DrmEncoder::CrtcIter DrmEncoder::end_possible_crtcs() const {
-  return possible_crtcs_.end();
 }
 }

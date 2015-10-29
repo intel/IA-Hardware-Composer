@@ -42,28 +42,6 @@ DrmMode::DrmMode(drmModeModeInfoPtr m)
       name_(m->name) {
 }
 
-DrmMode::DrmMode()
-    : id_(0),
-      clock_(0),
-      h_display_(0),
-      h_sync_start_(0),
-      h_sync_end_(0),
-      h_total_(0),
-      h_skew_(0),
-      v_display_(0),
-      v_sync_start_(0),
-      v_sync_end_(0),
-      v_total_(0),
-      v_scan_(0),
-      v_refresh_(0),
-      flags_(0),
-      type_(0),
-      name_("") {
-}
-
-DrmMode::~DrmMode() {
-}
-
 bool DrmMode::operator==(const drmModeModeInfo &m) const {
   return clock_ == m.clock && h_display_ == m.hdisplay &&
          h_sync_start_ == m.hsync_start && h_sync_end_ == m.hsync_end &&

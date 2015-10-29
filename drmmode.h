@@ -25,9 +25,8 @@ namespace android {
 
 class DrmMode {
  public:
+  DrmMode() = default;
   DrmMode(drmModeModeInfoPtr m);
-  DrmMode();
-  ~DrmMode();
 
   bool operator==(const drmModeModeInfo &m) const;
   void ToDrmModeModeInfo(drm_mode_modeinfo *m) const;
@@ -56,25 +55,25 @@ class DrmMode {
   std::string name() const;
 
  private:
-  uint32_t id_;
+  uint32_t id_ = 0;
 
-  uint32_t clock_;
+  uint32_t clock_ = 0;
 
-  uint32_t h_display_;
-  uint32_t h_sync_start_;
-  uint32_t h_sync_end_;
-  uint32_t h_total_;
-  uint32_t h_skew_;
+  uint32_t h_display_ = 0;
+  uint32_t h_sync_start_ = 0;
+  uint32_t h_sync_end_ = 0;
+  uint32_t h_total_ = 0;
+  uint32_t h_skew_ = 0;
 
-  uint32_t v_display_;
-  uint32_t v_sync_start_;
-  uint32_t v_sync_end_;
-  uint32_t v_total_;
-  uint32_t v_scan_;
-  uint32_t v_refresh_;
+  uint32_t v_display_ = 0;
+  uint32_t v_sync_start_ = 0;
+  uint32_t v_sync_end_ = 0;
+  uint32_t v_total_ = 0;
+  uint32_t v_scan_ = 0;
+  uint32_t v_refresh_ = 0;
 
-  uint32_t flags_;
-  uint32_t type_;
+  uint32_t flags_ = 0;
+  uint32_t type_ = 0;
 
   std::string name_;
 };

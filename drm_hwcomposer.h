@@ -22,6 +22,7 @@
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
+#include "autofd.h"
 #include "seperate_rects.h"
 #include "drmhwcgralloc.h"
 
@@ -38,79 +39,6 @@ bool hwc_import_bo_release(int fd, struct hwc_import_context *ctx,
 namespace android {
 
 class Importer;
-
-class UniqueFd {
- public:
-  UniqueFd() = default;
-  UniqueFd(int fd) : fd_(fd) {
-  }
-  UniqueFd(UniqueFd &&rhs) {
-    fd_ = rhs.fd_;
-    rhs.fd_ = -1;
-  }
-
-  UniqueFd &operator=(UniqueFd &&rhs) {
-    Set(rhs.Release());
-    return *this;
-  }
-
-  ~UniqueFd() {
-    if (fd_ >= 0)
-      close(fd_);
-  }
-
-  int Release() {
-    int old_fd = fd_;
-    fd_ = -1;
-    return old_fd;
-  }
-
-  int Set(int fd) {
-    if (fd_ >= 0)
-      close(fd_);
-    fd_ = fd;
-    return fd_;
-  }
-
-  void Close() {
-    if (fd_ >= 0)
-      close(fd_);
-    fd_ = -1;
-  }
-
-  int get() {
-    return fd_;
-  }
-
- private:
-  int fd_ = -1;
-};
-
-struct OutputFd {
-  OutputFd() = default;
-  OutputFd(int *fd) : fd_(fd) {
-  }
-  OutputFd(OutputFd &&rhs) {
-    fd_ = rhs.fd_;
-    rhs.fd_ = NULL;
-  }
-
-  OutputFd &operator=(OutputFd &&rhs);
-
-  int Set(int fd) {
-    if (*fd_ >= 0)
-      close(*fd_);
-    *fd_ = fd;
-    return fd;
-  }
-
-  int get() {
-    return *fd_;
-  }
-
- private:
-  int *fd_ = NULL;
-};
 
 class DrmHwcBuffer {
  public:
