@@ -17,7 +17,7 @@
 #ifndef ANDROID_DRM_IMPORTER_H_
 #define ANDROID_DRM_IMPORTER_H_
 
-#include "drm_hwcomposer.h"
+#include "drmhwcomposer.h"
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>

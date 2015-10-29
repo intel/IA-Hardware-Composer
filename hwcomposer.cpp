@@ -17,7 +17,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "hwcomposer-drm"
 
-#include "drm_hwcomposer.h"
+#include "drmhwcomposer.h"
 #include "drmresources.h"
 #include "importer.h"
 #include "virtualcompositorworker.h"
