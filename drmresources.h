@@ -29,20 +29,21 @@ namespace android {
 
 class DrmResources {
  public:
-  typedef std::vector<DrmConnector *>::const_iterator ConnectorIter;
-  typedef std::vector<DrmPlane *>::const_iterator PlaneIter;
-
   DrmResources();
-  ~DrmResources();
 
   int Init();
 
-  int fd() const;
+  int fd() const {
+    return fd_.get();
+  }
 
-  ConnectorIter begin_connectors() const;
-  ConnectorIter end_connectors() const;
-  PlaneIter begin_planes() const;
-  PlaneIter end_planes() const;
+  const std::vector<std::unique_ptr<DrmConnector>> &connectors() const {
+    return connectors_;
+  }
+
+  const std::vector<std::unique_ptr<DrmPlane>> &planes() const {
+    return planes_;
+  }
 
   DrmConnector *GetConnectorForDisplay(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
@@ -70,13 +71,13 @@ class DrmResources {
 
   int CreateDisplayPipe(DrmConnector *connector);
 
-  int fd_;
-  uint32_t mode_id_;
+  UniqueFd fd_;
+  uint32_t mode_id_ = 0;
 
-  std::vector<DrmConnector *> connectors_;
-  std::vector<DrmEncoder *> encoders_;
-  std::vector<DrmCrtc *> crtcs_;
-  std::vector<DrmPlane *> planes_;
+  std::vector<std::unique_ptr<DrmConnector>> connectors_;
+  std::vector<std::unique_ptr<DrmEncoder>> encoders_;
+  std::vector<std::unique_ptr<DrmCrtc>> crtcs_;
+  std::vector<std::unique_ptr<DrmPlane>> planes_;
   DrmCompositor compositor_;
 };
 }

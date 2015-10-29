@@ -36,19 +36,17 @@ DrmComposition::DrmComposition(DrmResources *drm, Importer *importer)
   property_get("hwc.drm.use_overlay_planes", use_overlay_planes_prop, "1");
   bool use_overlay_planes = atoi(use_overlay_planes_prop);
 
-  for (DrmResources::PlaneIter iter = drm_->begin_planes();
-       iter != drm_->end_planes(); ++iter) {
-    if ((*iter)->type() == DRM_PLANE_TYPE_PRIMARY)
-      primary_planes_.push_back(*iter);
-    else if (use_overlay_planes && (*iter)->type() == DRM_PLANE_TYPE_OVERLAY)
-      overlay_planes_.push_back(*iter);
+  for (auto &plane : drm->planes()) {
+    if (plane->type() == DRM_PLANE_TYPE_PRIMARY)
+      primary_planes_.push_back(plane.get());
+    else if (use_overlay_planes && plane->type() == DRM_PLANE_TYPE_OVERLAY)
+      overlay_planes_.push_back(plane.get());
   }
 }
 
 int DrmComposition::Init(uint64_t frame_no) {
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter) {
-    int display = (*iter)->display();
+  for (auto &conn : drm_->connectors()) {
+    int display = conn->display();
     composition_map_[display].reset(new DrmDisplayComposition());
     if (!composition_map_[display]) {
       ALOGE("Failed to allocate new display composition\n");
@@ -104,9 +102,8 @@ std::unique_ptr<DrmDisplayComposition> DrmComposition::TakeDisplayComposition(
 
 int DrmComposition::Plan(std::map<int, DrmDisplayCompositor> &compositor_map) {
   int ret = 0;
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter) {
-    int display = (*iter)->display();
+  for (auto &conn : drm_->connectors()) {
+    int display = conn->display();
     DrmDisplayComposition *comp = GetDisplayComposition(display);
     ret = comp->Plan(compositor_map[display].squash_state(), &primary_planes_,
                      &overlay_planes_);
@@ -120,9 +117,8 @@ int DrmComposition::Plan(std::map<int, DrmDisplayCompositor> &compositor_map) {
 }
 
 int DrmComposition::DisableUnusedPlanes() {
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter) {
-    int display = (*iter)->display();
+  for (auto &conn : drm_->connectors()) {
+    int display = conn->display();
     DrmDisplayComposition *comp = GetDisplayComposition(display);
 
     /*

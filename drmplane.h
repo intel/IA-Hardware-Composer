@@ -31,7 +31,8 @@ class DrmResources;
 class DrmPlane {
  public:
   DrmPlane(DrmResources *drm, drmModePlanePtr p);
-  ~DrmPlane();
+  DrmPlane(const DrmPlane &) = delete;
+  DrmPlane &operator=(const DrmPlane &) = delete;
 
   int Init();
 
@@ -55,8 +56,6 @@ class DrmPlane {
   const DrmProperty &alpha_property() const;
 
  private:
-  DrmPlane(const DrmPlane &);
-
   DrmResources *drm_;
   uint32_t id_;
 

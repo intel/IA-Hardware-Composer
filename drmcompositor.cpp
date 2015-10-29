@@ -34,9 +34,8 @@ DrmCompositor::~DrmCompositor() {
 }
 
 int DrmCompositor::Init() {
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter) {
-    int display = (*iter)->display();
+  for (auto &conn : drm_->connectors()) {
+    int display = conn->display();
     int ret = compositor_map_[display].Init(drm_, display);
     if (ret) {
       ALOGE("Failed to initialize display compositor for %d", display);
@@ -47,17 +46,14 @@ int DrmCompositor::Init() {
   return 0;
 }
 
-DrmComposition *DrmCompositor::CreateComposition(Importer *importer) {
-  DrmComposition *composition = new DrmComposition(drm_, importer);
-  if (!composition) {
-    ALOGE("Failed to allocate drm composition");
-    return NULL;
-  }
+std::unique_ptr<DrmComposition> DrmCompositor::CreateComposition(
+    Importer *importer) {
+  std::unique_ptr<DrmComposition> composition(
+      new DrmComposition(drm_, importer));
   int ret = composition->Init(++frame_no_);
   if (ret) {
     ALOGE("Failed to initialize drm composition %d", ret);
-    delete composition;
-    return NULL;
+    return nullptr;
   }
   return composition;
 }
@@ -74,9 +70,8 @@ int DrmCompositor::QueueComposition(
   if (ret)
     return ret;
 
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter) {
-    int display = (*iter)->display();
+  for (auto &conn : drm_->connectors()) {
+    int display = conn->display();
     int ret = compositor_map_[display].QueueComposition(
         composition->TakeDisplayComposition(display));
     if (ret) {
@@ -99,8 +94,7 @@ int DrmCompositor::Composite() {
 
 void DrmCompositor::Dump(std::ostringstream *out) const {
   *out << "DrmCompositor stats:\n";
-  for (DrmResources::ConnectorIter iter = drm_->begin_connectors();
-       iter != drm_->end_connectors(); ++iter)
-    compositor_map_[(*iter)->display()].Dump(out);
+  for (auto &conn : drm_->connectors())
+    compositor_map_[conn->display()].Dump(out);
 }
 }

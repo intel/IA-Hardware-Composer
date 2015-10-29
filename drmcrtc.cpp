@@ -39,9 +39,6 @@ DrmCrtc::DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe)
       mode_valid_(c->mode_valid) {
 }
 
-DrmCrtc::~DrmCrtc() {
-}
-
 int DrmCrtc::Init() {
   int ret = drm_->GetCrtcProperty(*this, "ACTIVE", &active_property_);
   if (ret) {

@@ -31,9 +31,6 @@ DrmPlane::DrmPlane(DrmResources *drm, drmModePlanePtr p)
     : drm_(drm), id_(p->plane_id), possible_crtc_mask_(p->possible_crtcs) {
 }
 
-DrmPlane::~DrmPlane() {
-}
-
 int DrmPlane::Init() {
   DrmProperty p;
 

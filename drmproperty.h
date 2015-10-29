@@ -34,9 +34,10 @@ enum DrmPropertyType {
 
 class DrmProperty {
  public:
+  DrmProperty() = default;
   DrmProperty(drmModePropertyPtr p, uint64_t value);
-  DrmProperty();
-  ~DrmProperty();
+  DrmProperty(const DrmProperty &) = delete;
+  DrmProperty &operator=(const DrmProperty &) = delete;
 
   void Init(drmModePropertyPtr p, uint64_t value);
 
@@ -55,14 +56,12 @@ class DrmProperty {
     std::string name_;
   };
 
-  DrmProperty(const DrmProperty &);
+  uint32_t id_ = 0;
 
-  uint32_t id_;
-
-  DrmPropertyType type_;
-  uint32_t flags_;
+  DrmPropertyType type_ = DRM_PROPERTY_TYPE_INVALID;
+  uint32_t flags_ = 0;
   std::string name_;
-  uint64_t value_;
+  uint64_t value_ = 0;
 
   std::vector<uint64_t> values_;
   std::vector<DrmPropertyEnum> enums_;
