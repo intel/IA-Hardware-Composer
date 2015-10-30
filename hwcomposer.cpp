@@ -326,6 +326,10 @@ static void hwc_dump(struct hwc_composer_device_1 *dev, char *buff,
   buff[buff_len - 1] = '\0';
 }
 
+static bool hwc_skip_layer(const std::pair<int, int> &indices, int i) {
+  return indices.first >= 0 && i >= indices.first && i <= indices.second;
+}
+
 static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
@@ -345,11 +349,26 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
       }
     }
 
+    // Since we can't composite HWC_SKIP_LAYERs by ourselves, we'll let SF
+    // handle all layers in between the first and last skip layers. So find the
+    // outer indices and mark everything in between as HWC_FRAMEBUFFER
+    std::pair<int, int> skip_layer_indices(-1, -1);
     int num_layers = display_contents[i]->numHwLayers;
-    for (int j = 0; j < num_layers; j++) {
+    for (int j = 0; !use_framebuffer_target && j < num_layers; ++j) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
-      if (!use_framebuffer_target) {
+      if (!(layer->flags & HWC_SKIP_LAYER))
+        continue;
+
+      if (skip_layer_indices.first == -1)
+        skip_layer_indices.first = j;
+      skip_layer_indices.second = j;
+    }
+
+    for (int j = 0; j < num_layers; ++j) {
+      hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
+
+      if (!use_framebuffer_target && !hwc_skip_layer(skip_layer_indices, j)) {
         if (layer->compositionType == HWC_FRAMEBUFFER)
           layer->compositionType = HWC_OVERLAY;
       } else {
@@ -425,17 +444,37 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     int framebuffer_target_index = -1;
     for (size_t j = 0; j < num_dc_layers; ++j) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
+      if (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET) {
+        framebuffer_target_index = j;
+        break;
+      }
+    }
+
+    for (size_t j = 0; j < num_dc_layers; ++j) {
+      hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
 
       display_contents.layers.emplace_back();
       DrmHwcLayer &layer = display_contents.layers.back();
 
-      if (sf_layer->flags & HWC_SKIP_LAYER)
+      // In prepare() we marked all layers FRAMEBUFFER between SKIP_LAYER's.
+      // This means we should insert the FB_TARGET layer in the composition
+      // stack at the location of the first skip layer, and ignore the rest.
+      if (sf_layer->flags & HWC_SKIP_LAYER) {
+        if (framebuffer_target_index < 0)
+          continue;
+        int idx = framebuffer_target_index;
+        framebuffer_target_index = -1;
+        hwc_layer_1_t *fbt_layer = &dc->hwLayers[idx];
+        if (!fbt_layer->handle || (fbt_layer->flags & HWC_SKIP_LAYER)) {
+          ALOGE("Invalid HWC_FRAMEBUFFER_TARGET with HWC_SKIP_LAYER present");
+          continue;
+        }
+        indices_to_composite.push_back(idx);
         continue;
+      }
 
       if (sf_layer->compositionType == HWC_OVERLAY)
         indices_to_composite.push_back(j);
-      if (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET)
-        framebuffer_target_index = j;
 
       layer.acquire_fence.Set(sf_layer->acquireFenceFd);
       sf_layer->acquireFenceFd = -1;
@@ -450,6 +489,9 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       layer.release_fence = OutputFd(&sf_layer->releaseFenceFd);
     }
 
+    // This is a catch-all in case we get a frame without any overlay layers, or
+    // skip layers, but with a value fb_target layer. This _shouldn't_ happen,
+    // but it's not ruled out by the hwc specification
     if (indices_to_composite.empty() && framebuffer_target_index >= 0) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[framebuffer_target_index];
       if (!sf_layer->handle || (sf_layer->flags & HWC_SKIP_LAYER)) {
