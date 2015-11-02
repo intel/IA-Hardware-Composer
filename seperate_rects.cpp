@@ -108,6 +108,11 @@ void seperate_rects(const std::vector<Rect<TNum>> &in,
   // algorithm sweeps from left to right.
   for (TId i = 0; i < in.size(); i++) {
     const Rect<TNum> &rect = in[i];
+
+    // Filter out empty or invalid rects.
+    if (rect.left >= rect.right || rect.top >= rect.bottom)
+      continue;
+
     SweepEvent<TId, TNum> evt;
     evt.rect_id = i;
 
@@ -345,6 +350,11 @@ int main(int argc, char **argv) {
   in.push_back({50, 51, 52, 53});
   in.push_back({50, 51, 52, 53});
   in.push_back({50, 51, 52, 53});
+
+  in.push_back({0, 0, 0, 10});
+  in.push_back({0, 0, 10, 0});
+  in.push_back({10, 0, 0, 10});
+  in.push_back({0, 10, 10, 0});
 
   for (int i = 0; i < 100000; i++) {
     out.clear();
