@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef DRM_HWCOMPOSER_SEPERATE_RECTS_H_
-#define DRM_HWCOMPOSER_SEPERATE_RECTS_H_
+#ifndef DRM_HWCOMPOSER_SEPARATE_RECTS_H_
+#define DRM_HWCOMPOSER_SEPARATE_RECTS_H_
 
 #include <stdint.h>
 
 #include <sstream>
 #include <vector>
 
-namespace seperate_rects {
+namespace separate_rects {
 
 template <typename TFloat>
 struct Rect {
@@ -153,17 +153,17 @@ struct RectSet {
   }
 };
 
-// Seperates up to a maximum of 64 input rectangles into mutually non-
+// Separates up to a maximum of 64 input rectangles into mutually non-
 // overlapping rectangles that cover the exact same area and outputs those non-
 // overlapping rectangles. Each output rectangle also includes the set of input
 // rectangle indices that overlap the output rectangle encoded in a bitset. For
 // example, an output rectangle that overlaps input rectangles in[0], in[1], and
 // in[4], the bitset would be (ommitting leading zeroes) 10011.
-void seperate_frects_64(const std::vector<Rect<float>> &in,
+void separate_frects_64(const std::vector<Rect<float>> &in,
                         std::vector<RectSet<uint64_t, float>> *out);
-void seperate_rects_64(const std::vector<Rect<int>> &in,
+void separate_rects_64(const std::vector<Rect<int>> &in,
                        std::vector<RectSet<uint64_t, int>> *out);
 
-}  // namespace seperate_rects
+}  // namespace separate_rects
 
 #endif

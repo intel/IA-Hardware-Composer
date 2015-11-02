@@ -21,7 +21,7 @@
 #include "drmcomposition.h"
 #include "drmcompositorworker.h"
 #include "drmframebuffer.h"
-#include "seperate_rects.h"
+#include "separate_rects.h"
 
 #include <pthread.h>
 #include <memory>

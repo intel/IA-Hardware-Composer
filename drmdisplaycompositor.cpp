@@ -52,10 +52,10 @@ void SquashState::Init(DrmHwcLayer *layers, size_t num_layers) {
     last_handles_.push_back(layer->sf_handle);
   }
 
-  std::vector<seperate_rects::RectSet<uint64_t, int>> out_regions;
-  seperate_rects::seperate_rects_64(in_rects, &out_regions);
+  std::vector<separate_rects::RectSet<uint64_t, int>> out_regions;
+  separate_rects::separate_rects_64(in_rects, &out_regions);
 
-  for (const seperate_rects::RectSet<uint64_t, int> &out_region : out_regions) {
+  for (const separate_rects::RectSet<uint64_t, int> &out_region : out_regions) {
     regions_.emplace_back();
     Region &region = regions_.back();
     region.rect = out_region.rect;
