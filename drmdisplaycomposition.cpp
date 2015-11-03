@@ -191,11 +191,11 @@ static void SeparateLayers(DrmHwcLayer *layers, size_t *used_layers,
       layer_rects.begin() + num_exclude_rects,
       [=](size_t layer_index) { return layers[layer_index].display_frame; });
 
-  std::vector<seperate_rects::RectSet<uint64_t, int>> seperate_regions;
-  seperate_rects::seperate_rects_64(layer_rects, &seperate_regions);
+  std::vector<separate_rects::RectSet<uint64_t, int>> separate_regions;
+  separate_rects::separate_rects_64(layer_rects, &separate_regions);
   uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
 
-  for (seperate_rects::RectSet<uint64_t, int> &region : seperate_regions) {
+  for (separate_rects::RectSet<uint64_t, int> &region : separate_regions) {
     if (region.id_set.getBits() & exclude_mask)
       continue;
     regions.emplace_back(DrmCompositionRegion{

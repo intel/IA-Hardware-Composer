@@ -23,7 +23,7 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include "autofd.h"
-#include "seperate_rects.h"
+#include "separate_rects.h"
 #include "drmhwcgralloc.h"
 
 struct hwc_import_context;
@@ -117,7 +117,7 @@ class DrmHwcNativeHandle {
 };
 
 template <typename T>
-using DrmHwcRect = seperate_rects::Rect<T>;
+using DrmHwcRect = separate_rects::Rect<T>;
 
 enum class DrmHwcTransform : uint32_t {
   kIdentity = 0,
