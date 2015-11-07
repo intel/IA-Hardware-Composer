@@ -154,6 +154,20 @@ static DrmPlane *TakePlane(DrmCrtc *crtc,
   return TakePlane(crtc, overlay_planes);
 }
 
+void DrmDisplayComposition::EmplaceCompositionPlane(
+    size_t source_layer, std::vector<DrmPlane *> *primary_planes,
+    std::vector<DrmPlane *> *overlay_planes) {
+  DrmPlane *plane = TakePlane(crtc_, primary_planes, overlay_planes);
+  if (plane == NULL) {
+    ALOGE(
+        "Failed to add composition plane because there are no planes "
+        "remaining");
+    return;
+  }
+  composition_planes_.emplace_back(
+      DrmCompositionPlane{plane, crtc_, source_layer});
+}
+
 static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
   std::vector<size_t> out;
   size_t msb = sizeof(in) * 8 - 1;
@@ -324,49 +338,64 @@ int DrmDisplayComposition::Plan(SquashState *squash,
     }
   }
 
+  // All protected layers get first usage of planes
   std::vector<size_t> layers_remaining;
   for (size_t layer_index = 0; layer_index < layers_.size(); layer_index++) {
-    // Skip layers that were completely squashed
-    if (layer_squash_area[layer_index] >=
-        layers_[layer_index].display_frame.area()) {
+    if (!layers_[layer_index].protected_usage() || planes_can_use == 0) {
+      layers_remaining.push_back(layer_index);
       continue;
     }
-
-    layers_remaining.push_back(layer_index);
+    EmplaceCompositionPlane(layer_index, primary_planes, overlay_planes);
+    planes_can_use--;
   }
 
-  if (use_squash_framebuffer)
-    planes_can_use--;
+  if (planes_can_use == 0 && layers_remaining.size() > 0) {
+    ALOGE("Protected layers consumed all hardware planes");
+    return CreateAndAssignReleaseFences();
+  }
+
+  std::vector<size_t> layers_remaining_if_squash;
+  for (size_t layer_index : layers_remaining) {
+    if (layer_squash_area[layer_index] <
+        layers_[layer_index].display_frame.area())
+      layers_remaining_if_squash.push_back(layer_index);
+  }
+
+  if (use_squash_framebuffer) {
+    if (planes_can_use > 1 || layers_remaining_if_squash.size() == 0) {
+      layers_remaining = std::move(layers_remaining_if_squash);
+      planes_can_use--;  // Reserve plane for squashing
+    } else {
+      use_squash_framebuffer = false;  // The squash buffer is still rendered
+    }
+  }
 
   if (layers_remaining.size() > planes_can_use)
-    planes_can_use--;
+    planes_can_use--;  // Reserve one for pre-compositing
 
+  // Whatever planes that are not reserved get assigned a layer
   size_t last_composition_layer = 0;
   for (last_composition_layer = 0;
        last_composition_layer < layers_remaining.size() && planes_can_use > 0;
        last_composition_layer++, planes_can_use--) {
-    composition_planes_.emplace_back(
-        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
-                            crtc_, layers_remaining[last_composition_layer]});
+    EmplaceCompositionPlane(layers_remaining[last_composition_layer],
+                            primary_planes, overlay_planes);
   }
 
   layers_remaining.erase(layers_remaining.begin(),
                          layers_remaining.begin() + last_composition_layer);
 
   if (layers_remaining.size() > 0) {
-    composition_planes_.emplace_back(
-        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
-                            crtc_, DrmCompositionPlane::kSourcePreComp});
-
+    EmplaceCompositionPlane(DrmCompositionPlane::kSourcePreComp, primary_planes,
+                            overlay_planes);
     SeparateLayers(layers_.data(), layers_remaining.data(),
                    layers_remaining.size(), exclude_rects.data(),
                    exclude_rects.size(), pre_comp_regions_);
   }
 
   if (use_squash_framebuffer) {
-    composition_planes_.emplace_back(
-        DrmCompositionPlane{TakePlane(crtc_, primary_planes, overlay_planes),
-                            crtc_, DrmCompositionPlane::kSourceSquash});
+    EmplaceCompositionPlane(DrmCompositionPlane::kSourceSquash, primary_planes,
+                            overlay_planes);
   }
 
   return CreateAndAssignReleaseFences();
@@ -484,6 +513,9 @@ void DrmDisplayComposition::Dump(std::ostringstream *out) const {
     *out << "      [" << i << "] ";
 
     DumpBuffer(layer.buffer, out);
+
+    if (layer.protected_usage())
+      *out << " protected";
 
     *out << " transform=" << TransformToString(layer.transform)
          << " blending[a=" << (int)layer.alpha

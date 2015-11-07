@@ -131,6 +131,9 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
+  void EmplaceCompositionPlane(size_t source_layer,
+                               std::vector<DrmPlane *> *primary_planes,
+                               std::vector<DrmPlane *> *overlay_planes);
   int CreateAndAssignReleaseFences();
 
   DrmResources *drm_ = NULL;
