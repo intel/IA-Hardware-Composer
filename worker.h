@@ -18,6 +18,7 @@
 #define ANDROID_WORKER_H_
 
 #include <pthread.h>
+#include <stdint.h>
 #include <string>
 
 namespace android {
@@ -46,10 +47,12 @@ class Worker {
   virtual void Routine() = 0;
 
   /*
-   * Must be called with the lock acquired.
-   * Returns -EINTR if interrupted by exit request
+   * Must be called with the lock acquired. max_nanoseconds may be negative to
+   * indicate infinite timeout, otherwise it indicates the maximum time span to
+   * wait for a signal before returning.
+   * Returns -EINTR if interrupted by exit request, or -ETIMEDOUT if timed out
    */
-  int WaitForSignalOrExitLocked();
+  int WaitForSignalOrExitLocked(int64_t max_nanoseconds = -1);
 
  private:
   static void *InternalRoutine(void *worker);
