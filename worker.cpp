@@ -23,10 +23,13 @@
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/signal.h>
+#include <time.h>
 
 #include <cutils/log.h>
 
 namespace android {
+
+static const int64_t kBillion = 1000000000LL;
 
 Worker::Worker(const char *name, int priority)
     : name_(name), priority_(priority), exit_(false), initialized_(false) {
@@ -42,7 +45,10 @@ Worker::~Worker() {
 }
 
 int Worker::InitWorker() {
-  int ret = pthread_cond_init(&cond_, NULL);
+  pthread_condattr_t cond_attr;
+  pthread_condattr_init(&cond_attr);
+  pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+  int ret = pthread_cond_init(&cond_, &cond_attr);
   if (ret) {
     ALOGE("Failed to int thread %s condition %d", name_.c_str(), ret);
     return ret;
@@ -128,11 +134,25 @@ int Worker::Exit() {
   return exit_ret;
 }
 
-int Worker::WaitForSignalOrExitLocked() {
+int Worker::WaitForSignalOrExitLocked(int64_t max_nanoseconds) {
   if (exit_)
     return -EINTR;
 
-  int ret = pthread_cond_wait(&cond_, &lock_);
+  int ret = 0;
+  if (max_nanoseconds < 0) {
+    ret = pthread_cond_wait(&cond_, &lock_);
+  } else {
+    struct timespec abs_deadline;
+    ret = clock_gettime(CLOCK_MONOTONIC, &abs_deadline);
+    if (ret)
+      return ret;
+    int64_t nanos = (int64_t)abs_deadline.tv_nsec + max_nanoseconds;
+    abs_deadline.tv_sec += nanos / kBillion;
+    abs_deadline.tv_nsec = nanos % kBillion;
+    ret = pthread_cond_timedwait(&cond_, &lock_, &abs_deadline);
+    if (ret == ETIMEDOUT)
+      ret = -ETIMEDOUT;
+  }
 
   if (exit_)
     return -EINTR;
