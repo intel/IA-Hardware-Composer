@@ -37,6 +37,7 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include \
 
 LOCAL_SRC_FILES := \
+	autolock.cpp \
 	drmresources.cpp \
 	drmcomposition.cpp \
 	drmcompositor.cpp \
