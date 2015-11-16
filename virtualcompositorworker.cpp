@@ -32,7 +32,7 @@
 namespace android {
 
 static const int kMaxQueueDepth = 3;
-static const int kAcquireWaitTimeoutMs = 50;
+static const int kAcquireWaitTimeoutMs = 3000;
 
 VirtualCompositorWorker::VirtualCompositorWorker()
     : Worker("virtual-compositor", HAL_PRIORITY_URGENT_DISPLAY),
@@ -154,7 +154,8 @@ void VirtualCompositorWorker::Compose(
   if (outbuf_acquire_fence >= 0) {
     ret = sync_wait(outbuf_acquire_fence, kAcquireWaitTimeoutMs);
     if (ret) {
-      ALOGE("Failed to wait for acquire %d/%d", outbuf_acquire_fence, ret);
+      ALOGE("Failed to wait for outbuf acquire %d/%d", outbuf_acquire_fence,
+            ret);
       return;
     }
     composition->outbuf_acquire_fence.Close();
@@ -164,7 +165,8 @@ void VirtualCompositorWorker::Compose(
     if (layer_acquire_fence >= 0) {
       ret = sync_wait(layer_acquire_fence, kAcquireWaitTimeoutMs);
       if (ret) {
-        ALOGE("Failed to wait for acquire %d/%d", layer_acquire_fence, ret);
+        ALOGE("Failed to wait for layer acquire %d/%d", layer_acquire_fence,
+              ret);
         return;
       }
       composition->layer_acquire_fences[i].Close();
