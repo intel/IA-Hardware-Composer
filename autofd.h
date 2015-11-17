@@ -91,6 +91,10 @@ struct OutputFd {
     return *fd_;
   }
 
+  operator bool() const {
+    return fd_ != NULL;
+  }
+
  private:
   int *fd_ = NULL;
 };
