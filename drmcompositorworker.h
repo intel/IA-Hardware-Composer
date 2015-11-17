@@ -34,6 +34,7 @@ class DrmCompositorWorker : public Worker {
   void Routine() override;
 
   DrmDisplayCompositor *compositor_;
+  bool did_squash_all_ = false;
 };
 }
 

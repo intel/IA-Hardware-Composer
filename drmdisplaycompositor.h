@@ -89,6 +89,7 @@ class DrmDisplayCompositor {
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
   int QueueComposition(std::unique_ptr<DrmDisplayComposition> composition);
   int Composite();
+  int SquashAll();
   void Dump(std::ostringstream *out) const;
 
   std::tuple<uint32_t, uint32_t, int> GetActiveModeResolution();

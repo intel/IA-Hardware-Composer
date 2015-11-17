@@ -27,6 +27,8 @@
 
 namespace android {
 
+static const int64_t kSquashWait = 500000000LL;
+
 DrmCompositorWorker::DrmCompositorWorker(DrmDisplayCompositor *compositor)
     : Worker("drm-compositor", HAL_PRIORITY_URGENT_DISPLAY),
       compositor_(compositor) {
@@ -48,7 +50,11 @@ void DrmCompositorWorker::Routine() {
       return;
     }
 
-    int wait_ret = WaitForSignalOrExitLocked();
+    // Only use a timeout if we didn't do a SquashAll last time. This will
+    // prevent wait_ret == -ETIMEDOUT which would trigger a SquashAll and be a
+    // pointless drain on resources.
+    int wait_ret = did_squash_all_ ? WaitForSignalOrExitLocked()
+                                   : WaitForSignalOrExitLocked(kSquashWait);
 
     ret = Unlock();
     if (ret) {
@@ -56,16 +62,26 @@ void DrmCompositorWorker::Routine() {
       return;
     }
 
-    if (wait_ret == -EINTR) {
-      return;
-    } else if (wait_ret) {
-      ALOGE("Failed to wait for signal, %d", wait_ret);
-      return;
+    switch (wait_ret) {
+      case 0:
+        break;
+      case -EINTR:
+        return;
+      case -ETIMEDOUT:
+        ret = compositor_->SquashAll();
+        if (ret)
+          ALOGE("Failed to squash all %d", ret);
+        did_squash_all_ = true;
+        return;
+      default:
+        ALOGE("Failed to wait for signal, %d", wait_ret);
+        return;
     }
   }
 
   ret = compositor_->Composite();
   if (ret)
     ALOGE("Failed to composite! %d", ret);
+  did_squash_all_ = false;
 }
 }
