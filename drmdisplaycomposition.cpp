@@ -248,6 +248,8 @@ int DrmDisplayComposition::CreateAndAssignReleaseFences() {
   }
 
   for (DrmHwcLayer *layer : squash_layers) {
+    if (!layer->release_fence)
+      continue;
     int ret = layer->release_fence.Set(CreateNextTimelineFence());
     if (ret < 0)
       return ret;
@@ -255,6 +257,8 @@ int DrmDisplayComposition::CreateAndAssignReleaseFences() {
   timeline_squash_done_ = timeline_;
 
   for (DrmHwcLayer *layer : pre_comp_layers) {
+    if (!layer->release_fence)
+      continue;
     int ret = layer->release_fence.Set(CreateNextTimelineFence());
     if (ret < 0)
       return ret;
@@ -262,6 +266,8 @@ int DrmDisplayComposition::CreateAndAssignReleaseFences() {
   timeline_pre_comp_done_ = timeline_;
 
   for (DrmHwcLayer *layer : comp_layers) {
+    if (!layer->release_fence)
+      continue;
     int ret = layer->release_fence.Set(CreateNextTimelineFence());
     if (ret < 0)
       return ret;
