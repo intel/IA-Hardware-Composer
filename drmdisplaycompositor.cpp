@@ -593,7 +593,8 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
   return ret;
 }
 
-int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
+int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
+                                      bool test_only) {
   ATRACE_CALL();
 
   int ret = 0;
@@ -660,7 +661,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
           break;
         }
         DrmHwcLayer &layer = layers[comp_plane.source_layer];
-        if (layer.acquire_fence.get() >= 0) {
+        if (!test_only && layer.acquire_fence.get() >= 0) {
           int acquire_fence = layer.acquire_fence.get();
           for (int i = 0; i < kAcquireWaitTries; ++i) {
             ret = sync_wait(acquire_fence, kAcquireWaitTimeoutMs);
@@ -788,10 +789,16 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
 
 out:
   if (!ret) {
-    ret = drmModePropertySetCommit(drm_->fd(), DRM_MODE_ATOMIC_ALLOW_MODESET,
-                                   drm_, pset);
+    uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+    if (test_only)
+      flags |= DRM_MODE_ATOMIC_TEST_ONLY;
+
+    ret = drmModePropertySetCommit(drm_->fd(), flags, drm_, pset);
     if (ret) {
-      ALOGE("Failed to commit pset ret=%d\n", ret);
+      if (test_only)
+        ALOGI("Commit test pset failed ret=%d\n", ret);
+      else
+        ALOGE("Failed to commit pset ret=%d\n", ret);
       drmModePropertySetFree(pset);
       return ret;
     }
@@ -799,7 +806,7 @@ out:
   if (pset)
     drmModePropertySetFree(pset);
 
-  if (mode_.needs_modeset) {
+  if (!test_only && mode_.needs_modeset) {
     ret = drm_->DestroyPropertyBlob(mode_.old_blob_id);
     if (ret) {
       ALOGE("Failed to destroy old mode property blob %lld/%d",
@@ -862,7 +869,7 @@ void DrmDisplayCompositor::ApplyFrame(
   int ret = status;
 
   if (!ret)
-    ret = CommitFrame(composition.get());
+    ret = CommitFrame(composition.get(), false);
 
   if (ret) {
     ALOGE("Composite failed for display %d", display_);
