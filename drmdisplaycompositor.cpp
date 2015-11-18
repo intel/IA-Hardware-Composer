@@ -1018,6 +1018,9 @@ int DrmDisplayCompositor::SquashAll() {
       goto move_layers_back;
     }
 
+    if (comp_plane.source_layer == DrmCompositionPlane::kSourceNone)
+      continue;
+
     // Out of range layers should never happen. If they do, somebody probably
     // forgot to replace the symbolic names (kSourceSquash, kSourcePreComp) with
     // real ones.
