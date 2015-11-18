@@ -143,6 +143,7 @@ class DrmDisplayCompositor {
   int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int PrepareFrame(DrmDisplayComposition *display_comp);
   int CommitFrame(DrmDisplayComposition *display_comp, bool test_only);
+  int SquashFrame(DrmDisplayComposition *src, DrmDisplayComposition *dst);
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
 
