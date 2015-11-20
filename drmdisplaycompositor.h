@@ -123,6 +123,13 @@ class DrmDisplayCompositor {
     std::queue<FrameState> frame_queue_;
   };
 
+  struct ModeState {
+    bool needs_modeset = false;
+    DrmMode mode;
+    uint32_t blob_id = 0;
+    uint32_t old_blob_id = 0;
+  };
+
   DrmDisplayCompositor(const DrmDisplayCompositor &) = delete;
 
   // We'll wait for acquire fences to fire for kAcquireWaitTimeoutMs,
@@ -142,6 +149,8 @@ class DrmDisplayCompositor {
   void ApplyFrame(std::unique_ptr<DrmDisplayComposition> composition,
                   int status);
 
+  std::tuple<int, uint32_t> CreateModeBlob(const DrmMode &mode);
+
   DrmResources *drm_;
   int display_;
 
@@ -154,8 +163,7 @@ class DrmDisplayCompositor {
   bool initialized_;
   bool active_;
 
-  DrmMode next_mode_;
-  bool needs_modeset_;
+  ModeState mode_;
 
   int framebuffer_index_;
   DrmFramebuffer framebuffers_[DRM_DISPLAY_BUFFERS];
