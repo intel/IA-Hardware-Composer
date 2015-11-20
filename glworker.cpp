@@ -332,40 +332,34 @@ static void ConstructCommand(const DrmHwcLayer *layers,
     cmd.texture_count++;
     src.texture_index = texture_index;
 
-    bool swap_xy, flip_xy[2];
-    switch (layer.transform) {
-      case DrmHwcTransform::kFlipH:
-        swap_xy = false;
-        flip_xy[0] = true;
-        flip_xy[1] = false;
-        break;
-      case DrmHwcTransform::kFlipV:
-        swap_xy = false;
-        flip_xy[0] = false;
-        flip_xy[1] = true;
-        break;
-      case DrmHwcTransform::kRotate90:
-        swap_xy = true;
-        flip_xy[0] = false;
-        flip_xy[1] = true;
-        break;
-      case DrmHwcTransform::kRotate180:
-        swap_xy = false;
+    bool swap_xy = false;
+    bool flip_xy[2] = { false, false };
+
+    if (layer.transform == DrmHwcTransform::kRotate180) {
+      swap_xy = false;
+      flip_xy[0] = true;
+      flip_xy[1] = true;
+    } else if (layer.transform == DrmHwcTransform::kRotate270) {
+      swap_xy = true;
+      flip_xy[0] = true;
+      flip_xy[1] = false;
+    } else if (layer.transform & DrmHwcTransform::kRotate90) {
+      swap_xy = true;
+      if (layer.transform & DrmHwcTransform::kFlipH) {
         flip_xy[0] = true;
         flip_xy[1] = true;
-        break;
-      case DrmHwcTransform::kRotate270:
-        swap_xy = true;
-        flip_xy[0] = true;
-        flip_xy[1] = false;
-        break;
-      default:
-        ALOGE("Unknown transform for layer: defaulting to identity transform");
-      case DrmHwcTransform::kIdentity:
-        swap_xy = false;
+      } else if (layer.transform & DrmHwcTransform::kFlipV) {
         flip_xy[0] = false;
         flip_xy[1] = false;
-        break;
+      } else {
+        flip_xy[0] = false;
+        flip_xy[1] = true;
+      }
+    } else {
+      if (layer.transform & DrmHwcTransform::kFlipH)
+        flip_xy[0] = true;
+      if (layer.transform & DrmHwcTransform::kFlipV)
+        flip_xy[1] = true;
     }
 
     if (swap_xy)

@@ -443,23 +443,52 @@ static void DumpBuffer(const DrmHwcBuffer &buffer, std::ostringstream *out) {
   *out << buffer->width << "/" << buffer->height << "/" << buffer->format;
 }
 
-static const char *TransformToString(DrmHwcTransform transform) {
-  switch (transform) {
-    case DrmHwcTransform::kIdentity:
-      return "IDENTITY";
-    case DrmHwcTransform::kFlipH:
-      return "FLIPH";
-    case DrmHwcTransform::kFlipV:
-      return "FLIPV";
-    case DrmHwcTransform::kRotate90:
-      return "ROTATE90";
-    case DrmHwcTransform::kRotate180:
-      return "ROTATE180";
-    case DrmHwcTransform::kRotate270:
-      return "ROTATE270";
-    default:
-      return "<invalid>";
+static void DumpTransform(uint32_t transform, std::ostringstream *out) {
+  *out << "[";
+
+  if (transform == 0)
+    *out << "IDENTITY";
+
+  bool separator = false;
+  if (transform & DrmHwcTransform::kFlipH) {
+    *out << "FLIPH";
+    separator = true;
   }
+  if (transform & DrmHwcTransform::kFlipV) {
+    if (separator)
+      *out << "|";
+    *out << "FLIPV";
+    separator = true;
+  }
+  if (transform & DrmHwcTransform::kRotate90) {
+    if (separator)
+      *out << "|";
+    *out << "ROTATE90";
+    separator = true;
+  }
+  if (transform & DrmHwcTransform::kRotate180) {
+    if (separator)
+      *out << "|";
+    *out << "ROTATE180";
+    separator = true;
+  }
+  if (transform & DrmHwcTransform::kRotate270) {
+    if (separator)
+      *out << "|";
+    *out << "ROTATE270";
+    separator = true;
+  }
+
+  uint32_t valid_bits = DrmHwcTransform::kFlipH | DrmHwcTransform::kFlipH |
+                        DrmHwcTransform::kRotate90 |
+                        DrmHwcTransform::kRotate180 |
+                        DrmHwcTransform::kRotate270;
+  if (transform & ~valid_bits) {
+    if (separator)
+      *out << "|";
+    *out << "INVALID";
+  }
+  *out << "]";
 }
 
 static const char *BlendingToString(DrmHwcBlending blending) {
@@ -523,8 +552,9 @@ void DrmDisplayComposition::Dump(std::ostringstream *out) const {
     if (layer.protected_usage())
       *out << " protected";
 
-    *out << " transform=" << TransformToString(layer.transform)
-         << " blending[a=" << (int)layer.alpha
+    *out << " transform=";
+    DumpTransform(layer.transform, out);
+    *out << " blending[a=" << (int)layer.alpha
          << "]=" << BlendingToString(layer.blending) << " source_crop";
     layer.source_crop.Dump(out);
     *out << " display_frame";

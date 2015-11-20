@@ -119,13 +119,13 @@ class DrmHwcNativeHandle {
 template <typename T>
 using DrmHwcRect = separate_rects::Rect<T>;
 
-enum class DrmHwcTransform : uint32_t {
+enum DrmHwcTransform {
   kIdentity = 0,
-  kFlipH = HWC_TRANSFORM_FLIP_H,
-  kFlipV = HWC_TRANSFORM_FLIP_V,
-  kRotate90 = HWC_TRANSFORM_ROT_90,
-  kRotate180 = HWC_TRANSFORM_ROT_180,
-  kRotate270 = HWC_TRANSFORM_ROT_270,
+  kFlipH = 1 << 0,
+  kFlipV = 1 << 1,
+  kRotate90 = 1 << 2,
+  kRotate180 = 1 << 3,
+  kRotate270 = 1 << 4,
 };
 
 enum class DrmHwcBlending : int32_t {
@@ -139,7 +139,7 @@ struct DrmHwcLayer {
   int gralloc_buffer_usage = 0;
   DrmHwcBuffer buffer;
   DrmHwcNativeHandle handle;
-  DrmHwcTransform transform = DrmHwcTransform::kIdentity;
+  uint32_t transform;
   DrmHwcBlending blending = DrmHwcBlending::kNone;
   uint8_t alpha = 0xff;
   DrmHwcRect<float> source_crop;

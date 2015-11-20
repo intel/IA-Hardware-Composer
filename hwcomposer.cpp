@@ -252,28 +252,22 @@ int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
       sf_layer->displayFrame.left, sf_layer->displayFrame.top,
       sf_layer->displayFrame.right, sf_layer->displayFrame.bottom);
 
-  switch (sf_layer->transform) {
-    case 0:
-      transform = DrmHwcTransform::kIdentity;
-      break;
-    case HWC_TRANSFORM_FLIP_H:
-      transform = DrmHwcTransform::kFlipH;
-      break;
-    case HWC_TRANSFORM_FLIP_V:
-      transform = DrmHwcTransform::kFlipV;
-      break;
-    case HWC_TRANSFORM_ROT_90:
-      transform = DrmHwcTransform::kRotate90;
-      break;
-    case HWC_TRANSFORM_ROT_180:
-      transform = DrmHwcTransform::kRotate180;
-      break;
-    case HWC_TRANSFORM_ROT_270:
-      transform = DrmHwcTransform::kRotate270;
-      break;
-    default:
-      ALOGE("Invalid transform in hwc_layer_1_t %d", sf_layer->transform);
-      return -EINVAL;
+  transform = 0;
+  // 270* and 180* cannot be combined with flips. More specifically, they
+  // already contain both horizontal and vertical flips, so those fields are
+  // redundant in this case. 90* rotation can be combined with either horizontal
+  // flip or vertical flip, so treat it differently
+  if (sf_layer->transform == HWC_TRANSFORM_ROT_270) {
+    transform = DrmHwcTransform::kRotate270;
+  } else if (sf_layer->transform == HWC_TRANSFORM_ROT_180) {
+    transform = DrmHwcTransform::kRotate180;
+  } else {
+    if (sf_layer->transform & HWC_TRANSFORM_FLIP_H)
+      transform |= DrmHwcTransform::kFlipH;
+    if (sf_layer->transform & HWC_TRANSFORM_FLIP_V)
+      transform |= DrmHwcTransform::kFlipV;
+    if (sf_layer->transform & HWC_TRANSFORM_ROT_90)
+      transform |= DrmHwcTransform::kRotate90;
   }
 
   switch (sf_layer->blending) {

@@ -683,30 +683,18 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp) {
         source_crop = layer.source_crop;
         if (layer.blending == DrmHwcBlending::kPreMult)
           alpha = layer.alpha;
-        switch (layer.transform) {
-          case DrmHwcTransform::kFlipH:
-            rotation = 1 << DRM_REFLECT_X;
-            break;
-          case DrmHwcTransform::kFlipV:
-            rotation = 1 << DRM_REFLECT_Y;
-            break;
-          case DrmHwcTransform::kRotate90:
-            rotation = 1 << DRM_ROTATE_90;
-            break;
-          case DrmHwcTransform::kRotate180:
-            rotation = 1 << DRM_ROTATE_180;
-            break;
-          case DrmHwcTransform::kRotate270:
-            rotation = 1 << DRM_ROTATE_270;
-            break;
-          case DrmHwcTransform::kIdentity:
-            rotation = 0;
-            break;
-          default:
-            ALOGE("Invalid transform value 0x%x given", layer.transform);
-            break;
-        }
-        break;
+
+        rotation = 0;
+        if (layer.transform & DrmHwcTransform::kFlipH)
+          rotation |= 1 << DRM_REFLECT_X;
+        if (layer.transform & DrmHwcTransform::kFlipV)
+          rotation |= 1 << DRM_REFLECT_Y;
+        if (layer.transform & DrmHwcTransform::kRotate90)
+          rotation |= 1 << DRM_ROTATE_90;
+        else if (layer.transform & DrmHwcTransform::kRotate180)
+          rotation |= 1 << DRM_ROTATE_180;
+        else if (layer.transform & DrmHwcTransform::kRotate270)
+          rotation |= 1 << DRM_ROTATE_270;
       }
     }
 
