@@ -17,8 +17,8 @@
 #ifndef ANDROID_DRM_DISPLAY_COMPOSITION_H_
 #define ANDROID_DRM_DISPLAY_COMPOSITION_H_
 
-#include "drmhwcomposer.h"
 #include "drmcrtc.h"
+#include "drmhwcomposer.h"
 #include "drmplane.h"
 #include "glworker.h"
 #include "importer.h"
@@ -98,6 +98,10 @@ class DrmDisplayComposition {
 
   std::vector<DrmCompositionPlane> &composition_planes() {
     return composition_planes_;
+  }
+
+  bool geometry_changed() const {
+    return geometry_changed_;
   }
 
   uint64_t frame_no() const {

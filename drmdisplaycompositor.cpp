@@ -926,19 +926,21 @@ int DrmDisplayCompositor::Composite() {
         ALOGE("Failed to prepare frame for display %d", display_);
         return ret;
       }
-      // Send the composition to the kernel to ensure we can commit it. This is
-      // just a test, it won't actually commit the frame. If the kernel rejects
-      // it, squash the frame into one layer and use the squashed composition
-      ret = CommitFrame(composition.get(), true);
-      if (ret) {
-        ALOGI("Commit test failed, squashing frame for display %d", display_);
-        std::unique_ptr<DrmDisplayComposition> squashed = CreateComposition();
-        ret = SquashFrame(composition.get(), squashed.get());
-        if (!ret) {
-          composition = std::move(squashed);
-        } else {
-          ALOGE("Failed to squash frame for display %d", display_);
-          return ret;
+      if (composition->geometry_changed()) {
+        // Send the composition to the kernel to ensure we can commit it. This
+        // is just a test, it won't actually commit the frame. If rejected,
+        // squash the frame into one layer and use the squashed composition
+        ret = CommitFrame(composition.get(), true);
+        if (ret) {
+          ALOGI("Commit test failed, squashing frame for display %d", display_);
+          std::unique_ptr<DrmDisplayComposition> squashed = CreateComposition();
+          ret = SquashFrame(composition.get(), squashed.get());
+          if (!ret) {
+            composition = std::move(squashed);
+          } else {
+            ALOGE("Failed to squash frame for display %d", display_);
+            return ret;
+          }
         }
       }
       frame_worker_.QueueFrame(std::move(composition), ret);
