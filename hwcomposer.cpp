@@ -328,14 +328,16 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
       continue;
 
     bool use_framebuffer_target = false;
+    DrmMode mode;
     if (i == HWC_DISPLAY_VIRTUAL) {
       use_framebuffer_target = true;
     } else {
-      DrmCrtc *crtc = ctx->drm.GetCrtcForDisplay(i);
-      if (!crtc) {
-        ALOGE("No crtc for display %d", i);
+      DrmConnector *c = ctx->drm.GetConnectorForDisplay(i);
+      if (!c) {
+        ALOGE("Failed to get DrmConnector for display %d", i);
         return -ENODEV;
       }
+      mode = c->active_mode();
     }
 
     // Since we can't composite HWC_SKIP_LAYERs by ourselves, we'll let SF
@@ -358,6 +360,16 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
       if (!use_framebuffer_target && !hwc_skip_layer(skip_layer_indices, j)) {
+        // If the layer is off the screen, don't earmark it for an overlay.
+        // We'll leave it as-is, which effectively just drops it from the frame
+        const hwc_rect_t *frame = &layer->displayFrame;
+        if ((frame->right - frame->left) <= 0 ||
+            (frame->bottom - frame->top) <= 0 ||
+            frame->right <= 0 || frame->bottom <= 0 ||
+            frame->left >= (int)mode.h_display() ||
+            frame->top >= (int)mode.v_display())
+            continue;
+
         if (layer->compositionType == HWC_FRAMEBUFFER)
           layer->compositionType = HWC_OVERLAY;
       } else {
