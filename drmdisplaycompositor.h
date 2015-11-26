@@ -165,6 +165,7 @@ class DrmDisplayCompositor {
 
   bool initialized_;
   bool active_;
+  bool use_hw_overlays_;
 
   ModeState mode_;
 

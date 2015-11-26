@@ -241,6 +241,7 @@ DrmDisplayCompositor::DrmDisplayCompositor()
       frame_worker_(this),
       initialized_(false),
       active_(false),
+      use_hw_overlays_(true),
       framebuffer_index_(0),
       squash_framebuffer_index_(0),
       dump_frames_composited_(0),
@@ -921,26 +922,34 @@ int DrmDisplayCompositor::Composite() {
 
   switch (composition->type()) {
     case DRM_COMPOSITION_TYPE_FRAME:
-      ret = PrepareFrame(composition.get());
-      if (ret) {
-        ALOGE("Failed to prepare frame for display %d", display_);
-        return ret;
+      if (use_hw_overlays_ || composition->geometry_changed()) {
+        ret = PrepareFrame(composition.get());
+        if (ret) {
+          ALOGE("Failed to prepare frame for display %d", display_);
+          return ret;
+        }
       }
       if (composition->geometry_changed()) {
         // Send the composition to the kernel to ensure we can commit it. This
         // is just a test, it won't actually commit the frame. If rejected,
         // squash the frame into one layer and use the squashed composition
         ret = CommitFrame(composition.get(), true);
-        if (ret) {
+        if (ret)
           ALOGI("Commit test failed, squashing frame for display %d", display_);
-          std::unique_ptr<DrmDisplayComposition> squashed = CreateComposition();
-          ret = SquashFrame(composition.get(), squashed.get());
-          if (!ret) {
-            composition = std::move(squashed);
-          } else {
-            ALOGE("Failed to squash frame for display %d", display_);
-            return ret;
-          }
+        use_hw_overlays_ = !ret;
+      }
+
+      // If use_hw_overlays_ is false, we can't use hardware to composite the
+      // frame. So squash all layers into a single composition and queue that
+      // instead.
+      if (!use_hw_overlays_) {
+        std::unique_ptr<DrmDisplayComposition> squashed = CreateComposition();
+        ret = SquashFrame(composition.get(), squashed.get());
+        if (!ret) {
+          composition = std::move(squashed);
+        } else {
+          ALOGE("Failed to squash frame for display %d", display_);
+          return ret;
         }
       }
       frame_worker_.QueueFrame(std::move(composition), ret);
