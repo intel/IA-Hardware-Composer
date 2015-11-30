@@ -922,12 +922,10 @@ int DrmDisplayCompositor::Composite() {
 
   switch (composition->type()) {
     case DRM_COMPOSITION_TYPE_FRAME:
-      if (use_hw_overlays_ || composition->geometry_changed()) {
-        ret = PrepareFrame(composition.get());
-        if (ret) {
-          ALOGE("Failed to prepare frame for display %d", display_);
-          return ret;
-        }
+      ret = PrepareFrame(composition.get());
+      if (ret) {
+        ALOGE("Failed to prepare frame for display %d", display_);
+        return ret;
       }
       if (composition->geometry_changed()) {
         // Send the composition to the kernel to ensure we can commit it. This
