@@ -664,11 +664,14 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         DrmHwcLayer &layer = layers[comp_plane.source_layer];
         if (!test_only && layer.acquire_fence.get() >= 0) {
           int acquire_fence = layer.acquire_fence.get();
+          int total_fence_timeout = 0;
           for (int i = 0; i < kAcquireWaitTries; ++i) {
-            ret = sync_wait(acquire_fence, kAcquireWaitTimeoutMs);
+            int fence_timeout = kAcquireWaitTimeoutMs * (1 << i);
+            total_fence_timeout += fence_timeout;
+            ret = sync_wait(acquire_fence, fence_timeout);
             if (ret)
               ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
-                    acquire_fence, i, ret, (i + 1) * kAcquireWaitTimeoutMs);
+                    acquire_fence, i, ret, total_fence_timeout);
           }
           if (ret) {
             ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
