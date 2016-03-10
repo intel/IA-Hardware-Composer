@@ -150,6 +150,11 @@ struct DrmHwcLayer {
 
   int InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
                        const gralloc_module_t *gralloc);
+  int ImportBuffer(Importer *importer, const gralloc_module_t *gralloc);
+
+  void SetTransform(int32_t sf_transform);
+  void SetSourceCrop(hwc_frect_t const &crop);
+  void SetDisplayFrame(hwc_rect_t const &frame);
 
   buffer_handle_t get_usable_handle() const {
     return handle.get() != NULL ? handle.get() : sf_handle;
