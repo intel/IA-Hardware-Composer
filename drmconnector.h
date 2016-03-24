@@ -63,6 +63,8 @@ class DrmConnector {
   DrmEncoder *encoder() const;
   void set_encoder(DrmEncoder *encoder);
 
+  drmModeConnection state() const;
+
   uint32_t mm_width() const;
   uint32_t mm_height() const;
 
