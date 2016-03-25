@@ -19,6 +19,7 @@
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
+#include "drmeventlistener.h"
 #include "drmplane.h"
 #include "drmresources.h"
 
@@ -33,7 +34,11 @@
 
 namespace android {
 
-DrmResources::DrmResources() : compositor_(this) {
+DrmResources::DrmResources() : compositor_(this), event_listener_(this) {
+}
+
+DrmResources::~DrmResources() {
+  event_listener_.Exit();
 }
 
 int DrmResources::Init() {
@@ -193,6 +198,12 @@ int DrmResources::Init() {
   ret = compositor_.Init();
   if (ret)
     return ret;
+
+  ret = event_listener_.Init();
+  if (ret) {
+    ALOGE("Can't initialize event listener %d", ret);
+    return ret;
+  }
 
   for (auto &conn : connectors_) {
     ret = CreateDisplayPipe(conn.get());
@@ -361,6 +372,10 @@ int DrmResources::SetDpmsMode(int display, uint64_t mode) {
 
 DrmCompositor *DrmResources::compositor() {
   return &compositor_;
+}
+
+DrmEventListener *DrmResources::event_listener() {
+  return &event_listener_;
 }
 
 int DrmResources::GetProperty(uint32_t obj_id, uint32_t obj_type,
