@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef ANDROID_AUTO_FD_H_
+#define ANDROID_AUTO_FD_H_
+
 #include <unistd.h>
 
 namespace android {
@@ -99,3 +102,5 @@ struct OutputFd {
   int *fd_ = NULL;
 };
 }
+
+#endif
