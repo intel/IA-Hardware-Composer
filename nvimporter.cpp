@@ -20,6 +20,7 @@
 #include "importer.h"
 #include "nvimporter.h"
 
+#include <cinttypes>
 #include <stdatomic.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -124,7 +125,7 @@ int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
 int NvImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
   NvBuffer_t *buf = (NvBuffer_t *)bo->priv;
   if (!buf) {
-    ALOGE("Freeing bo %ld, buf is NULL!", bo->fb_id);
+    ALOGE("Freeing bo %" PRIu32 ", buf is NULL!", bo->fb_id);
     return 0;
   }
   if (atomic_fetch_sub(&buf->ref, 1) > 1)
