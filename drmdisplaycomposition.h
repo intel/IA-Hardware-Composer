@@ -32,7 +32,7 @@
 
 namespace android {
 
-struct SquashState;
+class SquashState;
 
 enum DrmCompositionType {
   DRM_COMPOSITION_TYPE_EMPTY,
