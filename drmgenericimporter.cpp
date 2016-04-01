@@ -25,8 +25,6 @@
 #include <xf86drmMode.h>
 
 #include <cutils/log.h>
-#include <gralloc_drm.h>
-#include <gralloc_drm_priv.h>
 #include <gralloc_drm_handle.h>
 #include <hardware/gralloc.h>
 
@@ -89,12 +87,6 @@ int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
   if (!gr_handle)
     return -EINVAL;
-
-  struct gralloc_drm_bo_t *gralloc_bo = gr_handle->data;
-  if (!gralloc_bo) {
-    ALOGE("Could not get drm bo from handle");
-    return -EINVAL;
-  }
 
   uint32_t gem_handle;
   int ret = drmPrimeFDToHandle(drm_->fd(), gr_handle->prime_fd, &gem_handle);
