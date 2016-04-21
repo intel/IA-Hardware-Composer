@@ -18,7 +18,7 @@
 
 #include "drmresources.h"
 #include "platform.h"
-#include "nvimporter.h"
+#include "platformnv.h"
 
 #include <cinttypes>
 #include <stdatomic.h>
