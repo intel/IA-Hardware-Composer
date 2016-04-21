@@ -17,7 +17,7 @@
 #define LOG_TAG "hwc-nv-importer"
 
 #include "drmresources.h"
-#include "importer.h"
+#include "platform.h"
 #include "nvimporter.h"
 
 #include <cinttypes>
