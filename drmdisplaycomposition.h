@@ -109,12 +109,15 @@ class DrmDisplayComposition {
            uint64_t frame_no);
 
   int SetLayers(DrmHwcLayer *layers, size_t num_layers, bool geometry_changed);
+  int AddPlaneComposition(DrmCompositionPlane plane);
   int AddPlaneDisable(DrmPlane *plane);
   int SetDpmsMode(uint32_t dpms_mode);
   int SetDisplayMode(const DrmMode &display_mode);
 
   int Plan(SquashState *squash, std::vector<DrmPlane *> *primary_planes,
            std::vector<DrmPlane *> *overlay_planes);
+
+  int FinalizeComposition();
 
   int CreateNextTimelineFence();
   int SignalSquashDone() {

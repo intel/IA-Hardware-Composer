@@ -1054,8 +1054,8 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
     return ret;
   }
 
-  std::vector<DrmPlane *> primary_planes;
-  std::vector<DrmPlane *> fake_overlay_planes;
+  DrmCompositionPlane squashed_comp(DrmCompositionPlane::Type::kPrecomp, NULL,
+                                    src->crtc());
   std::vector<DrmHwcLayer> dst_layers;
   for (DrmCompositionPlane &comp_plane : src_planes) {
     // Composition planes without DRM planes should never happen
@@ -1082,11 +1082,12 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       // filling the OutputFds.
       layer.release_fence = OutputFd();
       dst_layers.emplace_back(std::move(layer));
+      squashed_comp.source_layers().push_back(
+          squashed_comp.source_layers().size());
     }
 
-    if (comp_plane.plane()->type() == DRM_PLANE_TYPE_PRIMARY &&
-        primary_planes.size() == 0)
-      primary_planes.push_back(comp_plane.plane());
+    if (comp_plane.plane()->type() == DRM_PLANE_TYPE_PRIMARY)
+      squashed_comp.set_plane(comp_plane.plane());
     else
       dst->AddPlaneDisable(comp_plane.plane());
   }
@@ -1097,8 +1098,13 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
     goto move_layers_back;
   }
 
-  ret =
-      dst->Plan(NULL /* SquashState */, &primary_planes, &fake_overlay_planes);
+  ret = dst->AddPlaneComposition(std::move(squashed_comp));
+  if (ret) {
+    ALOGE("Failed to add squashed plane composition %d", ret);
+    goto move_layers_back;
+  }
+
+  ret = dst->FinalizeComposition();
   if (ret) {
     ALOGE("Failed to plan for squash all composition %d", ret);
     goto move_layers_back;
