@@ -183,4 +183,92 @@ int NvImporter::GrallocSetNvBuffer(buffer_handle_t handle, NvBuffer_t *buf) {
                            GRALLOC_MODULE_PERFORM_SET_IMPORTER_PRIVATE, handle,
                            NvGrallocRelease, buf);
 }
+
+#ifdef USE_NVIDIA_IMPORTER
+// static
+std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
+  std::unique_ptr<Planner> planner(new Planner);
+  planner->AddStage<PlanStageProtectedRotated>();
+  planner->AddStage<PlanStageProtected>();
+  planner->AddStage<PlanStageGreedy>();
+  return planner;
+}
+#endif
+
+static DrmPlane *GetCrtcPrimaryPlane(DrmCrtc *crtc,
+                                     std::vector<DrmPlane *> *planes) {
+  for (auto i = planes->begin(); i != planes->end(); ++i) {
+    if ((*i)->GetCrtcSupported(*crtc)) {
+      DrmPlane *plane = *i;
+      planes->erase(i);
+      return plane;
+    }
+  }
+  return NULL;
+}
+
+int PlanStageProtectedRotated::ProvisionPlanes(
+    std::vector<DrmCompositionPlane> *composition,
+    std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+    std::vector<DrmPlane *> *planes) {
+  int ret;
+  int protected_zorder = -1;
+  for (auto i = layers.begin(); i != layers.end();) {
+    if (!i->second->protected_usage() || !i->second->transform) {
+      ++i;
+      continue;
+    }
+
+    auto primary_iter = planes->begin();
+    for (; primary_iter != planes->end(); ++primary_iter) {
+      if ((*primary_iter)->type() == DRM_PLANE_TYPE_PRIMARY)
+        break;
+    }
+
+    // We cheat a little here. Since there can only be one primary plane per
+    // crtc, we know we'll only hit this case once. So we blindly insert the
+    // protected content at the beginning of the composition, knowing this path
+    // won't be taken a second time during the loop.
+    if (primary_iter != planes->end()) {
+      composition->emplace(composition->begin(),
+                           DrmCompositionPlane::Type::kLayer, *primary_iter,
+                           crtc, i->first);
+      planes->erase(primary_iter);
+      protected_zorder = i->first;
+    } else {
+      ALOGE("Could not provision primary plane for protected/rotated layer");
+    }
+    i = layers.erase(i);
+  }
+
+  if (protected_zorder == -1)
+    return 0;
+
+  // Add any layers below the protected content to the precomposition since we
+  // need to punch a hole through them.
+  for (auto i = layers.begin(); i != layers.end();) {
+    // Skip layers above the z-order of the protected content
+    if (i->first > static_cast<size_t>(protected_zorder)) {
+      ++i;
+      continue;
+    }
+
+    // If there's no precomp layer already queued, queue one now.
+    DrmCompositionPlane *precomp = GetPrecomp(composition);
+    if (precomp) {
+      precomp->source_layers().emplace_back(i->first);
+    } else {
+      if (planes->size()) {
+        DrmPlane *precomp_plane = planes->back();
+        planes->pop_back();
+        composition->emplace_back(DrmCompositionPlane::Type::kPrecomp,
+                                  precomp_plane, crtc, i->first);
+      } else {
+        ALOGE("Not enough planes to reserve for precomp fb");
+      }
+    }
+    i = layers.erase(i);
+  }
+  return 0;
+}
 }
