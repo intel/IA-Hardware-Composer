@@ -238,15 +238,17 @@ static void SeparateLayers(DrmHwcLayer *layers, size_t *used_layers,
       if (!(protected_intersect & (1 << (i + num_exclude_rects))))
         continue;
 
-      region.id_set.subtract(layer_offset, layer_offset + protected_layers[i]);
+      for (size_t j = 0; j < num_used_layers; ++j) {
+        if (used_layers[j] < protected_layers[i])
+          region.id_set.subtract(j + layer_offset);
+      }
     }
-    if (region.id_set.isEmpty())
+    if (!(region.id_set.getBits() >> layer_offset))
       continue;
 
     regions.emplace_back(DrmCompositionRegion{
         region.rect,
-        SetBitsToVector(region.id_set.getBits() >> layer_offset,
-                        used_layers)});
+        SetBitsToVector(region.id_set.getBits() >> layer_offset, used_layers)});
   }
 }
 
