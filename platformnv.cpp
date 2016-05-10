@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "hwc-nv-importer"
+#define LOG_TAG "hwc-platform-nv"
 
 #include "drmresources.h"
 #include "platform.h"
