@@ -47,5 +47,4 @@ class Importer {
   virtual int ReleaseBuffer(hwc_drm_bo_t *bo) = 0;
 };
 }
-
 #endif
