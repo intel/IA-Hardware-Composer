@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DRM_GENERIC_IMPORTER_H_
-#define ANDROID_DRM_GENERIC_IMPORTER_H_
+#ifndef ANDROID_PLATFORM_DRM_GENERIC_H_
+#define ANDROID_PLATFORM_DRM_GENERIC_H_
 
 #include "drmresources.h"
 #include "platform.h"
