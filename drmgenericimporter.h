@@ -18,7 +18,7 @@
 #define ANDROID_DRM_GENERIC_IMPORTER_H_
 
 #include "drmresources.h"
-#include "importer.h"
+#include "platform.h"
 
 #include <hardware/gralloc.h>
 
