@@ -20,7 +20,7 @@
 #include "drmhwcomposer.h"
 #include "drmdisplaycomposition.h"
 #include "drmplane.h"
-#include "importer.h"
+#include "platform.h"
 
 #include <map>
 #include <vector>
