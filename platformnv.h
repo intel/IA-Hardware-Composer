@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_NV_IMPORTER_H_
-#define ANDROID_NV_IMPORTER_H_
+#ifndef ANDROID_PLATFORM_NV_H_
+#define ANDROID_PLATFORM_NV_H_
 
 #include "drmresources.h"
 #include "platform.h"
