@@ -19,6 +19,7 @@
 #include "drmplane.h"
 #include "drmresources.h"
 
+#include <cinttypes>
 #include <errno.h>
 #include <stdint.h>
 
@@ -53,7 +54,7 @@ int DrmPlane::Init() {
       type_ = (uint32_t)type;
       break;
     default:
-      ALOGE("Invalid plane type %d", type);
+      ALOGE("Invalid plane type %" PRIu64, type);
       return -EINVAL;
   }
 
