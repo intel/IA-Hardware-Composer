@@ -59,11 +59,11 @@ LOCAL_SRC_FILES := \
 	worker.cpp
 
 ifeq ($(strip $(BOARD_DRM_HWCOMPOSER_BUFFER_IMPORTER)),nvidia-gralloc)
-LOCAL_SRC_FILES += nvimporter.cpp
+LOCAL_SRC_FILES += platformnv.cpp
 LOCAL_CPPFLAGS += -DUSE_NVIDIA_IMPORTER
 else
 LOCAL_C_INCLUDES += external/drm_gralloc
-LOCAL_SRC_FILES += drmgenericimporter.cpp
+LOCAL_SRC_FILES += platformdrmgeneric.cpp
 LOCAL_CPPFLAGS += -DUSE_DRM_GENERIC_IMPORTER
 endif
 
