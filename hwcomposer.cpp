@@ -20,7 +20,7 @@
 #include "drmhwcomposer.h"
 #include "drmeventlistener.h"
 #include "drmresources.h"
-#include "importer.h"
+#include "platform.h"
 #include "virtualcompositorworker.h"
 #include "vsyncworker.h"
 
