@@ -606,8 +606,6 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   std::vector<DrmCompositionRegion> &pre_comp_regions =
       display_comp->pre_comp_regions();
 
-  DrmFramebuffer *pre_comp_fb;
-
   DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
   if (!connector) {
     ALOGE("Could not locate connector for display %d", display_);
