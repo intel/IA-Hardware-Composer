@@ -19,7 +19,7 @@
 
 #include "drmcomposition.h"
 #include "drmdisplaycompositor.h"
-#include "importer.h"
+#include "platform.h"
 
 #include <map>
 #include <memory>
