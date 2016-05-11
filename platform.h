@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DRM_IMPORTER_H_
-#define ANDROID_DRM_IMPORTER_H_
+#ifndef ANDROID_DRM_PLATFORM_H_
+#define ANDROID_DRM_PLATFORM_H_
 
 #include "drmhwcomposer.h"
 
