@@ -105,14 +105,6 @@ struct IdSet {
     bitset &= ~(((TUInt)1) << id);
   }
 
-  void subtract(TId start, TId end) {
-    if (start > end)
-      return;
-    TId start_mask = (1 << start) - 1;
-    TId end_mask = (1 << end) - 1;
-    bitset &= ~(start_mask ^ end_mask);
-  }
-
   bool isEmpty() const {
     return bitset == 0;
   }
