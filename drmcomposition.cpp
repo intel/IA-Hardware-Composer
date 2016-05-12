@@ -20,6 +20,7 @@
 #include "drmcrtc.h"
 #include "drmplane.h"
 #include "drmresources.h"
+#include "platform.h"
 
 #include <stdlib.h>
 
@@ -30,8 +31,9 @@
 
 namespace android {
 
-DrmComposition::DrmComposition(DrmResources *drm, Importer *importer)
-    : drm_(drm), importer_(importer) {
+DrmComposition::DrmComposition(DrmResources *drm, Importer *importer,
+                               Planner *planner)
+    : drm_(drm), importer_(importer), planner_(planner) {
   char use_overlay_planes_prop[PROPERTY_VALUE_MAX];
   property_get("hwc.drm.use_overlay_planes", use_overlay_planes_prop, "1");
   bool use_overlay_planes = atoi(use_overlay_planes_prop);
@@ -56,7 +58,8 @@ int DrmComposition::Init(uint64_t frame_no) {
     // If the display hasn't been modeset yet, this will be NULL
     DrmCrtc *crtc = drm_->GetCrtcForDisplay(display);
 
-    int ret = composition_map_[display]->Init(drm_, crtc, importer_, frame_no);
+    int ret = composition_map_[display]->Init(drm_, crtc, importer_, planner_,
+                                              frame_no);
     if (ret) {
       ALOGE("Failed to init display composition for %d", display);
       return ret;
