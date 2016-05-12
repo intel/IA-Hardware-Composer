@@ -20,6 +20,7 @@
 #include "drmcrtc.h"
 #include "drmplane.h"
 #include "drmresources.h"
+#include "platform.h"
 
 #include <stdlib.h>
 
@@ -41,10 +42,12 @@ DrmDisplayComposition::~DrmDisplayComposition() {
 }
 
 int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
-                                Importer *importer, uint64_t frame_no) {
+                                Importer *importer, Planner *planner,
+                                uint64_t frame_no) {
   drm_ = drm;
   crtc_ = crtc;  // Can be NULL if we haven't modeset yet
   importer_ = importer;
+  planner_ = planner;
   frame_no_ = frame_no;
 
   int ret = sw_sync_timeline_create();
@@ -118,65 +121,8 @@ int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
   return 0;
 }
 
-static size_t CountUsablePlanes(DrmCrtc *crtc,
-                                std::vector<DrmPlane *> *primary_planes,
-                                std::vector<DrmPlane *> *overlay_planes) {
-  return std::count_if(
-             primary_planes->begin(), primary_planes->end(),
-             [=](DrmPlane *plane) { return plane->GetCrtcSupported(*crtc); }) +
-         std::count_if(
-             overlay_planes->begin(), overlay_planes->end(),
-             [=](DrmPlane *plane) { return plane->GetCrtcSupported(*crtc); });
-}
-
-static DrmPlane *TakePlane(DrmCrtc *crtc, std::vector<DrmPlane *> *planes) {
-  for (auto iter = planes->begin(); iter != planes->end(); ++iter) {
-    if ((*iter)->GetCrtcSupported(*crtc)) {
-      DrmPlane *plane = *iter;
-      planes->erase(iter);
-      return plane;
-    }
-  }
-  return NULL;
-}
-
-static DrmPlane *TakePlane(DrmCrtc *crtc,
-                           std::vector<DrmPlane *> *primary_planes,
-                           std::vector<DrmPlane *> *overlay_planes) {
-  DrmPlane *plane = TakePlane(crtc, primary_planes);
-  if (plane)
-    return plane;
-  return TakePlane(crtc, overlay_planes);
-}
-
-void DrmDisplayComposition::EmplaceCompositionPlane(
-    DrmCompositionPlane::Type type, std::vector<DrmPlane *> *primary_planes,
-    std::vector<DrmPlane *> *overlay_planes) {
-  DrmPlane *plane = TakePlane(crtc_, primary_planes, overlay_planes);
-  if (plane == NULL) {
-    ALOGE(
-        "Failed to add composition plane because there are no planes "
-        "remaining");
-    return;
-  }
-  composition_planes_.emplace_back(type, plane, crtc_);
-}
-
-void DrmDisplayComposition::EmplaceCompositionPlane(
-    size_t source_layer, std::vector<DrmPlane *> *primary_planes,
-    std::vector<DrmPlane *> *overlay_planes) {
-  DrmPlane *plane = TakePlane(crtc_, primary_planes, overlay_planes);
-  if (plane == NULL) {
-    ALOGE(
-        "Failed to add composition plane because there are no planes "
-        "remaining");
-    return;
-  }
-  composition_planes_.emplace_back(DrmCompositionPlane::Type::kLayer, plane,
-                                   crtc_, source_layer);
-}
-
-static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
+static std::vector<size_t> SetBitsToVector(
+    uint64_t in, const std::vector<size_t> &index_map) {
   std::vector<size_t> out;
   size_t msb = sizeof(in) * 8 - 1;
   uint64_t mask = (uint64_t)1 << msb;
@@ -191,9 +137,7 @@ int DrmDisplayComposition::AddPlaneComposition(DrmCompositionPlane plane) {
   return 0;
 }
 
-void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
-                                           size_t num_used_layers,
-                                           DrmHwcRect<int> *exclude_rects,
+void DrmDisplayComposition::SeparateLayers(DrmHwcRect<int> *exclude_rects,
                                            size_t num_exclude_rects) {
   DrmCompositionPlane *comp = NULL;
   std::vector<size_t> dedicated_layers;
@@ -212,18 +156,19 @@ void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
   if (!comp)
     return;
 
-  if (num_used_layers > 64) {
+  const std::vector<size_t> &comp_layers = comp->source_layers();
+  if (comp_layers.size() > 64) {
     ALOGE("Failed to separate layers because there are more than 64");
     return;
   }
 
   // Index at which the actual layers begin
   size_t layer_offset = num_exclude_rects + dedicated_layers.size();
-  if (num_used_layers + layer_offset > 64) {
+  if (comp_layers.size() + layer_offset > 64) {
     ALOGW(
         "Exclusion rectangles are being truncated to make the rectangle count "
         "fit into 64");
-    num_exclude_rects = 64 - num_used_layers - dedicated_layers.size();
+    num_exclude_rects = 64 - comp_layers.size() - dedicated_layers.size();
   }
 
   // We inject all the exclude rects into the rects list. Any resulting rect
@@ -231,14 +176,14 @@ void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
   // exclude rects, we add the lower layers. The rects that intersect with
   // these layers will be inspected and only those which are to be composited
   // above the layer will be included in the composition regions.
-  std::vector<DrmHwcRect<int>> layer_rects(num_used_layers + layer_offset);
+  std::vector<DrmHwcRect<int>> layer_rects(comp_layers.size() + layer_offset);
   std::copy(exclude_rects, exclude_rects + num_exclude_rects,
             layer_rects.begin());
   std::transform(
       dedicated_layers.begin(), dedicated_layers.end(),
       layer_rects.begin() + num_exclude_rects,
       [=](size_t layer_index) { return layers_[layer_index].display_frame; });
-  std::transform(used_layers, used_layers + num_used_layers,
+  std::transform(comp_layers.begin(), comp_layers.end(),
                  layer_rects.begin() + layer_offset, [=](size_t layer_index) {
     return layers_[layer_index].display_frame;
   });
@@ -265,8 +210,8 @@ void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
       if (!(dedicated_intersect & (1 << (i + num_exclude_rects))))
         continue;
 
-      for (size_t j = 0; j < num_used_layers; ++j) {
-        if (used_layers[j] < dedicated_layers[i])
+      for (size_t j = 0; j < comp_layers.size(); ++j) {
+        if (comp_layers[j] < dedicated_layers[i])
           region.id_set.subtract(j + layer_offset);
       }
     }
@@ -275,7 +220,7 @@ void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
 
     pre_comp_regions_.emplace_back(DrmCompositionRegion{
         region.rect,
-        SetBitsToVector(region.id_set.getBits() >> layer_offset, used_layers)});
+        SetBitsToVector(region.id_set.getBits() >> layer_offset, comp_layers)});
   }
 }
 
@@ -344,19 +289,19 @@ int DrmDisplayComposition::Plan(SquashState *squash,
   if (type_ != DRM_COMPOSITION_TYPE_FRAME)
     return 0;
 
-  size_t planes_can_use =
-      CountUsablePlanes(crtc_, primary_planes, overlay_planes);
-  if (planes_can_use == 0) {
-    ALOGE("Display %d has no usable planes", crtc_->display());
-    return -ENODEV;
-  }
+  // Used to track which layers should be sent to the planner. We exclude layers
+  // that are entirely squashed so the planner can provision a precomposition
+  // layer as appropriate (ex: if 5 layers are squashed and 1 is not, we don't
+  // want to plan a precomposition layer that will be comprised of the already
+  // squashed layers).
+  std::map<size_t, DrmHwcLayer *> to_composite;
 
   bool use_squash_framebuffer = false;
   // Used to determine which layers were entirely squashed
   std::vector<int> layer_squash_area(layers_.size(), 0);
   // Used to avoid rerendering regions that were squashed
   std::vector<DrmHwcRect<int>> exclude_rects;
-  if (squash != NULL && planes_can_use >= 3) {
+  if (squash != NULL) {
     if (geometry_changed_) {
       squash->Init(layers_.data(), layers_.size());
     } else {
@@ -404,95 +349,55 @@ int DrmDisplayComposition::Plan(SquashState *squash,
         }
       }
     }
+
+    for (size_t i = 0; i < layers_.size(); ++i) {
+      if (layer_squash_area[i] < layers_[i].display_frame.area())
+        to_composite.emplace(std::make_pair(i, &layers_[i]));
+    }
+  } else {
+    for (size_t i = 0; i < layers_.size(); ++i)
+      to_composite.emplace(std::make_pair(i, &layers_[i]));
   }
 
-  // All protected layers get first usage of planes
-  std::vector<size_t> layers_remaining;
-  std::vector<size_t> protected_layers;
-  for (size_t layer_index = 0; layer_index < layers_.size(); layer_index++) {
-    if (!layers_[layer_index].protected_usage() || planes_can_use == 0) {
-      layers_remaining.push_back(layer_index);
+  int ret;
+  std::vector<DrmCompositionPlane> plan;
+  std::tie(ret, composition_planes_) =
+      planner_->ProvisionPlanes(to_composite, use_squash_framebuffer, crtc_,
+                                primary_planes, overlay_planes);
+  if (ret) {
+    ALOGE("Planner failed provisioning planes ret=%d", ret);
+    return ret;
+  }
+
+  // Remove the planes we used from the pool before returning. This ensures they
+  // won't be reused by another display in the composition.
+  for (auto &i : composition_planes_) {
+    if (!i.plane())
       continue;
-    }
-    protected_layers.push_back(layer_index);
-    planes_can_use--;
-  }
 
-  if (planes_can_use == 0 && layers_remaining.size() > 0) {
-    for (auto i : protected_layers)
-      EmplaceCompositionPlane(i, primary_planes, overlay_planes);
-
-    ALOGE("Protected layers consumed all hardware planes");
-    return CreateAndAssignReleaseFences();
-  }
-
-  std::vector<size_t> layers_remaining_if_squash;
-  for (size_t layer_index : layers_remaining) {
-    if (layer_squash_area[layer_index] <
-        layers_[layer_index].display_frame.area())
-      layers_remaining_if_squash.push_back(layer_index);
-  }
-
-  if (use_squash_framebuffer) {
-    if (planes_can_use > 1 || layers_remaining_if_squash.size() == 0) {
-      layers_remaining = std::move(layers_remaining_if_squash);
-      planes_can_use--;  // Reserve plane for squashing
-    } else {
-      use_squash_framebuffer = false;  // The squash buffer is still rendered
+    std::vector<DrmPlane *> *container;
+    if (i.plane()->type() == DRM_PLANE_TYPE_PRIMARY)
+      container = primary_planes;
+    else
+      container = overlay_planes;
+    for (auto j = container->begin(); j != container->end(); ++j) {
+      if (*j == i.plane()) {
+        container->erase(j);
+        break;
+      }
     }
   }
 
-  if (layers_remaining.size() > planes_can_use)
-    planes_can_use--;  // Reserve one for pre-compositing
-
-  // Whatever planes that are not reserved get assigned a layer
-  size_t last_hw_comp_layer = 0;
-  size_t protected_idx = 0;
-  while(last_hw_comp_layer < layers_remaining.size() && planes_can_use > 0) {
-    size_t idx = layers_remaining[last_hw_comp_layer];
-
-    // Put the protected layers into the composition at the right place. We've
-    // already reserved them by decrementing planes_can_use, so no need to do
-    // that again.
-    if (protected_idx < protected_layers.size() &&
-        idx > protected_layers[protected_idx]) {
-      EmplaceCompositionPlane(protected_layers[protected_idx], primary_planes,
-                              overlay_planes);
-      protected_idx++;
-      continue;
-    }
-
-    EmplaceCompositionPlane(layers_remaining[last_hw_comp_layer],
-                            primary_planes, overlay_planes);
-    last_hw_comp_layer++;
-    planes_can_use--;
-  }
-
-  layers_remaining.erase(layers_remaining.begin(),
-                         layers_remaining.begin() + last_hw_comp_layer);
-
-  // Enqueue the rest of the protected layers (if any) between the hw composited
-  // overlay layers and the squash/precomp layers.
-  for (size_t i = protected_idx; i < protected_layers.size(); ++i)
-    EmplaceCompositionPlane(protected_layers[i], primary_planes,
-                            overlay_planes);
-
-  if (layers_remaining.size() > 0) {
-    EmplaceCompositionPlane(DrmCompositionPlane::Type::kPrecomp, primary_planes,
-                            overlay_planes);
-    SeparateLayers(layers_remaining.data(), layers_remaining.size(),
-                   exclude_rects.data(), exclude_rects.size());
-  }
-
-  if (use_squash_framebuffer) {
-    EmplaceCompositionPlane(DrmCompositionPlane::Type::kSquash, primary_planes,
-                            overlay_planes);
-  }
-
-  return FinalizeComposition();
+  return FinalizeComposition(exclude_rects.data(), exclude_rects.size());
 }
 
 int DrmDisplayComposition::FinalizeComposition() {
+  return FinalizeComposition(NULL, 0);
+}
+
+int DrmDisplayComposition::FinalizeComposition(DrmHwcRect<int> *exclude_rects,
+                                               size_t num_exclude_rects) {
+  SeparateLayers(exclude_rects, num_exclude_rects);
   return CreateAndAssignReleaseFences();
 }
 
