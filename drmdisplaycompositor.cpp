@@ -1048,7 +1048,8 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
 
   int pre_comp_layer_index;
 
-  int ret = dst->Init(drm_, src->crtc(), src->importer(), src->frame_no());
+  int ret = dst->Init(drm_, src->crtc(), src->importer(), src->planner(),
+                      src->frame_no());
   if (ret) {
     ALOGE("Failed to init squash all composition %d", ret);
     return ret;
@@ -1065,8 +1066,10 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       goto move_layers_back;
     }
 
-    if (comp_plane.type() == DrmCompositionPlane::Type::kDisable)
+    if (comp_plane.type() == DrmCompositionPlane::Type::kDisable) {
+      dst->AddPlaneDisable(comp_plane.plane());
       continue;
+    }
 
     for (auto i : comp_plane.source_layers()) {
       DrmHwcLayer &layer = src_layers[i];
