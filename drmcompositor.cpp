@@ -19,6 +19,7 @@
 #include "drmcompositor.h"
 #include "drmdisplaycompositor.h"
 #include "drmresources.h"
+#include "platform.h"
 
 #include <sstream>
 #include <stdlib.h>
@@ -42,6 +43,11 @@ int DrmCompositor::Init() {
       return ret;
     }
   }
+  planner_ = Planner::CreateInstance(drm_);
+  if (!planner_) {
+    ALOGE("Failed to create planner instance for composition");
+    return -ENOMEM;
+  }
 
   return 0;
 }
@@ -49,7 +55,7 @@ int DrmCompositor::Init() {
 std::unique_ptr<DrmComposition> DrmCompositor::CreateComposition(
     Importer *importer) {
   std::unique_ptr<DrmComposition> composition(
-      new DrmComposition(drm_, importer));
+      new DrmComposition(drm_, importer, planner_.get()));
   int ret = composition->Init(++frame_no_);
   if (ret) {
     ALOGE("Failed to initialize drm composition %d", ret);
