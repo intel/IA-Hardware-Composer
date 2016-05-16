@@ -186,6 +186,11 @@ static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
   return out;
 }
 
+int DrmDisplayComposition::AddPlaneComposition(DrmCompositionPlane plane) {
+  composition_planes_.emplace_back(std::move(plane));
+  return 0;
+}
+
 void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
                                            size_t num_used_layers,
                                            DrmHwcRect<int> *exclude_rects,
@@ -484,6 +489,10 @@ int DrmDisplayComposition::Plan(SquashState *squash,
                             overlay_planes);
   }
 
+  return FinalizeComposition();
+}
+
+int DrmDisplayComposition::FinalizeComposition() {
   return CreateAndAssignReleaseFences();
 }
 
