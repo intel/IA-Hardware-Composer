@@ -18,7 +18,7 @@
 #define ANDROID_NV_IMPORTER_H_
 
 #include "drmresources.h"
-#include "importer.h"
+#include "platform.h"
 
 #include <stdatomic.h>
 

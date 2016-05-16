@@ -21,7 +21,7 @@
 #include "drmhwcomposer.h"
 #include "drmplane.h"
 #include "glworker.h"
-#include "importer.h"
+#include "platform.h"
 
 #include <sstream>
 #include <vector>
