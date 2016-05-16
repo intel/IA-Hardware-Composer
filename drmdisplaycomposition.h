@@ -21,7 +21,6 @@
 #include "drmhwcomposer.h"
 #include "drmplane.h"
 #include "glworker.h"
-#include "platform.h"
 
 #include <sstream>
 #include <vector>
@@ -32,6 +31,7 @@
 
 namespace android {
 
+class Importer;
 class SquashState;
 
 enum DrmCompositionType {
