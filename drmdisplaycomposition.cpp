@@ -186,75 +186,89 @@ static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
   return out;
 }
 
-static void SeparateLayers(DrmHwcLayer *layers, size_t *used_layers,
-                           size_t num_used_layers,
-                           size_t *protected_layers,
-                           size_t num_protected_layers,
-                           DrmHwcRect<int> *exclude_rects,
-                           size_t num_exclude_rects,
-                           std::vector<DrmCompositionRegion> &regions) {
+void DrmDisplayComposition::SeparateLayers(size_t *used_layers,
+                                           size_t num_used_layers,
+                                           DrmHwcRect<int> *exclude_rects,
+                                           size_t num_exclude_rects) {
+  DrmCompositionPlane *comp = NULL;
+  std::vector<size_t> dedicated_layers;
+
+  // Go through the composition and find the precomp layer as well as any
+  // layers that have a dedicated plane located below the precomp layer.
+  for (auto &i : composition_planes_) {
+    if (i.type() == DrmCompositionPlane::Type::kLayer) {
+      dedicated_layers.insert(dedicated_layers.end(), i.source_layers().begin(),
+                              i.source_layers().end());
+    } else if (i.type() == DrmCompositionPlane::Type::kPrecomp) {
+      comp = &i;
+      break;
+    }
+  }
+  if (!comp)
+    return;
+
   if (num_used_layers > 64) {
     ALOGE("Failed to separate layers because there are more than 64");
     return;
   }
 
   // Index at which the actual layers begin
-  size_t layer_offset = num_exclude_rects + num_protected_layers;
-
+  size_t layer_offset = num_exclude_rects + dedicated_layers.size();
   if (num_used_layers + layer_offset > 64) {
     ALOGW(
         "Exclusion rectangles are being truncated to make the rectangle count "
         "fit into 64");
-    num_exclude_rects = 64 - num_used_layers - num_protected_layers;
+    num_exclude_rects = 64 - num_used_layers - dedicated_layers.size();
   }
 
   // We inject all the exclude rects into the rects list. Any resulting rect
   // that includes ANY of the first num_exclude_rects is rejected. After the
-  // exclude rects, we add the protected layers. The rects that intersect with
-  // the protected layer will be inspected and only those which are above the
-  // protected layer will be included in the composition regions.
+  // exclude rects, we add the lower layers. The rects that intersect with
+  // these layers will be inspected and only those which are to be composited
+  // above the layer will be included in the composition regions.
   std::vector<DrmHwcRect<int>> layer_rects(num_used_layers + layer_offset);
   std::copy(exclude_rects, exclude_rects + num_exclude_rects,
             layer_rects.begin());
   std::transform(
-      protected_layers, protected_layers + num_protected_layers,
+      dedicated_layers.begin(), dedicated_layers.end(),
       layer_rects.begin() + num_exclude_rects,
-      [=](size_t layer_index) { return layers[layer_index].display_frame; });
-  std::transform(
-      used_layers, used_layers + num_used_layers,
-      layer_rects.begin() + layer_offset,
-      [=](size_t layer_index) { return layers[layer_index].display_frame; });
+      [=](size_t layer_index) { return layers_[layer_index].display_frame; });
+  std::transform(used_layers, used_layers + num_used_layers,
+                 layer_rects.begin() + layer_offset, [=](size_t layer_index) {
+    return layers_[layer_index].display_frame;
+  });
 
   std::vector<separate_rects::RectSet<uint64_t, int>> separate_regions;
   separate_rects::separate_rects_64(layer_rects, &separate_regions);
   uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
-  uint64_t protected_mask = (((uint64_t)1 << num_protected_layers) - 1) <<
-                            num_exclude_rects;
+  uint64_t dedicated_mask = (((uint64_t)1 << dedicated_layers.size()) - 1)
+                            << num_exclude_rects;
 
   for (separate_rects::RectSet<uint64_t, int> &region : separate_regions) {
     if (region.id_set.getBits() & exclude_mask)
       continue;
 
-    // If a rect intersects a protected layer, we need to remove the layers
-    // from the composition region which appear *below* the protected layer.
-    // This effectively punches a hole through the composition layer such
-    // that the protected layer can be placed below the composition and not
-    // be occluded by things like the background.
-    uint64_t protected_intersect = region.id_set.getBits() & protected_mask;
-    for (size_t i = 0; protected_intersect && i < num_protected_layers; ++i) {
-      // Only exclude layers if they intersect this particular protected layer
-      if (!(protected_intersect & (1 << (i + num_exclude_rects))))
+    // If a rect intersects one of the dedicated layers, we need to remove the
+    // layers from the composition region which appear *below* the dedicated
+    // layer. This effectively punches a hole through the composition layer such
+    // that the dedicated layer can be placed below the composition and not
+    // be occluded.
+    uint64_t dedicated_intersect = region.id_set.getBits() & dedicated_mask;
+    for (size_t i = 0; dedicated_intersect && i < dedicated_layers.size();
+         ++i) {
+      // Only exclude layers if they intersect this particular dedicated layer
+      if (!(dedicated_intersect & (1 << (i + num_exclude_rects))))
         continue;
 
       for (size_t j = 0; j < num_used_layers; ++j) {
-        if (used_layers[j] < protected_layers[i])
+        if (used_layers[j] < dedicated_layers[i])
           region.id_set.subtract(j + layer_offset);
       }
     }
     if (!(region.id_set.getBits() >> layer_offset))
       continue;
 
-    regions.emplace_back(DrmCompositionRegion{
+    pre_comp_regions_.emplace_back(DrmCompositionRegion{
         region.rect,
         SetBitsToVector(region.id_set.getBits() >> layer_offset, used_layers)});
   }
@@ -461,10 +475,8 @@ int DrmDisplayComposition::Plan(SquashState *squash,
   if (layers_remaining.size() > 0) {
     EmplaceCompositionPlane(DrmCompositionPlane::Type::kPrecomp, primary_planes,
                             overlay_planes);
-    SeparateLayers(layers_.data(), layers_remaining.data(),
-                   layers_remaining.size(), protected_layers.data(),
-                   protected_layers.size(), exclude_rects.data(),
-                   exclude_rects.size(), pre_comp_regions_);
+    SeparateLayers(layers_remaining.data(), layers_remaining.size(),
+                   exclude_rects.data(), exclude_rects.size());
   }
 
   if (use_squash_framebuffer) {
