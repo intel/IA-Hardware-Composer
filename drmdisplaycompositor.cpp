@@ -172,7 +172,7 @@ void SquashState::Dump(std::ostringstream *out) const {
 static bool UsesSquash(const std::vector<DrmCompositionPlane> &comp_planes) {
   return std::any_of(comp_planes.begin(), comp_planes.end(),
                      [](const DrmCompositionPlane &plane) {
-    return plane.type == DrmCompositionPlaneType::kSquash;
+    return plane.type() == DrmCompositionPlaneType::kSquash;
   });
 }
 
@@ -488,7 +488,7 @@ int DrmDisplayCompositor::DisablePlanes(DrmDisplayComposition *display_comp) {
   std::vector<DrmCompositionPlane> &comp_planes =
       display_comp->composition_planes();
   for (DrmCompositionPlane &comp_plane : comp_planes) {
-    DrmPlane *plane = comp_plane.plane;
+    DrmPlane *plane = comp_plane.plane();
     ret = drmModeAtomicAddProperty(pset, plane->id(),
                                    plane->crtc_property().id(), 0) < 0 ||
           drmModeAtomicAddProperty(pset, plane->id(), plane->fb_property().id(),
@@ -572,9 +572,13 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
   }
 
   for (DrmCompositionPlane &comp_plane : comp_planes) {
-    switch (comp_plane.type) {
+    std::vector<size_t> &source_layers = comp_plane.source_layers();
+    switch (comp_plane.type()) {
       case DrmCompositionPlaneType::kSquash:
-        comp_plane.source_layer = squash_layer_index;
+        if (source_layers.size())
+          ALOGE("Squash source_layers is expected to be empty (%zu/%d)",
+                source_layers[0], squash_layer_index);
+        source_layers.push_back(squash_layer_index);
         break;
       case DrmCompositionPlaneType::kPrecomp:
         if (!do_pre_comp) {
@@ -583,7 +587,9 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
               "regions");
           return -EINVAL;
         }
-        comp_plane.source_layer = pre_comp_layer_index;
+        // Replace source_layers with the output of the precomposite
+        source_layers.clear();
+        source_layers.push_back(pre_comp_layer_index);
         break;
       default:
         break;
@@ -636,8 +642,9 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   }
 
   for (DrmCompositionPlane &comp_plane : comp_planes) {
-    DrmPlane *plane = comp_plane.plane;
-    DrmCrtc *crtc = comp_plane.crtc;
+    DrmPlane *plane = comp_plane.plane();
+    DrmCrtc *crtc = comp_plane.crtc();
+    std::vector<size_t> &source_layers = comp_plane.source_layers();
 
     int fb_id = -1;
     DrmHwcRect<int> display_frame;
@@ -645,14 +652,19 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     uint64_t rotation = 0;
     uint64_t alpha = 0xFF;
 
-    if (comp_plane.type != DrmCompositionPlaneType::kDisable) {
-      if (comp_plane.source_layer < 0 ||
-          static_cast<size_t>(comp_plane.source_layer) >= layers.size()) {
-        ALOGE("Source layer index %d out of bounds %zu type=%d",
-              comp_plane.source_layer, layers.size(), comp_plane.type);
+    if (comp_plane.type() != DrmCompositionPlaneType::kDisable) {
+      if (source_layers.size() > 1) {
+        ALOGE("Can't handle more than one source layer sz=%zu type=%d",
+              source_layers.size(), comp_plane.type());
+        continue;
+      }
+
+      if (source_layers.empty() || source_layers.front() >= layers.size()) {
+        ALOGE("Source layer index %zu out of bounds %zu type=%d",
+              source_layers.front(), layers.size(), comp_plane.type());
         break;
       }
-      DrmHwcLayer &layer = layers[comp_plane.source_layer];
+      DrmHwcLayer &layer = layers[source_layers.front()];
       if (!test_only && layer.acquire_fence.get() >= 0) {
         int acquire_fence = layer.acquire_fence.get();
         int total_fence_timeout = 0;
@@ -1029,7 +1041,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   // Make sure there is more than one layer to squash.
   size_t src_planes_with_layer = std::count_if(
       src_planes.begin(), src_planes.end(), [](DrmCompositionPlane &p) {
-        return p.type == DrmCompositionPlaneType::kLayer;
+        return p.type() == DrmCompositionPlaneType::kLayer;
       });
   if (src_planes_with_layer <= 1)
     return -EALREADY;
@@ -1047,35 +1059,36 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   std::vector<DrmHwcLayer> dst_layers;
   for (DrmCompositionPlane &comp_plane : src_planes) {
     // Composition planes without DRM planes should never happen
-    if (comp_plane.plane == NULL) {
+    if (comp_plane.plane() == NULL) {
       ALOGE("Skipping squash all because of NULL plane");
       ret = -EINVAL;
       goto move_layers_back;
     }
 
-    if (comp_plane.type == DrmCompositionPlaneType::kDisable ||
-        comp_plane.source_layer < 0)
+    if (comp_plane.type() == DrmCompositionPlaneType::kDisable)
       continue;
 
-    DrmHwcLayer &layer = src_layers[comp_plane.source_layer];
+    for (auto i : comp_plane.source_layers()) {
+      DrmHwcLayer &layer = src_layers[i];
 
-    // Squashing protected layers is impossible.
-    if (layer.protected_usage()) {
-      ret = -ENOTSUP;
-      goto move_layers_back;
+      // Squashing protected layers is impossible.
+      if (layer.protected_usage()) {
+        ret = -ENOTSUP;
+        goto move_layers_back;
+      }
+
+      // The OutputFds point to freed memory after hwc_set returns. They are
+      // returned to the default to prevent DrmDisplayComposition::Plan from
+      // filling the OutputFds.
+      layer.release_fence = OutputFd();
+      dst_layers.emplace_back(std::move(layer));
     }
 
-    // The OutputFds point to freed memory after hwc_set returns. They are
-    // returned to the default to prevent DrmDisplayComposition::Plan from
-    // filling the OutputFds.
-    layer.release_fence = OutputFd();
-    dst_layers.emplace_back(std::move(layer));
-
-    if (comp_plane.plane->type() == DRM_PLANE_TYPE_PRIMARY &&
+    if (comp_plane.plane()->type() == DRM_PLANE_TYPE_PRIMARY &&
         primary_planes.size() == 0)
-      primary_planes.push_back(comp_plane.plane);
+      primary_planes.push_back(comp_plane.plane());
     else
-      dst->AddPlaneDisable(comp_plane.plane);
+      dst->AddPlaneDisable(comp_plane.plane());
   }
 
   ret = dst->SetLayers(dst_layers.data(), dst_layers.size(), false);
@@ -1100,9 +1113,14 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   pre_comp_layer_index = dst->layers().size() - 1;
   framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
 
-  for (DrmCompositionPlane &plane : dst->composition_planes())
-    if (plane.type == DrmCompositionPlaneType::kPrecomp)
-      plane.source_layer = pre_comp_layer_index;
+  for (DrmCompositionPlane &plane : dst->composition_planes()) {
+    if (plane.type() == DrmCompositionPlaneType::kPrecomp) {
+      // Replace source_layers with the output of the precomposite
+      plane.source_layers().clear();
+      plane.source_layers().push_back(pre_comp_layer_index);
+      break;
+    }
+  }
 
   return 0;
 
@@ -1110,10 +1128,13 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
 // composition.
 move_layers_back:
   for (size_t plane_index = 0;
-       plane_index < src_planes.size() && plane_index < dst_layers.size();
-       plane_index++) {
-    size_t source_layer_index = src_planes[plane_index].source_layer;
-    src_layers[source_layer_index] = std::move(dst_layers[plane_index]);
+       plane_index < src_planes.size() && plane_index < dst_layers.size();) {
+    if (src_planes[plane_index].source_layers().empty()) {
+      plane_index++;
+      continue;
+    }
+    for (auto i : src_planes[plane_index].source_layers())
+      src_layers[i] = std::move(dst_layers[plane_index++]);
   }
 
   return ret;
