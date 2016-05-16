@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "hwc-drm-generic-importer"
+#define LOG_TAG "hwc-platform-drm-generic"
 
 #include "drmresources.h"
 #include "platform.h"
