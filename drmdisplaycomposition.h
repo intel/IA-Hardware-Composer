@@ -184,6 +184,8 @@ class DrmDisplayComposition {
   void EmplaceCompositionPlane(size_t source_layer,
                                std::vector<DrmPlane *> *primary_planes,
                                std::vector<DrmPlane *> *overlay_planes);
+  void SeparateLayers(size_t *used_layers, size_t num_used_layers,
+                      DrmHwcRect<int> *exclude_rects, size_t num_exclude_rects);
   int CreateAndAssignReleaseFences();
 
   DrmResources *drm_ = NULL;
