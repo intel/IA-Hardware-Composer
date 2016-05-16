@@ -44,7 +44,7 @@ struct DrmCompositionDisplayLayersMap {
 
 class DrmComposition {
  public:
-  DrmComposition(DrmResources *drm, Importer *importer);
+  DrmComposition(DrmResources *drm, Importer *importer, Planner *planner);
 
   int Init(uint64_t frame_no);
 
@@ -63,6 +63,7 @@ class DrmComposition {
 
   DrmResources *drm_;
   Importer *importer_;
+  Planner *planner_;
 
   std::vector<DrmPlane *> primary_planes_;
   std::vector<DrmPlane *> overlay_planes_;

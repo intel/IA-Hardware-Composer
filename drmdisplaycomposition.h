@@ -32,6 +32,7 @@
 namespace android {
 
 class Importer;
+class Planner;
 class SquashState;
 
 enum DrmCompositionType {
@@ -106,7 +107,7 @@ class DrmDisplayComposition {
   ~DrmDisplayComposition();
 
   int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer,
-           uint64_t frame_no);
+           Planner *planner, uint64_t frame_no);
 
   int SetLayers(DrmHwcLayer *layers, size_t num_layers, bool geometry_changed);
   int AddPlaneComposition(DrmCompositionPlane plane);
@@ -174,6 +175,10 @@ class DrmDisplayComposition {
     return importer_;
   }
 
+  Planner *planner() const {
+    return planner_;
+  }
+
   void Dump(std::ostringstream *out) const;
 
  private:
@@ -181,19 +186,15 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
-  void EmplaceCompositionPlane(DrmCompositionPlane::Type type,
-                               std::vector<DrmPlane *> *primary_planes,
-                               std::vector<DrmPlane *> *overlay_planes);
-  void EmplaceCompositionPlane(size_t source_layer,
-                               std::vector<DrmPlane *> *primary_planes,
-                               std::vector<DrmPlane *> *overlay_planes);
-  void SeparateLayers(size_t *used_layers, size_t num_used_layers,
-                      DrmHwcRect<int> *exclude_rects, size_t num_exclude_rects);
+  int FinalizeComposition(DrmHwcRect<int> *exclude_rects,
+                          size_t num_exclude_rects);
+  void SeparateLayers(DrmHwcRect<int> *exclude_rects, size_t num_exclude_rects);
   int CreateAndAssignReleaseFences();
 
   DrmResources *drm_ = NULL;
   DrmCrtc *crtc_ = NULL;
   Importer *importer_ = NULL;
+  Planner *planner_ = NULL;
 
   DrmCompositionType type_ = DRM_COMPOSITION_TYPE_EMPTY;
   uint32_t dpms_mode_ = DRM_MODE_DPMS_ON;

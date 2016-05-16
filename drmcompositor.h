@@ -44,6 +44,7 @@ class DrmCompositor {
   DrmCompositor(const DrmCompositor &) = delete;
 
   DrmResources *drm_;
+  std::unique_ptr<Planner> planner_;
 
   uint64_t frame_no_;
 
