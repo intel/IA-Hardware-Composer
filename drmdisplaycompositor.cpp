@@ -172,9 +172,8 @@ void SquashState::Dump(std::ostringstream *out) const {
 static bool UsesSquash(const std::vector<DrmCompositionPlane> &comp_planes) {
   return std::any_of(comp_planes.begin(), comp_planes.end(),
                      [](const DrmCompositionPlane &plane) {
-                       return plane.source_layer ==
-                              DrmCompositionPlane::kSourceSquash;
-                     });
+    return plane.type == DrmCompositionPlaneType::kSquash;
+  });
 }
 
 DrmDisplayCompositor::FrameWorker::FrameWorker(DrmDisplayCompositor *compositor)
@@ -573,11 +572,11 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
   }
 
   for (DrmCompositionPlane &comp_plane : comp_planes) {
-    switch (comp_plane.source_layer) {
-      case DrmCompositionPlane::kSourceSquash:
+    switch (comp_plane.type) {
+      case DrmCompositionPlaneType::kSquash:
         comp_plane.source_layer = squash_layer_index;
         break;
-      case DrmCompositionPlane::kSourcePreComp:
+      case DrmCompositionPlaneType::kPrecomp:
         if (!do_pre_comp) {
           ALOGE(
               "Can not use pre composite framebuffer with no pre composite "
@@ -645,63 +644,54 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     DrmHwcRect<float> source_crop;
     uint64_t rotation = 0;
     uint64_t alpha = 0xFF;
-    switch (comp_plane.source_layer) {
-      case DrmCompositionPlane::kSourceNone:
-        break;
-      case DrmCompositionPlane::kSourceSquash:
-        ALOGE("Actual source layer index expected for squash layer");
-        break;
-      case DrmCompositionPlane::kSourcePreComp:
-        ALOGE("Actual source layer index expected for pre-comp layer");
-        break;
-      default: {
-        if (comp_plane.source_layer >= layers.size()) {
-          ALOGE("Source layer index %zu out of bounds %zu",
-                comp_plane.source_layer, layers.size());
-          break;
-        }
-        DrmHwcLayer &layer = layers[comp_plane.source_layer];
-        if (!test_only && layer.acquire_fence.get() >= 0) {
-          int acquire_fence = layer.acquire_fence.get();
-          int total_fence_timeout = 0;
-          for (int i = 0; i < kAcquireWaitTries; ++i) {
-            int fence_timeout = kAcquireWaitTimeoutMs * (1 << i);
-            total_fence_timeout += fence_timeout;
-            ret = sync_wait(acquire_fence, fence_timeout);
-            if (ret)
-              ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
-                    acquire_fence, i, ret, total_fence_timeout);
-          }
-          if (ret) {
-            ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
-            break;
-          }
-          layer.acquire_fence.Close();
-        }
-        if (!layer.buffer) {
-          ALOGE("Expected a valid framebuffer for pset");
-          break;
-        }
-        fb_id = layer.buffer->fb_id;
-        display_frame = layer.display_frame;
-        source_crop = layer.source_crop;
-        if (layer.blending == DrmHwcBlending::kPreMult)
-          alpha = layer.alpha;
 
-        rotation = 0;
-        if (layer.transform & DrmHwcTransform::kFlipH)
-          rotation |= 1 << DRM_REFLECT_X;
-        if (layer.transform & DrmHwcTransform::kFlipV)
-          rotation |= 1 << DRM_REFLECT_Y;
-        if (layer.transform & DrmHwcTransform::kRotate90)
-          rotation |= 1 << DRM_ROTATE_90;
-        else if (layer.transform & DrmHwcTransform::kRotate180)
-          rotation |= 1 << DRM_ROTATE_180;
-        else if (layer.transform & DrmHwcTransform::kRotate270)
-          rotation |= 1 << DRM_ROTATE_270;
+    if (comp_plane.type != DrmCompositionPlaneType::kDisable) {
+      if (comp_plane.source_layer < 0 ||
+          static_cast<size_t>(comp_plane.source_layer) >= layers.size()) {
+        ALOGE("Source layer index %d out of bounds %zu type=%d",
+              comp_plane.source_layer, layers.size(), comp_plane.type);
+        break;
       }
-    }
+      DrmHwcLayer &layer = layers[comp_plane.source_layer];
+      if (!test_only && layer.acquire_fence.get() >= 0) {
+        int acquire_fence = layer.acquire_fence.get();
+        int total_fence_timeout = 0;
+        for (int i = 0; i < kAcquireWaitTries; ++i) {
+          int fence_timeout = kAcquireWaitTimeoutMs * (1 << i);
+          total_fence_timeout += fence_timeout;
+          ret = sync_wait(acquire_fence, fence_timeout);
+          if (ret)
+            ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
+                  acquire_fence, i, ret, total_fence_timeout);
+        }
+        if (ret) {
+          ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
+          break;
+        }
+        layer.acquire_fence.Close();
+      }
+      if (!layer.buffer) {
+        ALOGE("Expected a valid framebuffer for pset");
+        break;
+      }
+      fb_id = layer.buffer->fb_id;
+      display_frame = layer.display_frame;
+      source_crop = layer.source_crop;
+      if (layer.blending == DrmHwcBlending::kPreMult)
+        alpha = layer.alpha;
 
+      rotation = 0;
+      if (layer.transform & DrmHwcTransform::kFlipH)
+        rotation |= 1 << DRM_REFLECT_X;
+      if (layer.transform & DrmHwcTransform::kFlipV)
+        rotation |= 1 << DRM_REFLECT_Y;
+      if (layer.transform & DrmHwcTransform::kRotate90)
+        rotation |= 1 << DRM_ROTATE_90;
+      else if (layer.transform & DrmHwcTransform::kRotate180)
+        rotation |= 1 << DRM_ROTATE_180;
+      else if (layer.transform & DrmHwcTransform::kRotate270)
+        rotation |= 1 << DRM_ROTATE_270;
+    }
     // Disable the plane if there's no framebuffer
     if (fb_id < 0) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
@@ -1039,7 +1029,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   // Make sure there is more than one layer to squash.
   size_t src_planes_with_layer = std::count_if(
       src_planes.begin(), src_planes.end(), [](DrmCompositionPlane &p) {
-        return p.source_layer <= DrmCompositionPlane::kSourceLayerMax;
+        return p.type == DrmCompositionPlaneType::kLayer;
       });
   if (src_planes_with_layer <= 1)
     return -EALREADY;
@@ -1063,18 +1053,9 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       goto move_layers_back;
     }
 
-    if (comp_plane.source_layer == DrmCompositionPlane::kSourceNone)
+    if (comp_plane.type == DrmCompositionPlaneType::kDisable ||
+        comp_plane.source_layer < 0)
       continue;
-
-    // Out of range layers should never happen. If they do, somebody probably
-    // forgot to replace the symbolic names (kSourceSquash, kSourcePreComp) with
-    // real ones.
-    if (comp_plane.source_layer >= src_layers.size()) {
-      ALOGE("Skipping squash all because of out of range source layer %zu",
-            comp_plane.source_layer);
-      ret = -EINVAL;
-      goto move_layers_back;
-    }
 
     DrmHwcLayer &layer = src_layers[comp_plane.source_layer];
 
@@ -1120,7 +1101,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
 
   for (DrmCompositionPlane &plane : dst->composition_planes())
-    if (plane.source_layer == DrmCompositionPlane::kSourcePreComp)
+    if (plane.type == DrmCompositionPlaneType::kPrecomp)
       plane.source_layer = pre_comp_layer_index;
 
   return 0;
