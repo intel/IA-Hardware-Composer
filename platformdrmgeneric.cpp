@@ -134,4 +134,12 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
   }
   return 0;
 }
+
+#ifdef USE_DRM_GENERIC_IMPORTER
+std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
+  std::unique_ptr<Planner> planner(new Planner);
+  planner->AddStage<PlanStageGreedy>();
+  return planner;
+}
+#endif
 }
