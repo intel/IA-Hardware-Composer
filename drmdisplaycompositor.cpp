@@ -172,7 +172,7 @@ void SquashState::Dump(std::ostringstream *out) const {
 static bool UsesSquash(const std::vector<DrmCompositionPlane> &comp_planes) {
   return std::any_of(comp_planes.begin(), comp_planes.end(),
                      [](const DrmCompositionPlane &plane) {
-    return plane.type() == DrmCompositionPlaneType::kSquash;
+    return plane.type() == DrmCompositionPlane::Type::kSquash;
   });
 }
 
@@ -574,13 +574,13 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
   for (DrmCompositionPlane &comp_plane : comp_planes) {
     std::vector<size_t> &source_layers = comp_plane.source_layers();
     switch (comp_plane.type()) {
-      case DrmCompositionPlaneType::kSquash:
+      case DrmCompositionPlane::Type::kSquash:
         if (source_layers.size())
           ALOGE("Squash source_layers is expected to be empty (%zu/%d)",
                 source_layers[0], squash_layer_index);
         source_layers.push_back(squash_layer_index);
         break;
-      case DrmCompositionPlaneType::kPrecomp:
+      case DrmCompositionPlane::Type::kPrecomp:
         if (!do_pre_comp) {
           ALOGE(
               "Can not use pre composite framebuffer with no pre composite "
@@ -652,7 +652,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     uint64_t rotation = 0;
     uint64_t alpha = 0xFF;
 
-    if (comp_plane.type() != DrmCompositionPlaneType::kDisable) {
+    if (comp_plane.type() != DrmCompositionPlane::Type::kDisable) {
       if (source_layers.size() > 1) {
         ALOGE("Can't handle more than one source layer sz=%zu type=%d",
               source_layers.size(), comp_plane.type());
@@ -1041,7 +1041,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   // Make sure there is more than one layer to squash.
   size_t src_planes_with_layer = std::count_if(
       src_planes.begin(), src_planes.end(), [](DrmCompositionPlane &p) {
-        return p.type() == DrmCompositionPlaneType::kLayer;
+        return p.type() == DrmCompositionPlane::Type::kLayer;
       });
   if (src_planes_with_layer <= 1)
     return -EALREADY;
@@ -1065,7 +1065,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       goto move_layers_back;
     }
 
-    if (comp_plane.type() == DrmCompositionPlaneType::kDisable)
+    if (comp_plane.type() == DrmCompositionPlane::Type::kDisable)
       continue;
 
     for (auto i : comp_plane.source_layers()) {
@@ -1114,7 +1114,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   framebuffer_index_ = (framebuffer_index_ + 1) % DRM_DISPLAY_BUFFERS;
 
   for (DrmCompositionPlane &plane : dst->composition_planes()) {
-    if (plane.type() == DrmCompositionPlaneType::kPrecomp) {
+    if (plane.type() == DrmCompositionPlane::Type::kPrecomp) {
       // Replace source_layers with the output of the precomposite
       plane.source_layers().clear();
       plane.source_layers().push_back(pre_comp_layer_index);
