@@ -46,31 +46,30 @@ struct DrmCompositionRegion {
   std::vector<size_t> source_layers;
 };
 
-enum class DrmCompositionPlaneType : int32_t {
-  kDisable,
-  kLayer,
-  kPrecomp,
-  kSquash,
-};
-
 class DrmCompositionPlane {
  public:
+  enum class Type : int32_t {
+    kDisable,
+    kLayer,
+    kPrecomp,
+    kSquash,
+  };
+
   DrmCompositionPlane() = default;
   DrmCompositionPlane(DrmCompositionPlane &&rhs) = default;
   DrmCompositionPlane &operator=(DrmCompositionPlane &&other) = default;
-  DrmCompositionPlane(DrmCompositionPlaneType type, DrmPlane *plane,
-                      DrmCrtc *crtc)
+  DrmCompositionPlane(Type type, DrmPlane *plane, DrmCrtc *crtc)
       : type_(type), plane_(plane), crtc_(crtc) {
   }
-  DrmCompositionPlane(DrmCompositionPlaneType type, DrmPlane *plane,
-                      DrmCrtc *crtc, size_t source_layer)
+  DrmCompositionPlane(Type type, DrmPlane *plane, DrmCrtc *crtc,
+                      size_t source_layer)
       : type_(type),
         plane_(plane),
         crtc_(crtc),
         source_layers_(1, source_layer) {
   }
 
-  DrmCompositionPlaneType type() const {
+  Type type() const {
     return type_;
   }
 
@@ -94,7 +93,7 @@ class DrmCompositionPlane {
   }
 
  private:
-  DrmCompositionPlaneType type_ = DrmCompositionPlaneType::kDisable;
+  Type type_ = Type::kDisable;
   DrmPlane *plane_ = NULL;
   DrmCrtc *crtc_ = NULL;
   std::vector<size_t> source_layers_;
@@ -179,7 +178,7 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
-  void EmplaceCompositionPlane(DrmCompositionPlaneType type,
+  void EmplaceCompositionPlane(DrmCompositionPlane::Type type,
                                std::vector<DrmPlane *> *primary_planes,
                                std::vector<DrmPlane *> *overlay_planes);
   void EmplaceCompositionPlane(size_t source_layer,
