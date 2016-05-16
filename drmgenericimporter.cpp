@@ -17,8 +17,8 @@
 #define LOG_TAG "hwc-drm-generic-importer"
 
 #include "drmresources.h"
-#include "drmgenericimporter.h"
 #include "platform.h"
+#include "platformdrmgeneric.h"
 
 #include <drm/drm_fourcc.h>
 #include <xf86drm.h>
