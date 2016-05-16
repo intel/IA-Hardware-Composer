@@ -807,7 +807,7 @@ out:
   if (!test_only && mode_.needs_modeset) {
     ret = drm_->DestroyPropertyBlob(mode_.old_blob_id);
     if (ret) {
-      ALOGE("Failed to destroy old mode property blob %lld/%d",
+      ALOGE("Failed to destroy old mode property blob %" PRIu32 "/%d",
             mode_.old_blob_id, ret);
       return ret;
     }
@@ -858,7 +858,7 @@ std::tuple<int, uint32_t> DrmDisplayCompositor::CreateModeBlob(
     ALOGE("Failed to create mode property blob %d", ret);
     return std::make_tuple(ret, 0);
   }
-  ALOGE("Create blob_id %ld\n", id);
+  ALOGE("Create blob_id %" PRIu32 "\n", id);
   return std::make_tuple(ret, id);
 }
 
