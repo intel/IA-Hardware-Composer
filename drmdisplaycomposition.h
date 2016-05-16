@@ -53,11 +53,51 @@ enum class DrmCompositionPlaneType : int32_t {
   kSquash,
 };
 
-struct DrmCompositionPlane {
-  DrmCompositionPlaneType type;
-  DrmPlane *plane;
-  DrmCrtc *crtc;
-  int source_layer;
+class DrmCompositionPlane {
+ public:
+  DrmCompositionPlane() = default;
+  DrmCompositionPlane(DrmCompositionPlane &&rhs) = default;
+  DrmCompositionPlane &operator=(DrmCompositionPlane &&other) = default;
+  DrmCompositionPlane(DrmCompositionPlaneType type, DrmPlane *plane,
+                      DrmCrtc *crtc)
+      : type_(type), plane_(plane), crtc_(crtc) {
+  }
+  DrmCompositionPlane(DrmCompositionPlaneType type, DrmPlane *plane,
+                      DrmCrtc *crtc, size_t source_layer)
+      : type_(type),
+        plane_(plane),
+        crtc_(crtc),
+        source_layers_(1, source_layer) {
+  }
+
+  DrmCompositionPlaneType type() const {
+    return type_;
+  }
+
+  DrmPlane *plane() const {
+    return plane_;
+  }
+  void set_plane(DrmPlane *plane) {
+    plane_ = plane;
+  }
+
+  DrmCrtc *crtc() const {
+    return crtc_;
+  }
+
+  std::vector<size_t> &source_layers() {
+    return source_layers_;
+  }
+
+  const std::vector<size_t> &source_layers() const {
+    return source_layers_;
+  }
+
+ private:
+  DrmCompositionPlaneType type_ = DrmCompositionPlaneType::kDisable;
+  DrmPlane *plane_ = NULL;
+  DrmCrtc *crtc_ = NULL;
+  std::vector<size_t> source_layers_;
 };
 
 class DrmDisplayComposition {
@@ -139,7 +179,10 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
-  void EmplaceCompositionPlane(DrmCompositionPlaneType type, int source_layer,
+  void EmplaceCompositionPlane(DrmCompositionPlaneType type,
+                               std::vector<DrmPlane *> *primary_planes,
+                               std::vector<DrmPlane *> *overlay_planes);
+  void EmplaceCompositionPlane(size_t source_layer,
                                std::vector<DrmPlane *> *primary_planes,
                                std::vector<DrmPlane *> *overlay_planes);
   int CreateAndAssignReleaseFences();
