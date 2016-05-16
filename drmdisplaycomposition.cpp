@@ -33,11 +33,6 @@
 
 namespace android {
 
-const size_t DrmCompositionPlane::kSourceNone;
-const size_t DrmCompositionPlane::kSourcePreComp;
-const size_t DrmCompositionPlane::kSourceSquash;
-const size_t DrmCompositionPlane::kSourceLayerMax;
-
 DrmDisplayComposition::~DrmDisplayComposition() {
   if (timeline_fd_ >= 0) {
     SignalCompositionDone();
@@ -119,7 +114,10 @@ int DrmDisplayComposition::SetDisplayMode(const DrmMode &display_mode) {
 
 int DrmDisplayComposition::AddPlaneDisable(DrmPlane *plane) {
   composition_planes_.emplace_back(
-      DrmCompositionPlane{plane, crtc_, DrmCompositionPlane::kSourceNone});
+      DrmCompositionPlane{.plane = plane,
+                          .crtc = crtc_,
+                          .type = DrmCompositionPlaneType::kDisable,
+                          .source_layer = -1});
   return 0;
 }
 
@@ -155,7 +153,8 @@ static DrmPlane *TakePlane(DrmCrtc *crtc,
 }
 
 void DrmDisplayComposition::EmplaceCompositionPlane(
-    size_t source_layer, std::vector<DrmPlane *> *primary_planes,
+    DrmCompositionPlaneType type, int source_layer,
+    std::vector<DrmPlane *> *primary_planes,
     std::vector<DrmPlane *> *overlay_planes) {
   DrmPlane *plane = TakePlane(crtc_, primary_planes, overlay_planes);
   if (plane == NULL) {
@@ -165,7 +164,10 @@ void DrmDisplayComposition::EmplaceCompositionPlane(
     return;
   }
   composition_planes_.emplace_back(
-      DrmCompositionPlane{plane, crtc_, source_layer});
+      DrmCompositionPlane{.plane = plane,
+                          .crtc = crtc_,
+                          .type = type,
+                          .source_layer = source_layer});
 }
 
 static std::vector<size_t> SetBitsToVector(uint64_t in, size_t *index_map) {
@@ -273,7 +275,7 @@ int DrmDisplayComposition::CreateAndAssignReleaseFences() {
   }
 
   for (const DrmCompositionPlane &plane : composition_planes_) {
-    if (plane.source_layer <= DrmCompositionPlane::kSourceLayerMax) {
+    if (plane.type == DrmCompositionPlaneType::kLayer) {
       DrmHwcLayer *source_layer = &layers_[plane.source_layer];
       comp_layers.emplace(source_layer);
       pre_comp_layers.erase(source_layer);
@@ -390,8 +392,9 @@ int DrmDisplayComposition::Plan(SquashState *squash,
   }
 
   if (planes_can_use == 0 && layers_remaining.size() > 0) {
-    for(auto i : protected_layers)
-      EmplaceCompositionPlane(i, primary_planes, overlay_planes);
+    for (auto i : protected_layers)
+      EmplaceCompositionPlane(DrmCompositionPlaneType::kLayer, i,
+                              primary_planes, overlay_planes);
 
     ALOGE("Protected layers consumed all hardware planes");
     return CreateAndAssignReleaseFences();
@@ -427,13 +430,15 @@ int DrmDisplayComposition::Plan(SquashState *squash,
     // that again.
     if (protected_idx < protected_layers.size() &&
         idx > protected_layers[protected_idx]) {
-        EmplaceCompositionPlane(protected_layers[protected_idx], primary_planes,
-                                overlay_planes);
-        protected_idx++;
-        continue;
+      EmplaceCompositionPlane(DrmCompositionPlaneType::kLayer,
+                              protected_layers[protected_idx], primary_planes,
+                              overlay_planes);
+      protected_idx++;
+      continue;
     }
 
-    EmplaceCompositionPlane(layers_remaining[last_hw_comp_layer],
+    EmplaceCompositionPlane(DrmCompositionPlaneType::kLayer,
+                            layers_remaining[last_hw_comp_layer],
                             primary_planes, overlay_planes);
     last_hw_comp_layer++;
     planes_can_use--;
@@ -444,13 +449,14 @@ int DrmDisplayComposition::Plan(SquashState *squash,
 
   // Enqueue the rest of the protected layers (if any) between the hw composited
   // overlay layers and the squash/precomp layers.
-  for(int i = protected_idx; i < protected_layers.size(); ++i)
-    EmplaceCompositionPlane(protected_layers[i], primary_planes,
+  for (int i = protected_idx; i < protected_layers.size(); ++i)
+    EmplaceCompositionPlane(DrmCompositionPlaneType::kLayer,
+                            protected_layers[i], primary_planes,
                             overlay_planes);
 
   if (layers_remaining.size() > 0) {
-    EmplaceCompositionPlane(DrmCompositionPlane::kSourcePreComp, primary_planes,
-                            overlay_planes);
+    EmplaceCompositionPlane(DrmCompositionPlaneType::kPrecomp, -1,
+                            primary_planes, overlay_planes);
     SeparateLayers(layers_.data(), layers_remaining.data(),
                    layers_remaining.size(), protected_layers.data(),
                    protected_layers.size(), exclude_rects.data(),
@@ -458,8 +464,8 @@ int DrmDisplayComposition::Plan(SquashState *squash,
   }
 
   if (use_squash_framebuffer) {
-    EmplaceCompositionPlane(DrmCompositionPlane::kSourceSquash, primary_planes,
-                            overlay_planes);
+    EmplaceCompositionPlane(DrmCompositionPlaneType::kSquash, -1,
+                            primary_planes, overlay_planes);
   }
 
   return CreateAndAssignReleaseFences();
@@ -626,27 +632,26 @@ void DrmDisplayComposition::Dump(std::ostringstream *out) const {
     const DrmCompositionPlane &comp_plane = composition_planes_[i];
     *out << "      [" << i << "]"
          << " plane=" << (comp_plane.plane ? comp_plane.plane->id() : -1)
-         << " source_layer=";
-    if (comp_plane.source_layer <= DrmCompositionPlane::kSourceLayerMax) {
-      *out << comp_plane.source_layer;
-    } else {
-      switch (comp_plane.source_layer) {
-        case DrmCompositionPlane::kSourceNone:
-          *out << "NONE";
-          break;
-        case DrmCompositionPlane::kSourcePreComp:
-          *out << "PRECOMP";
-          break;
-        case DrmCompositionPlane::kSourceSquash:
-          *out << "SQUASH";
-          break;
-        default:
-          *out << "<invalid>";
-          break;
-      }
+         << " type=";
+    switch (comp_plane.type) {
+      case DrmCompositionPlaneType::kDisable:
+        *out << "DISABLE";
+        break;
+      case DrmCompositionPlaneType::kLayer:
+        *out << "LAYER";
+        break;
+      case DrmCompositionPlaneType::kPrecomp:
+        *out << "PRECOMP";
+        break;
+      case DrmCompositionPlaneType::kSquash:
+        *out << "SQUASH";
+        break;
+      default:
+        *out << "<invalid>";
+        break;
     }
 
-    *out << "\n";
+    *out << " source_layer=" << comp_plane.source_layer << "\n";
   }
 
   *out << "    Squash Regions: count=" << squash_regions_.size() << "\n";

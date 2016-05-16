@@ -46,14 +46,18 @@ struct DrmCompositionRegion {
   std::vector<size_t> source_layers;
 };
 
+enum class DrmCompositionPlaneType : int32_t {
+  kDisable,
+  kLayer,
+  kPrecomp,
+  kSquash,
+};
+
 struct DrmCompositionPlane {
-  const static size_t kSourceNone = SIZE_MAX;
-  const static size_t kSourcePreComp = kSourceNone - 1;
-  const static size_t kSourceSquash = kSourcePreComp - 1;
-  const static size_t kSourceLayerMax = kSourceSquash - 1;
+  DrmCompositionPlaneType type;
   DrmPlane *plane;
   DrmCrtc *crtc;
-  size_t source_layer;
+  int source_layer;
 };
 
 class DrmDisplayComposition {
@@ -135,7 +139,7 @@ class DrmDisplayComposition {
 
   int IncreaseTimelineToPoint(int point);
 
-  void EmplaceCompositionPlane(size_t source_layer,
+  void EmplaceCompositionPlane(DrmCompositionPlaneType type, int source_layer,
                                std::vector<DrmPlane *> *primary_planes,
                                std::vector<DrmPlane *> *overlay_planes);
   int CreateAndAssignReleaseFences();
