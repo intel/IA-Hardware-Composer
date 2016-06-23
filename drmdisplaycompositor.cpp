@@ -864,6 +864,23 @@ std::tuple<int, uint32_t> DrmDisplayCompositor::CreateModeBlob(
   return std::make_tuple(ret, id);
 }
 
+void DrmDisplayCompositor::ClearDisplay() {
+  AutoLock lock(&lock_, "compositor");
+  int ret = lock.Lock();
+  if (ret)
+    return;
+
+  if (!active_composition_)
+    return;
+
+  if (DisablePlanes(active_composition_.get()))
+    return;
+
+  active_composition_->SignalCompositionDone();
+
+  active_composition_.reset(NULL);
+}
+
 void DrmDisplayCompositor::ApplyFrame(
     std::unique_ptr<DrmDisplayComposition> composition, int status) {
   int ret = status;
@@ -873,11 +890,10 @@ void DrmDisplayCompositor::ApplyFrame(
 
   if (ret) {
     ALOGE("Composite failed for display %d", display_);
-
     // Disable the hw used by the last active composition. This allows us to
     // signal the release fences from that composition to avoid hanging.
-    if (DisablePlanes(active_composition_.get()))
-      return;
+    ClearDisplay();
+    return;
   }
   ++dump_frames_composited_;
 
@@ -958,6 +974,10 @@ int DrmDisplayCompositor::Composite() {
           composition = std::move(squashed);
         } else {
           ALOGE("Failed to squash frame for display %d", display_);
+          // Disable the hw used by the last active composition. This allows us
+          // to signal the release fences from that composition to avoid
+          // hanging.
+          ClearDisplay();
           return ret;
         }
       }
