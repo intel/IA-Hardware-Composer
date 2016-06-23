@@ -1061,7 +1061,7 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
   // Make sure there is more than one layer to squash.
   size_t src_planes_with_layer = std::count_if(
       src_planes.begin(), src_planes.end(), [](DrmCompositionPlane &p) {
-        return p.type() == DrmCompositionPlane::Type::kLayer;
+        return p.type() != DrmCompositionPlane::Type::kDisable;
       });
   if (src_planes_with_layer <= 1)
     return -EALREADY;
