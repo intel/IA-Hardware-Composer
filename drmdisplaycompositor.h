@@ -149,6 +149,7 @@ class DrmDisplayCompositor {
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
 
+  void ClearDisplay();
   void ApplyFrame(std::unique_ptr<DrmDisplayComposition> composition,
                   int status);
 
