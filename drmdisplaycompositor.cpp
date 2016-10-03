@@ -191,6 +191,16 @@ int DrmDisplayCompositor::FrameWorker::Init() {
 void DrmDisplayCompositor::FrameWorker::QueueFrame(
     std::unique_ptr<DrmDisplayComposition> composition, int status) {
   Lock();
+
+  // Block queue if it gets too large. Otherwise composition will
+  // start stacking up and eat limited resources (file descriptors)
+  // allocated for these.
+  while (frame_queue_.size() >= DRM_DISPLAY_COMPOSITOR_MAX_QUEUE_DEPTH) {
+    Unlock();
+    sched_yield();
+    Lock();
+  }
+
   FrameState frame;
   frame.composition = std::move(composition);
   frame.status = status;
