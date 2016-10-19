@@ -639,6 +639,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     std::vector<size_t> &source_layers = comp_plane.source_layers();
 
     int fb_id = -1;
+    int fence_fd = -1;
     DrmHwcRect<int> display_frame;
     DrmHwcRect<float> source_crop;
     uint64_t rotation = 0;
@@ -657,30 +658,12 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         break;
       }
       DrmHwcLayer &layer = layers[source_layers.front()];
-      if (!test_only && layer.acquire_fence.get() >= 0) {
-        int acquire_fence = layer.acquire_fence.get();
-        int total_fence_timeout = 0;
-        for (int i = 0; i < kAcquireWaitTries; ++i) {
-          int fence_timeout = kAcquireWaitTimeoutMs * (1 << i);
-          total_fence_timeout += fence_timeout;
-          ret = sync_wait(acquire_fence, fence_timeout);
-          if (ret)
-            ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
-                  acquire_fence, i, ret, total_fence_timeout);
-          else
-            break;
-        }
-        if (ret) {
-          ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
-          break;
-        }
-        layer.acquire_fence.Close();
-      }
       if (!layer.buffer) {
         ALOGE("Expected a valid framebuffer for pset");
         break;
       }
       fb_id = layer.buffer->fb_id;
+      fence_fd = layer.acquire_fence.get();
       display_frame = layer.display_frame;
       source_crop = layer.source_crop;
       if (layer.blending == DrmHwcBlending::kPreMult)
@@ -697,7 +680,21 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         rotation |= 1 << DRM_ROTATE_180;
       else if (layer.transform & DrmHwcTransform::kRotate270)
         rotation |= 1 << DRM_ROTATE_270;
+
+      if (fence_fd < 0) {
+        int prop_id = plane->in_fence_fd_property().id();
+        if (prop_id == 0) {
+                ALOGE("Failed to get IN_FENCE_FD property id");
+                break;
+        }
+        ret = drmModeAtomicAddProperty(pset, plane->id(), prop_id, fence_fd);
+        if (ret < 0) {
+          ALOGE("Failed to add IN_FENCE_FD property to pset: %d", ret);
+          break;
+        }
+      }
     }
+
     // Disable the plane if there's no framebuffer
     if (fb_id < 0) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
