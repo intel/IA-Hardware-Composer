@@ -245,6 +245,10 @@ DrmPlane *DrmResources::GetPlane(uint32_t id) const {
   return NULL;
 }
 
+const std::vector<std::unique_ptr<DrmCrtc>> & DrmResources::crtcs() const {
+  return crtcs_;
+}
+
 uint32_t DrmResources::next_mode_id() {
   return ++mode_id_;
 }

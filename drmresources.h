@@ -68,6 +68,7 @@ class DrmResources {
   int GetConnectorProperty(const DrmConnector &connector, const char *prop_name,
                            DrmProperty *property);
 
+  const std::vector<std::unique_ptr<DrmCrtc>> &crtcs() const;
   uint32_t next_mode_id();
   int SetDisplayActiveMode(int display, const DrmMode &mode);
   int SetDpmsMode(int display, uint64_t mode);
