@@ -51,6 +51,12 @@ int DrmCrtc::Init() {
     ALOGE("Failed to get MODE_ID property");
     return ret;
   }
+
+  ret = drm_->GetCrtcProperty(*this, "OUT_FENCE_PTR", &out_fence_ptr_property_);
+  if (ret) {
+    ALOGE("Failed to get OUT_FENCE_PTR property");
+    return ret;
+  }
   return 0;
 }
 
@@ -80,5 +86,9 @@ const DrmProperty &DrmCrtc::active_property() const {
 
 const DrmProperty &DrmCrtc::mode_property() const {
   return mode_property_;
+}
+
+const DrmProperty &DrmCrtc::out_fence_ptr_property() const {
+  return out_fence_ptr_property_;
 }
 }
