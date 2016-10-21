@@ -85,7 +85,7 @@ void separate_rects(const std::vector<Rect<TNum>> &in,
   // our output set of non-overlapping rectangles. Based of the algorithm found
   // at: http://stackoverflow.com/a/2755498
 
-  if (in.size() > IdSet<TNum>::max_elements) {
+  if (in.size() > IdSet<TId>::max_elements) {
     return;
   }
 
