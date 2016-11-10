@@ -319,8 +319,13 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
 HWC2::Error DrmHwcTwo::HwcDisplay::GetColorModes(uint32_t *num_modes,
                                                  int32_t *modes) {
   supported(__func__);
-  // TODO: android_color_mode_t isn't defined yet!
-  return unsupported(__func__, num_modes, modes);
+  if (!modes)
+    *num_modes = 1;
+
+  if (modes)
+    *modes = HAL_COLOR_MODE_NATIVE;
+
+  return HWC2::Error::None;
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
@@ -630,8 +635,12 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetColorMode(int32_t mode) {
   supported(__func__);
-  // TODO: android_color_mode_t isn't defined yet!
-  return unsupported(__func__, mode);
+
+  if (mode != HAL_COLOR_MODE_NATIVE)
+    return HWC2::Error::Unsupported;
+
+  color_mode_ = mode;
+  return HWC2::Error::None;
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetColorTransform(const float *matrix,
@@ -706,8 +715,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
   supported(__func__);
-  // TODO: Implement proper cursor support
-  return unsupported(__func__, x, y);
+  cursor_x_ = x;
+  cursor_y_ = y;
+  return HWC2::Error::None;
 }
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBlendMode(int32_t mode) {
