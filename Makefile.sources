@@ -1,0 +1,32 @@
+common_SOURCES =              \
+    common/compositor/compositor.cpp \
+    common/compositor/factory.cpp \
+    common/compositor/nativesurface.cpp \
+    common/compositor/renderstate.cpp \
+    common/compositor/scopedrendererstate.cpp \
+    common/core/gpudevice.cpp \
+    common/core/headless.cpp \
+    common/core/internaldisplay.cpp \
+    common/core/virtualdisplay.cpp \
+    common/core/nativesync.cpp \
+    common/core/overlaylayer.cpp \
+    common/display/displayplane.cpp \
+    common/display/displayplanemanager.cpp \
+    common/display/overlaybuffer.cpp \
+    common/display/pageflipeventhandler.cpp \
+    common/display/pageflipstate.cpp \
+    common/utils/hwcthread.cpp \
+    common/utils/separate_rects.cpp \
+    os/linux/gbmbufferhandler.cpp \
+    public/hwclayer.cpp \
+    public/drmscopedtypes.cpp \
+	$(NULL)
+
+gl_SOURCES =              \
+    common/compositor/gl/egloffscreencontext.cpp \
+    common/compositor/gl/glprogram.cpp \
+    common/compositor/gl/glrenderer.cpp \
+    common/compositor/gl/glsurface.cpp \
+    common/compositor/gl/nativeglresource.cpp \
+    common/compositor/gl/shim.cpp \
+	$(NULL)
