@@ -74,7 +74,7 @@ class Headless : public NativeDisplay {
   }
 
   bool Connect(const drmModeModeInfo &mode_info,
-               const ScopedDrmConnectorPtr &connector) override;
+               const drmModeConnector *connector) override;
 
   bool IsConnected() const override {
     return false;

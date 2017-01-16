@@ -52,6 +52,7 @@ LOCAL_SRC_FILES := \
 	common/compositor/renderstate.cpp \
 	common/compositor/scopedrendererstate.cpp \
 	common/core/headless.cpp \
+	common/core/hwclayer.cpp \
 	common/core/internaldisplay.cpp \
 	common/core/virtualdisplay.cpp \
 	common/core/gpudevice.cpp \
@@ -62,12 +63,11 @@ LOCAL_SRC_FILES := \
 	common/display/overlaybuffer.cpp \
 	common/display/pageflipeventhandler.cpp \
 	common/display/pageflipstate.cpp \
-	common/utils/separate_rects.cpp \
+	common/utils/drmscopedtypes.cpp \
 	common/utils/hwcthread.cpp \
+	common/utils/separate_rects.cpp \
 	os/android/grallocbufferhandler.cpp \
-	os/android/drmhwctwo.cpp \
-	public/drmscopedtypes.cpp \
-	public/hwclayer.cpp \
+	os/android/drmhwctwo.cpp
 
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \

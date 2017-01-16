@@ -30,7 +30,6 @@ typedef struct _drmModeAtomicReq drmModeAtomicReq;
 typedef struct _drmModePropertyBlob drmModePropertyBlobRes;
 typedef struct _drmModeRes drmModeRes;
 typedef struct _drmEventContext drmEventContext;
-typedef struct _drmModeModeInfo drmModeModeInfo;
 
 namespace hwcomposer {
 struct DrmResourcesDeleter {

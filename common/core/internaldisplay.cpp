@@ -62,7 +62,7 @@ bool InternalDisplay::Initialize() {
 }
 
 bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
-                              const ScopedDrmConnectorPtr &connector) {
+                              const drmModeConnector *connector) {
   IHOTPLUGEVENTTRACE("InternalDisplay::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector->connector_id == connector_ && !is_powered_off_) {

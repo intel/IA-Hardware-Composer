@@ -28,17 +28,24 @@
 #include <xf86drmMode.h>
 #include <errno.h>
 
+#ifdef UDEV_SUPPORT
+#include <libudev.h>
+#endif
+
 #include <linux/types.h>
 #include <linux/netlink.h>
 
 #include <hwctrace.h>
 
 #include "displayplanemanager.h"
+#include "drmscopedtypes.h"
 #include "headless.h"
+#include "hwcthread.h"
 #include "internaldisplay.h"
-#include "virtualdisplay.h"
 #include "pageflipeventhandler.h"
 #include "pageflipstate.h"
+#include "spinlock.h"
+#include "virtualdisplay.h"
 
 namespace hwcomposer {
 
@@ -62,6 +69,39 @@ static void vblank_event(int /*fd*/, unsigned int /*frame*/,
                          void * /*data*/) {
   IPAGEFLIPEVENTTRACE("vblank_event Called.");
 }
+
+class GpuDevice::DisplayManager : public HWCThread {
+ public:
+  DisplayManager();
+  ~DisplayManager();
+
+  bool Init(uint32_t fd);
+
+  bool UpdateDisplayState();
+
+  NativeDisplay *GetDisplay(uint32_t display);
+
+  NativeDisplay *GetVirtualDisplay();
+
+ protected:
+  void Routine() override;
+
+ private:
+  void HotPlugEventHandler();
+#ifdef UDEV_SUPPORT
+  struct udev *udev_;
+  struct udev_monitor *monitor_;
+#endif
+  std::unique_ptr<NativeBufferHandler> buffer_handler_;
+  std::unique_ptr<NativeDisplay> headless_;
+  std::unique_ptr<NativeDisplay> virtual_display_;
+  std::vector<std::unique_ptr<NativeDisplay>> displays_;
+  int fd_;
+  ScopedFd hotplug_fd_;
+  uint32_t select_fd_;
+  fd_set fd_set_;
+  SpinLock spin_lock_;
+};
 
 GpuDevice::DisplayManager::DisplayManager() : HWCThread(-8) {
   CTRACE();
@@ -346,7 +386,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       if (encoder && encoder->crtc_id) {
         for (auto &display : displays_) {
           if (encoder->crtc_id == display->CrtcId() &&
-              display->Connect(mode, connector)) {
+              display->Connect(mode, connector.get())) {
             break;
           }
         }
@@ -367,7 +407,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
 
       for (auto &display : displays_) {
         if (!display->IsConnected() && (1 << display->Pipe() & crtc_bit) &&
-            display->Connect(mode, connector)) {
+            display->Connect(mode, connector.get())) {
           break;
         }
       }
@@ -445,16 +485,17 @@ bool GpuDevice::Initialize() {
   ScopedDrmResourcesPtr res(drmModeGetResources(fd_.get()));
 
   initialized_ = true;
+  display_manager_.reset(new DisplayManager());
 
-  return display_manager_.Init(fd_.get());
+  return display_manager_->Init(fd_.get());
 }
 
 NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
-  return display_manager_.GetDisplay(display_id);
+  return display_manager_->GetDisplay(display_id);
 }
 
 NativeDisplay *GpuDevice::GetVirtualDisplay() {
-  return display_manager_.GetVirtualDisplay();
+  return display_manager_->GetVirtualDisplay();
 }
 
 }  // namespace hwcomposer

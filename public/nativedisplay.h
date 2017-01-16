@@ -19,9 +19,11 @@
 
 #include <stdint.h>
 
-#include <drmscopedtypes.h>
 #include <hwcdefs.h>
 #include <platformdefines.h>
+
+typedef struct _drmModeConnector drmModeConnector;
+typedef struct _drmModeModeInfo drmModeModeInfo;
 
 namespace hwcomposer {
 struct HwcLayer;
@@ -78,7 +80,7 @@ class NativeDisplay {
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,
-                       const ScopedDrmConnectorPtr &connector) = 0;
+                       const drmModeConnector *connector) = 0;
 
   virtual bool IsConnected() const = 0;
 
