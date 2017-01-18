@@ -28,7 +28,6 @@
 struct gbm_handle {
   struct gbm_import_fd_data import_data;
   struct gbm_bo* bo = NULL;
-  uint32_t gem_handle = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;

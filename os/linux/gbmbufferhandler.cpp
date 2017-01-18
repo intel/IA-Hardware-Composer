@@ -155,13 +155,14 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   memset(bo, 0, sizeof(struct HwcBuffer));
   uint32_t aligned_width = handle->import_data.width;
   uint32_t aligned_height = handle->import_data.height;
+  uint32_t gem_handle = 0;
   bo->format = handle->import_data.format;
-  uint32_t gem_handle = handle->gem_handle;
-  if (!gem_handle && handle->bo) {
-    handle->gem_handle = gbm_bo_get_handle(handle->bo).u32;
+  if (!handle->bo) {
+    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
+                               GBM_BO_USE_SCANOUT);
   }
 
-  gem_handle = handle->gem_handle;
+  gem_handle = gbm_bo_get_handle(handle->bo).u32;
 
   if (!gem_handle) {
     ETRACE("Invalid GEM handle. \n");

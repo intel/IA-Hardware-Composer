@@ -531,7 +531,6 @@ static void init_frames(int32_t width, int32_t height) {
     frame->native_handle.import_data.height = height;
     frame->native_handle.import_data.stride = gbm_bo_get_stride(frame->gbm_bo);
     frame->native_handle.import_data.format = gbm_bo_get_format(frame->gbm_bo);
-    frame->native_handle.gem_handle = gbm_bo_get_handle(frame->gbm_bo).u32;
 
     frame->layer.SetTransform(0);
     frame->layer.SetSourceCrop(hwcomposer::HwcRect<float>(0, 0, width, height));
