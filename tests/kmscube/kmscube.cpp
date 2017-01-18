@@ -715,11 +715,19 @@ int main(int argc, char *argv[]) {
   glFinish();
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
+
+  struct frame *frame_old = NULL;
+
   for (uint64_t i = 1; arg_frames == 0 || i < arg_frames; ++i) {
     struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
-    if (frame->layer.release_fence.get() != -1) {
-      ret = sync_wait(frame->layer.release_fence.get(), 1000);
-      frame->layer.release_fence.Reset(-1);
+
+    /*
+     * Wait on the fence from the previous frame, since the current one was not
+     * submitted yet and thus has no valid fence.
+     */
+    if (frame_old && frame_old->layer.release_fence.get() != -1) {
+      ret = sync_wait(frame_old->layer.release_fence.get(), 1000);
+      frame_old->layer.release_fence.Reset(-1);
       if (ret) {
         printf("failed waiting on sync fence: %s\n", strerror(errno));
         return -1;
@@ -743,6 +751,8 @@ int main(int argc, char *argv[]) {
 
     for (auto &display : displays)
       display->Present(layers);
+
+    frame_old = frame;
   }
 
   close(fd);
