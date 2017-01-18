@@ -27,6 +27,13 @@ namespace hwcomposer {
 
 class NativeDisplay;
 
+class DisplayHotPlugEventCallback {
+ public:
+  virtual ~DisplayHotPlugEventCallback() {
+  }
+  virtual void Callback(std::vector<NativeDisplay*> connected_displays) = 0;
+};
+
 class GpuDevice {
  public:
   GpuDevice();
@@ -41,6 +48,9 @@ class GpuDevice {
   NativeDisplay* GetVirtualDisplay();
 
   std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
+
+  void RegisterHotPlugEventCallback(
+      std::shared_ptr<DisplayHotPlugEventCallback> callback);
 
  private:
   class DisplayManager;

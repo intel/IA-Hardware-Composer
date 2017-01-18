@@ -85,6 +85,9 @@ class GpuDevice::DisplayManager : public HWCThread {
 
   std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() const;
 
+  void RegisterHotPlugEventCallback(
+      std::shared_ptr<DisplayHotPlugEventCallback> callback);
+
  protected:
   void Routine() override;
 
@@ -99,6 +102,7 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::unique_ptr<NativeDisplay> virtual_display_;
   std::vector<std::unique_ptr<NativeDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
+  std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
   int fd_;
   ScopedFd hotplug_fd_;
   uint32_t select_fd_;
@@ -435,6 +439,10 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     headless_.release();
   }
 
+  if (callback_ && !connected_displays_.empty()) {
+    callback_->Callback(connected_displays_);
+  }
+
   return true;
 }
 
@@ -460,6 +468,12 @@ NativeDisplay *GpuDevice::DisplayManager::GetVirtualDisplay() {
 std::vector<NativeDisplay *>
 GpuDevice::DisplayManager::GetConnectedPhysicalDisplays() const {
   return connected_displays_;
+}
+
+void GpuDevice::DisplayManager::RegisterHotPlugEventCallback(
+    std::shared_ptr<DisplayHotPlugEventCallback> callback) {
+  ScopedSpinLock lock(spin_lock_);
+  callback_ = callback;
 }
 
 GpuDevice::GpuDevice() : initialized_(false) {
@@ -506,6 +520,11 @@ NativeDisplay *GpuDevice::GetVirtualDisplay() {
 
 std::vector<NativeDisplay *> GpuDevice::GetConnectedPhysicalDisplays() {
   return display_manager_->GetConnectedPhysicalDisplays();
+}
+
+void GpuDevice::RegisterHotPlugEventCallback(
+    std::shared_ptr<DisplayHotPlugEventCallback> callback) {
+  display_manager_->RegisterHotPlugEventCallback(callback);
 }
 
 }  // namespace hwcomposer

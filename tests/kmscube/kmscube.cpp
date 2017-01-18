@@ -51,6 +51,7 @@
 #include <nativedisplay.h>
 #include <platformdefines.h>
 #include <nativefence.h>
+#include <spinlock.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -89,6 +90,30 @@ static struct {
   PFNEGLCLIENTWAITSYNCKHRPROC eglClientWaitSyncKHR;
   PFNEGLDUPNATIVEFENCEFDANDROIDPROC eglDupNativeFenceFDANDROID;
 } gl;
+
+class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
+ public:
+  HotPlugEventCallback(hwcomposer::GpuDevice *device) : device_(device) {
+  }
+
+  void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    connected_displays_.swap(connected_displays);
+  }
+
+  const std::vector<hwcomposer::NativeDisplay *> &GetConnectedDisplays() {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    if (connected_displays_.empty())
+      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+
+    return connected_displays_;
+  }
+
+ private:
+  std::vector<hwcomposer::NativeDisplay *> connected_displays_;
+  hwcomposer::GpuDevice *device_;
+  hwcomposer::SpinLock spin_lock_;
+};
 
 static struct { struct gbm_device *dev; } gbm;
 
@@ -655,8 +680,10 @@ int main(int argc, char *argv[]) {
   int ret, fd, primary_width, primary_height;
   hwcomposer::GpuDevice device;
   device.Initialize();
-  std::vector<hwcomposer::NativeDisplay *> displays =
-      device.GetConnectedPhysicalDisplays();
+  auto callback = std::make_shared<HotPlugEventCallback>(&device);
+  device.RegisterHotPlugEventCallback(callback);
+  const std::vector<hwcomposer::NativeDisplay *> &displays =
+      callback->GetConnectedDisplays();
   if (displays.empty())
     return 0;
 
@@ -708,6 +735,12 @@ int main(int argc, char *argv[]) {
     frame->layer.acquire_fence = gpu_fence_fd;
     std::vector<hwcomposer::HwcLayer *>().swap(layers);
     layers.emplace_back(&frame->layer);
+
+    const std::vector<hwcomposer::NativeDisplay *> &displays =
+        callback->GetConnectedDisplays();
+    if (displays.empty())
+      return 0;
+
     for (auto &display : displays)
       display->Present(layers);
   }
