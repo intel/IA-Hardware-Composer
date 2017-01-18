@@ -40,6 +40,8 @@ class GpuDevice {
 
   NativeDisplay* GetVirtualDisplay();
 
+  std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
+
  private:
   class DisplayManager;
   std::unique_ptr<DisplayManager> display_manager_;

@@ -83,6 +83,8 @@ class GpuDevice::DisplayManager : public HWCThread {
 
   NativeDisplay *GetVirtualDisplay();
 
+  std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() const;
+
  protected:
   void Routine() override;
 
@@ -96,6 +98,7 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::unique_ptr<NativeDisplay> headless_;
   std::unique_ptr<NativeDisplay> virtual_display_;
   std::vector<std::unique_ptr<NativeDisplay>> displays_;
+  std::vector<NativeDisplay *> connected_displays_;
   int fd_;
   ScopedFd hotplug_fd_;
   uint32_t select_fd_;
@@ -415,10 +418,12 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
   }
 
   bool headless_mode = true;
+  std::vector<NativeDisplay *>().swap(connected_displays_);
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->ShutDown();
     } else {
+      connected_displays_.emplace_back(display.get());
       headless_mode = false;
     }
   }
@@ -441,12 +446,8 @@ NativeDisplay *GpuDevice::DisplayManager::GetDisplay(uint32_t display_id) {
   if (headless_.get()) {
     display = headless_.get();
   } else {
-    for (auto &target : displays_) {
-      if (target->Pipe() == display_id) {
-        display = target.get();
-        break;
-      }
-    }
+    if (connected_displays_.size() > display_id)
+      display = connected_displays_.at(display_id);
   }
 
   return display;
@@ -454,6 +455,11 @@ NativeDisplay *GpuDevice::DisplayManager::GetDisplay(uint32_t display_id) {
 
 NativeDisplay *GpuDevice::DisplayManager::GetVirtualDisplay() {
   return virtual_display_.get();
+}
+
+std::vector<NativeDisplay *>
+GpuDevice::DisplayManager::GetConnectedPhysicalDisplays() const {
+  return connected_displays_;
 }
 
 GpuDevice::GpuDevice() : initialized_(false) {
@@ -496,6 +502,10 @@ NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
 
 NativeDisplay *GpuDevice::GetVirtualDisplay() {
   return display_manager_->GetVirtualDisplay();
+}
+
+std::vector<NativeDisplay *> GpuDevice::GetConnectedPhysicalDisplays() {
+  return display_manager_->GetConnectedPhysicalDisplays();
 }
 
 }  // namespace hwcomposer

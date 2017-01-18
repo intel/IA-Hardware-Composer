@@ -652,13 +652,18 @@ static void parse_args(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   struct drm_fb *fb;
-  int ret;
+  int ret, fd, primary_width, primary_height;
   hwcomposer::GpuDevice device;
   device.Initialize();
-  hwcomposer::NativeDisplay *display = device.GetDisplay(0);
+  std::vector<hwcomposer::NativeDisplay *> displays =
+      device.GetConnectedPhysicalDisplays();
+  if (displays.empty())
+    return 0;
 
   parse_args(argc, argv);
-  int fd = open("/dev/dri/renderD128", O_RDWR);
+  fd = open("/dev/dri/renderD128", O_RDWR);
+  primary_width = displays.at(0)->Width();
+  primary_height = displays.at(0)->Height();
 
   ret = init_gbm(fd);
   if (ret) {
@@ -667,14 +672,14 @@ int main(int argc, char *argv[]) {
     return ret;
   }
 
-  ret = init_gl(display->Width(), display->Height());
+  ret = init_gl(primary_width, primary_height);
   if (ret) {
     printf("failed to initialize EGL\n");
     close(fd);
     return ret;
   }
 
-  init_frames(display->Width(), display->Height());
+  init_frames(primary_width, primary_height);
 
   /* clear the color buffer */
   glBindFramebuffer(GL_FRAMEBUFFER, frames[0].gl_framebuffer);
@@ -695,7 +700,7 @@ int main(int argc, char *argv[]) {
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, frame->gl_framebuffer);
-    draw(i, display->Width(), display->Height());
+    draw(i, primary_width, primary_height);
     EGLSyncKHR gpu_fence = create_fence(EGL_NO_NATIVE_FENCE_FD_ANDROID);
     int64_t gpu_fence_fd = gl.eglDupNativeFenceFDANDROID(gl.display, gpu_fence);
     gl.eglDestroySyncKHR(gl.display, gpu_fence);
@@ -703,7 +708,8 @@ int main(int argc, char *argv[]) {
     frame->layer.acquire_fence = gpu_fence_fd;
     std::vector<hwcomposer::HwcLayer *>().swap(layers);
     layers.emplace_back(&frame->layer);
-    display->Present(layers);
+    for (auto &display : displays)
+      display->Present(layers);
   }
 
   close(fd);
