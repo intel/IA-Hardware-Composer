@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(strip $(BOARD_USES_DRM_HWCOMPOSER)),true)
+ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
