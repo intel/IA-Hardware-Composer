@@ -114,13 +114,9 @@ bool DisplayPlaneManager::BeginFrameUpdate(
     (*i)->SetEnabled(false);
   }
 
-  for (auto i = overlay_buffers_.begin(); i != overlay_buffers_.end(); ++i) {
-    (*i)->SetInUse(false);
-  }
-
   size_t size = layers.size();
+  std::vector<std::unique_ptr<OverlayBuffer>>().swap(in_flight_buffers_);
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    std::unique_ptr<OverlayBuffer> plane_buffer;
     OverlayLayer *layer = &layers.at(layer_index);
     HwcBuffer bo;
     if (!buffer_handler->ImportBuffer(layer->GetNativeHandle(), &bo)) {
@@ -128,15 +124,8 @@ bool DisplayPlaneManager::BeginFrameUpdate(
       return false;
     }
 
-    OverlayBuffer *buffer = NULL;
-    buffer = GetOverlayBuffer(bo);
-
-    if (!buffer) {
-      plane_buffer.reset(new OverlayBuffer());
-      overlay_buffers_.emplace_back(std::move(plane_buffer));
-      buffer = overlay_buffers_.back().get();
-    }
-
+    in_flight_buffers_.emplace_back(new OverlayBuffer());
+    OverlayBuffer *buffer = in_flight_buffers_.back().get();
     buffer->Initialize(bo);
     layer->SetBuffer(buffer);
     IDISPLAYMANAGERTRACE("Buffer set for layer %d:", layer->GetIndex());
@@ -309,7 +298,6 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
       return false;
 
     plane->SetEnabled(true);
-    layer->GetBuffer()->SetInUse(true);
   }
 
   // Disable unused planes.
@@ -373,24 +361,7 @@ bool DisplayPlaneManager::TestCommit(
 }
 
 void DisplayPlaneManager::EndFrameUpdate() {
-  for (auto i = overlay_buffers_.begin(); i != overlay_buffers_.end();) {
-    OverlayBuffer *buffer = i->get();
-    if (buffer->InUse()) {
-      buffer->IncrementRefCount();
-      i++;
-      continue;
-    }
-
-    buffer->DecreaseRefCount();
-
-    if (buffer->RefCount() >= 0) {
-      i++;
-      continue;
-    }
-    IDISPLAYMANAGERTRACE("Deleted Buffer.");
-    i->reset(nullptr);
-    i = overlay_buffers_.erase(i);
-  }
+  displayed_buffers_.swap(in_flight_buffers_);
 }
 
 bool DisplayPlaneManager::FallbacktoGPU(
@@ -424,21 +395,6 @@ std::unique_ptr<DisplayPlane> DisplayPlaneManager::CreatePlane(
     uint32_t plane_id, uint32_t possible_crtcs) {
   return std::unique_ptr<DisplayPlane>(
       new DisplayPlane(plane_id, possible_crtcs));
-}
-
-OverlayBuffer *DisplayPlaneManager::GetOverlayBuffer(const HwcBuffer &bo) {
-  if (overlay_buffers_.empty())
-    return NULL;
-
-  for (auto i = overlay_buffers_.begin(); i != overlay_buffers_.end(); ++i) {
-    OverlayBuffer *buffer = i->get();
-    if (buffer->IsCompatible(bo)) {
-      buffer->IncrementRefCount();
-      return buffer;
-    }
-  }
-
-  return NULL;
 }
 
 }  // namespace hwcomposer

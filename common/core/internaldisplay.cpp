@@ -394,9 +394,9 @@ bool InternalDisplay::Present(
                                            out_fence_)) {
     delete state;
     succesful_commit = false;
+  } else {
+    display_plane_manager_->EndFrameUpdate();
   }
-
-  display_plane_manager_->EndFrameUpdate();
 
   if (render_layers)
     compositor_.EndFrame(succesful_commit);

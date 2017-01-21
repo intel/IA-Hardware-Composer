@@ -67,29 +67,6 @@ class OverlayBuffer {
 
   bool CreateFrameBuffer(uint32_t gpu_fd);
 
-  bool IsCompatible(const HwcBuffer& bo) const;
-
-  void IncrementRefCount() {
-    ref_count_++;
-  }
-
-  void DecreaseRefCount() {
-    if (ref_count_ > 0)
-      ref_count_--;
-  }
-
-  int RefCount() const {
-    return ref_count_;
-  }
-
-  void SetInUse(bool in_use) {
-    in_use_ = in_use;
-  }
-
-  bool InUse() const {
-    return in_use_;
-  }
-
   void SetRecommendedFormat(uint32_t format);
 
   void Dump();
@@ -106,8 +83,8 @@ class OverlayBuffer {
   uint32_t usage_ = 0;
   uint32_t ref_count_ = 1;
   uint32_t gpu_fd_;
-  bool reset_framebuffer_ = true;
-  bool in_use_ = false;
+  HWCNativeHandle handle_ = 0;
+  NativeBufferHandler* buffer_handler_ = NULL;
 };
 
 }  // namespace hwcomposer

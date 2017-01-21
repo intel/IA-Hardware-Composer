@@ -31,6 +31,9 @@ namespace hwcomposer {
 OverlayBuffer::~OverlayBuffer() {
   if (fb_id_ && drmModeRmFB(gpu_fd_, fb_id_))
     ETRACE("Failed to remove fb");
+
+  if (handle_ && buffer_handler_)
+    buffer_handler_->DestroyBuffer(handle_);
 }
 
 void OverlayBuffer::Initialize(const HwcBuffer& bo) {
@@ -43,7 +46,6 @@ void OverlayBuffer::Initialize(const HwcBuffer& bo) {
     gem_handles_[i] = bo.gem_handles[i];
   }
 
-  reset_framebuffer_ = ((prime_fd_ != bo.prime_fd) || fb_id_ == 0);
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
 }
@@ -51,42 +53,16 @@ void OverlayBuffer::Initialize(const HwcBuffer& bo) {
 void OverlayBuffer::InitializeFromNativeHandle(
     HWCNativeHandle handle, NativeBufferHandler* buffer_handler) {
   struct HwcBuffer bo;
+
   if (!buffer_handler->ImportBuffer(handle, &bo)) {
     ETRACE("Failed to Import buffer.");
     return;
   }
 
+  handle_ = handle;
+  buffer_handler_ = buffer_handler;
+
   Initialize(bo);
-}
-
-bool OverlayBuffer::IsCompatible(const HwcBuffer& bo) const {
-  if (prime_fd_ != bo.prime_fd)
-    return false;
-
-  if (height_ != bo.height)
-    return false;
-
-  if (format_ != bo.format)
-    return false;
-
-  if (width_ != bo.width)
-    return false;
-
-  if (usage_ != bo.usage)
-    return false;
-
-  for (uint32_t i = 0; i < 4; i++) {
-    if (pitches_[i] != bo.pitches[i])
-      return false;
-
-    if (offsets_[i] != bo.offsets[i])
-      return false;
-
-    if (gem_handles_[i] != bo.gem_handles[i])
-      return false;
-  }
-
-  return true;
 }
 
 GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
@@ -137,12 +113,6 @@ void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
 }
 
 bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
-  if (!reset_framebuffer_)
-    return true;
-
-  if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
-    ETRACE("Failed to remove fb");
-
   int ret = drmModeAddFB2(gpu_fd, width_, height_, format_, gem_handles_,
                           pitches_, offsets_, &fb_id_, 0);
 
@@ -155,7 +125,6 @@ bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
     return false;
   }
 
-  reset_framebuffer_ = false;
   gpu_fd_ = gpu_fd;
   return true;
 }
