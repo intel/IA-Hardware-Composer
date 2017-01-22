@@ -55,11 +55,12 @@ bool GrallocBufferHandler::Init() {
 
 bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                         buffer_handle_t *handle) {
-  int ret = gralloc_->perform(
-      gralloc_, GRALLOC_MODULE_PERFORM_CREATE_BUFFER, w, h,
-      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
-      GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER,
-      handle);
+  int usage =
+      GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
+  // TODO: Take format into consideration.
+  int undefined_format = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+  int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_CREATE_BUFFER, w,
+                              h, undefined_format, usage, handle);
   if (ret) {
     ETRACE("GRALLOC_MODULE_PERFORM_CREATE_BUFFER failed %d", ret);
     return false;
