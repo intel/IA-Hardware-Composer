@@ -20,6 +20,7 @@
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "renderstate.h"
+#include "scopedrendererstate.h"
 #include "shim.h"
 
 namespace hwcomposer {
@@ -40,8 +41,10 @@ bool GLRenderer::Init() {
     return false;
   }
 
-  if (!context_.MakeCurrent()) {
-    ETRACE("Failed to Make context current.");
+  ScopedRendererState state(this);
+
+  if (!state.IsValid()) {
+    ETRACE("Failed to initialize GLRenderer.");
     return false;
   }
 
