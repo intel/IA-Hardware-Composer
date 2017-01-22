@@ -260,9 +260,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetColorModes(uint32_t *num_modes,
   supported(__func__);
   if (!modes)
     *num_modes = 1;
-
+#ifndef DISABLE_NATIVE_COLOR_MODES
   if (modes)
     *modes = HAL_COLOR_MODE_NATIVE;
+#endif
 
   return HWC2::Error::None;
 }
