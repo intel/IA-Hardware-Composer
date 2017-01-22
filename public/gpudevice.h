@@ -54,8 +54,10 @@ class GpuDevice {
 
  private:
   class DisplayManager;
-  std::unique_ptr<DisplayManager> display_manager_;
+  // Order is important here as we need fd_ to be valid
+  // till all cleanup is done.
   ScopedFd fd_;
+  std::unique_ptr<DisplayManager> display_manager_;
   bool initialized_;
 };
 
