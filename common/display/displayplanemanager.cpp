@@ -128,7 +128,6 @@ bool DisplayPlaneManager::BeginFrameUpdate(
     OverlayBuffer *buffer = in_flight_buffers_.back().get();
     buffer->Initialize(bo);
     layer->SetBuffer(buffer);
-    IDISPLAYMANAGERTRACE("Buffer set for layer %d:", layer->GetIndex());
   }
 
   return true;
@@ -143,8 +142,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
   bool render_layers = false;
-  IDISPLAYMANAGERTRACE("ValidateLayers: Total Layers:%d %d", layers.size(),
-                       primary_planes_.size());
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_planes_.begin()->get();
 
@@ -167,7 +164,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     for (auto i = layer_begin; i != layer_end; ++i) {
       last_plane.AddLayer(i->GetIndex());
     }
-    DUMPTRACE("All layers rendered using GPU along with primary.");
     // We need to composite primary using GPU, lets use this for
     // all layers in this case.
     return std::make_tuple(render_layers, std::move(composition));
@@ -175,7 +171,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
   // We are just compositing Primary layer and nothing else.
   if (layers.size() == 1) {
-    IDISPLAYMANAGERTRACE("Scanning only primary for the frame.");
     return std::make_tuple(render_layers, std::move(composition));
   }
 
@@ -187,8 +182,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
       break;
     }
   }
-  IDISPLAYMANAGERTRACE("Total Overlay Layers: %d",
-                       cursor_layer ? layers.size() - 2 : layers.size() - 1);
+
   if (layer_begin != layer_end) {
     // Handle layers for overlay
     for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
@@ -200,14 +194,10 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
         // If we are able to composite buffer with the given plane, lets use
         // it.
         if (!FallbacktoGPU(j->get(), layer, commit_planes)) {
-          IDISPLAYMANAGERTRACE("Overlay Layer marked for scanout: %d",
-                               i->GetIndex());
           composition.emplace_back(j->get(), layer, i->GetIndex());
           ++layer_begin;
           break;
         } else {
-          IDISPLAYMANAGERTRACE("Overlay Layer cannot be scanned directly: %d",
-                               i->GetIndex());
           last_plane.AddLayer(i->GetIndex());
           commit_planes.pop_back();
         }
@@ -221,9 +211,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     // We dont have any additional planes. Pre composite remaining layers
     // to the last overlay plane.
     for (auto i = layer_begin; i != layer_end; ++i) {
-      IDISPLAYMANAGERTRACE(
-	  "More layers than overlay planes. Layer being added to render list: %d",
-          i->GetIndex());
       last_plane.AddLayer(i->GetIndex());
     }
 
@@ -234,8 +221,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   // Handle Cursor layer.
   DisplayPlane *cursor_plane = NULL;
   if (cursor_layer) {
-    IDISPLAYMANAGERTRACE("Cursor layer present. Index: %d",
-                         cursor_layer->GetIndex());
     // Handle Cursor layer. If we have dedicated cursor plane, try using it
     // to composite cursor layer.
     cursor_plane =
@@ -252,19 +237,15 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     // We need to do this here to avoid compositing cursor with any previous
     // pre-composited planes.
     if (cursor_plane) {
-      IDISPLAYMANAGERTRACE("Cursor layer marked for scan out. Index: %d",
-                           cursor_layer->GetIndex());
       composition.emplace_back(cursor_plane, cursor_layer,
                                cursor_layer->GetIndex());
     } else {
-      IDISPLAYMANAGERTRACE("Cursor layer added to pre-comp list. Index: %d",
-                           cursor_layer->GetIndex());
       DisplayPlaneState &last_plane = composition.back();
       render_layers = true;
       last_plane.AddLayer(cursor_layer->GetIndex());
     }
   }
-  IDISPLAYMANAGERTRACE("ValidateLayers Ends----------------");
+
   return std::make_tuple(render_layers, std::move(composition));
 }
 
@@ -292,8 +273,6 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
   for (DisplayPlaneState &comp_plane : comp_planes) {
     DisplayPlane *plane = comp_plane.plane();
     OverlayLayer *layer = comp_plane.GetOverlayLayer();
-    IDISPLAYMANAGERTRACE("Adding layer for Display Composition. Index: %d",
-                         layer->GetIndex());
     if (!plane->UpdateProperties(pset, crtc_id_, layer))
       return false;
 
@@ -342,11 +321,8 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
 bool DisplayPlaneManager::TestCommit(
     const std::vector<OverlayPlane> &commit_planes) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-  IDISPLAYMANAGERTRACE("Total planes for Test Commit. %d ",
-                       commit_planes.size());
   for (auto i = commit_planes.begin(); i != commit_planes.end(); i++) {
     if (!(i->plane->UpdateProperties(pset.get(), crtc_id_, i->layer))) {
-      IDISPLAYMANAGERTRACE("Failed to update Plane. %s ", PRINTERROR());
       return false;
     }
   }
@@ -367,8 +343,6 @@ void DisplayPlaneManager::EndFrameUpdate() {
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
-  IDISPLAYMANAGERTRACE("FallbacktoGPU Called for layer: %d",
-                       layer->GetIndex());
 #ifdef DISABLE_OVERLAY_USAGE
   return true;
 #endif
@@ -378,8 +352,6 @@ bool DisplayPlaneManager::FallbacktoGPU(
 
   if (layer->GetBuffer()->GetFb() == 0) {
     if (!layer->GetBuffer()->CreateFrameBuffer(gpu_fd_)) {
-      DUMPTRACE("Failed to create frame buffer for layer %d",
-                layer->GetIndex());
       return true;
     }
   }
@@ -388,7 +360,6 @@ bool DisplayPlaneManager::FallbacktoGPU(
   // Plane Composition makes sense. i.e. layer size etc
 
   if (!TestCommit(commit_planes)) {
-    IDISPLAYMANAGERTRACE("TestCommit failed.");
     return true;
   }
 

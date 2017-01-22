@@ -402,7 +402,6 @@ bool InternalDisplay::Present(
     compositor_.EndFrame(succesful_commit);
 
   if (!succesful_commit) {
-    ICOMPOSITORTRACE("Skipped frame as we have pending page flip.");
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
       HwcLayer *layer = source_layers.at(layer_index);
       layer->release_fence.Reset(-1);

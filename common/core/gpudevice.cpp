@@ -231,12 +231,12 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
   FD_SET(hotplug_fd_.get(), &fd_set_);
   FD_SET(fd_, &fd_set_);
   select_fd_ = std::max(hotplug_fd_.get(), fd_) + 1;
-  IHOTPLUGEVENTTRACE(
-      "Initialization of ueventd/udev succeeded. Initializing worker thread.");
   if (!InitWorker("DisplayManager")) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
   }
+
+  IHOTPLUGEVENTTRACE("DisplayManager Initialization succeeded.");
 
   return true;
 }
@@ -286,8 +286,6 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
       return;
     } else if (ret < 0) {
       ETRACE("Failed to read uevent. %s", PRINTERROR());
-      IHOTPLUGEVENTTRACE(
-          "Display management not possible as we failed to read uevent.");
       return;
     }
 

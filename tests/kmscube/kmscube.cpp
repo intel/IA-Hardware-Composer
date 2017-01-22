@@ -712,7 +712,6 @@ int main(int argc, char *argv[]) {
   glBindFramebuffer(GL_FRAMEBUFFER, frames[0].gl_framebuffer);
   glClearColor(0.5, 0.5, 0.5, 1.0);
   glClear(GL_COLOR_BUFFER_BIT);
-  glFinish();
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
 
