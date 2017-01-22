@@ -369,6 +369,10 @@ bool DisplayPlaneManager::FallbacktoGPU(
     const std::vector<OverlayPlane> &commit_planes) const {
   IDISPLAYMANAGERTRACE("FallbacktoGPU Called for layer: %d",
                        layer->GetIndex());
+#ifdef DISABLE_OVERLAY_USAGE
+  return true;
+#endif
+
   if (!target_plane->ValidateLayer(layer))
     return true;
 
