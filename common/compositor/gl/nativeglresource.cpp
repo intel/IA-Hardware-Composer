@@ -44,8 +44,6 @@ bool NativeGLResource::PrepareResources(
                                  (GLeglImageOES)egl_image);
     glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
     layer_textures_.emplace_back(texture);
     eglDestroyImageKHR(egl_display, egl_image);
