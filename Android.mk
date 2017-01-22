@@ -97,7 +97,7 @@ LOCAL_SRC_FILES += \
 	common/compositor/gl/glsurface.cpp \
 	common/compositor/gl/egloffscreencontext.cpp \
 	common/compositor/gl/nativeglresource.cpp \
-	common/compositor/gl/shim.cpp \
+	common/compositor/gl/shim.cpp
 endif
 
 LOCAL_MODULE := hwcomposer.android_ia
