@@ -31,6 +31,9 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
 }
 
 NativeSurface::~NativeSurface() {
+  // Ensure we close any framebuffers before
+  // releasing buffer.
+  overlay_buffer_.reset(nullptr);
   if (buffer_handler_ && native_handle_) {
     buffer_handler_->DestroyBuffer(native_handle_);
   }
