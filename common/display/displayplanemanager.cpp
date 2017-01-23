@@ -297,6 +297,7 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
   if (ret) {
     if (ret == -EBUSY && state) {
+#ifndef DISABLE_EXPLICIT_SYNC
       if (fence.get() != -1) {
         if (!state->GetSyncObject()->Wait(fence.get())) {
           ETRACE("Failed to wait for fence ret=%s\n", PRINTERROR());
@@ -305,6 +306,14 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
       }
 
       ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
+#else
+      /* FIXME - In case of EBUSY, we spin until succeed. What we
+       * probably should do is to queue commits and process them later.
+       */
+      ret = -EBUSY;
+      while (ret == -EBUSY)
+        ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
+#endif
     }
   }
 
