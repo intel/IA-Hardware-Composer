@@ -21,28 +21,6 @@
 
 #include <hardware/gralloc.h>
 
-enum {
-  /* perform(const struct gralloc_module_t *mod,
-   *	   int op,
-   *	   uint32_t drm_fd,
-   *	   buffer_handle_t buffer,
-   *	   struct HwcBuffer *bo);
-   */
-  GRALLOC_MODULE_PERFORM_DRM_IMPORT = 0xffeeff00,
-  /* perform(const struct gralloc_module_t *mod,
-   *	   uint32_t width,
-   *	   uint32_t height,
-   *	   int format,
-   *	   int usage,
-   *	   buffer_handle_t *buffer);
-   */
-  GRALLOC_MODULE_PERFORM_CREATE_BUFFER = 0xffeeff01,
-  /* perform(const struct gralloc_module_t *mod,
-   *	   buffer_handle_t *buffer);
-   */
-  GRALLOC_MODULE_PERFORM_DESTROY_BUFFER = 0xffeeff02,
-};
-
 namespace hwcomposer {
 
 class GpuDevice;
