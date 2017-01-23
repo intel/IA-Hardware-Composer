@@ -51,17 +51,12 @@ namespace hwcomposer {
 
 static void page_flip_event(int /*fd*/, unsigned int frame, unsigned int sec,
                             unsigned int usec, void *data) {
-  IPAGEFLIPEVENTTRACE("page_flip_event called for frame %d", frame);
-  PageFlipState *state = (PageFlipState *)data;
-  if (!state)
+  PageFlipEventHandler *handler = (PageFlipEventHandler *)data;
+  if (!handler)
     return;
 
-  PageFlipEventHandler *event_handler = state->GetFlipHandler();
-
-  IPAGEFLIPEVENTTRACE("Deleting page_flip_event state");
-  delete state;
   IPAGEFLIPEVENTTRACE("Handling VBlank call back.");
-  event_handler->HandlePageFlipEvent(sec, usec);
+  handler->HandlePageFlipEvent(sec, usec);
 }
 
 static void vblank_event(int /*fd*/, unsigned int /*frame*/,

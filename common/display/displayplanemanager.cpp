@@ -294,7 +294,7 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     (*i)->Disable(pset);
   }
 
-  int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
+  int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
   if (ret) {
     if (ret == -EBUSY && state) {
 #ifndef DISABLE_EXPLICIT_SYNC
@@ -305,14 +305,15 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
         }
       }
 
-      ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
+      ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
 #else
       /* FIXME - In case of EBUSY, we spin until succeed. What we
        * probably should do is to queue commits and process them later.
        */
       ret = -EBUSY;
       while (ret == -EBUSY)
-        ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state);
+        ret =
+            drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
 #endif
     }
   }
@@ -323,6 +324,8 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
     return false;
   }
+
+  current_sync_.reset(state);
 
   return true;
 }

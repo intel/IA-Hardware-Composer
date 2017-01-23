@@ -80,6 +80,8 @@ class DisplayPlaneManager {
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<OverlayBuffer>> in_flight_buffers_;
   std::vector<std::unique_ptr<OverlayBuffer>> displayed_buffers_;
+  std::unique_ptr<PageFlipState> current_sync_;
+
   uint32_t crtc_id_;
   uint32_t pipe_;
   uint32_t gpu_fd_;

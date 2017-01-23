@@ -382,10 +382,8 @@ bool InternalDisplay::Present(
     return false;
   }
 
-  PageFlipState *state = NULL;
-
-  if (!needs_modeset)
-    state = new PageFlipState(sync_object.release(), &flip_handler_, pipe_);
+  PageFlipState *state =
+      new PageFlipState(sync_object.release(), &flip_handler_, pipe_);
 
   bool succesful_commit = true;
 
