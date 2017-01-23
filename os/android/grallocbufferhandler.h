@@ -55,9 +55,9 @@ class GrallocBufferHandler : public NativeBufferHandler {
   bool Init();
 
   bool CreateBuffer(uint32_t w, uint32_t h, int format,
-                    buffer_handle_t *handle) override;
-  bool DestroyBuffer(buffer_handle_t handle) override;
-  bool ImportBuffer(buffer_handle_t handle, HwcBuffer *bo) override;
+                    HWCNativeHandle *handle) override;
+  bool DestroyBuffer(HWCNativeHandle handle) override;
+  bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) override;
 
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);

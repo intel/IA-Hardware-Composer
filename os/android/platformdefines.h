@@ -21,11 +21,18 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
+#include <ui/GraphicBuffer.h>
+
 #ifdef _cplusplus
 extern "C" {
 #endif
 
-typedef buffer_handle_t HWCNativeHandle;
+struct gralloc_handle {
+  buffer_handle_t handle_ = NULL;
+  android::sp<android::GraphicBuffer> buffer_ = NULL;
+};
+
+typedef struct gralloc_handle* HWCNativeHandle;
 
 #define VTRACE(fmt, ...) ALOGV("%s: " fmt, __func__, ##__VA_ARGS__)
 #define DTRACE(fmt, ...) ALOGD("%s: " fmt, __func__, ##__VA_ARGS__)

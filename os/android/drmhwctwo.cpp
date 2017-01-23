@@ -398,7 +398,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
         continue;
     }
   }
-  if (use_client_layer && client_layer_.GetLayer()->GetNativeHandle())
+  if (use_client_layer && client_layer_.GetLayer()->GetNativeHandle()->handle_)
     z_map.emplace(std::make_pair(client_z_order, &client_layer_));
 
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -446,7 +446,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
                                                    int32_t dataspace,
                                                    hwc_region_t damage) {
   supported(__func__);
-
   client_layer_.set_buffer(target);
   client_layer_.set_acquire_fence(acquire_fence);
   client_layer_.SetLayerDataspace(dataspace);
@@ -472,7 +471,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
   if (type_ == HWC2::DisplayType::Virtual)
     ALOGE("SetOutputBuffer called \n");
 
-  display_->SetOutputBuffer(buffer, release_fence);
+  struct gralloc_handle *temp = new struct gralloc_handle();
+  temp->handle_ = temp->buffer_->handle;
+  display_->SetOutputBuffer(temp, release_fence);
   return HWC2::Error::None;
 }
 
@@ -574,7 +575,8 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
       sf_type_ == HWC2::Composition::SolidColor)
     return HWC2::Error::None;
 
-  hwc_layer_.SetNativeHandle(buffer);
+  native_handle_.handle_ = buffer;
+  hwc_layer_.SetNativeHandle(&native_handle_);
   hwc_layer_.acquire_fence.Reset(dup(uf.Release()));
   return HWC2::Error::None;
 }

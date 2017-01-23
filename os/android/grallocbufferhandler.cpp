@@ -18,6 +18,11 @@
 
 #include <xf86drmMode.h>
 
+#include <hardware/hardware.h>
+#include <hardware/hwcomposer.h>
+#include <ui/GraphicBuffer.h>
+#include <cutils/native_handle.h>
+
 #include <hwcdefs.h>
 #include <hwctrace.h>
 
@@ -54,35 +59,37 @@ bool GrallocBufferHandler::Init() {
 }
 
 bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
-                                        buffer_handle_t *handle) {
-  int usage =
-      GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
-  // TODO: Take format into consideration.
-  int undefined_format = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
-  int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_CREATE_BUFFER, w,
-                              h, undefined_format, usage, handle);
-  if (ret) {
-    ETRACE("GRALLOC_MODULE_PERFORM_CREATE_BUFFER failed %d", ret);
-    return false;
-  }
+                                        HWCNativeHandle *handle) {
+  struct gralloc_handle *temp = new struct gralloc_handle();
+  temp->buffer_ =
+      new android::GraphicBuffer(w, h, android::PIXEL_FORMAT_RGBA_8888,
+                                 GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
+                                     GRALLOC_USAGE_HW_COMPOSER);
+  temp->handle_ = temp->buffer_->handle;
+  gralloc_->registerBuffer(gralloc_, temp->handle_);
+  *handle = temp;
 
   return true;
 }
 
-bool GrallocBufferHandler::DestroyBuffer(buffer_handle_t handle) {
-  int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DESTROY_BUFFER,
-                              handle);
-  if (ret) {
-    ETRACE("GRALLOC_MODULE_PERFORM_CREATE_BUFFER failed %d", ret);
+bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
+  if (!handle)
     return false;
+
+  if (handle->handle_) {
+    gralloc_->unregisterBuffer(gralloc_, handle->handle_);
+    handle->buffer_.clear();
   }
+
+  delete handle;
+  handle = NULL;
 
   return true;
 }
 
-bool GrallocBufferHandler::ImportBuffer(buffer_handle_t handle, HwcBuffer *bo) {
+bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DRM_IMPORT, fd_,
-                              handle, bo);
+                              handle->handle_, bo);
   if (ret) {
     ETRACE("GRALLOC_MODULE_PERFORM_DRM_IMPORT failed %d", ret);
     return false;

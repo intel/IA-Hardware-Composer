@@ -21,6 +21,7 @@
 #include <gpudevice.h>
 #include <hwclayer.h>
 #include <nativefence.h>
+#include <platformdefines.h>
 #include <scopedfd.h>
 
 #include <map>
@@ -67,7 +68,8 @@ class DrmHwcTwo : public hwc2_device_t {
     }
 
     void set_buffer(buffer_handle_t buffer) {
-      hwc_layer_.SetNativeHandle(buffer);
+      native_handle_.handle_ = buffer;
+      hwc_layer_.SetNativeHandle(&native_handle_);
     }
 
     void set_acquire_fence(int acquire_fence) {
@@ -104,6 +106,7 @@ class DrmHwcTwo : public hwc2_device_t {
     uint32_t z_order_ = 0;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
     hwcomposer::HwcLayer hwc_layer_;
+    struct gralloc_handle native_handle_;
   };
 
   struct HwcCallback {
