@@ -110,10 +110,6 @@ void GLRenderer::Draw(const std::vector<RenderState> &render_states,
   }
 
   glDisable(GL_SCISSOR_TEST);
-  EGLSyncKHR sync =
-      eglCreateSyncKHR(context_.GetDisplay(), EGL_SYNC_FENCE_KHR, NULL);
-  eglWaitSyncKHR(context_.GetDisplay(), sync, 0);
-  eglDestroySyncKHR(context_.GetDisplay(), sync);
   surface->SetNativeFence(context_.GetSyncFD());
 }
 
@@ -123,6 +119,21 @@ void GLRenderer::RestoreState() {
 
 bool GLRenderer::MakeCurrent() {
   return context_.MakeCurrent();
+}
+
+void GLRenderer::InsertFence(int kms_fence) {
+#ifndef DISABLE_EXPLICIT_SYNC
+  EGLint attrib_list[] = {
+      EGL_SYNC_NATIVE_FENCE_FD_ANDROID, kms_fence, EGL_NONE,
+  };
+  EGLSyncKHR fence = eglCreateSyncKHR(
+      context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
+  eglWaitSyncKHR(context_.GetDisplay(), fence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR);
+  eglDestroySyncKHR(context_.GetDisplay(), fence);
+#else
+  glFlush();
+  close(kms_fence);
+#endif
 }
 
 GLProgram *GLRenderer::GetProgram(unsigned texture_count) {

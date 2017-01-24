@@ -37,6 +37,9 @@ HWCThread::~HWCThread() {
 }
 
 bool HWCThread::InitWorker(const char *name) {
+  if (initialized_)
+    return true;
+
   pthread_condattr_t cond_attr;
   pthread_condattr_init(&cond_attr);
   pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);

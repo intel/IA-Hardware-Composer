@@ -28,7 +28,6 @@
 #include "hwctrace.h"
 #include "nativesync.h"
 #include "overlaybuffer.h"
-#include "pageflipstate.h"
 
 namespace hwcomposer {
 
@@ -251,7 +250,8 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
 bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
                                       drmModeAtomicReqPtr pset,
-                                      bool needs_modeset, PageFlipState *state,
+                                      bool needs_modeset,
+                                      std::unique_ptr<NativeSync> &sync_object,
                                       ScopedFd &fence) {
   CTRACE();
   if (!pset) {
@@ -264,9 +264,9 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   } else {
 #ifdef DISABLE_OVERLAY_USAGE
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET | DRM_MODE_PAGE_FLIP_EVENT;
+    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 #else
-    flags |= DRM_MODE_ATOMIC_NONBLOCK | DRM_MODE_PAGE_FLIP_EVENT;
+    flags |= DRM_MODE_ATOMIC_NONBLOCK;
 #endif
   }
 
@@ -294,26 +294,25 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     (*i)->Disable(pset);
   }
 
-  int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
+  int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
   if (ret) {
-    if (ret == -EBUSY && state) {
+    if (ret == -EBUSY) {
 #ifndef DISABLE_EXPLICIT_SYNC
       if (fence.get() != -1) {
-        if (!state->GetSyncObject()->Wait(fence.get())) {
+        if (!sync_object->Wait(fence.get())) {
           ETRACE("Failed to wait for fence ret=%s\n", PRINTERROR());
           return false;
         }
       }
 
-      ret = drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
+      ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
 #else
       /* FIXME - In case of EBUSY, we spin until succeed. What we
        * probably should do is to queue commits and process them later.
        */
       ret = -EBUSY;
       while (ret == -EBUSY)
-        ret =
-            drmModeAtomicCommit(gpu_fd_, pset, flags, state->GetFlipHandler());
+        ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
 #endif
     }
   }
@@ -325,7 +324,8 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     return false;
   }
 
-  current_sync_.reset(state);
+  if (!needs_modeset)
+    current_sync_.reset(sync_object.release());
 
   return true;
 }

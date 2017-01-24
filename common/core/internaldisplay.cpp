@@ -23,7 +23,6 @@
 #include "displayplanemanager.h"
 #include "nativesync.h"
 #include "overlaylayer.h"
-#include "pageflipstate.h"
 
 namespace hwcomposer {
 
@@ -57,6 +56,7 @@ bool InternalDisplay::Initialize() {
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
 #endif
   frame_ = 0;
+  flip_handler_.reset(new PageFlipEventHandler());
 
   return true;
 }
@@ -101,7 +101,7 @@ bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
   }
 
   compositor_.Init(&buffer_handler_, width_, height_, gpu_fd_);
-  flip_handler_.Init(refresh_);
+  flip_handler_->Init(refresh_, gpu_fd_, pipe_);
   dpms_mode_ = DRM_MODE_DPMS_ON;
   pending_operations_ |= PendingModeset::kModeset;
   pending_operations_ |= PendingModeset::kDpms;
@@ -140,8 +140,9 @@ void InternalDisplay::ShutDown() {
   }
 
   DisplayPlaneStateList current_composition_planes;
-  if (!display_plane_manager_->CommitFrame(
-          current_composition_planes, pset.get(), true, NULL, out_fence_)) {
+  if (!display_plane_manager_->CommitFrame(current_composition_planes,
+                                           pset.get(), true, sync_object,
+                                           out_fence_)) {
     ETRACE("Failed to shut down the display.");
   }
 
@@ -263,19 +264,20 @@ bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
     pending_operations_ &= ~kModeset;
     old_blob_id_ = blob_id_;
     blob_id_ = 0;
-  }
+  } else {
 #ifndef DISABLE_EXPLICIT_SYNC
-  if (out_fence_ptr_prop_ != 0) {
-    int ret = drmModeAtomicAddProperty(
-        property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
-    if (ret < 0) {
-      ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
-      return false;
+    if (out_fence_ptr_prop_ != 0) {
+      int ret = drmModeAtomicAddProperty(
+          property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
+      if (ret < 0) {
+        ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
+        return false;
+      }
     }
-  }
 #else
-  *out_fence = sync->CreateNextTimelineFence();
+    *out_fence = sync->CreateNextTimelineFence();
 #endif
+  }
 
   return true;
 }
@@ -347,12 +349,12 @@ bool InternalDisplay::Present(
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
-  if (render_layers) {
-    if (!compositor_.BeginFrame()) {
-      ETRACE("Failed to initialize compositor.");
-      return false;
-    }
+  if (!compositor_.BeginFrame()) {
+    ETRACE("Failed to initialize compositor.");
+    return false;
+  }
 
+  if (render_layers) {
     // Prepare for final composition.
     if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
@@ -382,15 +384,11 @@ bool InternalDisplay::Present(
     return false;
   }
 
-  PageFlipState *state =
-      new PageFlipState(sync_object.release(), &flip_handler_, pipe_);
-
   bool succesful_commit = true;
 
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
-                                           pset.get(), needs_modeset, state,
-                                           out_fence_)) {
-    delete state;
+                                           pset.get(), needs_modeset,
+                                           sync_object, out_fence_)) {
     succesful_commit = false;
   } else {
     display_plane_manager_->EndFrameUpdate();
@@ -399,12 +397,14 @@ bool InternalDisplay::Present(
   if (render_layers)
     compositor_.EndFrame(succesful_commit);
 
-  if (!succesful_commit) {
+  if (!succesful_commit || needs_modeset) {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
       HwcLayer *layer = source_layers.at(layer_index);
       layer->release_fence.Reset(-1);
     }
     return false;
+  } else {
+    compositor_.InsertFence(dup(fence));
   }
 
   if (fence > 0)
@@ -415,11 +415,11 @@ bool InternalDisplay::Present(
 
 int InternalDisplay::RegisterVsyncCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display_id) {
-  return flip_handler_.RegisterCallback(callback, display_id);
+  return flip_handler_->RegisterCallback(callback, display_id);
 }
 
 void InternalDisplay::VSyncControl(bool enabled) {
-  flip_handler_.VSyncControl(enabled);
+  flip_handler_->VSyncControl(enabled);
 }
 
 }  // namespace hwcomposer

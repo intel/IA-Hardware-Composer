@@ -21,16 +21,17 @@
 
 #include <nativedisplay.h>
 
+#include "hwcthread.h"
 #include "spinlock.h"
 
 namespace hwcomposer {
 
-class PageFlipEventHandler {
+class PageFlipEventHandler : public HWCThread {
  public:
   PageFlipEventHandler();
   ~PageFlipEventHandler();
 
-  void Init(float refresh);
+  void Init(float refresh, int fd, int pipe);
 
   void HandlePageFlipEvent(unsigned int sec, unsigned int usec);
 
@@ -38,6 +39,9 @@ class PageFlipEventHandler {
                        uint32_t display_id);
 
   int VSyncControl(bool enabled);
+
+ protected:
+  void Routine() override;
 
  private:
   // shared_ptr since we need to use this outside of the thread lock (to
@@ -49,6 +53,8 @@ class PageFlipEventHandler {
   bool enabled_;
 
   float refresh_;
+  int fd_;
+  int pipe_;
   int64_t last_timestamp_;
 };
 

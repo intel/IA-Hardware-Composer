@@ -173,6 +173,10 @@ void Compositor::EndFrame(bool commit_passed) {
   }
 }
 
+void Compositor::InsertFence(int fence) {
+  renderer_->InsertFence(fence);
+}
+
 bool Compositor::PrepareForComposition() {
   NativeSurface *surface = NULL;
   for (auto &fb : surfaces_) {

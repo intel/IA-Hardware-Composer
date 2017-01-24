@@ -43,27 +43,10 @@
 #include "hwcthread.h"
 #include "internaldisplay.h"
 #include "pageflipeventhandler.h"
-#include "pageflipstate.h"
 #include "spinlock.h"
 #include "virtualdisplay.h"
 
 namespace hwcomposer {
-
-static void page_flip_event(int /*fd*/, unsigned int frame, unsigned int sec,
-                            unsigned int usec, void *data) {
-  PageFlipEventHandler *handler = (PageFlipEventHandler *)data;
-  if (!handler)
-    return;
-
-  IPAGEFLIPEVENTTRACE("Handling VBlank call back.");
-  handler->HandlePageFlipEvent(sec, usec);
-}
-
-static void vblank_event(int /*fd*/, unsigned int /*frame*/,
-                         unsigned int /*sec*/, unsigned int /*usec*/,
-                         void * /*data*/) {
-  IPAGEFLIPEVENTTRACE("vblank_event Called.");
-}
 
 class GpuDevice::DisplayManager : public HWCThread {
  public:
@@ -224,8 +207,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
 #endif
   FD_ZERO(&fd_set_);
   FD_SET(hotplug_fd_.get(), &fd_set_);
-  FD_SET(fd_, &fd_set_);
-  select_fd_ = std::max(hotplug_fd_.get(), fd_) + 1;
+  select_fd_ = hotplug_fd_.get() + 1;
   if (!InitWorker("DisplayManager")) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
@@ -326,14 +308,6 @@ void GpuDevice::DisplayManager::Routine() {
     if (FD_ISSET(hotplug_fd_.get(), &fd_set_)) {
       IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
       HotPlugEventHandler();
-    }
-
-    if (FD_ISSET(fd_, &fd_set_)) {
-      IPAGEFLIPEVENTTRACE("drmHandleEvent recieved.");
-      drmEventContext event_context = {.version = DRM_EVENT_CONTEXT_VERSION,
-                                       .vblank_handler = vblank_event,
-                                       .page_flip_handler = page_flip_event};
-      drmHandleEvent(fd_, &event_context);
     }
   }
 }

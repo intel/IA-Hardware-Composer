@@ -62,7 +62,6 @@ LOCAL_SRC_FILES := \
 	common/display/displayplanemanager.cpp \
 	common/display/overlaybuffer.cpp \
 	common/display/pageflipeventhandler.cpp \
-	common/display/pageflipstate.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/hwcthread.cpp \
 	common/utils/separate_rects.cpp \

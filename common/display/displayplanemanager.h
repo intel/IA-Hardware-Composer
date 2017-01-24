@@ -27,6 +27,8 @@
 #include <hwcbuffer.h>
 #include <scopedfd.h>
 
+#include "nativesync.h"
+
 #include "displayplanestate.h"
 
 namespace hwcomposer {
@@ -37,7 +39,6 @@ class GpuDevice;
 class NativeBufferHandler;
 class OverlayBuffer;
 struct OverlayLayer;
-class PageFlipState;
 
 class DisplayPlaneManager {
  public:
@@ -54,7 +55,8 @@ class DisplayPlaneManager {
 
   virtual bool CommitFrame(DisplayPlaneStateList &planes,
                            drmModeAtomicReqPtr property_set, bool needs_modeset,
-                           PageFlipState *state, ScopedFd &fence);
+                           std::unique_ptr<NativeSync> &sync_object,
+                           ScopedFd &fence);
 
   void EndFrameUpdate();
 
@@ -80,7 +82,7 @@ class DisplayPlaneManager {
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<OverlayBuffer>> in_flight_buffers_;
   std::vector<std::unique_ptr<OverlayBuffer>> displayed_buffers_;
-  std::unique_ptr<PageFlipState> current_sync_;
+  std::unique_ptr<NativeSync> current_sync_;
 
   uint32_t crtc_id_;
   uint32_t pipe_;

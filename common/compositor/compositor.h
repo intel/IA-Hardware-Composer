@@ -49,6 +49,7 @@ class Compositor {
                      const std::vector<size_t> &source_layers,
                      HWCNativeHandle output_handle, int32_t *retire_fence);
   void EndFrame(bool commit_passed);
+  void InsertFence(int fence);
 
  private:
   bool PrepareForComposition();

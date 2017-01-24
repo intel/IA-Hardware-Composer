@@ -39,6 +39,8 @@ class GLRenderer : public Renderer {
 
   bool MakeCurrent() override;
 
+  void InsertFence(int kms_fence) override;
+
  private:
   GLProgram *GetProgram(unsigned texture_count);
 

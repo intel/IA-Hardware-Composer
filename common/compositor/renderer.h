@@ -39,6 +39,8 @@ class Renderer {
   virtual void RestoreState() = 0;
 
   virtual bool MakeCurrent() = 0;
+
+  virtual void InsertFence(int kms_fence) = 0;
 };
 
 }  // namespace hwcomposer

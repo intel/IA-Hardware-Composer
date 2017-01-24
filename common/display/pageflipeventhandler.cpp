@@ -18,6 +18,8 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 #include <hwctrace.h>
 
@@ -25,23 +27,31 @@ namespace hwcomposer {
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
-PageFlipEventHandler::PageFlipEventHandler() {
+PageFlipEventHandler::PageFlipEventHandler() : HWCThread(-8) {
 }
 
 PageFlipEventHandler::~PageFlipEventHandler() {
 }
 
-void PageFlipEventHandler::Init(float refresh) {
+void PageFlipEventHandler::Init(float refresh, int fd, int pipe) {
   ScopedSpinLock lock(spin_lock_);
   refresh_ = refresh;
+  fd_ = fd;
+  pipe_ = pipe;
 }
 
 int PageFlipEventHandler::RegisterCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display) {
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   callback_ = callback;
   display_ = display;
   last_timestamp_ = -1;
+  spin_lock_.unlock();
+
+  if (!InitWorker("PageFlipEventHandler")) {
+    ETRACE("Failed to initalize thread for PageFlipEventHandler. %s",
+           PRINTERROR());
+  }
 
   return 0;
 }
@@ -72,5 +82,30 @@ void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
   IPAGEFLIPEVENTTRACE("Callback called from HandlePageFlipEvent. %lu",
                       timestamp);
   callback_->Callback(display_, timestamp);
+}
+
+void PageFlipEventHandler::Routine() {
+  spin_lock_.lock();
+
+  bool enabled = enabled_;
+  int fd = fd_;
+  int pipe = pipe_;
+
+  spin_lock_.unlock();
+
+  if (!enabled)
+    return;
+
+  uint32_t high_crtc = (pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
+
+  drmVBlank vblank;
+  memset(&vblank, 0, sizeof(vblank));
+  vblank.request.type = (drmVBlankSeqType)(
+      DRM_VBLANK_RELATIVE | (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+  vblank.request.sequence = 1;
+
+  int ret = drmWaitVBlank(fd, &vblank);
+  if (!ret)
+    HandlePageFlipEvent(vblank.reply.tval_sec, (int64_t)vblank.reply.tval_usec);
 }
 }

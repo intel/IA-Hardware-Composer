@@ -113,7 +113,6 @@ class InternalDisplay : public NativeDisplay {
 
   NativeBufferHandler &buffer_handler_;
   Compositor compositor_;
-  PageFlipEventHandler flip_handler_;
   drmModeModeInfo mode_;
   uint32_t frame_;
   uint32_t dpms_prop_;
@@ -137,6 +136,7 @@ class InternalDisplay : public NativeDisplay {
   bool is_powered_off_;
   float refresh_;
   ScopedFd out_fence_ = -1;
+  std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   SpinLock spin_lock_;
 };
