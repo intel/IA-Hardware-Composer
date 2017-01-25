@@ -162,7 +162,7 @@ bool InternalDisplay::GetDisplayAttribute(uint32_t /*config*/,
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = refresh_;
+      *value = 1e9/refresh_;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
