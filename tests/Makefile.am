@@ -21,23 +21,24 @@
 #  SOFTWARE.
 #
 
-bin_PROGRAMS = testkmscube
+bin_PROGRAMS = testlayers
 
-testkmscube_LDFLAGS = \
-	-no-undefined
+testlayers_LDFLAGS = \
+	-no-undefined \
+     -L./third_party/json-c -ljson-c
 
-AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I./core -I./utils -I./compositor -I./display  -I../os/linux
+AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I../common/core -I../common/utils -I../common/compositor -I../common/display  -I../os/linux -I./common -I./third_party/json-c
 AM_CPPFLAGS = -std=c++11
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS)
 
-testkmscube_LDADD = \
+testlayers_LDADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	$(GLES2_LIBS) \
 	$(top_builddir)/libhwcomposer.la
 
-testkmscube_CFLAGS = \
+testlayers_CFLAGS = \
 	-O0 -g -lm \
 	$(DRM_CFLAGS) \
 	$(GBM_CFLAGS) \
@@ -45,6 +46,12 @@ testkmscube_CFLAGS = \
 	$(GLES2_CFLAGS) \
         $(AM_CPPFLAGS)
 
-testkmscube_SOURCES = \
-	./kmscube/kmscube.cpp \
-	./kmscube/esTransform.c
+testlayers_SOURCES = \
+    ./common/layerrenderer.cpp \
+    ./common/gllayerrenderer.cpp \
+    ./common/glcubelayerrenderer.cpp \
+    ./common/videolayerrenderer.cpp \
+    ./common/imagelayerrenderer.cpp \
+    ./common/esTransform.c \
+    ./common/layerfromjson.cpp \
+    ./apps/jsonlayerstest.cpp

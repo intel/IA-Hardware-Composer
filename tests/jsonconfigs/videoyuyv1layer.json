@@ -1,0 +1,23 @@
+[{
+  "type":1,
+  "format":25,
+  "transform":0,
+  "resourcePath":"./resources/haha01.xrgb.1080p.yuv",
+  "source": {
+    "width":1920,
+    "height":1080,
+    "crop": {
+      "x":0,
+      "y":0,
+      "width":1920,
+      "height":1080
+    }
+  },
+  "frame": {
+    "x":0,
+    "y":0,
+    "width":1920,
+    "height":1080
+  }
+}
+]

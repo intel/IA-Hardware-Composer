@@ -1,0 +1,43 @@
+[{
+  "type":2,
+  "format":3,
+  "transform":1,
+  "resourcePath":"./image.bmp",
+  "source": {
+    "width":10,
+    "height":10,
+    "crop": {
+      "x":1,
+      "y":1,
+      "width":30,
+      "height":50
+    }
+  },
+  "frame": {
+    "x":1,
+    "y":1,
+    "width":30,
+    "height":50
+  }
+},{
+  "type":0,
+  "format":1,
+  "transform":1,
+  "resourcePath":1,
+  "source": {
+    "width":10,
+    "height":10,
+    "crop": {
+      "x":1,
+      "y":1,
+      "width":30,
+      "height":50
+    }
+  },
+  "frame": {
+    "x":1,
+    "y":1,
+    "width":30,
+    "height":50
+  }
+}]

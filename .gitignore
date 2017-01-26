@@ -32,3 +32,4 @@ TAGS
 *.dirstamp
 m4
 testkmscube
+!/tests/third_party/json-c/autoconf-archive/m4
