@@ -128,7 +128,7 @@ void GLRenderer::InsertFence(int kms_fence) {
   };
   EGLSyncKHR fence = eglCreateSyncKHR(
       context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
-  eglWaitSyncKHR(context_.GetDisplay(), fence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR);
+  eglWaitSyncKHR(context_.GetDisplay(), fence, 0);
   eglDestroySyncKHR(context_.GetDisplay(), fence);
 #else
   glFlush();
