@@ -104,7 +104,7 @@ bool Headless::GetActiveConfig(uint32_t *config) {
     return false;
 
   config[0] = 0;
-  return false;
+  return true;
 }
 
 bool Headless::SetDpmsMode(uint32_t /*dpms_mode*/) {
