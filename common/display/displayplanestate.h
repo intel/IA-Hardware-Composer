@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 namespace hwcomposer {
 
 class DisplayPlane;

@@ -59,10 +59,11 @@ class DisplayPlane {
 
   bool IsSupportedFormat(uint32_t format);
 
+  uint32_t GetFormatForFrameBuffer(uint32_t format);
+
   void Dump() const;
 
  private:
-  uint32_t GetFormatForFrameBuffer(uint32_t format) const;
   struct Property {
     Property();
     bool Initialize(uint32_t fd, const char* name,

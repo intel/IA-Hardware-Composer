@@ -110,6 +110,10 @@ void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
 }
 
 bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
+  if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
+    ETRACE("Failed to remove fb %s", PRINTERROR());
+
+  fb_id_ = 0;
   int ret = drmModeAddFB2(gpu_fd, width_, height_, format_, gem_handles_,
                           pitches_, offsets_, &fb_id_, 0);
 

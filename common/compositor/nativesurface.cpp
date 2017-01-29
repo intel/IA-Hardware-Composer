@@ -16,6 +16,7 @@
 
 #include "nativesurface.h"
 
+#include "displayplane.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
 
@@ -27,6 +28,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       width_(width),
       height_(height),
       ref_count_(0),
+      framebuffer_format_(0),
       in_flight_(false) {
 }
 
@@ -39,7 +41,7 @@ NativeSurface::~NativeSurface() {
   }
 }
 
-bool NativeSurface::Init(NativeBufferHandler *buffer_handler, uint32_t gpu_fd) {
+bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
   buffer_handler_ = buffer_handler;
   buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_);
   if (!native_handle_) {
@@ -49,7 +51,6 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler, uint32_t gpu_fd) {
 
   overlay_buffer_.reset(new hwcomposer::OverlayBuffer());
   overlay_buffer_->InitializeFromNativeHandle(native_handle_, buffer_handler_);
-  overlay_buffer_->CreateFrameBuffer(gpu_fd);
 
   if (!InitializeGPUResources()) {
     ETRACE("Failed to initialize gpu resources.");
@@ -95,6 +96,18 @@ void NativeSurface::SetInUse(bool inuse) {
 
 void NativeSurface::SetInFlightSurface() {
   in_flight_ = true;
+}
+
+void NativeSurface::CreateFrameBuffer(const DisplayPlaneState &plane,
+                                      uint32_t gpu_fd) {
+  uint32_t format =
+      plane.plane()->GetFormatForFrameBuffer(overlay_buffer_->GetFormat());
+  if (framebuffer_format_ == format)
+    return;
+
+  framebuffer_format_ = format;
+  overlay_buffer_->SetRecommendedFormat(framebuffer_format_);
+  overlay_buffer_->CreateFrameBuffer(gpu_fd);
 }
 
 }  // namespace hwcomposer

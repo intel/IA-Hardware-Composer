@@ -113,6 +113,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (comp_regions.empty())
         continue;
 
+      in_flight_surfaces_.back()->CreateFrameBuffer(plane, gpu_fd_);
       Render(layers, in_flight_surfaces_.back(), comp_regions);
       plane.SetOverlayLayer(&layers.back());
     }
@@ -189,7 +190,7 @@ bool Compositor::PrepareForComposition() {
 
   if (!surface) {
     NativeSurface *new_surface = CreateBackBuffer(width_, height_);
-    new_surface->Init(buffer_handler_, gpu_fd_);
+    new_surface->Init(buffer_handler_);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

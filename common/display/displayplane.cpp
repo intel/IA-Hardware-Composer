@@ -242,22 +242,6 @@ uint32_t DisplayPlane::type() const {
 }
 
 bool DisplayPlane::ValidateLayer(const OverlayLayer* layer) {
-  uint32_t format = layer->GetBuffer()->GetFormat();
-  if (!IsSupportedFormat(format)) {
-    // In case of primary we can fallback to XRGB.
-    if (type_ == DRM_PLANE_TYPE_PRIMARY) {
-      format = GetFormatForFrameBuffer(format);
-      if (IsSupportedFormat(format)) {
-        layer->GetBuffer()->SetRecommendedFormat(format);
-        return true;
-      }
-    }
-
-    IDISPLAYMANAGERTRACE(
-        "Layer cannot be supported as format is not supported.");
-    return false;
-  }
-
   uint64_t alpha = 0xFF;
 
   if (layer->GetBlending() == HWCBlending::kBlendingPremult)
@@ -274,6 +258,12 @@ bool DisplayPlane::ValidateLayer(const OverlayLayer* layer) {
     IDISPLAYMANAGERTRACE(
         "Rotation property not supported, Cannot composite layer using "
         "Overlay.");
+    return false;
+  }
+
+  if (!IsSupportedFormat(layer->GetBuffer()->GetFormat())) {
+    IDISPLAYMANAGERTRACE(
+        "Layer cannot be supported as format is not supported.");
     return false;
   }
 
@@ -294,17 +284,20 @@ bool DisplayPlane::IsSupportedFormat(uint32_t format) {
   return false;
 }
 
-uint32_t DisplayPlane::GetFormatForFrameBuffer(uint32_t format) const {
-  // We only support 24 bit colordepth for primary planes on
-  // pre SKL Hardware. Ideally, we query format support from
-  // plane to determine this.
-  switch (format) {
-    case DRM_FORMAT_ABGR8888:
-      return DRM_FORMAT_XBGR8888;
-    case DRM_FORMAT_ARGB8888:
-      return DRM_FORMAT_XRGB8888;
-    default:
-      break;
+uint32_t DisplayPlane::GetFormatForFrameBuffer(uint32_t format) {
+  if (IsSupportedFormat(format))
+    return format;
+
+  if (type_ == DRM_PLANE_TYPE_PRIMARY) {
+    // In case of alpha, fall back to XRGB.
+    switch (format) {
+      case DRM_FORMAT_ABGR8888:
+        return DRM_FORMAT_XBGR8888;
+      case DRM_FORMAT_ARGB8888:
+        return DRM_FORMAT_XRGB8888;
+      default:
+        break;
+    }
   }
 
   return format;

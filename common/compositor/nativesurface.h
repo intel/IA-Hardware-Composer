@@ -21,6 +21,7 @@
 
 #include <platformdefines.h>
 
+#include "displayplanestate.h"
 #include "nativefence.h"
 #include "overlaybuffer.h"
 
@@ -37,7 +38,7 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(NativeBufferHandler* buffer_handler, uint32_t gpu_fd);
+  bool Init(NativeBufferHandler* buffer_handler);
 
   bool InitializeForOffScreenRendering(NativeBufferHandler* buffer_handler,
                                        HWCNativeHandle native_handle);
@@ -73,6 +74,8 @@ class NativeSurface {
     return ref_count_ > 1 || in_flight_;
   }
 
+  void CreateFrameBuffer(const DisplayPlaneState& plane, uint32_t gpu_fd);
+
  protected:
   virtual bool InitializeGPUResources() = 0;
 
@@ -84,6 +87,7 @@ class NativeSurface {
   uint32_t width_;
   uint32_t height_;
   uint32_t ref_count_;
+  uint32_t framebuffer_format_;
   bool in_flight_;
   NativeFence fd_;
 };
