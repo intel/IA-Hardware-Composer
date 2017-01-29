@@ -100,7 +100,7 @@ class InternalDisplay : public NativeDisplay {
   void ShutDown() override;
 
  private:
-  enum PendingModeset { kNone = 0, kDpms = 1 << 0, kModeset = 1 << 1 };
+  enum PendingModeset { kNone = 0, kModeset = 1 << 0 };
 
   void ShutDownPipe();
   void InitializeResources();

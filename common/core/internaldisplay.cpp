@@ -124,11 +124,11 @@ void InternalDisplay::ShutDown() {
   ScopedSpinLock lock(spin_lock_);
   IHOTPLUGEVENTTRACE("InternalDisplay::ShutDown recieved.");
   is_powered_off_ = true;
+  dpms_mode_ = DRM_MODE_DPMS_OFF;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
 
   display_plane_manager_->DisablePipe();
-
   display_plane_manager_.reset(nullptr);
 }
 
@@ -190,9 +190,6 @@ bool InternalDisplay::GetDisplayName(uint32_t *size, char *name) {
 }
 
 bool InternalDisplay::SetActiveConfig(uint32_t /*config*/) {
-  pending_operations_ |= PendingModeset::kModeset;
-  pending_operations_ |= PendingModeset::kDpms;
-  dpms_mode_ = DRM_MODE_DPMS_ON;
   return true;
 }
 
@@ -205,25 +202,19 @@ bool InternalDisplay::GetActiveConfig(uint32_t *config) {
 }
 
 bool InternalDisplay::SetDpmsMode(uint32_t dpms_mode) {
+  ScopedSpinLock lock(spin_lock_);
+  if (dpms_mode_ == dpms_mode)
+    return true;
+
   dpms_mode_ = dpms_mode;
-  pending_operations_ |= PendingModeset::kDpms;
+  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
+                              dpms_mode);
   return true;
 }
 
 bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
                                           NativeSync *sync,
                                           uint64_t *out_fence) {
-  if (pending_operations_ & kDpms) {
-    int ret = drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
-                                          dpms_mode_);
-    if (ret) {
-      ETRACE("Failed to set DPMS property for connector %d", connector_);
-      return false;
-    }
-
-    pending_operations_ &= ~kDpms;
-  }
-
   if (pending_operations_ & kModeset) {
     if (old_blob_id_) {
       drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
