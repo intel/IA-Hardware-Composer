@@ -330,6 +330,33 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
   return true;
 }
 
+void DisplayPlaneManager::DisablePipe() {
+  CTRACE();
+  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  if (!pset) {
+    ETRACE("Failed to allocate property set %d", -ENOMEM);
+    return;
+  }
+
+  // Disable planes.
+  for (auto i = cursor_planes_.begin(); i != cursor_planes_.end(); ++i) {
+    (*i)->Disable(pset.get());
+  }
+
+  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
+    (*i)->Disable(pset.get());
+  }
+
+  for (auto i = primary_planes_.begin(); i != primary_planes_.end(); ++i) {
+    (*i)->Disable(pset.get());
+  }
+
+  int ret = drmModeAtomicCommit(gpu_fd_, pset.get(),
+                                DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+  if (ret)
+    ETRACE("Failed to disable pipe:%s\n", PRINTERROR());
+}
+
 bool DisplayPlaneManager::TestCommit(
     const std::vector<OverlayPlane> &commit_planes) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());

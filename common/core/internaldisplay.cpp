@@ -120,31 +120,10 @@ void InternalDisplay::ShutDown() {
   ScopedSpinLock lock(spin_lock_);
   IHOTPLUGEVENTTRACE("InternalDisplay::ShutDown recieved.");
   is_powered_off_ = true;
-  pending_operations_ |= kModeset;
-  dpms_mode_ = DRM_MODE_DPMS_OFF;
-  pending_operations_ |= PendingModeset::kDpms;
-  uint64_t fence = 0;
-  // Do the actual commit.
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
+                              DRM_MODE_DPMS_OFF);
 
-  // Create a Sync object for this Composition.
-  std::unique_ptr<NativeSync> sync_object(new NativeSync());
-  if (!sync_object->Init()) {
-    ETRACE("Failed to create sync object.");
-    return;
-  }
-
-  if (!ApplyPendingModeset(pset.get(), sync_object.get(), &fence)) {
-    ETRACE("Failed to Modeset");
-    return;
-  }
-
-  DisplayPlaneStateList current_composition_planes;
-  if (!display_plane_manager_->CommitFrame(current_composition_planes,
-                                           pset.get(), true, sync_object,
-                                           out_fence_)) {
-    ETRACE("Failed to shut down the display.");
-  }
+  display_plane_manager_->DisablePipe();
 
   display_plane_manager_.reset(nullptr);
 }

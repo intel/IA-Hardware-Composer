@@ -101,12 +101,16 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     connected_displays_.swap(connected_displays);
   }
 
-  const std::vector<hwcomposer::NativeDisplay *> &GetConnectedDisplays() {
+  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     if (connected_displays_.empty())
       connected_displays_ = device_->GetConnectedPhysicalDisplays();
 
-    return connected_displays_;
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_)
+      display->Present(layers);
   }
 
  private:
@@ -735,14 +739,7 @@ int main(int argc, char *argv[]) {
     frame->layer.acquire_fence = gpu_fence_fd;
     std::vector<hwcomposer::HwcLayer *>().swap(layers);
     layers.emplace_back(&frame->layer);
-
-    const std::vector<hwcomposer::NativeDisplay *> &displays =
-        callback->GetConnectedDisplays();
-    if (displays.empty())
-      return 0;
-
-    for (auto &display : displays)
-      display->Present(layers);
+    callback->PresentLayers(layers);
   }
 
   close(fd);

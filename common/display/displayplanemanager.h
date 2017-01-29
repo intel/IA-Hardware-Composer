@@ -53,10 +53,11 @@ class DisplayPlaneManager {
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> &layers, bool pending_modeset);
 
-  virtual bool CommitFrame(DisplayPlaneStateList &planes,
-                           drmModeAtomicReqPtr property_set, bool needs_modeset,
-                           std::unique_ptr<NativeSync> &sync_object,
-                           ScopedFd &fence);
+  bool CommitFrame(DisplayPlaneStateList &planes,
+                   drmModeAtomicReqPtr property_set, bool needs_modeset,
+                   std::unique_ptr<NativeSync> &sync_object, ScopedFd &fence);
+
+  void DisablePipe();
 
   void EndFrameUpdate();
 

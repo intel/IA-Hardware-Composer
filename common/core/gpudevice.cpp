@@ -326,6 +326,8 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
   for (auto &display : displays_) {
     display->DisConnect();
   }
+
+  std::vector<NativeDisplay *>().swap(connected_displays_);
   for (int32_t i = 0; i < res->count_connectors; ++i) {
     ScopedDrmConnectorPtr connector(
         drmModeGetConnector(fd_, res->connectors[i]));
@@ -361,45 +363,38 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
         for (auto &display : displays_) {
           if (encoder->crtc_id == display->CrtcId() &&
               display->Connect(mode, connector.get())) {
+            connected_displays_.emplace_back(display.get());
+            break;
+          }
+        }
+      }
+    } else {
+      // Try to find an encoder for the connector.
+      for (int32_t j = 0; j < connector->count_encoders; ++j) {
+        ScopedDrmEncoderPtr encoder(
+            drmModeGetEncoder(fd_, connector->encoders[j]));
+        if (!encoder)
+          continue;
+        for (auto &display : displays_) {
+          if (!display->IsConnected() &&
+              (encoder->possible_crtcs & (1 << display->Pipe())) &&
+              display->Connect(mode, connector.get())) {
+            IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
+            connected_displays_.emplace_back(display.get());
             break;
           }
         }
       }
     }
-
-    // Try to find an encoder for the connector.
-    for (int32_t i = 0; i < connector->count_encoders; ++i) {
-      ScopedDrmEncoderPtr encoder(
-          drmModeGetEncoder(fd_, connector->encoders[i]));
-      if (!encoder)
-        continue;
-
-      // Check for compatible CRTC
-      int crtc_bit = 1 << i;
-      if (!(encoder->possible_crtcs & crtc_bit))
-        continue;
-
-      for (auto &display : displays_) {
-        if (!display->IsConnected() && (1 << display->Pipe() & crtc_bit) &&
-            display->Connect(mode, connector.get())) {
-          break;
-        }
-      }
-    }
   }
 
-  bool headless_mode = true;
-  std::vector<NativeDisplay *>().swap(connected_displays_);
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->ShutDown();
-    } else {
-      connected_displays_.emplace_back(display.get());
-      headless_mode = false;
     }
   }
 
-  if (headless_mode) {
+  if (connected_displays_.empty()) {
     if (!headless_)
       headless_.reset(new Headless(fd_, *(buffer_handler_.get()), 0, 0));
   } else if (headless_) {
