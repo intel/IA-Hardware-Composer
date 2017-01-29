@@ -64,7 +64,7 @@ LOCAL_SRC_FILES := \
 	common/display/pageflipeventhandler.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/hwcthread.cpp \
-	common/utils/separate_rects.cpp \
+	common/utils/disjoint_layers.cpp \
 	os/android/grallocbufferhandler.cpp \
 	os/android/drmhwctwo.cpp
 

@@ -18,15 +18,15 @@
 
 #include <xf86drmMode.h>
 
+#include "disjoint_layers.h"
 #include "displayplanestate.h"
 #include "hwctrace.h"
 #include "nativegpuresource.h"
 #include "nativesurface.h"
 #include "nativesync.h"
-#include "renderstate.h"
-#include "renderer.h"
 #include "overlaylayer.h"
-#include "separate_rects.h"
+#include "renderer.h"
+#include "renderstate.h"
 #include "scopedrendererstate.h"
 
 namespace hwcomposer {
@@ -285,13 +285,13 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
     return display_frame[layer_index];
   });
 
-  std::vector<separate_rects::RectSet<uint64_t, int>> separate_regions;
-  separate_rects::separate_rects_64(layer_rects, &separate_regions);
+  std::vector<RectSet<int>> separate_regions;
+  get_draw_regions(layer_rects, &separate_regions);
   uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
   uint64_t dedicated_mask = (((uint64_t)1 << dedicated_layers.size()) - 1)
                             << num_exclude_rects;
 
-  for (separate_rects::RectSet<uint64_t, int> &region : separate_regions) {
+  for (RectSet<int> &region : separate_regions) {
     if (region.id_set.getBits() & exclude_mask)
       continue;
 

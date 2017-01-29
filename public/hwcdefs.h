@@ -19,12 +19,12 @@
 
 #include <stdint.h>
 
-#include "separate_rects.h"
+#include "disjoint_layers.h"
 
 namespace hwcomposer {
 
 template <typename T>
-using HwcRect = separate_rects::Rect<T>;
+using HwcRect = Rect<T>;
 
 enum class HWCBlending : int32_t {
   kBlendingNone = 0x0100,
