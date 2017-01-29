@@ -43,8 +43,11 @@ InternalDisplay::InternalDisplay(uint32_t gpu_fd,
 }
 
 InternalDisplay::~InternalDisplay() {
-  drmModeDestroyPropertyBlob(gpu_fd_, blob_id_);
-  drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
+  if (blob_id_)
+    drmModeDestroyPropertyBlob(gpu_fd_, blob_id_);
+
+  if (old_blob_id_)
+    drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
 }
 
 bool InternalDisplay::Initialize() {
@@ -103,8 +106,9 @@ bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
   compositor_.Init(&buffer_handler_, width_, height_, gpu_fd_);
   flip_handler_->Init(refresh_, gpu_fd_, pipe_);
   dpms_mode_ = DRM_MODE_DPMS_ON;
+  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
+                              DRM_MODE_DPMS_ON);
   pending_operations_ |= PendingModeset::kModeset;
-  pending_operations_ |= PendingModeset::kDpms;
 
   return true;
 }
@@ -189,11 +193,6 @@ bool InternalDisplay::SetActiveConfig(uint32_t /*config*/) {
   pending_operations_ |= PendingModeset::kModeset;
   pending_operations_ |= PendingModeset::kDpms;
   dpms_mode_ = DRM_MODE_DPMS_ON;
-  if (old_blob_id_) {
-    drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
-    old_blob_id_ = 0;
-  }
-
   return true;
 }
 
@@ -226,6 +225,11 @@ bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
   }
 
   if (pending_operations_ & kModeset) {
+    if (old_blob_id_) {
+      drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
+      old_blob_id_ = 0;
+    }
+
     drmModeCreatePropertyBlob(gpu_fd_, &mode_, sizeof(drmModeModeInfo),
                               &blob_id_);
     if (blob_id_ == 0)
