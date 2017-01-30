@@ -70,31 +70,22 @@ bool DisplayPlaneManager::Initialize() {
 
     if (plane->Initialize(gpu_fd_, supported_formats)) {
       if (plane->type() == DRM_PLANE_TYPE_CURSOR) {
-        cursor_planes_.emplace_back(std::move(plane));
+        cursor_plane_.reset(plane.release());
       } else if (plane->type() == DRM_PLANE_TYPE_PRIMARY) {
         plane->SetEnabled(true);
-        primary_planes_.emplace_back(std::move(plane));
+        primary_plane_.reset(plane.release());
       } else if (plane->type() == DRM_PLANE_TYPE_OVERLAY) {
-        overlay_planes_.emplace_back(std::move(plane));
+        overlay_planes_.emplace_back(plane.release());
       }
     }
   }
 
-  if (!primary_planes_.size()) {
+  if (!primary_plane_) {
     ETRACE("Failed to get primary plane for display %d", crtc_id_);
     return false;
   }
 
-  std::sort(
-      cursor_planes_.begin(), cursor_planes_.end(),
-      [](const std::unique_ptr<DisplayPlane> &l,
-         const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
-
-  std::sort(
-      primary_planes_.begin(), primary_planes_.end(),
-      [](const std::unique_ptr<DisplayPlane> &l,
-         const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
-
+  // We expect layers to be in ascending order.
   std::sort(
       overlay_planes_.begin(), overlay_planes_.end(),
       [](const std::unique_ptr<DisplayPlane> &l,
@@ -105,9 +96,8 @@ bool DisplayPlaneManager::Initialize() {
 
 bool DisplayPlaneManager::BeginFrameUpdate(
     std::vector<OverlayLayer> &layers, NativeBufferHandler *buffer_handler) {
-  for (auto i = cursor_planes_.begin(); i != cursor_planes_.end(); ++i) {
-    (*i)->SetEnabled(false);
-  }
+  if (cursor_plane_)
+    cursor_plane_->SetEnabled(false);
 
   for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
     (*i)->SetEnabled(false);
@@ -142,7 +132,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   auto layer_end = layers.end();
   bool render_layers = false;
   // We start off with Primary plane.
-  DisplayPlane *current_plane = primary_planes_.begin()->get();
+  DisplayPlane *current_plane = primary_plane_.get();
 
   OverlayLayer *primary_layer = &(*(layers.begin()));
   commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
@@ -184,20 +174,22 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
   if (layer_begin != layer_end) {
     // Handle layers for overlay
+    uint32_t index = 0;
     for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
       DisplayPlaneState &last_plane = composition.back();
       // Handle remaining overlay planes.
-      for (auto i = layer_begin; i != layer_end; ++i, ++layer_begin) {
+      for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
         commit_planes.emplace_back(OverlayPlane(j->get(), layer));
+        index = i->GetIndex();
+        ++layer_begin;
         // If we are able to composite buffer with the given plane, lets use
         // it.
         if (!FallbacktoGPU(j->get(), layer, commit_planes)) {
-          composition.emplace_back(j->get(), layer, i->GetIndex());
-          ++layer_begin;
+          composition.emplace_back(j->get(), layer, index);
           break;
         } else {
-          last_plane.AddLayer(i->GetIndex());
+          last_plane.AddLayer(index);
           commit_planes.pop_back();
         }
       }
@@ -222,8 +214,8 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   if (cursor_layer) {
     // Handle Cursor layer. If we have dedicated cursor plane, try using it
     // to composite cursor layer.
-    cursor_plane =
-        cursor_planes_.empty() ? NULL : cursor_planes_.begin()->get();
+    if (cursor_plane_)
+      cursor_plane = cursor_plane_.get();
     if (cursor_plane) {
       commit_planes.emplace_back(OverlayPlane(cursor_plane, cursor_layer));
       // Lets ensure we fall back to GPU composition in case
@@ -280,11 +272,8 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
   }
 
   // Disable unused planes.
-  for (auto i = cursor_planes_.begin(); i != cursor_planes_.end(); ++i) {
-    if ((*i)->IsEnabled())
-      continue;
-
-    (*i)->Disable(pset);
+  if (cursor_plane_ && !cursor_plane_->IsEnabled()) {
+    cursor_plane_->Disable(pset);
   }
 
   for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
@@ -339,17 +328,14 @@ void DisplayPlaneManager::DisablePipe() {
   }
 
   // Disable planes.
-  for (auto i = cursor_planes_.begin(); i != cursor_planes_.end(); ++i) {
-    (*i)->Disable(pset.get());
-  }
+  if (cursor_plane_)
+    cursor_plane_->Disable(pset.get());
 
   for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
     (*i)->Disable(pset.get());
   }
 
-  for (auto i = primary_planes_.begin(); i != primary_planes_.end(); ++i) {
-    (*i)->Disable(pset.get());
-  }
+  primary_plane_->Disable(pset.get());
 
   int ret = drmModeAtomicCommit(gpu_fd_, pset.get(),
                                 DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);

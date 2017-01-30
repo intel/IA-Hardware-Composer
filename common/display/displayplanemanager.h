@@ -78,8 +78,8 @@ class DisplayPlaneManager {
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
-  std::vector<std::unique_ptr<DisplayPlane>> primary_planes_;
-  std::vector<std::unique_ptr<DisplayPlane>> cursor_planes_;
+  std::unique_ptr<DisplayPlane> primary_plane_;
+  std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<OverlayBuffer>> in_flight_buffers_;
   std::vector<std::unique_ptr<OverlayBuffer>> displayed_buffers_;
