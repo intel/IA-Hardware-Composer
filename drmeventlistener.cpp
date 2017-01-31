@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <assert.h>
+
 #define LOG_TAG "hwc-drm-event-listener"
 
 #include "drmeventlistener.h"
