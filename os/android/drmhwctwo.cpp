@@ -472,7 +472,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
     ALOGE("SetOutputBuffer called \n");
 
   struct gralloc_handle *temp = new struct gralloc_handle();
-  temp->handle_ = temp->buffer_->handle;
+  temp->handle_ = buffer;
   display_->SetOutputBuffer(temp, release_fence);
   return HWC2::Error::None;
 }
