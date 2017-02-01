@@ -150,6 +150,18 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     return connected_displays_;
   }
 
+  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    if (connected_displays_.empty())
+      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_)
+      display->Present(layers);
+  }
+
  private:
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
   hwcomposer::GpuDevice *device_;
@@ -479,13 +491,7 @@ int main(int argc, char *argv[]) {
       layers.emplace_back(frame->layers[j].get());
     }
 
-    const std::vector<hwcomposer::NativeDisplay *> &displays =
-        callback->GetConnectedDisplays();
-    if (displays.empty())
-      return 0;
-
-    for (auto &display : displays)
-      display->Present(layers);
+    callback->PresentLayers(layers);
   }
 
   close(fd);

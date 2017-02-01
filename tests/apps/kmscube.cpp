@@ -101,6 +101,14 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     connected_displays_.swap(connected_displays);
   }
 
+  const std::vector<hwcomposer::NativeDisplay *> &GetConnectedDisplays() {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    if (connected_displays_.empty())
+      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+
+    return connected_displays_;
+  }
+
   void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     if (connected_displays_.empty())
