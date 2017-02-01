@@ -57,7 +57,7 @@ class DisplayPlaneManager {
                    drmModeAtomicReqPtr property_set, bool needs_modeset,
                    std::unique_ptr<NativeSync> &sync_object, ScopedFd &fence);
 
-  void DisablePipe();
+  void DisablePipe(drmModeAtomicReqPtr property_set);
 
   void EndFrameUpdate();
 

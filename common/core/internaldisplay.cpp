@@ -128,7 +128,21 @@ void InternalDisplay::ShutDown() {
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
 
-  display_plane_manager_->DisablePipe();
+  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  if (!pset) {
+    ETRACE("Failed to allocate property set %d", -ENOMEM);
+    return;
+  }
+
+  bool active = false;
+  int ret =
+      drmModeAtomicAddProperty(pset.get(), crtc_id_, active_prop_, active) < 0;
+  if (ret) {
+    ETRACE("Failed to set display to inactive");
+    return;
+  }
+
+  display_plane_manager_->DisablePipe(pset.get());
   display_plane_manager_.reset(nullptr);
 }
 
@@ -226,10 +240,14 @@ bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
     if (blob_id_ == 0)
       return false;
 
-    int ret = drmModeAtomicAddProperty(property_set, crtc_id_, crtc_prop_,
+    bool active = true;
+
+    int ret = drmModeAtomicAddProperty(property_set, crtc_id_, mode_id_prop_,
                                        blob_id_) < 0 ||
               drmModeAtomicAddProperty(property_set, connector_, crtc_prop_,
-                                       crtc_id_) < 0;
+                                       crtc_id_) < 0 ||
+              drmModeAtomicAddProperty(property_set, crtc_id_, active_prop_,
+                                       active) < 0;
     if (ret) {
       ETRACE("Failed to add blob %d to pset", blob_id_);
       return false;
