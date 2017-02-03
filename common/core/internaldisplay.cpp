@@ -394,7 +394,7 @@ bool InternalDisplay::Present(
       HwcLayer *layer = source_layers.at(layer_index);
       layer->release_fence.Reset(-1);
     }
-    return false;
+    return succesful_commit;
   } else {
     compositor_.InsertFence(dup(fence));
   }
