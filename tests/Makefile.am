@@ -24,8 +24,7 @@
 bin_PROGRAMS = testlayers
 
 testlayers_LDFLAGS = \
-	-no-undefined \
-     -L./third_party/json-c -ljson-c
+	-no-undefined
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I../common/core -I../common/utils -I../common/compositor -I../common/display  -I../os/linux -I./common -I./third_party/json-c
 AM_CPPFLAGS = -std=c++11
@@ -36,6 +35,7 @@ testlayers_LDADD = \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	$(GLES2_LIBS) \
+	$(top_builddir)/tests/third_party/json-c/libjson-c.la \
 	$(top_builddir)/libhwcomposer.la
 
 testlayers_CFLAGS = \

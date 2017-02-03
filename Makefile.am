@@ -21,6 +21,7 @@ AM_MAKEFLAGS = -s
 
 SUBDIRS = \
 	. \
+	tests/third_party/json-c \
 	tests
 
 MAINTAINERCLEANFILES = ChangeLog INSTALL

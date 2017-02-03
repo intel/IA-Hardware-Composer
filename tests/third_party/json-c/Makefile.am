@@ -7,12 +7,9 @@ dist-hook:
 	chmod -R u+w "$(distdir)/doc"
 	cd "$(distdir)" && doxygen
 
-SUBDIRS = . tests
+SUBDIRS = .
 
 lib_LTLIBRARIES = libjson-c.la
-
-pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = json-c.pc
 
 libjson_cincludedir = $(includedir)/json-c
 libjson_cinclude_HEADERS = \
@@ -37,7 +34,7 @@ libjson_cinclude_HEADERS = \
 	printbuf.h \
 	random_seed.h
 
-libjson_c_la_LDFLAGS = -version-info 3:0:0 -no-undefined @JSON_BSYMBOLIC_LDFLAGS@
+libjson_c_la_LDFLAGS = -version-info 3:0:0 -no-undefined @JSON_BSYMBOLIC_LDFLAGS@ -static
 
 libjson_c_la_SOURCES = \
 	arraylist.c \

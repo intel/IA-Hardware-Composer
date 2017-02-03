@@ -15,7 +15,7 @@ else
         gtkdocize || exit $?
 fi
 
-autoreconf -v --install || exit 1
+autoreconf -v --install -Itests/third_party/json-c/autoconf-archive/m4 || exit 1
 cd $ORIGDIR || exit $?
 
 if test -z "$NOCONFIGURE"; then
