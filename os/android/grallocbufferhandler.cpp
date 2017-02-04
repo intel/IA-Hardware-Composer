@@ -23,7 +23,11 @@
 #include <ui/GraphicBuffer.h>
 #include <cutils/native_handle.h>
 
+#ifdef USE_MINIGBM
+#include <cros_gralloc_handle.h>
+#else
 #include <gralloc_drm_handle.h>
+#endif
 
 #include <hwcdefs.h>
 #include <hwctrace.h>
@@ -89,7 +93,31 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 
   return true;
 }
+#ifdef USE_MINIGBM
+bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
+  memset(bo, 0, sizeof(struct HwcBuffer));
+  int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DRM_IMPORT,
+                              handle->handle_, fd_, bo);
+  if (ret) {
+    ETRACE("GRALLOC_MODULE_PERFORM_DRM_IMPORT failed %d", ret);
+    return false;
+  }
 
+  auto gr_handle = (struct cros_gralloc_handle *)handle;
+  if (!gr_handle) {
+    ETRACE("could not find gralloc drm handle");
+    return false;
+  }
+
+  if (gr_handle->usage & GRALLOC_USAGE_PROTECTED) {
+    bo->usage |= hwcomposer::kLayerProtected;
+  } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
+    bo->usage |= hwcomposer::kLayerCursor;
+  }
+
+  return true;
+}
+#else
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   hwc_drm_bo_t hwc_bo;
   int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DRM_IMPORT, fd_,
@@ -124,4 +152,5 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   return true;
 }
+#endif
 }

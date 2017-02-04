@@ -30,7 +30,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 
 LOCAL_C_INCLUDES := \
-        vendor/intel/external/android_ia/drm_gralloc \
 	vendor/intel/external/android_ia/libdrm \
 	vendor/intel/external/android_ia/libdrm/include/drm \
 	system/core/include/utils \
@@ -94,6 +93,15 @@ LOCAL_SRC_FILES += \
 	common/compositor/gl/egloffscreencontext.cpp \
 	common/compositor/gl/nativeglresource.cpp \
 	common/compositor/gl/shim.cpp
+endif
+
+ifeq ($(strip $(BOARD_USES_MINIGBM)),true)
+LOCAL_CPPFLAGS += -DUSE_MINIGBM
+LOCAL_C_INCLUDES += \
+	vendor/intel/external/android_ia/minigbm/cros_gralloc
+else
+LOCAL_C_INCLUDES += \
+	vendor/intel/external/android_ia/drm_gralloc
 endif
 
 LOCAL_MODULE := hwcomposer.android_ia

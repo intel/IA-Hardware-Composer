@@ -27,160 +27,6 @@ VideoLayerRenderer::~VideoLayerRenderer() {
   resource_fd_ = NULL;
 }
 
-static uint32_t getPixelBits(uint32_t format) {
-  switch (format) {
-    case GBM_FORMAT_C8:
-    case GBM_FORMAT_R8:
-    case GBM_FORMAT_RGB332:
-    case GBM_FORMAT_BGR233:
-      return 8;
-    case GBM_FORMAT_GR88:
-    case GBM_FORMAT_XRGB4444:
-    case GBM_FORMAT_XBGR4444:
-    case GBM_FORMAT_RGBX4444:
-    case GBM_FORMAT_BGRX4444:
-    case GBM_FORMAT_ARGB4444:
-    case GBM_FORMAT_ABGR4444:
-    case GBM_FORMAT_RGBA4444:
-    case GBM_FORMAT_BGRA4444:
-    case GBM_FORMAT_XRGB1555:
-    case GBM_FORMAT_XBGR1555:
-    case GBM_FORMAT_RGBX5551:
-    case GBM_FORMAT_BGRX5551:
-    case GBM_FORMAT_ARGB1555:
-    case GBM_FORMAT_ABGR1555:
-    case GBM_FORMAT_RGBA5551:
-    case GBM_FORMAT_BGRA5551:
-    case GBM_FORMAT_BGR565:
-    case GBM_FORMAT_YUYV:
-    case GBM_FORMAT_YVYU:
-    case GBM_FORMAT_UYVY:
-    case GBM_FORMAT_VYUY:
-    case GBM_FORMAT_AYUV:
-    case GBM_FORMAT_YUV422:
-    case GBM_FORMAT_YVU422:
-      return 16;
-
-    case GBM_FORMAT_RGB888:
-    case GBM_FORMAT_BGR888:
-    case GBM_FORMAT_YUV444:
-    case GBM_FORMAT_YVU444:
-      return 24;
-
-    case GBM_FORMAT_XRGB8888:
-    case GBM_FORMAT_XBGR8888:
-    case GBM_FORMAT_RGBX8888:
-    case GBM_FORMAT_BGRX8888:
-    case GBM_FORMAT_ARGB8888:
-    case GBM_FORMAT_ABGR8888:
-    case GBM_FORMAT_RGBA8888:
-    case GBM_FORMAT_BGRA8888:
-    case GBM_FORMAT_XRGB2101010:
-    case GBM_FORMAT_XBGR2101010:
-    case GBM_FORMAT_RGBX1010102:
-    case GBM_FORMAT_BGRX1010102:
-    case GBM_FORMAT_ARGB2101010:
-    case GBM_FORMAT_ABGR2101010:
-    case GBM_FORMAT_RGBA1010102:
-    case GBM_FORMAT_BGRA1010102:
-      return 32;
-
-    case GBM_FORMAT_NV12:
-    case GBM_FORMAT_NV21:
-    case GBM_FORMAT_NV16:
-    case GBM_FORMAT_NV61:
-    case GBM_FORMAT_YUV410:
-    case GBM_FORMAT_YVU410:
-    case GBM_FORMAT_YUV411:
-    case GBM_FORMAT_YVU411:
-    case GBM_FORMAT_YUV420:
-    case GBM_FORMAT_YVU420:
-      return 12;
-    defalut:
-      return 0;
-  }
-}
-
-static void getPlanesStrides(uint32_t format, uint32_t stride,
-                             uint32_t* plane_size, uint32_t* strides) {
-  switch (format) {
-    case GBM_FORMAT_C8:
-    case GBM_FORMAT_R8:
-    case GBM_FORMAT_RGB332:
-    case GBM_FORMAT_BGR233:
-    case GBM_FORMAT_GR88:
-    case GBM_FORMAT_XRGB4444:
-    case GBM_FORMAT_XBGR4444:
-    case GBM_FORMAT_RGBX4444:
-    case GBM_FORMAT_BGRX4444:
-    case GBM_FORMAT_ARGB4444:
-    case GBM_FORMAT_ABGR4444:
-    case GBM_FORMAT_RGBA4444:
-    case GBM_FORMAT_BGRA4444:
-    case GBM_FORMAT_XRGB1555:
-    case GBM_FORMAT_XBGR1555:
-    case GBM_FORMAT_RGBX5551:
-    case GBM_FORMAT_BGRX5551:
-    case GBM_FORMAT_ARGB1555:
-    case GBM_FORMAT_ABGR1555:
-    case GBM_FORMAT_RGBA5551:
-    case GBM_FORMAT_BGRA5551:
-    case GBM_FORMAT_BGR565:
-    case GBM_FORMAT_YUYV:
-    case GBM_FORMAT_YVYU:
-    case GBM_FORMAT_UYVY:
-    case GBM_FORMAT_VYUY:
-    case GBM_FORMAT_AYUV:
-    case GBM_FORMAT_YUV422:
-    case GBM_FORMAT_YVU422:
-    case GBM_FORMAT_RGB888:
-    case GBM_FORMAT_BGR888:
-    case GBM_FORMAT_YUV444:
-    case GBM_FORMAT_YVU444:
-    case GBM_FORMAT_XRGB8888:
-    case GBM_FORMAT_XBGR8888:
-    case GBM_FORMAT_RGBX8888:
-    case GBM_FORMAT_BGRX8888:
-    case GBM_FORMAT_ARGB8888:
-    case GBM_FORMAT_ABGR8888:
-    case GBM_FORMAT_RGBA8888:
-    case GBM_FORMAT_BGRA8888:
-    case GBM_FORMAT_XRGB2101010:
-    case GBM_FORMAT_XBGR2101010:
-    case GBM_FORMAT_RGBX1010102:
-    case GBM_FORMAT_BGRX1010102:
-    case GBM_FORMAT_ARGB2101010:
-    case GBM_FORMAT_ABGR2101010:
-    case GBM_FORMAT_RGBA1010102:
-    case GBM_FORMAT_BGRA1010102:
-      *plane_size = 1;
-      strides[0] = stride;
-      break;
-
-    case GBM_FORMAT_NV12:
-    case GBM_FORMAT_NV21:
-    case GBM_FORMAT_NV16:
-    case GBM_FORMAT_NV61:
-      *plane_size = 2;
-      strides[0] = stride;
-      strides[1] = stride / 2;
-      break;
-
-    case GBM_FORMAT_YUV410:
-    case GBM_FORMAT_YVU410:
-    case GBM_FORMAT_YUV411:
-    case GBM_FORMAT_YVU411:
-    case GBM_FORMAT_YUV420:
-    case GBM_FORMAT_YVU420:
-      *plane_size = 3;
-      strides[0] = stride;
-      strides[1] = strides[2] = stride / 4;
-      break;
-    defalut:
-      break;
-  }
-}
-
 bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
                               glContext* gl, const char* resource_path) {
   if (!LayerRenderer::Init(width, height, format, gl, resource_path))
@@ -196,9 +42,11 @@ bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     return false;
   }
 
-  pixelbytes_ = getPixelBits(format);
-  getPlanesStrides(format_, native_handle_.import_data.stride, &planes_,
-                   strides_);
+  planes_ = gbm_bo_get_num_planes(gbm_bo_);
+  for (size_t i = 0; i < planes_; i++) {
+    native_handle_.import_data.offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
+    native_handle_.import_data.strides[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
+  }
   isFileEnded_ = false;
 
   return true;
@@ -215,10 +63,10 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
   void* pOpaque = NULL;
   uint32_t width = native_handle_.import_data.width;
   uint32_t height = native_handle_.import_data.height;
-  uint32_t stride = native_handle_.import_data.stride;
+  uint32_t stride = native_handle_.import_data.strides[0];
   uint32_t mapStride;
   void* pBo = gbm_bo_map(gbm_bo_, 0, 0, width, height, GBM_BO_TRANSFER_WRITE,
-                         &mapStride, &pOpaque);
+                         &mapStride, &pOpaque, 0);
   if (!pBo) {
     printf("gbm_bo_map is not successful!\n");
     return;

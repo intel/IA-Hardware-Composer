@@ -31,6 +31,10 @@ namespace hwcomposer {
 OverlayBuffer::~OverlayBuffer() {
   if (fb_id_ && drmModeRmFB(gpu_fd_, fb_id_))
     ETRACE("Failed to remove fb %s", PRINTERROR());
+#ifdef USE_MINIGBM
+  if (prime_fd_)
+    close(prime_fd_);
+#endif
 }
 
 void OverlayBuffer::Initialize(const HwcBuffer& bo) {

@@ -35,7 +35,7 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   eglMakeCurrent(gl_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, gl_->context);
 
-  int gbm_bo_fd = native_handle_.import_data.fd;
+  int gbm_bo_fd = native_handle_.import_data.fds[0];
   const EGLint image_attrs[] = {
       EGL_WIDTH,                     width,
       EGL_HEIGHT,                    height,

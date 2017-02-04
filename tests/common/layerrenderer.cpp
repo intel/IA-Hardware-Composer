@@ -37,16 +37,21 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     return false;
   }
 
-  int gbm_bo_fd = gbm_bo_get_fd(gbm_bo_);
+  int gbm_bo_fd = gbm_bo_get_plane_fd(gbm_bo_, 0);
   if (gbm_bo_fd == -1) {
     printf("LayerRenderer: gbm_bo_get_fd() failed\n");
     return false;
   }
 
-  native_handle_.import_data.fd = gbm_bo_fd;
+  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_);
+  for (size_t i = 0; i < total_planes; i++) {
+    native_handle_.import_data.offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
+    native_handle_.import_data.strides[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
+    native_handle_.import_data.fds[i] = gbm_bo_fd;
+  }
+
   native_handle_.import_data.width = width;
   native_handle_.import_data.height = height;
-  native_handle_.import_data.stride = gbm_bo_get_stride(gbm_bo_);
   native_handle_.import_data.format = gbm_bo_get_format(gbm_bo_);
   format_ = format;
 

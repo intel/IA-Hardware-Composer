@@ -27,7 +27,7 @@ testlayers_LDFLAGS = \
 	-no-undefined
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I../common/core -I../common/utils -I../common/compositor -I../common/display  -I../os/linux -I./common -I./third_party/json-c
-AM_CPPFLAGS = -std=c++11
+AM_CPPFLAGS = -std=c++11 -DUSE_MINIGBM
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS)
 
 testlayers_LDADD = \
