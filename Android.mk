@@ -106,6 +106,8 @@ endif
 
 LOCAL_MODULE := hwcomposer.android_ia
 LOCAL_MODULE_TAGS := optional
+#Preffered paths for all vendor hals /vendor/lib/hw
+LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
