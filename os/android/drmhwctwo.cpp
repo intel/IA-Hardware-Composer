@@ -86,7 +86,7 @@ HWC2::Error DrmHwcTwo::CreateVirtualDisplay(uint32_t width, uint32_t height,
                     std::forward_as_tuple(&device_, HWC_DISPLAY_VIRTUAL,
                                           HWC2::DisplayType::Virtual));
   *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  displays_.at(*display).Init();
+  displays_.at(*display).Init(width, height);
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -146,19 +146,27 @@ DrmHwcTwo::HwcDisplay::HwcDisplay(hwcomposer::GpuDevice *device,
   supported(__func__);
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::Init() {
+// This function will be called only for Virtual Display Init
+HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height) {
   supported(__func__);
-
-  int display = static_cast<int>(handle_);
   if (!device_->Initialize()) {
     ALOGE("Can't initialize drm object.");
     return HWC2::Error::NoResources;
   }
+  display_ = device_->GetVirtualDisplay();
+  display_->InitVirtualDisplay(width, height);
+  return Init();
+}
 
-  if (type_ == HWC2::DisplayType::Virtual) {
-    display_ = device_->GetVirtualDisplay();
-    display_->InitVirtualDisplay(1, 1);
-  } else {
+HWC2::Error DrmHwcTwo::HwcDisplay::Init() {
+  supported(__func__);
+
+  if (type_ != HWC2::DisplayType::Virtual) {
+    int display = static_cast<int>(handle_);
+    if (!device_->Initialize()) {
+      ALOGE("Can't initialize drm object.");
+      return HWC2::Error::NoResources;
+    }
     display_ = device_->GetDisplay(display);
     if (!display_) {
       ALOGE("Failed to retrieve display %d", display);
