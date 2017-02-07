@@ -395,7 +395,7 @@ static void parse_args(int argc, char *argv[]) {
   /* Suppress getopt's poor error messages */
   opterr = 0;
 
-  while ((opt = getopt_long(argc, argv, "+:hfj:", longopts,
+  while ((opt = getopt_long(argc, argv, "+:hf:j:", longopts,
                             /*longindex*/ &longindex)) != -1) {
     switch (opt) {
       case 'h':
@@ -476,10 +476,8 @@ int main(int argc, char *argv[]) {
     for (uint32_t j = 0; j < frame->layers.size(); j++) {
       if (frame->layers[j]->release_fence.get() != -1) {
         ret = sync_wait(frame->layers[j]->release_fence.get(), 1000);
-        frame->layers[j]->release_fence.Reset(-1);
         if (ret) {
-          printf("failed waiting on sync fence: %s\n", strerror(errno));
-          return -1;
+          frame->layers[j]->release_fence.Reset(-1);
         }
       }
     }

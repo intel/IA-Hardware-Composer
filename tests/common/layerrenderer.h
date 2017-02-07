@@ -50,6 +50,7 @@ class LayerRenderer {
   }
 
  protected:
+  uint32_t planes_;
   struct gbm_bo* gbm_bo_;
   struct gbm_handle native_handle_;
   struct gbm_device* gbm_dev_;

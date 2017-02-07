@@ -43,8 +43,8 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     return false;
   }
 
-  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_);
-  for (size_t i = 0; i < total_planes; i++) {
+  planes_ = gbm_bo_get_num_planes(gbm_bo_);
+  for (size_t i = 0; i < planes_; i++) {
     native_handle_.import_data.offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
     native_handle_.import_data.strides[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
     native_handle_.import_data.fds[i] = gbm_bo_fd;

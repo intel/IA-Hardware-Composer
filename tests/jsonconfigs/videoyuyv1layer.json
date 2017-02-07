@@ -2,7 +2,7 @@
   "type":1,
   "format":25,
   "transform":0,
-  "resourcePath":"./resources/haha01.xrgb.1080p.yuv",
+  "resourcePath":"./resources/test.xrgb",
   "source": {
     "width":1920,
     "height":1080,

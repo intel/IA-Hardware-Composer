@@ -42,28 +42,17 @@ bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     return false;
   }
 
-  planes_ = gbm_bo_get_num_planes(gbm_bo_);
-  for (size_t i = 0; i < planes_; i++) {
-    native_handle_.import_data.offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
-    native_handle_.import_data.strides[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
-  }
-  isFileEnded_ = false;
-
   return true;
 }
 
 void VideoLayerRenderer::Draw(int64_t* pfence) {
-  // *p_Draw();
-
-  if (isFileEnded_)
+  if (!resource_fd_) {
     return;
-  if (!resource_fd_)
-    return;
+  }
 
   void* pOpaque = NULL;
   uint32_t width = native_handle_.import_data.width;
   uint32_t height = native_handle_.import_data.height;
-  uint32_t stride = native_handle_.import_data.strides[0];
   uint32_t mapStride;
   void* pBo = gbm_bo_map(gbm_bo_, 0, 0, width, height, GBM_BO_TRANSFER_WRITE,
                          &mapStride, &pOpaque, 0);
@@ -74,10 +63,10 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
 
   void* pReadLoc = pBo;
   for (int i = 0; i < planes_; i++) {
-    uint32_t planeBlockSize = strides_[i] * height;
+    uint32_t planeBlockSize = native_handle_.import_data.strides[i] * height;
     uint32_t readCount = fread(pReadLoc, 1, planeBlockSize, resource_fd_);
-    if (readCount != planeBlockSize) {
-      isFileEnded_ = true;
+    if (readCount <= 0) {
+      fseek(resource_fd_, 0, SEEK_SET);
       break;
     }
   }
