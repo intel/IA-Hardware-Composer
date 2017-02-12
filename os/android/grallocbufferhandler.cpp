@@ -65,7 +65,7 @@ bool GrallocBufferHandler::Init() {
   return true;
 }
 
-bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
+bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int /*format*/,
                                         HWCNativeHandle *handle) {
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->buffer_ =

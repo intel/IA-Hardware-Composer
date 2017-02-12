@@ -455,7 +455,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
 HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
                                                    int32_t acquire_fence,
                                                    int32_t dataspace,
-                                                   hwc_region_t damage) {
+                                                   hwc_region_t /*damage*/) {
   supported(__func__);
   client_layer_.set_buffer(target);
   client_layer_.set_acquire_fence(acquire_fence);
@@ -592,7 +592,7 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerColor(hwc_color_t color) {
+HWC2::Error DrmHwcTwo::HwcLayer::SetLayerColor(hwc_color_t /*color*/) {
   // Probably we should query for the plane capabilities here, before
   // always falling back for client composition ?
   sf_type_ = HWC2::Composition::Client;

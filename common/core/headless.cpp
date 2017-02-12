@@ -31,7 +31,7 @@ bool Headless::Initialize() {
 }
 
 bool Headless::Connect(const drmModeModeInfo & /*mode_info*/,
-                       const drmModeConnector *connector) {
+                       const drmModeConnector * /*connector*/) {
   return true;
 }
 
