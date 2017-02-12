@@ -40,13 +40,13 @@ OverlayBuffer::~OverlayBuffer() {
 void OverlayBuffer::Initialize(const HwcBuffer& bo) {
   width_ = bo.width;
   height_ = bo.height;
-  format_ = bo.format;
   for (uint32_t i = 0; i < 4; i++) {
     pitches_[i] = bo.pitches[i];
     offsets_[i] = bo.offsets[i];
     gem_handles_[i] = bo.gem_handles[i];
   }
 
+  SetRecommendedFormat(bo.format);
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
 }
@@ -71,11 +71,11 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
   EGLImageKHR image = EGL_NO_IMAGE_KHR;
   // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
   // target, the EGL will take a reference to the dma_buf.
-  if (format_ == DRM_FORMAT_YUV420) {
+  if (is_yuv_) {
     const EGLint attr_list_yv12[] = {
         EGL_WIDTH,                     static_cast<EGLint>(width_),
         EGL_HEIGHT,                    static_cast<EGLint>(height_),
-        EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_YUV420,
+        EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
         EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
         EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
         EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
@@ -111,6 +111,16 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
 
 void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
   format_ = format;
+  switch (format_) {
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_YUV420:
+      is_yuv_ = true;
+      break;
+    default:
+      is_yuv_ = false;
+  }
 }
 
 bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
