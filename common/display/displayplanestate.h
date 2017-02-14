@@ -25,6 +25,7 @@ namespace hwcomposer {
 
 class DisplayPlane;
 class DisplayPlaneState;
+class NativeSurface;
 struct OverlayLayer;
 
 typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
@@ -83,6 +84,14 @@ class DisplayPlaneState {
     return layer_;
   }
 
+  void SetOffScreenTarget(NativeSurface *target) {
+    offscreen_target_ = target;
+  }
+
+  NativeSurface *GetOffScreenTarget() const {
+    return offscreen_target_;
+  }
+
   DisplayPlane *plane() const {
     return plane_;
   }
@@ -95,6 +104,7 @@ class DisplayPlaneState {
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
   OverlayLayer *layer_ = NULL;
+  NativeSurface *offscreen_target_ = NULL;
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
 };

@@ -52,7 +52,7 @@ class Compositor {
   void InsertFence(int fence);
 
  private:
-  bool PrepareForComposition();
+  bool PrepareForComposition(DisplayPlaneState &plane);
   void Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
               const std::vector<CompositionRegion> &comp_regions);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,

@@ -108,14 +108,12 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (comp_regions.empty())
         continue;
 
-      if (!PrepareForComposition()) {
+      if (!PrepareForComposition(plane)) {
         ETRACE("Failed to initialize resources for composition");
         return false;
       }
 
-      NativeSurface *surface = in_flight_surfaces_.back();
-      surface->SetPlaneTarget(plane, gpu_fd_);
-      Render(layers, surface, comp_regions);
+      Render(layers, plane.GetOffScreenTarget(), comp_regions);
     }
   }
 
@@ -178,7 +176,7 @@ void Compositor::InsertFence(int fence) {
   renderer_->InsertFence(fence);
 }
 
-bool Compositor::PrepareForComposition() {
+bool Compositor::PrepareForComposition(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   for (auto &fb : surfaces_) {
     if (!fb->InUse()) {
@@ -194,6 +192,8 @@ bool Compositor::PrepareForComposition() {
     surface = surfaces_.back().get();
   }
 
+  surface->SetPlaneTarget(plane, gpu_fd_);
+  plane.SetOffScreenTarget(surface);
   in_flight_surfaces_.emplace_back(surface);
   return true;
 }
