@@ -39,7 +39,8 @@ DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t pipe_id,
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize() {
+bool DisplayPlaneManager::Initialize(NativeBufferHandler *buffer_handler,
+                                     uint32_t width, uint32_t height) {
   ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));
   if (!plane_resources) {
     ETRACE("Failed to get plane resources");
@@ -91,11 +92,14 @@ bool DisplayPlaneManager::Initialize() {
       [](const std::unique_ptr<DisplayPlane> &l,
          const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
 
+  buffer_handler_ = buffer_handler;
+  width_ = width;
+  height_ = height;
+
   return true;
 }
 
-bool DisplayPlaneManager::BeginFrameUpdate(
-    std::vector<OverlayLayer> &layers, NativeBufferHandler *buffer_handler) {
+bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
   if (cursor_plane_)
     cursor_plane_->SetEnabled(false);
 
@@ -108,7 +112,7 @@ bool DisplayPlaneManager::BeginFrameUpdate(
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     OverlayLayer *layer = &layers.at(layer_index);
     HwcBuffer bo;
-    if (!buffer_handler->ImportBuffer(layer->GetNativeHandle(), &bo)) {
+    if (!buffer_handler_->ImportBuffer(layer->GetNativeHandle(), &bo)) {
       ETRACE("Failed to Import buffer.");
       return false;
     }

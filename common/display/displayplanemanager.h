@@ -46,10 +46,10 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize();
+  bool Initialize(NativeBufferHandler *buffer_handler, uint32_t width,
+                  uint32_t height);
 
-  bool BeginFrameUpdate(std::vector<OverlayLayer> &layers,
-                        NativeBufferHandler *buffer_handler);
+  bool BeginFrameUpdate(std::vector<OverlayLayer> &layers);
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> &layers, bool pending_modeset);
 
@@ -78,6 +78,7 @@ class DisplayPlaneManager {
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
+  NativeBufferHandler *buffer_handler_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
@@ -85,6 +86,8 @@ class DisplayPlaneManager {
   std::vector<std::unique_ptr<OverlayBuffer>> displayed_buffers_;
   std::unique_ptr<NativeSync> current_sync_;
 
+  uint32_t width_;
+  uint32_t height_;
   uint32_t crtc_id_;
   uint32_t pipe_;
   uint32_t gpu_fd_;

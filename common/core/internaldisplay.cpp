@@ -98,7 +98,7 @@ bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, pipe_, crtc_id_));
 
-  if (!display_plane_manager_->Initialize()) {
+  if (!display_plane_manager_->Initialize(&buffer_handler_, width_, height_)) {
     ETRACE("Failed to initialize Display Manager.");
     return false;
   }
@@ -328,7 +328,7 @@ bool InternalDisplay::Present(
   }
 
   // Reset any Display Manager and Compositor state.
-  if (!display_plane_manager_->BeginFrameUpdate(layers, &buffer_handler_)) {
+  if (!display_plane_manager_->BeginFrameUpdate(layers)) {
     ETRACE("Failed to import needed buffers in DisplayManager.");
     return false;
   }
