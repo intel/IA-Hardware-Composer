@@ -28,6 +28,7 @@
 namespace hwcomposer {
 
 class NativeBufferHandler;
+struct OverlayLayer;
 
 class NativeSurface {
  public:
@@ -53,8 +54,8 @@ class NativeSurface {
     return height_;
   }
 
-  OverlayBuffer* GetBuffer() const {
-    return overlay_buffer_.get();
+  OverlayLayer* GetLayer() {
+    return &layer_;
   }
 
   HWCNativeHandle GetNativeHandle() const {
@@ -68,13 +69,11 @@ class NativeSurface {
 
   void SetInUse(bool inuse);
 
-  void SetInFlightSurface();
-
   bool InUse() const {
     return ref_count_ > 1 || in_flight_;
   }
 
-  void CreateFrameBuffer(const DisplayPlaneState& plane, uint32_t gpu_fd);
+  void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
  protected:
   virtual bool InitializeGPUResources() = 0;
@@ -82,6 +81,8 @@ class NativeSurface {
   std::unique_ptr<OverlayBuffer> overlay_buffer_;
 
  private:
+  void InitializeLayer();
+  OverlayLayer layer_;
   HWCNativeHandle native_handle_;
   NativeBufferHandler* buffer_handler_;
   uint32_t width_;

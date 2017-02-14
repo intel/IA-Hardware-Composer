@@ -60,6 +60,7 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
   ref_count_ = 0;
   width_ = overlay_buffer_->GetWidth();
   height_ = overlay_buffer_->GetHeight();
+  InitializeLayer();
 
   return true;
 }
@@ -76,6 +77,9 @@ bool NativeSurface::InitializeForOffScreenRendering(
 
   width_ = overlay_buffer_->GetWidth();
   height_ = overlay_buffer_->GetHeight();
+  InitializeLayer();
+  layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
+  layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
 
   return true;
 }
@@ -94,20 +98,28 @@ void NativeSurface::SetInUse(bool inuse) {
   in_flight_ = false;
 }
 
-void NativeSurface::SetInFlightSurface() {
-  in_flight_ = true;
-}
-
-void NativeSurface::CreateFrameBuffer(const DisplayPlaneState &plane,
-                                      uint32_t gpu_fd) {
+void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   uint32_t format =
       plane.plane()->GetFormatForFrameBuffer(overlay_buffer_->GetFormat());
+
+  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
+  layer_.SetDisplayFrame(HwcRect<int>(plane.GetDisplayFrame()));
+  plane.SetOverlayLayer(&layer_);
+  in_flight_ = true;
+
   if (framebuffer_format_ == format)
     return;
 
   framebuffer_format_ = format;
   overlay_buffer_->SetRecommendedFormat(framebuffer_format_);
   overlay_buffer_->CreateFrameBuffer(gpu_fd);
+}
+
+void NativeSurface::InitializeLayer() {
+  layer_.SetNativeHandle(native_handle_);
+  layer_.SetBlending(HWCBlending::kBlendingPremult);
+  layer_.SetTransform(0);
+  layer_.SetBuffer(overlay_buffer_.get());
 }
 
 }  // namespace hwcomposer

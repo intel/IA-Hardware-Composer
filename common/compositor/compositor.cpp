@@ -101,11 +101,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
     } else if (plane.GetCompositionState() ==
                DisplayPlaneState::State::kRender) {
       comp = &plane;
-      if (!PrepareForComposition()) {
-        ETRACE("Failed to initialize resources for composition");
-        return false;
-      }
-
       std::vector<CompositionRegion> comp_regions;
       SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
                      comp_regions);
@@ -113,10 +108,14 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (comp_regions.empty())
         continue;
 
-      in_flight_surfaces_.back()->CreateFrameBuffer(plane, gpu_fd_);
-      Render(layers, in_flight_surfaces_.back(), comp_regions,
-             plane.GetDisplayFrame());
-      plane.SetOverlayLayer(&layers.back());
+      if (!PrepareForComposition()) {
+        ETRACE("Failed to initialize resources for composition");
+        return false;
+      }
+
+      NativeSurface *surface = in_flight_surfaces_.back();
+      surface->SetPlaneTarget(plane, gpu_fd_);
+      Render(layers, surface, comp_regions);
     }
   }
 
@@ -156,10 +155,9 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width_, height_));
   surface->InitializeForOffScreenRendering(buffer_handler_, output_handle);
 
-  Render(layers, surface.get(), comp_regions,
-         HwcRect<int>(0, 0, width_, height_));
+  Render(layers, surface.get(), comp_regions);
 
-  *retire_fence = layers.back().GetAcquireFence();
+  *retire_fence = surface->ReleaseNativeFence();
 
   return true;
 }
@@ -184,7 +182,6 @@ bool Compositor::PrepareForComposition() {
   NativeSurface *surface = NULL;
   for (auto &fb : surfaces_) {
     if (!fb->InUse()) {
-      fb->SetInFlightSurface();
       surface = fb.get();
       break;
     }
@@ -201,25 +198,9 @@ bool Compositor::PrepareForComposition() {
   return true;
 }
 
-void Compositor::AddOutputLayer(std::vector<OverlayLayer> &layers,
-                                NativeSurface *surface,
-                                const HwcRect<int> &display_frame) {
-  layers.emplace_back();
-  OverlayLayer &pre_comp_layer = layers.back();
-  pre_comp_layer.SetNativeHandle(surface->GetNativeHandle());
-  pre_comp_layer.SetBlending(HWCBlending::kBlendingPremult);
-  pre_comp_layer.SetTransform(0);
-  pre_comp_layer.SetSourceCrop(HwcRect<float>(display_frame));
-  pre_comp_layer.SetDisplayFrame(HwcRect<int>(display_frame));
-  pre_comp_layer.SetBuffer(surface->GetBuffer());
-  pre_comp_layer.SetAcquireFence(surface->ReleaseNativeFence());
-  pre_comp_layer.SetIndex(layers.size() - 1);
-}
-
 void Compositor::Render(std::vector<OverlayLayer> &layers,
                         NativeSurface *surface,
-                        const std::vector<CompositionRegion> &comp_regions,
-                        const HwcRect<int> &display_frame) {
+                        const std::vector<CompositionRegion> &comp_regions) {
   std::vector<RenderState> states;
   size_t num_regions = comp_regions.size();
   states.reserve(num_regions);
@@ -238,7 +219,7 @@ void Compositor::Render(std::vector<OverlayLayer> &layers,
   }
 
   renderer_->Draw(states, surface);
-  AddOutputLayer(layers, surface, display_frame);
+  surface->GetLayer()->SetAcquireFence(surface->ReleaseNativeFence());
 }
 
 // Below code is taken from drm_hwcomposer adopted to our needs.
