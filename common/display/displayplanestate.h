@@ -17,8 +17,9 @@
 #define DISPLAY_PLANE_STATE_H_
 
 #include <stdint.h>
-
 #include <vector>
+
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 
@@ -38,13 +39,34 @@ class DisplayPlaneState {
   DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer, uint32_t index)
       : plane_(plane), layer_(layer) {
     source_layers_.emplace_back(index);
+    display_frame_ = layer->GetDisplayFrame();
   }
 
   State GetCompositionState() const {
     return state_;
   }
 
-  void AddLayer(size_t index) {
+  const HwcRect<int> &GetDisplayFrame() const {
+    return display_frame_;
+  }
+
+  void AddLayer(size_t index, const HwcRect<int> &display_frame) {
+    if (display_frame_.left > display_frame.left) {
+      display_frame_.left = display_frame.left;
+    }
+
+    if (display_frame_.top > display_frame.top) {
+      display_frame_.top = display_frame.top;
+    }
+
+    if (display_frame_.right < display_frame.right) {
+      display_frame_.right = display_frame.right;
+    }
+
+    if (display_frame_.bottom < display_frame.bottom) {
+      display_frame_.bottom = display_frame.bottom;
+    }
+
     source_layers_.emplace_back(index);
     state_ = State::kRender;
   }
@@ -73,6 +95,7 @@ class DisplayPlaneState {
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
   OverlayLayer *layer_ = NULL;
+  HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
 };
 
