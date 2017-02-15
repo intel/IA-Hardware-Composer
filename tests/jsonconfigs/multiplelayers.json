@@ -36,31 +36,31 @@
     }
   },
   "frame": {
-    "x":550,
-    "y":550,
-    "width":1050,
-    "height":1050
+    "x":450,
+    "y":450,
+    "width":950,
+    "height":950
   }
 },
 {
   "type":1,
   "format":25,
   "transform":0,
-  "resourcePath":"./resources/test.xrgb",
+  "resourcePath":"./resources/test.640x360.bgra",
   "source": {
-    "width":1920,
-    "height":1080,
+    "width":640,
+    "height":360,
     "crop": {
       "x":0,
       "y":0,
-      "width":1920,
-      "height":1080
+      "width":640,
+      "height":360
     }
   },
   "frame": {
-    "x":100,
-    "y":600,
-    "width":600,
+    "x":900,
+    "y":580,
+    "width":1500,
     "height":1080
   }
 },
@@ -68,22 +68,22 @@
   "type":1,
   "format":25,
   "transform":0,
-  "resourcePath":"./resources/test.xrgb",
+  "resourcePath":"./resources/test.640x360.bgra",
   "source": {
-    "width":1920,
-    "height":1080,
+    "width":640,
+    "height":360,
     "crop": {
       "x":0,
       "y":0,
-      "width":1920,
-      "height":1080
+      "width":640,
+      "height":360
     }
   },
   "frame": {
-    "x":1000,
-    "y":100,
-    "width":1600,
-    "height":600
+    "x":600,
+    "y":140,
+    "width":1240,
+    "height":500
   }
 },
 {
@@ -103,9 +103,9 @@
   },
   "frame": {
     "x":1200,
-    "y":550,
+    "y":400,
     "width":1920,
-    "height":1080
+    "height":900
   }
 }
 ]

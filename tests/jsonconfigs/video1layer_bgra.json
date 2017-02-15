@@ -1,0 +1,23 @@
+[{
+  "type":1,
+  "format":25,
+  "transform":0,
+  "resourcePath":"./resources/test.640x360.bgra",
+  "source": {
+    "width":640,
+    "height":360,
+    "crop": {
+      "x":0,
+      "y":0,
+      "width":640,
+      "height":360
+    }
+  },
+  "frame": {
+    "x":0,
+    "y":0,
+    "width":640,
+    "height":360
+  }
+}
+]
