@@ -90,8 +90,11 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   uint32_t format =
       plane.plane()->GetFormatForFrameBuffer(overlay_buffer_->GetFormat());
 
-  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
-  layer_.SetDisplayFrame(HwcRect<int>(plane.GetDisplayFrame()));
+  const HwcRect<int>& display_rect = plane.GetDisplayFrame();
+  layer_.SetSourceCrop(HwcRect<float>(display_rect));
+  layer_.SetDisplayFrame(HwcRect<int>(display_rect));
+  width_ = display_rect.right - display_rect.left;
+  height_ = display_rect.bottom - display_rect.top;
   plane.SetOverlayLayer(&layer_);
   in_flight_ = true;
 
