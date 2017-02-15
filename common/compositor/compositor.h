@@ -53,7 +53,7 @@ class Compositor {
 
  private:
   bool PrepareForComposition(DisplayPlaneState &plane);
-  void Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
+  bool Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
               const std::vector<CompositionRegion> &comp_regions);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,
                       const std::vector<size_t> &source_layers,

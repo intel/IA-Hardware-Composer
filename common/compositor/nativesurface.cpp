@@ -51,12 +51,6 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
 
   overlay_buffer_.reset(new hwcomposer::OverlayBuffer());
   overlay_buffer_->InitializeFromNativeHandle(native_handle_, buffer_handler_);
-
-  if (!InitializeGPUResources()) {
-    ETRACE("Failed to initialize gpu resources.");
-    return false;
-  }
-
   ref_count_ = 0;
   width_ = overlay_buffer_->GetWidth();
   height_ = overlay_buffer_->GetHeight();
@@ -69,12 +63,6 @@ bool NativeSurface::InitializeForOffScreenRendering(
     NativeBufferHandler *buffer_handler, HWCNativeHandle native_handle) {
   overlay_buffer_.reset(new hwcomposer::OverlayBuffer());
   overlay_buffer_->InitializeFromNativeHandle(native_handle, buffer_handler);
-
-  if (!InitializeGPUResources()) {
-    ETRACE("Failed to initialize gpu resources.");
-    return false;
-  }
-
   width_ = overlay_buffer_->GetWidth();
   height_ = overlay_buffer_->GetHeight();
   InitializeLayer();

@@ -113,7 +113,10 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         return false;
       }
 
-      Render(layers, plane.GetOffScreenTarget(), comp_regions);
+      if (!Render(layers, plane.GetOffScreenTarget(), comp_regions)) {
+        ETRACE("Failed to Render layer.");
+        return false;
+      }
     }
   }
 
@@ -153,7 +156,8 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width_, height_));
   surface->InitializeForOffScreenRendering(buffer_handler_, output_handle);
 
-  Render(layers, surface.get(), comp_regions);
+  if (!Render(layers, surface.get(), comp_regions))
+    return false;
 
   *retire_fence = surface->ReleaseNativeFence();
 
@@ -198,7 +202,7 @@ bool Compositor::PrepareForComposition(DisplayPlaneState &plane) {
   return true;
 }
 
-void Compositor::Render(std::vector<OverlayLayer> &layers,
+bool Compositor::Render(std::vector<OverlayLayer> &layers,
                         NativeSurface *surface,
                         const std::vector<CompositionRegion> &comp_regions) {
   std::vector<RenderState> states;
@@ -218,8 +222,11 @@ void Compositor::Render(std::vector<OverlayLayer> &layers,
     states.emplace(it, state);
   }
 
-  renderer_->Draw(states, surface);
+  if (!renderer_->Draw(states, surface))
+    return false;
+
   surface->GetLayer()->SetAcquireFence(surface->ReleaseNativeFence());
+  return true;
 }
 
 // Below code is taken from drm_hwcomposer adopted to our needs.

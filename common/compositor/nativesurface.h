@@ -44,7 +44,7 @@ class NativeSurface {
   bool InitializeForOffScreenRendering(NativeBufferHandler* buffer_handler,
                                        HWCNativeHandle native_handle);
 
-  virtual void MakeCurrent() = 0;
+  virtual bool MakeCurrent() = 0;
 
   uint32_t GetWidth() const {
     return width_;
@@ -76,8 +76,6 @@ class NativeSurface {
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
  protected:
-  virtual bool InitializeGPUResources() = 0;
-
   std::unique_ptr<OverlayBuffer> overlay_buffer_;
 
  private:

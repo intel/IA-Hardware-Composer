@@ -32,7 +32,7 @@ class GLRenderer : public Renderer {
   ~GLRenderer();
 
   bool Init() override;
-  void Draw(const std::vector<RenderState> &commands,
+  bool Draw(const std::vector<RenderState> &commands,
             NativeSurface *surface) override;
 
   void RestoreState() override;

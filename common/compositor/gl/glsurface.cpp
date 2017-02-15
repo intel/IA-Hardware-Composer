@@ -69,8 +69,14 @@ bool GLSurface::InitializeGPUResources() {
   return true;
 }
 
-void GLSurface::MakeCurrent() {
+bool GLSurface::MakeCurrent() {
+  if (!fb_ && !InitializeGPUResources()) {
+    ETRACE("Failed to initialize gpu resources.");
+    return false;
+  }
+
   glBindFramebuffer(GL_FRAMEBUFFER, fb_);
+  return true;
 }
 
 }  // namespace hwcomposer

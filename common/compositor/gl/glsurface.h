@@ -32,10 +32,10 @@ class GLSurface : public NativeSurface {
   ~GLSurface() override;
   GLSurface(uint32_t width, uint32_t height);
 
-  void MakeCurrent() override;
+  bool MakeCurrent() override;
 
  private:
-  bool InitializeGPUResources() override;
+  bool InitializeGPUResources();
   GLuint tex_ = 0;
   GLuint fb_ = 0;
 };

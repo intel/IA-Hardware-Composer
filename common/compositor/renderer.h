@@ -33,7 +33,7 @@ class Renderer {
   Renderer& operator=(const Renderer& rhs) = delete;
 
   virtual bool Init() = 0;
-  virtual void Draw(const std::vector<RenderState>& commands,
+  virtual bool Draw(const std::vector<RenderState>& commands,
                     NativeSurface* surface) = 0;
 
   virtual void RestoreState() = 0;

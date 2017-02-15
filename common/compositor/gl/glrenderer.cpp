@@ -79,11 +79,12 @@ bool GLRenderer::Init() {
   return true;
 }
 
-void GLRenderer::Draw(const std::vector<RenderState> &render_states,
+bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
                       NativeSurface *surface) {
   GLuint frame_width = surface->GetWidth();
   GLuint frame_height = surface->GetHeight();
-  surface->MakeCurrent();
+  if (!surface->MakeCurrent())
+    return false;
 
   glViewport(0, 0, frame_width, frame_height);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -111,6 +112,7 @@ void GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   glDisable(GL_SCISSOR_TEST);
   surface->SetNativeFence(context_.GetSyncFD());
+  return true;
 }
 
 void GLRenderer::RestoreState() {
