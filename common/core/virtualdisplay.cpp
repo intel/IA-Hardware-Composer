@@ -38,7 +38,9 @@ VirtualDisplay::~VirtualDisplay() {
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
-  compositor_.Init(&buffer_handler_, width, height, gpu_fd_);
+  compositor_.Init();
+  width_ = width;
+  height_ = height;
 }
 
 bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
@@ -87,7 +89,8 @@ bool VirtualDisplay::Present(
 
   int retire_fence;
   // Prepare for final composition.
-  if (!compositor_.DrawOffscreen(layers, layers_rects, index, output_handle_,
+  if (!compositor_.DrawOffscreen(layers, layers_rects, index, &buffer_handler_,
+                                 width_, height_, output_handle_,
                                  &retire_fence)) {
     ETRACE("Failed to prepare for the frame composition ret=%d", ret);
     return false;

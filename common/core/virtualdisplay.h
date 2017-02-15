@@ -49,6 +49,8 @@ class VirtualDisplay : public Headless {
   NativeBufferHandler &buffer_handler_;
   Compositor compositor_;
   uint32_t gpu_fd_;
+  uint32_t width_;
+  uint32_t height_;
 };
 
 }  // namespace hwcomposer

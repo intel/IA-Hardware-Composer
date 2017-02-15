@@ -103,7 +103,7 @@ bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
     return false;
   }
 
-  compositor_.Init(&buffer_handler_, width_, height_, gpu_fd_);
+  compositor_.Init();
   flip_handler_->Init(refresh_, gpu_fd_, pipe_);
   dpms_mode_ = DRM_MODE_DPMS_ON;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,

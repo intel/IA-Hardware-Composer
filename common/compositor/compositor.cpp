@@ -37,14 +37,8 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(NativeBufferHandler *buffer_handler, uint32_t width,
-                      uint32_t height, uint32_t gpu_fd) {
-  buffer_handler_ = buffer_handler;
-  gpu_fd_ = gpu_fd;
+void Compositor::Init() {
   gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
-
-  width_ = width;
-  height_ = height;
 }
 
 bool Compositor::BeginFrame() {
@@ -107,6 +101,8 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
+                               NativeBufferHandler *buffer_handler,
+                               uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t *retire_fence) {
   ScopedRendererState state(renderer_.get());
@@ -134,8 +130,8 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     return false;
   }
 
-  std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width_, height_));
-  surface->InitializeForOffScreenRendering(buffer_handler_, output_handle);
+  std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width, height));
+  surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
 
   if (!Render(layers, surface.get(), comp_regions))
     return false;

@@ -36,8 +36,7 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(NativeBufferHandler *buffer_handler, uint32_t width,
-            uint32_t height, uint32_t gpu_fd);
+  void Init();
 
   Compositor(const Compositor &) = delete;
 
@@ -47,7 +46,9 @@ class Compositor {
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     HWCNativeHandle output_handle, int32_t *retire_fence);
+                     NativeBufferHandler *buffer_handler, uint32_t width,
+                     uint32_t height, HWCNativeHandle output_handle,
+                     int32_t *retire_fence);
   void InsertFence(int fence);
 
  private:
@@ -59,14 +60,7 @@ class Compositor {
                       std::vector<CompositionRegion> &comp_regions);
 
   InternalDisplay *display_;
-
-  uint32_t gpu_fd_;
-  uint32_t width_;
-  uint32_t height_;
-  std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::unique_ptr<Renderer> renderer_;
-  NativeBufferHandler *buffer_handler_;
-  std::vector<NativeSurface *> in_flight_surfaces_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
 };
 }
