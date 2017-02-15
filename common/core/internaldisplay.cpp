@@ -386,9 +386,6 @@ bool InternalDisplay::Present(
     display_plane_manager_->EndFrameUpdate();
   }
 
-  if (render_layers)
-    compositor_.EndFrame(succesful_commit);
-
   if (!succesful_commit || needs_modeset) {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
       HwcLayer *layer = source_layers.at(layer_index);

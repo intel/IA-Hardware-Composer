@@ -48,11 +48,9 @@ class Compositor {
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
                      HWCNativeHandle output_handle, int32_t *retire_fence);
-  void EndFrame(bool commit_passed);
   void InsertFence(int fence);
 
  private:
-  bool PrepareForComposition(DisplayPlaneState &plane);
   bool Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
               const std::vector<CompositionRegion> &comp_regions);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,

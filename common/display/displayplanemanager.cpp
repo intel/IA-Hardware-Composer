@@ -25,7 +25,9 @@
 #include <nativebufferhandler.h>
 
 #include "displayplane.h"
+#include "factory.h"
 #include "hwctrace.h"
+#include "nativesurface.h"
 #include "nativesync.h"
 #include "overlaybuffer.h"
 
@@ -123,6 +125,9 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
     layer->SetBuffer(buffer);
   }
 
+  if (!in_flight_surfaces_.empty())
+    std::vector<NativeSurface *>().swap(in_flight_surfaces_);
+
   return true;
 }
 
@@ -156,6 +161,8 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     for (auto i = layer_begin; i != layer_end; ++i) {
       last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
     }
+
+    EnsureOffScreenTarget(last_plane);
     // We need to composite primary using GPU, lets use this for
     // all layers in this case.
     return std::make_tuple(render_layers, std::move(composition));
@@ -239,6 +246,10 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
       last_plane.AddLayer(cursor_layer->GetIndex(),
                           cursor_layer->GetDisplayFrame());
     }
+  }
+
+  if (render_layers) {
+    ValidateFinalLayers(composition);
   }
 
   return std::make_tuple(render_layers, std::move(composition));
@@ -360,7 +371,49 @@ bool DisplayPlaneManager::TestCommit(
 }
 
 void DisplayPlaneManager::EndFrameUpdate() {
+  for (auto &fb : surfaces_) {
+    fb->SetInUse(false);
+  }
+
   displayed_buffers_.swap(in_flight_buffers_);
+
+  for (auto &fb : in_flight_surfaces_) {
+    fb->SetInUse(true);
+  }
+}
+
+void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
+  NativeSurface *surface = NULL;
+  for (auto &fb : surfaces_) {
+    if (!fb->InUse()) {
+      surface = fb.get();
+      break;
+    }
+  }
+
+  if (!surface) {
+    NativeSurface *new_surface = CreateBackBuffer(width_, height_);
+    new_surface->Init(buffer_handler_);
+    surfaces_.emplace_back(std::move(new_surface));
+    surface = surfaces_.back().get();
+  }
+
+  surface->SetPlaneTarget(plane, gpu_fd_);
+  plane.SetOffScreenTarget(surface);
+  in_flight_surfaces_.emplace_back(surface);
+}
+
+void DisplayPlaneManager::ValidateFinalLayers(
+    DisplayPlaneStateList &composition) {
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      EnsureOffScreenTarget(plane);
+    }
+  }
+
+  for (auto &fb : in_flight_surfaces_) {
+    fb->ResetInFlightMode();
+  }
 }
 
 bool DisplayPlaneManager::FallbacktoGPU(

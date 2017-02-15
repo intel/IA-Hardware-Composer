@@ -110,4 +110,8 @@ void NativeSurface::InitializeLayer() {
   layer_.SetBuffer(overlay_buffer_.get());
 }
 
+void NativeSurface::ResetInFlightMode() {
+  in_flight_ = false;
+}
+
 }  // namespace hwcomposer

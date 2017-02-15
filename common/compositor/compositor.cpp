@@ -41,17 +41,6 @@ void Compositor::Init(NativeBufferHandler *buffer_handler, uint32_t width,
                       uint32_t height, uint32_t gpu_fd) {
   buffer_handler_ = buffer_handler;
   gpu_fd_ = gpu_fd;
-  if (!surfaces_.empty()) {
-    if (width == surfaces_.back()->GetWidth() ||
-        height == surfaces_.back()->GetHeight())
-      return;
-
-    for (auto i = surfaces_.begin(); i != surfaces_.end();) {
-      i->reset(nullptr);
-      i = surfaces_.erase(i);
-    }
-  }
-
   gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
 
   width_ = width;
@@ -67,9 +56,6 @@ bool Compositor::BeginFrame() {
       return false;
     }
   }
-
-  if (!in_flight_surfaces_.empty())
-    std::vector<NativeSurface *>().swap(in_flight_surfaces_);
 
   return true;
 }
@@ -107,11 +93,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       std::vector<size_t>().swap(dedicated_layers);
       if (comp_regions.empty())
         continue;
-
-      if (!PrepareForComposition(plane)) {
-        ETRACE("Failed to initialize resources for composition");
-        return false;
-      }
 
       if (!Render(layers, plane.GetOffScreenTarget(), comp_regions)) {
         ETRACE("Failed to Render layer.");
@@ -164,42 +145,8 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::EndFrame(bool commit_passed) {
-  if (commit_passed) {
-    for (auto &fb : surfaces_) {
-      fb->SetInUse(false);
-    }
-
-    for (auto fb : in_flight_surfaces_) {
-      fb->SetInUse(true);
-    }
-  }
-}
-
 void Compositor::InsertFence(int fence) {
   renderer_->InsertFence(fence);
-}
-
-bool Compositor::PrepareForComposition(DisplayPlaneState &plane) {
-  NativeSurface *surface = NULL;
-  for (auto &fb : surfaces_) {
-    if (!fb->InUse()) {
-      surface = fb.get();
-      break;
-    }
-  }
-
-  if (!surface) {
-    NativeSurface *new_surface = CreateBackBuffer(width_, height_);
-    new_surface->Init(buffer_handler_);
-    surfaces_.emplace_back(std::move(new_surface));
-    surface = surfaces_.back().get();
-  }
-
-  surface->SetPlaneTarget(plane, gpu_fd_);
-  plane.SetOffScreenTarget(surface);
-  in_flight_surfaces_.emplace_back(surface);
-  return true;
 }
 
 bool Compositor::Render(std::vector<OverlayLayer> &layers,

@@ -75,6 +75,8 @@ class NativeSurface {
 
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
+  void ResetInFlightMode();
+
  protected:
   std::unique_ptr<OverlayBuffer> overlay_buffer_;
 

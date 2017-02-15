@@ -78,7 +78,12 @@ class DisplayPlaneManager {
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
+  void EnsureOffScreenTarget(DisplayPlaneState &plane);
+  void ValidateFinalLayers(DisplayPlaneStateList &list);
+
   NativeBufferHandler *buffer_handler_;
+  std::vector<std::unique_ptr<NativeSurface>> surfaces_;
+  std::vector<NativeSurface *> in_flight_surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
