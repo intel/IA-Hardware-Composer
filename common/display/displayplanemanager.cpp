@@ -249,7 +249,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   }
 
   if (render_layers) {
-    ValidateFinalLayers(composition);
+    ValidateFinalLayers(composition, layers);
   }
 
   return std::make_tuple(render_layers, std::move(composition));
@@ -404,7 +404,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
-    DisplayPlaneStateList &composition) {
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
   for (DisplayPlaneState &plane : composition) {
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
       EnsureOffScreenTarget(plane);
@@ -413,6 +413,34 @@ void DisplayPlaneManager::ValidateFinalLayers(
 
   for (auto &fb : in_flight_surfaces_) {
     fb->ResetInFlightMode();
+  }
+
+  std::vector<OverlayPlane> commit_planes;
+  for (DisplayPlaneState &plane : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(plane.plane(), plane.GetOverlayLayer()));
+  }
+
+  // If this combination fails just fall back to 3D for all layers.
+  if (!TestCommit(commit_planes)) {
+    std::vector<NativeSurface *>().swap(in_flight_surfaces_);
+    // We start off with Primary plane.
+    DisplayPlane *current_plane = primary_plane_.get();
+    DisplayPlaneStateList().swap(composition);
+    auto layer_begin = layers.begin();
+    OverlayLayer *primary_layer = &(*(layer_begin));
+    commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
+    composition.emplace_back(current_plane, primary_layer,
+                             primary_layer->GetIndex());
+    DisplayPlaneState &last_plane = composition.back();
+    last_plane.ForceGPURendering();
+    ++layer_begin;
+
+    for (auto i = layer_begin; i != layers.end(); ++i) {
+      last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
+    }
+
+    EnsureOffScreenTarget(last_plane);
   }
 }
 

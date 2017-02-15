@@ -79,7 +79,8 @@ class DisplayPlaneManager {
                      const std::vector<OverlayPlane> &commit_planes) const;
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
-  void ValidateFinalLayers(DisplayPlaneStateList &list);
+  void ValidateFinalLayers(DisplayPlaneStateList &list,
+                           std::vector<OverlayLayer> &layers);
 
   NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
