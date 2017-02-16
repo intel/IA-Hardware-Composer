@@ -37,11 +37,11 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   int gbm_bo_fd = native_handle_.import_data.fds[0];
   const EGLint image_attrs[] = {
-      EGL_WIDTH,                     width,
-      EGL_HEIGHT,                    height,
+      EGL_WIDTH,                    (EGLint)width,
+      EGL_HEIGHT,                   (EGLint)height,
       EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_XRGB8888,
       EGL_DMA_BUF_PLANE0_FD_EXT,     gbm_bo_fd,
-      EGL_DMA_BUF_PLANE0_PITCH_EXT,  gbm_bo_get_stride(gbm_bo_),
+      EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)gbm_bo_get_stride(gbm_bo_),
       EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
       EGL_NONE,
   };
