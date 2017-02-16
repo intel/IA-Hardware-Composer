@@ -44,23 +44,14 @@ int DrmCompositorWorker::Init() {
 void DrmCompositorWorker::Routine() {
   int ret;
   if (!compositor_->HaveQueuedComposites()) {
-    ret = Lock();
-    if (ret) {
-      ALOGE("Failed to lock worker, %d", ret);
-      return;
-    }
+    Lock();
 
     // Only use a timeout if we didn't do a SquashAll last time. This will
     // prevent wait_ret == -ETIMEDOUT which would trigger a SquashAll and be a
     // pointless drain on resources.
     int wait_ret = did_squash_all_ ? WaitForSignalOrExitLocked()
                                    : WaitForSignalOrExitLocked(kSquashWait);
-
-    ret = Unlock();
-    if (ret) {
-      ALOGE("Failed to unlock worker, %d", ret);
-      return;
-    }
+    Unlock();
 
     switch (wait_ret) {
       case 0:
