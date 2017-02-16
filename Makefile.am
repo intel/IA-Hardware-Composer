@@ -27,9 +27,8 @@ SUBDIRS = \
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Icommon/core -Icommon/utils -Icommon/compositor -Icommon/display  -Ios/linux -Icommon/compositor/gl -Itests/common
-AM_CPPFLAGS = -std=c++11 -DUSE_GL -DUDEV_SUPPORT -DUSE_MINIGBM
-AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS)
-AM_CFLAGS = $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS)
+AM_CPPFLAGS = -std=c++11 -DUSE_GL -DUDEV_SUPPORT -DUSE_MINIGBM -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
+AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
 libhwcomposer_la_LIBADD = \
 	$(DRM_LIBS) \
