@@ -49,41 +49,19 @@ int VSyncWorker::Init(DrmResources *drm, int display) {
   return InitWorker();
 }
 
-int VSyncWorker::SetProcs(hwc_procs_t const *procs) {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to lock vsync worker lock %d\n", ret);
-    return ret;
-  }
-
+void VSyncWorker::SetProcs(hwc_procs_t const *procs) {
+  Lock();
   procs_ = procs;
-
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to unlock vsync worker lock %d\n", ret);
-    return ret;
-  }
-  return 0;
+  Unlock();
 }
 
-int VSyncWorker::VSyncControl(bool enabled) {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to lock vsync worker lock %d\n", ret);
-    return ret;
-  }
-
+void VSyncWorker::VSyncControl(bool enabled) {
+  Lock();
   enabled_ = enabled;
   last_timestamp_ = -1;
-  int signal_ret = SignalLocked();
+  Unlock();
 
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to unlock vsync worker lock %d\n", ret);
-    return ret;
-  }
-
-  return signal_ret;
+  Signal();
 }
 
 /*
@@ -136,12 +114,9 @@ int VSyncWorker::SyntheticWaitVBlank(int64_t *timestamp) {
 }
 
 void VSyncWorker::Routine() {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to lock worker %d", ret);
-    return;
-  }
+  int ret;
 
+  Lock();
   if (!enabled_) {
     ret = WaitForSignalOrExitLocked();
     if (ret == -EINTR) {
@@ -152,11 +127,7 @@ void VSyncWorker::Routine() {
   bool enabled = enabled_;
   int display = display_;
   hwc_procs_t const *procs = procs_;
-
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to unlock worker %d", ret);
-  }
+  Unlock();
 
   if (!enabled)
     return;

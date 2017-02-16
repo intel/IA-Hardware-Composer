@@ -34,9 +34,9 @@ class VSyncWorker : public Worker {
   ~VSyncWorker() override;
 
   int Init(DrmResources *drm, int display);
-  int SetProcs(hwc_procs_t const *procs);
+  void SetProcs(hwc_procs_t const *procs);
 
-  int VSyncControl(bool enabled);
+  void VSyncControl(bool enabled);
 
  protected:
   void Routine() override;
