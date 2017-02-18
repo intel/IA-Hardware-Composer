@@ -22,6 +22,39 @@
 
 namespace hwcomposer {
 
+bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
+  if (buffer_->GetFormat() != rhs.buffer_->GetFormat())
+    return true;
+
+  // We expect cursor plane to support alpha always.
+  if (!(buffer_->GetUsage() & kLayerCursor)) {
+    if (alpha_ != rhs.alpha_)
+      return true;
+  }
+
+  if (blending_ != rhs.blending_)
+    return true;
+
+  // We check only for rotation and not transfor as this
+  // valueis arrived from transform_
+  if (rotation_ != rhs.rotation_)
+    return true;
+
+  if (display_frame_width_ > rhs.display_frame_width_)
+    return true;
+
+  if (display_frame_height_ > rhs.display_frame_height_)
+    return true;
+
+  if (source_crop_width_ > rhs.source_crop_width_)
+    return true;
+
+  if (source_crop_height_ > rhs.source_crop_height_)
+    return true;
+
+  return false;
+}
+
 void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
 }

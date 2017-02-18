@@ -51,7 +51,10 @@ class DisplayPlaneManager {
 
   bool BeginFrameUpdate(std::vector<OverlayLayer> &layers);
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
-      std::vector<OverlayLayer> &layers, bool pending_modeset);
+      std::vector<OverlayLayer> &layers,
+      const std::vector<OverlayLayer> &previous_layers,
+      const DisplayPlaneStateList &current_composition_planes,
+      bool pending_modeset);
 
   bool CommitFrame(DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, bool needs_modeset,
@@ -81,6 +84,11 @@ class DisplayPlaneManager {
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
   void ValidateFinalLayers(DisplayPlaneStateList &list,
                            std::vector<OverlayLayer> &layers);
+  void ValidateCachedLayers(
+      const DisplayPlaneStateList &previous_composition_planes,
+      const std::vector<OverlayLayer> &previous_layers,
+      std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
+      bool *render_layers);
 
   NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;

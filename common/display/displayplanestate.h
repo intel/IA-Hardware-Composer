@@ -43,6 +43,9 @@ class DisplayPlaneState {
     display_frame_ = layer->GetDisplayFrame();
   }
 
+  DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
+  }
+
   State GetCompositionState() const {
     return state_;
   }
@@ -70,6 +73,18 @@ class DisplayPlaneState {
 
     source_layers_.emplace_back(index);
     state_ = State::kRender;
+  }
+
+  void AddLayers(const std::vector<size_t> &source_layers,
+                 const HwcRect<int> &display_frame, State state) {
+    for (const int &index : source_layers) {
+      source_layers_.emplace_back(index);
+    }
+    display_frame_.left = display_frame.left;
+    display_frame_.top = display_frame.top;
+    display_frame_.right = display_frame.right;
+    display_frame_.bottom = display_frame.bottom;
+    state_ = state;
   }
 
   void ForceGPURendering() {

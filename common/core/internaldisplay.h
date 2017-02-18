@@ -139,6 +139,8 @@ class InternalDisplay : public NativeDisplay {
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   SpinLock spin_lock_;
+  std::vector<OverlayLayer> previous_layers_;
+  DisplayPlaneStateList previous_plane_state_;
 };
 
 }  // namespace hwcomposer

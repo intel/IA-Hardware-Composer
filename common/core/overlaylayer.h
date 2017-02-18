@@ -28,6 +28,7 @@ class NativeBufferHandler;
 class OverlayBuffer;
 
 struct OverlayLayer {
+  bool operator!=(const OverlayLayer& rhs) const;
   void SetReleaseFence(int fd) {
     release_fence_.Reset(fd);
   }

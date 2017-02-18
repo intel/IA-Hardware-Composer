@@ -337,7 +337,8 @@ bool InternalDisplay::Present(
   bool render_layers;
   // Validate Overlays and Layers usage.
   std::tie(render_layers, current_composition_planes) =
-      display_plane_manager_->ValidateLayers(layers, needs_modeset);
+      display_plane_manager_->ValidateLayers(
+          layers, previous_layers_, previous_plane_state_, needs_modeset);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
@@ -394,6 +395,8 @@ bool InternalDisplay::Present(
     return succesful_commit;
   } else {
     compositor_.InsertFence(dup(fence));
+    previous_layers_.swap(layers);
+    previous_plane_state_.swap(current_composition_planes);
   }
 
   if (fence > 0)
