@@ -67,7 +67,7 @@ class GpuDevice::DisplayManager : public HWCThread {
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
 
  protected:
-  void Routine() override;
+  void HandleRoutine() override;
 
  private:
   void HotPlugEventHandler();
@@ -88,7 +88,7 @@ class GpuDevice::DisplayManager : public HWCThread {
   SpinLock spin_lock_;
 };
 
-GpuDevice::DisplayManager::DisplayManager() : HWCThread(-8) {
+GpuDevice::DisplayManager::DisplayManager() : HWCThread(-8, "DisplayManager") {
   CTRACE();
 }
 
@@ -208,7 +208,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
   FD_ZERO(&fd_set_);
   FD_SET(hotplug_fd_.get(), &fd_set_);
   select_fd_ = hotplug_fd_.get() + 1;
-  if (!InitWorker("DisplayManager")) {
+  if (!InitWorker()) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
   }
@@ -292,7 +292,7 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
 }
 #endif
 
-void GpuDevice::DisplayManager::Routine() {
+void GpuDevice::DisplayManager::HandleRoutine() {
   CTRACE();
   int ret;
   IHOTPLUGEVENTTRACE("DisplayManager::Routine.");

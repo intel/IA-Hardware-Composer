@@ -17,30 +17,35 @@
 #ifndef HWC_THREAD_H_
 #define HWC_THREAD_H_
 
-#include <pthread.h>
-#include <stdint.h>
+#include <thread>
 #include <string>
+
+#include "spinlock.h"
 
 namespace hwcomposer {
 
 class HWCThread {
  protected:
-  HWCThread(int priority);
+  HWCThread(int priority, const char *name);
   virtual ~HWCThread();
 
-  bool InitWorker(const char *name);
+  bool InitWorker();
 
-  virtual void Routine() = 0;
+  void Exit();
+
+  virtual void HandleRoutine() = 0;
 
   bool initialized_;
 
  private:
-  static void *InternalRoutine(void *HWCThread);
+  void ProcessThread();
 
   int priority_;
+  std::string name_;
+  bool exit_;
+  SpinLock spin_lock_;
 
-  pthread_t thread_;
-  pthread_cond_t cond_;
+  std::unique_ptr<std::thread> thread_;
 };
 
 }  // namespace hwcomposer

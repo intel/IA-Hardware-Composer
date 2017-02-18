@@ -41,7 +41,7 @@ class PageFlipEventHandler : public HWCThread {
   int VSyncControl(bool enabled);
 
  protected:
-  void Routine() override;
+  void HandleRoutine() override;
 
  private:
   // shared_ptr since we need to use this outside of the thread lock (to

@@ -27,7 +27,8 @@ namespace hwcomposer {
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
-PageFlipEventHandler::PageFlipEventHandler() : HWCThread(-8) {
+PageFlipEventHandler::PageFlipEventHandler()
+    : HWCThread(-8, "PageFlipEventHandler") {
 }
 
 PageFlipEventHandler::~PageFlipEventHandler() {
@@ -48,7 +49,7 @@ int PageFlipEventHandler::RegisterCallback(
   last_timestamp_ = -1;
   spin_lock_.unlock();
 
-  if (!InitWorker("PageFlipEventHandler")) {
+  if (!InitWorker()) {
     ETRACE("Failed to initalize thread for PageFlipEventHandler. %s",
            PRINTERROR());
   }
@@ -84,7 +85,7 @@ void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
   callback_->Callback(display_, timestamp);
 }
 
-void PageFlipEventHandler::Routine() {
+void PageFlipEventHandler::HandleRoutine() {
   spin_lock_.lock();
 
   bool enabled = enabled_;
