@@ -17,7 +17,6 @@
 #include "glsurface.h"
 
 #include "hwctrace.h"
-#include "nativebufferhandler.h"
 #include "overlaybuffer.h"
 #include "shim.h"
 

@@ -24,9 +24,6 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
-class OverlayBuffer;
-
 struct HwcLayer {
   ScopedFd acquire_fence;
   NativeFence release_fence;

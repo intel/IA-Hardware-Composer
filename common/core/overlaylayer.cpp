@@ -18,8 +18,6 @@
 
 #include <hwctrace.h>
 
-#include "overlaybuffer.h"
-
 namespace hwcomposer {
 
 bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {

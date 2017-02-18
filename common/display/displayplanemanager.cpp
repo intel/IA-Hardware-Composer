@@ -29,7 +29,6 @@
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "nativesync.h"
-#include "overlaybuffer.h"
 
 namespace hwcomposer {
 

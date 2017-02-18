@@ -289,8 +289,7 @@ void InternalDisplay::GetDrmObjectProperty(
     ETRACE("Could not find property %s", name);
 }
 
-bool InternalDisplay::Present(
-    std::vector<hwcomposer::HwcLayer *> &source_layers) {
+bool InternalDisplay::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
   ScopedSpinLock lock(spin_lock_);
   if (is_powered_off_) {

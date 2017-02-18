@@ -111,8 +111,7 @@ bool Headless::SetDpmsMode(uint32_t /*dpms_mode*/) {
   return true;
 }
 
-bool Headless::Present(
-    std::vector<hwcomposer::HwcLayer *> & /*source_layers*/) {
+bool Headless::Present(std::vector<HwcLayer *> & /*source_layers*/) {
   return true;
 }
 

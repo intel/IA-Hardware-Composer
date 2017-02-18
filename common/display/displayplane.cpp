@@ -22,7 +22,6 @@
 #include <hwctrace.h>
 
 #include <overlaylayer.h>
-#include "overlaybuffer.h"
 
 namespace hwcomposer {
 

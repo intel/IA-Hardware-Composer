@@ -37,7 +37,6 @@ class DisplayPlane;
 class DisplayPlaneState;
 class GpuDevice;
 class NativeBufferHandler;
-class OverlayBuffer;
 struct OverlayLayer;
 
 class DisplayPlaneManager {
@@ -50,11 +49,11 @@ class DisplayPlaneManager {
                   uint32_t height);
 
   bool BeginFrameUpdate(std::vector<OverlayLayer> &layers);
+
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> &layers,
       const std::vector<OverlayLayer> &previous_layers,
-      const DisplayPlaneStateList &current_composition_planes,
-      bool pending_modeset);
+      const DisplayPlaneStateList &previous_planes_state, bool pending_modeset);
 
   bool CommitFrame(DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, bool needs_modeset,

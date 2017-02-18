@@ -17,7 +17,6 @@
 #include "nativeglresource.h"
 
 #include "hwctrace.h"
-#include "overlaybuffer.h"
 #include "overlaylayer.h"
 #include "shim.h"
 

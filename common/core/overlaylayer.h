@@ -26,9 +26,6 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
-class OverlayBuffer;
-
 struct OverlayLayer {
   bool operator!=(const OverlayLayer& rhs) const;
   void SetReleaseFence(int fd) {

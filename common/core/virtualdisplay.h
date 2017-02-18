@@ -24,9 +24,6 @@
 #include "compositor.h"
 
 namespace hwcomposer {
-class DisplayPlaneState;
-class DisplayPlaneManager;
-class GpuDevice;
 struct HwcLayer;
 
 class VirtualDisplay : public Headless {
@@ -39,7 +36,7 @@ class VirtualDisplay : public Headless {
 
   bool GetActiveConfig(uint32_t *config) override;
 
-  bool Present(std::vector<hwcomposer::HwcLayer *> &source_layers) override;
+  bool Present(std::vector<HwcLayer *> &source_layers) override;
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;
 

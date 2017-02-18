@@ -23,12 +23,10 @@
 
 #include "displayplanestate.h"
 #include "nativefence.h"
-#include "overlaybuffer.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
-struct OverlayLayer;
 
 class NativeSurface {
  public:

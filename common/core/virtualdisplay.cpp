@@ -21,7 +21,6 @@
 #include <hwclayer.h>
 #include <hwctrace.h>
 
-#include "overlaybuffer.h"
 #include "overlaylayer.h"
 
 namespace hwcomposer {
@@ -51,8 +50,7 @@ bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool VirtualDisplay::Present(
-    std::vector<hwcomposer::HwcLayer *> &source_layers) {
+bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<OverlayBuffer> buffers;

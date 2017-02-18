@@ -19,6 +19,8 @@
 
 #include "drmhwctwo.h"
 
+#include <xf86drmMode.h>
+
 #include <inttypes.h>
 #include <string>
 
@@ -27,10 +29,9 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
 
-#include <hwcdefs.h>
-#include <internaldisplay.h>
 #include <gpudevice.h>
-#include <nativebufferhandler.h>
+#include <hwcdefs.h>
+#include <nativedisplay.h>
 
 namespace android {
 

@@ -61,7 +61,7 @@ class Headless : public NativeDisplay {
 
   bool SetDpmsMode(uint32_t dpms_mode) override;
 
-  bool Present(std::vector<hwcomposer::HwcLayer *> &source_layers) override;
+  bool Present(std::vector<HwcLayer *> &source_layers) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;

@@ -60,8 +60,6 @@ void OverlayBuffer::InitializeFromNativeHandle(
   }
 
   handle_ = handle;
-  buffer_handler_ = buffer_handler;
-
   Initialize(bo);
 }
 

@@ -29,7 +29,6 @@
 namespace hwcomposer {
 class GpuDevice;
 class NativeDisplay;
-class NativeBufferHandler;
 }
 
 namespace android {
@@ -235,8 +234,6 @@ class DrmHwcTwo : public hwc2_device_t {
                                hwc2_function_pointer_t function);
 
   hwcomposer::GpuDevice device_;
-  std::shared_ptr<hwcomposer::NativeBufferHandler>
-      buffer_handler_;  // Shared with HwcDisplay
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 };

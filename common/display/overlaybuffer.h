@@ -87,7 +87,6 @@ class OverlayBuffer {
   uint32_t gpu_fd_;
   bool is_yuv_ = false;
   HWCNativeHandle handle_ = 0;
-  NativeBufferHandler* buffer_handler_ = NULL;
 };
 
 }  // namespace hwcomposer

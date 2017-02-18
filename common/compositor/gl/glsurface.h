@@ -23,9 +23,6 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
-class OverlayBuffer;
-
 class GLSurface : public NativeSurface {
  public:
   GLSurface() = default;

@@ -24,7 +24,6 @@
 namespace hwcomposer {
 
 struct OverlayLayer;
-class OverlayBuffer;
 
 class NativeGpuResource {
  public:

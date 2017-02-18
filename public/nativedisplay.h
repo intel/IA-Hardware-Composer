@@ -64,7 +64,7 @@ class NativeDisplay {
 
   virtual bool SetDpmsMode(uint32_t dpms_mode) = 0;
 
-  virtual bool Present(std::vector<hwcomposer::HwcLayer *> &source_layers) = 0;
+  virtual bool Present(std::vector<HwcLayer *> &source_layers) = 0;
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;

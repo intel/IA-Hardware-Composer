@@ -25,10 +25,7 @@
 
 namespace hwcomposer {
 
-class InternalDisplay;
 class NativeBufferHandler;
-class NativeGpuResource;
-class NativeSync;
 struct OverlayLayer;
 
 class Compositor {
@@ -59,7 +56,6 @@ class Compositor {
                       const std::vector<HwcRect<int>> &display_frame,
                       std::vector<CompositionRegion> &comp_regions);
 
-  InternalDisplay *display_;
   std::unique_ptr<Renderer> renderer_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
 };
