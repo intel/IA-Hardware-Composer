@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include <internaldisplay.h>
+#include "display.h"
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
@@ -28,7 +28,7 @@ namespace hwcomposer {
 
 static const int32_t kUmPerInch = 25400;
 
-InternalDisplay::InternalDisplay(uint32_t gpu_fd,
+Display::Display(uint32_t gpu_fd,
                                  NativeBufferHandler &buffer_handler,
                                  uint32_t pipe_id, uint32_t crtc_id)
     : buffer_handler_(buffer_handler),
@@ -42,7 +42,7 @@ InternalDisplay::InternalDisplay(uint32_t gpu_fd,
       is_powered_off_(true) {
 }
 
-InternalDisplay::~InternalDisplay() {
+Display::~Display() {
   if (blob_id_)
     drmModeDestroyPropertyBlob(gpu_fd_, blob_id_);
 
@@ -50,7 +50,7 @@ InternalDisplay::~InternalDisplay() {
     drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
 }
 
-bool InternalDisplay::Initialize() {
+bool Display::Initialize() {
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
   GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
@@ -64,9 +64,9 @@ bool InternalDisplay::Initialize() {
   return true;
 }
 
-bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
+bool Display::Connect(const drmModeModeInfo &mode_info,
                               const drmModeConnector *connector) {
-  IHOTPLUGEVENTTRACE("InternalDisplay::Connect recieved.");
+  IHOTPLUGEVENTTRACE("Display::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector->connector_id == connector_ && !is_powered_off_) {
     IHOTPLUGEVENTTRACE("Display is already connected to this connector.");
@@ -113,16 +113,16 @@ bool InternalDisplay::Connect(const drmModeModeInfo &mode_info,
   return true;
 }
 
-void InternalDisplay::DisConnect() {
-  IHOTPLUGEVENTTRACE("InternalDisplay::DisConnect recieved.");
+void Display::DisConnect() {
+  IHOTPLUGEVENTTRACE("Display::DisConnect recieved.");
   is_connected_ = false;
 }
 
-void InternalDisplay::ShutDown() {
+void Display::ShutDown() {
   if (is_powered_off_)
     return;
   ScopedSpinLock lock(spin_lock_);
-  IHOTPLUGEVENTTRACE("InternalDisplay::ShutDown recieved.");
+  IHOTPLUGEVENTTRACE("Display::ShutDown recieved.");
   is_powered_off_ = true;
   dpms_mode_ = DRM_MODE_DPMS_OFF;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
@@ -146,7 +146,7 @@ void InternalDisplay::ShutDown() {
   display_plane_manager_.reset(nullptr);
 }
 
-bool InternalDisplay::GetDisplayAttribute(uint32_t /*config*/,
+bool Display::GetDisplayAttribute(uint32_t /*config*/,
                                           HWCDisplayAttribute attribute,
                                           int32_t *value) {
   // We always get the values from preferred mode config.
@@ -177,7 +177,7 @@ bool InternalDisplay::GetDisplayAttribute(uint32_t /*config*/,
   return true;
 }
 
-bool InternalDisplay::GetDisplayConfigs(uint32_t *num_configs,
+bool Display::GetDisplayConfigs(uint32_t *num_configs,
                                         uint32_t *configs) {
   *num_configs = 1;
   if (!configs)
@@ -188,9 +188,9 @@ bool InternalDisplay::GetDisplayConfigs(uint32_t *num_configs,
   return true;
 }
 
-bool InternalDisplay::GetDisplayName(uint32_t *size, char *name) {
+bool Display::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
-  stream << "InternalDisplay-" << connector_;
+  stream << "Display-" << connector_;
   std::string string = stream.str();
   size_t length = string.length();
   if (!name) {
@@ -203,11 +203,11 @@ bool InternalDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-bool InternalDisplay::SetActiveConfig(uint32_t /*config*/) {
+bool Display::SetActiveConfig(uint32_t /*config*/) {
   return true;
 }
 
-bool InternalDisplay::GetActiveConfig(uint32_t *config) {
+bool Display::GetActiveConfig(uint32_t *config) {
   if (!config)
     return false;
 
@@ -215,7 +215,7 @@ bool InternalDisplay::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool InternalDisplay::SetDpmsMode(uint32_t dpms_mode) {
+bool Display::SetDpmsMode(uint32_t dpms_mode) {
   ScopedSpinLock lock(spin_lock_);
   if (dpms_mode_ == dpms_mode)
     return true;
@@ -226,7 +226,7 @@ bool InternalDisplay::SetDpmsMode(uint32_t dpms_mode) {
   return true;
 }
 
-bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
+bool Display::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
                                           NativeSync *sync,
                                           uint64_t *out_fence) {
   if (pending_operations_ & kModeset) {
@@ -274,7 +274,7 @@ bool InternalDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
   return true;
 }
 
-void InternalDisplay::GetDrmObjectProperty(
+void Display::GetDrmObjectProperty(
     const char *name, const ScopedDrmObjectPropertyPtr &props,
     uint32_t *id) const {
   uint32_t count_props = props->count_props;
@@ -289,7 +289,7 @@ void InternalDisplay::GetDrmObjectProperty(
     ETRACE("Could not find property %s", name);
 }
 
-bool InternalDisplay::Present(std::vector<HwcLayer *> &source_layers) {
+bool Display::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
   ScopedSpinLock lock(spin_lock_);
   if (is_powered_off_) {
@@ -404,12 +404,12 @@ bool InternalDisplay::Present(std::vector<HwcLayer *> &source_layers) {
   return true;
 }
 
-int InternalDisplay::RegisterVsyncCallback(
+int Display::RegisterVsyncCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display_id) {
   return flip_handler_->RegisterCallback(callback, display_id);
 }
 
-void InternalDisplay::VSyncControl(bool enabled) {
+void Display::VSyncControl(bool enabled) {
   flip_handler_->VSyncControl(enabled);
 }
 

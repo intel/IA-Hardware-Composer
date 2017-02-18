@@ -39,11 +39,11 @@ class GpuDevice;
 class NativeSync;
 struct HwcLayer;
 
-class InternalDisplay : public NativeDisplay {
+class Display : public NativeDisplay {
  public:
-  InternalDisplay(uint32_t gpu_fd, NativeBufferHandler &handler,
+  Display(uint32_t gpu_fd, NativeBufferHandler &handler,
                   uint32_t pipe_id, uint32_t crtc_id);
-  ~InternalDisplay();
+  ~Display();
 
   bool Initialize() override;
 

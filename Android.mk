@@ -52,7 +52,7 @@ LOCAL_SRC_FILES := \
 	common/compositor/scopedrendererstate.cpp \
 	common/core/headless.cpp \
 	common/core/hwclayer.cpp \
-	common/core/internaldisplay.cpp \
+	common/core/display.cpp \
 	common/core/virtualdisplay.cpp \
 	common/core/gpudevice.cpp \
 	common/core/nativesync.cpp \

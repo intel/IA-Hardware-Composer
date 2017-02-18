@@ -37,11 +37,11 @@
 
 #include <hwctrace.h>
 
+#include "display.h"
 #include "displayplanemanager.h"
 #include "drmscopedtypes.h"
 #include "headless.h"
 #include "hwcthread.h"
-#include "internaldisplay.h"
 #include "pageflipeventhandler.h"
 #include "spinlock.h"
 #include "virtualdisplay.h"
@@ -127,7 +127,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     }
 
     std::unique_ptr<NativeDisplay> display(
-        new InternalDisplay(fd_, *(buffer_handler_.get()), i, c->crtc_id));
+	new Display(fd_, *(buffer_handler_.get()), i, c->crtc_id));
     if (!display->Initialize()) {
       ETRACE("Failed to Initialize Display %d", c->crtc_id);
       return false;

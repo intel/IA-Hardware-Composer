@@ -7,7 +7,7 @@ common_SOURCES =              \
     common/core/gpudevice.cpp \
     common/core/headless.cpp \
     common/core/hwclayer.cpp \
-    common/core/internaldisplay.cpp \
+    common/core/display.cpp \
     common/core/virtualdisplay.cpp \
     common/core/nativesync.cpp \
     common/core/overlaylayer.cpp \
