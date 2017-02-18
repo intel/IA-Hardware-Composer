@@ -56,10 +56,10 @@ LOCAL_SRC_FILES := \
 	common/core/virtualdisplay.cpp \
 	common/core/gpudevice.cpp \
 	common/core/nativesync.cpp \
+	common/core/overlaybuffer.cpp \
 	common/core/overlaylayer.cpp \
 	common/display/displayplane.cpp \
 	common/display/displayplanemanager.cpp \
-	common/display/overlaybuffer.cpp \
 	common/display/pageflipeventhandler.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/hwcthread.cpp \
