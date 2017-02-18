@@ -29,8 +29,7 @@
 namespace hwcomposer {
 
 OverlayBuffer::~OverlayBuffer() {
-  if (fb_id_ && drmModeRmFB(gpu_fd_, fb_id_))
-    ETRACE("Failed to remove fb %s", PRINTERROR());
+  ReleaseFrameBuffer();
 #ifdef USE_MINIGBM
   if (prime_fd_)
     close(prime_fd_);
@@ -124,10 +123,7 @@ void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
 }
 
 bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
-  if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
-    ETRACE("Failed to remove fb %s", PRINTERROR());
-
-  fb_id_ = 0;
+  ReleaseFrameBuffer();
   int ret = drmModeAddFB2(gpu_fd, width_, height_, format_, gem_handles_,
                           pitches_, offsets_, &fb_id_, 0);
 
@@ -142,6 +138,13 @@ bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
 
   gpu_fd_ = gpu_fd;
   return true;
+}
+
+void OverlayBuffer::ReleaseFrameBuffer() {
+  if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
+    ETRACE("Failed to remove fb %s", PRINTERROR());
+
+  fb_id_ = 0;
 }
 
 void OverlayBuffer::Dump() {

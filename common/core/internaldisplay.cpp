@@ -385,6 +385,8 @@ bool InternalDisplay::Present(
     succesful_commit = false;
   } else {
     display_plane_manager_->EndFrameUpdate();
+    previous_layers_.swap(layers);
+    previous_plane_state_.swap(current_composition_planes);
   }
 
   if (!succesful_commit || needs_modeset) {
@@ -395,8 +397,6 @@ bool InternalDisplay::Present(
     return succesful_commit;
   } else {
     compositor_.InsertFence(dup(fence));
-    previous_layers_.swap(layers);
-    previous_plane_state_.swap(current_composition_planes);
   }
 
   if (fence > 0)

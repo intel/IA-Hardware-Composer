@@ -76,10 +76,10 @@ bool VirtualDisplay::Present(
     layers_rects.emplace_back(layer->GetDisplayFrame());
     index.emplace_back(layer_index);
     buffers.emplace_back();
-    OverlayBuffer &buffer = buffers.back();
-    buffer.InitializeFromNativeHandle(layer->GetNativeHandle(),
-                                      &buffer_handler_);
-    overlay_layer.SetBuffer(&buffer);
+    OverlayBuffer *buffer = new OverlayBuffer();
+    buffer->InitializeFromNativeHandle(layer->GetNativeHandle(),
+                                       &buffer_handler_);
+    overlay_layer.SetBuffer(buffer);
   }
 
   if (!compositor_.BeginFrame()) {

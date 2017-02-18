@@ -78,11 +78,11 @@ class NativeSurface {
   void ResetInFlightMode();
 
  protected:
-  std::unique_ptr<OverlayBuffer> overlay_buffer_;
+  OverlayLayer layer_;
 
  private:
-  void InitializeLayer();
-  OverlayLayer layer_;
+  void InitializeLayer(NativeBufferHandler* buffer_handler,
+                       HWCNativeHandle native_handle);
   HWCNativeHandle native_handle_;
   NativeBufferHandler* buffer_handler_;
   uint32_t width_;

@@ -96,8 +96,6 @@ class DisplayPlaneManager {
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
-  std::vector<std::unique_ptr<OverlayBuffer>> in_flight_buffers_;
-  std::vector<std::unique_ptr<OverlayBuffer>> displayed_buffers_;
   std::unique_ptr<NativeSync> current_sync_;
 
   uint32_t width_;

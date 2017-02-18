@@ -67,6 +67,8 @@ class OverlayBuffer {
 
   bool CreateFrameBuffer(uint32_t gpu_fd);
 
+  void ReleaseFrameBuffer();
+
   void SetRecommendedFormat(uint32_t format);
 
   void Dump();

@@ -37,7 +37,7 @@ GLSurface::~GLSurface() {
 bool GLSurface::InitializeGPUResources() {
   EGLDisplay egl_display = eglGetCurrentDisplay();
   // Create EGLImage.
-  EGLImageKHR image = overlay_buffer_->ImportImage(egl_display);
+  EGLImageKHR image = layer_.GetBuffer()->ImportImage(egl_display);
 
   if (image == EGL_NO_IMAGE_KHR) {
     ETRACE("Failed to make EGL image.");

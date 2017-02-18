@@ -35,7 +35,9 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
 NativeSurface::~NativeSurface() {
   // Ensure we close any framebuffers before
   // releasing buffer.
-  overlay_buffer_.reset(nullptr);
+  if (layer_.GetBuffer())
+    layer_.GetBuffer()->ReleaseFrameBuffer();
+
   if (buffer_handler_ && native_handle_) {
     buffer_handler_->DestroyBuffer(native_handle_);
   }
@@ -49,23 +51,15 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
     return false;
   }
 
-  overlay_buffer_.reset(new hwcomposer::OverlayBuffer());
-  overlay_buffer_->InitializeFromNativeHandle(native_handle_, buffer_handler_);
   ref_count_ = 0;
-  width_ = overlay_buffer_->GetWidth();
-  height_ = overlay_buffer_->GetHeight();
-  InitializeLayer();
+  InitializeLayer(buffer_handler_, native_handle_);
 
   return true;
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
     NativeBufferHandler *buffer_handler, HWCNativeHandle native_handle) {
-  overlay_buffer_.reset(new hwcomposer::OverlayBuffer());
-  overlay_buffer_->InitializeFromNativeHandle(native_handle, buffer_handler);
-  width_ = overlay_buffer_->GetWidth();
-  height_ = overlay_buffer_->GetHeight();
-  InitializeLayer();
+  InitializeLayer(buffer_handler, native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
 
@@ -88,9 +82,9 @@ void NativeSurface::SetInUse(bool inuse) {
 
 void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   uint32_t format =
-      plane.plane()->GetFormatForFrameBuffer(overlay_buffer_->GetFormat());
+      plane.plane()->GetFormatForFrameBuffer(layer_.GetBuffer()->GetFormat());
 
-  const HwcRect<int>& display_rect = plane.GetDisplayFrame();
+  const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   layer_.SetSourceCrop(HwcRect<float>(display_rect));
   layer_.SetDisplayFrame(HwcRect<int>(display_rect));
   width_ = display_rect.right - display_rect.left;
@@ -102,15 +96,20 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
     return;
 
   framebuffer_format_ = format;
-  overlay_buffer_->SetRecommendedFormat(framebuffer_format_);
-  overlay_buffer_->CreateFrameBuffer(gpu_fd);
+  layer_.GetBuffer()->SetRecommendedFormat(framebuffer_format_);
+  layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
 }
 
-void NativeSurface::InitializeLayer() {
+void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
+                                    HWCNativeHandle native_handle) {
+  OverlayBuffer *overlay_buffer = new OverlayBuffer();
+  overlay_buffer->InitializeFromNativeHandle(native_handle, buffer_handler);
+  width_ = overlay_buffer->GetWidth();
+  height_ = overlay_buffer->GetHeight();
   layer_.SetNativeHandle(native_handle_);
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(overlay_buffer_.get());
+  layer_.SetBuffer(overlay_buffer);
 }
 
 void NativeSurface::ResetInFlightMode() {

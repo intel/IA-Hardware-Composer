@@ -22,6 +22,8 @@
 
 #include <nativefence.h>
 
+#include "overlaybuffer.h"
+
 namespace hwcomposer {
 
 class NativeBufferHandler;
@@ -80,11 +82,11 @@ struct OverlayLayer {
   }
 
   OverlayBuffer* GetBuffer() const {
-    return buffer_;
+    return buffer_.get();
   }
 
   void SetBuffer(OverlayBuffer* buffer) {
-    buffer_ = buffer;
+    buffer_.reset(buffer);
   }
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
@@ -127,7 +129,7 @@ struct OverlayLayer {
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
-  OverlayBuffer* buffer_ = NULL;
+  std::unique_ptr<OverlayBuffer> buffer_;
 };
 
 }  // namespace hardware

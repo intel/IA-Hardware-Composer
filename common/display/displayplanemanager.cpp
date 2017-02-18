@@ -110,7 +110,6 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
   }
 
   size_t size = layers.size();
-  std::vector<std::unique_ptr<OverlayBuffer>>().swap(in_flight_buffers_);
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     OverlayLayer *layer = &layers.at(layer_index);
     HwcBuffer bo;
@@ -119,8 +118,7 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
       return false;
     }
 
-    in_flight_buffers_.emplace_back(new OverlayBuffer());
-    OverlayBuffer *buffer = in_flight_buffers_.back().get();
+    OverlayBuffer *buffer = new OverlayBuffer();
     buffer->Initialize(bo);
     layer->SetBuffer(buffer);
   }
@@ -384,8 +382,6 @@ void DisplayPlaneManager::EndFrameUpdate() {
   for (auto &fb : surfaces_) {
     fb->SetInUse(false);
   }
-
-  displayed_buffers_.swap(in_flight_buffers_);
 
   for (auto &fb : in_flight_surfaces_) {
     fb->SetInUse(true);
