@@ -10,6 +10,7 @@ common_SOURCES =              \
     common/core/overlaybuffer.cpp \
     common/core/overlaylayer.cpp \
     common/display/display.cpp \
+    common/display/displayqueue.cpp \
     common/display/displayplane.cpp \
     common/display/displayplanemanager.cpp \
     common/display/headless.cpp \

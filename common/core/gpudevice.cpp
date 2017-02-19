@@ -51,7 +51,7 @@ namespace hwcomposer {
 class GpuDevice::DisplayManager : public HWCThread {
  public:
   DisplayManager();
-  ~DisplayManager();
+  ~DisplayManager() override;
 
   bool Init(uint32_t fd);
 

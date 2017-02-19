@@ -114,6 +114,9 @@ EGLint EGLOffScreenContext::GetSyncFD() {
   }
 
   eglDestroySyncKHR(egl_display_, egl_sync);
+#else
+  // Lets ensure every thing is flushed.
+  eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_ctx_);
 #endif
   return sync_fd;
 }

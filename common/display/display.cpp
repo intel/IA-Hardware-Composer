@@ -20,9 +20,7 @@
 #include <hwclayer.h>
 #include <hwctrace.h>
 
-#include "displayplanemanager.h"
-#include "nativesync.h"
-#include "overlaylayer.h"
+#include "displayqueue.h"
 
 namespace hwcomposer {
 
@@ -34,32 +32,19 @@ Display::Display(uint32_t gpu_fd, NativeBufferHandler &buffer_handler,
       crtc_id_(crtc_id),
       pipe_(pipe_id),
       connector_(0),
-      blob_id_(0),
-      old_blob_id_(0),
       gpu_fd_(gpu_fd),
       is_connected_(false),
       is_powered_off_(true) {
 }
 
 Display::~Display() {
-  if (blob_id_)
-    drmModeDestroyPropertyBlob(gpu_fd_, blob_id_);
-
-  if (old_blob_id_)
-    drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
+  display_queue_->Exit();
 }
 
 bool Display::Initialize() {
-  ScopedDrmObjectPropertyPtr crtc_props(
-      drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
-  GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
-  GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
-#ifndef DISABLE_EXPLICIT_SYNC
-  GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
-#endif
   frame_ = 0;
   flip_handler_.reset(new PageFlipEventHandler());
-  compositor_.Init();
+  display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_));
 
   return true;
 }
@@ -73,42 +58,27 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
     is_connected_ = true;
     return true;
   }
-  ScopedSpinLock lock(spin_lock_);
+
   IHOTPLUGEVENTTRACE("Display is being connected to a new connector.");
-  mode_ = mode_info;
   connector_ = connector->connector_id;
-  width_ = mode_.hdisplay;
-  height_ = mode_.vdisplay;
-  refresh_ = (mode_.clock * 1000.0f) / (mode_.htotal * mode_.vtotal);
+  width_ = mode_info.hdisplay;
+  height_ = mode_info.vdisplay;
+  refresh_ =
+      (mode_info.clock * 1000.0f) / (mode_info.htotal * mode_info.vtotal);
   dpix_ = connector->mmWidth ? (width_ * kUmPerInch) / connector->mmWidth : -1;
   dpiy_ =
       connector->mmHeight ? (height_ * kUmPerInch) / connector->mmHeight : -1;
 
-  ScopedDrmObjectPropertyPtr connector_props(drmModeObjectGetProperties(
-      gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
-  if (!connector_props) {
-    ETRACE("Unable to get connector properties.");
-    return false;
-  }
-
-  GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
-  GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   is_powered_off_ = false;
   is_connected_ = true;
-  display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, pipe_, crtc_id_));
 
-  if (!display_plane_manager_->Initialize(&buffer_handler_, width_, height_)) {
-    ETRACE("Failed to initialize Display Manager.");
+  if (!display_queue_->Initialize(width_, height_, pipe_, connector_, mode_info,
+                                  &buffer_handler_)) {
+    ETRACE("Failed to initialize Display Queue.");
     return false;
   }
 
   flip_handler_->Init(refresh_, gpu_fd_, pipe_);
-  dpms_mode_ = DRM_MODE_DPMS_ON;
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
-                              DRM_MODE_DPMS_ON);
-  pending_operations_ |= PendingModeset::kModeset;
-
   return true;
 }
 
@@ -120,31 +90,10 @@ void Display::DisConnect() {
 void Display::ShutDown() {
   if (is_powered_off_)
     return;
-  ScopedSpinLock lock(spin_lock_);
+
   IHOTPLUGEVENTTRACE("Display::ShutDown recieved.");
+  display_queue_->Exit();
   is_powered_off_ = true;
-  dpms_mode_ = DRM_MODE_DPMS_OFF;
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
-                              DRM_MODE_DPMS_OFF);
-  previous_layers_.clear();
-  previous_plane_state_.clear();
-
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-  if (!pset) {
-    ETRACE("Failed to allocate property set %d", -ENOMEM);
-    return;
-  }
-
-  bool active = false;
-  int ret =
-      drmModeAtomicAddProperty(pset.get(), crtc_id_, active_prop_, active) < 0;
-  if (ret) {
-    ETRACE("Failed to set display to inactive");
-    return;
-  }
-
-  display_plane_manager_->DisablePipe(pset.get());
-  display_plane_manager_.reset(nullptr);
 }
 
 bool Display::GetDisplayAttribute(uint32_t /*config*/,
@@ -216,181 +165,12 @@ bool Display::GetActiveConfig(uint32_t *config) {
 }
 
 bool Display::SetDpmsMode(uint32_t dpms_mode) {
-  ScopedSpinLock lock(spin_lock_);
-  if (dpms_mode_ == dpms_mode)
-    return true;
-
-  dpms_mode_ = dpms_mode;
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode);
-  return true;
-}
-
-bool Display::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
-                                  NativeSync *sync, uint64_t *out_fence) {
-  if (pending_operations_ & kModeset) {
-    if (old_blob_id_) {
-      drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
-      old_blob_id_ = 0;
-    }
-
-    drmModeCreatePropertyBlob(gpu_fd_, &mode_, sizeof(drmModeModeInfo),
-                              &blob_id_);
-    if (blob_id_ == 0)
-      return false;
-
-    bool active = true;
-
-    int ret = drmModeAtomicAddProperty(property_set, crtc_id_, mode_id_prop_,
-                                       blob_id_) < 0 ||
-              drmModeAtomicAddProperty(property_set, connector_, crtc_prop_,
-                                       crtc_id_) < 0 ||
-              drmModeAtomicAddProperty(property_set, crtc_id_, active_prop_,
-                                       active) < 0;
-    if (ret) {
-      ETRACE("Failed to add blob %d to pset", blob_id_);
-      return false;
-    }
-
-    pending_operations_ &= ~kModeset;
-    old_blob_id_ = blob_id_;
-    blob_id_ = 0;
-  } else {
-#ifndef DISABLE_EXPLICIT_SYNC
-    if (out_fence_ptr_prop_ != 0) {
-      int ret = drmModeAtomicAddProperty(
-          property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
-      if (ret < 0) {
-        ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
-        return false;
-      }
-    }
-#else
-    *out_fence = sync->CreateNextTimelineFence();
-#endif
-  }
-
-  return true;
-}
-
-void Display::GetDrmObjectProperty(const char *name,
-                                   const ScopedDrmObjectPropertyPtr &props,
-                                   uint32_t *id) const {
-  uint32_t count_props = props->count_props;
-  for (uint32_t i = 0; i < count_props; i++) {
-    ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
-    if (property && !strcmp(property->name, name)) {
-      *id = property->prop_id;
-      break;
-    }
-  }
-  if (!(*id))
-    ETRACE("Could not find property %s", name);
+  return display_queue_->SetDpmsMode(dpms_mode);
 }
 
 bool Display::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
-  ScopedSpinLock lock(spin_lock_);
-  if (is_powered_off_) {
-    IHOTPLUGEVENTTRACE("Trying to update an Disconnected Display.");
-    return false;
-  }
-
-  bool needs_modeset = pending_operations_ & kModeset;
-  // Create a Sync object for this Composition.
-  std::unique_ptr<NativeSync> sync_object(new NativeSync());
-  if (!sync_object->Init()) {
-    ETRACE("Failed to create sync object.");
-    return false;
-  }
-
-  std::vector<OverlayLayer> layers;
-  std::vector<HwcRect<int>> layers_rects;
-
-  int ret = 0;
-  size_t size = source_layers.size();
-  for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    HwcLayer *layer = source_layers.at(layer_index);
-    layers.emplace_back();
-    OverlayLayer &overlay_layer = layers.back();
-    overlay_layer.SetNativeHandle(layer->GetNativeHandle());
-    overlay_layer.SetTransform(layer->GetTransform());
-    overlay_layer.SetAlpha(layer->GetAlpha());
-    overlay_layer.SetBlending(layer->GetBlending());
-    overlay_layer.SetSourceCrop(layer->GetSourceCrop());
-    overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
-    overlay_layer.SetIndex(layer_index);
-    overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
-    layers_rects.emplace_back(layer->GetDisplayFrame());
-    int ret =
-	layer->release_fence.Reset(sync_object->CreateNextTimelineFence());
-    if (ret < 0)
-      ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
-  }
-
-  // Reset any Display Manager and Compositor state.
-  if (!display_plane_manager_->BeginFrameUpdate(layers)) {
-    ETRACE("Failed to import needed buffers in DisplayManager.");
-    return false;
-  }
-
-  DisplayPlaneStateList current_composition_planes;
-  bool render_layers;
-  // Validate Overlays and Layers usage.
-  std::tie(render_layers, current_composition_planes) =
-      display_plane_manager_->ValidateLayers(
-          layers, previous_layers_, previous_plane_state_, needs_modeset);
-
-  DUMP_CURRENT_COMPOSITION_PLANES();
-
-  if (!compositor_.BeginFrame()) {
-    ETRACE("Failed to initialize compositor.");
-    return false;
-  }
-
-  if (render_layers) {
-    // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
-      ETRACE("Failed to prepare for the frame composition ret=%d", ret);
-      return false;
-    }
-  }
-
-  // Do the actual commit.
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-
-  if (!pset) {
-    ETRACE("Failed to allocate property set %d", -ENOMEM);
-    return false;
-  }
-
-  uint64_t fence = 0;
-  if (!ApplyPendingModeset(pset.get(), sync_object.get(), &fence)) {
-    ETRACE("Failed to Modeset");
-    return false;
-  }
-
-  bool succesful_commit = true;
-
-  if (!display_plane_manager_->CommitFrame(current_composition_planes,
-                                           pset.get(), needs_modeset,
-                                           sync_object, out_fence_)) {
-    succesful_commit = false;
-  } else {
-    display_plane_manager_->EndFrameUpdate();
-    previous_layers_.swap(layers);
-    previous_plane_state_.swap(current_composition_planes);
-  }
-
-  if (!succesful_commit || needs_modeset)
-    return succesful_commit;
-
-
-  compositor_.InsertFence(dup(fence));
-
-  if (fence > 0)
-    out_fence_.Reset(fence);
-
-  return true;
+  return display_queue_->QueueUpdate(source_layers);
 }
 
 int Display::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

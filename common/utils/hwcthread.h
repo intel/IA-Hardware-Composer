@@ -17,6 +17,7 @@
 #ifndef HWC_THREAD_H_
 #define HWC_THREAD_H_
 
+#include <condition_variable>
 #include <thread>
 #include <string>
 
@@ -31,9 +32,12 @@ class HWCThread {
 
   bool InitWorker();
 
+  void Resume();
   void Exit();
+  void ConditionalSuspend();
 
   virtual void HandleRoutine() = 0;
+  virtual void HandleExit();
 
   bool initialized_;
 
@@ -42,8 +46,10 @@ class HWCThread {
 
   int priority_;
   std::string name_;
-  bool exit_;
-  SpinLock spin_lock_;
+  bool exit_ = false;
+  bool suspended_ = false;
+  std::mutex mutex_;
+  std::condition_variable cond_;
 
   std::unique_ptr<std::thread> thread_;
 };

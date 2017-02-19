@@ -29,7 +29,7 @@ namespace hwcomposer {
 class PageFlipEventHandler : public HWCThread {
  public:
   PageFlipEventHandler();
-  ~PageFlipEventHandler();
+  ~PageFlipEventHandler() override;
 
   void Init(float refresh, int fd, int pipe);
 

@@ -30,7 +30,7 @@ class VirtualDisplay : public Headless {
  public:
   VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler &handler,
                  uint32_t pipe_id, uint32_t crtc_id);
-  ~VirtualDisplay();
+  ~VirtualDisplay() override;
 
   void InitVirtualDisplay(uint32_t width, uint32_t height) override;
 
