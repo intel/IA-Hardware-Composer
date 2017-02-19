@@ -52,7 +52,7 @@ NativeSync::NativeSync() {
 
 NativeSync::~NativeSync() {
   if (timeline_fd_.get() >= 0)
-    SignalCompositionDone();
+    IncreaseTimelineToPoint(timeline_);
 }
 
 bool NativeSync::Init() {

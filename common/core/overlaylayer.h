@@ -28,13 +28,6 @@ namespace hwcomposer {
 
 struct OverlayLayer {
   bool operator!=(const OverlayLayer& rhs) const;
-  void SetReleaseFence(int fd) {
-    release_fence_.Reset(fd);
-  }
-
-  int GetReleaseFence() const {
-    return release_fence_.get();
-  }
 
   void SetAcquireFence(int fd) {
     acquire_fence_.Reset(fd);

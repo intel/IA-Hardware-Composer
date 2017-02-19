@@ -322,8 +322,11 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers) {
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
-    overlay_layer.SetReleaseFence(layer->release_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
+    int ret =
+	layer->release_fence.Reset(sync_object->CreateNextTimelineFence());
+    if (ret < 0)
+      ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
 
   // Reset any Display Manager and Compositor state.
@@ -362,14 +365,6 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers) {
     return false;
   }
 
-  for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    HwcLayer *layer = source_layers.at(layer_index);
-    int ret =
-        layer->release_fence.Reset(sync_object->CreateNextTimelineFence());
-    if (ret < 0)
-      ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
-  }
-
   uint64_t fence = 0;
   if (!ApplyPendingModeset(pset.get(), sync_object.get(), &fence)) {
     ETRACE("Failed to Modeset");
@@ -388,15 +383,11 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers) {
     previous_plane_state_.swap(current_composition_planes);
   }
 
-  if (!succesful_commit || needs_modeset) {
-    for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      HwcLayer *layer = source_layers.at(layer_index);
-      layer->release_fence.Reset(-1);
-    }
+  if (!succesful_commit || needs_modeset)
     return succesful_commit;
-  } else {
-    compositor_.InsertFence(dup(fence));
-  }
+
+
+  compositor_.InsertFence(dup(fence));
 
   if (fence > 0)
     out_fence_.Reset(fence);

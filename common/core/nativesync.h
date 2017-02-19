@@ -32,15 +32,7 @@ class NativeSync {
 
   int CreateNextTimelineFence();
 
-  int SignalCompositionDone() {
-    return IncreaseTimelineToPoint(timeline_);
-  }
-
   bool Wait(int fence);
-
-  int GetFd() const {
-    return timeline_fd_.get();
-  }
 
  private:
   int IncreaseTimelineToPoint(int point);

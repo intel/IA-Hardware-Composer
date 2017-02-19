@@ -70,7 +70,6 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
-    overlay_layer.SetReleaseFence(layer->release_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
     index.emplace_back(layer_index);
     buffers.emplace_back();
