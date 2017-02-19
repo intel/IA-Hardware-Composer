@@ -60,6 +60,7 @@ bool Display::Initialize() {
 #endif
   frame_ = 0;
   flip_handler_.reset(new PageFlipEventHandler());
+  compositor_.Init();
 
   return true;
 }
@@ -103,7 +104,6 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
     return false;
   }
 
-  compositor_.Init();
   flip_handler_->Init(refresh_, gpu_fd_, pipe_);
   dpms_mode_ = DRM_MODE_DPMS_ON;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
@@ -127,6 +127,8 @@ void Display::ShutDown() {
   dpms_mode_ = DRM_MODE_DPMS_OFF;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
+  previous_layers_.clear();
+  previous_plane_state_.clear();
 
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   if (!pset) {
