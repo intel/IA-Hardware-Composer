@@ -36,34 +36,62 @@ bool HWCThread::InitWorker() {
   if (initialized_)
     return true;
 
+  initialized_ = true;
+  exit_ = false;
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
-  initialized_ = true;
+
   return true;
 }
 
+void HWCThread::Resume() {
+  if (!suspended_ || exit_)
+    return;
+
+  mutex_.lock();
+  suspended_ = false;
+  mutex_.unlock();
+
+  cond_.notify_one();
+}
+
 void HWCThread::Exit() {
-  ScopedSpinLock lock(spin_lock_);
   if (!initialized_)
     return;
 
-  thread_->join();
+  mutex_.lock();
   initialized_ = false;
   exit_ = true;
+  mutex_.unlock();
+
+  cond_.notify_one();
+  thread_->join();
+}
+
+void HWCThread::HandleExit() {
 }
 
 void HWCThread::ProcessThread() {
   setpriority(PRIO_PROCESS, 0, priority_);
   prctl(PR_SET_NAME, name_.c_str());
 
+  std::unique_lock<std::mutex> lk(mutex_, std::defer_lock);
   while (true) {
-    spin_lock_.lock();
-    if (exit_)
+    lk.lock();
+    if (exit_) {
+      HandleExit();
       return;
-    spin_lock_.unlock();
+    }
 
+    if (suspended_) {
+      cond_.wait(lk);
+    }
+    lk.unlock();
     HandleRoutine();
   }
 }
 
+void HWCThread::ConditionalSuspend() {
+  suspended_ = true;
+}
 }

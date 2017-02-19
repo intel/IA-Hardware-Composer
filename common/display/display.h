@@ -14,12 +14,11 @@
 // limitations under the License.
 */
 
-#ifndef INTERNAL_DISPLAY_H_
-#define INTERNAL_DISPLAY_H_
+#ifndef DISPLAY_H_
+#define DISPLAY_H_
 
 #include "platformdefines.h"
 
-#include <mutex>
 #include <stdint.h>
 #include <xf86drmMode.h>
 
@@ -27,14 +26,13 @@
 #include <nativedisplay.h>
 #include <nativebufferhandler.h>
 
-#include "compositor.h"
 #include "pageflipeventhandler.h"
 #include "scopedfd.h"
-#include "spinlock.h"
 
 namespace hwcomposer {
 class DisplayPlaneState;
 class DisplayPlaneManager;
+class DisplayQueue;
 class GpuDevice;
 class NativeSync;
 struct HwcLayer;
@@ -43,7 +41,7 @@ class Display : public NativeDisplay {
  public:
   Display(uint32_t gpu_fd, NativeBufferHandler &handler, uint32_t pipe_id,
           uint32_t crtc_id);
-  ~Display();
+  ~Display() override;
 
   bool Initialize() override;
 
@@ -101,33 +99,13 @@ class Display : public NativeDisplay {
   void ShutDown() override;
 
  private:
-  enum PendingModeset { kNone = 0, kModeset = 1 << 0 };
-
   void ShutDownPipe();
-  void InitializeResources();
-  bool ApplyPendingModeset(drmModeAtomicReqPtr property_set, NativeSync *sync,
-                           uint64_t *out_fence);
-
-  void GetDrmObjectProperty(const char *name,
-                            const ScopedDrmObjectPropertyPtr &props,
-                            uint32_t *id) const;
 
   NativeBufferHandler &buffer_handler_;
-  Compositor compositor_;
-  drmModeModeInfo mode_;
   uint32_t frame_;
-  uint32_t dpms_prop_;
-  uint32_t crtc_prop_;
-  uint32_t active_prop_;
-  uint32_t mode_id_prop_;
-  uint32_t out_fence_ptr_prop_;
   uint32_t crtc_id_;
   uint32_t pipe_;
-  uint32_t dpms_mode_ = DRM_MODE_DPMS_ON;
   uint32_t connector_;
-  uint32_t pending_operations_ = kNone;
-  uint32_t blob_id_ = 0;
-  uint32_t old_blob_id_ = 0;
   int32_t width_;
   int32_t height_;
   int32_t dpix_;
@@ -136,13 +114,9 @@ class Display : public NativeDisplay {
   bool is_connected_;
   bool is_powered_off_;
   float refresh_;
-  ScopedFd out_fence_ = -1;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
-  std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
-  SpinLock spin_lock_;
-  std::vector<OverlayLayer> previous_layers_;
-  DisplayPlaneStateList previous_plane_state_;
+  std::unique_ptr<DisplayQueue> display_queue_;
 };
 
 }  // namespace hwcomposer
-#endif  // INTERNAL_DISPLAY_H_
+#endif  // DISPLAY_H_

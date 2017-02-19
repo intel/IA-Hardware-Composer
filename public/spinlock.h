@@ -18,6 +18,7 @@
 #define SPIN_LOCK_H_
 
 #include <atomic>
+#include <hwctrace.h>
 
 namespace hwcomposer {
 
@@ -40,14 +41,41 @@ class ScopedSpinLock {
  public:
   ScopedSpinLock(SpinLock& lock) : lock_(lock) {
     lock_.lock();
+    locked_ = true;
   }
 
   ~ScopedSpinLock() {
-    lock_.unlock();
+    Reset();
+  }
+
+  void Reset() {
+    if (locked_) {
+      lock_.unlock();
+      locked_ = false;
+    }
   }
 
  private:
   SpinLock& lock_;
+  bool locked_;
+};
+
+class ScopedSpinLocks {
+ public:
+  ScopedSpinLocks(SpinLock& lock1, SpinLock& lock2)
+      : lock1_(lock1), lock2_(lock2) {
+    lock1_.lock();
+    lock2_.lock();
+  }
+
+  ~ScopedSpinLocks() {
+    lock1_.unlock();
+    lock2_.unlock();
+  }
+
+ private:
+  SpinLock& lock1_;
+  SpinLock& lock2_;
 };
 
 }  // namespace hwcomposer

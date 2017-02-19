@@ -27,7 +27,7 @@ class Headless : public NativeDisplay {
  public:
   Headless(uint32_t gpu_fd, NativeBufferHandler &handler, uint32_t pipe_id,
            uint32_t crtc_id);
-  ~Headless();
+  ~Headless() override;
 
   bool Initialize() override;
 

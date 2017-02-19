@@ -328,8 +328,9 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     }
   }
 
+#ifndef DISABLE_EXPLICIT_SYNC
   fence.Close();
-
+#endif
   if (ret) {
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
     return false;
