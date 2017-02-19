@@ -28,9 +28,8 @@ namespace hwcomposer {
 
 static const int32_t kUmPerInch = 25400;
 
-Display::Display(uint32_t gpu_fd,
-                                 NativeBufferHandler &buffer_handler,
-                                 uint32_t pipe_id, uint32_t crtc_id)
+Display::Display(uint32_t gpu_fd, NativeBufferHandler &buffer_handler,
+                 uint32_t pipe_id, uint32_t crtc_id)
     : buffer_handler_(buffer_handler),
       crtc_id_(crtc_id),
       pipe_(pipe_id),
@@ -66,7 +65,7 @@ bool Display::Initialize() {
 }
 
 bool Display::Connect(const drmModeModeInfo &mode_info,
-                              const drmModeConnector *connector) {
+                      const drmModeConnector *connector) {
   IHOTPLUGEVENTTRACE("Display::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector->connector_id == connector_ && !is_powered_off_) {
@@ -149,8 +148,8 @@ void Display::ShutDown() {
 }
 
 bool Display::GetDisplayAttribute(uint32_t /*config*/,
-                                          HWCDisplayAttribute attribute,
-                                          int32_t *value) {
+                                  HWCDisplayAttribute attribute,
+                                  int32_t *value) {
   // We always get the values from preferred mode config.
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
@@ -161,7 +160,7 @@ bool Display::GetDisplayAttribute(uint32_t /*config*/,
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = 1e9/refresh_;
+      *value = 1e9 / refresh_;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
@@ -179,8 +178,7 @@ bool Display::GetDisplayAttribute(uint32_t /*config*/,
   return true;
 }
 
-bool Display::GetDisplayConfigs(uint32_t *num_configs,
-                                        uint32_t *configs) {
+bool Display::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   *num_configs = 1;
   if (!configs)
     return true;
@@ -223,14 +221,12 @@ bool Display::SetDpmsMode(uint32_t dpms_mode) {
     return true;
 
   dpms_mode_ = dpms_mode;
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
-                              dpms_mode);
+  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode);
   return true;
 }
 
 bool Display::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
-                                          NativeSync *sync,
-                                          uint64_t *out_fence) {
+                                  NativeSync *sync, uint64_t *out_fence) {
   if (pending_operations_ & kModeset) {
     if (old_blob_id_) {
       drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
@@ -276,9 +272,9 @@ bool Display::ApplyPendingModeset(drmModeAtomicReqPtr property_set,
   return true;
 }
 
-void Display::GetDrmObjectProperty(
-    const char *name, const ScopedDrmObjectPropertyPtr &props,
-    uint32_t *id) const {
+void Display::GetDrmObjectProperty(const char *name,
+                                   const ScopedDrmObjectPropertyPtr &props,
+                                   uint32_t *id) const {
   uint32_t count_props = props->count_props;
   for (uint32_t i = 0; i < count_props; i++) {
     ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
@@ -397,8 +393,8 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers) {
   return true;
 }
 
-int Display::RegisterVsyncCallback(
-    std::shared_ptr<VsyncCallback> callback, uint32_t display_id) {
+int Display::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
+                                   uint32_t display_id) {
   return flip_handler_->RegisterCallback(callback, display_id);
 }
 

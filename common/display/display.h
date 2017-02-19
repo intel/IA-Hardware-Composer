@@ -41,8 +41,8 @@ struct HwcLayer;
 
 class Display : public NativeDisplay {
  public:
-  Display(uint32_t gpu_fd, NativeBufferHandler &handler,
-                  uint32_t pipe_id, uint32_t crtc_id);
+  Display(uint32_t gpu_fd, NativeBufferHandler &handler, uint32_t pipe_id,
+          uint32_t crtc_id);
   ~Display();
 
   bool Initialize() override;
