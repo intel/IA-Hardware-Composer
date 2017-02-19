@@ -50,17 +50,17 @@ LOCAL_SRC_FILES := \
 	common/compositor/nativesurface.cpp \
 	common/compositor/renderstate.cpp \
 	common/compositor/scopedrendererstate.cpp \
-	common/core/headless.cpp \
 	common/core/hwclayer.cpp \
-	common/core/display.cpp \
-	common/core/virtualdisplay.cpp \
 	common/core/gpudevice.cpp \
 	common/core/nativesync.cpp \
 	common/core/overlaybuffer.cpp \
 	common/core/overlaylayer.cpp \
+	common/display/display.cpp \
 	common/display/displayplane.cpp \
 	common/display/displayplanemanager.cpp \
+	common/display/headless.cpp \
 	common/display/pageflipeventhandler.cpp \
+	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/hwcthread.cpp \
 	common/utils/disjoint_layers.cpp \
