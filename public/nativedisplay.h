@@ -53,6 +53,8 @@ class NativeDisplay {
 
   virtual int32_t GetRefreshRate() const = 0;
 
+  virtual uint32_t PowerMode() const = 0;
+
   virtual bool GetDisplayAttribute(uint32_t config,
                                    HWCDisplayAttribute attribute,
                                    int32_t *value) = 0;

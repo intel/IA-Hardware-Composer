@@ -49,6 +49,10 @@ class DisplayQueue : public HWCThread {
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
   bool SetDpmsMode(uint32_t dpms_mode);
 
+  uint32_t GetDpmsProp() {
+	return dpms_prop_;
+  }
+
  protected:
   void HandleRoutine() override;
   void HandleExit() override;

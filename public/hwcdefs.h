@@ -63,5 +63,12 @@ enum class DisplayType : int32_t {
   kHeadless = 3
 };
 
+enum DisplayPowerMode {
+  kOff = 0,
+  kDoze = 1,
+  kOn = 2,
+  kDozeSuspend = 3
+};
+
 }  // namespace hardware
 #endif  // HWC_DEFS_H_

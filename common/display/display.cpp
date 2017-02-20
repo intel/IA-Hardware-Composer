@@ -164,8 +164,18 @@ bool Display::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool Display::SetDpmsMode(uint32_t dpms_mode) {
-  return display_queue_->SetDpmsMode(dpms_mode);
+bool Display::SetDpmsMode(uint32_t power_mode) {
+
+  power_mode_ = power_mode;
+  uint32_t dpms_prop = display_queue_->GetDpmsProp();
+
+  if (power_mode == DisplayPowerMode::kOff ||
+      power_mode == DisplayPowerMode::kDoze)
+    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop, DRM_MODE_DPMS_OFF);
+  else if (power_mode == DisplayPowerMode::kOn)
+    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop, DRM_MODE_DPMS_ON);
+
+  return true;
 }
 
 bool Display::Present(std::vector<HwcLayer *> &source_layers) {

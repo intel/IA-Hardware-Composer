@@ -51,6 +51,10 @@ class Headless : public NativeDisplay {
     return 0;
   }
 
+  uint32_t PowerMode() const override {
+    return 0;
+  }
+
   bool GetDisplayAttribute(uint32_t config, HWCDisplayAttribute attribute,
                            int32_t *value) override;
 
