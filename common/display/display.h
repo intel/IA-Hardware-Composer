@@ -65,6 +65,10 @@ class Display : public NativeDisplay {
     return refresh_;
   }
 
+  uint32_t PowerMode() const override {
+    return power_mode_;
+  }
+
   bool GetDisplayAttribute(uint32_t config, HWCDisplayAttribute attribute,
                            int32_t *value) override;
 
@@ -73,7 +77,7 @@ class Display : public NativeDisplay {
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
-  bool SetDpmsMode(uint32_t dpms_mode) override;
+  bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers) override;
 
@@ -113,6 +117,7 @@ class Display : public NativeDisplay {
   uint32_t gpu_fd_;
   bool is_connected_;
   bool is_powered_off_;
+  uint32_t power_mode_;
   float refresh_;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;

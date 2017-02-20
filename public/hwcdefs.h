@@ -63,5 +63,14 @@ enum class DisplayType : int32_t {
   kHeadless = 3
 };
 
+enum DisplayPowerMode {
+  kOff = 0,         // Display is off
+  kDoze = 1,        // Display is off and used by the app during any inactivity
+                    // when the device is on battery
+  kOn = 2,          // Display is on
+  kDozeSuspend = 3  // Dispaly in low power mode and stop applying
+                    // updates from the client
+};
+
 }  // namespace hardware
 #endif  // HWC_DEFS_H_

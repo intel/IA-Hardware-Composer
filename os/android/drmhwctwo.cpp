@@ -351,7 +351,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayType(int32_t *type) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetDozeSupport(int32_t *support) {
   supported(__func__);
-  *support = 0;
+  *support = true;
   return HWC2::Error::None;
 }
 
@@ -392,6 +392,14 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   uint32_t client_z_order = 0;
   *retire_fence = -1;
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
+
+  // if the power mode is doze suspend then its the hint that the drawing
+  // into the display has suspended and remain in the low power state and
+  // continue displaying the current state and stop applying display
+  // update from the client
+  if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
+    return HWC2::Error::None;
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
@@ -491,21 +499,27 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
   supported(__func__);
-  uint64_t dpms_value = 0;
+  uint32_t power_mode = 0;
   auto mode = static_cast<HWC2::PowerMode>(mode_in);
   switch (mode) {
     case HWC2::PowerMode::Off:
-      dpms_value = DRM_MODE_DPMS_OFF;
+      power_mode = HWC2_POWER_MODE_OFF;
+      break;
+    case HWC2::PowerMode::Doze:
+      power_mode = HWC2_POWER_MODE_DOZE;
+      break;
+    case HWC2::PowerMode::DozeSuspend:
+      power_mode = HWC2_POWER_MODE_DOZE_SUSPEND;
       break;
     case HWC2::PowerMode::On:
-      dpms_value = DRM_MODE_DPMS_ON;
+      power_mode = HWC2_POWER_MODE_ON;
       break;
     default:
       ALOGI("Power mode %d is unsupported\n", mode);
-      return HWC2::Error::Unsupported;
+      return HWC2::Error::BadParameter;
   };
 
-  display_->SetDpmsMode(dpms_value);
+  display_->SetPowerMode(power_mode);
 
   return HWC2::Error::None;
 }
@@ -540,7 +554,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 #ifdef DISABLE_OVERLAY_USAGE
           layer.set_validated_type(HWC2::Composition::Client);
 #else
-          layer.set_validated_type(layer.sf_type());
+          if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
+            layer.set_validated_type(HWC2::Composition::Client);
+          else
+            layer.set_validated_type(layer.sf_type());
 #endif
           break;
       }

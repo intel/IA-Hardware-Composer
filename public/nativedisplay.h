@@ -53,6 +53,8 @@ class NativeDisplay {
 
   virtual int32_t GetRefreshRate() const = 0;
 
+  virtual uint32_t PowerMode() const = 0;
+
   virtual bool GetDisplayAttribute(uint32_t config,
                                    HWCDisplayAttribute attribute,
                                    int32_t *value) = 0;
@@ -62,7 +64,7 @@ class NativeDisplay {
   virtual bool SetActiveConfig(uint32_t config) = 0;
   virtual bool GetActiveConfig(uint32_t *config) = 0;
 
-  virtual bool SetDpmsMode(uint32_t dpms_mode) = 0;
+  virtual bool SetPowerMode(uint32_t power_mode) = 0;
 
   virtual bool Present(std::vector<HwcLayer *> &source_layers) = 0;
 
