@@ -38,7 +38,7 @@ struct RenderState {
     GpuResourceHandle handle_;
   };
 
-  void ConstructState(const std::vector<OverlayLayer> &layers,
+  void ConstructState(std::vector<OverlayLayer> &layers,
                       const CompositionRegion &region,
                       const NativeGpuResource *resources);
 

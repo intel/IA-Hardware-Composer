@@ -37,6 +37,10 @@ struct OverlayLayer {
     return acquire_fence_.get();
   }
 
+  void ReleaseAcquireFence() {
+    acquire_fence_.Release();
+  }
+
   void SetIndex(uint32_t index);
 
   uint32_t GetIndex() const {

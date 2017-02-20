@@ -18,11 +18,12 @@
 
 #include "compositionregion.h"
 #include "nativegpuresource.h"
+#include "nativesync.h"
 #include "overlaylayer.h"
 
 namespace hwcomposer {
 
-void RenderState::ConstructState(const std::vector<OverlayLayer> &layers,
+void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
                                  const NativeGpuResource *resources) {
   float bounds[4];
@@ -31,9 +32,15 @@ void RenderState::ConstructState(const std::vector<OverlayLayer> &layers,
   y_ = bounds[1];
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
-
+  NativeSync sync;
   for (size_t texture_index : region.source_layers) {
-    const OverlayLayer &layer = layers.at(texture_index);
+    OverlayLayer &layer = layers.at(texture_index);
+    int fence = layer.GetAcquireFence();
+    if (fence > 0) {
+      sync.Wait(fence);
+      layer.ReleaseAcquireFence();
+    }
+
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.handle_ = resources->GetResourceHandle(texture_index);
