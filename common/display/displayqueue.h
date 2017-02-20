@@ -52,7 +52,7 @@ class DisplayQueue : public HWCThread {
   void Exit();
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
-  bool SetDpmsMode(uint32_t dpms_mode);
+  bool SetPowerMode(uint32_t power_mode);
 
  protected:
   void HandleRoutine() override;
@@ -65,6 +65,8 @@ class DisplayQueue : public HWCThread {
     std::unique_ptr<NativeSync> sync_object_;
   };
 
+  void GetNextQueueItem(DisplayQueueItem& item);
+  void Flush();
   void HandleUpdateRequest(DisplayQueueItem& queue_item);
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
