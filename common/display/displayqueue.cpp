@@ -106,7 +106,7 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 
 void DisplayQueue::Exit() {
   IHOTPLUGEVENTTRACE("DisplayQueue::Exit recieved.");
-  HWCThread::Exit();
+  HandleExit();
 }
 
 bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
@@ -159,26 +159,28 @@ bool DisplayQueue::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
   return true;
 }
 
-bool DisplayQueue::SetDpmsMode(uint32_t dpms_mode) {
+bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   ScopedSpinLock lock(spin_lock_);
-  if (dpms_mode_ == dpms_mode)
-    return true;
 
-  dpms_mode_ = dpms_mode;
-  if (dpms_mode_ == DRM_MODE_DPMS_OFF) {
-    Exit();
+  if ((power_mode == kOff) || (power_mode == kDoze)) {
+    dpms_mode_ = DRM_MODE_DPMS_OFF;
+    Flush();
+    HWCThread::ConditionalSuspend();
+    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode_);
     return true;
   }
 
-  if (dpms_mode_ == DRM_MODE_DPMS_ON) {
+  if (power_mode == kDozeSuspend) {
+    Flush();
+    HWCThread::ConditionalSuspend();
+    return true;
+  }
+
+  if (power_mode == kOn) {
+    dpms_mode_ = DRM_MODE_DPMS_ON;
     needs_modeset_ = true;
-    if (!InitWorker()) {
-      ETRACE("Failed to initalize thread for DisplayQueue. %s", PRINTERROR());
-      return false;
-    }
+    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode_);
   }
-
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode);
 
   return true;
 }
@@ -225,8 +227,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
   return true;
 }
 
+void DisplayQueue::GetNextQueueItem(DisplayQueueItem& item) {
+  display_queue_.lock();
+  DisplayQueueItem& queue_item = queue_.front();
+  item.layers_.swap(queue_item.layers_);
+  item.layers_rects_.swap(queue_item.layers_rects_);
+  item.sync_object_.reset(queue_item.sync_object_.release());
+  queue_.pop();
+  display_queue_.unlock();
+}
+
 void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   CTRACE();
+
   ScopedSpinLock lock(spin_lock_);
   // Reset any DisplayQueue Manager and Compositor state.
   if (!display_plane_manager_->BeginFrameUpdate(&queue_item.layers_)) {
@@ -324,16 +337,25 @@ void DisplayQueue::HandleRoutine() {
     ConditionalSuspend();
     return;
   }
-
-  DisplayQueueItem& queue_item = queue_.front();
-  DisplayQueueItem item;
-  item.layers_.swap(queue_item.layers_);
-  item.layers_rects_.swap(queue_item.layers_rects_);
-  item.sync_object_.reset(queue_item.sync_object_.release());
-  queue_.pop();
   display_queue_.unlock();
 
+  DisplayQueueItem item;
+
+  GetNextQueueItem(item);
   HandleUpdateRequest(item);
+}
+
+void DisplayQueue::Flush() {
+  display_queue_.lock();
+
+  while (queue_.size()) {
+    DisplayQueueItem item;
+
+    GetNextQueueItem(item);
+    HandleUpdateRequest(item);
+  }
+
+  display_queue_.unlock();
 }
 
 void DisplayQueue::HandleExit() {
@@ -343,6 +365,8 @@ void DisplayQueue::HandleExit() {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
     return;
   }
+
+  Flush();
 
   bool active = false;
   int ret =
@@ -361,6 +385,7 @@ void DisplayQueue::HandleExit() {
   std::queue<DisplayQueueItem>().swap(queue_);
   current_sync_.reset(nullptr);
   compositor_.Reset();
+  HWCThread::Exit();
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,

@@ -184,8 +184,10 @@ bool Display::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool Display::SetDpmsMode(uint32_t dpms_mode) {
-  return display_queue_->SetDpmsMode(dpms_mode);
+bool Display::SetPowerMode(uint32_t power_mode) {
+  uint32_t power_mode_ = power_mode;
+
+  return display_queue_->SetPowerMode(power_mode);
 }
 
 bool Display::Present(std::vector<HwcLayer *> &source_layers) {
