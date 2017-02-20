@@ -19,6 +19,7 @@
 #include "drmeventlistener.h"
 #include "drmresources.h"
 
+#include <assert.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
 
