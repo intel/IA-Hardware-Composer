@@ -102,6 +102,7 @@ class DisplayPlaneManager {
   uint32_t crtc_id_;
   uint32_t pipe_;
   uint32_t gpu_fd_;
+  bool use_cache_ = true;
 };
 
 }  // namespace hwcomposer

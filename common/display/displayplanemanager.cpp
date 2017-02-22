@@ -139,15 +139,20 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
   bool render_layers = false;
+#ifndef DISABLE_OVERLAY_USAGE
   // Check if the combination of layers is same as last frame
   // and if so check if we can use the result of last validation.
-  if (!previous_layers.empty()) {
+  if (!previous_layers.empty() && use_cache_ && !pending_modeset) {
     ValidateCachedLayers(previous_planes_state, previous_layers, layers,
                          composition, &render_layers);
     if (!composition.empty())
       return std::make_tuple(render_layers, std::move(composition));
   }
 
+  // Dont use cache next frame if we are doing modeset now. With modeset
+  // we force all layers for 3D composition.
+  use_cache_ = !pending_modeset;
+#endif
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_plane_.get();
   OverlayLayer *primary_layer = &(*(layers.begin()));
