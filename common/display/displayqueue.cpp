@@ -225,6 +225,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   }
 
   bool needs_modeset = needs_modeset_;
+  bool keep_previousstate = !needs_modeset_;
   needs_modeset_ = false;
 
   DisplayPlaneStateList current_composition_planes;
@@ -274,8 +275,10 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     succesful_commit = false;
   } else {
     display_plane_manager_->EndFrameUpdate();
-    previous_layers_.swap(queue_item.layers_);
-    previous_plane_state_.swap(current_composition_planes);
+    if(keep_previousstate) {
+      previous_layers_.swap(queue_item.layers_);
+      previous_plane_state_.swap(current_composition_planes);
+    }
   }
 
   if (!succesful_commit || needs_modeset)
