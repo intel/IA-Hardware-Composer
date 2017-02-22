@@ -163,7 +163,7 @@ class TraceFunc {
       "Dumping DisplayPlaneState of Current Composition planes "           \
       "-----------------------------");                                    \
   DUMPTRACE("Frame: %d", frame_);                                          \
-  DUMPTRACE("Total Layers for this Frame: %d", layers.size());             \
+  DUMPTRACE("Total Layers for this Frame: %d", queue_item.layers_.size()); \
   DUMPTRACE("Total Planes in use for this Frame: %d",                      \
             current_composition_planes.size());                            \
   int plane_index = 1;                                                     \
@@ -177,7 +177,7 @@ class TraceFunc {
         DUMPTRACE("Layers Index:");                                        \
         for (size_t primary_index : source_layers) {                       \
           DUMPTRACE("index: %d", primary_index);                           \
-          layers.at(primary_index).Dump();                                 \
+          queue_item.layers_.at(primary_index).Dump();                     \
         }                                                                  \
         break;                                                             \
       case DisplayPlaneState::State::kScanout:                             \
@@ -190,7 +190,7 @@ class TraceFunc {
         DUMPTRACE("Layers Index:");                                        \
         for (size_t overlay_index : source_layers) {                       \
           DUMPTRACE("index: %d", overlay_index);                           \
-          layers.at(overlay_index).Dump();                                 \
+          queue_item.layers_.at(overlay_index).Dump();                     \
         }                                                                  \
         break;                                                             \
       default:                                                             \
