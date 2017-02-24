@@ -280,8 +280,11 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
 
   if (!succesful_commit || needs_modeset)
     return;
-
+#ifndef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(dup(fence));
+#else
+  compositor_.InsertFence(fence);
+#endif
 
   if (fence > 0)
     out_fence_.Reset(fence);

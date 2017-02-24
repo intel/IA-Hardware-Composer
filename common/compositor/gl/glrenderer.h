@@ -35,10 +35,6 @@ class GLRenderer : public Renderer {
   bool Draw(const std::vector<RenderState> &commands,
             NativeSurface *surface) override;
 
-  void RestoreState() override;
-
-  bool MakeCurrent() override;
-
   void InsertFence(int kms_fence) override;
 
  private:

@@ -27,7 +27,6 @@
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "renderstate.h"
-#include "scopedrendererstate.h"
 
 namespace hwcomposer {
 
@@ -59,11 +58,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                       const std::vector<HwcRect<int>> &display_frame) {
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
-  ScopedRendererState state(renderer_.get());
-  if (!state.IsValid()) {
-    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
-    return false;
-  }
 
   if (!gpu_resource_handler_->PrepareResources(layers)) {
     ETRACE(
@@ -105,12 +99,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t *retire_fence) {
-  ScopedRendererState state(renderer_.get());
-  if (!state.IsValid()) {
-    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
-    return false;
-  }
-
   if (!gpu_resource_handler_->PrepareResources(layers)) {
     ETRACE(
         "Failed to prepare GPU resources for compositing the frame, "

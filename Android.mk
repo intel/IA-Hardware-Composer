@@ -49,7 +49,6 @@ LOCAL_SRC_FILES := \
 	common/compositor/factory.cpp \
 	common/compositor/nativesurface.cpp \
 	common/compositor/renderstate.cpp \
-	common/compositor/scopedrendererstate.cpp \
 	common/core/hwclayer.cpp \
 	common/core/gpudevice.cpp \
 	common/core/nativesync.cpp \

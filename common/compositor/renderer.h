@@ -36,10 +36,6 @@ class Renderer {
   virtual bool Draw(const std::vector<RenderState>& commands,
                     NativeSurface* surface) = 0;
 
-  virtual void RestoreState() = 0;
-
-  virtual bool MakeCurrent() = 0;
-
   virtual void InsertFence(int kms_fence) = 0;
 };
 
