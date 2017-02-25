@@ -268,25 +268,13 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 }
 
 bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
-                                      drmModeAtomicReqPtr pset,
-                                      bool needs_modeset,
+                                      drmModeAtomicReqPtr pset, uint32_t flags,
                                       std::unique_ptr<NativeSync> &sync_object,
                                       ScopedFd &fence) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
     return false;
-  }
-
-  uint32_t flags = 0;
-  if (needs_modeset) {
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-  } else {
-#ifdef DISABLE_OVERLAY_USAGE
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-#else
-    flags |= DRM_MODE_ATOMIC_NONBLOCK;
-#endif
   }
 
   for (DisplayPlaneState &comp_plane : comp_planes) {

@@ -56,7 +56,7 @@ class DisplayPlaneManager {
       const DisplayPlaneStateList &previous_planes_state, bool pending_modeset);
 
   bool CommitFrame(DisplayPlaneStateList &planes,
-                   drmModeAtomicReqPtr property_set, bool needs_modeset,
+                   drmModeAtomicReqPtr property_set, uint32_t flags,
                    std::unique_ptr<NativeSync> &sync_object, ScopedFd &fence);
 
   void DisablePipe(drmModeAtomicReqPtr property_set);

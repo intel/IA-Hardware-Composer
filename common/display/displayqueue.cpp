@@ -125,6 +125,8 @@ bool DisplayQueue::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
     old_blob_id_ = 0;
   }
 
+  needs_modeset_ = false;
+
   drmModeCreatePropertyBlob(gpu_fd_, &mode_, sizeof(drmModeModeInfo),
                             &blob_id_);
   if (blob_id_ == 0)
@@ -224,8 +226,16 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     return;
   }
 
-  bool needs_modeset = needs_modeset_;
-  needs_modeset_ = false;
+  uint32_t flags = 0;
+  if (needs_modeset_) {
+    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+  } else {
+#ifdef DISABLE_OVERLAY_USAGE
+    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+#else
+    flags |= DRM_MODE_ATOMIC_NONBLOCK;
+#endif
+  }
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
@@ -233,7 +243,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   std::tie(render_layers, current_composition_planes) =
       display_plane_manager_->ValidateLayers(
           queue_item.layers_, previous_layers_, previous_plane_state_,
-          needs_modeset);
+          needs_modeset_);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
@@ -262,14 +272,14 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     return;
   }
 
-  if (needs_modeset && !ApplyPendingModeset(pset.get())) {
+  if (needs_modeset_ && !ApplyPendingModeset(pset.get())) {
     ETRACE("Failed to Modeset.");
     return;
   }
 
   GetFence(pset, &fence);
   if (!display_plane_manager_->CommitFrame(
-          current_composition_planes, pset.get(), needs_modeset,
+          current_composition_planes, pset.get(), flags,
           queue_item.sync_object_, out_fence_)) {
     succesful_commit = false;
   } else {
@@ -278,7 +288,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     previous_plane_state_.swap(current_composition_planes);
   }
 
-  if (!succesful_commit || needs_modeset)
+  if (!succesful_commit || (flags & DRM_MODE_ATOMIC_ALLOW_MODESET))
     return;
 #ifndef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(dup(fence));
