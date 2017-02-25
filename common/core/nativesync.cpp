@@ -21,13 +21,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifdef USE_ANDROID_SYNC
-#include <linux/sync.h>
-#include <linux/sw_sync.h>
-#else
-#include <linux/sync_file.h>
-#endif
-
 #include <libsync.h>
 
 #include <hwctrace.h>
