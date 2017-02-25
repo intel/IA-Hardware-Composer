@@ -65,6 +65,16 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
   height_ = mode_info.vdisplay;
   refresh_ =
       (mode_info.clock * 1000.0f) / (mode_info.htotal * mode_info.vtotal);
+
+  if (mode_info.flags & DRM_MODE_FLAG_INTERLACE)
+    refresh_ *= 2;
+
+  if (mode_info.flags & DRM_MODE_FLAG_DBLSCAN)
+    refresh_ /= 2;
+
+  if (mode_info.vscan > 1)
+    refresh_ /= mode_info.vscan;
+
   dpix_ = connector->mmWidth ? (width_ * kUmPerInch) / connector->mmWidth : -1;
   dpiy_ =
       connector->mmHeight ? (height_ * kUmPerInch) / connector->mmHeight : -1;
