@@ -470,7 +470,7 @@ int main(int argc, char *argv[]) {
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
 
-  for (uint64_t i = 1; arg_frames == 0 || i < arg_frames; ++i) {
+  for (uint64_t i = 0; arg_frames == 0 || i < arg_frames; ++i) {
     struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
 
     for (uint32_t j = 0; j < frame->layers.size(); j++) {
