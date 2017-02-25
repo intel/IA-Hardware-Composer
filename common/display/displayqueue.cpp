@@ -31,9 +31,9 @@ namespace hwcomposer {
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
     : HWCThread(-8, "DisplayQueue"),
       crtc_id_(crtc_id),
-      gpu_fd_(gpu_fd),
       blob_id_(0),
-      old_blob_id_(0) {
+      old_blob_id_(0),
+      gpu_fd_(gpu_fd) {
   compositor_.Init();
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
