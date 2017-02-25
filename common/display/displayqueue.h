@@ -84,6 +84,7 @@ class DisplayQueue : public HWCThread {
   bool needs_modeset_ = false;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
+  std::unique_ptr<NativeSync> current_sync_;
   SpinLock spin_lock_;
   SpinLock display_queue_;
   std::queue<DisplayQueueItem> queue_;

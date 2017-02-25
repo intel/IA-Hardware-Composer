@@ -329,9 +329,6 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     return false;
   }
 
-  if (!needs_modeset)
-    current_sync_.reset(sync_object.release());
-
   return true;
 }
 

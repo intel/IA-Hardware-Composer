@@ -290,6 +290,8 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
 
   if (!succesful_commit || (flags & DRM_MODE_ATOMIC_ALLOW_MODESET))
     return;
+
+  current_sync_.reset(queue_item.sync_object_.release());
 #ifndef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(dup(fence));
 #else
