@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "overlaylayer.h"
+#include "compositionregion.h"
 
 namespace hwcomposer {
 
@@ -115,6 +116,14 @@ class DisplayPlaneState {
     return source_layers_;
   }
 
+  std::vector<CompositionRegion> &GetCompositionRegion() {
+    return composition_region_;
+  }
+
+  const std::vector<CompositionRegion> &GetCompositionRegion() const {
+    return composition_region_;
+  }
+
  private:
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
@@ -122,6 +131,7 @@ class DisplayPlaneState {
   NativeSurface *offscreen_target_ = NULL;
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
+  std::vector<CompositionRegion> composition_region_;
 };
 
 }  // namespace hwcomposer

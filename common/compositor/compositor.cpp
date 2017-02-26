@@ -79,9 +79,13 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
     } else if (plane.GetCompositionState() ==
                DisplayPlaneState::State::kRender) {
       comp = &plane;
-      std::vector<CompositionRegion> comp_regions;
-      SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
-                     comp_regions);
+      std::vector<CompositionRegion> &comp_regions =
+          plane.GetCompositionRegion();
+      if (comp_regions.empty()) {
+        SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
+                       comp_regions);
+      }
+
       std::vector<size_t>().swap(dedicated_layers);
       if (comp_regions.empty())
         continue;

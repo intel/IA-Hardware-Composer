@@ -465,6 +465,26 @@ void DisplayPlaneManager::ValidateCachedLayers(
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
       EnsureOffScreenTarget(last_plane);
       needs_gpu_composition = true;
+      const std::vector<CompositionRegion> &comp_regions =
+          plane.GetCompositionRegion();
+      const std::vector<size_t> &source_layers = last_plane.source_layers();
+      bool region_changed = false;
+      size_t layers_size = source_layers.size();
+      for (size_t i = 0; i < layers_size; i++) {
+        size_t index = source_layers.at(i);
+        const HwcRect<int> &previous =
+            previous_layers.at(index).GetDisplayFrame();
+        const HwcRect<int> &current = layers.at(index).GetDisplayFrame();
+        if ((previous.left != current.left) || (previous.top != current.top)) {
+          region_changed = true;
+          break;
+        }
+      }
+
+      if (!region_changed) {
+        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                 comp_regions.end());
+      }
     } else {
       OverlayLayer *layer =
           &(*(layers.begin() + last_plane.source_layers().front()));

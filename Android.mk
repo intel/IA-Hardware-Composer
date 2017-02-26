@@ -30,8 +30,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 
 LOCAL_C_INCLUDES := \
-	$(LOCAL_PATH)/../libdrm \
-	$(LOCAL_PATH)/../libdrm/include/drm \
 	system/core/include/utils \
 	system/core/libsync \
 	system/core/libsync/include \
@@ -42,7 +40,7 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/common/display \
 	$(LOCAL_PATH)/common/utils \
 	$(LOCAL_PATH)/common/watchers \
-	$(LOCAL_PATH)/os/android \
+	$(LOCAL_PATH)/os/android
 
 LOCAL_SRC_FILES := \
 	common/compositor/compositor.cpp \

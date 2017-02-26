@@ -38,16 +38,16 @@ bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
   if (rotation_ != rhs.rotation_)
     return true;
 
-  if (display_frame_width_ > rhs.display_frame_width_)
+  if (display_frame_width_ != rhs.display_frame_width_)
     return true;
 
-  if (display_frame_height_ > rhs.display_frame_height_)
+  if (display_frame_height_ != rhs.display_frame_height_)
     return true;
 
-  if (source_crop_width_ > rhs.source_crop_width_)
+  if (source_crop_width_ != rhs.source_crop_width_)
     return true;
 
-  if (source_crop_height_ > rhs.source_crop_height_)
+  if (source_crop_height_ != rhs.source_crop_height_)
     return true;
 
   return false;
