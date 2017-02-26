@@ -344,15 +344,17 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       continue;
 
     drmModeModeInfo mode;
+    bool found_prefered_mode = false;
     for (int32_t i = 0; i < connector->count_modes; ++i) {
       mode = connector->modes[i];
       // There is only one preferred mode per connector.
       if (mode.type & DRM_MODE_TYPE_PREFERRED) {
+	found_prefered_mode = true;
         break;
       }
     }
 
-    if (!(mode.type & DRM_MODE_TYPE_PREFERRED))
+    if (!found_prefered_mode)
       continue;
 
     // Lets try to find crts for any connected encoder.

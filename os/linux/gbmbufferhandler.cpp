@@ -94,8 +94,6 @@ bool GbmBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 
 bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   memset(bo, 0, sizeof(struct HwcBuffer));
-  uint32_t aligned_width = handle->import_data.width;
-  uint32_t aligned_height = handle->import_data.height;
   uint32_t gem_handle = 0;
   bo->format = handle->import_data.format;
   if (!handle->bo) {
@@ -109,9 +107,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
     ETRACE("Invalid GEM handle. \n");
     return false;
   }
-  uint32_t pitches[4];
-  uint32_t offsets[4];
-  uint32_t gem_handles[4];
+
   bo->width = handle->import_data.width;
   bo->height = handle->import_data.height;
   bo->prime_fd = dup(handle->import_data.fds[0]);
