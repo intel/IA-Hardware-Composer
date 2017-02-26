@@ -272,12 +272,15 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     return;
   }
 
-  if (needs_modeset_ && !ApplyPendingModeset(pset.get())) {
-    ETRACE("Failed to Modeset.");
-    return;
+  if (needs_modeset_) {
+    if (!ApplyPendingModeset(pset.get())) {
+      ETRACE("Failed to Modeset.");
+      return;
+    }
+  } else {
+    GetFence(pset, &fence);
   }
 
-  GetFence(pset, &fence);
   if (!display_plane_manager_->CommitFrame(
           current_composition_planes, pset.get(), flags,
           queue_item.sync_object_, out_fence_)) {
@@ -292,14 +295,14 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     return;
 
   current_sync_.reset(queue_item.sync_object_.release());
-#ifndef DISABLE_EXPLICIT_SYNC
-  compositor_.InsertFence(dup(fence));
-#else
+#ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
-#endif
-
-  if (fence > 0)
+#else
+  if (fence > 0) {
+    compositor_.InsertFence(dup(fence));
     out_fence_.Reset(fence);
+  }
+#endif
 }
 
 void DisplayQueue::HandleRoutine() {
