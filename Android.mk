@@ -30,19 +30,19 @@ LOCAL_SHARED_LIBRARIES := \
 
 
 LOCAL_C_INCLUDES := \
-	vendor/intel/external/android_ia/libdrm \
-	vendor/intel/external/android_ia/libdrm/include/drm \
+	$(LOCAL_PATH)/../libdrm \
+	$(LOCAL_PATH)/../libdrm/include/drm \
 	system/core/include/utils \
 	system/core/libsync \
 	system/core/libsync/include \
-	vendor/intel/external/android_ia/hwcomposer/public \
-	vendor/intel/external/android_ia/hwcomposer/common/core \
-	vendor/intel/external/android_ia/hwcomposer/common/compositor \
-	vendor/intel/external/android_ia/hwcomposer/common/compositor/gl \
-	vendor/intel/external/android_ia/hwcomposer/common/display \
-	vendor/intel/external/android_ia/hwcomposer/common/utils \
-	vendor/intel/external/android_ia/hwcomposer/common/watchers \
-	vendor/intel/external/android_ia/hwcomposer/os/android \
+	$(LOCAL_PATH)/public \
+	$(LOCAL_PATH)/common/core \
+	$(LOCAL_PATH)/common/compositor \
+	$(LOCAL_PATH)/common/compositor/gl \
+	$(LOCAL_PATH)/common/display \
+	$(LOCAL_PATH)/common/utils \
+	$(LOCAL_PATH)/common/watchers \
+	$(LOCAL_PATH)/os/android \
 
 LOCAL_SRC_FILES := \
 	common/compositor/compositor.cpp \
@@ -102,13 +102,13 @@ endif
 ifeq ($(strip $(BOARD_USES_MINIGBM)),true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
-	vendor/intel/external/android_ia/minigbm/cros_gralloc
+	$(LOCAL_PATH)/../minigbm/cros_gralloc
 else
 LOCAL_C_INCLUDES += \
-	vendor/intel/external/android_ia/drm_gralloc
+	$(LOCAL_PATH)/../drm_gralloc
 endif
 
-LOCAL_MODULE := hwcomposer.android_ia
+LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
 #Preffered paths for all vendor hals /vendor/lib/hw
 LOCAL_PROPRIETARY_MODULE := true
