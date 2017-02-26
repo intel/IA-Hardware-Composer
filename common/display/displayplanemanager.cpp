@@ -139,6 +139,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
   bool render_layers = false;
+  bool force_gpu = false;
 #ifndef DISABLE_OVERLAY_USAGE
   // Check if the combination of layers is same as last frame
   // and if so check if we can use the result of last validation.
@@ -152,6 +153,11 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   // Dont use cache next frame if we are doing modeset now. With modeset
   // we force all layers for 3D composition.
   use_cache_ = !pending_modeset;
+#else
+  // When overlay support is disabled, client should take care of blending
+  // all layers together and giving us the final output. If thats not
+  // the case lets handle it here.
+  force_gpu = layers.size() > 1;
 #endif
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_plane_.get();
@@ -162,7 +168,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   ++layer_begin;
   // Lets ensure we fall back to GPU composition in case
   // primary layer cannot be scanned out directly.
-  if ((pending_modeset && layers.size() > 1) ||
+  if ((pending_modeset && layers.size() > 1) || force_gpu ||
       FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
     DisplayPlaneState &last_plane = composition.back();
     render_layers = true;
@@ -499,10 +505,6 @@ void DisplayPlaneManager::ValidateCachedLayers(
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
-#ifdef DISABLE_OVERLAY_USAGE
-  return true;
-#endif
-
   if (!target_plane->ValidateLayer(layer))
     return true;
 
