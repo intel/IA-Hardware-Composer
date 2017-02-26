@@ -53,6 +53,10 @@ bool Compositor::BeginFrame() {
   return true;
 }
 
+void Compositor::Reset() {
+  renderer_.reset(nullptr);
+}
+
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                       std::vector<OverlayLayer> &layers,
                       const std::vector<HwcRect<int>> &display_frame) {

@@ -34,6 +34,7 @@ class Compositor {
   ~Compositor();
 
   void Init();
+  void Reset();
 
   Compositor(const Compositor &) = delete;
 

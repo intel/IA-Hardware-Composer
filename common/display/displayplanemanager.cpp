@@ -302,7 +302,7 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
   if (ret) {
     if (ret == -EBUSY) {
 #ifndef DISABLE_EXPLICIT_SYNC
-      if (fence.get() != -1) {
+      if (fence.get() > 0) {
         if (!sync_object->Wait(fence.get())) {
           ETRACE("Failed to wait for fence ret=%s\n", PRINTERROR());
           return false;

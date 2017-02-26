@@ -349,6 +349,8 @@ void DisplayQueue::HandleExit() {
   previous_plane_state_.clear();
   display_plane_manager_.reset(nullptr);
   std::queue<DisplayQueueItem>().swap(queue_);
+  current_sync_.reset(nullptr);
+  compositor_.Reset();
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
