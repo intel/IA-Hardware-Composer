@@ -14,15 +14,17 @@
 // limitations under the License.
 */
 
-#ifndef PAGE_FLIP_EVENT_HANDLER_H_
-#define PAGE_FLIP_EVENT_HANDLER_H_
+#ifndef COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
+#define COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
 
 #include <stdint.h>
 
 #include <nativedisplay.h>
+#include <spinlock.h>
+
+#include <memory>
 
 #include "hwcthread.h"
-#include "spinlock.h"
 
 namespace hwcomposer {
 
@@ -58,5 +60,5 @@ class PageFlipEventHandler : public HWCThread {
   int64_t last_timestamp_;
 };
 
-}  // namespace
-#endif  // PAGE_FLIP_EVENT_HANDLER_H_
+}  // namespace hwcomposer
+#endif  // COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_

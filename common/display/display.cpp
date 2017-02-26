@@ -20,16 +20,18 @@
 #include <hwclayer.h>
 #include <hwctrace.h>
 
+#include <algorithm>
+#include <string>
+#include <sstream>
+
 #include "displayqueue.h"
 
 namespace hwcomposer {
 
 static const int32_t kUmPerInch = 25400;
 
-Display::Display(uint32_t gpu_fd, NativeBufferHandler &buffer_handler,
-                 uint32_t pipe_id, uint32_t crtc_id)
-    : buffer_handler_(buffer_handler),
-      crtc_id_(crtc_id),
+Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
+    : crtc_id_(crtc_id),
       pipe_(pipe_id),
       connector_(0),
       gpu_fd_(gpu_fd),
@@ -50,7 +52,8 @@ bool Display::Initialize() {
 }
 
 bool Display::Connect(const drmModeModeInfo &mode_info,
-                      const drmModeConnector *connector) {
+                      const drmModeConnector *connector,
+                      NativeBufferHandler *buffer_handler) {
   IHOTPLUGEVENTTRACE("Display::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector->connector_id == connector_ && !is_powered_off_) {
@@ -83,7 +86,7 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
   is_connected_ = true;
 
   if (!display_queue_->Initialize(width_, height_, pipe_, connector_, mode_info,
-                                  &buffer_handler_)) {
+                                  buffer_handler)) {
     ETRACE("Failed to initialize Display Queue.");
     return false;
   }

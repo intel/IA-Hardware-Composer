@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_FENCE_H_
-#define NATIVE_FENCE_H_
+#ifndef PUBLIC_NATIVEFENCE_H_
+#define PUBLIC_NATIVEFENCE_H_
 
 #include <unistd.h>
 
@@ -25,15 +25,15 @@ namespace hwcomposer {
 
 struct NativeFence {
   NativeFence() = default;
-  NativeFence(int fd) {
+  explicit NativeFence(int fd) {
     fd_.Reset(fd);
   }
   NativeFence(NativeFence &&rhs) {
-    fd_ = rhs.fd_.Release();
+    fd_ = ScopedFd(rhs.fd_.Release());
   }
 
   NativeFence &operator=(NativeFence &&rhs) {
-    fd_ = rhs.fd_.Release();
+    fd_ = ScopedFd(rhs.fd_.Release());
     return *this;
   }
 
@@ -59,4 +59,4 @@ struct NativeFence {
 };
 
 }  // namespace hwcomposer
-#endif  // NATIVE_FENCE_H_
+#endif  // PUBLIC_NATIVEFENCE_H_

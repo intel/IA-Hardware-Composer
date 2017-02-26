@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef PLATFORM_DEFINES_
-#define PLATFORM_DEFINES_
+#ifndef OS_ANDROID_PLATFORMDEFINES_H_
+#define OS_ANDROID_PLATFORMDEFINES_H_
 
 #include <cutils/log.h>
 #include <hardware/hardware.h>
@@ -45,4 +45,4 @@ typedef struct gralloc_handle* HWCNativeHandle;
 }
 #endif
 
-#endif  // PLATFORM_DEFINES_
+#endif  // OS_ANDROID_PLATFORMDEFINES_H_

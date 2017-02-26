@@ -72,7 +72,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
           flip_xy[0] = false;
           flip_xy[1] = true;
         }
-	break;
+        break;
       }
       default: {
         if (layer.GetTransform() & HWCTransform::kReflectX)
@@ -88,18 +88,18 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       std::copy_n(&TransformMatrices[0], 4, src.texture_matrix_);
 
     HwcRect<float> display_rect(layer.GetDisplayFrame());
-    float display_size[2] = {(float)layer.GetDisplayFrameWidth(),
-			     (float)layer.GetDisplayFrameHeight()};
+    float display_size[2] = {static_cast<float>(layer.GetDisplayFrameWidth()),
+                             static_cast<float>(layer.GetDisplayFrameHeight())};
     float tex_width = layer.GetBuffer()->GetWidth();
     float tex_height = layer.GetBuffer()->GetHeight();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
 
     HwcRect<float> crop_rect(
-	source_crop.left / tex_width, source_crop.top / tex_height,
-	source_crop.right / tex_width, source_crop.bottom / tex_height);
+        source_crop.left / tex_width, source_crop.top / tex_height,
+        source_crop.right / tex_width, source_crop.bottom / tex_height);
 
     float crop_size[2] = {crop_rect.bounds[2] - crop_rect.bounds[0],
-			  crop_rect.bounds[3] - crop_rect.bounds[1]};
+                          crop_rect.bounds[3] - crop_rect.bounds[1]};
 
     for (int j = 0; j < 4; j++) {
       int b = j ^ (swap_xy ? 1 : 0);

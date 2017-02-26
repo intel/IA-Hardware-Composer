@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef SCOPED_FD_H_
-#define SCOPED_FD_H_
+#ifndef PUBLIC_SCOPEDFD_H_
+#define PUBLIC_SCOPEDFD_H_
 
 #include <unistd.h>
 
@@ -24,7 +24,7 @@ namespace hwcomposer {
 class ScopedFd {
  public:
   ScopedFd() = default;
-  ScopedFd(int fd) : fd_(fd) {
+  explicit ScopedFd(int fd) : fd_(fd) {
   }
   ScopedFd(ScopedFd &&rhs) {
     fd_ = rhs.fd_;
@@ -69,4 +69,4 @@ class ScopedFd {
 };
 
 }  // namespace hwcomposer
-#endif  // SCOPED_FD_H_
+#endif  // PUBLIC_SCOPEDFD_H_

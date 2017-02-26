@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef FACTORY_H_
-#define FACTORY_H_
+#ifndef COMMON_COMPOSITOR_FACTORY_H_
+#define COMMON_COMPOSITOR_FACTORY_H_
 
 #include <stdint.h>
 
@@ -32,4 +32,4 @@ Renderer* CreateRenderer();
 NativeGpuResource* CreateNativeGpuResourceHandler();
 
 }  // namespace hwcomposer
-#endif  // FACTORY_H_
+#endif  // COMMON_COMPOSITOR_FACTORY_H_

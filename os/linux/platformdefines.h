@@ -14,16 +14,16 @@
 // limitations under the License.
 */
 
-#ifndef PLATFORM_DEFINES_
-#define PLATFORM_DEFINES_
+#ifndef OS_LINUX_PLATFORMDEFINES_H_
+#define OS_LINUX_PLATFORMDEFINES_H_
 
 #include <stdio.h>
 #include <stddef.h>
-#include <memory>
+#include <gbm.h>
+
 #include <cstring>
 #include <algorithm>
 #include <cstddef>
-#include <gbm.h>
 
 struct gbm_handle {
   struct gbm_import_fd_planar_data import_data;
@@ -47,4 +47,4 @@ extern "C" {
 }
 #endif
 
-#endif  // PLATFORM_DEFINES_
+#endif  // OS_LINUX_PLATFORMDEFINES_H_

@@ -16,19 +16,19 @@
 
 #include "displayplanemanager.h"
 
-#include <set>
-#include <utility>
+#include <nativebufferhandler.h>
 
 #include <drm/drm_fourcc.h>
 
-#include <overlaylayer.h>
-#include <nativebufferhandler.h>
+#include <set>
+#include <utility>
 
 #include "displayplane.h"
 #include "factory.h"
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "nativesync.h"
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 
@@ -100,7 +100,7 @@ bool DisplayPlaneManager::Initialize(NativeBufferHandler *buffer_handler,
   return true;
 }
 
-bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
+bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> *layers) {
   if (cursor_plane_)
     cursor_plane_->SetEnabled(false);
 
@@ -108,9 +108,9 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
     (*i)->SetEnabled(false);
   }
 
-  size_t size = layers.size();
+  size_t size = layers->size();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    OverlayLayer *layer = &layers.at(layer_index);
+    OverlayLayer *layer = &layers->at(layer_index);
     HwcBuffer bo;
     if (!buffer_handler_->ImportBuffer(layer->GetNativeHandle(), &bo)) {
       ETRACE("Failed to Import buffer.");
@@ -129,15 +129,15 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> &layers) {
 }
 
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
-    std::vector<OverlayLayer> &layers,
+    std::vector<OverlayLayer> *layers,
     const std::vector<OverlayLayer> &previous_layers,
     const DisplayPlaneStateList &previous_planes_state, bool pending_modeset) {
   CTRACE();
   DisplayPlaneStateList composition;
   std::vector<OverlayPlane> commit_planes;
   OverlayLayer *cursor_layer = NULL;
-  auto layer_begin = layers.begin();
-  auto layer_end = layers.end();
+  auto layer_begin = layers->begin();
+  auto layer_end = layers->end();
   bool render_layers = false;
   bool force_gpu = false;
 #ifndef DISABLE_OVERLAY_USAGE
@@ -145,7 +145,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   // and if so check if we can use the result of last validation.
   if (!previous_layers.empty() && use_cache_ && !pending_modeset) {
     ValidateCachedLayers(previous_planes_state, previous_layers, layers,
-                         composition, &render_layers);
+                         &composition, &render_layers);
     if (!composition.empty())
       return std::make_tuple(render_layers, std::move(composition));
   }
@@ -161,14 +161,14 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 #endif
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_plane_.get();
-  OverlayLayer *primary_layer = &(*(layers.begin()));
+  OverlayLayer *primary_layer = &(*(layers->begin()));
   commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
   composition.emplace_back(current_plane, primary_layer,
                            primary_layer->GetIndex());
   ++layer_begin;
   // Lets ensure we fall back to GPU composition in case
   // primary layer cannot be scanned out directly.
-  if ((pending_modeset && layers.size() > 1) || force_gpu ||
+  if ((pending_modeset && layers->size() > 1) || force_gpu ||
       FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
     DisplayPlaneState &last_plane = composition.back();
     render_layers = true;
@@ -187,12 +187,12 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   }
 
   // We are just compositing Primary layer and nothing else.
-  if (layers.size() == 1) {
+  if (layers->size() == 1) {
     return std::make_tuple(render_layers, std::move(composition));
   }
 
   // Retrieve cursor layer data.
-  for (auto j = layers.rbegin(); j != layers.rend(); ++j) {
+  for (auto j = layers->rbegin(); j != layers->rend(); ++j) {
     if (j->GetBuffer()->GetUsage() & kLayerCursor) {
       cursor_layer = &(*(j));
       layer_end = std::next(j).base();
@@ -223,7 +223,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
       }
 
       if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
-	render_layers = true;
+        render_layers = true;
     }
 
     DisplayPlaneState &last_plane = composition.back();
@@ -273,19 +273,19 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   return std::make_tuple(render_layers, std::move(composition));
 }
 
-bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
-                                      drmModeAtomicReqPtr pset, uint32_t flags,
-                                      std::unique_ptr<NativeSync> &sync_object,
-                                      ScopedFd &fence) {
+bool DisplayPlaneManager::CommitFrame(
+    const DisplayPlaneStateList &comp_planes, drmModeAtomicReqPtr pset,
+    uint32_t flags, const std::unique_ptr<NativeSync> &sync_object,
+    const ScopedFd &fence) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
     return false;
   }
 
-  for (DisplayPlaneState &comp_plane : comp_planes) {
+  for (const DisplayPlaneState &comp_plane : comp_planes) {
     DisplayPlane *plane = comp_plane.plane();
-    OverlayLayer *layer = comp_plane.GetOverlayLayer();
+    const OverlayLayer *layer = comp_plane.GetOverlayLayer();
     if (!plane->UpdateProperties(pset, crtc_id_, layer))
       return false;
 
@@ -327,9 +327,6 @@ bool DisplayPlaneManager::CommitFrame(DisplayPlaneStateList &comp_planes,
     }
   }
 
-#ifndef DISABLE_EXPLICIT_SYNC
-  fence.Close();
-#endif
   if (ret) {
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
     return false;
@@ -406,7 +403,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
-    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> *layers) {
   for (DisplayPlaneState &plane : composition) {
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
       EnsureOffScreenTarget(plane);
@@ -429,7 +426,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     // We start off with Primary plane.
     DisplayPlane *current_plane = primary_plane_.get();
     DisplayPlaneStateList().swap(composition);
-    auto layer_begin = layers.begin();
+    auto layer_begin = layers->begin();
     OverlayLayer *primary_layer = &(*(layer_begin));
     commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
     composition.emplace_back(current_plane, primary_layer,
@@ -438,7 +435,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     last_plane.ForceGPURendering();
     ++layer_begin;
 
-    for (auto i = layer_begin; i != layers.end(); ++i) {
+    for (auto i = layer_begin; i != layers->end(); ++i) {
       last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
     }
 
@@ -449,23 +446,23 @@ void DisplayPlaneManager::ValidateFinalLayers(
 void DisplayPlaneManager::ValidateCachedLayers(
     const DisplayPlaneStateList &previous_composition_planes,
     const std::vector<OverlayLayer> &previous_layers,
-    std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
+    const std::vector<OverlayLayer> *layers, DisplayPlaneStateList *composition,
     bool *render_layers) {
-  size_t size = layers.size();
+  size_t size = layers->size();
   if (size != previous_layers.size()) {
     return;
   }
 
   for (size_t i = 0; i < size; i++) {
-    if (previous_layers.at(i) != layers.at(i)) {
+    if (previous_layers.at(i) != layers->at(i)) {
       return;
     }
   }
 
   bool needs_gpu_composition = false;
   for (const DisplayPlaneState &plane : previous_composition_planes) {
-    composition.emplace_back(plane.plane());
-    DisplayPlaneState &last_plane = composition.back();
+    composition->emplace_back(plane.plane());
+    DisplayPlaneState &last_plane = composition->back();
     last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                          plane.GetCompositionState());
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
@@ -480,7 +477,7 @@ void DisplayPlaneManager::ValidateCachedLayers(
         size_t index = source_layers.at(i);
         const HwcRect<int> &previous =
             previous_layers.at(index).GetDisplayFrame();
-        const HwcRect<int> &current = layers.at(index).GetDisplayFrame();
+        const HwcRect<int> &current = layers->at(index).GetDisplayFrame();
         if ((previous.left != current.left) || (previous.top != current.top)) {
           region_changed = true;
           break;
@@ -492,8 +489,8 @@ void DisplayPlaneManager::ValidateCachedLayers(
                                                  comp_regions.end());
       }
     } else {
-      OverlayLayer *layer =
-          &(*(layers.begin() + last_plane.source_layers().front()));
+      const OverlayLayer *layer =
+          &(*(layers->begin() + last_plane.source_layers().front()));
       layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
       last_plane.SetOverlayLayer(layer);
     }

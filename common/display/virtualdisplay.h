@@ -14,12 +14,14 @@
 // limitations under the License.
 */
 
-#ifndef VIRTUAL_DISPLAY_H_
-#define VIRTUAL_DISPLAY_H_
+#ifndef COMMON_DISPLAY_VIRTUALDISPLAY_H_
+#define COMMON_DISPLAY_VIRTUALDISPLAY_H_
 
 #include "headless.h"
 
 #include <nativebufferhandler.h>
+
+#include <vector>
 
 #include "compositor.h"
 
@@ -28,7 +30,7 @@ struct HwcLayer;
 
 class VirtualDisplay : public Headless {
  public:
-  VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler &handler,
+  VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
                  uint32_t pipe_id, uint32_t crtc_id);
   ~VirtualDisplay() override;
 
@@ -43,7 +45,7 @@ class VirtualDisplay : public Headless {
  private:
   HWCNativeHandle output_handle_;
   int32_t acquire_fence_;
-  NativeBufferHandler &buffer_handler_;
+  NativeBufferHandler *buffer_handler_;
   Compositor compositor_;
   uint32_t gpu_fd_;
   uint32_t width_;
@@ -51,4 +53,4 @@ class VirtualDisplay : public Headless {
 };
 
 }  // namespace hwcomposer
-#endif  // VIRTUAL_DISPLAY_H_
+#endif  // COMMON_DISPLAY_VIRTUALDISPLAY_H_

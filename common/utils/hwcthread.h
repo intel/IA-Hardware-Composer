@@ -14,12 +14,13 @@
 // limitations under the License.
 */
 
-#ifndef HWC_THREAD_H_
-#define HWC_THREAD_H_
+#ifndef COMMON_UTILS_HWCTHREAD_H_
+#define COMMON_UTILS_HWCTHREAD_H_
 
 #include <condition_variable>
 #include <thread>
 #include <string>
+#include <memory>
 
 #include "spinlock.h"
 
@@ -55,4 +56,4 @@ class HWCThread {
 };
 
 }  // namespace hwcomposer
-#endif  // HWC_THREAD_H_
+#endif  // COMMON_UTILS_HWCTHREAD_H_

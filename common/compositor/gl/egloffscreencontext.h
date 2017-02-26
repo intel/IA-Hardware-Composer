@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef EGL_CONTEXT_H_
-#define EGL_CONTEXT_H_
+#ifndef COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_
+#define COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_
 
 #include "shim.h"
 
@@ -40,4 +40,4 @@ class EGLOffScreenContext {
 };
 
 }  // namespace hwcomposer
-#endif  // EGL_CONTEXT_H_
+#endif  // COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_

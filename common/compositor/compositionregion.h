@@ -14,12 +14,12 @@
 // limitations under the License.
 */
 
-#ifndef COMPOSITION_REGION_H_
-#define COMPOSITION_REGION_H_
-
-#include <vector>
+#ifndef COMMON_COMPOSITOR_COMPOSITIONREGION_H_
+#define COMMON_COMPOSITOR_COMPOSITIONREGION_H_
 
 #include <hwcdefs.h>
+
+#include <vector>
 
 namespace hwcomposer {
 
@@ -29,4 +29,4 @@ struct CompositionRegion {
 };
 
 }  // namespace hwcomposer
-#endif  // COMPOSITION_REGION_H_
+#endif  // COMMON_COMPOSITOR_COMPOSITIONREGION_H_

@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-#ifndef OVERLAY_BUFFER_H_
-#define OVERLAY_BUFFER_H_
+#ifndef COMMON_CORE_OVERLAYBUFFER_H_
+#define COMMON_CORE_OVERLAYBUFFER_H_
 
 #include <platformdefines.h>
 
@@ -90,4 +90,4 @@ class OverlayBuffer {
 };
 
 }  // namespace hwcomposer
-#endif  // OVERLAY_BUFFER_H_
+#endif  // COMMON_CORE_OVERLAYBUFFER_H_

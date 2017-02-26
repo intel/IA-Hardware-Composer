@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef COMPOSITOR_DEFS_H__
-#define COMPOSITOR_DEFS_H__
+#ifndef COMMON_COMPOSITOR_COMPOSITORDEFS_H_
+#define COMMON_COMPOSITOR_COMPOSITORDEFS_H_
 
 #include <stdint.h>
 
@@ -48,4 +48,4 @@ typedef void* GpuDisplay;
 #endif
 
 }  // namespace hwcomposer
-#endif  // COMPOSITOR_DEFS_H__
+#endif  // COMMON_COMPOSITOR_COMPOSITORDEFS_H_

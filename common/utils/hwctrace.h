@@ -14,35 +14,36 @@
 // limitations under the License.
 */
 
-#ifndef HWC_TRACE_H
-#define HWC_TRACE_H
+#ifndef COMMON_UTILS_HWCTRACE_H_
+#define COMMON_UTILS_HWCTRACE_H_
 
+#include <vector>
 #include <string>
+#include <chrono>
+
 #include <errno.h>
 #include <stdio.h>
-#include <chrono>
 #include <time.h>
 
 #include "displayplane.h"
-
-#include <platformdefines.h>
+#include "platformdefines.h"
 
 #ifdef _cplusplus
 extern "C" {
 #endif
 
-//#define ENABLE_DISPLAY_DUMP 1
-//#define ENABLE_DISPLAY_MANAGER_TRACING 1
-//#define ENABLE_PAGE_FLIP_EVENT_TRACING 1
-//#define ENABLE_HOT_PLUG_EVENT_TRACING 1
-//#define FUNCTION_CALL_TRACING 1
+// #define ENABLE_DISPLAY_DUMP 1
+// #define ENABLE_DISPLAY_MANAGER_TRACING 1
+// #define ENABLE_PAGE_FLIP_EVENT_TRACING 1
+// #define ENABLE_HOT_PLUG_EVENT_TRACING 1
+// #define FUNCTION_CALL_TRACING 1
 #define COMPOSITOR_TRACING 1
 
 // Function call tracing
 #ifdef FUNCTION_CALL_TRACING
 class TraceFunc {
  public:
-  TraceFunc(std::string func_name) {
+  explicit TraceFunc(std::string func_name) {
     func_name_ = func_name;
     ITRACE("Calling ----- %s", func_name_.c_str());
     t_ = std::chrono::high_resolution_clock::now();
@@ -212,4 +213,4 @@ class TraceFunc {
 }
 #endif
 
-#endif /* HWC_TRACE_H */
+#endif  // COMMON_UTILS_HWCTRACE_H_

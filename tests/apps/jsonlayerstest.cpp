@@ -485,7 +485,7 @@ int main(int argc, char *argv[]) {
     std::vector<hwcomposer::HwcLayer *>().swap(layers);
     for (uint32_t j = 0; j < frame->layers.size(); j++) {
       frame->layer_renderers[j]->Draw(&gpu_fence_fd);
-      frame->layers[j]->acquire_fence = gpu_fence_fd;
+      frame->layers[j]->acquire_fence.Reset(gpu_fence_fd);
       layers.emplace_back(frame->layers[j].get());
     }
 

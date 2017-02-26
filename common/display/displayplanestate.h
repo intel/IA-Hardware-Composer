@@ -13,8 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-#ifndef DISPLAY_PLANE_STATE_H_
-#define DISPLAY_PLANE_STATE_H_
+
+#ifndef COMMON_DISPLAY_DISPLAYPLANESTATE_H_
+#define COMMON_DISPLAY_DISPLAYPLANESTATE_H_
 
 #include <stdint.h>
 #include <vector>
@@ -44,7 +45,7 @@ class DisplayPlaneState {
     display_frame_ = layer->GetDisplayFrame();
   }
 
-  DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
+  explicit DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
   }
 
   State GetCompositionState() const {
@@ -92,11 +93,11 @@ class DisplayPlaneState {
     state_ = State::kRender;
   }
 
-  void SetOverlayLayer(OverlayLayer *layer) {
+  void SetOverlayLayer(const OverlayLayer *layer) {
     layer_ = layer;
   }
 
-  OverlayLayer *GetOverlayLayer() const {
+  const OverlayLayer *GetOverlayLayer() const {
     return layer_;
   }
 
@@ -127,7 +128,7 @@ class DisplayPlaneState {
  private:
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
-  OverlayLayer *layer_ = NULL;
+  const OverlayLayer *layer_ = NULL;
   NativeSurface *offscreen_target_ = NULL;
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
@@ -135,4 +136,4 @@ class DisplayPlaneState {
 };
 
 }  // namespace hwcomposer
-#endif  // DISPLAY_PLANE_STATE_H_
+#endif  // COMMON_DISPLAY_DISPLAYPLANESTATE_H_

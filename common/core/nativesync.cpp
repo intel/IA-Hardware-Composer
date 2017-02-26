@@ -110,4 +110,5 @@ int NativeSync::sw_sync_timeline_inc(int fd, unsigned count) {
   uint32_t arg = count;
   return ioctl(fd, SW_SYNC_IOC_INC, &arg);
 }
-}
+
+}  // namespace hwcomposer

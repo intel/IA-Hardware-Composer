@@ -120,4 +120,5 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   return true;
 }
-}
+
+}  // namespace hwcomposer

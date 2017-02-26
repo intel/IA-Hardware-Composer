@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef GRALLOC_BUFFER_HANDLER_H_
-#define GRALLOC_BUFFER_HANDLER_H_
+#ifndef OS_ANDROID_GRALLOCBUFFERHANDLER_H_
+#define OS_ANDROID_GRALLOCBUFFERHANDLER_H_
 
 #include <nativebufferhandler.h>
 
@@ -27,7 +27,7 @@ class GpuDevice;
 
 class GrallocBufferHandler : public NativeBufferHandler {
  public:
-  GrallocBufferHandler(uint32_t fd);
+  explicit GrallocBufferHandler(uint32_t fd);
   ~GrallocBufferHandler() override;
 
   bool Init();
@@ -43,5 +43,5 @@ class GrallocBufferHandler : public NativeBufferHandler {
   const gralloc_module_t *gralloc_;
 };
 
-}  // namespace hardware
-#endif  // GRALLOC_BUFFER_HANDLER_H_
+}  // namespace hwcomposer
+#endif  // OS_ANDROID_GRALLOCBUFFERHANDLER_H_

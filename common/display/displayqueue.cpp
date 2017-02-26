@@ -18,11 +18,12 @@
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
-#include <hwctrace.h>
-
 #include <nativebufferhandler.h>
 
+#include <vector>
+
 #include "displayplanemanager.h"
+#include "hwctrace.h"
 #include "overlaylayer.h"
 #include "pageflipeventhandler.h"
 
@@ -100,13 +101,12 @@ void DisplayQueue::Exit() {
   HWCThread::Exit();
 }
 
-bool DisplayQueue::GetFence(ScopedDrmAtomicReqPtr& property_set,
+bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
                             uint64_t* out_fence) {
 #ifndef DISABLE_EXPLICIT_SYNC
   if (out_fence_ptr_prop_ != 0) {
-    int ret =
-        drmModeAtomicAddProperty(property_set.get(), crtc_id_,
-                                 out_fence_ptr_prop_, (uintptr_t)out_fence);
+    int ret = drmModeAtomicAddProperty(
+        property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
     if (ret < 0) {
       ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
       return false;
@@ -221,7 +221,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   CTRACE();
   ScopedSpinLock lock(spin_lock_);
   // Reset any DisplayQueue Manager and Compositor state.
-  if (!display_plane_manager_->BeginFrameUpdate(queue_item.layers_)) {
+  if (!display_plane_manager_->BeginFrameUpdate(&queue_item.layers_)) {
     ETRACE("Failed to import needed buffers in DisplayQueueManager.");
     return;
   }
@@ -242,7 +242,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   // Validate Overlays and Layers usage.
   std::tie(render_layers, current_composition_planes) =
       display_plane_manager_->ValidateLayers(
-          queue_item.layers_, previous_layers_, previous_plane_state_,
+          &queue_item.layers_, previous_layers_, previous_plane_state_,
           needs_modeset_);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
@@ -278,7 +278,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
       return;
     }
   } else {
-    GetFence(pset, &fence);
+    GetFence(pset.get(), &fence);
   }
 
   if (!display_plane_manager_->CommitFrame(

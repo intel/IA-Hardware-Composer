@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef RENDERER_H_
-#define RENDERER_H_
+#ifndef COMMON_COMPOSITOR_RENDERER_H_
+#define COMMON_COMPOSITOR_RENDERER_H_
 
 #include <vector>
 
@@ -40,4 +40,4 @@ class Renderer {
 };
 
 }  // namespace hwcomposer
-#endif  // RENDERER_H_
+#endif  // COMMON_COMPOSITOR_RENDERER_H_

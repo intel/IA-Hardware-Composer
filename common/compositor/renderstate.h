@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef RENDER_STATE_H_
-#define RENDER_STATE_H_
+#ifndef COMMON_COMPOSITOR_RENDERSTATE_H_
+#define COMMON_COMPOSITOR_RENDERSTATE_H_
 
 #include <vector>
 
@@ -50,4 +50,4 @@ struct RenderState {
 };
 
 }  // namespace hwcomposer
-#endif  // GPU_COMMAND_H__
+#endif  // COMMON_COMPOSITOR_RENDERSTATE_H_

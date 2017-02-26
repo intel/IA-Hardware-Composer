@@ -14,14 +14,13 @@
 // limitations under the License.
 */
 
-#ifndef GPU_DEVICE_H_
-#define GPU_DEVICE_H_
-
-#include <memory>
-
-#include <vector>
+#ifndef PUBLIC_GPUDEVICE_H_
+#define PUBLIC_GPUDEVICE_H_
 
 #include <scopedfd.h>
+
+#include <memory>
+#include <vector>
 
 namespace hwcomposer {
 
@@ -62,4 +61,4 @@ class GpuDevice {
 };
 
 }  // namespace hwcomposer
-#endif  // GPU_DEVICE_H_
+#endif  // PUBLIC_GPUDEVICE_H_

@@ -16,10 +16,15 @@
 
 #include "headless.h"
 
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <sstream>
+#include <vector>
+
 namespace hwcomposer {
 
-Headless::Headless(uint32_t gpu_fd, NativeBufferHandler & /*buffer_handler*/,
-                   uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
+Headless::Headless(uint32_t gpu_fd, uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
     : fd_(gpu_fd) {
 }
 
@@ -31,7 +36,8 @@ bool Headless::Initialize() {
 }
 
 bool Headless::Connect(const drmModeModeInfo & /*mode_info*/,
-                       const drmModeConnector * /*connector*/) {
+                       const drmModeConnector * /*connector*/,
+                       NativeBufferHandler * /*buffer_handler*/) {
   return true;
 }
 

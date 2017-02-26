@@ -83,7 +83,7 @@ void GenerateOutLayers(Region *reg, uint64_t x,
       out_rect.top = y_poi.y;
       rect_ids.add(y_poi.rect_id);
     } else {
-      if(out_rect.top == (int)y_poi.y) {
+      if (out_rect.top == static_cast<int>(y_poi.y)) {
         if (y_poi.type == START) {
           rect_ids.add(y_poi.rect_id);
         } else {
@@ -218,9 +218,9 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
           if (poi.type == START) {
             cur_reg.rect_ids.add(poi.rect_id);
             imp_reg.push_back(&cur_reg);
-	  }
+          }
 
-	  it_reg++;
+          it_reg++;
           continue;
         }
         if (poi.type == START) {

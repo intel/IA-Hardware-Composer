@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef HWC_LAYER_H_
-#define HWC_LAYER_H_
+#ifndef PUBLIC_HWCLAYER_H_
+#define PUBLIC_HWCLAYER_H_
 
 #include <hwcdefs.h>
 #include <platformdefines.h>
@@ -75,5 +75,5 @@ struct HwcLayer {
   HWCNativeHandle sf_handle_ = 0;
 };
 
-}  // namespace hardware
-#endif  // HWC_LAYER_H_
+}  // namespace hwcomposer
+#endif  // PUBLIC_HWCLAYER_H_

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "compositor.h"
+#ifndef OS_ANDROID_DRMHWCTWO_H_
+#define OS_ANDROID_DRMHWCTWO_H_
 
 #include <hardware/hwcomposer2.h>
 
@@ -25,6 +26,7 @@
 #include <scopedfd.h>
 
 #include <map>
+#include <utility>
 
 namespace hwcomposer {
 class GpuDevice;
@@ -45,7 +47,6 @@ class DrmHwcTwo : public hwc2_device_t {
  private:
   class HwcLayer {
    public:
-
     HWC2::Composition sf_type() const {
       return sf_type_;
     }
@@ -237,4 +238,6 @@ class DrmHwcTwo : public hwc2_device_t {
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 };
-}
+}  // namespace android
+
+#endif  // OS_ANDROID_DRMHWCTWO_H_

@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_BUFFER_HANDLER_H_
-#define NATIVE_BUFFER_HANDLER_H_
+#ifndef PUBLIC_NATIVEBUFFERHANDLER_H_
+#define PUBLIC_NATIVEBUFFERHANDLER_H_
 
 #include <stdint.h>
 
@@ -39,5 +39,5 @@ class NativeBufferHandler {
   virtual bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) = 0;
 };
 
-}  // namespace hardware
-#endif  // NATIVE_BUFFER_HANDLER_H_
+}  // namespace hwcomposer
+#endif  // PUBLIC_NATIVEBUFFERHANDLER_H_

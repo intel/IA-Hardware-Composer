@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef DRM_SCOPED_TYPES_H_
-#define DRM_SCOPED_TYPES_H_
+#ifndef COMMON_UTILS_DRMSCOPEDTYPES_H_
+#define COMMON_UTILS_DRMSCOPEDTYPES_H_
 
 #include <memory>
 typedef struct _drmModeConnector drmModeConnector;
@@ -76,4 +76,4 @@ typedef std::unique_ptr<drmModePropertyRes, DrmPropertyDeleter>
 typedef std::unique_ptr<drmModeAtomicReq, DrmAtomicReqDeleter>
     ScopedDrmAtomicReqPtr;
 }  // namespace hwcomposer
-#endif  // DRM_SCOPED_TYPES_H_
+#endif  // COMMON_UTILS_DRMSCOPEDTYPES_H_

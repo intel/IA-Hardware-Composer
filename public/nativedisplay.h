@@ -14,13 +14,16 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_DISPLAY_H_
-#define NATIVE_DISPLAY_H_
-
-#include <stdint.h>
+#ifndef PUBLIC_NATIVEDISPLAY_H_
+#define PUBLIC_NATIVEDISPLAY_H_
 
 #include <hwcdefs.h>
 #include <platformdefines.h>
+
+#include <stdint.h>
+
+#include <memory>
+#include <vector>
 
 typedef struct _drmModeConnector drmModeConnector;
 typedef struct _drmModeModeInfo drmModeModeInfo;
@@ -28,6 +31,7 @@ typedef struct _drmModeModeInfo drmModeModeInfo;
 namespace hwcomposer {
 struct HwcLayer;
 class GpuDevice;
+class NativeBufferHandler;
 
 class VsyncCallback {
  public:
@@ -80,7 +84,8 @@ class NativeDisplay {
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,
-                       const drmModeConnector *connector) = 0;
+                       const drmModeConnector *connector,
+                       NativeBufferHandler *buffer_handler) = 0;
 
   virtual bool IsConnected() const = 0;
 
@@ -91,4 +96,4 @@ class NativeDisplay {
   friend class GpuDevice;
 };
 }  // namespace hwcomposer
-#endif  // NATIVE_DISPLAY_H_
+#endif  // PUBLIC_NATIVEDISPLAY_H_

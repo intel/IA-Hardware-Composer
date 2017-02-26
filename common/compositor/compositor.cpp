@@ -18,6 +18,8 @@
 
 #include <xf86drmMode.h>
 
+#include <algorithm>
+
 #include "disjoint_layers.h"
 #include "displayplanestate.h"
 #include "hwctrace.h"
@@ -249,4 +251,5 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
                                      source_layers)});
   }
 }
-}
+
+}  // namespace hwcomposer

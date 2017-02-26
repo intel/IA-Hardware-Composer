@@ -14,10 +14,13 @@
 // limitations under the License.
 */
 
-#ifndef COMPOSITOR_H_
-#define COMPOSITOR_H_
+#ifndef COMMON_COMPOSITOR_COMPOSITOR_H_
+#define COMMON_COMPOSITOR_COMPOSITOR_H_
 
 #include <platformdefines.h>
+
+#include <memory>
+#include <vector>
 
 #include "compositionregion.h"
 #include "displayplanestate.h"
@@ -60,6 +63,6 @@ class Compositor {
   std::unique_ptr<Renderer> renderer_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
 };
-}
 
-#endif  // COMPOSITOR_H_
+}  // namespace hwcomposer
+#endif  // COMMON_COMPOSITOR_COMPOSITOR_H_

@@ -14,66 +14,18 @@
 // limitations under the License.
 */
 
-#ifndef DISJOINT_LAYERS_H_
-#define DISJOINT_LAYERS_H_
+#ifndef COMMON_UTILS_DISJOINT_LAYERS_H_
+#define COMMON_UTILS_DISJOINT_LAYERS_H_
 
 #include <stdint.h>
 
-#include <sstream>
+#include <hwcrect.h>
+
 #include <vector>
 
 namespace hwcomposer {
 
-//Some of the structs are adopted from drm_hwcomposer
-template <typename TFloat>
-struct Rect {
-  union {
-    struct {
-      TFloat left, top, right, bottom;
-    };
-    struct {
-      TFloat x1, y1, x2, y2;
-    };
-    TFloat bounds[4];
-  };
-  typedef TFloat TNum;
-  Rect() {
-  }
-  Rect(TFloat xx1, TFloat yy1, TFloat xx2, TFloat yy2)
-      : x1(xx1), y1(yy1), x2(xx2), y2(yy2) {
-  }
-  template <typename T>
-  Rect(const Rect<T> &rhs) {
-    for (int i = 0; i < 4; i++)
-      bounds[i] = rhs.bounds[i];
-  }
-  template <typename T>
-  Rect<TFloat> &operator=(const Rect<T> &rhs) {
-    for (int i = 0; i < 4; i++)
-      bounds[i] = rhs.bounds[i];
-    return *this;
-  }
-  bool operator==(const Rect &rhs) const {
-    for (int i = 0; i < 4; i++) {
-      if (bounds[i] != rhs.bounds[i])
-        return false;
-    }
-    return true;
-  }
-  TFloat width() const {
-    return bounds[2] - bounds[0];
-  }
-  TFloat height() const {
-    return bounds[3] - bounds[1];
-  }
-  TFloat area() const {
-    return width() * height();
-  }
-  void Dump(std::ostringstream *out) const {
-    *out << "[x/y/w/h]=" << left << "/" << top << "/" << width() << "/"
-         << height();
-  }
-};
+// Some of the structs are adopted from drm_hwcomposer
 struct RectIDs {
  public:
   typedef uint64_t TId;
@@ -81,7 +33,7 @@ struct RectIDs {
   RectIDs() : bitset(0) {
   }
 
-  RectIDs(TId id) : bitset(0) {
+  explicit RectIDs(TId id) : bitset(0) {
     add(id);
   }
 
@@ -142,7 +94,7 @@ struct RectSet {
 };
 
 void get_draw_regions(const std::vector<Rect<int>> &in,
-                        std::vector<RectSet<int>> *out);
-}
+                      std::vector<RectSet<int>> *out);
+}  // namespace hwcomposer
 
-#endif
+#endif  // COMMON_UTILS_DISJOINT_LAYERS_H_

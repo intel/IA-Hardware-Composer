@@ -14,20 +14,25 @@
 // limitations under the License.
 */
 
-#ifndef DISPLAY_QUEUE_H_
-#define DISPLAY_QUEUE_H_
-
-#include <queue>
-
-#include "platformdefines.h"
+#ifndef COMMON_DISPLAY_DISPLAYQUEUE_H_
+#define COMMON_DISPLAY_DISPLAYQUEUE_H_
 
 #include <drmscopedtypes.h>
+#include <scopedfd.h>
+#include <spinlock.h>
+
+#include <stdlib.h>
+#include <stdint.h>
+#include <xf86drmMode.h>
+
+#include <queue>
+#include <memory>
+#include <vector>
 
 #include "compositor.h"
 #include "hwcthread.h"
 #include "nativesync.h"
-#include "scopedfd.h"
-#include "spinlock.h"
+#include "platformdefines.h"
 
 namespace hwcomposer {
 class DisplayPlaneManager;
@@ -62,7 +67,7 @@ class DisplayQueue : public HWCThread {
 
   void HandleUpdateRequest(DisplayQueueItem& queue_item);
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
-  bool GetFence(ScopedDrmAtomicReqPtr& property_set, uint64_t* out_fence);
+  bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;
@@ -90,8 +95,8 @@ class DisplayQueue : public HWCThread {
   std::queue<DisplayQueueItem> queue_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
-  ScopedFd out_fence_ = -1;
+  ScopedFd out_fence_;
 };
 
 }  // namespace hwcomposer
-#endif  // DISPLAY_QUEUE_H_
+#endif  // COMMON_DISPLAY_DISPLAYQUEUE_H_

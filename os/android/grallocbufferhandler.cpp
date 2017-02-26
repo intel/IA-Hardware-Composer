@@ -153,4 +153,5 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   return true;
 }
 #endif
-}
+
+}  // namespace hwcomposer

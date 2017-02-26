@@ -22,7 +22,6 @@
 #include <xf86drmMode.h>
 
 #include <inttypes.h>
-#include <string>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -32,6 +31,11 @@
 #include <gpudevice.h>
 #include <hwcdefs.h>
 #include <nativedisplay.h>
+
+#include <string>
+#include <memory>
+#include <algorithm>
+#include <vector>
 
 namespace android {
 
@@ -97,13 +101,13 @@ HWC2::Error DrmHwcTwo::CreateVirtualDisplay(uint32_t width, uint32_t height,
 }
 
 HWC2::Error DrmHwcTwo::DestroyVirtualDisplay(hwc2_display_t display) {
-    if(display != (hwc2_display_t)HWC_DISPLAY_VIRTUAL){
-      ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
-      return HWC2::Error::BadDisplay;
-    }
+  if (display != (hwc2_display_t)HWC_DISPLAY_VIRTUAL) {
+    ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
+    return HWC2::Error::BadDisplay;
+  }
 
-    displays_.erase(display);
-    return HWC2::Error::None;
+  displays_.erase(display);
+  return HWC2::Error::None;
 }
 
 void DrmHwcTwo::Dump(uint32_t *size, char *buffer) {
@@ -916,7 +920,8 @@ int DrmHwcTwo::HookDevOpen(const struct hw_module_t *module, const char *name,
   ctx.release();
   return 0;
 }
-}
+
+}  // namespace android
 
 static struct hw_module_methods_t hwc2_module_methods = {
     .open = android::DrmHwcTwo::HookDevOpen,

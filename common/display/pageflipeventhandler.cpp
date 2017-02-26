@@ -21,7 +21,9 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <hwctrace.h>
+#include <memory>
+
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
@@ -77,7 +79,7 @@ void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
 
   int64_t timestamp = (int64_t)sec * kOneSecondNs + (int64_t)usec * 1000;
   IPAGEFLIPEVENTTRACE("HandleVblankCallBack Frame Time %f",
-                      float(timestamp - last_timestamp_) / (1000));
+                      static_cast<float>(timestamp - last_timestamp_) / (1000));
   last_timestamp_ = timestamp;
 
   IPAGEFLIPEVENTTRACE("Callback called from HandlePageFlipEvent. %lu",
@@ -109,4 +111,5 @@ void PageFlipEventHandler::HandleRoutine() {
   if (!ret)
     HandlePageFlipEvent(vblank.reply.tval_sec, (int64_t)vblank.reply.tval_usec);
 }
-}
+
+}  // namespace hwcomposer

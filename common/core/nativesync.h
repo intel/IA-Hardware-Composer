@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_SYNC_H_
-#define NATIVE_SYNC_H_
+#ifndef COMMON_CORE_NATIVESYNC_H_
+#define COMMON_CORE_NATIVESYNC_H_
 
 #include <stdint.h>
 
@@ -45,4 +45,4 @@ class NativeSync {
 };
 
 }  // namespace hwcomposer
-#endif  // NATIVE_SYNC_H_
+#endif  // COMMON_CORE_NATIVESYNC_H_

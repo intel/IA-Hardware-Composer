@@ -14,10 +14,13 @@
 // limitations under the License.
 */
 
-#ifndef HEADLESS_H_
-#define HEADLESS_H_
+#ifndef COMMON_DISPLAY_HEADLESS_H_
+#define COMMON_DISPLAY_HEADLESS_H_
 
 #include <nativedisplay.h>
+
+#include <memory>
+#include <vector>
 
 namespace hwcomposer {
 
@@ -25,8 +28,7 @@ class NativeBufferHandler;
 
 class Headless : public NativeDisplay {
  public:
-  Headless(uint32_t gpu_fd, NativeBufferHandler &handler, uint32_t pipe_id,
-           uint32_t crtc_id);
+  Headless(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Headless() override;
 
   bool Initialize() override;
@@ -74,7 +76,8 @@ class Headless : public NativeDisplay {
   }
 
   bool Connect(const drmModeModeInfo &mode_info,
-               const drmModeConnector *connector) override;
+               const drmModeConnector *connector,
+               NativeBufferHandler *buffer_handler) override;
 
   bool IsConnected() const override {
     return false;
@@ -88,4 +91,4 @@ class Headless : public NativeDisplay {
 };
 
 }  // namespace hwcomposer
-#endif  // HEADLESS_H_
+#endif  // COMMON_DISPLAY_HEADLESS_H_

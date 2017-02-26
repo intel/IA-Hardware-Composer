@@ -14,11 +14,12 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_GL_RESOURCE_H_
-#define NATIVE_GL_RESOURCE_H_
+#ifndef COMMON_COMPOSITOR_GL_NATIVEGLRESOURCE_H_
+#define COMMON_COMPOSITOR_GL_NATIVEGLRESOURCE_H_
+
+#include <vector>
 
 #include "nativegpuresource.h"
-
 #include "shim.h"
 
 namespace hwcomposer {
@@ -39,4 +40,4 @@ class NativeGLResource : public NativeGpuResource {
 };
 
 }  // namespace hwcomposer
-#endif  // NATIVE_GL_RESOURCE_H_
+#endif  // COMMON_COMPOSITOR_GL_NATIVEGLRESOURCE_H_

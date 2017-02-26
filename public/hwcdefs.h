@@ -14,12 +14,12 @@
 // limitations under the License.
 */
 
-#ifndef HWC_DEFS_H_
-#define HWC_DEFS_H_
+#ifndef PUBLIC_HWCDEFS_H_
+#define PUBLIC_HWCDEFS_H_
 
 #include <stdint.h>
 
-#include "disjoint_layers.h"
+#include <hwcrect.h>
 
 namespace hwcomposer {
 
@@ -63,5 +63,5 @@ enum class DisplayType : int32_t {
   kHeadless = 3
 };
 
-}  // namespace hardware
-#endif  // HWC_DEFS_H_
+}  // namespace hwcomposer
+#endif  // PUBLIC_HWCDEFS_H_

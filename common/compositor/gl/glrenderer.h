@@ -14,10 +14,11 @@
 // limitations under the License.
 */
 
-#ifndef GL_RENDERER_H_
-#define GL_RENDERER_H_
+#ifndef COMMON_COMPOSITOR_GL_GLRENDERER_H_
+#define COMMON_COMPOSITOR_GL_GLRENDERER_H_
 
 #include <memory>
+#include <vector>
 
 #include "renderer.h"
 
@@ -47,4 +48,4 @@ class GLRenderer : public Renderer {
 };
 
 }  // namespace hwcomposer
-#endif  // GL_RENDERER_H_
+#endif  // COMMON_COMPOSITOR_GL_GLRENDERER_H_

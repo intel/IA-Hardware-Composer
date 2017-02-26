@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef GL_PROGRAM_H_
-#define GL_PROGRAM_H_
+#ifndef COMMON_COMPOSITOR_GL_GLPROGRAM_H_
+#define COMMON_COMPOSITOR_GL_GLPROGRAM_H_
 
 #include <vector>
 
@@ -48,4 +48,4 @@ class GLProgram {
 };
 
 }  // namespace hwcomposer
-#endif  // GL_PROGRAM_H_
+#endif  // COMMON_COMPOSITOR_GL_GLPROGRAM_H_

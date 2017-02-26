@@ -37,6 +37,10 @@
 
 #include <hwctrace.h>
 
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "display.h"
 #include "displayplanemanager.h"
 #include "drmscopedtypes.h"
@@ -126,8 +130,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
       return false;
     }
 
-    std::unique_ptr<NativeDisplay> display(
-	new Display(fd_, *(buffer_handler_.get()), i, c->crtc_id));
+    std::unique_ptr<NativeDisplay> display(new Display(fd_, i, c->crtc_id));
     if (!display->Initialize()) {
       ETRACE("Failed to Initialize Display %d", c->crtc_id);
       return false;
@@ -136,8 +139,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     displays_.emplace_back(std::move(display));
   }
 
-  virtual_display_.reset(
-      new VirtualDisplay(fd_, *(buffer_handler_.get()), 0, 0));
+  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
 
   if (!UpdateDisplayState()) {
     ETRACE("Failed to connect display.");
@@ -349,7 +351,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       mode = connector->modes[i];
       // There is only one preferred mode per connector.
       if (mode.type & DRM_MODE_TYPE_PREFERRED) {
-	found_prefered_mode = true;
+        found_prefered_mode = true;
         break;
       }
     }
@@ -364,7 +366,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       if (encoder && encoder->crtc_id) {
         for (auto &display : displays_) {
           if (encoder->crtc_id == display->CrtcId() &&
-              display->Connect(mode, connector.get())) {
+              display->Connect(mode, connector.get(), buffer_handler_.get())) {
             connected_displays_.emplace_back(display.get());
             break;
           }
@@ -380,7 +382,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
         for (auto &display : displays_) {
           if (!display->IsConnected() &&
               (encoder->possible_crtcs & (1 << display->Pipe())) &&
-              display->Connect(mode, connector.get())) {
+              display->Connect(mode, connector.get(), buffer_handler_.get())) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             connected_displays_.emplace_back(display.get());
             break;
@@ -398,7 +400,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
 
   if (connected_displays_.empty()) {
     if (!headless_)
-      headless_.reset(new Headless(fd_, *(buffer_handler_.get()), 0, 0));
+      headless_.reset(new Headless(fd_, 0, 0));
   } else if (headless_) {
     headless_.release();
   }

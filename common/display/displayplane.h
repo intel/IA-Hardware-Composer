@@ -14,16 +14,16 @@
 // limitations under the License.
 */
 
-#ifndef DISPLAY_PLANE_H_
-#define DISPLAY_PLANE_H_
-
-#include <vector>
+#ifndef COMMON_DISPLAY_DISPLAYPLANE_H_
+#define COMMON_DISPLAY_DISPLAYPLANE_H_
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <xf86drmMode.h>
 
 #include <drmscopedtypes.h>
+
+#include <vector>
 
 namespace hwcomposer {
 
@@ -99,4 +99,4 @@ class DisplayPlane {
 };
 
 }  // namespace hwcomposer
-#endif  // DISPLAY_PLANE_H_
+#endif  // COMMON_DISPLAY_DISPLAYPLANE_H_

@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef HWC_BUFFER_H_
-#define HWC_BUFFER_H_
+#ifndef PUBLIC_HWCBUFFER_H_
+#define PUBLIC_HWCBUFFER_H_
 
 #include <stdint.h>
 
@@ -30,4 +30,4 @@ struct HwcBuffer {
   uint32_t usage;
 };
 
-#endif  // HWC_BUFFER_H_
+#endif  // PUBLIC_HWCBUFFER_H_

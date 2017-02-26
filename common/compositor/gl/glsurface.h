@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef GL_SURFACE_H_
-#define GL_SURFACE_H_
+#ifndef COMMON_COMPOSITOR_GL_GLSURFACE_H_
+#define COMMON_COMPOSITOR_GL_GLSURFACE_H_
 
 #include "nativesurface.h"
 
@@ -38,4 +38,4 @@ class GLSurface : public NativeSurface {
 };
 
 }  // namespace hwcomposer
-#endif  // GL_SURFACE_H_
+#endif  // COMMON_COMPOSITOR_GL_GLSURFACE_H_

@@ -14,11 +14,10 @@
 // limitations under the License.
 */
 
-#ifndef SPIN_LOCK_H_
-#define SPIN_LOCK_H_
+#ifndef PUBLIC_SPINLOCK_H_
+#define PUBLIC_SPINLOCK_H_
 
 #include <atomic>
-#include <hwctrace.h>
 
 namespace hwcomposer {
 
@@ -39,7 +38,7 @@ class SpinLock {
 
 class ScopedSpinLock {
  public:
-  ScopedSpinLock(SpinLock& lock) : lock_(lock) {
+  explicit ScopedSpinLock(SpinLock& lock) : lock_(lock) {
     lock_.lock();
     locked_ = true;
   }
@@ -79,4 +78,4 @@ class ScopedSpinLocks {
 };
 
 }  // namespace hwcomposer
-#endif  // SPIN_LOCK_H_
+#endif  // PUBLIC_SPINLOCK_H_

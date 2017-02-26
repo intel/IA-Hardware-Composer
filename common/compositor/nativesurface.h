@@ -14,15 +14,14 @@
 // limitations under the License.
 */
 
-#ifndef NATIVE_SURFACE_H_
-#define NATIVE_SURFACE_H_
+#ifndef COMMON_COMPOSITOR_NATIVESURFACE_H_
+#define COMMON_COMPOSITOR_NATIVESURFACE_H_
 
 #include <memory>
 
-#include <platformdefines.h>
-
 #include "displayplanestate.h"
 #include "nativefence.h"
+#include "platformdefines.h"
 
 namespace hwcomposer {
 
@@ -92,4 +91,4 @@ class NativeSurface {
 };
 
 }  // namespace hwcomposer
-#endif  // NATIVE_SURFACE_H_
+#endif  // COMMON_COMPOSITOR_NATIVESURFACE_H_

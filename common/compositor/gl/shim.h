@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef SHIM_H_
-#define SHIM_H_
+#ifndef COMMON_COMPOSITOR_GL_SHIM_H_
+#define COMMON_COMPOSITOR_GL_SHIM_H_
 
 #define EGL_EGLEXT_PROTOTYPES
 
@@ -42,6 +42,6 @@ extern PFNGLBINDVERTEXARRAYOESPROC glBindVertexArrayOES;
 #ifndef USE_ANDROID_SHIM
 extern PFNEGLDUPNATIVEFENCEFDANDROIDPROC eglDupNativeFenceFDANDROID;
 #endif
-}
+}  // namespace hwcomposer
 
-#endif
+#endif  //  COMMON_COMPOSITOR_GL_SHIM_H_

@@ -14,13 +14,15 @@
 // limitations under the License.
 */
 
-#ifndef OVERLAY_LAYER_H_
-#define OVERLAY_LAYER_H_
+#ifndef COMMON_CORE_OVERLAYLAYER_H_
+#define COMMON_CORE_OVERLAYLAYER_H_
 
 #include <hwcdefs.h>
 #include <platformdefines.h>
 
 #include <nativefence.h>
+
+#include <memory>
 
 #include "overlaybuffer.h"
 
@@ -126,5 +128,5 @@ struct OverlayLayer {
   std::unique_ptr<OverlayBuffer> buffer_;
 };
 
-}  // namespace hardware
-#endif  // OVERLAY_LAYER_H_
+}  // namespace hwcomposer
+#endif  // COMMON_CORE_OVERLAYLAYER_H_

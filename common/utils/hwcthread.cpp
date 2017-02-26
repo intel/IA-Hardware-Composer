@@ -94,4 +94,5 @@ void HWCThread::ProcessThread() {
 void HWCThread::ConditionalSuspend() {
   suspended_ = true;
 }
-}
+
+}  // namespace hwcomposer

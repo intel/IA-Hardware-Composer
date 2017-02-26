@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef GBM_BUFFER_HANDLER_H_
-#define GBM_BUFFER_HANDLER_H_
+#ifndef OS_LINUX_GBMBUFFERHANDLER_H_
+#define OS_LINUX_GBMBUFFERHANDLER_H_
 
 #include <gbm.h>
 
@@ -27,7 +27,7 @@ class GpuDevice;
 
 class GbmBufferHandler : public NativeBufferHandler {
  public:
-  GbmBufferHandler(uint32_t fd);
+  explicit GbmBufferHandler(uint32_t fd);
   ~GbmBufferHandler() override;
 
   bool Init();
@@ -43,4 +43,4 @@ class GbmBufferHandler : public NativeBufferHandler {
 };
 
 }  // namespace hardware
-#endif  // GBM_BUFFER_HANDLER_H_
+#endif  // OS_LINUX_GBMBUFFERHANDLER_H_

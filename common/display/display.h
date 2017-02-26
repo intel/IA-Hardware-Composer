@@ -14,33 +14,35 @@
 // limitations under the License.
 */
 
-#ifndef DISPLAY_H_
-#define DISPLAY_H_
+#ifndef COMMON_DISPLAY_DISPLAY_H_
+#define COMMON_DISPLAY_DISPLAY_H_
 
-#include "platformdefines.h"
-
+#include <stdlib.h>
 #include <stdint.h>
 #include <xf86drmMode.h>
 
-#include <drmscopedtypes.h>
 #include <nativedisplay.h>
-#include <nativebufferhandler.h>
+#include <scopedfd.h>
+#include <drmscopedtypes.h>
 
+#include <memory>
+#include <vector>
+
+#include "platformdefines.h"
 #include "pageflipeventhandler.h"
-#include "scopedfd.h"
 
 namespace hwcomposer {
 class DisplayPlaneState;
 class DisplayPlaneManager;
 class DisplayQueue;
+class NativeBufferHandler;
 class GpuDevice;
 class NativeSync;
 struct HwcLayer;
 
 class Display : public NativeDisplay {
  public:
-  Display(uint32_t gpu_fd, NativeBufferHandler &handler, uint32_t pipe_id,
-          uint32_t crtc_id);
+  Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Display() override;
 
   bool Initialize() override;
@@ -88,7 +90,8 @@ class Display : public NativeDisplay {
   }
 
   bool Connect(const drmModeModeInfo &mode_info,
-               const drmModeConnector *connector) override;
+               const drmModeConnector *connector,
+               NativeBufferHandler *buffer_handler) override;
 
   bool IsConnected() const override {
     return is_connected_;
@@ -101,7 +104,7 @@ class Display : public NativeDisplay {
  private:
   void ShutDownPipe();
 
-  NativeBufferHandler &buffer_handler_;
+  NativeBufferHandler *buffer_handler_;
   uint32_t frame_;
   uint32_t crtc_id_;
   uint32_t pipe_;
@@ -119,4 +122,4 @@ class Display : public NativeDisplay {
 };
 
 }  // namespace hwcomposer
-#endif  // DISPLAY_H_
+#endif  // COMMON_DISPLAY_DISPLAY_H_

@@ -14,18 +14,19 @@
 // limitations under the License.
 */
 
-#ifndef DISPLAY_PLANE_MANAGER_H_
-#define DISPLAY_PLANE_MANAGER_H_
-
-#include <memory>
-#include <map>
-#include <vector>
+#ifndef COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
+#define COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
 #include <hwcbuffer.h>
 #include <scopedfd.h>
+
+#include <memory>
+#include <map>
+#include <vector>
+#include <tuple>
 
 #include "nativesync.h"
 
@@ -48,16 +49,17 @@ class DisplayPlaneManager {
   bool Initialize(NativeBufferHandler *buffer_handler, uint32_t width,
                   uint32_t height);
 
-  bool BeginFrameUpdate(std::vector<OverlayLayer> &layers);
+  bool BeginFrameUpdate(std::vector<OverlayLayer> *layers);
 
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
-      std::vector<OverlayLayer> &layers,
+      std::vector<OverlayLayer> *layers,
       const std::vector<OverlayLayer> &previous_layers,
       const DisplayPlaneStateList &previous_planes_state, bool pending_modeset);
 
-  bool CommitFrame(DisplayPlaneStateList &planes,
+  bool CommitFrame(const DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, uint32_t flags,
-                   std::unique_ptr<NativeSync> &sync_object, ScopedFd &fence);
+                   const std::unique_ptr<NativeSync> &sync_object,
+                   const ScopedFd &fence);
 
   void DisablePipe(drmModeAtomicReqPtr property_set);
 
@@ -66,11 +68,11 @@ class DisplayPlaneManager {
  protected:
   struct OverlayPlane {
    public:
-    OverlayPlane(DisplayPlane *plane, OverlayLayer *layer)
+    OverlayPlane(DisplayPlane *plane, const OverlayLayer *layer)
         : plane(plane), layer(layer) {
     }
     DisplayPlane *plane;
-    OverlayLayer *layer;
+    const OverlayLayer *layer;
   };
 
   virtual std::unique_ptr<DisplayPlane> CreatePlane(uint32_t plane_id,
@@ -82,12 +84,12 @@ class DisplayPlaneManager {
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
   void ValidateFinalLayers(DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> &layers);
+			   std::vector<OverlayLayer> *layers);
   void ValidateCachedLayers(
       const DisplayPlaneStateList &previous_composition_planes,
       const std::vector<OverlayLayer> &previous_layers,
-      std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
-      bool *render_layers);
+      const std::vector<OverlayLayer> *layers,
+      DisplayPlaneStateList *composition, bool *render_layers);
 
   NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
@@ -105,4 +107,4 @@ class DisplayPlaneManager {
 };
 
 }  // namespace hwcomposer
-#endif  // DISPLAY_PLANE_MANAGER_H_
+#endif  // COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_

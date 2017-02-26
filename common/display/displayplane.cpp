@@ -19,9 +19,9 @@
 #include <drm_fourcc.h>
 
 #include <gpudevice.h>
-#include <hwctrace.h>
 
-#include <overlaylayer.h>
+#include "hwctrace.h"
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 
@@ -169,10 +169,12 @@ bool DisplayPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                         layer->GetDisplayFrameHeight()) < 0;
   }
 
-  success |= drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id,
-                                      (int)(source_crop.left) << 16) < 0;
-  success |= drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id,
-                                      (int)(source_crop.top) << 16) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id,
+                               static_cast<int>(source_crop.left) << 16) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id,
+                               static_cast<int>(source_crop.top) << 16) < 0;
   if (type_ == DRM_PLANE_TYPE_CURSOR) {
     success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
                                         buffer->GetWidth() << 16) < 0;
