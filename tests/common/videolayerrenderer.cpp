@@ -46,153 +46,150 @@ bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   return true;
 }
 
-static int get_bpp_from_format(uint32_t format, size_t plane)
-{
-	//assert(plane < drv_num_planes_from_format(format));
-	switch (format) {
-	  case DRM_FORMAT_BGR233:
-	  case DRM_FORMAT_C8:
-	  case DRM_FORMAT_R8:
-	  case DRM_FORMAT_RGB332:
-	  case DRM_FORMAT_YVU420:
-		return 8;
-	  case DRM_FORMAT_NV12:
-		return (plane == 0) ? 8 : 16;
+static int get_bpp_from_format(uint32_t format, size_t plane) {
+  // assert(plane < drv_num_planes_from_format(format));
+  switch (format) {
+    case DRM_FORMAT_BGR233:
+    case DRM_FORMAT_C8:
+    case DRM_FORMAT_R8:
+    case DRM_FORMAT_RGB332:
+    case DRM_FORMAT_YVU420:
+      return 8;
+    case DRM_FORMAT_NV12:
+      return (plane == 0) ? 8 : 16;
 
-	  case DRM_FORMAT_ABGR1555:
-	  case DRM_FORMAT_ABGR4444:
-	  case DRM_FORMAT_ARGB1555:
-	  case DRM_FORMAT_ARGB4444:
-	  case DRM_FORMAT_BGR565:
-	  case DRM_FORMAT_BGRA4444:
-	  case DRM_FORMAT_BGRA5551:
-	  case DRM_FORMAT_BGRX4444:
-	  case DRM_FORMAT_BGRX5551:
-	  case DRM_FORMAT_GR88:
-	  case DRM_FORMAT_RG88:
-	  case DRM_FORMAT_RGB565:
-	  case DRM_FORMAT_RGBA4444:
-	  case DRM_FORMAT_RGBA5551:
-	  case DRM_FORMAT_RGBX4444:
-	  case DRM_FORMAT_RGBX5551:
-	  case DRM_FORMAT_UYVY:
-	  case DRM_FORMAT_VYUY:
-	  case DRM_FORMAT_XBGR1555:
-	  case DRM_FORMAT_XBGR4444:
-	  case DRM_FORMAT_XRGB1555:
-	  case DRM_FORMAT_XRGB4444:
-	  case DRM_FORMAT_YUYV:
-	  case DRM_FORMAT_YVYU:
-		return 16;
+    case DRM_FORMAT_ABGR1555:
+    case DRM_FORMAT_ABGR4444:
+    case DRM_FORMAT_ARGB1555:
+    case DRM_FORMAT_ARGB4444:
+    case DRM_FORMAT_BGR565:
+    case DRM_FORMAT_BGRA4444:
+    case DRM_FORMAT_BGRA5551:
+    case DRM_FORMAT_BGRX4444:
+    case DRM_FORMAT_BGRX5551:
+    case DRM_FORMAT_GR88:
+    case DRM_FORMAT_RG88:
+    case DRM_FORMAT_RGB565:
+    case DRM_FORMAT_RGBA4444:
+    case DRM_FORMAT_RGBA5551:
+    case DRM_FORMAT_RGBX4444:
+    case DRM_FORMAT_RGBX5551:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_XBGR1555:
+    case DRM_FORMAT_XBGR4444:
+    case DRM_FORMAT_XRGB1555:
+    case DRM_FORMAT_XRGB4444:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+      return 16;
 
-	  case DRM_FORMAT_BGR888:
-	  case DRM_FORMAT_RGB888:
-		return 24;
+    case DRM_FORMAT_BGR888:
+    case DRM_FORMAT_RGB888:
+      return 24;
 
-	  case DRM_FORMAT_ABGR2101010:
-	  case DRM_FORMAT_ABGR8888:
-	  case DRM_FORMAT_ARGB2101010:
-	  case DRM_FORMAT_ARGB8888:
-	  case DRM_FORMAT_AYUV:
-	  case DRM_FORMAT_BGRA1010102:
-	  case DRM_FORMAT_BGRA8888:
-	  case DRM_FORMAT_BGRX1010102:
-	  case DRM_FORMAT_BGRX8888:
-	  case DRM_FORMAT_RGBA1010102:
-	  case DRM_FORMAT_RGBA8888:
-	  case DRM_FORMAT_RGBX1010102:
-	  case DRM_FORMAT_RGBX8888:
-	  case DRM_FORMAT_XBGR2101010:
-	  case DRM_FORMAT_XBGR8888:
-	  case DRM_FORMAT_XRGB2101010:
-	  case DRM_FORMAT_XRGB8888:
-		return 32;
-	}
+    case DRM_FORMAT_ABGR2101010:
+    case DRM_FORMAT_ABGR8888:
+    case DRM_FORMAT_ARGB2101010:
+    case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_AYUV:
+    case DRM_FORMAT_BGRA1010102:
+    case DRM_FORMAT_BGRA8888:
+    case DRM_FORMAT_BGRX1010102:
+    case DRM_FORMAT_BGRX8888:
+    case DRM_FORMAT_RGBA1010102:
+    case DRM_FORMAT_RGBA8888:
+    case DRM_FORMAT_RGBX1010102:
+    case DRM_FORMAT_RGBX8888:
+    case DRM_FORMAT_XBGR2101010:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_XRGB2101010:
+    case DRM_FORMAT_XRGB8888:
+      return 32;
+  }
 
-	ETRACE("UNKNOWN FORMAT %d", format);
-	return 0;
+  ETRACE("UNKNOWN FORMAT %d", format);
+  return 0;
 }
 
-static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width, size_t plane)
-{
+static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width,
+                                          size_t plane) {
+  int stride = width * ((get_bpp_from_format(format, plane) + 7) / 8);
 
-   int stride = width * ((get_bpp_from_format(format, plane) + 7) / 8);
+  /*
+   * Only downsample for certain multiplanar formats which have horizontal
+   * subsampling for chroma planes.  Only formats supported by our drivers
+   * are listed here -- add more as needed.
+   */
+  if (plane != 0) {
+    switch (format) {
+      case DRM_FORMAT_NV12:
+      case DRM_FORMAT_YVU420:
+        stride = stride / 2;
+        break;
+    }
+  }
 
-	/*
-	 * Only downsample for certain multiplanar formats which have horizontal
-	 * subsampling for chroma planes.  Only formats supported by our drivers
-	 * are listed here -- add more as needed.
-	 */
-	if (plane != 0) {
-		switch (format) {
-		case DRM_FORMAT_NV12:
-		case DRM_FORMAT_YVU420:
-			stride = stride / 2;
-			break;
-		}
-	}
-
-	return stride;
-
+  return stride;
 }
 
-static uint32_t get_height_from_format(uint32_t format, uint32_t height, size_t plane)
-{
-	switch (format) {
-	  case DRM_FORMAT_BGR233:
-	  case DRM_FORMAT_C8:
-	  case DRM_FORMAT_R8:
-	  case DRM_FORMAT_RGB332:
-	  case DRM_FORMAT_ABGR1555:
-	  case DRM_FORMAT_ABGR4444:
-	  case DRM_FORMAT_ARGB1555:
-	  case DRM_FORMAT_ARGB4444:
-	  case DRM_FORMAT_BGR565:
-	  case DRM_FORMAT_BGRA4444:
-	  case DRM_FORMAT_BGRA5551:
-	  case DRM_FORMAT_BGRX4444:
-	  case DRM_FORMAT_BGRX5551:
-	  case DRM_FORMAT_GR88:
-	  case DRM_FORMAT_RG88:
-	  case DRM_FORMAT_RGB565:
-	  case DRM_FORMAT_RGBA4444:
-	  case DRM_FORMAT_RGBA5551:
-	  case DRM_FORMAT_RGBX4444:
-	  case DRM_FORMAT_RGBX5551:
-	  case DRM_FORMAT_XBGR1555:
-	  case DRM_FORMAT_XBGR4444:
-	  case DRM_FORMAT_XRGB1555:
-	  case DRM_FORMAT_XRGB4444:
-	  case DRM_FORMAT_BGR888:
-	  case DRM_FORMAT_RGB888:
-	  case DRM_FORMAT_ABGR2101010:
-	  case DRM_FORMAT_ABGR8888:
-	  case DRM_FORMAT_ARGB2101010:
-	  case DRM_FORMAT_ARGB8888:
-	  case DRM_FORMAT_AYUV:
-	  case DRM_FORMAT_BGRA1010102:
-	  case DRM_FORMAT_BGRA8888:
-	  case DRM_FORMAT_BGRX1010102:
-	  case DRM_FORMAT_BGRX8888:
-	  case DRM_FORMAT_RGBA1010102:
-	  case DRM_FORMAT_RGBA8888:
-	  case DRM_FORMAT_RGBX1010102:
-	  case DRM_FORMAT_RGBX8888:
-	  case DRM_FORMAT_XBGR2101010:
-	  case DRM_FORMAT_XBGR8888:
-	  case DRM_FORMAT_XRGB2101010:
-	  case DRM_FORMAT_XRGB8888:
-	  case DRM_FORMAT_UYVY:
-	  case DRM_FORMAT_VYUY:
-	  case DRM_FORMAT_YUYV:
-	  case DRM_FORMAT_YVYU:
-		return height;
-	  case DRM_FORMAT_YVU420:
-	  case DRM_FORMAT_NV12:
-		return (plane == 0) ? height : height/2;
-	}
-	ETRACE("UNKNOWN FORMAT %d", format);
-	return 0;
+static uint32_t get_height_from_format(uint32_t format, uint32_t height,
+                                       size_t plane) {
+  switch (format) {
+    case DRM_FORMAT_BGR233:
+    case DRM_FORMAT_C8:
+    case DRM_FORMAT_R8:
+    case DRM_FORMAT_RGB332:
+    case DRM_FORMAT_ABGR1555:
+    case DRM_FORMAT_ABGR4444:
+    case DRM_FORMAT_ARGB1555:
+    case DRM_FORMAT_ARGB4444:
+    case DRM_FORMAT_BGR565:
+    case DRM_FORMAT_BGRA4444:
+    case DRM_FORMAT_BGRA5551:
+    case DRM_FORMAT_BGRX4444:
+    case DRM_FORMAT_BGRX5551:
+    case DRM_FORMAT_GR88:
+    case DRM_FORMAT_RG88:
+    case DRM_FORMAT_RGB565:
+    case DRM_FORMAT_RGBA4444:
+    case DRM_FORMAT_RGBA5551:
+    case DRM_FORMAT_RGBX4444:
+    case DRM_FORMAT_RGBX5551:
+    case DRM_FORMAT_XBGR1555:
+    case DRM_FORMAT_XBGR4444:
+    case DRM_FORMAT_XRGB1555:
+    case DRM_FORMAT_XRGB4444:
+    case DRM_FORMAT_BGR888:
+    case DRM_FORMAT_RGB888:
+    case DRM_FORMAT_ABGR2101010:
+    case DRM_FORMAT_ABGR8888:
+    case DRM_FORMAT_ARGB2101010:
+    case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_AYUV:
+    case DRM_FORMAT_BGRA1010102:
+    case DRM_FORMAT_BGRA8888:
+    case DRM_FORMAT_BGRX1010102:
+    case DRM_FORMAT_BGRX8888:
+    case DRM_FORMAT_RGBA1010102:
+    case DRM_FORMAT_RGBA8888:
+    case DRM_FORMAT_RGBX1010102:
+    case DRM_FORMAT_RGBX8888:
+    case DRM_FORMAT_XBGR2101010:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_XRGB2101010:
+    case DRM_FORMAT_XRGB8888:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+      return height;
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_NV12:
+      return (plane == 0) ? height : height / 2;
+  }
+  ETRACE("UNKNOWN FORMAT %d", format);
+  return 0;
 }
 
 void VideoLayerRenderer::Draw(int64_t* pfence) {
