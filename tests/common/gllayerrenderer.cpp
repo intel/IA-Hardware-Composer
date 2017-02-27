@@ -81,6 +81,8 @@ void GLLayerRenderer::Draw(int64_t* pfence) {
 
   glDrawFrame();
 
+  int64_t gpu_fence_fd = -1;
+#ifndef DISABLE_EXPLICIT_SYNC
   EGLint attrib_list[] = {
       EGL_SYNC_NATIVE_FENCE_FD_ANDROID, EGL_NO_NATIVE_FENCE_FD_ANDROID,
       EGL_NONE,
@@ -89,9 +91,10 @@ void GLLayerRenderer::Draw(int64_t* pfence) {
       gl_->display, EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
   assert(gpu_fence);
 
-  int64_t gpu_fence_fd =
+  gpu_fence_fd =
       gl_->eglDupNativeFenceFDANDROID(gl_->display, gpu_fence);
   gl_->eglDestroySyncKHR(gl_->display, gpu_fence);
   assert(gpu_fence_fd != -1);
+#endif
   *pfence = gpu_fence_fd;
 }
