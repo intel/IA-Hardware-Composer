@@ -50,6 +50,7 @@ bool DisplayPlane::Property::Initialize(
 DisplayPlane::DisplayPlane(uint32_t plane_id, uint32_t possible_crtcs)
     : id_(plane_id),
       possible_crtc_mask_(possible_crtcs),
+      type_(0),
       last_valid_format_(0),
       enabled_(false) {
 }

@@ -76,8 +76,8 @@ class GpuDevice::DisplayManager : public HWCThread {
  private:
   void HotPlugEventHandler();
 #ifdef UDEV_SUPPORT
-  struct udev *udev_;
-  struct udev_monitor *monitor_;
+  struct udev *udev_ = NULL;
+  struct udev_monitor *monitor_ = NULL;
 #endif
   std::unique_ptr<NativeBufferHandler> buffer_handler_;
   std::unique_ptr<NativeDisplay> headless_;
@@ -85,9 +85,9 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::vector<std::unique_ptr<NativeDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
-  int fd_;
+  int fd_ = -1;
   ScopedFd hotplug_fd_;
-  uint32_t select_fd_;
+  uint32_t select_fd_ = 0;
   fd_set fd_set_;
   SpinLock spin_lock_;
 };
@@ -238,7 +238,8 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
   }
 
   udev_devnum = udev_device_get_devnum(dev);
-  fstat(fd_, &s);
+  if (fstat(fd_, &s))
+    return;
 
   hotplug = udev_device_get_property_value(dev, "HOTPLUG");
 
@@ -346,6 +347,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       continue;
 
     drmModeModeInfo mode;
+    memset(&mode, 0, sizeof(mode));
     bool found_prefered_mode = false;
     for (int32_t i = 0; i < connector->count_modes; ++i) {
       mode = connector->modes[i];

@@ -35,9 +35,10 @@ HWCThread::~HWCThread() {
 bool HWCThread::InitWorker() {
   if (initialized_)
     return true;
-
+  mutex_.lock();
   initialized_ = true;
   exit_ = false;
+  mutex_.unlock();
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
 
@@ -92,7 +93,9 @@ void HWCThread::ProcessThread() {
 }
 
 void HWCThread::ConditionalSuspend() {
+  mutex_.lock();
   suspended_ = true;
+  mutex_.unlock();
 }
 
 }  // namespace hwcomposer

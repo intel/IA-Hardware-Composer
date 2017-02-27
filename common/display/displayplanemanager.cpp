@@ -34,7 +34,13 @@ namespace hwcomposer {
 
 DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t pipe_id,
                                          uint32_t crtc_id)
-    : crtc_id_(crtc_id), pipe_(pipe_id), gpu_fd_(gpu_fd) {
+    : buffer_handler_(NULL),
+      width_(0),
+      height_(0),
+      crtc_id_(crtc_id),
+      pipe_(pipe_id),
+      gpu_fd_(gpu_fd),
+      use_cache_(false) {
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
@@ -157,7 +163,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   // When overlay support is disabled, client should take care of blending
   // all layers together and giving us the final output. If thats not
   // the case lets handle it here.
-  force_gpu = layers.size() > 1;
+  force_gpu = layers->size() > 1;
 #endif
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_plane_.get();

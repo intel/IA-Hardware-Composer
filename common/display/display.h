@@ -114,9 +114,9 @@ class Display : public NativeDisplay {
   int32_t dpix_;
   int32_t dpiy_;
   uint32_t gpu_fd_;
+  float refresh_;
   bool is_connected_;
   bool is_powered_off_;
-  float refresh_;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;
 };

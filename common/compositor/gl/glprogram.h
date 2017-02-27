@@ -38,7 +38,7 @@ class GLProgram {
                   GLuint viewport_height);
 
  private:
-  GLint program_ = 0;
+  GLint program_;
   GLint viewport_loc_;
   GLint crop_loc_;
   GLint alpha_loc_;

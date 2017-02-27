@@ -31,10 +31,17 @@ namespace hwcomposer {
 static const int32_t kUmPerInch = 25400;
 
 Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
-    : crtc_id_(crtc_id),
+    : buffer_handler_(NULL),
+      frame_(0),
+      crtc_id_(crtc_id),
       pipe_(pipe_id),
       connector_(0),
+      width_(0),
+      height_(0),
+      dpix_(0),
+      dpiy_(0),
       gpu_fd_(gpu_fd),
+      refresh_(0.0),
       is_connected_(false),
       is_powered_off_(true) {
 }

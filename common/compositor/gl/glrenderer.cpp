@@ -107,10 +107,11 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   return true;
 }
 
-void GLRenderer::InsertFence(int kms_fence) {
+void GLRenderer::InsertFence(uint64_t kms_fence) {
 #ifndef DISABLE_EXPLICIT_SYNC
   EGLint attrib_list[] = {
-      EGL_SYNC_NATIVE_FENCE_FD_ANDROID, kms_fence, EGL_NONE,
+      EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
+      EGL_NONE,
   };
   EGLSyncKHR fence = eglCreateSyncKHR(
       context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);

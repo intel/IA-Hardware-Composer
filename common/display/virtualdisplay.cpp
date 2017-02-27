@@ -30,7 +30,13 @@ namespace hwcomposer {
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
                                uint32_t pipe_id, uint32_t crtc_id)
-    : Headless(gpu_fd, pipe_id, crtc_id), buffer_handler_(buffer_handler) {
+    : Headless(gpu_fd, pipe_id, crtc_id),
+      output_handle_(0),
+      acquire_fence_(-1),
+      buffer_handler_(buffer_handler),
+      gpu_fd_(0),
+      width_(0),
+      height_(0) {
 }
 
 VirtualDisplay::~VirtualDisplay() {

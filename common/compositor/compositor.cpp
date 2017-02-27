@@ -139,7 +139,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::InsertFence(int fence) {
+void Compositor::InsertFence(uint64_t fence) {
   renderer_->InsertFence(fence);
 }
 

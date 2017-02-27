@@ -50,7 +50,7 @@ class Compositor {
                      NativeBufferHandler *buffer_handler, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t *retire_fence);
-  void InsertFence(int fence);
+  void InsertFence(uint64_t fence);
 
  private:
   bool Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,

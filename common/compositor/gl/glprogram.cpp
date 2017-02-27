@@ -179,7 +179,14 @@ static GLint GenerateProgram(unsigned num_textures,
   return program;
 }
 
-GLProgram::GLProgram() : initialized_(false) {
+GLProgram::GLProgram()
+    : program_(0),
+      viewport_loc_(0),
+      crop_loc_(0),
+      alpha_loc_(0),
+      premult_loc_(0),
+      tex_matrix_loc_(0),
+      initialized_(false) {
 }
 
 GLProgram::~GLProgram() {

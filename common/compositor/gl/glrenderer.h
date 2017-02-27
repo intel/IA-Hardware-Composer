@@ -36,7 +36,7 @@ class GLRenderer : public Renderer {
   bool Draw(const std::vector<RenderState> &commands,
             NativeSurface *surface) override;
 
-  void InsertFence(int kms_fence) override;
+  void InsertFence(uint64_t kms_fence) override;
 
  private:
   GLProgram *GetProgram(unsigned texture_count);

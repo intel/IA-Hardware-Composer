@@ -31,7 +31,14 @@ namespace hwcomposer {
 
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
     : HWCThread(-8, "DisplayQueue"),
+      frame_(0),
+      dpms_prop_(0),
+      out_fence_ptr_prop_(0),
+      active_prop_(0),
+      mode_id_prop_(0),
       crtc_id_(crtc_id),
+      connector_(0),
+      crtc_prop_(0),
       blob_id_(0),
       old_blob_id_(0),
       gpu_fd_(gpu_fd) {
@@ -43,6 +50,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
 #ifndef DISABLE_EXPLICIT_SYNC
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
 #endif
+  memset(&mode_, 0, sizeof(mode_));
 }
 
 DisplayQueue::~DisplayQueue() {
@@ -113,7 +121,7 @@ bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
     }
   }
 #else
-  *out_fence = -1;
+  *out_fence = 0;
 #endif
 
   return true;

@@ -93,10 +93,13 @@ int NativeSync::IncreaseTimelineToPoint(int point) {
 
 int NativeSync::sw_sync_fence_create(int fd, const char *name, unsigned value) {
   struct sw_sync_create_fence_data data;
+  memset(&data, 0, sizeof(data));
   int err;
 
   data.value = value;
-  strncpy(data.name, name, sizeof(data.name));
+  size_t srclen = strlen(name);
+  strncpy(data.name, name, srclen);
+  data.name[srclen] = '\0';
   data.fence = 0;
 
   err = ioctl(fd, SW_SYNC_IOC_CREATE_FENCE, &data);

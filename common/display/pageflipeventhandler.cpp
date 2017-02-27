@@ -30,7 +30,13 @@ namespace hwcomposer {
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
 PageFlipEventHandler::PageFlipEventHandler()
-    : HWCThread(-8, "PageFlipEventHandler") {
+    : HWCThread(-8, "PageFlipEventHandler"),
+      display_(0),
+      enabled_(false),
+      refresh_(0.0),
+      fd_(-1),
+      pipe_(-1),
+      last_timestamp_(-1) {
 }
 
 PageFlipEventHandler::~PageFlipEventHandler() {
