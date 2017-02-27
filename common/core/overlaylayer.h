@@ -40,7 +40,7 @@ struct OverlayLayer {
   }
 
   void ReleaseAcquireFence() {
-    acquire_fence_.Release();
+    acquire_fence_.Reset(-1);
   }
 
   void SetIndex(uint32_t index);
