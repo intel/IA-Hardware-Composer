@@ -42,6 +42,16 @@ enum DrmCompositionType {
   DRM_COMPOSITION_TYPE_MODESET,
 };
 
+struct DrmCompositionDisplayLayersMap {
+  int display;
+  bool geometry_changed = true;
+  std::vector<DrmHwcLayer> layers;
+
+  DrmCompositionDisplayLayersMap() = default;
+  DrmCompositionDisplayLayersMap(DrmCompositionDisplayLayersMap &&rhs) =
+      default;
+};
+
 struct DrmCompositionRegion {
   DrmHwcRect<int> frame;
   std::vector<size_t> source_layers;

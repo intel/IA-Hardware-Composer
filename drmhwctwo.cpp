@@ -559,7 +559,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   AddFenceToRetireFence(composition->take_out_fence());
 
-  ret = compositor_.QueueComposition(std::move(composition));
+  ret = compositor_.ApplyComposition(std::move(composition));
   if (ret) {
     ALOGE("Failed to apply the frame composition ret=%d", ret);
     return HWC2::Error::BadParameter;
@@ -588,7 +588,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
       compositor_.CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   int ret = composition->SetDisplayMode(*mode);
-  ret = compositor_.QueueComposition(std::move(composition));
+  ret = compositor_.ApplyComposition(std::move(composition));
   if (ret) {
     ALOGE("Failed to queue dpms composition on %d", ret);
     return HWC2::Error::BadConfig;
@@ -668,7 +668,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
       compositor_.CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   composition->SetDpmsMode(dpms_value);
-  int ret = compositor_.QueueComposition(std::move(composition));
+  int ret = compositor_.ApplyComposition(std::move(composition));
   if (ret) {
     ALOGE("Failed to apply the dpms composition ret=%d", ret);
     return HWC2::Error::BadParameter;

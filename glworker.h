@@ -64,6 +64,16 @@ class GLWorkerCompositor {
     bool Promote();
   };
 
+  struct {
+    EGLDisplay saved_egl_display = EGL_NO_DISPLAY;
+    EGLContext saved_egl_ctx = EGL_NO_CONTEXT;
+    EGLSurface saved_egl_read = EGL_NO_SURFACE;
+    EGLSurface saved_egl_draw = EGL_NO_SURFACE;
+  } private_;
+
+  int BeginContext();
+  int EndContext();
+
   CachedFramebuffer *FindCachedFramebuffer(
       const sp<GraphicBuffer> &framebuffer);
   CachedFramebuffer *PrepareAndCacheFramebuffer(

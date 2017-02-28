@@ -18,14 +18,12 @@
 #define ANDROID_DRM_DISPLAY_COMPOSITOR_H_
 
 #include "drmhwcomposer.h"
-#include "drmcomposition.h"
-#include "drmcompositorworker.h"
+#include "drmdisplaycomposition.h"
 #include "drmframebuffer.h"
 #include "separate_rects.h"
 
 #include <pthread.h>
 #include <memory>
-#include <queue>
 #include <sstream>
 #include <tuple>
 
@@ -89,42 +87,18 @@ class DrmDisplayCompositor {
   int Init(DrmResources *drm, int display);
 
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
-  int QueueComposition(std::unique_ptr<DrmDisplayComposition> composition);
+  int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
   int Composite();
   int SquashAll();
   void Dump(std::ostringstream *out) const;
 
   std::tuple<uint32_t, uint32_t, int> GetActiveModeResolution();
 
-  bool HaveQueuedComposites() const;
-
   SquashState *squash_state() {
     return &squash_state_;
   }
 
  private:
-  struct FrameState {
-    std::unique_ptr<DrmDisplayComposition> composition;
-    int status = 0;
-  };
-
-  class FrameWorker : public Worker {
-   public:
-    FrameWorker(DrmDisplayCompositor *compositor);
-    ~FrameWorker() override;
-
-    int Init();
-    void QueueFrame(std::unique_ptr<DrmDisplayComposition> composition,
-                    int status);
-
-   protected:
-    void Routine() override;
-
-   private:
-    DrmDisplayCompositor *compositor_;
-    std::queue<FrameState> frame_queue_;
-  };
-
   struct ModeState {
     bool needs_modeset = false;
     DrmMode mode;
@@ -158,10 +132,6 @@ class DrmDisplayCompositor {
   DrmResources *drm_;
   int display_;
 
-  DrmCompositorWorker worker_;
-  FrameWorker frame_worker_;
-
-  std::queue<std::unique_ptr<DrmDisplayComposition>> composite_queue_;
   std::unique_ptr<DrmDisplayComposition> active_composition_;
 
   bool initialized_;
@@ -178,7 +148,7 @@ class DrmDisplayCompositor {
   int squash_framebuffer_index_;
   DrmFramebuffer squash_framebuffers_[2];
 
-  // mutable since we need to acquire in HaveQueuedComposites
+  // mutable since we need to acquire in Dump()
   mutable pthread_mutex_t lock_;
 
   // State tracking progress since our last Dump(). These are mutable since

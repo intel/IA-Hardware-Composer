@@ -143,6 +143,38 @@ static bool HasExtension(const char *extension, const char *extensions) {
   return false;
 }
 
+int GLWorkerCompositor::BeginContext() {
+  private_.saved_egl_display = eglGetCurrentDisplay();
+  private_.saved_egl_ctx = eglGetCurrentContext();
+
+  if (private_.saved_egl_display != egl_display_ ||
+      private_.saved_egl_ctx != egl_ctx_) {
+    private_.saved_egl_read = eglGetCurrentSurface(EGL_READ);
+    private_.saved_egl_draw = eglGetCurrentSurface(EGL_DRAW);
+  } else {
+    return 0;
+  }
+
+  if (!eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_ctx_)) {
+    ALOGE("BeginContext failed: %s", GetEGLError());
+    return 1;
+  }
+  return 0;
+}
+
+int GLWorkerCompositor::EndContext() {
+  if (private_.saved_egl_display != eglGetCurrentDisplay() ||
+      private_.saved_egl_ctx != eglGetCurrentContext()) {
+    if (!eglMakeCurrent(private_.saved_egl_display, private_.saved_egl_read,
+                        private_.saved_egl_draw, private_.saved_egl_ctx)) {
+      ALOGE("EndContext failed: %s", GetEGLError());
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 static AutoGLShader CompileAndCheckShader(GLenum type, unsigned source_count,
                                           const GLchar **sources,
                                           std::ostringstream *shader_log) {
@@ -508,10 +540,9 @@ int GLWorkerCompositor::Init() {
     return 1;
   }
 
-  if (!eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_ctx_)) {
-    ALOGE("Failed to make the OpenGL ES Context current: %s", GetEGLError());
-    return 1;
-  }
+  ret = BeginContext();
+  if (ret)
+    return ret;
 
   gl_extensions = (const char *)glGetString(GL_EXTENSIONS);
 
@@ -530,6 +561,9 @@ int GLWorkerCompositor::Init() {
 
   std::ostringstream shader_log;
   blend_programs_.emplace_back(GenerateProgram(1, &shader_log));
+
+  EndContext();
+
   if (blend_programs_.back().get() == 0) {
     ALOGE("%s", shader_log.str().c_str());
     return 1;
@@ -558,12 +592,17 @@ int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
     return -EALREADY;
   }
 
+  ret = BeginContext();
+  if (ret)
+    return -1;
+
   GLint frame_width = framebuffer->getWidth();
   GLint frame_height = framebuffer->getHeight();
   CachedFramebuffer *cached_framebuffer =
       PrepareAndCacheFramebuffer(framebuffer);
   if (cached_framebuffer == NULL) {
     ALOGE("Composite failed because of failed framebuffer");
+    EndContext();
     return -EINVAL;
   }
 
@@ -597,8 +636,10 @@ int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
     }
   }
 
-  if (ret)
+  if (ret) {
+    EndContext();
     return ret;
+  }
 
   glViewport(0, 0, frame_width, frame_height);
 
@@ -676,6 +717,7 @@ int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+  EndContext();
   return ret;
 }
 
