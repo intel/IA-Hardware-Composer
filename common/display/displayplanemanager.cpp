@@ -279,10 +279,9 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   return std::make_tuple(render_layers, std::move(composition));
 }
 
-bool DisplayPlaneManager::CommitFrame(
-    const DisplayPlaneStateList &comp_planes, drmModeAtomicReqPtr pset,
-    uint32_t flags, const std::unique_ptr<NativeSync> &sync_object,
-    const ScopedFd &fence) {
+bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
+                                      drmModeAtomicReqPtr pset,
+                                      uint32_t flags) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -313,23 +312,12 @@ bool DisplayPlaneManager::CommitFrame(
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
   if (ret) {
     if (ret == -EBUSY) {
-#ifndef DISABLE_EXPLICIT_SYNC
-      if (fence.get() > 0) {
-        if (!sync_object->Wait(fence.get())) {
-          ETRACE("Failed to wait for fence ret=%s\n", PRINTERROR());
-          return false;
-        }
-      }
-
-      ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
-#else
       /* FIXME - In case of EBUSY, we spin until succeed. What we
        * probably should do is to queue commits and process them later.
        */
       ret = -EBUSY;
       while (ret == -EBUSY)
         ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
-#endif
     }
   }
 
