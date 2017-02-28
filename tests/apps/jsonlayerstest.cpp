@@ -48,6 +48,7 @@
 
 #include <gpudevice.h>
 #include <hwclayer.h>
+#include <hwcdefs.h>
 #include <nativedisplay.h>
 #include <platformdefines.h>
 #include <nativefence.h>
@@ -162,6 +163,18 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->Present(layers);
   }
 
+  void SetPowerMode(uint32_t power_mode) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    if (connected_displays_.empty())
+      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_)
+      display->SetPowerMode(power_mode);
+  }
+
  private:
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
   hwcomposer::GpuDevice *device_;
@@ -185,6 +198,7 @@ static int init_gbm(int fd) {
 }
 
 char json_path[1024];
+char powermode[15];
 
 static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
   uint32_t iformat = (uint32_t)format;
@@ -377,7 +391,7 @@ static void init_frames(int32_t width, int32_t height) {
 static void print_help(void) {
   printf(
       "usage: testjsonlayers [-h|--help] [-f|--frames <frames>] [-j|--json "
-      "<jsonfile>]\n");
+      "<jsonfile>] [-p|--powermode <on/off/doze/dozesuspend>]\n");
 }
 
 static void parse_args(int argc, char *argv[]) {
@@ -385,6 +399,7 @@ static void parse_args(int argc, char *argv[]) {
       {"help", no_argument, NULL, 'h'},
       {"frames", required_argument, NULL, 'f'},
       {"json", required_argument, NULL, 'j'},
+      {"powermode", required_argument, NULL, 'p'},
       {0},
   };
 
@@ -395,7 +410,7 @@ static void parse_args(int argc, char *argv[]) {
   /* Suppress getopt's poor error messages */
   opterr = 0;
 
-  while ((opt = getopt_long(argc, argv, "+:hf:j:", longopts,
+  while ((opt = getopt_long(argc, argv, "+:hf:j:p:", longopts,
                             /*longindex*/ &longindex)) != -1) {
     switch (opt) {
       case 'h':
@@ -417,6 +432,14 @@ static void parse_args(int argc, char *argv[]) {
           fprintf(stderr, "usage error: invalid value for <frames>\n");
           exit(EXIT_FAILURE);
         }
+        break;
+      case 'p':
+        if (strlen(optarg) >= 15) {
+          fprintf(stderr, "usage error: invalid value for <powermode>\n");
+          exit(0);
+        }
+        printf("optarg:%s\n", optarg);
+        strcpy(powermode, optarg);
         break;
       case ':':
         fprintf(stderr, "usage error: %s requires an argument\n",
@@ -441,6 +464,7 @@ static void parse_args(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   struct drm_fb *fb;
   int ret, fd, primary_width, primary_height;
+  bool power_mode_changed = false;
   hwcomposer::GpuDevice device;
   device.Initialize();
   auto callback = std::make_shared<HotPlugEventCallback>(&device);
@@ -490,6 +514,40 @@ int main(int argc, char *argv[]) {
     }
 
     callback->PresentLayers(layers);
+
+    if (!strcmp(powermode, "on")) {
+      if (!power_mode_changed) {
+        usleep(30000);
+        callback->SetPowerMode(hwcomposer::kOff);
+        sleep(1);
+        callback->SetPowerMode(hwcomposer::kOn);
+        power_mode_changed = true;
+      }
+    } else if (!strcmp(powermode, "off")) {
+      if (!power_mode_changed) {
+        usleep(30000);
+        callback->SetPowerMode(hwcomposer::kOff);
+        sleep(1);
+        callback->SetPowerMode(hwcomposer::kOn);
+        power_mode_changed = true;
+      }
+    } else if (!strcmp(powermode, "doze")) {
+      if (!power_mode_changed) {
+        usleep(30000);
+        callback->SetPowerMode(hwcomposer::kDoze);
+        sleep(1);
+        callback->SetPowerMode(hwcomposer::kOn);
+        power_mode_changed = true;
+      }
+    } else if (!strcmp(powermode, "dozesuspend")) {
+      if (!power_mode_changed) {
+        usleep(30000);
+        callback->SetPowerMode(hwcomposer::kDozeSuspend);
+        sleep(1);
+        callback->SetPowerMode(hwcomposer::kOn);
+        power_mode_changed = true;
+      }
+    }
   }
 
   close(fd);
