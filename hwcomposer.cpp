@@ -33,7 +33,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <xf86drm.h>

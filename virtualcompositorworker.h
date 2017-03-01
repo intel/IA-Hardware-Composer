@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2015-2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,17 @@
 #define ANDROID_VIRTUAL_COMPOSITOR_WORKER_H_
 
 #include "drmhwcomposer.h"
-#include "worker.h"
-
-#include <queue>
+#include "queue_worker.h"
 
 namespace android {
 
-class VirtualCompositorWorker : public Worker {
+struct VirtualComposition {
+  UniqueFd outbuf_acquire_fence;
+  std::vector<UniqueFd> layer_acquire_fences;
+  int release_timeline;
+};
+
+class VirtualCompositorWorker : public QueueWorker<VirtualComposition> {
  public:
   VirtualCompositorWorker();
   ~VirtualCompositorWorker() override;
@@ -33,20 +37,12 @@ class VirtualCompositorWorker : public Worker {
   void QueueComposite(hwc_display_contents_1_t *dc);
 
  protected:
-  void Routine() override;
+  void ProcessWork(std::unique_ptr<VirtualComposition> composition);
 
  private:
-  struct VirtualComposition {
-    UniqueFd outbuf_acquire_fence;
-    std::vector<UniqueFd> layer_acquire_fences;
-    int release_timeline;
-  };
-
   int CreateNextTimelineFence();
   int FinishComposition(int timeline);
-  void Compose(std::unique_ptr<VirtualComposition> composition);
 
-  std::queue<std::unique_ptr<VirtualComposition>> composite_queue_;
   int timeline_fd_;
   int timeline_;
   int timeline_current_;

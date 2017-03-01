@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2015-2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,8 @@
 #define LOG_TAG "hwc-virtual-compositor-worker"
 
 #include "virtualcompositorworker.h"
-#include "worker.h"
-
-#include <errno.h>
-#include <stdlib.h>
 
 #include <cutils/log.h>
-#include <hardware/hardware.h>
-#include <hardware/hwcomposer.h>
-#include <sched.h>
 #include <sw_sync.h>
 #include <sync/sync.h>
 
@@ -35,7 +28,7 @@ static const int kMaxQueueDepth = 3;
 static const int kAcquireWaitTimeoutMs = 3000;
 
 VirtualCompositorWorker::VirtualCompositorWorker()
-    : Worker("virtual-compositor", HAL_PRIORITY_URGENT_DISPLAY),
+    : QueueWorker("virtual-compositor", HAL_PRIORITY_URGENT_DISPLAY),
       timeline_fd_(-1),
       timeline_(0),
       timeline_current_(0) {
@@ -56,6 +49,8 @@ int VirtualCompositorWorker::Init() {
     return ret;
   }
   timeline_fd_ = ret;
+
+  set_max_queue_size(kMaxQueueDepth);
   return InitWorker();
 }
 
@@ -81,41 +76,7 @@ void VirtualCompositorWorker::QueueComposite(hwc_display_contents_1_t *dc) {
 
   composition->release_timeline = timeline_;
 
-  Lock();
-  while (composite_queue_.size() >= kMaxQueueDepth) {
-    Unlock();
-    sched_yield();
-    Lock();
-  }
-
-  composite_queue_.push(std::move(composition));
-  Unlock();
-  Signal();
-}
-
-void VirtualCompositorWorker::Routine() {
-  int wait_ret = 0;
-
-  Lock();
-  if (composite_queue_.empty()) {
-    wait_ret = WaitForSignalOrExitLocked();
-  }
-
-  std::unique_ptr<VirtualComposition> composition;
-  if (!composite_queue_.empty()) {
-    composition = std::move(composite_queue_.front());
-    composite_queue_.pop();
-  }
-  Unlock();
-
-  if (wait_ret == -EINTR) {
-    return;
-  } else if (wait_ret) {
-    ALOGE("Failed to wait for signal, %d", wait_ret);
-    return;
-  }
-
-  Compose(std::move(composition));
+  QueueWork(std::move(composition));
 }
 
 int VirtualCompositorWorker::CreateNextTimelineFence() {
@@ -135,7 +96,7 @@ int VirtualCompositorWorker::FinishComposition(int point) {
   return ret;
 }
 
-void VirtualCompositorWorker::Compose(
+void VirtualCompositorWorker::ProcessWork(
     std::unique_ptr<VirtualComposition> composition) {
   if (!composition.get())
     return;

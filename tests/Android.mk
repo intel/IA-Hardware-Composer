@@ -3,6 +3,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
+	queue_worker_test.cpp \
 	worker_test.cpp
 
 LOCAL_MODULE := hwc-drm-tests
