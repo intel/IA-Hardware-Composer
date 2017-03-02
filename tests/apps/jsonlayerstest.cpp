@@ -105,6 +105,8 @@ bool init_gl() {
   get_proc(eglWaitSyncKHR, PFNEGLWAITSYNCKHRPROC);
   get_proc(eglClientWaitSyncKHR, PFNEGLCLIENTWAITSYNCKHRPROC);
   get_proc(eglDupNativeFenceFDANDROID, PFNEGLDUPNATIVEFENCEFDANDROIDPROC);
+  get_proc(glEGLImageTargetTexture2DOES, PFNGLEGLIMAGETARGETTEXTURE2DOESPROC);
+  get_proc(eglDestroyImageKHR, PFNEGLDESTROYIMAGEKHRPROC);
 
   printf("Using display %p with EGL version %d.%d\n", gl.display, major, minor);
 
@@ -335,7 +337,6 @@ static void init_frames(int32_t width, int32_t height) {
 
   for (int i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
-
     for (int j = 0; j < layer_parameters.size(); ++j) {
       LAYER_PARAMETER layer_parameter = layer_parameters[j];
       LayerRenderer *renderer = NULL;
@@ -345,13 +346,16 @@ static void init_frames(int32_t width, int32_t height) {
       switch (layer_parameter.type) {
         // todo: more GL layer categories intead of only one CubeLayer
         case LAYER_TYPE_GL:
-          renderer = new GLCubeLayerRenderer(gbm.dev);
+          renderer = new GLCubeLayerRenderer(gbm.dev, false);
           break;
         case LAYER_TYPE_VIDEO:
           renderer = new VideoLayerRenderer(gbm.dev);
           break;
         case LAYER_TYPE_IMAGE:
           renderer = new ImageLayerRenderer(gbm.dev);
+          break;
+        case LAYER_TYPE_GL_TEXTURE:
+          renderer = new GLCubeLayerRenderer(gbm.dev, true);
           break;
         default:
           printf("un-recognized layer type!\n");
