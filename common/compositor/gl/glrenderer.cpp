@@ -130,7 +130,6 @@ GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
   }
 
   std::unique_ptr<GLProgram> program(new GLProgram());
-  program->Init(texture_count);
   if (program->Init(texture_count)) {
     if (programs_.size() < texture_count)
       programs_.resize(texture_count);
