@@ -33,9 +33,11 @@ class GLLayerRenderer : public LayerRenderer {
   virtual void glDrawFrame() = 0;
 
  protected:
+  bool Init_GL(glContext* gl);
   GLuint gl_renderbuffer_;
   GLuint gl_framebuffer_;
   EGLImageKHR egl_image_;
+  glContext* gl_ = NULL;
 };
 
 #endif

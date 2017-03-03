@@ -18,13 +18,11 @@
 
 LayerRenderer::LayerRenderer(struct gbm_device* dev) {
   gbm_dev_ = dev;
-  gl_ = NULL;
 }
 
 LayerRenderer::~LayerRenderer() {
   if (gbm_bo_)
     gbm_bo_destroy(gbm_bo_);
-
   gbm_bo_ = NULL;
 }
 
@@ -55,7 +53,5 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   native_handle_.import_data.format = gbm_bo_get_format(gbm_bo_);
   format_ = format;
 
-  if (gl)
-    gl_ = gl;
   return true;
 }

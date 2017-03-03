@@ -24,6 +24,43 @@ GLLayerRenderer::GLLayerRenderer(struct gbm_device* dev) : LayerRenderer(dev) {
 }
 
 GLLayerRenderer::~GLLayerRenderer() {
+  if (gl_)
+    delete gl_;
+  gl_ = NULL;
+}
+
+bool GLLayerRenderer::Init_GL(glContext* gl) {
+  EGLint n;
+  static const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
+                                           EGL_NONE};
+
+  static const EGLint config_attribs[] = {EGL_SURFACE_TYPE, EGL_DONT_CARE,
+                                          EGL_NONE};
+
+  gl_ = new glContext;
+  gl_->display = gl->display;
+  gl_->glEGLImageTargetRenderbufferStorageOES =
+      gl->glEGLImageTargetRenderbufferStorageOES;
+  gl_->eglCreateImageKHR = gl->eglCreateImageKHR;
+  gl_->eglCreateSyncKHR = gl->eglCreateSyncKHR;
+  gl_->eglDestroySyncKHR = gl->eglDestroySyncKHR;
+  gl_->eglWaitSyncKHR = gl->eglWaitSyncKHR;
+  gl_->eglClientWaitSyncKHR = gl->eglClientWaitSyncKHR;
+  gl_->eglDupNativeFenceFDANDROID = gl->eglDupNativeFenceFDANDROID;
+
+  if (!eglChooseConfig(gl_->display, config_attribs, &gl_->config, 1, &n) ||
+      n != 1) {
+    printf("failed to choose config: %d\n", n);
+    return false;
+  }
+  gl_->context = eglCreateContext(gl_->display, gl_->config, EGL_NO_CONTEXT,
+                                  context_attribs);
+
+  if (gl_->context == NULL) {
+    printf("failed to create context\n");
+    return false;
+  }
+  return true;
 }
 
 bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
@@ -32,6 +69,10 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     return false;
   if (!LayerRenderer::Init(width, height, format, gl))
     return false;
+
+  if (!Init_GL(gl)) {
+    ETRACE("Failed to create gl context for layer renderer");
+  }
 
   eglMakeCurrent(gl_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, gl_->context);
 
