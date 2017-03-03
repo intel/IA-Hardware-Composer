@@ -66,6 +66,7 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   glBindFramebuffer(GL_FRAMEBUFFER, gl_framebuffer_);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                             GL_RENDERBUFFER, gl_renderbuffer_);
+
   if (glGetError() != GL_NO_ERROR) {
     printf("failed to create GL framebuffer\n");
     return false;

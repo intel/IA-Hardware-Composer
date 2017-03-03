@@ -21,7 +21,7 @@
   }
 },
 {
-  "type":0,
+  "type":3,
   "format":25,
   "transform":0,
   "resourcePath":"",
@@ -36,14 +36,14 @@
     }
   },
   "frame": {
-    "x":450,
-    "y":450,
-    "width":950,
-    "height":950
+    "x":300,
+    "y":100,
+    "width":900,
+    "height":700
   }
 },
 {
-  "type":0,
+  "type":3,
   "format":25,
   "transform":0,
   "resourcePath":"",
