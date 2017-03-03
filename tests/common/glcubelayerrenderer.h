@@ -19,21 +19,30 @@
 
 #include "gllayerrenderer.h"
 
-class GLCubeLayerRenderer : public GLLayerRenderer {
- public:
-  GLCubeLayerRenderer(struct gbm_device* gbm_dev);
-  ~GLCubeLayerRenderer() override;
+class StreamTextureImpl;
 
-  bool Init(uint32_t width, uint32_t height, uint32_t format,
-            glContext* gl = NULL, const char* resource_path = NULL) override;
-  void glDrawFrame() override;
+class GLCubeLayerRenderer:public GLLayerRenderer
+{
+public:
+  GLCubeLayerRenderer (struct gbm_device *gbm_dev, bool enable_texture);
+   ~GLCubeLayerRenderer () override;
 
- private:
-  GLuint program_;
+  bool Init (uint32_t width, uint32_t height, uint32_t format,
+	     glContext * gl = NULL, const char *resource_path =
+	     NULL) override;
+  void glDrawFrame () override;
+  void UpdateStreamTexture (unsigned long usec);
+
+private:
+    GLuint program_;
   GLint modelviewmatrix_, modelviewprojectionmatrix_, normalmatrix_;
   GLuint vbo_;
-  GLuint positionsoffset_, colorsoffset_, normalsoffset_;
+  GLuint positionsoffset_, colorsoffset_, normalsoffset_, texcoordoffset_;
   uint32_t frame_count_ = 0;
+  StreamTextureImpl *stream_texture_;
+  static const size_t s_length = 512;
+  float last_progress_ = 0.f;
+  bool even_turn_ = true;
+  bool enable_texture_ = false;
 };
-
 #endif
