@@ -49,8 +49,6 @@ class DisplayQueue : public HWCThread {
                   uint32_t connector, const drmModeModeInfo& mode_info,
                   NativeBufferHandler* buffer_handler);
 
-  void Exit();
-
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
   bool SetPowerMode(uint32_t power_mode);
 

@@ -44,10 +44,6 @@ class ScopedSpinLock {
   }
 
   ~ScopedSpinLock() {
-    Reset();
-  }
-
-  void Reset() {
     if (locked_) {
       lock_.unlock();
       locked_ = false;

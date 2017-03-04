@@ -57,11 +57,13 @@ void HWCThread::Resume() {
 }
 
 void HWCThread::Exit() {
+  IHOTPLUGEVENTTRACE("HWCThread::Exit recieved.");
   if (!initialized_)
     return;
 
   mutex_.lock();
   initialized_ = false;
+  suspended_ = false;
   exit_ = true;
   mutex_.unlock();
 
