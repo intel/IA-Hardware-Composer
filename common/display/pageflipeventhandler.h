@@ -35,6 +35,8 @@ class PageFlipEventHandler : public HWCThread {
 
   void Init(float refresh, int fd, int pipe);
 
+  bool SetPowerMode(uint32_t power_mode);
+
   void HandlePageFlipEvent(unsigned int sec, unsigned int usec);
 
   int RegisterCallback(std::shared_ptr<VsyncCallback> callback,

@@ -47,6 +47,7 @@ Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
 
 Display::~Display() {
   display_queue_->SetPowerMode(kOff);
+  flip_handler_->SetPowerMode(kOff);
 }
 
 bool Display::Initialize() {
@@ -115,6 +116,7 @@ void Display::ShutDown() {
 
   IHOTPLUGEVENTTRACE("Display::ShutDown recieved.");
   display_queue_->SetPowerMode(kOff);
+  flip_handler_->SetPowerMode(kOff);
   connector_ = 0;
 }
 
@@ -194,6 +196,7 @@ bool Display::SetPowerMode(uint32_t power_mode) {
   if (!is_connected_)
     return true;
 
+  flip_handler_->SetPowerMode(power_mode);
   return display_queue_->SetPowerMode(power_mode);
 }
 

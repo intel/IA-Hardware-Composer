@@ -49,6 +49,16 @@ void PageFlipEventHandler::Init(float refresh, int fd, int pipe) {
   pipe_ = pipe;
 }
 
+bool PageFlipEventHandler::SetPowerMode(uint32_t power_mode) {
+  if (power_mode == kOn && enabled_) {
+    VSyncControl(enabled_);
+  } else {
+    Exit();
+  }
+
+  return true;
+}
+
 int PageFlipEventHandler::RegisterCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display) {
   spin_lock_.lock();
@@ -72,6 +82,15 @@ int PageFlipEventHandler::VSyncControl(bool enabled) {
 
   ScopedSpinLock lock(spin_lock_);
   enabled_ = enabled;
+  if (enabled_ && callback_) {
+    if (!InitWorker()) {
+      ETRACE("Failed to initalize thread for PageFlipEventHandler. %s",
+             PRINTERROR());
+    }
+  } else {
+    Exit();
+  }
+
   last_timestamp_ = -1;
 
   return 0;
