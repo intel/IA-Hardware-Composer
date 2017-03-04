@@ -109,7 +109,6 @@ class Display : public NativeDisplay {
   void ShutDownPipe();
 
   NativeBufferHandler *buffer_handler_;
-  uint32_t frame_;
   uint32_t crtc_id_;
   uint32_t pipe_;
   uint32_t connector_;
@@ -118,10 +117,9 @@ class Display : public NativeDisplay {
   int32_t dpix_;
   int32_t dpiy_;
   uint32_t gpu_fd_;
+  uint32_t power_mode_;
   float refresh_;
   bool is_connected_;
-  bool is_powered_off_;
-  uint32_t power_mode_;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;
 };

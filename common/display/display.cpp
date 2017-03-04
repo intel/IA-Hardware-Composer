@@ -32,7 +32,6 @@ static const int32_t kUmPerInch = 25400;
 
 Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
     : buffer_handler_(NULL),
-      frame_(0),
       crtc_id_(crtc_id),
       pipe_(pipe_id),
       connector_(0),
@@ -41,17 +40,16 @@ Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
       dpix_(0),
       dpiy_(0),
       gpu_fd_(gpu_fd),
+      power_mode_(kOn),
       refresh_(0.0),
-      is_connected_(false),
-      is_powered_off_(true) {
+      is_connected_(false) {
 }
 
 Display::~Display() {
-  display_queue_->Exit();
+  display_queue_->SetPowerMode(kOff);
 }
 
 bool Display::Initialize() {
-  frame_ = 0;
   flip_handler_.reset(new PageFlipEventHandler());
   display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_));
 
@@ -63,7 +61,7 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
                       NativeBufferHandler *buffer_handler) {
   IHOTPLUGEVENTTRACE("Display::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
-  if (connector->connector_id == connector_ && !is_powered_off_) {
+  if (connector_ && connector->connector_id == connector_) {
     IHOTPLUGEVENTTRACE("Display is already connected to this connector.");
     is_connected_ = true;
     return true;
@@ -89,12 +87,16 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
   dpiy_ =
       connector->mmHeight ? (height_ * kUmPerInch) / connector->mmHeight : -1;
 
-  is_powered_off_ = false;
   is_connected_ = true;
 
   if (!display_queue_->Initialize(width_, height_, pipe_, connector_, mode_info,
                                   buffer_handler)) {
     ETRACE("Failed to initialize Display Queue.");
+    return false;
+  }
+
+  if (!display_queue_->SetPowerMode(power_mode_)) {
+    ETRACE("Failed to enable Display Queue.");
     return false;
   }
 
@@ -108,12 +110,12 @@ void Display::DisConnect() {
 }
 
 void Display::ShutDown() {
-  if (is_powered_off_)
+  if (!connector_)
     return;
 
   IHOTPLUGEVENTTRACE("Display::ShutDown recieved.");
-  display_queue_->Exit();
-  is_powered_off_ = true;
+  display_queue_->SetPowerMode(kOff);
+  connector_ = 0;
 }
 
 bool Display::GetDisplayAttribute(uint32_t /*config*/,
@@ -185,13 +187,24 @@ bool Display::GetActiveConfig(uint32_t *config) {
 }
 
 bool Display::SetPowerMode(uint32_t power_mode) {
-  uint32_t power_mode_ = power_mode;
+  if (power_mode_ == power_mode)
+    return true;
+
+  power_mode_ = power_mode;
+  if (!is_connected_)
+    return true;
 
   return display_queue_->SetPowerMode(power_mode);
 }
 
 bool Display::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
+
+  if (!is_connected_ || power_mode_ != kOn) {
+    IHOTPLUGEVENTTRACE("Trying to update an Disconnected Display.");
+    return false;
+  }
+
   return display_queue_->QueueUpdate(source_layers);
 }
 
