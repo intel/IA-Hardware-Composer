@@ -57,8 +57,9 @@ NativeGLResource::~NativeGLResource() {
 
 void NativeGLResource::Reset() {
   GLuint texture_id = 0;
-  for (uint32_t i = 0; i < layer_textures_.size(); i++) {
-    texture_id = layer_textures_[i];
+  size_t size = layer_textures_.size();
+  for (size_t i = 0; i < size; i++) {
+    texture_id = layer_textures_.at(i);
     glDeleteTextures(1, &texture_id);
   }
 }

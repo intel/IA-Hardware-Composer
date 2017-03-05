@@ -37,7 +37,7 @@ class ScopedFd {
   }
 
   ~ScopedFd() {
-    if (fd_ >= 0)
+    if (fd_ > 0)
       close(fd_);
   }
 
@@ -48,14 +48,14 @@ class ScopedFd {
   }
 
   int Reset(int fd) {
-    if (fd_ >= 0)
+    if (fd_ > 0)
       close(fd_);
     fd_ = fd;
     return fd_;
   }
 
   void Close() {
-    if (fd_ >= 0)
+    if (fd_ > 0)
       close(fd_);
     fd_ = -1;
   }
