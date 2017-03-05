@@ -104,11 +104,6 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
   return true;
 }
 
-void DisplayQueue::Exit() {
-  IHOTPLUGEVENTTRACE("DisplayQueue::Exit recieved.");
-  HandleExit();
-}
-
 bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
                             uint64_t* out_fence) {
 #ifndef DISABLE_EXPLICIT_SYNC
@@ -385,7 +380,6 @@ void DisplayQueue::HandleExit() {
   std::queue<DisplayQueueItem>().swap(queue_);
   current_sync_.reset(nullptr);
   compositor_.Reset();
-  HWCThread::Exit();
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
