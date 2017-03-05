@@ -345,6 +345,8 @@ void DisplayPlaneManager::DisablePipe(drmModeAtomicReqPtr property_set) {
                                 DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
   if (ret)
     ETRACE("Failed to disable pipe:%s\n", PRINTERROR());
+
+  std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
 }
 
 bool DisplayPlaneManager::TestCommit(

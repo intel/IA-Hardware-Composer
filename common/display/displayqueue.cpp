@@ -90,17 +90,6 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
 
-  dpms_mode_ = DRM_MODE_DPMS_ON;
-  drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
-                              DRM_MODE_DPMS_ON);
-
-  needs_modeset_ = true;
-  lock.Reset();
-  if (!InitWorker()) {
-    ETRACE("Failed to initalize thread for DisplayQueue. %s", PRINTERROR());
-    return false;
-  }
-
   return true;
 }
 
@@ -155,26 +144,28 @@ bool DisplayQueue::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
 }
 
 bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
-  ScopedSpinLock lock(spin_lock_);
-
-  if ((power_mode == kOff) || (power_mode == kDoze)) {
-    dpms_mode_ = DRM_MODE_DPMS_OFF;
-    Flush();
-    HWCThread::ConditionalSuspend();
-    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode_);
-    return true;
-  }
-
-  if (power_mode == kDozeSuspend) {
-    Flush();
-    HWCThread::ConditionalSuspend();
-    return true;
-  }
-
-  if (power_mode == kOn) {
-    dpms_mode_ = DRM_MODE_DPMS_ON;
-    needs_modeset_ = true;
-    drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_, dpms_mode_);
+  switch (power_mode) {
+    case kOff:
+      Exit();
+      break;
+    case kDoze:
+      Flush();
+      Exit();
+      break;
+    case kDozeSuspend:
+      Flush();
+      break;
+    case kOn:
+      needs_modeset_ = true;
+      drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
+                                  DRM_MODE_DPMS_ON);
+      if (!InitWorker()) {
+        ETRACE("Failed to initalize thread for DisplayQueue. %s", PRINTERROR());
+        return false;
+      }
+      break;
+    default:
+      break;
   }
 
   return true;
@@ -183,11 +174,6 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
   CTRACE();
   ScopedSpinLock lock(display_queue_);
-  if (!display_plane_manager_) {
-    IHOTPLUGEVENTTRACE("Trying to update an Disconnected Display.");
-    return false;
-  }
-
   queue_.emplace();
   DisplayQueueItem& queue_item = queue_.back();
   // Create a Sync object for this Composition.
@@ -223,13 +209,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
 }
 
 void DisplayQueue::GetNextQueueItem(DisplayQueueItem& item) {
-  display_queue_.lock();
   DisplayQueueItem& queue_item = queue_.front();
   item.layers_.swap(queue_item.layers_);
   item.layers_rects_.swap(queue_item.layers_rects_);
   item.sync_object_.reset(queue_item.sync_object_.release());
   queue_.pop();
-  display_queue_.unlock();
 }
 
 void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
@@ -332,16 +316,17 @@ void DisplayQueue::HandleRoutine() {
     ConditionalSuspend();
     return;
   }
-  display_queue_.unlock();
 
   DisplayQueueItem item;
 
   GetNextQueueItem(item);
+  display_queue_.unlock();
+
   HandleUpdateRequest(item);
 }
 
 void DisplayQueue::Flush() {
-  display_queue_.lock();
+  ScopedSpinLock lock(display_queue_);
 
   while (queue_.size()) {
     DisplayQueueItem item;
@@ -349,8 +334,6 @@ void DisplayQueue::Flush() {
     GetNextQueueItem(item);
     HandleUpdateRequest(item);
   }
-
-  display_queue_.unlock();
 }
 
 void DisplayQueue::HandleExit() {
@@ -361,8 +344,6 @@ void DisplayQueue::HandleExit() {
     return;
   }
 
-  Flush();
-
   bool active = false;
   int ret =
       drmModeAtomicAddProperty(pset.get(), crtc_id_, active_prop_, active) < 0;
@@ -371,12 +352,10 @@ void DisplayQueue::HandleExit() {
     return;
   }
   display_plane_manager_->DisablePipe(pset.get());
-  dpms_mode_ = DRM_MODE_DPMS_OFF;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
   previous_layers_.clear();
   previous_plane_state_.clear();
-  display_plane_manager_.reset(nullptr);
   std::queue<DisplayQueueItem>().swap(queue_);
   current_sync_.reset(nullptr);
   compositor_.Reset();
