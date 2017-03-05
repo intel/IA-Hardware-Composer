@@ -468,7 +468,6 @@ static void parse_args(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   struct drm_fb *fb;
   int ret, fd, primary_width, primary_height;
-  bool power_mode_changed = false;
   hwcomposer::GpuDevice device;
   device.Initialize();
   auto callback = std::make_shared<HotPlugEventCallback>(&device);
@@ -497,6 +496,7 @@ int main(int argc, char *argv[]) {
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
+  uint32_t frame_total = 0;
 
   for (uint64_t i = 0; arg_frames == 0 || i < arg_frames; ++i) {
     struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
@@ -518,38 +518,39 @@ int main(int argc, char *argv[]) {
     }
 
     callback->PresentLayers(layers);
+    frame_total++;
 
     if (!strcmp(powermode, "on")) {
-      if (!power_mode_changed) {
-        usleep(30000);
+      if (frame_total == 500) {
+        usleep(10000);
         callback->SetPowerMode(hwcomposer::kOff);
         sleep(1);
         callback->SetPowerMode(hwcomposer::kOn);
-        power_mode_changed = true;
+        frame_total = 0;
       }
     } else if (!strcmp(powermode, "off")) {
-      if (!power_mode_changed) {
+      if (frame_total == 500) {
         usleep(30000);
         callback->SetPowerMode(hwcomposer::kOff);
         sleep(1);
         callback->SetPowerMode(hwcomposer::kOn);
-        power_mode_changed = true;
+        frame_total = 0;
       }
     } else if (!strcmp(powermode, "doze")) {
-      if (!power_mode_changed) {
-        usleep(30000);
+      if (frame_total == 500) {
+        usleep(10000);
         callback->SetPowerMode(hwcomposer::kDoze);
         sleep(1);
         callback->SetPowerMode(hwcomposer::kOn);
-        power_mode_changed = true;
+        frame_total = 0;
       }
     } else if (!strcmp(powermode, "dozesuspend")) {
-      if (!power_mode_changed) {
-        usleep(30000);
+      if (frame_total == 500) {
+        usleep(10000);
         callback->SetPowerMode(hwcomposer::kDozeSuspend);
         sleep(1);
         callback->SetPowerMode(hwcomposer::kOn);
-        power_mode_changed = true;
+        frame_total = 0;
       }
     }
   }
