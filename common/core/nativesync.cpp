@@ -21,12 +21,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <libsync.h>
+#include <platformdefines.h>
 
-#include <hwctrace.h>
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
+#ifndef USE_ANDROID_SYNC
 struct sw_sync_create_fence_data {
   __u32 value;
   char name[32];
@@ -39,6 +40,8 @@ struct sw_sync_create_fence_data {
   _IOWR(SW_SYNC_IOC_MAGIC, 0, struct sw_sync_create_fence_data)
 
 #define SW_SYNC_IOC_INC _IOW(SW_SYNC_IOC_MAGIC, 1, __u32)
+
+#endif
 
 NativeSync::NativeSync() {
 }
@@ -91,6 +94,7 @@ int NativeSync::IncreaseTimelineToPoint(int point) {
   return ret;
 }
 
+#ifndef USE_ANDROID_SYNC
 int NativeSync::sw_sync_fence_create(int fd, const char *name, unsigned value) {
   struct sw_sync_create_fence_data data;
   memset(&data, 0, sizeof(data));
@@ -113,5 +117,6 @@ int NativeSync::sw_sync_timeline_inc(int fd, unsigned count) {
   uint32_t arg = count;
   return ioctl(fd, SW_SYNC_IOC_INC, &arg);
 }
+#endif
 
 }  // namespace hwcomposer

@@ -25,6 +25,8 @@
 #include <algorithm>
 #include <cstddef>
 
+#include <libsync.h>
+
 struct gbm_handle {
   struct gbm_import_fd_planar_data import_data;
   struct gbm_bo* bo = NULL;
