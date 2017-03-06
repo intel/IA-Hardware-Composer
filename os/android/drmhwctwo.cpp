@@ -683,8 +683,19 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSourceCrop(hwc_frect_t crop) {
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
   supported(__func__);
-  // TODO: We don't use surface damage, marking as unsupported
-  unsupported(__func__, damage);
+
+  std::vector<hwcomposer::HwcRect<int>> hwc_rects;
+
+  for (size_t rect = 0; rect < damage.numRects; ++rect) {
+    hwc_rects.push_back({damage.rects[rect].left, damage.rects[rect].top,
+                         damage.rects[rect].right, damage.rects[rect].bottom});
+  }
+
+  hwcomposer::HwcRegion hwc_region = {};
+  hwc_region.kNumRects = damage.numRects;
+  hwc_region.kRects = hwc_rects.data();
+
+  hwc_layer_.SetSurfaceDamage(hwc_region);
   return HWC2::Error::None;
 }
 
