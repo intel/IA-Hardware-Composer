@@ -57,7 +57,6 @@ class LayerRenderer {
   struct gbm_handle native_handle_;
   struct gbm_device* gbm_dev_;
   uint32_t format_;
-  glContext* gl_;
 };
 
 #endif

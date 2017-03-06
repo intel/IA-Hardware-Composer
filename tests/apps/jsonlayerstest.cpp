@@ -133,7 +133,8 @@ bool init_gl() {
   return true;
 }
 
-static struct frame frames[2];
+// frames count should be larger than 3 for performance
+static struct frame frames[4];
 
 class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
  public:
@@ -343,6 +344,7 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
       pParameter->frame_x, pParameter->frame_y, pParameter->frame_width,
       pParameter->frame_height));
   pHwcLayer->SetNativeHandle(pRenderer->GetNativeBoHandle());
+  pHwcLayer->release_fence.Reset(-1);
 }
 
 static void init_frames(int32_t width, int32_t height) {
@@ -500,12 +502,13 @@ int main(int argc, char *argv[]) {
 
   for (uint64_t i = 0; arg_frames == 0 || i < arg_frames; ++i) {
     struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
+    struct frame *frame_next = &frames[(i + 1) % ARRAY_SIZE(frames)];
 
-    for (uint32_t j = 0; j < frame->layers.size(); j++) {
-      if (frame->layers[j]->release_fence.get() != -1) {
-        ret = sync_wait(frame->layers[j]->release_fence.get(), 1000);
+    for (uint32_t j = 0; j < frame_next->layers.size(); j++) {
+      if (frame_next->layers[j]->release_fence.get() != -1) {
+        ret = sync_wait(frame_next->layers[j]->release_fence.get(), 1000);
         if (ret) {
-          frame->layers[j]->release_fence.Reset(-1);
+          frame_next->layers[j]->release_fence.Reset(-1);
         }
       }
     }
