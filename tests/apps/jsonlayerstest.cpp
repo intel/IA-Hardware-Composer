@@ -74,9 +74,6 @@ struct frame {
   // NativeFence release_fence;
 };
 
-static void setHWCLayer(LAYER_PARAMETER *pParameter, LayerRenderer *pRenderer) {
-}
-
 bool init_gl() {
   EGLint major, minor, n;
   static const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
@@ -85,8 +82,7 @@ bool init_gl() {
   static const EGLint config_attribs[] = {EGL_SURFACE_TYPE, EGL_DONT_CARE,
                                           EGL_NONE};
 
-  gl.display = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
-                                     EGL_DEFAULT_DISPLAY, NULL);
+  gl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
   if (!eglInitialize(gl.display, &major, &minor)) {
     printf("failed to initialize EGL\n");
@@ -203,7 +199,6 @@ char json_path[1024];
 char powermode[15];
 
 static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
-  uint32_t iformat = (uint32_t)format;
   switch (format) {
     case LAYER_FORMAT_C8:
       return GBM_FORMAT_C8;
@@ -349,9 +344,9 @@ static void init_frames(int32_t width, int32_t height) {
   std::vector<LAYER_PARAMETER> layer_parameters;
   parseLayersFromJson(json_path, layer_parameters);
 
-  for (int i = 0; i < ARRAY_SIZE(frames); ++i) {
+  for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
-    for (int j = 0; j < layer_parameters.size(); ++j) {
+    for (size_t j = 0; j < layer_parameters.size(); ++j) {
       LAYER_PARAMETER layer_parameter = layer_parameters[j];
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
@@ -466,7 +461,6 @@ static void parse_args(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  struct drm_fb *fb;
   int ret, fd, primary_width, primary_height;
   hwcomposer::GpuDevice device;
   device.Initialize();

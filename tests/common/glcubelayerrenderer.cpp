@@ -576,7 +576,7 @@ void GLCubeLayerRenderer::UpdateStreamTexture(unsigned long usec) {
   if (last_progress_ > progress)
     even_turn_ = !even_turn_;
 
-  for (size_t y = 0; y < dimension.height; y++) {
+  for (int y = 0; y < dimension.height; y++) {
     size_t index =
         (y % (2 * pattern_width) < pattern_width) ^ even_turn_ ? 0 : 1;
     std::copy(&row_color[index][0], &row_color[index][0] + s_length,

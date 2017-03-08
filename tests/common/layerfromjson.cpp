@@ -6,7 +6,7 @@
 void simpleTest() {
   const char* path = "./test.json";
   LAYER_PARAMETERS parameters;
-  bool ret = parseLayersFromJson(path, parameters);
+  parseLayersFromJson(path, parameters);
 }
 
 bool parseLayersFromJson(const char* json_path, LAYER_PARAMETERS& parameters) {
