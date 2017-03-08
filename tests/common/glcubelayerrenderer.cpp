@@ -20,6 +20,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <cmath>
 
 struct Dimension {
   EGLint width = 0;
