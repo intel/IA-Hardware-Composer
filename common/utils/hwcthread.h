@@ -22,6 +22,7 @@
 #include <string>
 #include <memory>
 
+#include "hwcevent.h"
 #include "spinlock.h"
 
 namespace hwcomposer {
@@ -47,10 +48,9 @@ class HWCThread {
 
   int priority_;
   std::string name_;
+  HWCEvent event_;
   bool exit_ = false;
   bool suspended_ = false;
-  std::mutex mutex_;
-  std::condition_variable cond_;
 
   std::unique_ptr<std::thread> thread_;
 };
