@@ -47,7 +47,6 @@ class VirtualDisplay : public Headless {
   int32_t acquire_fence_;
   NativeBufferHandler *buffer_handler_;
   Compositor compositor_;
-  uint32_t gpu_fd_;
   uint32_t width_;
   uint32_t height_;
 };

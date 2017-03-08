@@ -83,7 +83,6 @@ class OverlayBuffer {
   uint32_t fb_id_ = 0;
   uint32_t prime_fd_ = 0;
   uint32_t usage_ = 0;
-  uint32_t ref_count_ = 1;
   uint32_t gpu_fd_ = 0;
   bool is_yuv_ = false;
   HWCNativeHandle handle_ = 0;

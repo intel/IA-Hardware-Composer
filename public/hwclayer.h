@@ -64,10 +64,6 @@ struct HwcLayer {
 
  private:
   uint32_t transform_;
-  uint32_t source_crop_width_;
-  uint32_t source_crop_height_;
-  uint32_t display_frame_width_;
-  uint32_t display_frame_height_;
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
