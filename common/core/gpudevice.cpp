@@ -324,7 +324,6 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
   }
 
   ScopedSpinLock lock(spin_lock_);
-  int ret = 0;
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
     display->DisConnect();

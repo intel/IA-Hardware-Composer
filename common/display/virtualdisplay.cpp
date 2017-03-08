@@ -34,7 +34,6 @@ VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
       output_handle_(0),
       acquire_fence_(-1),
       buffer_handler_(buffer_handler),
-      gpu_fd_(0),
       width_(0),
       height_(0) {
 }

@@ -18,6 +18,7 @@
 #define PUBLIC_GPUDEVICE_H_
 
 #include <scopedfd.h>
+#include <stdint.h>
 
 #include <memory>
 #include <vector>
