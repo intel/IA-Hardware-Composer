@@ -396,6 +396,7 @@ static void init_frames(int32_t width, int32_t height) {
         case LAYER_TYPE_GL:
           renderer = new GLCubeLayerRenderer(gbm.dev, false);
           break;
+#ifdef USE_MINIGBM
         case LAYER_TYPE_VIDEO:
           renderer = new VideoLayerRenderer(gbm.dev);
           break;
@@ -405,6 +406,7 @@ static void init_frames(int32_t width, int32_t height) {
         case LAYER_TYPE_GL_TEXTURE:
           renderer = new GLCubeLayerRenderer(gbm.dev, true);
           break;
+#endif
         default:
           printf("un-recognized layer type!\n");
           exit(-1);

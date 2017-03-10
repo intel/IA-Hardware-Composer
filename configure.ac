@@ -69,6 +69,22 @@ else
   AC_MSG_RESULT([RDRAND Hardware RNG Hash Seed disabled. Use --enable-rdrand to enable])
 fi
 
+AC_ARG_ENABLE(gbm,
+  AS_HELP_STRING([--enable-gbm],
+    [Enable GBM buffer manager.]),
+[if test x$enableval = xyes; then
+  enable_gbm=yes
+  AC_DEFINE(ENABLE_GBM, 1, [Enable GBM buffer manager])
+fi])
+
+AM_CONDITIONAL(ENABLE_GBM, test x$enable_gbm = xyes)
+
+if test "x$enable_gbm" = "xyes"; then
+  AC_MSG_RESULT([GBM buffer manager enabled on supported x86/x64 platforms])
+else
+  AC_MSG_RESULT([Mini GBM buffer manager is enabled. Use --enable-gbm to disable])
+fi
+
 AM_PROG_CC_C_O
 AC_PROG_CC_C99
 
