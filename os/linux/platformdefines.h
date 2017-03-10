@@ -28,7 +28,11 @@
 #include <libsync.h>
 
 struct gbm_handle {
+#ifdef USE_MINIGBM
   struct gbm_import_fd_planar_data import_data;
+#else
+  struct gbm_import_fd_data import_data;
+#endif
   struct gbm_bo* bo = NULL;
 };
 

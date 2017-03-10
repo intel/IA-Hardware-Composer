@@ -27,8 +27,12 @@ testlayers_LDFLAGS = \
 	-no-undefined
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I../common/core -I../common/utils -I../common/compositor -I../common/display  -I../os/linux -I./common -I./third_party/json-c
-AM_CPPFLAGS = -std=c++11 -DUSE_MINIGBM -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
+AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
+
+if !ENABLE_GBM
+AM_CPPFLAGS += -DUSE_MINIGBM
+endif
 
 testlayers_LDADD = \
 	$(DRM_LIBS) \
@@ -50,8 +54,12 @@ testlayers_SOURCES = \
     ./common/layerrenderer.cpp \
     ./common/gllayerrenderer.cpp \
     ./common/glcubelayerrenderer.cpp \
-    ./common/videolayerrenderer.cpp \
-    ./common/imagelayerrenderer.cpp \
     ./common/esTransform.cpp \
     ./common/layerfromjson.cpp \
     ./apps/jsonlayerstest.cpp
+
+if !ENABLE_GBM
+testlayers_SOURCES +=	\
+    ./common/videolayerrenderer.cpp \
+    ./common/imagelayerrenderer.cpp
+endif

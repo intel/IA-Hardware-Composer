@@ -78,7 +78,11 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   eglMakeCurrent(gl_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, gl_->context);
 
+#ifdef USE_MINIGBM
   int gbm_bo_fd = native_handle_.import_data.fds[0];
+#else
+  int gbm_bo_fd = native_handle_.import_data.fd;
+#endif
   const EGLint image_attrs[] = {
       EGL_WIDTH,                    (EGLint)width,
       EGL_HEIGHT,                   (EGLint)height,

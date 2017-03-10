@@ -26,6 +26,10 @@
 #include <hwctrace.h>
 #include <platformdefines.h>
 
+#ifndef USE_MINIGBM
+#include "gbmutils.h"
+#endif
+
 namespace hwcomposer {
 
 // static
@@ -69,12 +73,19 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   temp->import_data.width = gbm_bo_get_width(bo);
   temp->import_data.height = gbm_bo_get_height(bo);
   temp->import_data.format = gbm_bo_get_format(bo);
+#if USE_MINIGBM
   temp->import_data.fds[0] = gbm_bo_get_plane_fd(bo, 0);
   size_t total_planes = gbm_bo_get_num_planes(bo);
   for (size_t i = 0; i < total_planes; i++) {
     temp->import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
     temp->import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
   }
+#else
+  temp->import_data.fd = gbm_bo_get_fd(bo);
+  size_t total_planes = gbm_bo_get_num_planes(temp->import_data.format);
+  temp->import_data.stride = gbm_bo_get_stride(bo);
+#endif
+
   temp->bo = bo;
   *handle = temp;
 
@@ -84,7 +95,11 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 bool GbmBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
   if (handle->bo) {
     gbm_bo_destroy(handle->bo);
+#ifdef USE_MINIGBM
     close(handle->import_data.fds[0]);
+#else
+    close(handle->import_data.fd);
+#endif
     delete handle;
     handle = NULL;
   }
@@ -97,6 +112,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   uint32_t gem_handle = 0;
   bo->format = handle->import_data.format;
   if (!handle->bo) {
+#if USE_MINIGBM
     handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
                                &handle->import_data, GBM_BO_USE_SCANOUT);
     if (!handle->bo) {
@@ -106,6 +122,17 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
         ETRACE("can't import bo");
       }
     }
+#else
+    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
+                               GBM_BO_USE_SCANOUT);
+    if (!handle->bo) {
+      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD,
+                                 &handle->import_data, GBM_BO_USE_RENDERING);
+      if (!handle->bo) {
+        ETRACE("can't import bo");
+      }
+    }
+#endif
   }
 
   gem_handle = gbm_bo_get_handle(handle->bo).u32;
@@ -117,6 +144,8 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   bo->width = handle->import_data.width;
   bo->height = handle->import_data.height;
+
+#if USE_MINIGBM
   bo->prime_fd = handle->import_data.fds[0];
   size_t total_planes = gbm_bo_get_num_planes(handle->bo);
   for (size_t i = 0; i < total_planes; i++) {
@@ -124,6 +153,13 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
     bo->offsets[i] = gbm_bo_get_plane_offset(handle->bo, i);
     bo->pitches[i] = gbm_bo_get_plane_stride(handle->bo, i);
   }
+#else
+  bo->prime_fd = handle->import_data.fd;
+  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_get_format(handle->bo));
+  bo->gem_handles[0] = gem_handle;
+  bo->offsets[0] = 0;
+  bo->pitches[0] = gbm_bo_get_stride(handle->bo);
+#endif
 
   return true;
 }
