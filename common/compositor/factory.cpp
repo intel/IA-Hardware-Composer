@@ -18,9 +18,13 @@
 #include "platformdefines.h"
 
 #ifdef USE_GL
-#include "glsurface.h"
 #include "glrenderer.h"
+#include "glsurface.h"
 #include "nativeglresource.h"
+#elif USE_VK
+#include "nativevkresource.h"
+#include "vkrenderer.h"
+#include "vksurface.h"
 #endif
 
 namespace hwcomposer {
@@ -28,6 +32,8 @@ namespace hwcomposer {
 NativeSurface* CreateBackBuffer(uint32_t width, uint32_t height) {
 #ifdef USE_GL
   return new GLSurface(width, height);
+#elif USE_VK
+  return new VKSurface(width, height);
 #else
   return NULL;
 #endif
@@ -36,6 +42,8 @@ NativeSurface* CreateBackBuffer(uint32_t width, uint32_t height) {
 Renderer* CreateRenderer() {
 #ifdef USE_GL
   return new GLRenderer();
+#elif USE_VK
+  return new VKRenderer();
 #else
   return NULL;
 #endif
@@ -44,6 +52,8 @@ Renderer* CreateRenderer() {
 NativeGpuResource* CreateNativeGpuResourceHandler() {
 #ifdef USE_GL
   return new NativeGLResource();
+#elif USE_VK
+  return new NativeVKResource();
 #else
   return NULL;
 #endif

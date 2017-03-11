@@ -101,6 +101,46 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
   }
 
   return image;
+#elif USE_VK
+  VkDeviceMemory memory;
+  VkImage image;
+  VkResult res;
+
+  PFN_vkCreateDmaBufImageINTEL vkCreateDmaBufImageINTEL =
+      (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
+          egl_display, "vkCreateDmaBufImageINTEL");
+  if (vkCreateDmaBufImageINTEL == NULL) {
+    printf("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
+    return VK_NULL_HANDLE;
+  }
+
+  VkFormat vk_format = GbmToVkFormat(format_);
+  if (vk_format == VK_FORMAT_UNDEFINED) {
+    printf("Failed DRM -> Vulkan format conversion\n");
+    return VK_NULL_HANDLE;
+  }
+
+  VkExtent3D image_extent = {};
+  image_extent.width = width_;
+  image_extent.height = height_;
+  image_extent.depth = 1;
+
+  VkDmaBufImageCreateInfo image_create = {};
+  image_create.sType =
+      (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
+  image_create.fd = (int)prime_fd_;
+  image_create.format = vk_format;
+  image_create.extent = image_extent;
+  image_create.strideInBytes = pitches_[0];
+
+  res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL, &memory,
+                                 &image);
+  if (res != VK_SUCCESS) {
+    printf("vkCreateDmaBufImageINTEL failed (%d)\n", res);
+    return VK_NULL_HANDLE;
+  }
+
+  return image;
 #else
   return NULL;
 #endif

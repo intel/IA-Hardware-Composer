@@ -42,6 +42,17 @@ AC_PROG_LIBTOOL
 
 AC_SUBST(ASSEMBLER_WARN_CFLAGS)
 
+# For vulkan
+AC_ARG_ENABLE(vulkan,
+  AS_HELP_STRING([--enable-vulkan],
+    [Enable Vulkan backend (EXPERIMENTAL)]),
+[if test x$enableval = xyes; then
+  enable_vulkan=yes
+  AC_DEFINE(ENABLE_VULKAN, 1, [Enable Vulkan backend])
+fi])
+
+AM_CONDITIONAL([ENABLE_VULKAN], [test "x$enable_vulkan" = "xyes"])
+
 # For json-c
 AC_CONFIG_HEADER(tests/third_party/json-c/json_config.h)
 AC_ARG_ENABLE(rdrand,
