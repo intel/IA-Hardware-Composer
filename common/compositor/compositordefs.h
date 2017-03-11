@@ -21,6 +21,8 @@
 
 #ifdef USE_GL
 #include "shim.h"
+#elif USE_VK
+#include "vkshim.h"
 #endif
 
 namespace hwcomposer {
@@ -36,13 +38,20 @@ static float TransformMatrices[] = {
 };
 // clang-format on
 
-typedef unsigned GpuResourceHandle;
-// Add Vulkan defs here.
-
 #ifdef USE_GL
+typedef unsigned GpuResourceHandle;
 typedef EGLImageKHR GpuImage;
 typedef EGLDisplay GpuDisplay;
+#elif USE_VK
+typedef struct vk_resource {
+  VkImage image;
+  VkImageView image_view;
+} GpuResourceHandle;
+
+typedef VkImage GpuImage;
+typedef VkDevice GpuDisplay;
 #else
+typedef unsigned GpuResourceHandle;
 typedef void* GpuImage;
 typedef void* GpuDisplay;
 #endif

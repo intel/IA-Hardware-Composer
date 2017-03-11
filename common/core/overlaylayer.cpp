@@ -16,6 +16,7 @@
 
 #include "overlaylayer.h"
 
+#include <drm_mode.h>
 #include <hwctrace.h>
 
 namespace hwcomposer {

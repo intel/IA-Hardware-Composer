@@ -31,3 +31,11 @@ gl_SOURCES =              \
     common/compositor/gl/nativeglresource.cpp \
     common/compositor/gl/shim.cpp \
 	$(NULL)
+
+vk_SOURCES =\
+    common/compositor/vk/vkprogram.cpp \
+    common/compositor/vk/vkrenderer.cpp \
+    common/compositor/vk/vksurface.cpp \
+    common/compositor/vk/nativevkresource.cpp \
+    common/compositor/vk/vkshim.cpp \
+        $(NULL)
