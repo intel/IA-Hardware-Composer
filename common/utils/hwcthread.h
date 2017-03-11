@@ -17,7 +17,6 @@
 #ifndef COMMON_UTILS_HWCTHREAD_H_
 #define COMMON_UTILS_HWCTHREAD_H_
 
-#include <condition_variable>
 #include <thread>
 #include <string>
 #include <memory>
@@ -36,10 +35,10 @@ class HWCThread {
 
   void Resume();
   void Exit();
-  void ConditionalSuspend();
 
   virtual void HandleRoutine() = 0;
   virtual void HandleExit();
+  virtual void HandleWait();
 
   bool initialized_;
 

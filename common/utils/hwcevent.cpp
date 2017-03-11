@@ -16,22 +16,17 @@
 
 #include "hwcevent.h"
 
-#include <errno.h>
-#include <poll.h>
-#include <string.h>
 #include <sys/eventfd.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "hwctrace.h"
 
+#ifndef EFD_SEMAPHORE
+#define EFD_SEMAPHORE           (1 << 0)
+#endif
+
 namespace hwcomposer {
 
-HWCEvent::HWCEvent() {
-  fd_ = eventfd(0, EFD_SEMAPHORE);
-  if (fd_ < 0) {
-    ETRACE("Failed to initialize eventfd: %s", strerror(errno));
-  }
+HWCEvent::HWCEvent() : fd_(0) {
 }
 
 HWCEvent::~HWCEvent() {
@@ -41,16 +36,25 @@ HWCEvent::~HWCEvent() {
   fd_ = -1;
 }
 
-bool HWCEvent::Signal() {
+bool HWCEvent::Initialize() {
+  if (fd_ > 0) {
+    return true;
+  }
+
+  fd_ = eventfd(0, EFD_SEMAPHORE);
   if (fd_ < 0) {
-    ETRACE("invalid eventfd: %d", fd_);
+    ETRACE("Failed to initialize eventfd: %s", PRINTERROR());
     return false;
   }
 
+  return true;
+}
+
+bool HWCEvent::Signal() {
   uint64_t inc = 1;
   ssize_t ret = write(fd_, &inc, sizeof(inc));
   if (ret < 0) {
-    ETRACE("couldn't write to eventfd: %zd (%s)", ret, strerror(errno));
+    ETRACE("couldn't write to eventfd: %zd (%s)", ret, PRINTERROR());
     return false;
   }
 
@@ -66,7 +70,7 @@ bool HWCEvent::Wait() {
   uint64_t result;
   ssize_t ret = read(fd_, &result, sizeof(result));
   if (ret < 0) {
-    ETRACE("couldn't read from eventfd: %zd (%s)", ret, strerror(errno));
+    ETRACE("couldn't read from eventfd: %zd (%s)", ret, PRINTERROR());
     return false;
   }
 
@@ -75,10 +79,6 @@ bool HWCEvent::Wait() {
     return false;
   }
 
-  return true;
-}
-
-bool HWCEvent::ShouldWait() {
   return true;
 }
 

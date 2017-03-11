@@ -17,6 +17,8 @@
 #ifndef COMMON_UTILS_HWCEVENT_H_
 #define COMMON_UTILS_HWCEVENT_H_
 
+#include <stdint.h>
+
 namespace hwcomposer {
 
 class HWCEvent {
@@ -24,14 +26,9 @@ class HWCEvent {
   HWCEvent();
   virtual ~HWCEvent();
 
+  bool Initialize();
   bool Signal();
   bool Wait();
-
-  bool ShouldWait();
-
-  int get_fd() const {
-    return fd_;
-  }
 
  private:
   int fd_;

@@ -313,7 +313,6 @@ void DisplayQueue::HandleRoutine() {
 
   if (size <= 0) {
     display_queue_.unlock();
-    ConditionalSuspend();
     return;
   }
 
