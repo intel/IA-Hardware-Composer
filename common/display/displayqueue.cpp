@@ -280,10 +280,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   } else {
     GetFence(pset.get(), &fence);
   }
-#ifndef DISABLE_EXPLICIT_SYNC
-  if (out_fence_.get() > 0)
-    queue_item.sync_object_->Wait(out_fence_.get());
-#endif
+
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
     succesful_commit = false;
@@ -301,19 +298,28 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
 #else
   if (fence > 0) {
     compositor_.InsertFence(dup(fence));
+    fd_handler_.AddFd(5, fence);
+    commit_pending_ = true;
     out_fence_.Reset(fence);
   }
 #endif
-  current_sync_.reset(queue_item.sync_object_.release());
 }
 
 void DisplayQueue::HandleRoutine() {
+  if (commit_pending_ && fd_handler_.IsReady(5)) {
+    fd_handler_.RemoveFd(5);
+    commit_pending_ = false;
+    out_fence_.Reset(-1);
+  }
+
+  if (commit_pending_)
+    return;
+
   display_queue_.lock();
   size_t size = queue_.size();
 
   if (size <= 0) {
     display_queue_.unlock();
-    ConditionalSuspend();
     return;
   }
 

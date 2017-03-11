@@ -38,6 +38,7 @@ bool HWCThread::InitWorker() {
 
   initialized_ = true;
   exit_ = false;
+  fd_handler_.AddFd(1, event_.get_fd());
 
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
@@ -70,13 +71,19 @@ void HWCThread::ProcessThread() {
   setpriority(PRIO_PROCESS, 0, priority_);
   prctl(PR_SET_NAME, name_.c_str());
 
-  while (event_.Wait()) {
+  int ret = 0;
+  while ((ret = fd_handler_.Poll(-1))) {
     if (exit_) {
       HandleExit();
       return;
     }
 
     HandleRoutine();
+    if (fd_handler_.IsReady(1)) {
+      // If eventfd_ is ready, we need to wait on it (using read()) to clean
+      // the flag that says it is ready.
+      event_.Wait();
+    }
   }
 }
 
