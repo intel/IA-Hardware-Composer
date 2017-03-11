@@ -131,6 +131,15 @@ bool init_gl() {
 
 static struct frame frames[2];
 
+class DisplayVSyncCallback : public hwcomposer::VsyncCallback {
+ public:
+  DisplayVSyncCallback() {
+  }
+
+  void Callback(uint32_t /*display*/, int64_t /*timestamp*/) {
+  }
+};
+
 class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
  public:
   HotPlugEventCallback(hwcomposer::GpuDevice *device) : device_(device) {
@@ -139,20 +148,24 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     connected_displays_.swap(connected_displays);
+
+    for (auto &display : connected_displays_) {
+      auto callback = std::make_shared<DisplayVSyncCallback>();
+      display->RegisterVsyncCallback(callback, 0);
+      display->VSyncControl(true);
+    }
   }
 
   const std::vector<hwcomposer::NativeDisplay *> &GetConnectedDisplays() {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
-    if (connected_displays_.empty())
-      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+    PopulateConnectedDisplays();
 
     return connected_displays_;
   }
 
   void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
-    if (connected_displays_.empty())
-      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+    PopulateConnectedDisplays();
 
     if (connected_displays_.empty())
       return;
@@ -163,14 +176,25 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
   void SetPowerMode(uint32_t power_mode) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
-    if (connected_displays_.empty())
-      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+    PopulateConnectedDisplays();
 
     if (connected_displays_.empty())
       return;
 
     for (auto &display : connected_displays_)
       display->SetPowerMode(power_mode);
+  }
+
+  void PopulateConnectedDisplays() {
+    if (connected_displays_.empty()) {
+      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+
+      for (auto &display : connected_displays_) {
+        auto callback = std::make_shared<DisplayVSyncCallback>();
+        display->RegisterVsyncCallback(callback, 0);
+        display->VSyncControl(true);
+      }
+    }
   }
 
  private:

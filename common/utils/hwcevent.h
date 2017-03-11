@@ -17,6 +17,8 @@
 #ifndef COMMON_UTILS_HWCEVENT_H_
 #define COMMON_UTILS_HWCEVENT_H_
 
+#include <stdint.h>
+
 namespace hwcomposer {
 
 class HWCEvent {
@@ -24,14 +26,24 @@ class HWCEvent {
   HWCEvent();
   virtual ~HWCEvent();
 
+  /**
+   * Initializes eventfd.
+   * @return true if succesful.
+   */
+  bool Initialize();
+
+  /**
+   * Tries to write value 1 to event fd.
+   * @return true if succesful.
+   */
   bool Signal();
+
+  /**
+   * Tries to wait on event fd until
+   * it becomes readable.
+   * @return false if we are unable to wait on event fd for any reason.
+   */
   bool Wait();
-
-  bool ShouldWait();
-
-  int get_fd() const {
-    return fd_;
-  }
 
  private:
   int fd_;

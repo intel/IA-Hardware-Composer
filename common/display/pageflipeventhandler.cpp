@@ -112,6 +112,9 @@ void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
   callback_->Callback(display_, timestamp);
 }
 
+void PageFlipEventHandler::HandleWait() {
+}
+
 void PageFlipEventHandler::HandleRoutine() {
   spin_lock_.lock();
 

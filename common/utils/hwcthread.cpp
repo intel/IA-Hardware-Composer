@@ -39,6 +39,9 @@ bool HWCThread::InitWorker() {
   initialized_ = true;
   exit_ = false;
 
+  if (!event_.Initialize())
+    return false;
+
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
 
@@ -58,6 +61,7 @@ void HWCThread::Exit() {
     return;
 
   initialized_ = false;
+  exit_ = true;
 
   event_.Signal();
   thread_->join();
@@ -66,11 +70,17 @@ void HWCThread::Exit() {
 void HWCThread::HandleExit() {
 }
 
+void HWCThread::HandleWait() {
+  event_.Wait();
+}
+
 void HWCThread::ProcessThread() {
   setpriority(PRIO_PROCESS, 0, priority_);
   prctl(PR_SET_NAME, name_.c_str());
 
-  while (event_.Wait()) {
+  while (1) {
+    HandleWait();
+
     if (exit_) {
       HandleExit();
       return;
@@ -78,9 +88,6 @@ void HWCThread::ProcessThread() {
 
     HandleRoutine();
   }
-}
-
-void HWCThread::ConditionalSuspend() {
 }
 
 }  // namespace hwcomposer
