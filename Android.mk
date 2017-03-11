@@ -79,7 +79,7 @@ ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)),true)
 LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
 endif
 
-ifeq ($(strip $(BOARD_DISABLE_EXPLICIT_SYNC)),true)
+ifeq ($(strip $(BOARD_ENABLE_EXPLICIT_SYNC)),false)
 LOCAL_CPPFLAGS += -DDISABLE_EXPLICIT_SYNC
 LOCAL_CPPFLAGS += -DDISABLE_OVERLAY_USAGE
 endif
@@ -100,10 +100,10 @@ endif
 ifeq ($(strip $(BOARD_USES_MINIGBM)),true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/../minigbm/cros_gralloc
+	external/minigbm/cros_gralloc/
 else
 LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/../drm_gralloc
+	external/drm_gralloc/
 endif
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)

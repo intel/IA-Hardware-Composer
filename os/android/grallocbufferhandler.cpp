@@ -25,6 +25,7 @@
 
 #ifdef USE_MINIGBM
 #include <cros_gralloc_handle.h>
+#include <cros_gralloc_helpers.h>
 #else
 #include <gralloc_drm_handle.h>
 #endif
@@ -96,8 +97,8 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 #ifdef USE_MINIGBM
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   memset(bo, 0, sizeof(struct HwcBuffer));
-  int ret = gralloc_->perform(gralloc_, GRALLOC_MODULE_PERFORM_DRM_IMPORT,
-                              handle->handle_, fd_, bo);
+  int ret = gralloc_->perform(gralloc_, GRALLOC_DRM_IMPORT,
+			      handle->handle_, fd_, bo);
   if (ret) {
     ETRACE("GRALLOC_MODULE_PERFORM_DRM_IMPORT failed %d", ret);
     return false;
@@ -113,6 +114,11 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
     bo->usage |= hwcomposer::kLayerProtected;
   } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
     bo->usage |= hwcomposer::kLayerCursor;
+  }
+
+  // We support DRM_FORMAT_ARGB8888 for cursor.
+  if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
+    bo->format = DRM_FORMAT_ARGB8888;
   }
 
   return true;
