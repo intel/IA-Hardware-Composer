@@ -35,10 +35,11 @@ HWCThread::~HWCThread() {
 bool HWCThread::InitWorker() {
   if (initialized_)
     return true;
-  mutex_.lock();
+
   initialized_ = true;
   exit_ = false;
-  mutex_.unlock();
+  fd_handler_.AddFd(1, event_.get_fd());
+
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
 
@@ -46,14 +47,10 @@ bool HWCThread::InitWorker() {
 }
 
 void HWCThread::Resume() {
-  if (!suspended_ || exit_)
+  if (exit_)
     return;
 
-  mutex_.lock();
-  suspended_ = false;
-  mutex_.unlock();
-
-  cond_.notify_one();
+  event_.Signal();
 }
 
 void HWCThread::Exit() {
@@ -61,13 +58,9 @@ void HWCThread::Exit() {
   if (!initialized_)
     return;
 
-  mutex_.lock();
   initialized_ = false;
-  suspended_ = false;
-  exit_ = true;
-  mutex_.unlock();
 
-  cond_.notify_one();
+  event_.Signal();
   thread_->join();
 }
 
@@ -78,26 +71,23 @@ void HWCThread::ProcessThread() {
   setpriority(PRIO_PROCESS, 0, priority_);
   prctl(PR_SET_NAME, name_.c_str());
 
-  std::unique_lock<std::mutex> lk(mutex_, std::defer_lock);
-  while (true) {
-    lk.lock();
+  int ret = 0;
+  while ((ret = fd_handler_.Poll(-1))) {
     if (exit_) {
       HandleExit();
       return;
     }
 
-    if (suspended_) {
-      cond_.wait(lk);
-    }
-    lk.unlock();
     HandleRoutine();
+    if (fd_handler_.IsReady(1)) {
+      // If eventfd_ is ready, we need to wait on it (using read()) to clean
+      // the flag that says it is ready.
+      event_.Wait();
+    }
   }
 }
 
 void HWCThread::ConditionalSuspend() {
-  mutex_.lock();
-  suspended_ = true;
-  mutex_.unlock();
 }
 
 }  // namespace hwcomposer

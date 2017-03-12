@@ -22,6 +22,8 @@
 #include <string>
 #include <memory>
 
+#include "fdhandler.h"
+#include "hwcevent.h"
 #include "spinlock.h"
 
 namespace hwcomposer {
@@ -40,6 +42,7 @@ class HWCThread {
   virtual void HandleRoutine() = 0;
   virtual void HandleExit();
 
+  FDHandler fd_handler_;
   bool initialized_;
 
  private:
@@ -47,10 +50,9 @@ class HWCThread {
 
   int priority_;
   std::string name_;
+  HWCEvent event_;
   bool exit_ = false;
   bool suspended_ = false;
-  std::mutex mutex_;
-  std::condition_variable cond_;
 
   std::unique_ptr<std::thread> thread_;
 };
