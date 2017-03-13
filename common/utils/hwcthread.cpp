@@ -42,6 +42,7 @@ bool HWCThread::InitWorker() {
   if (!event_.Initialize())
     return false;
 
+  fd_handler_.AddFd(event_.get_fd());
   thread_ = std::unique_ptr<std::thread>(
       new std::thread(&HWCThread::ProcessThread, this));
 
@@ -71,7 +72,12 @@ void HWCThread::HandleExit() {
 }
 
 void HWCThread::HandleWait() {
-  event_.Wait();
+  fd_handler_.Poll(-1);
+  if (fd_handler_.IsReady(event_.get_fd())) {
+    // If eventfd_ is ready, we need to wait on it (using read()) to clean
+    // the flag that says it is ready.
+    event_.Wait();
+  }
 }
 
 void HWCThread::ProcessThread() {

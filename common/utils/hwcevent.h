@@ -30,6 +30,8 @@ class HWCEvent {
   bool Signal();
   bool Wait();
 
+  int get_fd() const { return fd_; }
+
  private:
   int fd_;
 };
