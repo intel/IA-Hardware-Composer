@@ -87,9 +87,11 @@ class DisplayQueue : public HWCThread {
   uint32_t old_blob_id_ = 0;
   uint32_t gpu_fd_;
   bool needs_modeset_ = false;
+  bool commit_pending_ = false;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::unique_ptr<NativeSync> current_sync_;
+  std::unique_ptr<NativeSync> previous_sync_;
   SpinLock spin_lock_;
   SpinLock display_queue_;
   std::queue<DisplayQueueItem> queue_;
