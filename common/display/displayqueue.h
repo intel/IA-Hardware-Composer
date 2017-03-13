@@ -71,6 +71,8 @@ class DisplayQueue : public HWCThread {
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;
+  void CommitFinished();
+  void ProcessRequests();
 
   Compositor compositor_;
   drmModeModeInfo mode_;

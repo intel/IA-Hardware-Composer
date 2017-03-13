@@ -308,17 +308,14 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   current_sync_.reset(queue_item.sync_object_.release());
 }
 
-void DisplayQueue::HandleRoutine() {
-  if (commit_pending_ && fd_handler_.IsReady(out_fence_.get())) {
+void DisplayQueue::CommitFinished() {
     fd_handler_.RemoveFd(out_fence_.get());
     commit_pending_ = false;
     out_fence_.Reset(-1);
     previous_sync_.reset(nullptr);
-  }
+}
 
-  if (commit_pending_)
-    return;
-
+void DisplayQueue::ProcessRequests() {
   display_queue_.lock();
   size_t size = queue_.size();
 
@@ -333,6 +330,21 @@ void DisplayQueue::HandleRoutine() {
   display_queue_.unlock();
 
   HandleUpdateRequest(item);
+}
+
+void DisplayQueue::HandleRoutine() {
+  // If we have a commit pending and the out_fence_ is ready, we can process
+  // the end of the last commit.
+  if (commit_pending_ && fd_handler_.IsReady(out_fence_.get()))
+    CommitFinished();
+
+  // Do not submit another commit while there is one still pending.
+  if (commit_pending_)
+    return;
+
+  // Check whether there are more requests to process, and commit the first
+  // one.
+  ProcessRequests();
 }
 
 void DisplayQueue::Flush() {
