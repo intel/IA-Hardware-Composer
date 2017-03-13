@@ -280,10 +280,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   } else {
     GetFence(pset.get(), &fence);
   }
-#ifndef DISABLE_EXPLICIT_SYNC
-  if (out_fence_.get() > 0)
-    queue_item.sync_object_->Wait(out_fence_.get());
-#endif
+
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
     succesful_commit = false;
@@ -301,13 +298,24 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
 #else
   if (fence > 0) {
     compositor_.InsertFence(dup(fence));
+    fd_handler_.AddFd(fence);
+    commit_pending_ = true;
     out_fence_.Reset(fence);
   }
 #endif
+
+  previous_sync_.reset(current_sync_.release());
   current_sync_.reset(queue_item.sync_object_.release());
 }
 
-void DisplayQueue::HandleRoutine() {
+void DisplayQueue::CommitFinished() {
+    fd_handler_.RemoveFd(out_fence_.get());
+    commit_pending_ = false;
+    out_fence_.Reset(-1);
+    previous_sync_.reset(nullptr);
+}
+
+void DisplayQueue::ProcessRequests() {
   display_queue_.lock();
   size_t size = queue_.size();
 
@@ -322,6 +330,21 @@ void DisplayQueue::HandleRoutine() {
   display_queue_.unlock();
 
   HandleUpdateRequest(item);
+}
+
+void DisplayQueue::HandleRoutine() {
+  // If we have a commit pending and the out_fence_ is ready, we can process
+  // the end of the last commit.
+  if (commit_pending_ && fd_handler_.IsReady(out_fence_.get()))
+    CommitFinished();
+
+  // Do not submit another commit while there is one still pending.
+  if (commit_pending_)
+    return;
+
+  // Check whether there are more requests to process, and commit the first
+  // one.
+  ProcessRequests();
 }
 
 void DisplayQueue::Flush() {
@@ -356,6 +379,7 @@ void DisplayQueue::HandleExit() {
   previous_layers_.clear();
   previous_plane_state_.clear();
   std::queue<DisplayQueueItem>().swap(queue_);
+  previous_sync_.reset(nullptr);
   current_sync_.reset(nullptr);
   compositor_.Reset();
 }

@@ -14,28 +14,36 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_UTILS_HWCEVENT_H_
-#define COMMON_UTILS_HWCEVENT_H_
+#ifndef COMMON_UTILS_FDHANDLER_H_
+#define COMMON_UTILS_FDHANDLER_H_
 
-#include <stdint.h>
+#include <map>
 
 namespace hwcomposer {
 
-class HWCEvent {
+class FDHandler {
  public:
-  HWCEvent();
-  virtual ~HWCEvent();
+  FDHandler();
+  virtual ~FDHandler();
 
-  bool Initialize();
-  bool Signal();
-  bool Wait();
+  // Add fd to the list of fds that we care about
+  bool AddFd(int fd);
+  bool RemoveFd(int fd);
 
-  int get_fd() const { return fd_; }
+  int Poll(int timeout);
+
+  int IsReady(int fd) const;
 
  private:
-  int fd_;
+  struct FDWatch {
+    FDWatch();
+    int idx;
+    short revents;
+  };
+
+  std::map<int, FDWatch> fds_;
 };
 
-}  // namespace hwcomposer
+} // namespace hwcomposer
 
-#endif  // COMMON_UTILS_HWCEVENT_H_
+#endif // COMMON_UTILS_FDHANDLER_H_

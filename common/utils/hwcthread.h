@@ -21,6 +21,7 @@
 #include <string>
 #include <memory>
 
+#include "fdhandler.h"
 #include "hwcevent.h"
 #include "spinlock.h"
 
@@ -40,6 +41,7 @@ class HWCThread {
   virtual void HandleExit();
   virtual void HandleWait();
 
+  FDHandler fd_handler_;
   bool initialized_;
 
  private:
