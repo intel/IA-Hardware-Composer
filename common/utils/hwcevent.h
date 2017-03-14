@@ -21,15 +21,25 @@
 
 namespace hwcomposer {
 
+// This class wraps eventfd and uses it as a method to signal events.
 class HWCEvent {
  public:
   HWCEvent();
   virtual ~HWCEvent();
 
+  // Initialize the eventfd. Do not use an instance of this class before
+  // calling this first.
   bool Initialize();
+
+  // Signals the eventfd, waking up whoever is blocked waiting on it to be
+  // signaled. If the eventfd counter is already > 0, just increase it by 1.
   bool Signal();
+
+  // Wait on the eventfd to be signaled. If the eventfd counter is already > 0,
+  // return immediately.
   bool Wait();
 
+  // Return the internal fd, so it can be polled on.
   int get_fd() const {
     return fd_;
   }
