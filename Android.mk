@@ -60,6 +60,7 @@ LOCAL_SRC_FILES := \
 	common/display/pageflipeventhandler.cpp \
 	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \
+	common/utils/fdhandler.cpp \
 	common/utils/hwcevent.cpp \
 	common/utils/hwcthread.cpp \
 	common/utils/disjoint_layers.cpp \
