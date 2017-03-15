@@ -258,9 +258,9 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
   CTRACE();
   char buffer[1024];
   int ret;
-  bool drm_event = false, hotplug_event = false;
 
   while (true) {
+    bool drm_event = false, hotplug_event = false;
     ret = read(hotplug_fd_.get(), &buffer, sizeof(buffer));
     if (ret == 0) {
       return;
