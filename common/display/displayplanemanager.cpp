@@ -18,7 +18,7 @@
 
 #include <nativebufferhandler.h>
 
-#include <drm/drm_fourcc.h>
+#include <drm_fourcc.h>
 
 #include <set>
 #include <utility>

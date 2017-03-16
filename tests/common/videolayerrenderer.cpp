@@ -16,7 +16,7 @@
 
 #include "videolayerrenderer.h"
 #include <stdio.h>
-#include <drm/drm_fourcc.h>
+#include <drm_fourcc.h>
 
 VideoLayerRenderer::VideoLayerRenderer(struct gbm_device* gbm_dev)
     : LayerRenderer(gbm_dev) {
