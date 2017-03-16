@@ -182,6 +182,8 @@ class DrmHwcTwo : public hwc2_device_t {
     int32_t color_mode_;
 
     uint32_t frame_no_ = 0;
+    //True after validateDisplay
+    bool checkValidateDisplay = false;
   };
 
   static DrmHwcTwo *toDrmHwcTwo(hwc2_device_t *dev) {
