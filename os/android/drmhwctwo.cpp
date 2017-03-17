@@ -263,9 +263,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetChangedCompositionTypes(
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t /*width*/,
                                                           uint32_t /*height*/,
-                                                          int32_t /*format*/,
+                                                          int32_t format,
                                                           int32_t dataspace) {
-  if (dataspace != HAL_DATASPACE_UNKNOWN &&
+  if (!(display_->CheckPlaneFormat(format)) &&
+      dataspace != HAL_DATASPACE_UNKNOWN &&
       dataspace != HAL_DATASPACE_STANDARD_UNSPECIFIED)
     return HWC2::Error::Unsupported;
 

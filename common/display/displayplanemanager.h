@@ -62,7 +62,7 @@ class DisplayPlaneManager {
   void DisablePipe(drmModeAtomicReqPtr property_set);
 
   void EndFrameUpdate();
-
+  bool CheckPlaneFormat(uint32_t format);
  protected:
   struct OverlayPlane {
    public:

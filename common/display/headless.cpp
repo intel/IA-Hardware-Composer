@@ -129,4 +129,10 @@ int Headless::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> /*callback*/,
 void Headless::VSyncControl(bool /*enabled*/) {
 }
 
+bool Headless::CheckPlaneFormat(uint32_t format){
+  //assuming that virtual display supports the format
+  return true;
+}
+
+
 }  // namespace hwcomposer

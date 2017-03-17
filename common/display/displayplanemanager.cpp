@@ -521,4 +521,8 @@ std::unique_ptr<DisplayPlane> DisplayPlaneManager::CreatePlane(
       new DisplayPlane(plane_id, possible_crtcs));
 }
 
+bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format){
+    return primary_plane_-> IsSupportedFormat(format);
+}
+
 }  // namespace hwcomposer
