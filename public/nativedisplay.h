@@ -82,7 +82,7 @@ class NativeDisplay {
   virtual void SetOutputBuffer(HWCNativeHandle /*buffer*/,
                                int32_t /*acquire_fence*/) {
   }
-
+  virtual bool CheckPlaneFormat(uint32_t format) = 0;
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,
