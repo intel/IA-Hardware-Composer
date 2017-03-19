@@ -110,7 +110,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   bo->width = handle->import_data.width;
   bo->height = handle->import_data.height;
-  bo->prime_fd = dup(handle->import_data.fds[0]);
+  bo->prime_fd = handle->import_data.fds[0];
   size_t total_planes = gbm_bo_get_num_planes(handle->bo);
   for (size_t i = 0; i < total_planes; i++) {
     bo->gem_handles[i] = gem_handle;

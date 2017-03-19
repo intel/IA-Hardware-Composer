@@ -30,10 +30,6 @@ namespace hwcomposer {
 
 OverlayBuffer::~OverlayBuffer() {
   ReleaseFrameBuffer();
-#ifdef USE_MINIGBM
-  if (prime_fd_)
-    close(prime_fd_);
-#endif
 }
 
 void OverlayBuffer::Initialize(const HwcBuffer& bo) {

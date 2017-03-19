@@ -17,6 +17,7 @@
 #include "grallocbufferhandler.h"
 
 #include <xf86drmMode.h>
+#include <xf86drm.h>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -35,6 +36,8 @@
 #include "drmhwcgralloc.h"
 
 namespace hwcomposer {
+
+#define DRV_MAX_PLANES 4
 
 // static
 NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
@@ -96,28 +99,35 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 }
 #ifdef USE_MINIGBM
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
-  memset(bo, 0, sizeof(struct HwcBuffer));
-  int ret = gralloc_->perform(gralloc_, GRALLOC_DRM_IMPORT,
-			      handle->handle_, fd_, bo);
-  if (ret) {
-    ETRACE("GRALLOC_MODULE_PERFORM_DRM_IMPORT failed %d", ret);
-    return false;
-  }
-
-  auto gr_handle = (struct cros_gralloc_handle *)handle;
+  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
     return false;
+  }
+
+  memset(bo, 0, sizeof(struct HwcBuffer));
+  bo->format = gr_handle->format;
+  bo->width = gr_handle->width;
+  bo->height = gr_handle->height;
+  bo->prime_fd = gr_handle->fds[0];
+
+  uint32_t id;
+  if (drmPrimeFDToHandle(fd_, bo->prime_fd, &id)) {
+    ETRACE("drmPrimeFDToHandle failed.");
+    return false;
+  }
+
+  for (size_t p = 0; p < DRV_MAX_PLANES; p++) {
+    bo->offsets[p] = gr_handle->offsets[p];
+    bo->pitches[p] = gr_handle->strides[p];
+    bo->gem_handles[p] = id;
   }
 
   if (gr_handle->usage & GRALLOC_USAGE_PROTECTED) {
     bo->usage |= hwcomposer::kLayerProtected;
   } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
     bo->usage |= hwcomposer::kLayerCursor;
-  }
-
-  // We support DRM_FORMAT_ARGB8888 for cursor.
-  if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
+    // We support DRM_FORMAT_ARGB8888 for cursor.
     bo->format = DRM_FORMAT_ARGB8888;
   }
 
