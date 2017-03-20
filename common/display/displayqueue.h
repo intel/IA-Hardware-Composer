@@ -51,6 +51,7 @@ class DisplayQueue : public HWCThread {
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
   bool SetPowerMode(uint32_t power_mode);
+  bool CheckPlaneFormat(uint32_t format);
 
  protected:
   void HandleRoutine() override;
