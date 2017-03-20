@@ -88,6 +88,7 @@ class Display : public NativeDisplay {
                             uint32_t display_id) override;
 
   void VSyncControl(bool enabled) override;
+  bool CheckPlaneFormat(uint32_t format) override;
 
  protected:
   uint32_t CrtcId() const override {

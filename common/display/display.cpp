@@ -221,4 +221,8 @@ void Display::VSyncControl(bool enabled) {
   flip_handler_->VSyncControl(enabled);
 }
 
+bool Display::CheckPlaneFormat(uint32_t format) {
+  return display_queue_->CheckPlaneFormat(format);
+}
+
 }  // namespace hwcomposer

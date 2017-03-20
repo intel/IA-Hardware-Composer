@@ -497,4 +497,8 @@ void DisplayQueue::GetDrmObjectProperty(const char* name,
     ETRACE("Could not find property %s", name);
 }
 
+bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
+  return display_plane_manager_->CheckPlaneFormat(format);
+}
+
 }  // namespace hwcomposer

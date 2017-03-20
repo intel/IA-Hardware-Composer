@@ -211,8 +211,16 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
 HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
   uint32_t num_changes = 0;
+  if (!checkValidateDisplay) {
+     ALOGV("AcceptChanges failed, not validated");
+     return HWC2::Error::NotValidated;
+  }
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
     l.second.accept_type_change();
+
+  //reset the value to false
+  checkValidateDisplay = false;
   return HWC2::Error::None;
 }
 
@@ -256,15 +264,20 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetChangedCompositionTypes(
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t /*width*/,
-                                                          uint32_t /*height*/,
-                                                          int32_t /*format*/,
+HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
+                                                          uint32_t height,
+                                                          int32_t format,
                                                           int32_t dataspace) {
-  if (dataspace != HAL_DATASPACE_UNKNOWN &&
-      dataspace != HAL_DATASPACE_STANDARD_UNSPECIFIED)
+  if (width == display_->Width() && height == display_->Height() &&
+      format == HAL_PIXEL_FORMAT_RGBA_8888 &&
+      dataspace == HAL_DATASPACE_UNKNOWN) {
+      return HWC2::Error::None;
+    }
+  else if (!(display_->CheckPlaneFormat(format)) &&
+           dataspace != HAL_DATASPACE_UNKNOWN &&
+           dataspace != HAL_DATASPACE_STANDARD_UNSPECIFIED)
     return HWC2::Error::Unsupported;
 
-  // TODO: Validate format can be handled by either GL or planes
   return HWC2::Error::None;
 }
 
@@ -567,6 +580,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       }
     }
   }
+  checkValidateDisplay = true;
   return HWC2::Error::None;
 }
 
