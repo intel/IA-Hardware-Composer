@@ -89,6 +89,23 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
+  if (!retire_sync_object_) {
+    // Create a Sync object for tracking each frame Composition.
+    retire_sync_object_.reset(new NativeSync());
+    if (!retire_sync_object_->Init()) {
+      ETRACE("Failed to create sync object.");
+      return false;
+    }
+  }
+
+  if (!layer_sync_object_) {
+    // Create a Sync object for Layer Release fences.
+    layer_sync_object_.reset(new NativeSync());
+    if (!layer_sync_object_->Init()) {
+      ETRACE("Failed to create sync object.");
+      return false;
+    }
+  }
 
   return true;
 }
@@ -171,17 +188,12 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
-bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
+bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
+                               int32_t* retire_fence) {
   CTRACE();
   ScopedSpinLock lock(display_queue_);
   queue_.emplace();
   DisplayQueueItem& queue_item = queue_.back();
-  // Create a Sync object for this Composition.
-  queue_item.sync_object_.reset(new NativeSync());
-  if (!queue_item.sync_object_->Init()) {
-    ETRACE("Failed to create sync object.");
-    return false;
-  }
 
   size_t size = source_layers.size();
 
@@ -199,10 +211,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     queue_item.layers_rects_.emplace_back(layer->GetDisplayFrame());
     int ret = layer->release_fence.Reset(
-        queue_item.sync_object_->CreateNextTimelineFence());
+        layer_sync_object_->CreateNextTimelineFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
+
+  queue_item.retire_fence_.Reset(
+      retire_sync_object_->CreateNextTimelineFence());
+  queue_item.retire_timeline_point_ = retire_sync_object_->GetCurrentTimeLine();
+  queue_item.layer_timeline_point_ = layer_sync_object_->GetCurrentTimeLine();
+
+  *retire_fence = queue_item.retire_fence_.get();
 
   Resume();
   return true;
@@ -212,7 +231,9 @@ void DisplayQueue::GetNextQueueItem(DisplayQueueItem& item) {
   DisplayQueueItem& queue_item = queue_.front();
   item.layers_.swap(queue_item.layers_);
   item.layers_rects_.swap(queue_item.layers_rects_);
-  item.sync_object_.reset(queue_item.sync_object_.release());
+  item.retire_fence_.Reset(queue_item.retire_fence_.Release());
+  item.retire_timeline_point_ = queue_item.retire_timeline_point_;
+  item.layer_timeline_point_ = queue_item.layer_timeline_point_;
   queue_.pop();
 }
 
@@ -220,6 +241,7 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   CTRACE();
 
   ScopedSpinLock lock(spin_lock_);
+
   // Reset any DisplayQueue Manager and Compositor state.
   if (!display_plane_manager_->BeginFrameUpdate(&queue_item.layers_)) {
     ETRACE("Failed to import needed buffers in DisplayQueueManager.");
@@ -290,25 +312,33 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     previous_plane_state_.swap(current_composition_planes);
   }
 
+#ifdef DISABLE_EXPLICIT_SYNC
+  compositor_.InsertFence(fence);
+  if (queue_item.layer_timeline_point_ > 0) {
+    layer_sync_object_->IncreaseTimelineToPoint(
+        queue_item.layer_timeline_point_);
+    queue_item.layer_timeline_point_ = 0;
+  }
+
+  if (queue_item.retire_timeline_point_ > 0) {
+    retire_sync_object_->IncreaseTimelineToPoint(
+        queue_item.retire_timeline_point_);
+    queue_item.retire_timeline_point_ = 0;
+  }
+#else
   if (!succesful_commit || (flags & DRM_MODE_ATOMIC_ALLOW_MODESET))
     return;
 
-#ifdef DISABLE_EXPLICIT_SYNC
-  compositor_.InsertFence(fence);
-#else
   if (fence > 0) {
     compositor_.InsertFence(dup(fence));
-    fd_handler_.AddFd(fence);
     out_fence_.Reset(fence);
   }
 #endif
-
-  current_sync_.reset(queue_item.sync_object_.release());
 }
 
 void DisplayQueue::CommitFinished() {
   fd_handler_.RemoveFd(out_fence_.get());
-  out_fence_.Reset(-1);
+  SignalFences();
 }
 
 void DisplayQueue::ProcessRequests() {
@@ -325,7 +355,10 @@ void DisplayQueue::ProcessRequests() {
   GetNextQueueItem(item);
   display_queue_.unlock();
 
-  HandleUpdateRequest(item);
+  PresentQueueItem(item);
+  if (out_fence_.get() > 0) {
+    fd_handler_.AddFd(out_fence_.get());
+  }
 }
 
 void DisplayQueue::HandleRoutine() {
@@ -349,10 +382,77 @@ void DisplayQueue::Flush() {
 
   while (queue_.size()) {
     DisplayQueueItem item;
-
     GetNextQueueItem(item);
-    HandleUpdateRequest(item);
+    PresentQueueItem(item);
   }
+
+  SignalAllFences();
+}
+
+void DisplayQueue::PresentQueueItem(DisplayQueueItem& item) {
+  HandleUpdateRequest(item);
+  previous_layer_timeline_point_ = layer_timeline_point_;
+  layer_timeline_point_ = item.layer_timeline_point_;
+
+  previous_retire_timeline_point_ = retire_timeline_point_;
+  retire_timeline_point_ = item.retire_timeline_point_;
+  previous_retire_fence_.Reset(retire_fence_.Release());
+  retire_fence_.Reset(item.retire_fence_.Release());
+}
+
+void DisplayQueue::SignalFences() {
+  if (previous_layer_timeline_point_ > 0) {
+    layer_sync_object_->IncreaseTimelineToPoint(previous_layer_timeline_point_);
+    previous_layer_timeline_point_ = -1;
+  }
+
+  if (previous_retire_timeline_point_ > 0) {
+    retire_sync_object_->IncreaseTimelineToPoint(
+        previous_retire_timeline_point_);
+    previous_retire_timeline_point_ = -1;
+  }
+
+  out_fence_.Reset(-1);
+  previous_retire_fence_.Reset(-1);
+}
+
+void DisplayQueue::SignalAllFences() {
+  // Signal all layer fences.
+  if (previous_layer_timeline_point_ > 0) {
+    layer_sync_object_->IncreaseTimelineToPoint(previous_layer_timeline_point_);
+    previous_layer_timeline_point_ = -1;
+  }
+
+  if (layer_timeline_point_ > 0) {
+    layer_sync_object_->IncreaseTimelineToPoint(layer_timeline_point_);
+    layer_timeline_point_ = -1;
+  }
+
+  if (previous_retire_timeline_point_ > 0) {
+    retire_sync_object_->IncreaseTimelineToPoint(
+        previous_retire_timeline_point_);
+    previous_retire_timeline_point_ = -1;
+  }
+
+  if (retire_timeline_point_ > 0) {
+    retire_sync_object_->IncreaseTimelineToPoint(
+        retire_timeline_point_);
+    retire_timeline_point_ = -1;
+  }
+
+  // Signal fences for any buffers in queue.
+  if (queue_.size()) {
+    DisplayQueueItem& queue_item = queue_.back();
+    retire_sync_object_->IncreaseTimelineToPoint(
+        queue_item.retire_timeline_point_);
+    layer_sync_object_->IncreaseTimelineToPoint(
+        queue_item.layer_timeline_point_);
+    retire_sync_object_->IncreaseTimelineToPoint(
+        queue_item.retire_timeline_point_);
+  }
+
+  previous_retire_fence_.Reset(-1);
+  retire_fence_.Reset(-1);
 }
 
 void DisplayQueue::HandleExit() {
@@ -375,8 +475,10 @@ void DisplayQueue::HandleExit() {
                               DRM_MODE_DPMS_OFF);
   previous_layers_.clear();
   previous_plane_state_.clear();
+
+  SignalAllFences();
+
   std::queue<DisplayQueueItem>().swap(queue_);
-  current_sync_.reset(nullptr);
   compositor_.Reset();
 }
 

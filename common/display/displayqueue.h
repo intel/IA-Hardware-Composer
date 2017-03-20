@@ -49,7 +49,8 @@ class DisplayQueue : public HWCThread {
                   uint32_t connector, const drmModeModeInfo& mode_info,
                   NativeBufferHandler* buffer_handler);
 
-  bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
+  bool QueueUpdate(std::vector<HwcLayer*>& source_layers,
+                   int32_t* retire_fence);
   bool SetPowerMode(uint32_t power_mode);
 
  protected:
@@ -60,11 +61,16 @@ class DisplayQueue : public HWCThread {
   struct DisplayQueueItem {
     std::vector<OverlayLayer> layers_;
     std::vector<HwcRect<int>> layers_rects_;
-    std::unique_ptr<NativeSync> sync_object_;
+    ScopedFd retire_fence_;
+    int64_t retire_timeline_point_;
+    int64_t layer_timeline_point_;
   };
 
   void GetNextQueueItem(DisplayQueueItem& item);
   void Flush();
+  void PresentQueueItem(DisplayQueueItem& item);
+  void SignalFences();
+  void SignalAllFences();
   void HandleUpdateRequest(DisplayQueueItem& queue_item);
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
@@ -91,13 +97,20 @@ class DisplayQueue : public HWCThread {
   bool needs_modeset_ = false;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
-  std::unique_ptr<NativeSync> current_sync_;
+  std::unique_ptr<NativeSync> layer_sync_object_;
+  std::unique_ptr<NativeSync> retire_sync_object_;
   SpinLock spin_lock_;
   SpinLock display_queue_;
   std::queue<DisplayQueueItem> queue_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
   ScopedFd out_fence_;
+  ScopedFd retire_fence_;
+  ScopedFd previous_retire_fence_;
+  int64_t layer_timeline_point_ = 0;
+  int64_t retire_timeline_point_ = 0;
+  int64_t previous_retire_timeline_point_ = 0;
+  int64_t previous_layer_timeline_point_ = 0;
 };
 
 }  // namespace hwcomposer

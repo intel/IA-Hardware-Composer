@@ -55,7 +55,8 @@ bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
+bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
+                             int32_t *retire_fence) {
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<OverlayBuffer> buffers;
@@ -89,11 +90,10 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
     return false;
   }
 
-  int retire_fence;
   // Prepare for final composition.
   if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
                                  width_, height_, output_handle_,
-                                 &retire_fence)) {
+                                 retire_fence)) {
     ETRACE("Failed to prepare for the frame composition ret=%d", ret);
     return false;
   }

@@ -117,7 +117,8 @@ bool Headless::SetPowerMode(uint32_t /*power_mode*/) {
   return true;
 }
 
-bool Headless::Present(std::vector<HwcLayer *> & /*source_layers*/) {
+bool Headless::Present(std::vector<HwcLayer *> & /*source_layers*/,
+                       int32_t * /*retire_fence*/) {
   return true;
 }
 

@@ -34,8 +34,13 @@ class NativeSync {
 
   bool Wait(int fence);
 
- private:
   int IncreaseTimelineToPoint(int point);
+
+  int64_t GetCurrentTimeLine() {
+    return timeline_;
+  }
+
+ private:
 #ifndef USE_ANDROID_SYNC
   int sw_sync_fence_create(int fd, const char *name, unsigned value);
   int sw_sync_timeline_inc(int fd, unsigned count);

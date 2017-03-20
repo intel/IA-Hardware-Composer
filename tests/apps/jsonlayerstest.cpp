@@ -73,7 +73,7 @@ struct frame {
   std::vector<std::unique_ptr<LayerRenderer>> layer_renderers;
   std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>>
       layers_fences;
-  // NativeFence release_fence;
+  std::vector<int32_t> fences;
 };
 
 bool init_gl() {
@@ -168,7 +168,8 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   void PresentLayers(
       std::vector<hwcomposer::HwcLayer *> &layers,
       std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>> &
-          layers_fences) {
+          layers_fences,
+      std::vector<int32_t> &fences) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
 
@@ -176,7 +177,9 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       return;
 
     for (auto &display : connected_displays_) {
-      display->Present(layers);
+      int32_t retire_fence = -1;
+      display->Present(layers, &retire_fence);
+      fences.emplace_back(retire_fence);
       // store fences for each display for each layer
       unsigned int fence_index = 0;
       for (auto layer : layers) {
@@ -423,6 +426,10 @@ static void init_frames(int32_t width, int32_t height) {
       frame->layer_renderers.push_back(
           std::unique_ptr<LayerRenderer>(renderer));
     }
+
+    for (int32_t &fence : frame->fences) {
+      fence = -1;
+    }
   }
 }
 
@@ -533,24 +540,28 @@ int main(int argc, char *argv[]) {
 
   for (uint64_t i = 0; arg_frames == 0 || i < arg_frames; ++i) {
     struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
-
+    std::vector<hwcomposer::HwcLayer *>().swap(layers);
     for (uint32_t j = 0; j < frame->layers.size(); j++) {
       for (auto &fence : frame->layers_fences[j]) {
         if (fence->get() != -1) {
-          ret = sync_wait(fence->get(), 1000);
+          sync_wait(fence->get(), -1);
         }
       }
       frame->layers_fences[j].clear();
-    }
-
-    std::vector<hwcomposer::HwcLayer *>().swap(layers);
-    for (uint32_t j = 0; j < frame->layers.size(); j++) {
       frame->layer_renderers[j]->Draw(&gpu_fence_fd);
       frame->layers[j]->acquire_fence.Reset(gpu_fence_fd);
       layers.emplace_back(frame->layers[j].get());
     }
 
-    callback->PresentLayers(layers, frame->layers_fences);
+    for (int32_t &fence : frame->fences) {
+      if (fence == -1)
+        continue;
+
+      sync_wait(fence, -1);
+      fence = -1;
+    }
+
+    callback->PresentLayers(layers, frame->layers_fences, frame->fences);
     frame_total++;
 
     if (!strcmp(powermode, "on")) {
@@ -564,7 +575,6 @@ int main(int argc, char *argv[]) {
     } else if (!strcmp(powermode, "off")) {
       if (frame_total == 500) {
         usleep(30000);
-        callback->SetPowerMode(hwcomposer::kOff);
         sleep(1);
         callback->SetPowerMode(hwcomposer::kOn);
         frame_total = 0;

@@ -70,7 +70,16 @@ class NativeDisplay {
 
   virtual bool SetPowerMode(uint32_t power_mode) = 0;
 
-  virtual bool Present(std::vector<HwcLayer *> &source_layers) = 0;
+  /**
+   * Presents content on display.
+   * param source_layers contains list of layers which need
+   *       to be displayed this frame.
+   * param retire_fence is a fence object which will be
+   *       signalled when the previous frame composition
+   *       result is no more needed.
+   */
+  virtual bool Present(std::vector<HwcLayer *> &source_layers,
+                       int32_t *retire_fence) = 0;
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
