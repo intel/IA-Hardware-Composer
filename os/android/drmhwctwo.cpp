@@ -211,8 +211,16 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
 HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
   uint32_t num_changes = 0;
+  if (!checkValidateDisplay) {
+    ALOGV("AcceptChanges failed, not validated");
+    return HWC2::Error::NotValidated;
+  }
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
     l.second.accept_type_change();
+
+  // reset the value to false
+  checkValidateDisplay = false;
   return HWC2::Error::None;
 }
 
@@ -567,6 +575,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       }
     }
   }
+  checkValidateDisplay = true;
   return HWC2::Error::None;
 }
 
