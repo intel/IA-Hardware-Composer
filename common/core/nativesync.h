@@ -32,8 +32,6 @@ class NativeSync {
 
   int CreateNextTimelineFence();
 
-  bool Wait(int fence);
-
  private:
   int IncreaseTimelineToPoint(int point);
 #ifndef USE_ANDROID_SYNC

@@ -17,6 +17,7 @@
 #include "renderstate.h"
 
 #include "compositionregion.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
 #include "nativesync.h"
 #include "overlaylayer.h"
@@ -37,7 +38,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     OverlayLayer &layer = layers.at(texture_index);
     int fence = layer.GetAcquireFence();
     if (fence > 0) {
-      sync.Wait(fence);
+      HWCPoll(fence, -1);
       layer.ReleaseAcquireFence();
     }
 
