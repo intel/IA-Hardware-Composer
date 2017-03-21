@@ -60,7 +60,6 @@ class DisplayQueue : public HWCThread {
   struct DisplayQueueItem {
     std::vector<OverlayLayer> layers_;
     std::vector<HwcRect<int>> layers_rects_;
-    std::unique_ptr<NativeSync> sync_object_;
   };
 
   void GetNextQueueItem(DisplayQueueItem& item);

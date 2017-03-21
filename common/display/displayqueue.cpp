@@ -176,13 +176,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
   ScopedSpinLock lock(display_queue_);
   queue_.emplace();
   DisplayQueueItem& queue_item = queue_.back();
-  // Create a Sync object for this Composition.
-  queue_item.sync_object_.reset(new NativeSync());
-  if (!queue_item.sync_object_->Init()) {
-    ETRACE("Failed to create sync object.");
-    return false;
-  }
-
   size_t size = source_layers.size();
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -198,8 +191,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     queue_item.layers_rects_.emplace_back(layer->GetDisplayFrame());
-    int ret = layer->release_fence.Reset(
-        queue_item.sync_object_->CreateNextTimelineFence());
+    int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
@@ -212,7 +204,6 @@ void DisplayQueue::GetNextQueueItem(DisplayQueueItem& item) {
   DisplayQueueItem& queue_item = queue_.front();
   item.layers_.swap(queue_item.layers_);
   item.layers_rects_.swap(queue_item.layers_rects_);
-  item.sync_object_.reset(queue_item.sync_object_.release());
   queue_.pop();
 }
 
@@ -302,8 +293,6 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
     out_fence_.Reset(fence);
   }
 #endif
-
-  current_sync_.reset(queue_item.sync_object_.release());
 }
 
 void DisplayQueue::CommitFinished() {
