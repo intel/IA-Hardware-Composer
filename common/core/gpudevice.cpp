@@ -71,6 +71,7 @@ class GpuDevice::DisplayManager : public HWCThread {
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
 
  protected:
+  void HandleWait() override;
   void HandleRoutine() override;
 
  private:
@@ -294,6 +295,9 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
   }
 }
 #endif
+
+void GpuDevice::DisplayManager::HandleWait() {
+}
 
 void GpuDevice::DisplayManager::HandleRoutine() {
   CTRACE();
