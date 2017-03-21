@@ -63,6 +63,7 @@ LOCAL_SRC_FILES := \
 	common/utils/fdhandler.cpp \
 	common/utils/hwcevent.cpp \
 	common/utils/hwcthread.cpp \
+	common/utils/hwcutils.cpp \
 	common/utils/disjoint_layers.cpp \
 	os/android/grallocbufferhandler.cpp \
 	os/android/drmhwctwo.cpp
