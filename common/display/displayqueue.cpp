@@ -24,6 +24,7 @@
 
 #include "displayplanemanager.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "overlaylayer.h"
 #include "pageflipeventhandler.h"
 
@@ -274,33 +275,26 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
 
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
-    succesful_commit = false;
-  } else {
-    display_plane_manager_->EndFrameUpdate();
-    previous_layers_.swap(queue_item.layers_);
-    previous_plane_state_.swap(current_composition_planes);
+    return;
   }
 
-  if (!succesful_commit || (flags & DRM_MODE_ATOMIC_ALLOW_MODESET))
-    return;
-
+  display_plane_manager_->EndFrameUpdate();
 #ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
 #else
   if (fence > 0) {
-    compositor_.InsertFence(dup(fence));
-    fd_handler_.AddFd(fence);
-    out_fence_.Reset(fence);
+    if (previous_layers_.size() > 0) {
+      HWCPoll(fence, -1);
+    }
+
+    close(fence);
   }
 #endif
+  previous_layers_.swap(queue_item.layers_);
+  previous_plane_state_.swap(current_composition_planes);
 }
 
-void DisplayQueue::CommitFinished() {
-  fd_handler_.RemoveFd(out_fence_.get());
-  out_fence_.Reset(-1);
-}
-
-void DisplayQueue::ProcessRequests() {
+void DisplayQueue::HandleRoutine() {
   display_queue_.lock();
   size_t size = queue_.size();
 
@@ -315,22 +309,6 @@ void DisplayQueue::ProcessRequests() {
   display_queue_.unlock();
 
   HandleUpdateRequest(item);
-}
-
-void DisplayQueue::HandleRoutine() {
-  // If we have a commit pending and the out_fence_ is ready, we can process
-  // the end of the last commit.
-  int fd = out_fence_.get();
-  if (fd > 0 && fd_handler_.IsReady(fd))
-    CommitFinished();
-
-  // Do not submit another commit while there is one still pending.
-  if (out_fence_.get() > 0)
-    return;
-
-  // Check whether there are more requests to process, and commit the first
-  // one.
-  ProcessRequests();
 }
 
 void DisplayQueue::Flush() {
@@ -362,10 +340,9 @@ void DisplayQueue::HandleExit() {
   display_plane_manager_->DisablePipe(pset.get());
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
-  previous_layers_.clear();
+  std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
   std::queue<DisplayQueueItem>().swap(queue_);
-  current_sync_.reset(nullptr);
   compositor_.Reset();
 }
 

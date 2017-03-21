@@ -19,6 +19,7 @@ common_SOURCES =              \
     common/utils/fdhandler.cpp \
     common/utils/hwcevent.cpp \
     common/utils/hwcthread.cpp \
+    common/utils/hwcutils.cpp \
     common/utils/disjoint_layers.cpp \
     os/linux/gbmbufferhandler.cpp \
 	$(NULL)
