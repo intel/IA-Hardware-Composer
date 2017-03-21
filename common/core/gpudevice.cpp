@@ -379,6 +379,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       }
     } else {
       // Try to find an encoder for the connector.
+      bool found_encoder = false;
       for (int32_t j = 0; j < connector->count_encoders; ++j) {
         ScopedDrmEncoderPtr encoder(
             drmModeGetEncoder(fd_, connector->encoders[j]));
@@ -390,10 +391,12 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
               display->Connect(mode, connector.get(), buffer_handler_.get())) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             connected_displays_.emplace_back(display.get());
+            found_encoder = true;
             break;
           }
         }
       }
+      if(found_encoder) break;
     }
   }
 
