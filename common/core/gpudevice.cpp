@@ -413,7 +413,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     headless_.release();
   }
 
-  if (callback_ && !connected_displays_.empty()) {
+  if (callback_) {
     callback_->Callback(connected_displays_);
   }
 
