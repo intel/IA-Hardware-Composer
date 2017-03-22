@@ -279,6 +279,10 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   }
 
   display_plane_manager_->EndFrameUpdate();
+
+  for (OverlayLayer& layer : queue_item.layers_) {
+    layer.ReleaseFenceIfReady();
+  }
 #ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
 #else
