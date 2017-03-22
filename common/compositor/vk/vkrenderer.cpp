@@ -646,7 +646,14 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
     return false;
   }
 
-  printf("%s: %s: exit\n", __FILE__, __func__);
+  res = vkFreeDescriptorSets(dev_, desc_pool_, desc_sets.size(),
+                             desc_sets.data());
+  if (res != VK_SUCCESS) {
+    printf("vkFreeDescriptorSets failed (%d)\n", res);
+    return false;
+  }
+
+  return true;
 }
 
 void VKRenderer::InsertFence(uint64_t kms_fence) {
