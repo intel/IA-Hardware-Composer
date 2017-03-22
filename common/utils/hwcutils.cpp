@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,35 +14,18 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_CORE_NATIVESYNC_H_
-#define COMMON_CORE_NATIVESYNC_H_
+#include "hwcutils.h"
 
-#include <stdint.h>
-
-#include <scopedfd.h>
+#include <poll.h>
 
 namespace hwcomposer {
 
-class NativeSync {
- public:
-  NativeSync();
-  virtual ~NativeSync();
+void HWCPoll(int fd, int timeout) {
+  struct pollfd fds[1];
+  fds[0].fd = fd;
+  fds[0].events = POLLIN;
 
-  bool Init();
-
-  int CreateNextTimelineFence();
-
- private:
-  int IncreaseTimelineToPoint(int point);
-#ifndef USE_ANDROID_SYNC
-  int sw_sync_fence_create(int fd, const char *name, unsigned value);
-  int sw_sync_timeline_inc(int fd, unsigned count);
-#endif
-
-  ScopedFd timeline_fd_;
-  int64_t timeline_ = 0;
-  int64_t timeline_current_ = 0;
-};
+  poll(fds, 1, timeout);
+}
 
 }  // namespace hwcomposer
-#endif  // COMMON_CORE_NATIVESYNC_H_

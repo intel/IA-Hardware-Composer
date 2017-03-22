@@ -24,6 +24,7 @@
 
 #include <memory>
 
+#include "nativesync.h"
 #include "overlaybuffer.h"
 
 namespace hwcomposer {
@@ -39,6 +40,11 @@ struct OverlayLayer {
     return acquire_fence_.get();
   }
 
+  int GetReleaseFence();
+
+  // Creates a Release Fence which will
+  // be signalled when this layer is no
+  // longer in use.
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
   }
@@ -121,10 +127,10 @@ struct OverlayLayer {
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
-  NativeFence release_fence_;
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
+  std::unique_ptr<NativeSync> sync_object_;
   std::unique_ptr<OverlayBuffer> buffer_;
 };
 

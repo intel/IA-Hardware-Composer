@@ -54,6 +54,18 @@ bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
   return false;
 }
 
+int OverlayLayer::GetReleaseFence() {
+  if (!sync_object_) {
+    sync_object_.reset(new NativeSync());
+    if (!sync_object_->Init()) {
+      ETRACE("Failed to create sync object.");
+      return -1;
+    }
+  }
+
+  return sync_object_->CreateNextTimelineFence();
+}
+
 void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
 }
@@ -137,7 +149,6 @@ void OverlayLayer::Dump() {
   DUMPTRACE("DstWidth: %d", display_frame_width_);
   DUMPTRACE("DstHeight: %d", display_frame_height_);
   DUMPTRACE("AquireFence: %d", acquire_fence_.get());
-  DUMPTRACE("ReleaseFence: %d", release_fence_.get());
 
   buffer_->Dump();
 }

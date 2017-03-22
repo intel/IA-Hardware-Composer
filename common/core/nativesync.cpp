@@ -70,16 +70,6 @@ int NativeSync::CreateNextTimelineFence() {
   return sw_sync_fence_create(timeline_fd_.get(), "NativeSync", timeline_);
 }
 
-bool NativeSync::Wait(int fence) {
-  int ret = sync_wait(fence, 1000);
-  if (ret) {
-    ETRACE("Failed to wait for fence ret=%s\n", PRINTERROR());
-    return false;
-  }
-
-  return true;
-}
-
 int NativeSync::IncreaseTimelineToPoint(int point) {
   int timeline_increase = point - timeline_current_;
   if (timeline_increase <= 0)
