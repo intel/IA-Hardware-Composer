@@ -54,6 +54,19 @@ endif
 libhwcomposer_ladir = $(libdir)
 libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static
 
+libhwcincdir = $(includedir)/libhwc
+libhwcinc_HEADERS =	\
+	$(top_srcdir)/public/gpudevice.h	\
+	$(top_srcdir)/public/hwcbuffer.h	\
+	$(top_srcdir)/public/hwcdefs.h	\
+	$(top_srcdir)/public/hwclayer.h	\
+	$(top_srcdir)/public/hwcrect.h	\
+	$(top_srcdir)/public/nativebufferhandler.h	\
+	$(top_srcdir)/public/nativedisplay.h	\
+	$(top_srcdir)/public/nativefence.h	\
+	$(top_srcdir)/public/scopedfd.h	\
+	$(top_srcdir)/public/spinlock.h
+
 .PHONY: ChangeLog INSTALL
 
 INSTALL:
