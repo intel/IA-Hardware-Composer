@@ -52,7 +52,7 @@ libhwcomposer_la_SOURCES += $(gl_SOURCES)
 AM_CPPFLAGS += -DUSE_GL
 endif
 libhwcomposer_ladir = $(libdir)
-libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static
+libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared
 
 libhwcincdir = $(includedir)/libhwc
 libhwcinc_HEADERS =	\
