@@ -237,17 +237,36 @@ bool VKRenderer::Init() {
     printf("Failed to create vulkan debug callback\n");
   }
 
-  uint32_t n_phys_devs = 1;
-  VkPhysicalDevice phys_dev;
+  uint32_t count;
+  res = vkEnumeratePhysicalDevices(inst_, &count, NULL);
+  if (res != VK_SUCCESS) {
+    printf("vkEnumeratePhysicalDevices failed (%d)\n", res);
+    return false;
+  }
+  if (count == 0) {
+    printf("No physical devices\n");
+    return false;
+  }
 
-  res = vkEnumeratePhysicalDevices(inst_, &n_phys_devs, &phys_dev);
+  VkPhysicalDevice phys_devs[count];
+  res = vkEnumeratePhysicalDevices(inst_, &count, phys_devs);
   if (res != VK_SUCCESS) {
     printf("vkEnumeratePhysicalDevices failed (%d)\n", res);
     return false;
   }
 
-  if (n_phys_devs == 0) {
-    printf("no devices\n");
+  VkPhysicalDevice phys_dev = phys_devs[0];
+
+  vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, NULL);
+  if (count == 0) {
+    printf("No device queue family properties\n");
+    return false;
+  }
+
+  VkQueueFamilyProperties props[count];
+  vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, props);
+  if (!(props[0].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+    printf("Not a graphics queue\n");
     return false;
   }
 
