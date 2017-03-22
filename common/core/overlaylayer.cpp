@@ -66,6 +66,19 @@ int OverlayLayer::GetReleaseFence() {
   return sync_object_->CreateNextTimelineFence();
 }
 
+void OverlayLayer::SetReleaseFenceState(NativeSync::State state) {
+  sync_object_->SetState(state);
+}
+
+void OverlayLayer::ReleaseFenceIfReady() {
+  if (!sync_object_)
+    return;
+
+  if (sync_object_->GetState() == NativeSync::State::kReady) {
+    sync_object_.reset(nullptr);
+  }
+}
+
 void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
 }

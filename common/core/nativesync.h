@@ -25,12 +25,26 @@ namespace hwcomposer {
 
 class NativeSync {
  public:
+  // kReady:  Fence can be signalled immediately. This is usually
+  //          the case when we need to fallback to 3D Composition for
+  //          a given buffer.
+  // kIgnore: Dont signal the fence yet. This is the case when layer
+  //          associated with the fence is recycled.
+  // kSignalOnPageFlipEvent: Release the fence when we recieve PageFlipEvent
+  //                         notification.
+  enum class State : int32_t { kReady, kIgnore, kSignalOnPageFlipEvent };
+
   NativeSync();
   virtual ~NativeSync();
 
   bool Init();
 
   int CreateNextTimelineFence();
+
+  void SetState(State fence_state);
+  State GetState() const {
+    return state_;
+  }
 
  private:
   int IncreaseTimelineToPoint(int point);
@@ -42,6 +56,7 @@ class NativeSync {
   ScopedFd timeline_fd_;
   int64_t timeline_ = 0;
   int64_t timeline_current_ = 0;
+  State state_ = State::kSignalOnPageFlipEvent;
 };
 
 }  // namespace hwcomposer

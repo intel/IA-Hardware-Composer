@@ -40,6 +40,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     if (fence > 0) {
       HWCPoll(fence, -1);
       layer.ReleaseAcquireFence();
+      layer.SetReleaseFenceState(NativeSync::State::kReady);
     }
 
     layer_state_.emplace_back();
