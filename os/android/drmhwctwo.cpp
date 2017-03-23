@@ -18,6 +18,7 @@
 #define LOG_TAG "hwc-drm-two"
 
 #include "drmhwctwo.h"
+#include "drmutils.h"
 
 #include <xf86drmMode.h>
 
@@ -264,16 +265,28 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetChangedCompositionTypes(
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t /*width*/,
-                                                          uint32_t /*height*/,
-                                                          int32_t /*format*/,
+HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
+                                                          uint32_t height,
+                                                          int32_t format,
                                                           int32_t dataspace) {
-  if (dataspace != HAL_DATASPACE_UNKNOWN &&
-      dataspace != HAL_DATASPACE_STANDARD_UNSPECIFIED)
+  if (width != display_->Width() || height != display_->Height()) {
     return HWC2::Error::Unsupported;
+  }
 
-  // TODO: Validate format can be handled by either GL or planes
-  return HWC2::Error::None;
+  if (format == HAL_PIXEL_FORMAT_RGBA_8888 &&
+      (dataspace == HAL_DATASPACE_UNKNOWN ||
+       dataspace == HAL_DATASPACE_STANDARD_UNSPECIFIED)) {
+    return HWC2::Error::None;
+  } else {
+    // Convert HAL to fourcc-based DRM formats
+    uint32_t drm_format = GetDrmFormat(format);
+    if (display_->CheckPlaneFormat(drm_format) &&
+        (dataspace == HAL_DATASPACE_UNKNOWN ||
+         dataspace == HAL_DATASPACE_STANDARD_UNSPECIFIED))
+      return HWC2::Error::None;
+  }
+
+  return HWC2::Error::Unsupported;
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetColorModes(uint32_t *num_modes,
