@@ -24,15 +24,13 @@
 
 #include "displayplanemanager.h"
 #include "hwctrace.h"
-#include "hwcutils.h"
 #include "overlaylayer.h"
 #include "pageflipeventhandler.h"
 
 namespace hwcomposer {
 
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
-    : HWCThread(-8, "DisplayQueue"),
-      frame_(0),
+    : frame_(0),
       dpms_prop_(0),
       out_fence_ptr_prop_(0),
       active_prop_(0),
@@ -66,7 +64,6 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
                               uint32_t connector,
                               const drmModeModeInfo& mode_info,
                               NativeBufferHandler* buffer_handler) {
-  ScopedSpinLock lock(spin_lock_);
   frame_ = 0;
   previous_layers_.clear();
   previous_plane_state_.clear();
@@ -77,6 +74,8 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
     ETRACE("Failed to initialize DisplayQueue Manager.");
     return false;
   }
+
+  kms_fence_handler_.reset(new KMSFenceEventHandler());
 
   connector_ = connector;
   mode_ = mode_info;
@@ -147,23 +146,20 @@ bool DisplayQueue::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
 bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   switch (power_mode) {
     case kOff:
-      Exit();
+      HandleExit();
       break;
     case kDoze:
-      Flush();
-      Exit();
+      HandleExit();
       break;
     case kDozeSuspend:
-      Flush();
       break;
     case kOn:
       needs_modeset_ = true;
       drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                                   DRM_MODE_DPMS_ON);
-      if (!InitWorker()) {
-        ETRACE("Failed to initalize thread for DisplayQueue. %s", PRINTERROR());
+
+      if (!kms_fence_handler_->Initialize())
         return false;
-      }
       break;
     default:
       break;
@@ -174,15 +170,14 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
   CTRACE();
-  ScopedSpinLock lock(display_queue_);
-  queue_.emplace();
-  DisplayQueueItem& queue_item = queue_.back();
   size_t size = source_layers.size();
+  std::vector<OverlayLayer> layers;
+  std::vector<HwcRect<int>> layers_rects;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
-    queue_item.layers_.emplace_back();
-    OverlayLayer& overlay_layer = queue_item.layers_.back();
+    layers.emplace_back();
+    OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetTransform(layer->GetTransform());
     overlay_layer.SetAlpha(layer->GetAlpha());
@@ -191,31 +186,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
-    queue_item.layers_rects_.emplace_back(layer->GetDisplayFrame());
+    layers_rects.emplace_back(layer->GetDisplayFrame());
     int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
 
-  Resume();
-  return true;
-}
-
-void DisplayQueue::GetNextQueueItem(DisplayQueueItem& item) {
-  DisplayQueueItem& queue_item = queue_.front();
-  item.layers_.swap(queue_item.layers_);
-  item.layers_rects_.swap(queue_item.layers_rects_);
-  queue_.pop();
-}
-
-void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
-  CTRACE();
-
-  ScopedSpinLock lock(spin_lock_);
   // Reset any DisplayQueue Manager and Compositor state.
-  if (!display_plane_manager_->BeginFrameUpdate(&queue_item.layers_)) {
+  if (!display_plane_manager_->BeginFrameUpdate(&layers)) {
     ETRACE("Failed to import needed buffers in DisplayQueueManager.");
-    return;
+    return false;
   }
 
   uint32_t flags = 0;
@@ -234,100 +214,73 @@ void DisplayQueue::HandleUpdateRequest(DisplayQueueItem& queue_item) {
   // Validate Overlays and Layers usage.
   std::tie(render_layers, current_composition_planes) =
       display_plane_manager_->ValidateLayers(
-          &queue_item.layers_, previous_layers_, previous_plane_state_,
+	  &layers, previous_layers_, previous_plane_state_,
           needs_modeset_);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
   if (!compositor_.BeginFrame()) {
     ETRACE("Failed to initialize compositor.");
-    return;
+    return false;
   }
 
   if (render_layers) {
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, queue_item.layers_,
-                          queue_item.layers_rects_)) {
+    if (!compositor_.Draw(current_composition_planes, layers,
+			  layers_rects)) {
       ETRACE("Failed to prepare for the frame composition. ");
-      return;
+      return false;
     }
   }
 
-  // Do the actual commit.
-  bool succesful_commit = true;
+  for (OverlayLayer& layer : layers) {
+    layer.ReleaseFenceIfReady();
+  }
+
   uint64_t fence = 0;
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
 
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
-    return;
+    return false;
   }
 
   if (needs_modeset_) {
     if (!ApplyPendingModeset(pset.get())) {
       ETRACE("Failed to Modeset.");
-      return;
+      return false;
     }
   } else {
     GetFence(pset.get(), &fence);
   }
 
+  kms_fence_handler_->EnsureReadyForNextFrame();
+
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
-    return;
+    ETRACE("Failed to Commit layers.");
+    return false;
   }
 
   display_plane_manager_->EndFrameUpdate();
 
-  for (OverlayLayer& layer : queue_item.layers_) {
-    layer.ReleaseFenceIfReady();
-  }
 #ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
 #else
   if (fence > 0) {
-    if (previous_layers_.size() > 0) {
-      HWCPoll(fence, -1);
-    }
-
-    close(fence);
+    compositor_.InsertFence(dup(fence));
+    kms_fence_handler_->WaitFence(fence, previous_layers_);
   }
 #endif
-  previous_layers_.swap(queue_item.layers_);
+  previous_layers_.swap(layers);
   previous_plane_state_.swap(current_composition_planes);
-}
-
-void DisplayQueue::HandleRoutine() {
-  display_queue_.lock();
-  size_t size = queue_.size();
-
-  if (size <= 0) {
-    display_queue_.unlock();
-    return;
-  }
-
-  DisplayQueueItem item;
-
-  GetNextQueueItem(item);
-  display_queue_.unlock();
-
-  HandleUpdateRequest(item);
-}
-
-void DisplayQueue::Flush() {
-  ScopedSpinLock lock(display_queue_);
-
-  while (queue_.size()) {
-    DisplayQueueItem item;
-
-    GetNextQueueItem(item);
-    HandleUpdateRequest(item);
-  }
+  return true;
 }
 
 void DisplayQueue::HandleExit() {
-  ScopedSpinLocks lock(spin_lock_, display_queue_);
+  kms_fence_handler_->ExitThread();
+
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -346,7 +299,6 @@ void DisplayQueue::HandleExit() {
                               DRM_MODE_DPMS_OFF);
   std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
-  std::queue<DisplayQueueItem>().swap(queue_);
   compositor_.Reset();
 }
 

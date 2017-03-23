@@ -58,6 +58,7 @@ LOCAL_SRC_FILES := \
 	common/display/displayqueue.cpp \
 	common/display/headless.cpp \
 	common/display/pageflipeventhandler.cpp \
+        common/display/kmsfencehandler.cpp \
 	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/fdhandler.cpp \
@@ -97,7 +98,8 @@ LOCAL_SRC_FILES += \
 	common/compositor/gl/glsurface.cpp \
 	common/compositor/gl/egloffscreencontext.cpp \
 	common/compositor/gl/nativeglresource.cpp \
-	common/compositor/gl/shim.cpp
+	common/compositor/gl/shim.cpp \
+	common/compositor/scopedrendererstate.cpp
 endif
 
 ifeq ($(strip $(BOARD_USES_MINIGBM)),true)

@@ -14,39 +14,30 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_
-#define COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_
-
-#include "shim.h"
+#ifndef SCOPED_RENDERER_STATE_H_
+#define SCOPED_RENDERER_STATE_H_
 
 namespace hwcomposer {
 
-class EGLOffScreenContext {
- public:
-  EGLOffScreenContext();
-  ~EGLOffScreenContext();
+class Renderer;
 
-  bool Init();
+struct ScopedRendererState {
+  ScopedRendererState(Renderer* renderer);
 
-  EGLint GetSyncFD();
+  ScopedRendererState(const ScopedRendererState& rhs) = delete;
 
-  EGLDisplay GetDisplay() const {
-    return egl_display_;
+  ~ScopedRendererState();
+
+  ScopedRendererState& operator=(const ScopedRendererState& rhs) = delete;
+
+  bool IsValid() const {
+    return is_valid_;
   }
 
-  bool MakeCurrent();
-
-  void RestoreState();
-
  private:
-  EGLDisplay egl_display_;
-  EGLContext egl_ctx_;
-  EGLDisplay saved_egl_display_ = EGL_NO_DISPLAY;
-  EGLContext saved_egl_ctx_ = EGL_NO_CONTEXT;
-  EGLSurface saved_egl_read_ = EGL_NO_SURFACE;
-  EGLSurface saved_egl_draw_ = EGL_NO_SURFACE;
-  bool restore_context_;
+  Renderer* renderer_;
+  bool is_valid_;
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_COMPOSITOR_GL_EGLOFFSCREENCONTEXT_H_
+#endif  // SCOPED_RENDERER_STATE_H_

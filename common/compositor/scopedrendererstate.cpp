@@ -14,36 +14,20 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_COMPOSITOR_RENDERER_H_
-#define COMMON_COMPOSITOR_RENDERER_H_
+#include "scopedrendererstate.h"
 
-#include <stdint.h>
-
-#include <vector>
+#include "renderer.h"
 
 namespace hwcomposer {
 
-class NativeSurface;
-struct RenderState;
+ScopedRendererState::ScopedRendererState(Renderer* renderer)
+    : renderer_(renderer) {
+  is_valid_ = renderer_->MakeCurrent();
+}
 
-class Renderer {
- public:
-  Renderer() = default;
-  virtual ~Renderer() {
-  }
-  Renderer(const Renderer& rhs) = delete;
-  Renderer& operator=(const Renderer& rhs) = delete;
-
-  virtual bool Init() = 0;
-  virtual bool Draw(const std::vector<RenderState>& commands,
-                    NativeSurface* surface) = 0;
-
-  virtual void InsertFence(uint64_t kms_fence) = 0;
-
-  virtual void RestoreState() = 0;
-
-  virtual bool MakeCurrent() = 0;
-};
+ScopedRendererState::~ScopedRendererState() {
+  if (is_valid_)
+    renderer_->RestoreState();
+}
 
 }  // namespace hwcomposer
-#endif  // COMMON_COMPOSITOR_RENDERER_H_
