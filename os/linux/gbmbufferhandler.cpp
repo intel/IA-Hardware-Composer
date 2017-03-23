@@ -99,6 +99,13 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   if (!handle->bo) {
     handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
                                &handle->import_data, GBM_BO_USE_SCANOUT);
+    if (!handle->bo) {
+      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
+                                 &handle->import_data, GBM_BO_USE_RENDERING);
+      if (!handle->bo) {
+        ETRACE("can't import bo");
+      }
+    }
   }
 
   gem_handle = gbm_bo_get_handle(handle->bo).u32;

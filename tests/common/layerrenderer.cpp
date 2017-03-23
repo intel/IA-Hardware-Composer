@@ -31,13 +31,17 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   gbm_bo_ = gbm_bo_create(gbm_dev_, width, height, format,
                           GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
   if (!gbm_bo_) {
-    printf("LayerRenderer: failed to create gbm_bo\n");
-    return false;
+    gbm_bo_ =
+        gbm_bo_create(gbm_dev_, width, height, format, GBM_BO_USE_RENDERING);
+    if (!gbm_bo_) {
+      ETRACE("LayerRenderer: failed to create gbm_bo");
+      return false;
+    }
   }
 
   int gbm_bo_fd = gbm_bo_get_plane_fd(gbm_bo_, 0);
   if (gbm_bo_fd == -1) {
-    printf("LayerRenderer: gbm_bo_get_fd() failed\n");
+    ETRACE("LayerRenderer: gbm_bo_get_fd() failed");
     return false;
   }
 
