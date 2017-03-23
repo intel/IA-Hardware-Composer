@@ -31,6 +31,7 @@
 
 #include "compositor.h"
 #include "hwcthread.h"
+#include "kmsfencehandler.h"
 #include "nativesync.h"
 #include "platformdefines.h"
 
@@ -40,10 +41,10 @@ struct HwcLayer;
 class NativeBufferHandler;
 class PageFlipEventHandler;
 
-class DisplayQueue : public HWCThread {
+class DisplayQueue {
  public:
   DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id);
-  ~DisplayQueue() override;
+  ~DisplayQueue();
 
   bool Initialize(uint32_t width, uint32_t height, uint32_t pipe,
                   uint32_t connector, const drmModeModeInfo& mode_info,
@@ -52,19 +53,9 @@ class DisplayQueue : public HWCThread {
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
   bool SetPowerMode(uint32_t power_mode);
 
- protected:
-  void HandleRoutine() override;
-  void HandleExit() override;
+  void HandleExit();
 
  private:
-  struct DisplayQueueItem {
-    std::vector<OverlayLayer> layers_;
-    std::vector<HwcRect<int>> layers_rects_;
-  };
-
-  void GetNextQueueItem(DisplayQueueItem& item);
-  void Flush();
-  void HandleUpdateRequest(DisplayQueueItem& queue_item);
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
   void GetDrmObjectProperty(const char* name,
@@ -85,12 +76,11 @@ class DisplayQueue : public HWCThread {
   uint32_t blob_id_ = 0;
   uint32_t old_blob_id_ = 0;
   uint32_t gpu_fd_;
+  uint64_t fence_ = 0;
   bool needs_modeset_ = false;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
+  std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
-  SpinLock spin_lock_;
-  SpinLock display_queue_;
-  std::queue<DisplayQueueItem> queue_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
 };

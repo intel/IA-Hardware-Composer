@@ -79,6 +79,14 @@ void OverlayLayer::ReleaseFenceIfReady() {
   }
 }
 
+void OverlayLayer::ReleaseSyncOwnershipAsNeeded(
+    std::unique_ptr<NativeSync>& fence) {
+  if (sync_object_ &&
+      sync_object_->GetState() == NativeSync::State::kSignalOnPageFlipEvent) {
+    fence.reset(sync_object_.release());
+  }
+}
+
 void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
 }

@@ -274,8 +274,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 }
 
 bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
-                                      drmModeAtomicReqPtr pset,
-                                      uint32_t flags) {
+                                      drmModeAtomicReqPtr pset, uint32_t flags) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -304,17 +303,6 @@ bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
   }
 
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
-  if (ret) {
-    if (ret == -EBUSY) {
-      /* FIXME - In case of EBUSY, we spin until succeed. What we
-       * probably should do is to queue commits and process them later.
-       */
-      ret = -EBUSY;
-      while (ret == -EBUSY)
-        ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
-    }
-  }
-
   if (ret) {
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
     return false;

@@ -47,6 +47,7 @@ struct OverlayLayer {
 
   void SetReleaseFenceState(NativeSync::State state);
   void ReleaseFenceIfReady();
+  void ReleaseSyncOwnershipAsNeeded(std::unique_ptr<NativeSync>& fence);
 
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
