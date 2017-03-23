@@ -65,23 +65,40 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
   // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
   // target, the EGL will take a reference to the dma_buf.
   if (is_yuv_) {
-    const EGLint attr_list_yv12[] = {
-        EGL_WIDTH,                     static_cast<EGLint>(width_),
-        EGL_HEIGHT,                    static_cast<EGLint>(height_),
-        EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-        EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-        EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-        EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
-        EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
-        EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
-        EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
-        EGL_DMA_BUF_PLANE2_FD_EXT,     static_cast<EGLint>(prime_fd_),
-        EGL_DMA_BUF_PLANE2_PITCH_EXT,  static_cast<EGLint>(pitches_[2]),
-        EGL_DMA_BUF_PLANE2_OFFSET_EXT, static_cast<EGLint>(offsets_[2]),
-        EGL_NONE,                      0};
-    image = eglCreateImageKHR(
-        egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
-        static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
+    if (format_ == DRM_FORMAT_NV12) {
+      const EGLint attr_list_nv12[] = {
+          EGL_WIDTH,                     static_cast<EGLint>(width_),
+          EGL_HEIGHT,                    static_cast<EGLint>(height_),
+          EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
+          EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
+          EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
+          EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
+          EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
+          EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
+          EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
+          EGL_NONE,                      0};
+      image = eglCreateImageKHR(
+          egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+          static_cast<EGLClientBuffer>(nullptr), attr_list_nv12);
+    } else {
+      const EGLint attr_list_yv12[] = {
+          EGL_WIDTH,                     static_cast<EGLint>(width_),
+          EGL_HEIGHT,                    static_cast<EGLint>(height_),
+          EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
+          EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
+          EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
+          EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
+          EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
+          EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
+          EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
+          EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
+          EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[2]),
+          EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[2]),
+          EGL_NONE,                      0};
+      image = eglCreateImageKHR(
+          egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+          static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
+    }
   } else {
     const EGLint attr_list[] = {
         EGL_WIDTH,                     static_cast<EGLint>(width_),
