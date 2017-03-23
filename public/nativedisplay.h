@@ -51,9 +51,9 @@ class NativeDisplay {
 
   virtual uint32_t Pipe() const = 0;
 
-  virtual int32_t Width() const = 0;
+  virtual uint32_t Width() const = 0;
 
-  virtual int32_t Height() const = 0;
+  virtual uint32_t Height() const = 0;
 
   virtual int32_t GetRefreshRate() const = 0;
 
@@ -82,6 +82,11 @@ class NativeDisplay {
   virtual void SetOutputBuffer(HWCNativeHandle /*buffer*/,
                                int32_t /*acquire_fence*/) {
   }
+  /**
+  * API to check the format support on the device
+  * @param format valid DRM formats found in drm_fourcc.h.
+  */
+  virtual bool CheckPlaneFormat(uint32_t format) = 0;
 
  protected:
   virtual uint32_t CrtcId() const = 0;

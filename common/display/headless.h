@@ -41,11 +41,11 @@ class Headless : public NativeDisplay {
     return 0;
   }
 
-  int32_t Width() const override {
+  uint32_t Width() const override {
     return 1;
   }
 
-  int32_t Height() const override {
+  uint32_t Height() const override {
     return 1;
   }
 
@@ -73,6 +73,7 @@ class Headless : public NativeDisplay {
                             uint32_t display_id) override;
 
   void VSyncControl(bool enabled) override;
+  bool CheckPlaneFormat(uint32_t format) override;
 
  protected:
   uint32_t CrtcId() const override {
