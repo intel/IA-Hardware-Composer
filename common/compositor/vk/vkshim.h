@@ -135,8 +135,6 @@ extern VkRenderPass render_pass_;
 extern VkPipelineCache pipeline_cache_;
 extern VkBuffer uniform_buffer_;
 extern VkSampler sampler_;
-extern VkImage dst_image_;
-extern VkImageView dst_image_view_;
 extern std::vector<VkImage> src_images_;
 extern std::vector<VkImageView> src_image_views_;
 extern std::vector<VkDescriptorImageInfo> src_image_infos_;

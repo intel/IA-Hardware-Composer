@@ -19,6 +19,7 @@ namespace hwcomposer {
 
 VKSurface::VKSurface(uint32_t width, uint32_t height)
     : NativeSurface(width, height) {
+  surface_fb_ = VK_NULL_HANDLE;
 }
 
 VKSurface::~VKSurface() {
@@ -27,8 +28,8 @@ VKSurface::~VKSurface() {
 bool VKSurface::InitializeGPUResources() {
   VkResult res;
 
-  dst_image_ = layer_.GetBuffer()->ImportImage(dev_);
-  if (dst_image_ == VK_NULL_HANDLE) {
+  VkImage image = layer_.GetBuffer()->ImportImage(dev_);
+  if (image == VK_NULL_HANDLE) {
     printf("Failed to make import image\n");
     return false;
   }
@@ -48,12 +49,12 @@ bool VKSurface::InitializeGPUResources() {
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   dst_barrier_before_clear_.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   dst_barrier_before_clear_.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  dst_barrier_before_clear_.image = dst_image_;
+  dst_barrier_before_clear_.image = image;
   dst_barrier_before_clear_.subresourceRange = clear_range;
 
   VkImageViewCreateInfo view_create = {};
   view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  view_create.image = dst_image_;
+  view_create.image = image;
   view_create.viewType = VK_IMAGE_VIEW_TYPE_2D;
   view_create.format = VK_FORMAT_R8G8B8A8_UNORM;
   view_create.components = {};
@@ -66,7 +67,9 @@ bool VKSurface::InitializeGPUResources() {
   view_create.subresourceRange.levelCount = 1;
   view_create.subresourceRange.layerCount = 1;
 
-  res = vkCreateImageView(dev_, &view_create, NULL, &dst_image_view_);
+  VkImageView image_view;
+
+  res = vkCreateImageView(dev_, &view_create, NULL, &image_view);
   if (res != VK_SUCCESS) {
     printf("vkCreateImageView failed (%d)\n", res);
     return false;
@@ -76,12 +79,12 @@ bool VKSurface::InitializeGPUResources() {
   framebuffer_create.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebuffer_create.renderPass = render_pass_;
   framebuffer_create.attachmentCount = 1;
-  framebuffer_create.pAttachments = &dst_image_view_;
+  framebuffer_create.pAttachments = &image_view;
   framebuffer_create.width = GetWidth();
   framebuffer_create.height = GetHeight();
   framebuffer_create.layers = 1;
 
-  res = vkCreateFramebuffer(dev_, &framebuffer_create, NULL, &framebuffer_);
+  res = vkCreateFramebuffer(dev_, &framebuffer_create, NULL, &surface_fb_);
   if (res != VK_SUCCESS) {
     printf("vkCreateFramebuffer failed (%d)\n", res);
     return false;
@@ -91,10 +94,12 @@ bool VKSurface::InitializeGPUResources() {
 }
 
 bool VKSurface::MakeCurrent() {
-  if (!framebuffer_ && !InitializeGPUResources()) {
+  if (surface_fb_ == VK_NULL_HANDLE && !InitializeGPUResources()) {
     printf("Failed to initialize gpu resources.");
     return false;
   }
+
+  framebuffer_ = surface_fb_;
 
   return true;
 }
