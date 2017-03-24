@@ -32,6 +32,8 @@ class VKRenderer : public Renderer {
   bool Draw(const std::vector<RenderState> &commands,
             NativeSurface *surface) override;
   void InsertFence(uint64_t kms_fence) override;
+  void RestoreState() override;
+  bool MakeCurrent() override;
 
  private:
   VKProgram *GetProgram(unsigned texture_count);

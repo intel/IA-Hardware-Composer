@@ -683,6 +683,13 @@ void VKRenderer::InsertFence(uint64_t kms_fence) {
 #endif
 }
 
+void VKRenderer::RestoreState() {
+}
+
+bool VKRenderer::MakeCurrent() {
+  return true;
+}
+
 VKProgram *VKRenderer::GetProgram(unsigned texture_count) {
   if (programs_.size() >= texture_count) {
     VKProgram *program = programs_[texture_count - 1].get();
