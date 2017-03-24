@@ -33,6 +33,7 @@ class VKSurface : public NativeSurface {
 
  private:
   bool InitializeGPUResources();
+  VkFramebuffer surface_fb_;
 };
 
 }  // namespace hwcomposer

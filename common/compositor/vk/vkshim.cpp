@@ -24,8 +24,6 @@ VkRenderPass render_pass_;
 VkPipelineCache pipeline_cache_;
 VkBuffer uniform_buffer_;
 VkSampler sampler_;
-VkImage dst_image_;
-VkImageView dst_image_view_;
 std::vector<VkImage> src_images_;
 std::vector<VkImageView> src_image_views_;
 std::vector<VkDescriptorImageInfo> src_image_infos_;
