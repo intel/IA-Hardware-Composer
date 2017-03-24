@@ -88,6 +88,7 @@ void HWCThread::ProcessThread() {
     HandleWait();
     if (exit_) {
       HandleExit();
+      fd_handler_.RemoveFd(event_.get_fd());
       return;
     }
 
