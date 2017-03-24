@@ -46,8 +46,8 @@
 #include "drmscopedtypes.h"
 #include "headless.h"
 #include "hwcthread.h"
-#include "pageflipeventhandler.h"
 #include "spinlock.h"
+#include "vblankeventhandler.h"
 #include "virtualdisplay.h"
 
 namespace hwcomposer {

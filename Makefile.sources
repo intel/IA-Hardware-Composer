@@ -14,7 +14,7 @@ common_SOURCES =              \
     common/display/displayplanemanager.cpp \
     common/display/headless.cpp \
     common/display/kmsfencehandler.cpp \
-    common/display/pageflipeventhandler.cpp \
+    common/display/vblankeventhandler.cpp \
     common/display/virtualdisplay.cpp \
     common/utils/drmscopedtypes.cpp \
     common/utils/fdhandler.cpp \

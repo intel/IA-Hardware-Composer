@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "platformdefines.h"
-#include "pageflipeventhandler.h"
+#include "vblankeventhandler.h"
 
 namespace hwcomposer {
 class DisplayPlaneState;

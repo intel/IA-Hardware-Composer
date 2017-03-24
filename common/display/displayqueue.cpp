@@ -25,7 +25,7 @@
 #include "displayplanemanager.h"
 #include "hwctrace.h"
 #include "overlaylayer.h"
-#include "pageflipeventhandler.h"
+#include "vblankeventhandler.h"
 
 namespace hwcomposer {
 

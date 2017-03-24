@@ -57,7 +57,7 @@ LOCAL_SRC_FILES := \
 	common/display/displayplanemanager.cpp \
 	common/display/displayqueue.cpp \
 	common/display/headless.cpp \
-	common/display/pageflipeventhandler.cpp \
+	common/display/vblankeventhandler.cpp \
         common/display/kmsfencehandler.cpp \
 	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \

@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "pageflipeventhandler.h"
+#include "vblankeventhandler.h"
 
 #include <stdlib.h>
 #include <time.h>
