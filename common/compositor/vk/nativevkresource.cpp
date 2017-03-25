@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include "nativevkresource.h"
-#include <stdio.h>
+
+#include "hwctrace.h"
 #include "overlaybuffer.h"
 #include "overlaylayer.h"
 
@@ -33,7 +34,7 @@ bool NativeVKResource::PrepareResources(
   for (auto& layer : layers) {
     VkImage image = layer.GetBuffer()->ImportImage(dev_);
     if (image == VK_NULL_HANDLE) {
-      printf("Failed to make import image\n");
+      ETRACE("Failed to make import image\n");
       return false;
     }
     src_images_.emplace_back(image);
@@ -68,7 +69,7 @@ bool NativeVKResource::PrepareResources(
     VkImageView image_view;
     res = vkCreateImageView(dev_, &view_create, NULL, &image_view);
     if (res != VK_SUCCESS) {
-      printf("vkCreateImageView failed (%d)\n", res);
+      ETRACE("vkCreateImageView failed (%d)\n", res);
       return false;
     }
     src_image_views_.emplace_back(image_view);

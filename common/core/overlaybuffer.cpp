@@ -123,13 +123,13 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
       (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
           egl_display, "vkCreateDmaBufImageINTEL");
   if (vkCreateDmaBufImageINTEL == NULL) {
-    printf("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
+    ETRACE("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
     return VK_NULL_HANDLE;
   }
 
   VkFormat vk_format = GbmToVkFormat(format_);
   if (vk_format == VK_FORMAT_UNDEFINED) {
-    printf("Failed DRM -> Vulkan format conversion\n");
+    ETRACE("Failed DRM -> Vulkan format conversion\n");
     return VK_NULL_HANDLE;
   }
 
@@ -149,7 +149,7 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
   res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL, &memory,
                                  &image);
   if (res != VK_SUCCESS) {
-    printf("vkCreateDmaBufImageINTEL failed (%d)\n", res);
+    ETRACE("vkCreateDmaBufImageINTEL failed (%d)\n", res);
     return VK_NULL_HANDLE;
   }
 

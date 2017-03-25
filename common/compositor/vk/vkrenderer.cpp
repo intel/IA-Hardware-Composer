@@ -15,6 +15,7 @@
 #include "vkrenderer.h"
 #include "vkprogram.h"
 
+#include "hwctrace.h"
 #include "nativesurface.h"
 #include "renderstate.h"
 
@@ -41,7 +42,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugReportCallback(
       strcmp(pMessage,
              "vkCreateImage: value of pCreateInfo->pNext must be NULL") == 0)
     return VK_FALSE;
-  printf("vulkan(%d): %s\n", (int)objectType, pMessage);
+  ETRACE("vulkan(%d): %s\n", (int)objectType, pMessage);
   return VK_FALSE;
 }
 
@@ -70,7 +71,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   VkBuffer src_buffer;
   res = vkCreateBuffer(dev_, &buffer_create, NULL, &src_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkCreateBuffer failed (%d)\n", res);
+    ETRACE("vkCreateBuffer failed (%d)\n", res);
     return NULL;
   }
 
@@ -82,20 +83,20 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   mem_allocate.memoryTypeIndex = GetMemoryTypeIndex(
       mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   if (mem_allocate.memoryTypeIndex >= 32) {
-    printf("Failed to find suitable staging device memory\n");
+    ETRACE("Failed to find suitable staging device memory\n");
     return NULL;
   }
 
   VkDeviceMemory host_mem;
   res = vkAllocateMemory(dev_, &mem_allocate, NULL, &host_mem);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateMemory failed (%d)\n", res);
+    ETRACE("vkAllocateMemory failed (%d)\n", res);
     return NULL;
   }
 
   res = vkBindBufferMemory(dev_, src_buffer, host_mem, 0);
   if (res != VK_SUCCESS) {
-    printf("vkBindBufferMemory failed (%d)\n", res);
+    ETRACE("vkBindBufferMemory failed (%d)\n", res);
     return NULL;
   }
 
@@ -103,7 +104,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   res = vkMapMemory(dev_, host_mem, 0, mem_allocate.allocationSize, 0,
                     (void **)&src_ptr);
   if (res != VK_SUCCESS) {
-    printf("vkMapMemory failed (%d)\n", res);
+    ETRACE("vkMapMemory failed (%d)\n", res);
     return NULL;
   }
 
@@ -115,7 +116,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   VkBuffer dst_buffer;
   res = vkCreateBuffer(dev_, &buffer_create, NULL, &dst_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkCreateBuffer failed (%d)\n", res);
+    ETRACE("vkCreateBuffer failed (%d)\n", res);
     return NULL;
   }
   vkGetBufferMemoryRequirements(dev_, dst_buffer, &mem_requirements);
@@ -123,19 +124,19 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   mem_allocate.memoryTypeIndex = GetMemoryTypeIndex(
       mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   if (mem_allocate.memoryTypeIndex >= 32) {
-    printf("Failed to find suitable buffer device memory");
+    ETRACE("Failed to find suitable buffer device memory");
     return NULL;
   }
 
   VkDeviceMemory device_mem;
   res = vkAllocateMemory(dev_, &mem_allocate, NULL, &device_mem);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateMemory failed (%d)\n", res);
+    ETRACE("vkAllocateMemory failed (%d)\n", res);
     return NULL;
   }
   res = vkBindBufferMemory(dev_, dst_buffer, device_mem, 0);
   if (res != VK_SUCCESS) {
-    printf("vkBindBufferMemory failed (%d)\n", res);
+    ETRACE("vkBindBufferMemory failed (%d)\n", res);
     return NULL;
   }
 
@@ -148,7 +149,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
 
   res = vkAllocateCommandBuffers(dev_, &cmd_buffer_allocate, &cmd_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateCommandBuffers failed (%d)\n", res);
+    ETRACE("vkAllocateCommandBuffers failed (%d)\n", res);
     return NULL;
   }
 
@@ -158,7 +159,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
 
   res = vkBeginCommandBuffer(cmd_buffer, &begin_info);
   if (res != VK_SUCCESS) {
-    printf("vkBeginCommandBuffer failed (%d)\n", res);
+    ETRACE("vkBeginCommandBuffer failed (%d)\n", res);
     return NULL;
   }
 
@@ -169,7 +170,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
 
   res = vkEndCommandBuffer(cmd_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkEndCommandBuffer failed (%d)\n", res);
+    ETRACE("vkEndCommandBuffer failed (%d)\n", res);
     return NULL;
   }
 
@@ -180,13 +181,13 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
 
   res = vkQueueSubmit(queue_, 1, &submit, VK_NULL_HANDLE);
   if (res != VK_SUCCESS) {
-    printf("%d: vkQueueSubmit failed (%d)\n", __LINE__, res);
+    ETRACE("%d: vkQueueSubmit failed (%d)\n", __LINE__, res);
     return NULL;
   }
 
   res = vkQueueWaitIdle(queue_);
   if (res != VK_SUCCESS) {
-    printf("vkQueueWaitIdle failed (%d)\n", res);
+    ETRACE("vkQueueWaitIdle failed (%d)\n", res);
     return NULL;
   }
 
@@ -216,7 +217,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateInstance(&instance_create, NULL, &inst_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateInstance failed (%d)\n", res);
+    ETRACE("vkCreateInstance failed (%d)\n", res);
     return false;
   }
 
@@ -234,24 +235,24 @@ bool VKRenderer::Init() {
   if (vkCreateDebugReportCallbackEXT) {
     vkCreateDebugReportCallbackEXT(inst_, &debug_create, NULL, &callback);
   } else {
-    printf("Failed to create vulkan debug callback\n");
+    ETRACE("Failed to create vulkan debug callback\n");
   }
 
   uint32_t count;
   res = vkEnumeratePhysicalDevices(inst_, &count, NULL);
   if (res != VK_SUCCESS) {
-    printf("vkEnumeratePhysicalDevices failed (%d)\n", res);
+    ETRACE("vkEnumeratePhysicalDevices failed (%d)\n", res);
     return false;
   }
   if (count == 0) {
-    printf("No physical devices\n");
+    ETRACE("No physical devices\n");
     return false;
   }
 
   VkPhysicalDevice phys_devs[count];
   res = vkEnumeratePhysicalDevices(inst_, &count, phys_devs);
   if (res != VK_SUCCESS) {
-    printf("vkEnumeratePhysicalDevices failed (%d)\n", res);
+    ETRACE("vkEnumeratePhysicalDevices failed (%d)\n", res);
     return false;
   }
 
@@ -259,14 +260,14 @@ bool VKRenderer::Init() {
 
   vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, NULL);
   if (count == 0) {
-    printf("No device queue family properties\n");
+    ETRACE("No device queue family properties\n");
     return false;
   }
 
   VkQueueFamilyProperties props[count];
   vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, props);
   if (!(props[0].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-    printf("Not a graphics queue\n");
+    ETRACE("Not a graphics queue\n");
     return false;
   }
 
@@ -289,7 +290,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateDevice(phys_dev, &device_create, NULL, &dev_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateDevice failed (%d)\n", res);
+    ETRACE("vkCreateDevice failed (%d)\n", res);
     return false;
   }
 
@@ -305,7 +306,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateCommandPool(dev_, &pool_create, NULL, &cmd_pool_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateCommandPool failed (%d)\n", res);
+    ETRACE("vkCreateCommandPool failed (%d)\n", res);
     return false;
   }
 
@@ -318,7 +319,7 @@ bool VKRenderer::Init() {
   vert_buffer_ = UploadBuffer(sizeof(verts), (const uint8_t *)verts,
                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
   if (vert_buffer_ == NULL) {
-    printf("UploadBuffer failed\n");
+    ETRACE("UploadBuffer failed\n");
     return false;
   }
 
@@ -329,7 +330,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateBuffer(dev_, &buffer_create, NULL, &uniform_buffer_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateBuffer failed (%d)\n", res);
+    ETRACE("vkCreateBuffer failed (%d)\n", res);
     return false;
   }
 
@@ -343,19 +344,19 @@ bool VKRenderer::Init() {
       mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   if (mem_allocate.memoryTypeIndex >= 32) {
-    printf("Failed to find suitable uniform buffer device memory\n");
+    ETRACE("Failed to find suitable uniform buffer device memory\n");
     return false;
   }
 
   res = vkAllocateMemory(dev_, &mem_allocate, NULL, &uniform_buffer_mem_);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateMemory failed (%d)\n", res);
+    ETRACE("vkAllocateMemory failed (%d)\n", res);
     return false;
   }
 
   res = vkBindBufferMemory(dev_, uniform_buffer_, uniform_buffer_mem_, 0);
   if (res != VK_SUCCESS) {
-    printf("vkBindBufferMemory failed (%d)\n", res);
+    ETRACE("vkBindBufferMemory failed (%d)\n", res);
     return false;
   }
 
@@ -363,7 +364,7 @@ bool VKRenderer::Init() {
   res = vkMapMemory(dev_, uniform_buffer_mem_, 0, mem_allocate.allocationSize,
                     0, (void **)&uniform_buffer_ptr);
   if (res != VK_SUCCESS) {
-    printf("vkMapMemory failed (%d)\n", res);
+    ETRACE("vkMapMemory failed (%d)\n", res);
     return false;
   }
 
@@ -386,7 +387,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateDescriptorPool(dev_, &desc_pool_create, NULL, &desc_pool_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateDescriptorPool failed (%d)\n", res);
+    ETRACE("vkCreateDescriptorPool failed (%d)\n", res);
     return false;
   }
 
@@ -401,7 +402,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateSampler(dev_, &sampler_create, NULL, &sampler_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateSampler failed (%d)\n", res);
+    ETRACE("vkCreateSampler failed (%d)\n", res);
     return false;
   }
 
@@ -444,7 +445,7 @@ bool VKRenderer::Init() {
 
   res = vkCreateRenderPass(dev_, &pass_create, NULL, &render_pass_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateRenderPass failed (%d)\n", res);
+    ETRACE("vkCreateRenderPass failed (%d)\n", res);
     return false;
   }
 
@@ -454,7 +455,7 @@ bool VKRenderer::Init() {
   res = vkCreatePipelineCache(dev_, &pipeline_cache_create, NULL,
                               &pipeline_cache_);
   if (res != VK_SUCCESS) {
-    printf("vkCreatePipelineCache failed (%d)\n", res);
+    ETRACE("vkCreatePipelineCache failed (%d)\n", res);
     return false;
   }
 
@@ -498,7 +499,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
   res = vkAllocateDescriptorSets(dev_, &alloc_desc_set, desc_sets.data());
   if (res != VK_SUCCESS) {
-    printf("vkAllocateDescriptorSets failed (%d)\n", res);
+    ETRACE("vkAllocateDescriptorSets failed (%d)\n", res);
     return false;
   }
 
@@ -550,7 +551,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   VkCommandBuffer cmd_buffer;
   res = vkAllocateCommandBuffers(dev_, &cmd_buffer_alloc, &cmd_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateCommandBuffer failed (%d)\n", res);
+    ETRACE("vkAllocateCommandBuffer failed (%d)\n", res);
     return false;
   }
 
@@ -560,7 +561,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
   res = vkBeginCommandBuffer(cmd_buffer, &begin_info);
   if (res != VK_SUCCESS) {
-    printf("vkAllocateCommandBuffer failed (%d)\n", res);
+    ETRACE("vkAllocateCommandBuffer failed (%d)\n", res);
     return false;
   }
 
@@ -644,7 +645,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
   res = vkEndCommandBuffer(cmd_buffer);
   if (res != VK_SUCCESS) {
-    printf("vkEndCommandBuffer failed (%d)\n", res);
+    ETRACE("vkEndCommandBuffer failed (%d)\n", res);
     return false;
   }
 
@@ -655,20 +656,20 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
   res = vkQueueSubmit(queue_, 1, &submit, VK_NULL_HANDLE);
   if (res != VK_SUCCESS) {
-    printf("%d: vkQueueSubmit failed (%d)\n", __LINE__, res);
+    ETRACE("%d: vkQueueSubmit failed (%d)\n", __LINE__, res);
     return false;
   }
 
   res = vkQueueWaitIdle(queue_);
   if (res != VK_SUCCESS) {
-    printf("vkQueueWaitIdle failed (%d)\n", res);
+    ETRACE("vkQueueWaitIdle failed (%d)\n", res);
     return false;
   }
 
   res = vkFreeDescriptorSets(dev_, desc_pool_, desc_sets.size(),
                              desc_sets.data());
   if (res != VK_SUCCESS) {
-    printf("vkFreeDescriptorSets failed (%d)\n", res);
+    ETRACE("vkFreeDescriptorSets failed (%d)\n", res);
     return false;
   }
 

@@ -14,7 +14,8 @@
 
 #include "vkshim.h"
 #include <gbm.h>
-#include <stdio.h>
+
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
@@ -56,7 +57,7 @@ VkFormat GbmToVkFormat(int gbm_format) {
     case GBM_FORMAT_XRGB8888:
       return VK_FORMAT_R8G8B8A8_UNORM;
     default:
-      printf("%s: gbm_format %d unhandled\n", __func__, gbm_format);
+      ETRACE("%s: gbm_format %d unhandled\n", __func__, gbm_format);
       return VK_FORMAT_UNDEFINED;
   }
 }

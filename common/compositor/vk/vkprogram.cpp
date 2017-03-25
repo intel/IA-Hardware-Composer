@@ -15,7 +15,7 @@
 #include "vkprogram.h"
 #include "renderstate.h"
 
-#include <stdio.h>
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
@@ -53,7 +53,7 @@ bool VKProgram::Init(unsigned layer_index) {
   res = vkCreateDescriptorSetLayout(dev_, &desc_create, NULL,
                                     &descriptor_set_layout_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateDescriptorSetLayout failed (%d)\n", res);
+    ETRACE("vkCreateDescriptorSetLayout failed (%d)\n", res);
     return false;
   }
 
@@ -65,7 +65,7 @@ bool VKProgram::Init(unsigned layer_index) {
   res = vkCreatePipelineLayout(dev_, &pipeline_layout_create, NULL,
                                &pipeline_layout_);
   if (res != VK_SUCCESS) {
-    printf("vkCreatePipelineLayout failed (%d)\n", res);
+    ETRACE("vkCreatePipelineLayout failed (%d)\n", res);
     return false;
   }
 
@@ -80,7 +80,7 @@ bool VKProgram::Init(unsigned layer_index) {
   VkShaderModule vertex_module;
   res = vkCreateShaderModule(dev_, &module_create, NULL, &vertex_module);
   if (res != VK_SUCCESS) {
-    printf("vkCreateShaderModule failed (%d)\n", res);
+    ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
   }
 
@@ -90,7 +90,7 @@ bool VKProgram::Init(unsigned layer_index) {
   VkShaderModule fragment_module;
   res = vkCreateShaderModule(dev_, &module_create, NULL, &fragment_module);
   if (res != VK_SUCCESS) {
-    printf("vkCreateShaderModule failed (%d)\n", res);
+    ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
   }
 
@@ -195,7 +195,7 @@ bool VKProgram::Init(unsigned layer_index) {
   res = vkCreateGraphicsPipelines(dev_, pipeline_cache_, 1, &pipeline_create,
                                   NULL, &pipeline_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateGraphicsPipelines failed (%d0\n", res);
+    ETRACE("vkCreateGraphicsPipelines failed (%d0\n", res);
     return false;
   }
 
@@ -211,7 +211,7 @@ void VKProgram::UseProgram(const RenderState &state,
   RingBuffer::Allocation vert_ub_alloc =
       ring_buffer_.Allocate(vert_ub_size * sizeof(float), ub_offset_align_);
   if (!vert_ub_alloc) {
-    printf("Failed to allocate space for vert uniform buffer");
+    ETRACE("Failed to allocate space for vert uniform buffer");
     return;
   }
   float *vert_ub = vert_ub_alloc.get<float>();
@@ -241,7 +241,7 @@ void VKProgram::UseProgram(const RenderState &state,
   RingBuffer::Allocation frag_ub_alloc =
       ring_buffer_.Allocate(frag_ub_size * sizeof(float), ub_offset_align_);
   if (!frag_ub_alloc) {
-    printf("failed to allocate space for frag uniform buffer");
+    ETRACE("failed to allocate space for frag uniform buffer");
     return;
   }
   float *frag_ub = frag_ub_alloc.get<float>();

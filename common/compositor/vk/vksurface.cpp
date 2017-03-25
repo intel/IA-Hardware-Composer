@@ -30,7 +30,7 @@ bool VKSurface::InitializeGPUResources() {
 
   VkImage image = layer_.GetBuffer()->ImportImage(dev_);
   if (image == VK_NULL_HANDLE) {
-    printf("Failed to make import image\n");
+    ETRACE("Failed to make import image\n");
     return false;
   }
 
@@ -71,7 +71,7 @@ bool VKSurface::InitializeGPUResources() {
 
   res = vkCreateImageView(dev_, &view_create, NULL, &image_view);
   if (res != VK_SUCCESS) {
-    printf("vkCreateImageView failed (%d)\n", res);
+    ETRACE("vkCreateImageView failed (%d)\n", res);
     return false;
   }
 
@@ -86,7 +86,7 @@ bool VKSurface::InitializeGPUResources() {
 
   res = vkCreateFramebuffer(dev_, &framebuffer_create, NULL, &surface_fb_);
   if (res != VK_SUCCESS) {
-    printf("vkCreateFramebuffer failed (%d)\n", res);
+    ETRACE("vkCreateFramebuffer failed (%d)\n", res);
     return false;
   }
 
@@ -95,7 +95,7 @@ bool VKSurface::InitializeGPUResources() {
 
 bool VKSurface::MakeCurrent() {
   if (surface_fb_ == VK_NULL_HANDLE && !InitializeGPUResources()) {
-    printf("Failed to initialize gpu resources.");
+    ETRACE("Failed to initialize gpu resources.");
     return false;
   }
 
