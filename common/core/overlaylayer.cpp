@@ -22,11 +22,12 @@
 namespace hwcomposer {
 
 bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
-  if (buffer_->GetFormat() != rhs.buffer_->GetFormat())
+  OverlayBuffer* buffer = imported_buffer_->buffer_;
+  if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
     return true;
 
   // We expect cursor plane to support alpha always.
-  if (!(buffer_->GetUsage() & kLayerCursor)) {
+  if (!(buffer->GetUsage() & kLayerCursor)) {
     if (alpha_ != rhs.alpha_)
       return true;
   }
@@ -55,36 +56,19 @@ bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
 }
 
 int OverlayLayer::GetReleaseFence() {
-  if (!sync_object_) {
-    sync_object_.reset(new NativeSync());
-    if (!sync_object_->Init()) {
-      ETRACE("Failed to create sync object.");
-      return -1;
-    }
-  }
-
-  return sync_object_->CreateNextTimelineFence();
+  return imported_buffer_->release_fence_;
 }
 
 void OverlayLayer::SetReleaseFenceState(NativeSync::State state) {
-  sync_object_->SetState(state);
+  state_ = state;
 }
 
-void OverlayLayer::ReleaseFenceIfReady() {
-  if (!sync_object_)
-    return;
-
-  if (sync_object_->GetState() == NativeSync::State::kReady) {
-    sync_object_.reset(nullptr);
-  }
+void OverlayLayer::MarkBufferSignalled() {
+  imported_buffer_->release_fence_ = -1;
 }
 
-void OverlayLayer::ReleaseSyncOwnershipAsNeeded(
-    std::unique_ptr<NativeSync>& fence) {
-  if (sync_object_ &&
-      sync_object_->GetState() == NativeSync::State::kSignalOnPageFlipEvent) {
-    fence.reset(sync_object_.release());
-  }
+void OverlayLayer::MarkBufferReleased() {
+  imported_buffer_->buffer_ = NULL;
 }
 
 void OverlayLayer::SetIndex(uint32_t index) {
@@ -171,7 +155,7 @@ void OverlayLayer::Dump() {
   DUMPTRACE("DstHeight: %d", display_frame_height_);
   DUMPTRACE("AquireFence: %d", acquire_fence_.get());
 
-  buffer_->Dump();
+  imported_buffer_->buffer_->Dump();
 }
 
 }  // namespace hwcomposer

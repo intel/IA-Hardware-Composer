@@ -21,8 +21,10 @@
 
 namespace hwcomposer {
 
-KMSFenceEventHandler::KMSFenceEventHandler()
-    : HWCThread(-8, "KMSFenceEventHandler") {
+KMSFenceEventHandler::KMSFenceEventHandler(OverlayBufferManager* buffer_manager)
+    : HWCThread(-8, "KMSFenceEventHandler"),
+      kms_fence_(0),
+      buffer_manager_(buffer_manager) {
 }
 
 KMSFenceEventHandler::~KMSFenceEventHandler() {
@@ -47,9 +49,14 @@ void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
                                      std::vector<OverlayLayer>& layers) {
   ScopedSpinLock lock(spin_lock_);
   for (OverlayLayer& layer : layers) {
-    std::unique_ptr<NativeSync> fence;
-    layer.ReleaseSyncOwnershipAsNeeded(fence);
-    fences_.emplace_back(std::move(fence));
+    OverlayBuffer* buffer = layer.GetBuffer();
+    if (buffer) {
+      buffers_.emplace_back(buffer);
+      // Instead of registering again, we mark the buffer
+      // released in layer so that it's not deleted till we
+      // explicitly unregister the buffer.
+      layer.MarkBufferReleased();
+    }
   }
 
   kms_fence_ = kms_fence;
@@ -69,7 +76,9 @@ void KMSFenceEventHandler::HandleRoutine() {
     close(kms_fence_);
     kms_fence_ = -1;
   }
-  std::vector<std::unique_ptr<NativeSync>>().swap(fences_);
+
+  buffer_manager_->UnRegisterBuffers(buffers_);
+  std::vector<OverlayBuffer*>().swap(buffers_);
 }
 
 }  // namespace hwcomposer

@@ -38,17 +38,17 @@
 namespace hwcomposer {
 class DisplayPlaneManager;
 struct HwcLayer;
-class NativeBufferHandler;
+class OverlayBufferManager;
 class PageFlipEventHandler;
 
 class DisplayQueue {
  public:
-  DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id);
+  DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
+               OverlayBufferManager* buffer_manager);
   ~DisplayQueue();
 
   bool Initialize(uint32_t width, uint32_t height, uint32_t pipe,
-                  uint32_t connector, const drmModeModeInfo& mode_info,
-                  NativeBufferHandler* buffer_handler);
+                  uint32_t connector, const drmModeModeInfo& mode_info);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers);
   bool SetPowerMode(uint32_t power_mode);
@@ -84,6 +84,7 @@ class DisplayQueue {
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
+  OverlayBufferManager* buffer_manager_;
 };
 
 }  // namespace hwcomposer

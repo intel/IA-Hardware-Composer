@@ -33,7 +33,7 @@ namespace hwcomposer {
 
 class KMSFenceEventHandler : public HWCThread {
  public:
-  KMSFenceEventHandler();
+  KMSFenceEventHandler(OverlayBufferManager* buffer_manager);
   ~KMSFenceEventHandler() override;
 
   bool Initialize();
@@ -47,8 +47,9 @@ class KMSFenceEventHandler : public HWCThread {
 
  private:
   SpinLock spin_lock_;
-  std::vector<std::unique_ptr<NativeSync>> fences_;
+  std::vector<OverlayBuffer*> buffers_;
   uint64_t kms_fence_;
+  OverlayBufferManager* buffer_manager_;
 };
 
 }  // namespace hwcomposer

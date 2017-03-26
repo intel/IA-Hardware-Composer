@@ -28,7 +28,6 @@ class NativeBufferHandler;
 
 class OverlayBuffer {
  public:
-  OverlayBuffer() = default;
   OverlayBuffer(OverlayBuffer&& rhs) = default;
   OverlayBuffer& operator=(OverlayBuffer&& other) = default;
 
@@ -72,6 +71,10 @@ class OverlayBuffer {
   void SetRecommendedFormat(uint32_t format);
 
   void Dump();
+
+ protected:
+  OverlayBuffer() = default;
+  friend class OverlayBufferManager;
 
  private:
   uint32_t width_ = 0;

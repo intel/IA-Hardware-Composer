@@ -16,8 +16,6 @@
 
 #include "displayplanemanager.h"
 
-#include <nativebufferhandler.h>
-
 #include <drm_fourcc.h>
 
 #include <set>
@@ -32,13 +30,12 @@
 
 namespace hwcomposer {
 
-DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t pipe_id,
-                                         uint32_t crtc_id)
-    : buffer_handler_(NULL),
+DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
+                                         OverlayBufferManager *buffer_manager)
+    : buffer_manager_(buffer_manager),
       width_(0),
       height_(0),
       crtc_id_(crtc_id),
-      pipe_(pipe_id),
       gpu_fd_(gpu_fd),
       use_cache_(false) {
 }
@@ -46,8 +43,8 @@ DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t pipe_id,
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(NativeBufferHandler *buffer_handler,
-                                     uint32_t width, uint32_t height) {
+bool DisplayPlaneManager::Initialize(uint32_t pipe_id, uint32_t width,
+                                     uint32_t height) {
   ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));
   if (!plane_resources) {
     ETRACE("Failed to get plane resources");
@@ -55,7 +52,7 @@ bool DisplayPlaneManager::Initialize(NativeBufferHandler *buffer_handler,
   }
 
   uint32_t num_planes = plane_resources->count_planes;
-  uint32_t pipe_bit = 1 << pipe_;
+  uint32_t pipe_bit = 1 << pipe_id;
   std::set<uint32_t> plane_ids;
   for (uint32_t i = 0; i < num_planes; ++i) {
     ScopedDrmPlanePtr drm_plane(
@@ -99,14 +96,13 @@ bool DisplayPlaneManager::Initialize(NativeBufferHandler *buffer_handler,
       [](const std::unique_ptr<DisplayPlane> &l,
          const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
 
-  buffer_handler_ = buffer_handler;
   width_ = width;
   height_ = height;
 
   return true;
 }
 
-bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> *layers) {
+void DisplayPlaneManager::BeginFrameUpdate() {
   if (cursor_plane_)
     cursor_plane_->SetEnabled(false);
 
@@ -114,24 +110,8 @@ bool DisplayPlaneManager::BeginFrameUpdate(std::vector<OverlayLayer> *layers) {
     (*i)->SetEnabled(false);
   }
 
-  size_t size = layers->size();
-  for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    OverlayLayer *layer = &layers->at(layer_index);
-    HwcBuffer bo;
-    if (!buffer_handler_->ImportBuffer(layer->GetNativeHandle(), &bo)) {
-      ETRACE("Failed to Import buffer.");
-      return false;
-    }
-
-    OverlayBuffer *buffer = new OverlayBuffer();
-    buffer->Initialize(bo);
-    layer->SetBuffer(buffer);
-  }
-
   if (!in_flight_surfaces_.empty())
     std::vector<NativeSurface *>().swap(in_flight_surfaces_);
-
-  return true;
 }
 
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
@@ -370,7 +350,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   if (!surface) {
     NativeSurface *new_surface = CreateBackBuffer(width_, height_);
-    new_surface->Init(buffer_handler_);
+    new_surface->Init(buffer_manager_);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

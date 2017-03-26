@@ -23,17 +23,18 @@
 #include <vector>
 
 #include "hwctrace.h"
+#include "overlaybuffermanager.h"
 #include "overlaylayer.h"
 
 namespace hwcomposer {
 
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
-                               NativeBufferHandler *buffer_handler,
+                               OverlayBufferManager *buffer_manager,
                                uint32_t pipe_id, uint32_t crtc_id)
     : Headless(gpu_fd, pipe_id, crtc_id),
       output_handle_(0),
       acquire_fence_(-1),
-      buffer_handler_(buffer_handler),
+      buffer_manager_(buffer_manager),
       width_(0),
       height_(0) {
 }
@@ -58,7 +59,6 @@ bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
   CTRACE();
   std::vector<OverlayLayer> layers;
-  std::vector<OverlayBuffer> buffers;
   std::vector<HwcRect<int>> layers_rects;
   std::vector<size_t> index;
   int ret = 0;
@@ -77,10 +77,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
     index.emplace_back(layer_index);
-    buffers.emplace_back();
-    OverlayBuffer *buffer = new OverlayBuffer();
-    buffer->InitializeFromNativeHandle(layer->GetNativeHandle(),
-                                       buffer_handler_);
+    ImportedBuffer *buffer =
+        buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer);
   }
 
@@ -91,7 +89,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers) {
 
   int retire_fence;
   // Prepare for final composition.
-  if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
+  if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_manager_,
                                  width_, height_, output_handle_,
                                  &retire_fence)) {
     ETRACE("Failed to prepare for the frame composition ret=%d", ret);

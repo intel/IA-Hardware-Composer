@@ -111,7 +111,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
-                               NativeBufferHandler *buffer_handler,
+                               OverlayBufferManager *buffer_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t *retire_fence) {
@@ -141,7 +141,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   }
 
   std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width, height));
-  surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
+  surface->InitializeForOffScreenRendering(buffer_manager, output_handle);
 
   if (!Render(layers, surface.get(), comp_regions))
     return false;

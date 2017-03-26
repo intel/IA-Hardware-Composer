@@ -65,10 +65,6 @@ bool NativeSync::Init() {
   return true;
 }
 
-void NativeSync::SetState(State fence_state) {
-  state_ = fence_state;
-}
-
 int NativeSync::CreateNextTimelineFence() {
   ++timeline_;
   return sw_sync_fence_create(timeline_fd_.get(), "NativeSync", timeline_);

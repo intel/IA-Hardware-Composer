@@ -31,8 +31,7 @@ namespace hwcomposer {
 static const int32_t kUmPerInch = 25400;
 
 Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
-    : buffer_handler_(NULL),
-      crtc_id_(crtc_id),
+    : crtc_id_(crtc_id),
       pipe_(pipe_id),
       connector_(0),
       width_(0),
@@ -50,16 +49,15 @@ Display::~Display() {
   flip_handler_->SetPowerMode(kOff);
 }
 
-bool Display::Initialize() {
+bool Display::Initialize(OverlayBufferManager *buffer_manager) {
   flip_handler_.reset(new PageFlipEventHandler());
-  display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_));
+  display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_, buffer_manager));
 
   return true;
 }
 
 bool Display::Connect(const drmModeModeInfo &mode_info,
-                      const drmModeConnector *connector,
-                      NativeBufferHandler *buffer_handler) {
+                      const drmModeConnector *connector) {
   IHOTPLUGEVENTTRACE("Display::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector_ && connector->connector_id == connector_) {
@@ -90,8 +88,8 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
 
   is_connected_ = true;
 
-  if (!display_queue_->Initialize(width_, height_, pipe_, connector_, mode_info,
-                                  buffer_handler)) {
+  if (!display_queue_->Initialize(width_, height_, pipe_, connector_,
+                                  mode_info)) {
     ETRACE("Failed to initialize Display Queue.");
     return false;
   }

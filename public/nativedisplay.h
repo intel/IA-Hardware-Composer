@@ -31,7 +31,7 @@ typedef struct _drmModeModeInfo drmModeModeInfo;
 namespace hwcomposer {
 struct HwcLayer;
 class GpuDevice;
-class NativeBufferHandler;
+class OverlayBufferManager;
 
 class VsyncCallback {
  public:
@@ -45,7 +45,7 @@ class NativeDisplay {
   virtual ~NativeDisplay() {
   }
 
-  virtual bool Initialize() = 0;
+  virtual bool Initialize(OverlayBufferManager *buffer_manager) = 0;
 
   virtual DisplayType Type() const = 0;
 
@@ -91,8 +91,7 @@ class NativeDisplay {
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,
-                       const drmModeConnector *connector,
-                       NativeBufferHandler *buffer_handler) = 0;
+                       const drmModeConnector *connector) = 0;
 
   virtual bool IsConnected() const = 0;
 

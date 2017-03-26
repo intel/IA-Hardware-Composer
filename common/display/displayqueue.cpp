@@ -18,7 +18,6 @@
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
-#include <nativebufferhandler.h>
 
 #include <vector>
 
@@ -29,7 +28,8 @@
 
 namespace hwcomposer {
 
-DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
+DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
+                           OverlayBufferManager* buffer_manager)
     : frame_(0),
       dpms_prop_(0),
       out_fence_ptr_prop_(0),
@@ -40,7 +40,8 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
       crtc_prop_(0),
       blob_id_(0),
       old_blob_id_(0),
-      gpu_fd_(gpu_fd) {
+      gpu_fd_(gpu_fd),
+      buffer_manager_(buffer_manager) {
   compositor_.Init();
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
@@ -50,6 +51,10 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id)
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
 #endif
   memset(&mode_, 0, sizeof(mode_));
+  display_plane_manager_.reset(
+      new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
+
+  kms_fence_handler_.reset(new KMSFenceEventHandler(buffer_manager_));
 }
 
 DisplayQueue::~DisplayQueue() {
@@ -62,20 +67,15 @@ DisplayQueue::~DisplayQueue() {
 
 bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
                               uint32_t connector,
-                              const drmModeModeInfo& mode_info,
-                              NativeBufferHandler* buffer_handler) {
+                              const drmModeModeInfo& mode_info) {
   frame_ = 0;
   previous_layers_.clear();
   previous_plane_state_.clear();
-  display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, pipe, crtc_id_));
 
-  if (!display_plane_manager_->Initialize(buffer_handler, width, height)) {
+  if (!display_plane_manager_->Initialize(pipe, width, height)) {
     ETRACE("Failed to initialize DisplayQueue Manager.");
     return false;
   }
-
-  kms_fence_handler_.reset(new KMSFenceEventHandler());
 
   connector_ = connector;
   mode_ = mode_info;
@@ -187,16 +187,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
+    ImportedBuffer* buffer = buffer_manager_->CreateBufferFromNativeHandle(
+	layer->GetNativeHandle());
+    overlay_layer.SetBuffer(buffer);
     int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
 
   // Reset any DisplayQueue Manager and Compositor state.
-  if (!display_plane_manager_->BeginFrameUpdate(&layers)) {
-    ETRACE("Failed to import needed buffers in DisplayQueueManager.");
-    return false;
-  }
+  display_plane_manager_->BeginFrameUpdate();
 
   uint32_t flags = 0;
   if (needs_modeset_) {
@@ -233,9 +233,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
     }
   }
 
-  for (OverlayLayer& layer : layers) {
-    layer.ReleaseFenceIfReady();
-  }
+  buffer_manager_->SignalBuffersIfReady(layers);
 
   uint64_t fence = 0;
   // Do the actual commit.
@@ -267,6 +265,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
 
 #ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
+  buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
 #else
   if (fence > 0) {
     compositor_.InsertFence(dup(fence));

@@ -42,6 +42,7 @@
 #include "drmscopedtypes.h"
 #include "headless.h"
 #include "hwcthread.h"
+#include "overlaybuffermanager.h"
 #include "spinlock.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
@@ -72,12 +73,12 @@ class GpuDevice::DisplayManager : public HWCThread {
 
  private:
   void HotPlugEventHandler();
-  std::unique_ptr<NativeBufferHandler> buffer_handler_;
   std::unique_ptr<NativeDisplay> headless_;
   std::unique_ptr<NativeDisplay> virtual_display_;
   std::vector<std::unique_ptr<NativeDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
+  std::unique_ptr<OverlayBufferManager> buffer_manager_;
   int fd_ = -1;
   ScopedFd hotplug_fd_;
   SpinLock spin_lock_;
@@ -100,12 +101,13 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     return false;
   }
 
-  ScopedDrmResourcesPtr res(drmModeGetResources(fd_));
-  buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
-  if (!buffer_handler_) {
-    ETRACE("Failed to create native buffer handler instance");
+  buffer_manager_.reset(new OverlayBufferManager());
+  if (!buffer_manager_->Initialize(fd_)) {
+    ETRACE("Failed to Initialize Buffer Manager.");
     return false;
   }
+
+  ScopedDrmResourcesPtr res(drmModeGetResources(fd_));
 
   for (int32_t i = 0; i < res->count_crtcs; ++i) {
     ScopedDrmCrtcPtr c(drmModeGetCrtc(fd_, res->crtcs[i]));
@@ -115,7 +117,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     }
 
     std::unique_ptr<NativeDisplay> display(new Display(fd_, i, c->crtc_id));
-    if (!display->Initialize()) {
+    if (!display->Initialize(buffer_manager_.get())) {
       ETRACE("Failed to Initialize Display %d", c->crtc_id);
       return false;
     }
@@ -123,7 +125,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     displays_.emplace_back(std::move(display));
   }
 
-  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
+  virtual_display_.reset(new VirtualDisplay(fd_, buffer_manager_.get(), 0, 0));
 
   if (!UpdateDisplayState()) {
     ETRACE("Failed to connect display.");
@@ -149,6 +151,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
   }
 
   fd_handler_.AddFd(hotplug_fd_.get());
+
   if (!InitWorker()) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
@@ -264,7 +267,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
       if (encoder && encoder->crtc_id) {
         for (auto &display : displays_) {
           if (encoder->crtc_id == display->CrtcId() &&
-              display->Connect(mode, connector.get(), buffer_handler_.get())) {
+              display->Connect(mode, connector.get())) {
             connected_displays_.emplace_back(display.get());
             break;
           }
@@ -281,7 +284,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
         for (auto &display : displays_) {
           if (!display->IsConnected() &&
               (encoder->possible_crtcs & (1 << display->Pipe())) &&
-              display->Connect(mode, connector.get(), buffer_handler_.get())) {
+              display->Connect(mode, connector.get())) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             connected_displays_.emplace_back(display.get());
             found_encoder = true;

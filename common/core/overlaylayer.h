@@ -25,7 +25,7 @@
 #include <memory>
 
 #include "nativesync.h"
-#include "overlaybuffer.h"
+#include "overlaybuffermanager.h"
 
 namespace hwcomposer {
 
@@ -45,9 +45,24 @@ struct OverlayLayer {
   // longer in use.
   int GetReleaseFence();
 
+  // Release Fence state which will determine
+  // as to when we signal the fence associated
+  // with the buffer of this layer.
   void SetReleaseFenceState(NativeSync::State state);
-  void ReleaseFenceIfReady();
-  void ReleaseSyncOwnershipAsNeeded(std::unique_ptr<NativeSync>& fence);
+  NativeSync::State GetReleaseFenceState() const {
+    return state_;
+  }
+
+  // OverlayBufferManager has signalled the
+  // fence object associated with buffer of this
+  // layer.
+  void MarkBufferSignalled();
+
+  // Only KMSFenceEventHandler should use this.
+  // KMSFenceEventHandler will call this API when
+  // the buffer associated with this layer is no
+  // longer ready by display.
+  void MarkBufferReleased();
 
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
@@ -88,11 +103,11 @@ struct OverlayLayer {
   }
 
   OverlayBuffer* GetBuffer() const {
-    return buffer_.get();
+    return imported_buffer_->buffer_;
   }
 
-  void SetBuffer(OverlayBuffer* buffer) {
-    buffer_.reset(buffer);
+  void SetBuffer(ImportedBuffer* buffer) {
+    imported_buffer_.reset(buffer);
   }
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
@@ -134,8 +149,8 @@ struct OverlayLayer {
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
-  std::unique_ptr<NativeSync> sync_object_;
-  std::unique_ptr<OverlayBuffer> buffer_;
+  NativeSync::State state_ = NativeSync::State::kSignalOnPageFlipEvent;
+  std::unique_ptr<ImportedBuffer> imported_buffer_;
 };
 
 }  // namespace hwcomposer

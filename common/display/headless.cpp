@@ -31,13 +31,12 @@ Headless::Headless(uint32_t gpu_fd, uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
 Headless::~Headless() {
 }
 
-bool Headless::Initialize() {
+bool Headless::Initialize(OverlayBufferManager * /*buffer_manager*/) {
   return true;
 }
 
 bool Headless::Connect(const drmModeModeInfo & /*mode_info*/,
-                       const drmModeConnector * /*connector*/,
-                       NativeBufferHandler * /*buffer_handler*/) {
+                       const drmModeConnector * /*connector*/) {
   return true;
 }
 

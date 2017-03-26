@@ -37,19 +37,19 @@ namespace hwcomposer {
 class DisplayPlane;
 class DisplayPlaneState;
 class GpuDevice;
-class NativeBufferHandler;
+class OverlayBufferManager;
 struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
-  DisplayPlaneManager(int gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
+  DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
+                      OverlayBufferManager *buffer_manager);
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(NativeBufferHandler *buffer_handler, uint32_t width,
-                  uint32_t height);
+  bool Initialize(uint32_t pipe_id, uint32_t width, uint32_t height);
 
-  bool BeginFrameUpdate(std::vector<OverlayLayer> *layers);
+  void BeginFrameUpdate();
 
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> *layers,
@@ -90,7 +90,7 @@ class DisplayPlaneManager {
       const std::vector<OverlayLayer> *layers,
       DisplayPlaneStateList *composition, bool *render_layers);
 
-  NativeBufferHandler *buffer_handler_;
+  OverlayBufferManager *buffer_manager_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::vector<NativeSurface *> in_flight_surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
@@ -100,7 +100,6 @@ class DisplayPlaneManager {
   uint32_t width_;
   uint32_t height_;
   uint32_t crtc_id_;
-  uint32_t pipe_;
   uint32_t gpu_fd_;
   bool use_cache_;
 };

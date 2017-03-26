@@ -19,6 +19,7 @@
 #include "displayplane.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
+#include "overlaybuffermanager.h"
 
 namespace hwcomposer {
 
@@ -43,8 +44,8 @@ NativeSurface::~NativeSurface() {
   }
 }
 
-bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
-  buffer_handler_ = buffer_handler;
+bool NativeSurface::Init(OverlayBufferManager *buffer_manager) {
+  buffer_handler_ = buffer_manager->GetNativeBufferHandler();
   buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_);
   if (!native_handle_) {
     ETRACE("Failed to create buffer.");
@@ -52,14 +53,14 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
   }
 
   ref_count_ = 0;
-  InitializeLayer(buffer_handler_, native_handle_);
+  InitializeLayer(buffer_manager, native_handle_);
 
   return true;
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    NativeBufferHandler *buffer_handler, HWCNativeHandle native_handle) {
-  InitializeLayer(buffer_handler, native_handle);
+    OverlayBufferManager *buffer_manager, HWCNativeHandle native_handle) {
+  InitializeLayer(buffer_manager, native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
 
@@ -100,16 +101,17 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
 }
 
-void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
+void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
                                     HWCNativeHandle native_handle) {
-  OverlayBuffer *overlay_buffer = new OverlayBuffer();
-  overlay_buffer->InitializeFromNativeHandle(native_handle, buffer_handler);
+  ImportedBuffer *buffer =
+      buffer_manager->CreateBufferFromNativeHandle(native_handle);
+  OverlayBuffer *overlay_buffer = buffer->buffer_;
   width_ = overlay_buffer->GetWidth();
   height_ = overlay_buffer->GetHeight();
   layer_.SetNativeHandle(native_handle_);
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(overlay_buffer);
+  layer_.SetBuffer(buffer);
 }
 
 void NativeSurface::ResetInFlightMode() {

@@ -35,7 +35,7 @@ namespace hwcomposer {
 class DisplayPlaneState;
 class DisplayPlaneManager;
 class DisplayQueue;
-class NativeBufferHandler;
+class OverlayBufferManager;
 class GpuDevice;
 class NativeSync;
 struct HwcLayer;
@@ -45,7 +45,7 @@ class Display : public NativeDisplay {
   Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Display() override;
 
-  bool Initialize() override;
+  bool Initialize(OverlayBufferManager *buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kInternal;
@@ -95,8 +95,7 @@ class Display : public NativeDisplay {
   }
 
   bool Connect(const drmModeModeInfo &mode_info,
-               const drmModeConnector *connector,
-               NativeBufferHandler *buffer_handler) override;
+               const drmModeConnector *connector) override;
 
   bool IsConnected() const override {
     return is_connected_;
@@ -109,7 +108,6 @@ class Display : public NativeDisplay {
  private:
   void ShutDownPipe();
 
-  NativeBufferHandler *buffer_handler_;
   uint32_t crtc_id_;
   uint32_t pipe_;
   uint32_t connector_;

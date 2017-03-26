@@ -24,14 +24,12 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
-
 class Headless : public NativeDisplay {
  public:
   Headless(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Headless() override;
 
-  bool Initialize() override;
+  bool Initialize(OverlayBufferManager *buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kHeadless;
@@ -81,8 +79,7 @@ class Headless : public NativeDisplay {
   }
 
   bool Connect(const drmModeModeInfo &mode_info,
-               const drmModeConnector *connector,
-               NativeBufferHandler *buffer_handler) override;
+               const drmModeConnector *connector) override;
 
   bool IsConnected() const override {
     return false;

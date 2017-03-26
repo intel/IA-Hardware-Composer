@@ -20,7 +20,6 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
 class OverlayBuffer;
 
 class VKSurface : public NativeSurface {
