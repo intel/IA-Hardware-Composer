@@ -67,7 +67,7 @@ struct frame {
   GLuint gl_framebuffer;
   hwcomposer::HwcLayer layer;
   struct gbm_handle native_handle;
-  // NativeFence release_fence;
+  std::vector<int32_t> fences;
 };
 
 static struct frame frames[2];
@@ -109,7 +109,8 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     return connected_displays_;
   }
 
-  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers) {
+  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers,
+                     std::vector<int32_t> &fences) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     if (connected_displays_.empty())
       connected_displays_ = device_->GetConnectedPhysicalDisplays();
@@ -117,8 +118,11 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     if (connected_displays_.empty())
       return;
 
-    for (auto &display : connected_displays_)
-      display->Present(layers);
+    for (auto &display : connected_displays_) {
+      int32_t retire_fence = -1;
+      display->Present(layers, &retire_fence);
+      fences.emplace_back(retire_fence);
+    }
   }
 
  private:

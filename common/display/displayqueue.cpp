@@ -168,7 +168,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
-bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
+bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
+                               int32_t* retire_fence) {
   CTRACE();
   size_t size = source_layers.size();
   std::vector<OverlayLayer> layers;
@@ -269,6 +270,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers) {
 #else
   if (fence > 0) {
     compositor_.InsertFence(dup(fence));
+    *retire_fence = dup(fence);
     kms_fence_handler_->WaitFence(fence, previous_layers_);
   }
 #endif

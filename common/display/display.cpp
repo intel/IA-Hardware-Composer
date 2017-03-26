@@ -198,7 +198,8 @@ bool Display::SetPowerMode(uint32_t power_mode) {
   return display_queue_->SetPowerMode(power_mode);
 }
 
-bool Display::Present(std::vector<HwcLayer *> &source_layers) {
+bool Display::Present(std::vector<HwcLayer *> &source_layers,
+                      int32_t *retire_fence) {
   CTRACE();
 
   if (!is_connected_ || power_mode_ != kOn) {
@@ -206,7 +207,7 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers) {
     return false;
   }
 
-  return display_queue_->QueueUpdate(source_layers);
+  return display_queue_->QueueUpdate(source_layers, retire_fence);
 }
 
 int Display::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

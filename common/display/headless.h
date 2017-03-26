@@ -65,7 +65,8 @@ class Headless : public NativeDisplay {
 
   bool SetPowerMode(uint32_t power_mode) override;
 
-  bool Present(std::vector<HwcLayer *> &source_layers) override;
+  bool Present(std::vector<HwcLayer *> &source_layers,
+               int32_t *retire_fence) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;

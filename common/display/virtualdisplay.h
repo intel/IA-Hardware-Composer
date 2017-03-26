@@ -37,7 +37,8 @@ class VirtualDisplay : public Headless {
 
   bool GetActiveConfig(uint32_t *config) override;
 
-  bool Present(std::vector<HwcLayer *> &source_layers) override;
+  bool Present(std::vector<HwcLayer *> &source_layers,
+               int32_t *retire_fence) override;
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;
 

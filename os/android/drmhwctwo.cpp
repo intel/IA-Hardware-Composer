@@ -454,7 +454,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (layers.empty())
     return HWC2::Error::None;
 
-  bool success = display_->Present(layers);
+  bool success = display_->Present(layers, retire_fence);
   if (!success) {
     ALOGE("Failed to set layers in the composition");
     return HWC2::Error::BadLayer;

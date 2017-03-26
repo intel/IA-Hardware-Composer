@@ -70,7 +70,16 @@ class NativeDisplay {
 
   virtual bool SetPowerMode(uint32_t power_mode) = 0;
 
-  virtual bool Present(std::vector<HwcLayer *> &source_layers) = 0;
+  /**
+   * API for showing content on screen.
+   * @param source_layers, are the layers to be shown on screen for this frame.
+   * @param retire_fence will be populated with Native Fence object provided
+   *        we are able to display source_layers. When retire_fence is
+   *        signalled source_layers are shown on the output and any previous
+   *        frame composition results can be invalidated.
+   */
+  virtual bool Present(std::vector<HwcLayer *> &source_layers,
+                       int32_t *retire_fence) = 0;
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
