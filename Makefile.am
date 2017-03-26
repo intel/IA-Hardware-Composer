@@ -27,7 +27,7 @@ SUBDIRS = \
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Icommon/core -Icommon/utils -Icommon/compositor -Icommon/display  -Ios/linux -Icommon/compositor/gl -Itests/common
-AM_CPPFLAGS = -std=c++11 -DUDEV_SUPPORT -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
+AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
 if !ENABLE_GBM
@@ -39,7 +39,6 @@ libhwcomposer_la_LIBADD = \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	$(GLES2_LIBS) \
-	-ludev \
 	-lm
 
 libhwcomposer_la_LTLIBRARIES = libhwcomposer.la

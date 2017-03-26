@@ -28,10 +28,6 @@
 #include <xf86drmMode.h>
 #include <errno.h>
 
-#ifdef UDEV_SUPPORT
-#include <libudev.h>
-#endif
-
 #include <linux/types.h>
 #include <linux/netlink.h>
 
@@ -76,10 +72,6 @@ class GpuDevice::DisplayManager : public HWCThread {
 
  private:
   void HotPlugEventHandler();
-#ifdef UDEV_SUPPORT
-  struct udev *udev_ = NULL;
-  struct udev_monitor *monitor_ = NULL;
-#endif
   std::unique_ptr<NativeBufferHandler> buffer_handler_;
   std::unique_ptr<NativeDisplay> headless_;
   std::unique_ptr<NativeDisplay> virtual_display_;
@@ -88,8 +80,6 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
   int fd_ = -1;
   ScopedFd hotplug_fd_;
-  uint32_t select_fd_ = 0;
-  fd_set fd_set_;
   SpinLock spin_lock_;
 };
 
@@ -99,13 +89,6 @@ GpuDevice::DisplayManager::DisplayManager() : HWCThread(-8, "DisplayManager") {
 
 GpuDevice::DisplayManager::~DisplayManager() {
   CTRACE();
-#ifdef UDEV_SUPPORT
-  if (monitor_)
-    udev_monitor_unref(monitor_);
-
-  if (udev_)
-    udev_unref(udev_);
-#endif
 }
 
 bool GpuDevice::DisplayManager::Init(uint32_t fd) {
@@ -146,49 +129,6 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     ETRACE("Failed to connect display.");
     return false;
   }
-#ifdef UDEV_SUPPORT
-  udev_ = udev_new();
-  if (udev_ == NULL) {
-    ETRACE("Failed to create udev. %s", PRINTERROR());
-    return true;
-  }
-
-  monitor_ = udev_monitor_new_from_netlink(udev_, "udev");
-  if (monitor_ == NULL) {
-    ETRACE("Failed to create udev monitor. %s", PRINTERROR());
-    udev_unref(udev_);
-    return true;
-  }
-
-  if (udev_monitor_filter_add_match_subsystem_devtype(monitor_, "drm",
-                                                      "drm_minor") < 0) {
-    ETRACE("Failed to add drm filter for udev monitor. %s", PRINTERROR());
-    udev_unref(udev_);
-    udev_monitor_unref(monitor_);
-    return true;
-  }
-  if (udev_monitor_filter_update(monitor_) < 0) {
-    ETRACE("udev_monitor_filter_update failed. %s", PRINTERROR());
-    udev_unref(udev_);
-    udev_monitor_unref(monitor_);
-    return true;
-  }
-
-  if (udev_monitor_enable_receiving(monitor_) < 0) {
-    ETRACE("Failed to enable udev monitor. %s", PRINTERROR());
-    udev_unref(udev_);
-    udev_monitor_unref(monitor_);
-    return true;
-  }
-
-  hotplug_fd_.Reset(udev_monitor_get_fd(monitor_));
-  if (hotplug_fd_.get() < 0) {
-    ETRACE("Failed to retrieve udev monitor fd. %s", PRINTERROR());
-    udev_unref(udev_);
-    udev_monitor_unref(monitor_);
-    return true;
-  }
-#else
   hotplug_fd_.Reset(socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT));
   if (hotplug_fd_.get() < 0) {
     ETRACE("Failed to create socket for hot plug monitor. %s", PRINTERROR());
@@ -207,10 +147,8 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
            PRINTERROR());
     return true;
   }
-#endif
-  FD_ZERO(&fd_set_);
-  FD_SET(hotplug_fd_.get(), &fd_set_);
-  select_fd_ = hotplug_fd_.get() + 1;
+
+  fd_handler_.AddFd(hotplug_fd_.get());
   if (!InitWorker()) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
@@ -221,40 +159,6 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
   return true;
 }
 
-#ifdef UDEV_SUPPORT
-void GpuDevice::DisplayManager::HotPlugEventHandler() {
-  CTRACE();
-  struct udev_device *dev;
-  struct stat s;
-  dev_t udev_devnum;
-  const char *hotplug;
-
-  dev = udev_monitor_receive_device(monitor_);
-  if (!dev) {
-    ETRACE("Failed to retrieve udev device. %s", PRINTERROR());
-    IHOTPLUGEVENTTRACE(
-        "Display management not possible as we failed to retrieve udev "
-        "device.");
-    return;
-  }
-
-  udev_devnum = udev_device_get_devnum(dev);
-  if (fstat(fd_, &s))
-    return;
-
-  hotplug = udev_device_get_property_value(dev, "HOTPLUG");
-
-  if (memcmp(&s.st_rdev, &udev_devnum, sizeof(dev_t)) == 0 && hotplug &&
-      atoi(hotplug) == 1) {
-    IHOTPLUGEVENTTRACE(
-        "Recieved Hot Plug event related to display calling "
-        "UpdateDisplayState.");
-    UpdateDisplayState();
-  }
-
-  udev_device_unref(dev);
-}
-#else
 void GpuDevice::DisplayManager::HotPlugEventHandler() {
   CTRACE();
   char buffer[1024];
@@ -294,28 +198,17 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
     }
   }
 }
-#endif
 
 void GpuDevice::DisplayManager::HandleWait() {
+  fd_handler_.Poll(-1);
 }
 
 void GpuDevice::DisplayManager::HandleRoutine() {
   CTRACE();
-  int ret;
   IHOTPLUGEVENTTRACE("DisplayManager::Routine.");
-  do {
-    ret = select(select_fd_, &fd_set_, NULL, NULL, NULL);
-  } while (ret == -1 && errno == EINTR);
-
-  if (ret < 0) {
-    IHOTPLUGEVENTTRACE("select() failed with %s:", PRINTERROR());
-  } else if (FD_ISSET(0, &fd_set_)) {
-    IHOTPLUGEVENTTRACE("select() exit due to user-input.");
-  } else {
-    if (FD_ISSET(hotplug_fd_.get(), &fd_set_)) {
-      IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
-      HotPlugEventHandler();
-    }
+  if (fd_handler_.IsReady(hotplug_fd_.get())) {
+    IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
+    HotPlugEventHandler();
   }
 }
 
