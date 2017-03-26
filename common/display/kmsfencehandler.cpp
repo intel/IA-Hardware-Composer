@@ -69,6 +69,12 @@ void KMSFenceEventHandler::ExitThread() {
 
 void KMSFenceEventHandler::HandleRoutine() {
   ScopedSpinLock lock(spin_lock_);
+// In triple buffer case, we can already release
+// buffer here.
+#ifndef DOUBLE_BUFFERED
+  buffer_manager_->UnRegisterBuffers(buffers_);
+  std::vector<OverlayBuffer*>().swap(buffers_);
+#endif
   // Lets ensure the job associated with previous frame
   // has been done, else commit will fail with -EBUSY.
   if (kms_fence_ > 0) {
@@ -76,9 +82,10 @@ void KMSFenceEventHandler::HandleRoutine() {
     close(kms_fence_);
     kms_fence_ = -1;
   }
-
+#ifdef DOUBLE_BUFFERED
   buffer_manager_->UnRegisterBuffers(buffers_);
   std::vector<OverlayBuffer*>().swap(buffers_);
+#endif
 }
 
 }  // namespace hwcomposer

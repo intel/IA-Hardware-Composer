@@ -141,7 +141,7 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
   VkDmaBufImageCreateInfo image_create = {};
   image_create.sType =
       (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
-  image_create.fd = (int)prime_fd_;
+  image_create.fd = static_cast<int>(prime_fd_);
   image_create.format = vk_format;
   image_create.extent = image_extent;
   image_create.strideInBytes = pitches_[0];

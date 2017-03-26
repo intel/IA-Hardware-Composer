@@ -254,7 +254,8 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 }
 
 bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
-                                      drmModeAtomicReqPtr pset, uint32_t flags) {
+                                      drmModeAtomicReqPtr pset,
+                                      uint32_t flags) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);

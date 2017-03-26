@@ -131,7 +131,11 @@ bool init_gl() {
   return true;
 }
 
+#ifdef DOUBLE_BUFFERED
 static struct frame frames[2];
+#else
+static struct frame frames[3];
+#endif
 
 class DisplayVSyncCallback : public hwcomposer::VsyncCallback {
  public:
@@ -544,6 +548,7 @@ int main(int argc, char *argv[]) {
         continue;
 
       sync_wait(fence, -1);
+      close(fence);
       fence = -1;
     }
 

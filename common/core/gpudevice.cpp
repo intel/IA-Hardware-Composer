@@ -292,7 +292,8 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
           }
         }
       }
-      if(found_encoder) break;
+      if (found_encoder)
+        break;
     }
   }
 

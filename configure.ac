@@ -53,6 +53,23 @@ fi])
 
 AM_CONDITIONAL([ENABLE_VULKAN], [test "x$enable_vulkan" = "xyes"])
 
+# For Double Buffered option
+AC_ARG_ENABLE(doublebuffering,
+  AS_HELP_STRING([--enable-double-buffering],
+    [Enable support for Double Buffering.]),
+[if test x$enableval = xyes; then
+  enable_double_buffering=yes
+  AC_DEFINE(ENABLE_DOUBLE_BUFFERING, 1, [Enable Double Buffering Support.])
+fi])
+
+AM_CONDITIONAL(ENABLE_DOUBLE_BUFFERING, test x$enable_double_buffering = xyes)
+
+if test "x$enable_double_buffering" = "xyes"; then
+  AC_MSG_RESULT([Double Buffering support is enabled and IA HardwareComposer will be optimized for this scenario.])
+else
+  AC_MSG_RESULT([Triple Buffering support is enabled and IA HardwareComposer will be optimized for this scenario.])
+fi
+
 # For json-c
 AC_CONFIG_HEADER(tests/third_party/json-c/json_config.h)
 AC_ARG_ENABLE(rdrand,

@@ -21,7 +21,6 @@
 
 #include <spinlock.h>
 
-#include <memory>
 #include <vector>
 
 #include "nativesync.h"
