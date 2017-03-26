@@ -18,6 +18,8 @@
 
 #include <poll.h>
 
+#include "hwctrace.h"
+
 namespace hwcomposer {
 
 void HWCPoll(int fd, int timeout) {
@@ -25,7 +27,9 @@ void HWCPoll(int fd, int timeout) {
   fds[0].fd = fd;
   fds[0].events = POLLIN;
 
-  poll(fds, 1, timeout);
+  if (poll(fds, 1, timeout) <= 0) {
+    ETRACE("Poll Failed in HWCPoll %s", PRINTERROR());
+  }
 }
 
 }  // namespace hwcomposer

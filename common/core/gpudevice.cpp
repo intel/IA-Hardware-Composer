@@ -169,16 +169,16 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
 
   while (true) {
     bool drm_event = false, hotplug_event = false;
-    ret = read(hotplug_fd_.get(), &buffer, sizeof(buffer));
+    memset(&buffer, 0, sizeof(buffer));
+    size_t srclen = strlen(buffer);
+    ret = read(hotplug_fd_.get(), &buffer, srclen);
+    buffer[srclen] = '\0';
     if (ret == 0) {
       return;
     } else if (ret < 0) {
       ETRACE("Failed to read uevent. %s", PRINTERROR());
       return;
     }
-
-    if (drm_event && hotplug_event)
-      continue;
 
     for (int32_t i = 0; i < ret;) {
       char *event = buffer + i;
@@ -203,7 +203,9 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
 }
 
 void GpuDevice::DisplayManager::HandleWait() {
-  fd_handler_.Poll(-1);
+  if (fd_handler_.Poll(-1) <= 0) {
+    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+  }
 }
 
 void GpuDevice::DisplayManager::HandleRoutine() {

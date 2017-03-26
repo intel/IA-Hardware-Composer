@@ -106,11 +106,15 @@ void OverlayBufferManager::UnRegisterBuffer(OverlayBuffer* buffer) {
       continue;
 
     overlay_buffer.ref_count_--;
-    if (overlay_buffer.ref_count_ <= 0) {
-      buffers_.erase(buffers_.begin() + index);
+    if (overlay_buffer.ref_count_ > 0) {
+      index = -1;
     }
 
     break;
+  }
+
+  if (index >= 0 && index < buffers_.size()) {
+    buffers_.erase(buffers_.begin() + index);
   }
 }
 
@@ -125,11 +129,15 @@ void OverlayBufferManager::UnRegisterBuffers(
         continue;
 
       overlay_buffer.ref_count_--;
-      if (overlay_buffer.ref_count_ <= 0) {
-        buffers_.erase(buffers_.begin() + index);
+      if (overlay_buffer.ref_count_ > 0) {
+        index = -1;
       }
 
       break;
+    }
+
+    if (index >= 0 && index < buffers_.size()) {
+      buffers_.erase(buffers_.begin() + index);
     }
   }
 }
@@ -171,11 +179,15 @@ void OverlayBufferManager::UnRegisterLayerBuffers(
 
       overlay_buffer.ref_count_--;
       layer.MarkBufferReleased();
-      if (overlay_buffer.ref_count_ <= 0) {
-        buffers_.erase(buffers_.begin() + index);
+      if (overlay_buffer.ref_count_ > 0) {
+        index = -1;
       }
 
       break;
+    }
+
+    if (index >= 0 && index < buffers_.size()) {
+      buffers_.erase(buffers_.begin() + index);
     }
   }
 }

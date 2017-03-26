@@ -72,7 +72,11 @@ void HWCThread::HandleExit() {
 }
 
 void HWCThread::HandleWait() {
-  fd_handler_.Poll(-1);
+  if (fd_handler_.Poll(-1) <= 0) {
+    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+    return;
+  }
+
   if (fd_handler_.IsReady(event_.get_fd())) {
     // If eventfd_ is ready, we need to wait on it (using read()) to clean
     // the flag that says it is ready.
