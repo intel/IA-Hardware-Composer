@@ -203,6 +203,9 @@ void GpuDevice::DisplayManager::HandleWait() {
   fd_handler_.Poll(-1);
 }
 
+void GpuDevice::DisplayManager::HandleWait() {
+}
+
 void GpuDevice::DisplayManager::HandleRoutine() {
   CTRACE();
   IHOTPLUGEVENTTRACE("DisplayManager::Routine.");
