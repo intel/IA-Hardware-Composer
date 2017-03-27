@@ -520,7 +520,13 @@ int main(int argc, char *argv[]) {
     return 0;
 
   parse_args(argc, argv);
+
   fd = open("/dev/dri/renderD128", O_RDWR);
+  if (fd == -1) {
+    ETRACE("Can't open GPU file");
+    exit(-1);
+  }
+
   primary_width = displays.at(0)->Width();
   primary_height = displays.at(0)->Height();
 

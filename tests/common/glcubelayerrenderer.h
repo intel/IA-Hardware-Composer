@@ -32,12 +32,13 @@ class GLCubeLayerRenderer : public GLLayerRenderer {
   void UpdateStreamTexture(unsigned long usec);
 
  private:
-  GLuint program_;
-  GLint modelviewmatrix_, modelviewprojectionmatrix_, normalmatrix_;
-  GLuint vbo_;
-  GLuint positionsoffset_, colorsoffset_, normalsoffset_, texcoordoffset_;
+  GLuint program_ = 0;
+  GLint modelviewmatrix_ = 0, modelviewprojectionmatrix_ = 0, normalmatrix_ = 0;
+  GLuint vbo_ = 0;
+  GLuint positionsoffset_ = 0, colorsoffset_ = 0, normalsoffset_ = 0,
+         texcoordoffset_ = 0;
   uint32_t frame_count_ = 0;
-  StreamTextureImpl *stream_texture_;
+  StreamTextureImpl *stream_texture_ = NULL;
   static const size_t s_length = 512;
   float last_progress_ = 0.f;
   bool even_turn_ = true;

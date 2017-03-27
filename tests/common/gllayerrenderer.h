@@ -34,9 +34,9 @@ class GLLayerRenderer : public LayerRenderer {
 
  protected:
   bool Init_GL(glContext* gl);
-  GLuint gl_renderbuffer_;
-  GLuint gl_framebuffer_;
-  EGLImageKHR egl_image_;
+  GLuint gl_renderbuffer_ = 0;
+  GLuint gl_framebuffer_ = 0;
+  EGLImageKHR egl_image_ = EGL_NO_IMAGE_KHR;
   glContext* gl_ = NULL;
 };
 

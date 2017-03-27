@@ -31,7 +31,7 @@ class VideoLayerRenderer : public LayerRenderer {
   void Draw(int64_t* pfence) override;
 
  private:
-  FILE* resource_fd_;
+  FILE* resource_fd_ = NULL;
 };
 
 #endif
