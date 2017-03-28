@@ -35,18 +35,25 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
       out_fence_ptr_prop_(0),
       active_prop_(0),
       mode_id_prop_(0),
+      lut_id_prop_(0),
       crtc_id_(crtc_id),
       connector_(0),
       crtc_prop_(0),
       blob_id_(0),
       old_blob_id_(0),
       gpu_fd_(gpu_fd),
-      buffer_manager_(buffer_manager) {
+      buffer_manager_(buffer_manager),
+      lut_size_(0),
+      broadcastrgb_id_(0),
+      broadcastrgb_full_(-1),
+      broadcastrgb_automatic_(-1) {
   compositor_.Init();
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
   GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
   GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
+  GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
+  GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
 #ifndef DISABLE_EXPLICIT_SYNC
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
 #endif
@@ -55,6 +62,15 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
 
   kms_fence_handler_.reset(new KMSFenceEventHandler(buffer_manager_));
+  /* use 0x80 as default brightness for all colors */
+  brightness_ = 0x808080;
+  /* use 0x80 as default brightness for all colors */
+  contrast_ = 0x808080;
+  /* use 1 as default gamma value */
+  gamma_.red = 1;
+  gamma_.green = 1;
+  gamma_.blue = 1;
+  needs_color_correction_ = true;
 }
 
 DisplayQueue::~DisplayQueue() {
@@ -89,6 +105,22 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
+  GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
+
+  drmModePropertyPtr broadcastrgb_props =
+      drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
+
+  if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM))
+    return false;
+
+  for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
+    if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
+      broadcastrgb_full_ = broadcastrgb_props->enums[i].value;
+    } else if (!strcmp(broadcastrgb_props->enums[i].name, "Automatic")) {
+      broadcastrgb_automatic_ = broadcastrgb_props->enums[i].value;
+    }
+  }
+  drmModeFreeProperty(broadcastrgb_props);
 
   return true;
 }
@@ -155,6 +187,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       break;
     case kOn:
       needs_modeset_ = true;
+      needs_color_correction_ = true;
       drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                                   DRM_MODE_DPMS_ON);
 
@@ -188,8 +221,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
-    ImportedBuffer* buffer = buffer_manager_->CreateBufferFromNativeHandle(
-	layer->GetNativeHandle());
+    ImportedBuffer* buffer =
+        buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer);
     int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
@@ -215,8 +248,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // Validate Overlays and Layers usage.
   std::tie(render_layers, current_composition_planes) =
       display_plane_manager_->ValidateLayers(
-	  &layers, previous_layers_, previous_plane_state_,
-          needs_modeset_);
+          &layers, previous_layers_, previous_plane_state_, needs_modeset_);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
@@ -227,8 +259,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (render_layers) {
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers,
-			  layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
       ETRACE("Failed to prepare for the frame composition. ");
       return false;
     }
@@ -252,6 +283,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   } else {
     GetFence(pset.get(), &fence);
+  }
+
+  if (needs_color_correction_) {
+    SetColorCorrection(gamma_, contrast_, brightness_);
+    needs_color_correction_ = false;
   }
 
   kms_fence_handler_->EnsureReadyForNextFrame();
@@ -320,6 +356,179 @@ void DisplayQueue::GetDrmObjectProperty(const char* name,
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
   return display_plane_manager_->CheckPlaneFormat(format);
+}
+
+void DisplayQueue::GetDrmObjectPropertyValue(
+    const char* name, const ScopedDrmObjectPropertyPtr& props,
+    uint64_t* value) const {
+  uint32_t count_props = props->count_props;
+  for (uint32_t i = 0; i < count_props; i++) {
+    ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
+    if (property && !strcmp(property->name, name)) {
+      *value = props->prop_values[i];
+      break;
+    }
+  }
+  if (!(*value))
+    ETRACE("Could not find property value %s", name);
+}
+
+void DisplayQueue::ApplyPendingLUT(struct drm_color_lut* lut) const {
+  if (lut_id_prop_ == 0)
+    return;
+
+  uint32_t lut_blob_id = 0;
+
+  drmModeCreatePropertyBlob(
+      gpu_fd_, lut, sizeof(struct drm_color_lut) * lut_size_, &lut_blob_id);
+  if (lut_blob_id == 0) {
+    return;
+  }
+
+  drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
+                           lut_id_prop_, lut_blob_id);
+  drmModeDestroyPropertyBlob(gpu_fd_, lut_blob_id);
+}
+
+void DisplayQueue::SetGamma(float red, float green, float blue) {
+  gamma_.red = red;
+  gamma_.green = green;
+  gamma_.blue = blue;
+  needs_color_correction_ = true;
+}
+
+void DisplayQueue::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+  red &= 0xFF;
+  green &= 0xFF;
+  blue &= 0xFF;
+  contrast_ = (red << 16) | (green << 8) | (blue);
+  needs_color_correction_ = true;
+}
+
+void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
+  red &= 0xFF;
+  green &= 0xFF;
+  blue &= 0xFF;
+  brightness_ = (red << 16) | (green << 8) | (blue);
+  needs_color_correction_ = true;
+}
+
+float DisplayQueue::TransformContrastBrightness(float value, float brightness,
+                                                float contrast) const {
+  float result;
+  result = (value - 0.5) * contrast + 0.5 + brightness;
+
+  if (result < 0.0)
+    result = 0.0;
+  if (result > 1.0)
+    result = 1.0;
+  return result;
+}
+
+float DisplayQueue::TransformGamma(float value, float gamma) const {
+  float result;
+
+  result = pow(value, gamma);
+  if (result < 0.0)
+    result = 0.0;
+  if (result > 1.0)
+    result = 1.0;
+
+  return result;
+}
+
+void DisplayQueue::SetColorCorrection(struct gamma_colors gamma,
+                                      uint32_t contrast_c,
+                                      uint32_t brightness_c) const {
+  struct drm_color_lut* lut;
+  float brightness[3];
+  float contrast[3];
+  uint8_t temp[3];
+  int32_t ret;
+
+  /* reset lut when contrast and brightness are all 0 */
+  if (contrast_c == 0 && brightness_c == 0) {
+    lut = NULL;
+    ApplyPendingLUT(lut);
+    free(lut);
+    return;
+  }
+
+  lut = (struct drm_color_lut*)malloc(sizeof(struct drm_color_lut) * lut_size_);
+  if (!lut) {
+    ETRACE("Cannot allocate LUT memory");
+    return;
+  }
+
+  /* Unpack brightness values for each channel */
+  temp[0] = (brightness_c >> 16) & 0xFF;
+  temp[1] = (brightness_c >> 8) & 0xFF;
+  temp[2] = (brightness_c)&0xFF;
+
+  /* Map brightness from -128 - 127 range into -0.5 - 0.5 range */
+  brightness[0] = (float)(temp[0]) / 255 - 0.5;
+  brightness[1] = (float)(temp[1]) / 255 - 0.5;
+  brightness[2] = (float)(temp[2]) / 255 - 0.5;
+
+  /* Unpack contrast values for each channel */
+  temp[0] = (contrast_c >> 16) & 0xFF;
+  temp[1] = (contrast_c >> 8) & 0xFF;
+  temp[2] = (contrast_c)&0xFF;
+
+  /* Map contrast from 0 - 255 range into 0.0 - 2.0 range */
+  contrast[0] = (float)(temp[0]) / 128;
+  contrast[1] = (float)(temp[1]) / 128;
+  contrast[2] = (float)(temp[2]) / 128;
+
+  uint32_t max_value = (1 << 16) - 1;
+  uint32_t mask = ((1 << 8) - 1) << 8;
+  for (uint64_t i = 0; i < lut_size_; i++) {
+    /* Set lut[0] as 0 always as the darkest color should has brightness 0 */
+    if (i == 0) {
+      lut[i].red = 0;
+      lut[i].green = 0;
+      lut[i].blue = 0;
+      continue;
+    }
+
+    lut[i].red = 0xFFFF * TransformGamma(TransformContrastBrightness(
+                                             (float)(i) / lut_size_,
+                                             brightness[0], contrast[0]),
+                                         gamma.red);
+    lut[i].green = 0xFFFF * TransformGamma(TransformContrastBrightness(
+                                               (float)(i) / lut_size_,
+                                               brightness[1], contrast[1]),
+                                           gamma.green);
+    lut[i].blue = 0xFFFF * TransformGamma(TransformContrastBrightness(
+                                              (float)(i) / lut_size_,
+                                              brightness[2], contrast[2]),
+                                          gamma.blue);
+  }
+
+  ApplyPendingLUT(lut);
+  free(lut);
+}
+
+bool DisplayQueue::SetBroadcastRGB(const char* range_property) {
+  int64_t p_value = -1;
+
+  if (!strcmp(range_property, "Full")) {
+    p_value = broadcastrgb_full_;
+  } else if (!strcmp(range_property, "Automatic")) {
+    p_value = broadcastrgb_automatic_;
+  } else {
+    ETRACE("Wrong Broadcast RGB value %s", range_property);
+    return false;
+  }
+
+  if (p_value < 0)
+    return false;
+
+  if (drmModeObjectSetProperty(gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR,
+                               broadcastrgb_id_, (uint64_t)p_value) != 0)
+    return false;
+
+  return true;
 }
 
 }  // namespace hwcomposer

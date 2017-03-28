@@ -76,6 +76,7 @@ class Display : public NativeDisplay {
 
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
+  int GetDisplayPipe() override;
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
@@ -89,6 +90,10 @@ class Display : public NativeDisplay {
 
   void VSyncControl(bool enabled) override;
   bool CheckPlaneFormat(uint32_t format) override;
+  void SetGamma(float red, float green, float blue) override;
+  void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
+  void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
+  bool SetBroadcastRGB(const char *range_property) override;
 
  protected:
   uint32_t CrtcId() const override {
