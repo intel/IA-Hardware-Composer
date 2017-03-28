@@ -100,6 +100,10 @@ bool Headless::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+int Headless::GetDisplayPipe() {
+  return -1;
+}
+
 bool Headless::SetActiveConfig(uint32_t /*config*/) {
   return false;
 }

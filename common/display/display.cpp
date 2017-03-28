@@ -174,6 +174,12 @@ bool Display::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+int Display::GetDisplayPipe() {
+  if (!is_connected_)
+    return -1;
+  return pipe_;
+}
+
 bool Display::SetActiveConfig(uint32_t /*config*/) {
   return true;
 }
@@ -223,4 +229,19 @@ bool Display::CheckPlaneFormat(uint32_t format) {
   return display_queue_->CheckPlaneFormat(format);
 }
 
+void Display::SetGamma(float red, float green, float blue) {
+  display_queue_->SetGamma(red, green, blue);
+}
+
+void Display::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+  display_queue_->SetContrast(red, green, blue);
+}
+
+void Display::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
+  display_queue_->SetBrightness(red, green, blue);
+}
+
+bool Display::SetBroadcastRGB(const char *range_property) {
+  return display_queue_->SetBroadcastRGB(range_property);
+}
 }  // namespace hwcomposer

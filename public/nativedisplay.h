@@ -65,6 +65,11 @@ class NativeDisplay {
 
   virtual bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) = 0;
   virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
+  /**
+  * API for getting connected display's pipe id.
+  * @return "-1" for unconnected display, valid values are 0 ~ 2.
+  */
+  virtual int GetDisplayPipe() = 0;
   virtual bool SetActiveConfig(uint32_t config) = 0;
   virtual bool GetActiveConfig(uint32_t *config) = 0;
 
@@ -84,6 +89,44 @@ class NativeDisplay {
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
   virtual void VSyncControl(bool enabled) = 0;
+
+  // Color Correction related APIS.
+  /**
+  * API for setting color gamma value of display in HWC, which be used to remap
+  * original color brightness to new one by gamma color correction. HWC uses
+  * default gamma value 2.2 which popular display is using, and allow users to
+  * change gamma value for RGB colors by this API, e.g. 0 will remap all
+  * gradient brightness of the color to brightest value (solid color).
+  *
+  * @param red red color gamma value
+  * @param green blue color gamma value
+  * @param blue blue color gamma value
+  */
+  virtual void SetGamma(float red, float green, float blue) {
+  }
+  /**
+  * API for setting display color contrast in HWC
+  * @param red valid value is 0 ~ 255, bigger value with stronger contrast
+  * @param green valid value is 0 ~ 255, bigger value with stronger contrast
+  * @param blue valid value is 0 ~ 255, bigger value with stronger contrast
+  */
+  virtual void SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+  }
+  /**
+  * API for setting display color brightness in HWC
+  * @param red valid value is 0 ~ 255, bigger value with stronger brightness
+  * @param green valid value is 0 ~ 255, bigger value with stronger brightness
+  * @param blue valid value is 0 ~ 255, bigger value with stronger brightness
+  */
+  virtual void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
+  }
+  /**
+  * API for setting display Broadcast RGB range property
+  * @param range_property supported property string, e.g. "Full", "Automatic"
+  */
+  virtual bool SetBroadcastRGB(const char *range_property) {
+    return false;
+  }
 
   // Virtual display related.
   virtual void InitVirtualDisplay(uint32_t /*width*/, uint32_t /*height*/) {

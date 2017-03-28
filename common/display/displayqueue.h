@@ -36,6 +36,12 @@
 #include "platformdefines.h"
 
 namespace hwcomposer {
+struct gamma_colors {
+  float red;
+  float green;
+  float blue;
+};
+
 class DisplayPlaneManager;
 struct HwcLayer;
 class OverlayBufferManager;
@@ -54,6 +60,10 @@ class DisplayQueue {
                    int32_t* retire_fence);
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
+  void SetGamma(float red, float green, float blue);
+  void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
+  void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
+  bool SetBroadcastRGB(const char* range_property);
 
   void HandleExit();
 
@@ -63,6 +73,16 @@ class DisplayQueue {
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;
+  void ApplyPendingLUT(struct drm_color_lut* lut) const;
+  void GetDrmObjectPropertyValue(const char* name,
+                                 const ScopedDrmObjectPropertyPtr& props,
+                                 uint64_t* value) const;
+
+  void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
+                          uint32_t brightness) const;
+  float TransformGamma(float value, float gamma) const;
+  float TransformContrastBrightness(float value, float brightness,
+                                    float contrast) const;
 
   Compositor compositor_;
   drmModeModeInfo mode_;
@@ -72,14 +92,23 @@ class DisplayQueue {
   uint32_t out_fence_ptr_prop_;
   uint32_t active_prop_;
   uint32_t mode_id_prop_;
+  uint32_t lut_id_prop_;
   uint32_t crtc_id_;
   uint32_t connector_;
   uint32_t crtc_prop_;
   uint32_t blob_id_ = 0;
   uint32_t old_blob_id_ = 0;
   uint32_t gpu_fd_;
+  uint32_t brightness_;
+  uint32_t contrast_;
+  struct gamma_colors gamma_;
+  uint64_t lut_size_;
+  uint32_t broadcastrgb_id_;
+  int64_t broadcastrgb_full_;
+  int64_t broadcastrgb_automatic_;
   uint64_t fence_ = 0;
   bool needs_modeset_ = false;
+  bool needs_color_correction_ = false;
   std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;

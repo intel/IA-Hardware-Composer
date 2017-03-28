@@ -60,6 +60,7 @@ class Headless : public NativeDisplay {
 
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
+  int GetDisplayPipe() override;
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
