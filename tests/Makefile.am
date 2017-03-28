@@ -21,7 +21,7 @@
 #  SOFTWARE.
 #
 
-bin_PROGRAMS = testlayers
+bin_PROGRAMS = testlayers colorcorrection_autotest
 
 testlayers_LDFLAGS = \
 	-no-undefined
@@ -63,7 +63,25 @@ testlayers_SOURCES = \
     ./apps/jsonlayerstest.cpp
 
 if !ENABLE_GBM
-testlayers_SOURCES +=	\
+testlayers_SOURCES +=   \
     ./common/videolayerrenderer.cpp \
     ./common/imagelayerrenderer.cpp
 endif
+
+colorcorrection_autotest_LDFLAGS = \
+        -no-undefined
+
+colorcorrection_autotest_LDADD = \
+        $(DRM_LIBS) \
+        $(GBM_LIBS) \
+        $(top_builddir)/libhwcomposer.la
+
+colorcorrection_autotest_CFLAGS = \
+        -O0 -g -lm \
+        $(DRM_CFLAGS) \
+        $(GBM_CFLAGS) \
+        $(AM_CPPFLAGS)
+
+colorcorrection_autotest_SOURCES = \
+     ./autotests/colorcorrection_autotest.cpp \
+     ./common/igt.cpp
