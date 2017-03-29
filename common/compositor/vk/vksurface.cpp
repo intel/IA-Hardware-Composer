@@ -19,20 +19,30 @@ namespace hwcomposer {
 
 VKSurface::VKSurface(uint32_t width, uint32_t height)
     : NativeSurface(width, height) {
+  image_memory_ = VK_NULL_HANDLE;
+  image_ = VK_NULL_HANDLE;
+  image_view_ = VK_NULL_HANDLE;
   surface_fb_ = VK_NULL_HANDLE;
 }
 
 VKSurface::~VKSurface() {
+  vkDestroyFramebuffer(dev_, surface_fb_, NULL);
+  vkDestroyImageView(dev_, image_view_, NULL);
+  vkDestroyImage(dev_, image_, NULL);
+  vkFreeMemory(dev_, image_memory_, NULL);
 }
 
 bool VKSurface::InitializeGPUResources() {
   VkResult res;
 
-  VkImage image = layer_.GetBuffer()->ImportImage(dev_);
-  if (image == VK_NULL_HANDLE) {
-    ETRACE("Failed to make import image\n");
+  struct vk_import import = layer_.GetBuffer()->ImportImage(dev_);
+  if (import.res != VK_SUCCESS) {
+    ETRACE("Failed to make import image (%d)\n", import.res);
     return false;
   }
+
+  image_memory_ = import.memory;
+  image_ = import.image;
 
   VkImageSubresourceRange clear_range = {};
   clear_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -49,12 +59,12 @@ bool VKSurface::InitializeGPUResources() {
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   dst_barrier_before_clear_.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   dst_barrier_before_clear_.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  dst_barrier_before_clear_.image = image;
+  dst_barrier_before_clear_.image = image_;
   dst_barrier_before_clear_.subresourceRange = clear_range;
 
   VkImageViewCreateInfo view_create = {};
   view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  view_create.image = image;
+  view_create.image = image_;
   view_create.viewType = VK_IMAGE_VIEW_TYPE_2D;
   view_create.format = VK_FORMAT_R8G8B8A8_UNORM;
   view_create.components = {};
@@ -67,9 +77,7 @@ bool VKSurface::InitializeGPUResources() {
   view_create.subresourceRange.levelCount = 1;
   view_create.subresourceRange.layerCount = 1;
 
-  VkImageView image_view;
-
-  res = vkCreateImageView(dev_, &view_create, NULL, &image_view);
+  res = vkCreateImageView(dev_, &view_create, NULL, &image_view_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateImageView failed (%d)\n", res);
     return false;
@@ -79,7 +87,7 @@ bool VKSurface::InitializeGPUResources() {
   framebuffer_create.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebuffer_create.renderPass = render_pass_;
   framebuffer_create.attachmentCount = 1;
-  framebuffer_create.pAttachments = &image_view;
+  framebuffer_create.pAttachments = &image_view_;
   framebuffer_create.width = GetWidth();
   framebuffer_create.height = GetHeight();
   framebuffer_create.layers = 1;

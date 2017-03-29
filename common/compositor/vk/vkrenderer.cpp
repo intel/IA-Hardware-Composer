@@ -191,6 +191,9 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
     return NULL;
   }
 
+  vkFreeCommandBuffers(dev_, cmd_pool_, 1, &cmd_buffer);
+  vkFreeMemory(dev_, host_mem, NULL);
+
   return dst_buffer;
 }
 
@@ -665,6 +668,8 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
     ETRACE("vkQueueWaitIdle failed (%d)\n", res);
     return false;
   }
+
+  vkFreeCommandBuffers(dev_, cmd_pool_, 1, &cmd_buffer);
 
   res = vkFreeDescriptorSets(dev_, desc_pool_, desc_sets.size(),
                              desc_sets.data());

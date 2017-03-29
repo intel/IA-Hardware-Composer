@@ -47,8 +47,12 @@ typedef struct vk_resource {
   VkImage image;
   VkImageView image_view;
 } GpuResourceHandle;
+typedef struct vk_import {
+  VkImage image;
+  VkDeviceMemory memory;
+  VkResult res;
+} GpuImage;
 
-typedef VkImage GpuImage;
 typedef VkDevice GpuDisplay;
 #else
 typedef unsigned GpuResourceHandle;
