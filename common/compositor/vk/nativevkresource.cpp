@@ -32,12 +32,13 @@ bool NativeVKResource::PrepareResources(
   clear_range.layerCount = 1;
 
   for (auto& layer : layers) {
-    VkImage image = layer.GetBuffer()->ImportImage(dev_);
-    if (image == VK_NULL_HANDLE) {
-      ETRACE("Failed to make import image\n");
+    struct vk_import import = layer.GetBuffer()->ImportImage(dev_);
+    if (import.res != VK_SUCCESS) {
+      ETRACE("Failed to make import image (%d)\n", import.res);
       return false;
     }
-    src_images_.emplace_back(image);
+    src_images_.emplace_back(import.image);
+    src_image_memory_.emplace_back(import.memory);
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -47,13 +48,13 @@ bool NativeVKResource::PrepareResources(
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image;
+    barrier.image = import.image;
     barrier.subresourceRange = clear_range;
     src_barrier_before_clear_.emplace_back(barrier);
 
     VkImageViewCreateInfo view_create = {};
     view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_create.image = image;
+    view_create.image = import.image;
     view_create.viewType = VK_IMAGE_VIEW_TYPE_2D;
     view_create.format = GbmToVkFormat(layer.GetBuffer()->GetFormat());
     view_create.components = {};
@@ -75,7 +76,7 @@ bool NativeVKResource::PrepareResources(
     src_image_views_.emplace_back(image_view);
 
     struct vk_resource resource;
-    resource.image = image;
+    resource.image = import.image;
     resource.image_view = image_view;
     layer_textures_.emplace_back(resource);
   }
@@ -87,10 +88,23 @@ NativeVKResource::~NativeVKResource() {
 }
 
 void NativeVKResource::Reset() {
-  layer_textures_.clear();
-  src_images_.clear();
+  for (auto& image_view : src_image_views_) {
+    vkDestroyImageView(dev_, image_view, NULL);
+  }
   src_image_views_.clear();
+
+  for (auto& image : src_images_) {
+    vkDestroyImage(dev_, image, NULL);
+  }
+  src_images_.clear();
+
+  for (auto& memory : src_image_memory_) {
+    vkFreeMemory(dev_, memory, NULL);
+  }
+  src_image_memory_.clear();
+
   src_barrier_before_clear_.clear();
+  layer_textures_.clear();
 }
 
 GpuResourceHandle NativeVKResource::GetResourceHandle(

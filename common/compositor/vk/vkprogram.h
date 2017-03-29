@@ -60,11 +60,11 @@ class VKProgram {
  private:
   VkDescriptorSetLayout descriptor_set_layout_;
   VkPipelineLayout pipeline_layout_;
+  VkShaderModule vertex_module_;
+  VkShaderModule fragment_module_;
   VkPipeline pipeline_;
   VkDescriptorBufferInfo vert_buf_info_;
   VkDescriptorBufferInfo frag_buf_info_;
-
-  bool initialized_;
 };
 
 }  // namespace hwcomposer

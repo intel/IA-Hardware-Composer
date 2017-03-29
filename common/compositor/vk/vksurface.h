@@ -32,6 +32,9 @@ class VKSurface : public NativeSurface {
 
  private:
   bool InitializeGPUResources();
+  VkDeviceMemory image_memory_;
+  VkImage image_;
+  VkImageView image_view_;
   VkFramebuffer surface_fb_;
 };
 

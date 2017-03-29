@@ -27,10 +27,20 @@ static const uint8_t vkcomp_frag_spv[] = {
 #include "vkcomp.frag.h"
 };
 
-VKProgram::VKProgram() : initialized_(false) {
+VKProgram::VKProgram() {
+  descriptor_set_layout_ = VK_NULL_HANDLE;
+  pipeline_layout_ = VK_NULL_HANDLE;
+  vertex_module_ = VK_NULL_HANDLE;
+  fragment_module_ = VK_NULL_HANDLE;
+  pipeline_ = VK_NULL_HANDLE;
 }
 
 VKProgram::~VKProgram() {
+  vkDestroyDescriptorSetLayout(dev_, descriptor_set_layout_, NULL);
+  vkDestroyPipelineLayout(dev_, pipeline_layout_, NULL);
+  vkDestroyShaderModule(dev_, vertex_module_, NULL);
+  vkDestroyShaderModule(dev_, fragment_module_, NULL);
+  vkDestroyPipeline(dev_, pipeline_, NULL);
 }
 
 bool VKProgram::Init(unsigned layer_index) {
@@ -77,8 +87,7 @@ bool VKProgram::Init(unsigned layer_index) {
   module_create.codeSize = sizeof(vkcomp_vert_spv);
   module_create.pCode = (const uint32_t *)vkcomp_vert_spv;
 
-  VkShaderModule vertex_module;
-  res = vkCreateShaderModule(dev_, &module_create, NULL, &vertex_module);
+  res = vkCreateShaderModule(dev_, &module_create, NULL, &vertex_module_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
@@ -87,8 +96,7 @@ bool VKProgram::Init(unsigned layer_index) {
   module_create.codeSize = sizeof(vkcomp_frag_spv);
   module_create.pCode = (const uint32_t *)vkcomp_frag_spv;
 
-  VkShaderModule fragment_module;
-  res = vkCreateShaderModule(dev_, &module_create, NULL, &fragment_module);
+  res = vkCreateShaderModule(dev_, &module_create, NULL, &fragment_module_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
@@ -166,7 +174,7 @@ bool VKProgram::Init(unsigned layer_index) {
   pipeline_info.stages[0].sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   pipeline_info.stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  pipeline_info.stages[0].module = vertex_module;
+  pipeline_info.stages[0].module = vertex_module_;
   pipeline_info.stages[0].pName = "main";
   pipeline_info.stages[0].pSpecializationInfo = &pipeline_info.special;
 
@@ -174,7 +182,7 @@ bool VKProgram::Init(unsigned layer_index) {
   pipeline_info.stages[1].sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   pipeline_info.stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  pipeline_info.stages[1].module = fragment_module;
+  pipeline_info.stages[1].module = fragment_module_;
   pipeline_info.stages[1].pName = "main";
   pipeline_info.stages[1].pSpecializationInfo = &pipeline_info.special;
 
