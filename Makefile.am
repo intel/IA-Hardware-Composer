@@ -49,7 +49,7 @@ libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
 libhwcomposer_la_SOURCES = $(common_SOURCES)
 if ENABLE_VULKAN
 libhwcomposer_la_SOURCES += $(vk_SOURCES)
-AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK
+AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
 libhwcomposer_la_LIBADD += -lvulkan
 else
 libhwcomposer_la_SOURCES += $(gl_SOURCES)
