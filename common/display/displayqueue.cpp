@@ -16,6 +16,7 @@
 
 #include "displayqueue.h"
 
+#include <math.h>
 #include <hwcdefs.h>
 #include <hwclayer.h>
 
