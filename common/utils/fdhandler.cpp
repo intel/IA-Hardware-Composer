@@ -98,7 +98,7 @@ int FDHandler::IsReady(int fd) const {
     return 0;
 }
 
-FDHandler::FDWatch::FDWatch() : revents(0), idx(0) {
+FDHandler::FDWatch::FDWatch() : idx(0), revents(0) {
 }
 
 }  // namespace hwcomposer

@@ -102,7 +102,7 @@ class NativeDisplay {
   * @param green blue color gamma value
   * @param blue blue color gamma value
   */
-  virtual void SetGamma(float red, float green, float blue) {
+  virtual void SetGamma(float /*red*/, float /*green*/, float /*blue*/) {
   }
   /**
   * API for setting display color contrast in HWC
@@ -110,7 +110,8 @@ class NativeDisplay {
   * @param green valid value is 0 ~ 255, bigger value with stronger contrast
   * @param blue valid value is 0 ~ 255, bigger value with stronger contrast
   */
-  virtual void SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+  virtual void SetContrast(uint32_t /*red*/, uint32_t /*green*/,
+                           uint32_t /*blue*/) {
   }
   /**
   * API for setting display color brightness in HWC
@@ -118,13 +119,14 @@ class NativeDisplay {
   * @param green valid value is 0 ~ 255, bigger value with stronger brightness
   * @param blue valid value is 0 ~ 255, bigger value with stronger brightness
   */
-  virtual void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
+  virtual void SetBrightness(uint32_t /*red*/, uint32_t /*green*/,
+                             uint32_t /*blue*/) {
   }
   /**
   * API for setting display Broadcast RGB range property
   * @param range_property supported property string, e.g. "Full", "Automatic"
   */
-  virtual bool SetBroadcastRGB(const char *range_property) {
+  virtual bool SetBroadcastRGB(const char * /*range_property*/) {
     return false;
   }
 
