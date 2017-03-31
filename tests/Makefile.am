@@ -59,7 +59,7 @@ testlayers_SOURCES = \
     ./common/gllayerrenderer.cpp \
     ./common/glcubelayerrenderer.cpp \
     ./common/esTransform.cpp \
-    ./common/layerfromjson.cpp \
+    ./common/jsonhandlers.cpp \
     ./apps/jsonlayerstest.cpp
 
 if !ENABLE_GBM

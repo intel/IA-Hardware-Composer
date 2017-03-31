@@ -1,43 +1,59 @@
-[{
-  "type":2,
-  "format":3,
-  "transform":1,
-  "resourcePath":"./image.bmp",
-  "source": {
-    "width":10,
-    "height":10,
-    "crop": {
-      "x":1,
-      "y":1,
-      "width":30,
-      "height":50
+{
+  "brightness_b": "200",
+  "brightness_g": "200",
+  "brightness_r": "200",
+  "broadcast_rgb": "Full",
+  "contrast_b": "50",
+  "contrast_g": "50",
+  "contrast_r": "50",
+  "gamma_b": "0.3",
+  "gamma_g": "0.3",
+  "gamma_r": "0.3",
+  "layers_parameters": [
+    {
+      "format": 3,
+      "frame": {
+        "height": 50,
+        "width": 30,
+        "x": 1,
+        "y": 1
+      },
+      "resource_path": "./image.bmp",
+      "source": {
+        "crop": {
+          "height": 50,
+          "width": 30,
+          "x": 1,
+          "y": 1
+        },
+        "height": 10,
+        "width": 10
+      },
+      "transform": 1,
+      "type": 2
+    },
+    {
+      "format": 25,
+      "frame": {
+        "height": 1080,
+        "width": 1920,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "",
+      "source": {
+        "crop": {
+          "height": 1080,
+          "width": 1920,
+          "x": 0,
+          "y": 0
+        },
+        "height": 1080,
+        "width": 1920
+      },
+      "transform": 0,
+      "type": 0
     }
-  },
-  "frame": {
-    "x":1,
-    "y":1,
-    "width":30,
-    "height":50
-  }
-},{
-  "type":0,
-  "format":1,
-  "transform":1,
-  "resourcePath":1,
-  "source": {
-    "width":10,
-    "height":10,
-    "crop": {
-      "x":1,
-      "y":1,
-      "width":30,
-      "height":50
-    }
-  },
-  "frame": {
-    "x":1,
-    "y":1,
-    "width":30,
-    "height":50
-  }
-}]
+  ],
+  "power_mode": "no"
+}
