@@ -1,23 +1,26 @@
-[{
-  "type":1,
-  "format":47,
-  "transform":0,
-  "resourcePath":"./resources/test.640x360.nv12",
-  "source": {
-    "width":640,
-    "height":360,
-    "crop": {
-      "x":0,
-      "y":0,
-      "width":640,
-      "height":360
+{
+  "layers_parameters": [
+    {
+      "format": 47,
+      "frame": {
+        "height": 360,
+        "width": 640,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "./resources/test.640x360.nv12",
+      "source": {
+        "crop": {
+          "height": 360,
+          "width": 640,
+          "x": 0,
+          "y": 0
+        },
+        "height": 360,
+        "width": 640
+      },
+      "transform": 0,
+      "type": 1
     }
-  },
-  "frame": {
-    "x":0,
-    "y":0,
-    "width":640,
-    "height":360
-  }
+  ]
 }
-]

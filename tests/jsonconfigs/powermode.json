@@ -1,26 +1,27 @@
 {
+  "power_mode":"doze",
   "layers_parameters": [
     {
       "format": 25,
       "frame": {
-        "height": 360,
-        "width": 640,
+        "height": 1080,
+        "width": 1920,
         "x": 0,
         "y": 0
       },
-      "resource_path": "./resources/test.640x360.bgra",
+      "resource_path": "",
       "source": {
         "crop": {
-          "height": 360,
-          "width": 640,
+          "height": 1080,
+          "width": 1920,
           "x": 0,
           "y": 0
         },
-        "height": 360,
-        "width": 640
+        "height": 1080,
+        "width": 1920
       },
       "transform": 0,
-      "type": 1
+      "type": 0
     }
   ]
 }

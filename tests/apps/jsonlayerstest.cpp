@@ -57,7 +57,7 @@
 #include "glcubelayerrenderer.h"
 #include "videolayerrenderer.h"
 #include "imagelayerrenderer.h"
-#include "layerfromjson.h"
+#include "jsonhandlers.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -194,6 +194,53 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     }
   }
 
+  void SetGamma(float red, float green, float blue) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_) {
+      display->SetGamma(red, green, blue);
+    }
+  }
+
+  void SetBrightness(char red, char green, char blue) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_) {
+      display->SetBrightness(red, green, blue);
+    }
+  }
+
+  void SetContrast(char red, char green, char blue) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_) {
+      display->SetContrast(red, green, blue);
+    }
+  }
+
+  void SetBroadcastRGB(const char *range_property) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_)
+      display->SetBroadcastRGB(range_property);
+  }
+
   void SetPowerMode(uint32_t power_mode) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
@@ -240,7 +287,7 @@ static int init_gbm(int fd) {
 }
 
 char json_path[1024];
-char powermode[15];
+TEST_PARAMETERS test_parameters;
 
 static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
   switch (format) {
@@ -385,15 +432,14 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
 }
 
 static void init_frames(int32_t width, int32_t height) {
-  std::vector<LAYER_PARAMETER> layer_parameters;
-  parseLayersFromJson(json_path, layer_parameters);
+  parseParametersJson(json_path, &test_parameters);
 
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
-    frame->layers_fences.resize(layer_parameters.size());
+    frame->layers_fences.resize(test_parameters.layers_parameters.size());
 
-    for (size_t j = 0; j < layer_parameters.size(); ++j) {
-      LAYER_PARAMETER layer_parameter = layer_parameters[j];
+    for (size_t j = 0; j < test_parameters.layers_parameters.size(); ++j) {
+      LAYER_PARAMETER layer_parameter = test_parameters.layers_parameters[j];
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
       uint32_t gbm_format = layerformat2gbmformat(layer_parameter.format);
@@ -446,7 +492,6 @@ static void parse_args(int argc, char *argv[]) {
       {"help", no_argument, NULL, 'h'},
       {"frames", required_argument, NULL, 'f'},
       {"json", required_argument, NULL, 'j'},
-      {"powermode", required_argument, NULL, 'p'},
       {0},
   };
 
@@ -457,7 +502,7 @@ static void parse_args(int argc, char *argv[]) {
   /* Suppress getopt's poor error messages */
   opterr = 0;
 
-  while ((opt = getopt_long(argc, argv, "+:hf:j:p:", longopts,
+  while ((opt = getopt_long(argc, argv, "+:hf:j:", longopts,
                             /*longindex*/ &longindex)) != -1) {
     switch (opt) {
       case 'h':
@@ -479,14 +524,6 @@ static void parse_args(int argc, char *argv[]) {
           fprintf(stderr, "usage error: invalid value for <frames>\n");
           exit(EXIT_FAILURE);
         }
-        break;
-      case 'p':
-        if (strlen(optarg) >= 15) {
-          fprintf(stderr, "usage error: invalid value for <powermode>\n");
-          exit(0);
-        }
-        printf("optarg:%s\n", optarg);
-        strcpy(powermode, optarg);
         break;
       case ':':
         fprintf(stderr, "usage error: %s requires an argument\n",
@@ -541,6 +578,15 @@ int main(int argc, char *argv[]) {
     exit(-1);
   init_frames(primary_width, primary_height);
 
+  callback->SetBroadcastRGB(test_parameters.broadcast_rgb.c_str());
+  callback->SetGamma(test_parameters.gamma_r, test_parameters.gamma_g,
+                     test_parameters.gamma_b);
+  callback->SetBrightness(test_parameters.brightness_r,
+                          test_parameters.brightness_g,
+                          test_parameters.brightness_b);
+  callback->SetContrast(test_parameters.contrast_r, test_parameters.contrast_g,
+                        test_parameters.contrast_b);
+
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -574,7 +620,7 @@ int main(int argc, char *argv[]) {
     callback->PresentLayers(layers, frame->layers_fences, frame->fences);
     frame_total++;
 
-    if (!strcmp(powermode, "on")) {
+    if (!strcmp(test_parameters.power_mode.c_str(), "on")) {
       if (frame_total == 500) {
         usleep(10000);
         callback->SetPowerMode(hwcomposer::kOff);
@@ -582,7 +628,7 @@ int main(int argc, char *argv[]) {
         callback->SetPowerMode(hwcomposer::kOn);
         frame_total = 0;
       }
-    } else if (!strcmp(powermode, "off")) {
+    } else if (!strcmp(test_parameters.power_mode.c_str(), "off")) {
       if (frame_total == 500) {
         usleep(30000);
         callback->SetPowerMode(hwcomposer::kOff);
@@ -590,7 +636,7 @@ int main(int argc, char *argv[]) {
         callback->SetPowerMode(hwcomposer::kOn);
         frame_total = 0;
       }
-    } else if (!strcmp(powermode, "doze")) {
+    } else if (!strcmp(test_parameters.power_mode.c_str(), "doze")) {
       if (frame_total == 500) {
         usleep(10000);
         callback->SetPowerMode(hwcomposer::kDoze);
@@ -598,7 +644,7 @@ int main(int argc, char *argv[]) {
         callback->SetPowerMode(hwcomposer::kOn);
         frame_total = 0;
       }
-    } else if (!strcmp(powermode, "dozesuspend")) {
+    } else if (!strcmp(test_parameters.power_mode.c_str(), "dozesuspend")) {
       if (frame_total == 500) {
         usleep(10000);
         callback->SetPowerMode(hwcomposer::kDozeSuspend);
@@ -609,6 +655,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  callback->SetBroadcastRGB("Automatic");
+  callback->SetGamma(1, 1, 1);
+  callback->SetBrightness(0x80, 0x80, 0x80);
+  callback->SetContrast(0x80, 0x80, 0x80);
+
   close(fd);
-  return ret;
+  exit(ret);
 }

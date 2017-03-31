@@ -1,5 +1,5 @@
-#ifndef LAYER_FROM_JSON_H
-#define LAYER_FROM_JSON_H
+#ifndef JSON_HANDLERS_H
+#define JSON_HANDLERS_H
 
 #include <vector>
 #include <string>
@@ -203,6 +203,21 @@ typedef struct {
 
 typedef std::vector<LAYER_PARAMETER> LAYER_PARAMETERS;
 
-bool parseLayersFromJson(const char* json_path, LAYER_PARAMETERS& parameters);
+typedef struct {
+  float gamma_r = 1;
+  float gamma_g = 1;
+  float gamma_b = 1;
+  uint32_t brightness_r = 0x80;
+  uint32_t brightness_g = 0x80;
+  uint32_t brightness_b = 0x80;
+  uint32_t contrast_r = 0x80;
+  uint32_t contrast_g = 0x80;
+  uint32_t contrast_b = 0x80;
+  std::string broadcast_rgb = "Automatic";
+  std::string power_mode = "none";
+  LAYER_PARAMETERS layers_parameters;
+} TEST_PARAMETERS;
+
+bool parseParametersJson(const char* json_path, TEST_PARAMETERS* parameters);
 
 #endif
