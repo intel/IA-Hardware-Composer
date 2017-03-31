@@ -118,7 +118,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     }
   }
 
-  void SetGamma(uint32_t red, uint32_t green, uint32_t blue) {
+  void SetGamma(float red, float green, float blue) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
 
