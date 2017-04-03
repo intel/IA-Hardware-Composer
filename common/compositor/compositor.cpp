@@ -47,7 +47,7 @@ bool Compositor::BeginFrame() {
   if (!renderer_) {
     renderer_.reset(CreateRenderer());
     if (!renderer_->Init()) {
-      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
+      ETRACE("Failed to initialize compositor %s", PRINTERROR());
       renderer_.reset(nullptr);
       return false;
     }

@@ -90,9 +90,6 @@ LOCAL_CPPFLAGS += -DDISABLE_OVERLAY_USAGE
 endif
 
 ifeq ($(strip $(BOARD_USES_VULKAN)),)
-LOCAL_CPPFLAGS += \
-	-DUSE_GL
-
 LOCAL_SRC_FILES += \
 	common/compositor/gl/glprogram.cpp \
 	common/compositor/gl/glrenderer.cpp \

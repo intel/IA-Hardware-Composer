@@ -275,7 +275,7 @@ void VKProgram::UseProgram(const RenderState &state,
 
     VkDescriptorImageInfo image_info = {};
     image_info.sampler = sampler_;
-    image_info.imageView = src.handle_.image_view;
+    image_info.imageView = src.handle_.vk.image_view;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     src_image_infos_.emplace_back(image_info);
   }
