@@ -175,7 +175,28 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   for (auto j = layers->rbegin(); j != layers->rend(); ++j) {
     if (j->GetBuffer()->GetUsage() & kLayerCursor) {
       cursor_layer = &(*(j));
-      layer_end = std::next(j).base();
+      // Handle Cursor layer.
+      DisplayPlane *cursor_plane = NULL;
+      if (cursor_layer) {
+        // Handle Cursor layer. If we have dedicated cursor plane, try using it
+        // to composite cursor layer.
+        if (cursor_plane_)
+          cursor_plane = cursor_plane_.get();
+        if (cursor_plane) {
+          commit_planes.emplace_back(OverlayPlane(cursor_plane, cursor_layer));
+          // Lets ensure we fall back to GPU composition in case
+          // cursor layer cannot be scanned out directly.
+          if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
+            cursor_plane = NULL;
+          }
+        }
+
+        if (cursor_plane) {
+          composition.emplace_back(cursor_plane, cursor_layer,
+                                   cursor_layer->GetIndex());
+          layer_end = std::next(j).base();
+        }
+      }
       break;
     }
   }
@@ -215,35 +236,6 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
       render_layers = true;
-  }
-
-  // Handle Cursor layer.
-  DisplayPlane *cursor_plane = NULL;
-  if (cursor_layer) {
-    // Handle Cursor layer. If we have dedicated cursor plane, try using it
-    // to composite cursor layer.
-    if (cursor_plane_)
-      cursor_plane = cursor_plane_.get();
-    if (cursor_plane) {
-      commit_planes.emplace_back(OverlayPlane(cursor_plane, cursor_layer));
-      // Lets ensure we fall back to GPU composition in case
-      // cursor layer cannot be scanned out directly.
-      if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
-        cursor_plane = NULL;
-      }
-    }
-
-    // We need to do this here to avoid compositing cursor with any previous
-    // pre-composited planes.
-    if (cursor_plane) {
-      composition.emplace_back(cursor_plane, cursor_layer,
-                               cursor_layer->GetIndex());
-    } else {
-      DisplayPlaneState &last_plane = composition.back();
-      render_layers = true;
-      last_plane.AddLayer(cursor_layer->GetIndex(),
-                          cursor_layer->GetDisplayFrame());
-    }
   }
 
   if (render_layers) {
