@@ -208,11 +208,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size_t size = source_layers.size();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
-  bool validate = true;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
-    const HwcRegion &current_surface_damage = layer->GetSurfaceDamage();
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetNativeHandle(layer->GetNativeHandle());
@@ -221,7 +219,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetBlending(layer->GetBlending());
     overlay_layer.SetSourceCrop(layer->GetSourceCrop());
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
-    overlay_layer.SetSurfaceDamage(current_surface_damage);
     overlay_layer.SetIndex(layer_index);
     overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
@@ -231,29 +228,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
-
-    //check the surafce damage if its 0 for all layers then skip validate
-    // and commit
-    if (current_surface_damage.kNumRects == 1) {
-      const HwcRect<int> *rect = current_surface_damage.kRects;
-      if ((rect->top == 0) && (rect->bottom == 0) && (rect->left == 0) &&
-          (rect->right == 0)) {
-        const HwcRect<int> &previous = previous_layers_.at(layer_index).GetDisplayFrame();
-        const HwcRect<int> &current = layer->GetDisplayFrame();
-        if ((previous.left != current.left) || (previous.top != current.top)) {
-          validate = true;
-        } else {
-          validate = false;
-        }
-      }
-    } else if (current_surface_damage.kNumRects == 0) {
-      validate = true;
-    }
-  }
-
-  if (!validate) {
-    buffer_manager_->UnRegisterLayerBuffers(layers);
-    return true;
   }
 
   // Reset any DisplayQueue Manager and Compositor state.

@@ -120,11 +120,6 @@ struct OverlayLayer {
     return display_frame_;
   }
 
-  void SetSurfaceDamage(const HwcRegion& surface_damage);
-  const HwcRegion GetSurfaceDamage() const {
-    return surface_damage_;
-  }
-
   uint32_t GetSourceCropWidth() const {
     return source_crop_width_;
   }
@@ -156,7 +151,6 @@ struct OverlayLayer {
   HWCNativeHandle sf_handle_ = 0;
   NativeSync::State state_ = NativeSync::State::kSignalOnPageFlipEvent;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  HwcRegion surface_damage_;
 };
 
 }  // namespace hwcomposer

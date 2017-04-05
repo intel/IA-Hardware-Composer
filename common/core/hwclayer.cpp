@@ -42,8 +42,4 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_ = display_frame;
 }
 
-void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
-  surface_damage_ = surface_damage;
-}
-
 }  // namespace hwcomposer

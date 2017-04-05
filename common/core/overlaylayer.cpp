@@ -118,10 +118,6 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_ = display_frame;
 }
 
-void OverlayLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
-  surface_damage_ = surface_damage;
-}
-
 void OverlayLayer::Dump() {
   DUMPTRACE("OverlayLayer Information Starts. -------------");
   switch (blending_) {
