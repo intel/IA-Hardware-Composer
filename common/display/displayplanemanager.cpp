@@ -172,11 +172,11 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   }
 
   // Retrieve cursor layer data.
+  DisplayPlane *cursor_plane = NULL;
   for (auto j = layers->rbegin(); j != layers->rend(); ++j) {
     if (j->GetBuffer()->GetUsage() & kLayerCursor) {
       cursor_layer = &(*(j));
       // Handle Cursor layer.
-      DisplayPlane *cursor_plane = NULL;
       if (cursor_layer) {
         // Handle Cursor layer. If we have dedicated cursor plane, try using it
         // to composite cursor layer.
@@ -188,13 +188,9 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
           // cursor layer cannot be scanned out directly.
           if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
             cursor_plane = NULL;
-          }
-        }
-
-        if (cursor_plane) {
-          composition.emplace_back(cursor_plane, cursor_layer,
-                                   cursor_layer->GetIndex());
-          layer_end = std::next(j).base();
+            commit_planes.pop_back();
+          } else
+            layer_end = std::next(j).base();
         }
       }
       break;
@@ -236,6 +232,11 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
       render_layers = true;
+  }
+
+  if (cursor_plane) {
+    composition.emplace_back(cursor_plane, cursor_layer,
+                             cursor_layer->GetIndex());
   }
 
   if (render_layers) {
