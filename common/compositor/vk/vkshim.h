@@ -125,22 +125,6 @@ class RingBuffer {
   void Free(uint8_t *ptr);
 };
 
-extern VkDevice dev_;
-extern VkInstance inst_;
-extern VkRenderPass render_pass_;
-extern VkPipelineCache pipeline_cache_;
-extern VkBuffer uniform_buffer_;
-extern VkSampler sampler_;
-extern std::vector<VkImage> src_images_;
-extern std::vector<VkImageView> src_image_views_;
-extern std::vector<VkDescriptorImageInfo> src_image_infos_;
-extern RingBuffer ring_buffer_;
-extern std::vector<RingBuffer::Allocation> ub_allocs_;
-extern size_t ub_offset_align_;
-extern std::vector<VkImageMemoryBarrier> src_barrier_before_clear_;
-extern VkImageMemoryBarrier dst_barrier_before_clear_;
-extern VkFramebuffer framebuffer_;
-
 }  // namespace hwcomposer
 
 #endif  // VKSHIM_H_

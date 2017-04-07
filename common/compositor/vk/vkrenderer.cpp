@@ -22,36 +22,25 @@
 namespace hwcomposer {
 
 VKRenderer::~VKRenderer() {
-}
+  if (!initialized_)
+    return;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugReportCallback(
-    VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
-    uint64_t object, size_t location, int32_t messageCode,
-    const char *pLayerPrefix, const char *pMessage, void *pUserData) {
-  (void)flags;
-  (void)objectType;
-  (void)object;
-  (void)location;
-  (void)messageCode;
-  (void)pLayerPrefix;
-  (void)pUserData;
-  if (objectType == VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT)
-    return VK_FALSE;
-  if (objectType == VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT &&
-      messageCode == 3 && strcmp(pLayerPrefix, "ParameterValidation") == 0 &&
-      strcmp(pMessage,
-             "vkCreateImage: value of pCreateInfo->pNext must be NULL") == 0)
-    return VK_FALSE;
-  ETRACE("vulkan(%d): %s\n", (int)objectType, pMessage);
-  return VK_FALSE;
+  VkDevice dev = context_.getDevice();
+  vkDestroyDescriptorPool(dev, desc_pool_, NULL);
+  vkDestroyCommandPool(dev, cmd_pool_, NULL);
+  vkDestroyBuffer(dev, vert_buffer_, NULL);
 }
 
 uint32_t VKRenderer::GetMemoryTypeIndex(uint32_t mem_type_bits,
                                         uint32_t required_props) {
+  VkPhysicalDevice phys_dev = context_.getPhysicalDevice();
+  VkPhysicalDeviceMemoryProperties device_mem_props;
+  vkGetPhysicalDeviceMemoryProperties(phys_dev, &device_mem_props);
+
   for (uint32_t type_index = 0; type_index < 32;
        type_index++, mem_type_bits >>= 1) {
     if (mem_type_bits & 1) {
-      if ((device_mem_props_.memoryTypes[type_index].propertyFlags &
+      if ((device_mem_props.memoryTypes[type_index].propertyFlags &
            required_props) == required_props) {
         return type_index;
       }
@@ -63,20 +52,22 @@ uint32_t VKRenderer::GetMemoryTypeIndex(uint32_t mem_type_bits,
 VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
                                   VkBufferUsageFlags usage) {
   VkResult res;
+  VkDevice dev = context_.getDevice();
+
   VkBufferCreateInfo buffer_create = {};
   buffer_create.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   buffer_create.size = data_size;
   buffer_create.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
   VkBuffer src_buffer;
-  res = vkCreateBuffer(dev_, &buffer_create, NULL, &src_buffer);
+  res = vkCreateBuffer(dev, &buffer_create, NULL, &src_buffer);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateBuffer failed (%d)\n", res);
     return NULL;
   }
 
   VkMemoryRequirements mem_requirements;
-  vkGetBufferMemoryRequirements(dev_, src_buffer, &mem_requirements);
+  vkGetBufferMemoryRequirements(dev, src_buffer, &mem_requirements);
   VkMemoryAllocateInfo mem_allocate = {};
   mem_allocate.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   mem_allocate.allocationSize = mem_requirements.size;
@@ -88,20 +79,20 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   }
 
   VkDeviceMemory host_mem;
-  res = vkAllocateMemory(dev_, &mem_allocate, NULL, &host_mem);
+  res = vkAllocateMemory(dev, &mem_allocate, NULL, &host_mem);
   if (res != VK_SUCCESS) {
     ETRACE("vkAllocateMemory failed (%d)\n", res);
     return NULL;
   }
 
-  res = vkBindBufferMemory(dev_, src_buffer, host_mem, 0);
+  res = vkBindBufferMemory(dev, src_buffer, host_mem, 0);
   if (res != VK_SUCCESS) {
     ETRACE("vkBindBufferMemory failed (%d)\n", res);
     return NULL;
   }
 
   uint8_t *src_ptr;
-  res = vkMapMemory(dev_, host_mem, 0, mem_allocate.allocationSize, 0,
+  res = vkMapMemory(dev, host_mem, 0, mem_allocate.allocationSize, 0,
                     (void **)&src_ptr);
   if (res != VK_SUCCESS) {
     ETRACE("vkMapMemory failed (%d)\n", res);
@@ -110,16 +101,16 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
 
   memcpy(src_ptr, data, data_size);
 
-  vkUnmapMemory(dev_, host_mem);
+  vkUnmapMemory(dev, host_mem);
 
   buffer_create.usage = usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   VkBuffer dst_buffer;
-  res = vkCreateBuffer(dev_, &buffer_create, NULL, &dst_buffer);
+  res = vkCreateBuffer(dev, &buffer_create, NULL, &dst_buffer);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateBuffer failed (%d)\n", res);
     return NULL;
   }
-  vkGetBufferMemoryRequirements(dev_, dst_buffer, &mem_requirements);
+  vkGetBufferMemoryRequirements(dev, dst_buffer, &mem_requirements);
   mem_allocate.allocationSize = mem_requirements.size;
   mem_allocate.memoryTypeIndex = GetMemoryTypeIndex(
       mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -129,12 +120,12 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   }
 
   VkDeviceMemory device_mem;
-  res = vkAllocateMemory(dev_, &mem_allocate, NULL, &device_mem);
+  res = vkAllocateMemory(dev, &mem_allocate, NULL, &device_mem);
   if (res != VK_SUCCESS) {
     ETRACE("vkAllocateMemory failed (%d)\n", res);
     return NULL;
   }
-  res = vkBindBufferMemory(dev_, dst_buffer, device_mem, 0);
+  res = vkBindBufferMemory(dev, dst_buffer, device_mem, 0);
   if (res != VK_SUCCESS) {
     ETRACE("vkBindBufferMemory failed (%d)\n", res);
     return NULL;
@@ -147,7 +138,7 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
   cmd_buffer_allocate.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   cmd_buffer_allocate.commandBufferCount = 1;
 
-  res = vkAllocateCommandBuffers(dev_, &cmd_buffer_allocate, &cmd_buffer);
+  res = vkAllocateCommandBuffers(dev, &cmd_buffer_allocate, &cmd_buffer);
   if (res != VK_SUCCESS) {
     ETRACE("vkAllocateCommandBuffers failed (%d)\n", res);
     return NULL;
@@ -191,123 +182,32 @@ VkBuffer VKRenderer::UploadBuffer(size_t data_size, const uint8_t *data,
     return NULL;
   }
 
-  vkFreeCommandBuffers(dev_, cmd_pool_, 1, &cmd_buffer);
-  vkFreeMemory(dev_, host_mem, NULL);
+  vkFreeCommandBuffers(dev, cmd_pool_, 1, &cmd_buffer);
+  vkFreeMemory(dev, host_mem, NULL);
 
   return dst_buffer;
 }
 
 bool VKRenderer::Init() {
+  if (initialized_)
+    return false;
+
   VkResult res;
 
-  const char *enabled_layers[] = {};
-
-  const char *instance_extensions[] = {
-      VK_KHR_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
-  };
-
-  VkApplicationInfo app_info = {};
-  app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  app_info.apiVersion = VK_MAKE_VERSION(1, 0, 0);
-
-  VkInstanceCreateInfo instance_create = {};
-  instance_create.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  instance_create.pApplicationInfo = &app_info;
-  instance_create.enabledLayerCount = ARRAY_SIZE(enabled_layers);
-  instance_create.ppEnabledLayerNames = &enabled_layers[0];
-  instance_create.enabledExtensionCount = ARRAY_SIZE(instance_extensions);
-  instance_create.ppEnabledExtensionNames = &instance_extensions[0];
-
-  res = vkCreateInstance(&instance_create, NULL, &inst_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreateInstance failed (%d)\n", res);
+  if (!context_.Init()) {
+    ETRACE("Failed to initialize VKContext\n");
     return false;
   }
 
-  VkDebugReportCallbackCreateInfoEXT debug_create = {};
-  debug_create.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-  debug_create.flags = VK_DEBUG_REPORT_WARNING_BIT_EXT |
-                       VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-                       VK_DEBUG_REPORT_ERROR_BIT_EXT |
-                       VK_DEBUG_REPORT_DEBUG_BIT_EXT;
-  debug_create.pfnCallback = &VulkanDebugReportCallback;
-  VkDebugReportCallbackEXT callback;
-  PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT =
-      (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(
-          inst_, "vkCreateDebugReportCallbackEXT");
-  if (vkCreateDebugReportCallbackEXT) {
-    vkCreateDebugReportCallbackEXT(inst_, &debug_create, NULL, &callback);
-  } else {
-    ETRACE("Failed to create vulkan debug callback\n");
-  }
+  global_context_ = &context_;
+  VkDevice dev = context_.getDevice();
 
-  uint32_t count;
-  res = vkEnumeratePhysicalDevices(inst_, &count, NULL);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkEnumeratePhysicalDevices failed (%d)\n", res);
-    return false;
-  }
-  if (count == 0) {
-    ETRACE("No physical devices\n");
-    return false;
-  }
-
-  VkPhysicalDevice phys_devs[count];
-  res = vkEnumeratePhysicalDevices(inst_, &count, phys_devs);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkEnumeratePhysicalDevices failed (%d)\n", res);
-    return false;
-  }
-
-  VkPhysicalDevice phys_dev = phys_devs[0];
-
-  vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, NULL);
-  if (count == 0) {
-    ETRACE("No device queue family properties\n");
-    return false;
-  }
-
-  VkQueueFamilyProperties props[count];
-  vkGetPhysicalDeviceQueueFamilyProperties(phys_dev, &count, props);
-  if (!(props[0].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-    ETRACE("Not a graphics queue\n");
-    return false;
-  }
-
-  float queue_priority = 1.0f;
-  VkDeviceQueueCreateInfo queue_create = {};
-  queue_create.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queue_create.queueCount = 1;
-  queue_create.pQueuePriorities = &queue_priority;
-
-  const char *device_extensions[] = {};
-
-  VkDeviceCreateInfo device_create = {};
-  device_create.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  device_create.queueCreateInfoCount = 1;
-  device_create.pQueueCreateInfos = &queue_create;
-  device_create.enabledLayerCount = ARRAY_SIZE(enabled_layers);
-  device_create.ppEnabledLayerNames = &enabled_layers[0];
-  device_create.enabledExtensionCount = ARRAY_SIZE(device_extensions);
-  device_create.ppEnabledExtensionNames = &device_extensions[0];
-
-  res = vkCreateDevice(phys_dev, &device_create, NULL, &dev_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreateDevice failed (%d)\n", res);
-    return false;
-  }
-
-  vkGetPhysicalDeviceProperties(phys_dev, &device_props_);
-  vkGetPhysicalDeviceMemoryProperties(phys_dev, &device_mem_props_);
-
-  ub_offset_align_ = device_props_.limits.minUniformBufferOffsetAlignment;
-
-  vkGetDeviceQueue(dev_, 0, 0, &queue_);
+  vkGetDeviceQueue(dev, 0, 0, &queue_);
 
   VkCommandPoolCreateInfo pool_create = {};
   pool_create.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
-  res = vkCreateCommandPool(dev_, &pool_create, NULL, &cmd_pool_);
+  res = vkCreateCommandPool(dev, &pool_create, NULL, &cmd_pool_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateCommandPool failed (%d)\n", res);
     return false;
@@ -326,53 +226,6 @@ bool VKRenderer::Init() {
     return false;
   }
 
-  VkBufferCreateInfo buffer_create = {};
-  buffer_create.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  buffer_create.size = 0x100 * 256;
-  buffer_create.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-  res = vkCreateBuffer(dev_, &buffer_create, NULL, &uniform_buffer_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreateBuffer failed (%d)\n", res);
-    return false;
-  }
-
-  VkMemoryRequirements mem_requirements;
-  vkGetBufferMemoryRequirements(dev_, uniform_buffer_, &mem_requirements);
-
-  VkMemoryAllocateInfo mem_allocate = {};
-  mem_allocate.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  mem_allocate.allocationSize = mem_requirements.size;
-  mem_allocate.memoryTypeIndex = GetMemoryTypeIndex(
-      mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-  if (mem_allocate.memoryTypeIndex >= 32) {
-    ETRACE("Failed to find suitable uniform buffer device memory\n");
-    return false;
-  }
-
-  res = vkAllocateMemory(dev_, &mem_allocate, NULL, &uniform_buffer_mem_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkAllocateMemory failed (%d)\n", res);
-    return false;
-  }
-
-  res = vkBindBufferMemory(dev_, uniform_buffer_, uniform_buffer_mem_, 0);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkBindBufferMemory failed (%d)\n", res);
-    return false;
-  }
-
-  uint8_t *uniform_buffer_ptr;
-  res = vkMapMemory(dev_, uniform_buffer_mem_, 0, mem_allocate.allocationSize,
-                    0, (void **)&uniform_buffer_ptr);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkMapMemory failed (%d)\n", res);
-    return false;
-  }
-
-  ring_buffer_ = RingBuffer(uniform_buffer_ptr, buffer_create.size);
-
   VkDescriptorPoolSize pool_sizes[2];
   pool_sizes[0] = {};
   pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -388,80 +241,13 @@ bool VKRenderer::Init() {
   desc_pool_create.poolSizeCount = ARRAY_SIZE(pool_sizes);
   desc_pool_create.pPoolSizes = &pool_sizes[0];
 
-  res = vkCreateDescriptorPool(dev_, &desc_pool_create, NULL, &desc_pool_);
+  res = vkCreateDescriptorPool(dev, &desc_pool_create, NULL, &desc_pool_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateDescriptorPool failed (%d)\n", res);
     return false;
   }
 
-  VkSamplerCreateInfo sampler_create = {};
-  sampler_create.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  sampler_create.magFilter = VK_FILTER_LINEAR;
-  sampler_create.minFilter = VK_FILTER_LINEAR;
-  sampler_create.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_create.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_create.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_create.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-
-  res = vkCreateSampler(dev_, &sampler_create, NULL, &sampler_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreateSampler failed (%d)\n", res);
-    return false;
-  }
-
-  VkAttachmentDescription attach_desc = {};
-  attach_desc.format = VK_FORMAT_R8G8B8A8_UNORM;
-  attach_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-  attach_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  attach_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  attach_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  attach_desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-  attach_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-  VkAttachmentReference color_attach = {};
-  color_attach.attachment = 0;
-  color_attach.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-  VkSubpassDescription subpass_desc = {};
-  subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass_desc.colorAttachmentCount = 1;
-  subpass_desc.pColorAttachments = &color_attach;
-
-  VkSubpassDependency subpass_deps = {};
-  subpass_deps.srcSubpass = 0;
-  subpass_deps.dstSubpass = VK_SUBPASS_EXTERNAL;
-  subpass_deps.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  subpass_deps.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-  subpass_deps.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-  subpass_deps.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-  subpass_deps.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-  VkRenderPassCreateInfo pass_create = {};
-  pass_create.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  pass_create.attachmentCount = 1;
-  pass_create.pAttachments = &attach_desc;
-  pass_create.subpassCount = 1;
-  pass_create.pSubpasses = &subpass_desc;
-  pass_create.dependencyCount = 1;
-  pass_create.pDependencies = &subpass_deps;
-
-  res = vkCreateRenderPass(dev_, &pass_create, NULL, &render_pass_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreateRenderPass failed (%d)\n", res);
-    return false;
-  }
-
-  VkPipelineCacheCreateInfo pipeline_cache_create = {};
-  pipeline_cache_create.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-
-  res = vkCreatePipelineCache(dev_, &pipeline_cache_create, NULL,
-                              &pipeline_cache_);
-  if (res != VK_SUCCESS) {
-    ETRACE("vkCreatePipelineCache failed (%d)\n", res);
-    return false;
-  }
-
+  initialized_ = true;
   return true;
 }
 
@@ -471,9 +257,32 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   uint32_t frame_width = surface->GetWidth();
   uint32_t frame_height = surface->GetHeight();
   surface->MakeCurrent();
+  VkDevice dev = context_.getDevice();
+  VkRenderPass render_pass = context_.getRenderPass();
+  VkSampler sampler = context_.getSampler();
+  struct vk_resource *surface_resource = context_.getSurfaceResource();
+  VkFramebuffer framebuffer = context_.getFramebuffer();
 
-  src_image_infos_.clear();
-  ub_allocs_.clear();
+  VkImageSubresourceRange clear_range = {};
+  clear_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  clear_range.levelCount = 1;
+  clear_range.layerCount = 1;
+
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = surface_resource->image;
+  barrier.subresourceRange = clear_range;
+
+  std::vector<VkImageMemoryBarrier> barrier_before_clear;
+  barrier_before_clear.emplace_back(barrier);
+
+  std::vector<VkDescriptorImageInfo> src_image_infos;
   std::vector<VkDescriptorSetLayout> desc_layouts;
   std::vector<VkDescriptorSet> desc_sets(render_states.size());
   std::vector<VkDescriptorBufferInfo> ub_infos;
@@ -490,6 +299,28 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
     program->UseProgram(state, frame_width, frame_height);
 
+    for (unsigned src_index = 0; src_index < size; src_index++) {
+      const RenderState::LayerState &src = state.layer_state_[src_index];
+
+      VkDescriptorImageInfo image_info = {};
+      image_info.sampler = sampler;
+      image_info.imageView = src.handle_.image_view;
+      image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      src_image_infos.emplace_back(image_info);
+
+      barrier = {};
+      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      barrier.srcAccessMask = 0;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.image = src.handle_.image;
+      barrier.subresourceRange = clear_range;
+      barrier_before_clear.emplace_back(barrier);
+    }
+
     ub_infos.emplace_back(program->getVertUBInfo());
     ub_infos.emplace_back(program->getFragUBInfo());
   }
@@ -500,7 +331,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   alloc_desc_set.descriptorSetCount = (uint32_t)desc_layouts.size();
   alloc_desc_set.pSetLayouts = desc_layouts.data();
 
-  res = vkAllocateDescriptorSets(dev_, &alloc_desc_set, desc_sets.data());
+  res = vkAllocateDescriptorSets(dev, &alloc_desc_set, desc_sets.data());
   if (res != VK_SUCCESS) {
     ETRACE("vkAllocateDescriptorSets failed (%d)\n", res);
     return false;
@@ -537,14 +368,14 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
     write_desc_set.dstBinding = 2;
     write_desc_set.descriptorCount = (uint32_t)layer_count;
     write_desc_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_desc_set.pImageInfo = &src_image_infos_[src_image_infos_offset];
+    write_desc_set.pImageInfo = &src_image_infos[src_image_infos_offset];
     write_desc_sets.emplace_back(write_desc_set);
 
     src_image_infos_offset += layer_count;
   }
 
-  vkUpdateDescriptorSets(dev_, write_desc_sets.size(), write_desc_sets.data(),
-                         0, NULL);
+  vkUpdateDescriptorSets(dev, write_desc_sets.size(), write_desc_sets.data(), 0,
+                         NULL);
 
   VkCommandBufferAllocateInfo cmd_buffer_alloc = {};
   cmd_buffer_alloc.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -552,7 +383,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   cmd_buffer_alloc.commandBufferCount = 1;
 
   VkCommandBuffer cmd_buffer;
-  res = vkAllocateCommandBuffers(dev_, &cmd_buffer_alloc, &cmd_buffer);
+  res = vkAllocateCommandBuffers(dev, &cmd_buffer_alloc, &cmd_buffer);
   if (res != VK_SUCCESS) {
     ETRACE("vkAllocateCommandBuffer failed (%d)\n", res);
     return false;
@@ -567,12 +398,6 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
     ETRACE("vkAllocateCommandBuffer failed (%d)\n", res);
     return false;
   }
-
-  std::vector<VkImageMemoryBarrier> barrier_before_clear;
-  barrier_before_clear.emplace_back(dst_barrier_before_clear_);
-  barrier_before_clear.insert(barrier_before_clear.end(),
-                              src_barrier_before_clear_.begin(),
-                              src_barrier_before_clear_.end());
 
   vkCmdPipelineBarrier(cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, NULL, 0, NULL,
@@ -595,8 +420,8 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
   VkRenderPassBeginInfo pass_begin = {};
   pass_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  pass_begin.renderPass = render_pass_;
-  pass_begin.framebuffer = framebuffer_;
+  pass_begin.renderPass = render_pass;
+  pass_begin.framebuffer = framebuffer;
   pass_begin.renderArea = rect;
   pass_begin.clearValueCount = 1;
   pass_begin.pClearValues = &clear_value[0];
@@ -669,10 +494,10 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
     return false;
   }
 
-  vkFreeCommandBuffers(dev_, cmd_pool_, 1, &cmd_buffer);
+  vkFreeCommandBuffers(dev, cmd_pool_, 1, &cmd_buffer);
 
-  res = vkFreeDescriptorSets(dev_, desc_pool_, desc_sets.size(),
-                             desc_sets.data());
+  res =
+      vkFreeDescriptorSets(dev, desc_pool_, desc_sets.size(), desc_sets.data());
   if (res != VK_SUCCESS) {
     ETRACE("vkFreeDescriptorSets failed (%d)\n", res);
     return false;

@@ -130,6 +130,7 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../mesa/include
 
 LOCAL_SRC_FILES += \
+	common/compositor/vk/vkcontext.cpp \
 	common/compositor/vk/vkprogram.cpp \
 	common/compositor/vk/vkrenderer.cpp \
 	common/compositor/vk/vksurface.cpp \

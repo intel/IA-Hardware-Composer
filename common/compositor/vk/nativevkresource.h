@@ -16,6 +16,7 @@
 #define NATIVE_VK_RESOURCE_H_
 
 #include "nativegpuresource.h"
+#include "vkcontext.h"
 #include "vkshim.h"
 
 namespace hwcomposer {
@@ -35,7 +36,7 @@ class NativeVKResource : public NativeGpuResource {
  private:
   void Reset();
   std::vector<struct vk_resource> layer_textures_;
-  std::vector<VkDeviceMemory> src_image_memory_;
+  VKContext* context_;
 };
 
 }  // namespace hwcomposer

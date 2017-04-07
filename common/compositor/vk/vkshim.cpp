@@ -18,22 +18,6 @@
 
 namespace hwcomposer {
 
-VkDevice dev_;
-VkInstance inst_;
-VkRenderPass render_pass_;
-VkPipelineCache pipeline_cache_;
-VkBuffer uniform_buffer_;
-VkSampler sampler_;
-std::vector<VkImage> src_images_;
-std::vector<VkImageView> src_image_views_;
-std::vector<VkDescriptorImageInfo> src_image_infos_;
-RingBuffer ring_buffer_;
-std::vector<RingBuffer::Allocation> ub_allocs_;
-size_t ub_offset_align_;
-std::vector<VkImageMemoryBarrier> src_barrier_before_clear_;
-VkImageMemoryBarrier dst_barrier_before_clear_;
-VkFramebuffer framebuffer_;
-
 RingBuffer::Allocation RingBuffer::Allocate(size_t size, size_t alignment) {
   if (size > buffer_size_)
     return Allocation();

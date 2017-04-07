@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <vector>
+#include "vkcontext.h"
 #include "vkshim.h"
 
 namespace hwcomposer {
@@ -58,6 +59,8 @@ class VKProgram {
   }
 
  private:
+  bool initialized_ = false;
+  size_t ub_offset_align_;
   VkDescriptorSetLayout descriptor_set_layout_;
   VkPipelineLayout pipeline_layout_;
   VkShaderModule vertex_module_;
@@ -65,6 +68,8 @@ class VKProgram {
   VkPipeline pipeline_;
   VkDescriptorBufferInfo vert_buf_info_;
   VkDescriptorBufferInfo frag_buf_info_;
+  std::vector<RingBuffer::Allocation> ub_allocs_;
+  VKContext* context_;
 };
 
 }  // namespace hwcomposer

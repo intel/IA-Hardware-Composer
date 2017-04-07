@@ -33,18 +33,36 @@ VKProgram::VKProgram() {
   vertex_module_ = VK_NULL_HANDLE;
   fragment_module_ = VK_NULL_HANDLE;
   pipeline_ = VK_NULL_HANDLE;
+  context_ = NULL;
 }
 
 VKProgram::~VKProgram() {
-  vkDestroyDescriptorSetLayout(dev_, descriptor_set_layout_, NULL);
-  vkDestroyPipelineLayout(dev_, pipeline_layout_, NULL);
-  vkDestroyShaderModule(dev_, vertex_module_, NULL);
-  vkDestroyShaderModule(dev_, fragment_module_, NULL);
-  vkDestroyPipeline(dev_, pipeline_, NULL);
+  if (!initialized_)
+    return;
+
+  VkDevice dev = context_->getDevice();
+  vkDestroyDescriptorSetLayout(dev, descriptor_set_layout_, NULL);
+  vkDestroyPipelineLayout(dev, pipeline_layout_, NULL);
+  vkDestroyShaderModule(dev, vertex_module_, NULL);
+  vkDestroyShaderModule(dev, fragment_module_, NULL);
+  vkDestroyPipeline(dev, pipeline_, NULL);
 }
 
 bool VKProgram::Init(unsigned layer_index) {
+  if (initialized_)
+    return false;
+
   VkResult res;
+
+  context_ = global_context_;
+  VkDevice dev = context_->getDevice();
+  VkPipelineCache pipeline_cache = context_->getPipelineCache();
+  VkRenderPass render_pass = context_->getRenderPass();
+  VkPhysicalDevice phys_dev = context_->getPhysicalDevice();
+
+  VkPhysicalDeviceProperties device_props;
+  vkGetPhysicalDeviceProperties(phys_dev, &device_props);
+  ub_offset_align_ = device_props.limits.minUniformBufferOffsetAlignment;
 
   VkDescriptorSetLayoutBinding bindings[] = {
       {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT,
@@ -60,7 +78,7 @@ bool VKProgram::Init(unsigned layer_index) {
   desc_create.bindingCount = ARRAY_SIZE(bindings);
   desc_create.pBindings = &bindings[0];
 
-  res = vkCreateDescriptorSetLayout(dev_, &desc_create, NULL,
+  res = vkCreateDescriptorSetLayout(dev, &desc_create, NULL,
                                     &descriptor_set_layout_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateDescriptorSetLayout failed (%d)\n", res);
@@ -72,7 +90,7 @@ bool VKProgram::Init(unsigned layer_index) {
   pipeline_layout_create.setLayoutCount = 1;
   pipeline_layout_create.pSetLayouts = &descriptor_set_layout_;
 
-  res = vkCreatePipelineLayout(dev_, &pipeline_layout_create, NULL,
+  res = vkCreatePipelineLayout(dev, &pipeline_layout_create, NULL,
                                &pipeline_layout_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreatePipelineLayout failed (%d)\n", res);
@@ -87,7 +105,7 @@ bool VKProgram::Init(unsigned layer_index) {
   module_create.codeSize = sizeof(vkcomp_vert_spv);
   module_create.pCode = (const uint32_t *)vkcomp_vert_spv;
 
-  res = vkCreateShaderModule(dev_, &module_create, NULL, &vertex_module_);
+  res = vkCreateShaderModule(dev, &module_create, NULL, &vertex_module_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
@@ -96,7 +114,7 @@ bool VKProgram::Init(unsigned layer_index) {
   module_create.codeSize = sizeof(vkcomp_frag_spv);
   module_create.pCode = (const uint32_t *)vkcomp_frag_spv;
 
-  res = vkCreateShaderModule(dev_, &module_create, NULL, &fragment_module_);
+  res = vkCreateShaderModule(dev, &module_create, NULL, &fragment_module_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateShaderModule failed (%d)\n", res);
     return false;
@@ -198,15 +216,16 @@ bool VKProgram::Init(unsigned layer_index) {
   pipeline_create.pColorBlendState = &blending;
   pipeline_create.pDynamicState = &dynamic_state;
   pipeline_create.layout = pipeline_layout_;
-  pipeline_create.renderPass = render_pass_;
+  pipeline_create.renderPass = render_pass;
 
-  res = vkCreateGraphicsPipelines(dev_, pipeline_cache_, 1, &pipeline_create,
+  res = vkCreateGraphicsPipelines(dev, pipeline_cache, 1, &pipeline_create,
                                   NULL, &pipeline_);
   if (res != VK_SUCCESS) {
     ETRACE("vkCreateGraphicsPipelines failed (%d0\n", res);
     return false;
   }
 
+  initialized_ = true;
   return true;
 }
 
@@ -214,10 +233,12 @@ void VKProgram::UseProgram(const RenderState &state,
                            unsigned int viewport_width,
                            unsigned int viewport_height) {
   unsigned layer_count = state.layer_state_.size();
+  VkBuffer uniform_buffer = context_->getUniformBuffer();
+  RingBuffer *ring_buffer = context_->getRingBuffer();
 
   size_t vert_ub_size = 4 + 12 * layer_count;
   RingBuffer::Allocation vert_ub_alloc =
-      ring_buffer_.Allocate(vert_ub_size * sizeof(float), ub_offset_align_);
+      ring_buffer->Allocate(vert_ub_size * sizeof(float), ub_offset_align_);
   if (!vert_ub_alloc) {
     ETRACE("Failed to allocate space for vert uniform buffer");
     return;
@@ -247,7 +268,7 @@ void VKProgram::UseProgram(const RenderState &state,
 
   size_t frag_ub_size = 4 * layer_count;
   RingBuffer::Allocation frag_ub_alloc =
-      ring_buffer_.Allocate(frag_ub_size * sizeof(float), ub_offset_align_);
+      ring_buffer->Allocate(frag_ub_size * sizeof(float), ub_offset_align_);
   if (!frag_ub_alloc) {
     ETRACE("failed to allocate space for frag uniform buffer");
     return;
@@ -261,25 +282,16 @@ void VKProgram::UseProgram(const RenderState &state,
   }
 
   vert_buf_info_ = {};
-  vert_buf_info_.buffer = uniform_buffer_;
+  vert_buf_info_.buffer = uniform_buffer;
   vert_buf_info_.offset = vert_ub_alloc.offset();
   vert_buf_info_.range = vert_ub_size * sizeof(float);
 
   frag_buf_info_ = {};
-  frag_buf_info_.buffer = uniform_buffer_;
+  frag_buf_info_.buffer = uniform_buffer;
   frag_buf_info_.offset = frag_ub_alloc.offset();
   frag_buf_info_.range = frag_ub_size * sizeof(float);
 
-  for (unsigned src_index = 0; src_index < layer_count; src_index++) {
-    const RenderState::LayerState &src = state.layer_state_[src_index];
-
-    VkDescriptorImageInfo image_info = {};
-    image_info.sampler = sampler_;
-    image_info.imageView = src.handle_.image_view;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    src_image_infos_.emplace_back(image_info);
-  }
-
+  ub_allocs_.clear();
   ub_allocs_.emplace_back(std::move(vert_ub_alloc));
   ub_allocs_.emplace_back(std::move(frag_ub_alloc));
 }

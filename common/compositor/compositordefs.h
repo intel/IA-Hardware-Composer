@@ -46,6 +46,7 @@ typedef EGLDisplay GpuDisplay;
 typedef struct vk_resource {
   VkImage image;
   VkImageView image_view;
+  VkDeviceMemory image_memory;
 } GpuResourceHandle;
 typedef struct vk_import {
   VkImage image;
