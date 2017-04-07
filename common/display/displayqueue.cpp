@@ -26,6 +26,7 @@
 #include "hwctrace.h"
 #include "overlaylayer.h"
 #include "vblankeventhandler.h"
+#include "drmhwctwo.h"
 
 namespace hwcomposer {
 
@@ -55,9 +56,8 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
-#ifndef DISABLE_EXPLICIT_SYNC
-  GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
-#endif
+  if (android::DrmHwcTwo::IsExplicitSyncEnabled())
+    GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
   memset(&mode_, 0, sizeof(mode_));
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
@@ -128,18 +128,18 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 
 bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
                             uint64_t* out_fence) {
-#ifndef DISABLE_EXPLICIT_SYNC
-  if (out_fence_ptr_prop_ != 0) {
-    int ret = drmModeAtomicAddProperty(
-        property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
-    if (ret < 0) {
-      ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
-      return false;
+  if (android::DrmHwcTwo::IsExplicitSyncEnabled()) {
+    if (out_fence_ptr_prop_ != 0) {
+      int ret = drmModeAtomicAddProperty(
+          property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
+      if (ret < 0) {
+        ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
+        return false;
+      }
     }
+  } else {
+    *out_fence = 0;
   }
-#else
-  *out_fence = 0;
-#endif
 
   return true;
 }
@@ -237,11 +237,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (needs_modeset_) {
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   } else {
-#ifdef DISABLE_OVERLAY_USAGE
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-#else
-    flags |= DRM_MODE_ATOMIC_NONBLOCK;
-#endif
+    if (android::DrmHwcTwo::IsExplicitSyncEnabled()) {
+      flags |= DRM_MODE_ATOMIC_NONBLOCK;
+    } else {
+      //DISABLE_OVERLAY_USAGE
+      flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+    }
   }
 
   DisplayPlaneStateList current_composition_planes;
@@ -301,16 +302,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   display_plane_manager_->EndFrameUpdate();
 
-#ifdef DISABLE_EXPLICIT_SYNC
-  compositor_.InsertFence(fence);
-  buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
-#else
-  if (fence > 0) {
-    compositor_.InsertFence(dup(fence));
-    *retire_fence = dup(fence);
-    kms_fence_handler_->WaitFence(fence, previous_layers_);
+  if (android::DrmHwcTwo::IsExplicitSyncEnabled()) {
+    if (fence > 0) {
+      compositor_.InsertFence(dup(fence));
+      *retire_fence = dup(fence);
+      kms_fence_handler_->WaitFence(fence, previous_layers_);
+    }
+  } else {
+    compositor_.InsertFence(fence);
+    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
   }
-#endif
   previous_layers_.swap(layers);
   previous_plane_state_.swap(current_composition_planes);
   return true;
