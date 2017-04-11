@@ -13,10 +13,20 @@
 // limitations under the License.
 
 #include "vkshim.h"
+#include "vkcontext.h"
 
 #include "hwctrace.h"
 
 namespace hwcomposer {
+
+bool vk_is_supported() {
+  VKContext context;
+
+  if (!context.Init())
+    return false;
+
+  return true;
+}
 
 RingBuffer::Allocation RingBuffer::Allocate(size_t size, size_t alignment) {
   if (size > buffer_size_)

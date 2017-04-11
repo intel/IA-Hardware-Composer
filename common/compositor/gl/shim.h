@@ -30,6 +30,8 @@
 #include <GLES2/gl2ext.h>
 
 namespace hwcomposer {
+bool gl_is_supported();
+
 bool InitializeShims();
 
 extern PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;

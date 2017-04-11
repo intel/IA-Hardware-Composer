@@ -50,7 +50,8 @@ class OverlayBuffer {
 
   virtual uint32_t GetFb() const = 0;
 
-  virtual GpuImage ImportImage(GpuDisplay egl_display) = 0;
+  virtual struct vk_import ImportImage(VkDevice dev) = 0;
+  virtual EGLImageKHR ImportImage(EGLDisplay egl_display) = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 

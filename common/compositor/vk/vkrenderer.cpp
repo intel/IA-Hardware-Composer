@@ -304,7 +304,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 
       VkDescriptorImageInfo image_info = {};
       image_info.sampler = sampler;
-      image_info.imageView = src.handle_.image_view;
+      image_info.imageView = src.handle_.vk.image_view;
       image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
       src_image_infos.emplace_back(image_info);
 
@@ -316,7 +316,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
       barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
       barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.image = src.handle_.image;
+      barrier.image = src.handle_.vk.image;
       barrier.subresourceRange = clear_range;
       barrier_before_clear.emplace_back(barrier);
     }

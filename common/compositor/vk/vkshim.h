@@ -23,6 +23,8 @@
 
 namespace hwcomposer {
 
+bool vk_is_supported();
+
 // Generic ring buffer that always allocates contiguous regions. Chunks can be
 // freed in any order, but the in flight pointer (read_offset_) only advances
 // when the oldest in flight chunk is free. It's optimized. for the case where

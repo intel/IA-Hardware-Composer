@@ -15,10 +15,20 @@
 */
 
 #include "shim.h"
+#include "egloffscreencontext.h"
 
 #include <assert.h>
 
 namespace hwcomposer {
+
+bool gl_is_supported() {
+  EGLOffScreenContext context;
+
+  if (!context.Init())
+    return false;
+
+  return true;
+}
 
 static bool initialized = false;
 

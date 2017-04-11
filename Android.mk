@@ -33,7 +33,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libui \
 	libutils \
         libhwcservice \
-	libbinder
+	libbinder \
+	libvulkan
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
@@ -41,12 +42,14 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/common/core \
 	$(LOCAL_PATH)/common/compositor \
 	$(LOCAL_PATH)/common/compositor/gl \
+	$(LOCAL_PATH)/common/compositor/vk \
 	$(LOCAL_PATH)/common/display \
 	$(LOCAL_PATH)/common/utils \
 	$(LOCAL_PATH)/os \
 	$(LOCAL_PATH)/os/android \
 	$(LOCAL_PATH)/wsi \
-	$(LOCAL_PATH)/wsi/drm
+	$(LOCAL_PATH)/wsi/drm \
+	$(LOCAL_PATH)/../mesa/include
 
 LOCAL_SRC_FILES := \
 	common/compositor/compositor.cpp \
@@ -54,6 +57,18 @@ LOCAL_SRC_FILES := \
 	common/compositor/factory.cpp \
 	common/compositor/nativesurface.cpp \
 	common/compositor/renderstate.cpp \
+	common/compositor/gl/glprogram.cpp \
+	common/compositor/gl/glrenderer.cpp \
+	common/compositor/gl/glsurface.cpp \
+	common/compositor/gl/egloffscreencontext.cpp \
+	common/compositor/gl/nativeglresource.cpp \
+	common/compositor/gl/shim.cpp \
+	common/compositor/vk/vkcontext.cpp \
+	common/compositor/vk/vkprogram.cpp \
+	common/compositor/vk/vkrenderer.cpp \
+	common/compositor/vk/vksurface.cpp \
+	common/compositor/vk/nativevkresource.cpp \
+	common/compositor/vk/vkshim.cpp \
 	common/core/gpudevice.cpp \
 	common/core/hwclayer.cpp \
         common/core/hwclock.cpp \
@@ -118,35 +133,13 @@ LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
 endif
 
 ifeq ($(strip $(BOARD_USES_VULKAN)),true)
-LOCAL_SHARED_LIBRARIES += \
-	libvulkan
-
 LOCAL_CPPFLAGS += \
 	-DUSE_VK \
 	-DDISABLE_EXPLICIT_SYNC
 
-LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/common/compositor/vk \
-	$(LOCAL_PATH)/../mesa/include
-
-LOCAL_SRC_FILES += \
-	common/compositor/vk/vkcontext.cpp \
-	common/compositor/vk/vkprogram.cpp \
-	common/compositor/vk/vkrenderer.cpp \
-	common/compositor/vk/vksurface.cpp \
-	common/compositor/vk/nativevkresource.cpp \
-	common/compositor/vk/vkshim.cpp
 else
 LOCAL_CPPFLAGS += \
 	-DUSE_GL
-
-LOCAL_SRC_FILES += \
-	common/compositor/gl/glprogram.cpp \
-	common/compositor/gl/glrenderer.cpp \
-	common/compositor/gl/glsurface.cpp \
-	common/compositor/gl/egloffscreencontext.cpp \
-	common/compositor/gl/nativeglresource.cpp \
-	common/compositor/gl/shim.cpp
 endif
 
 ifeq ($(strip $(BOARD_USES_MINIGBM)),true)

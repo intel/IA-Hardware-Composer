@@ -25,7 +25,7 @@ namespace hwcomposer {
 bool NativeGLResource::PrepareResources(
     const std::vector<OverlayBuffer*>& buffers) {
   Reset();
-  std::vector<GLuint>().swap(layer_textures_);
+  std::vector<GpuResourceHandle>().swap(layer_textures_);
   EGLDisplay egl_display = eglGetCurrentDisplay();
   for (auto& buffer : buffers) {
     // Create EGLImage.
@@ -44,7 +44,9 @@ bool NativeGLResource::PrepareResources(
     glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    layer_textures_.emplace_back(texture);
+    GpuResourceHandle resource;
+    resource.gl = texture;
+    layer_textures_.emplace_back(resource);
     eglDestroyImageKHR(egl_display, egl_image);
   }
 
@@ -63,15 +65,18 @@ void NativeGLResource::Reset() {
   GLuint texture_id = 0;
   size_t size = layer_textures_.size();
   for (size_t i = 0; i < size; i++) {
-    texture_id = layer_textures_.at(i);
+    texture_id = layer_textures_.at(i).gl;
     glDeleteTextures(1, &texture_id);
   }
 }
 
 GpuResourceHandle NativeGLResource::GetResourceHandle(
     uint32_t layer_index) const {
-  if (layer_textures_.size() < layer_index)
-    return 0;
+  if (layer_textures_.size() < layer_index) {
+    GpuResourceHandle res;
+    res.gl = 0;
+    return res;
+  }
 
   return layer_textures_.at(layer_index);
 }

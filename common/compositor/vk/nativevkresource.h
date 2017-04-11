@@ -35,7 +35,7 @@ class NativeVKResource : public NativeGpuResource {
 
  private:
   void Reset();
-  std::vector<struct vk_resource> layer_textures_;
+  std::vector<GpuResourceHandle> layer_textures_;
   VKContext* context_;
 };
 

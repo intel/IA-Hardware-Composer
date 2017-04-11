@@ -38,7 +38,7 @@ class NativeGLResource : public NativeGpuResource {
 
  private:
   void Reset();
-  std::vector<GLuint> layer_textures_;
+  std::vector<GpuResourceHandle> layer_textures_;
 };
 
 }  // namespace hwcomposer

@@ -57,10 +57,10 @@ bool NativeVKResource::PrepareResources(
       return false;
     }
 
-    struct vk_resource resource;
-    resource.image = import.image;
-    resource.image_view = image_view;
-    resource.image_memory = import.memory;
+    GpuResourceHandle resource;
+    resource.vk.image = import.image;
+    resource.vk.image_view = image_view;
+    resource.vk.image_memory = import.memory;
     layer_textures_.emplace_back(resource);
   }
   return true;
@@ -77,9 +77,9 @@ void NativeVKResource::Reset() {
   VkDevice dev = context_->getDevice();
 
   for (auto& layer : layer_textures_) {
-    vkDestroyImage(dev, layer.image, NULL);
-    vkDestroyImageView(dev, layer.image_view, NULL);
-    vkFreeMemory(dev, layer.image_memory, NULL);
+    vkDestroyImage(dev, layer.vk.image, NULL);
+    vkDestroyImageView(dev, layer.vk.image_view, NULL);
+    vkFreeMemory(dev, layer.vk.image_memory, NULL);
   }
   layer_textures_.clear();
 
@@ -89,7 +89,7 @@ void NativeVKResource::Reset() {
 GpuResourceHandle NativeVKResource::GetResourceHandle(
     uint32_t layer_index) const {
   if (layer_textures_.size() < layer_index) {
-    struct vk_resource res = {};
+    GpuResourceHandle res = {};
     return res;
   }
 
