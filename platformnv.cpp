@@ -190,6 +190,7 @@ std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
   std::unique_ptr<Planner> planner(new Planner);
   planner->AddStage<PlanStageProtectedRotated>();
   planner->AddStage<PlanStageProtected>();
+  planner->AddStage<PlanStagePrecomp>();
   planner->AddStage<PlanStageGreedy>();
   return planner;
 }
