@@ -110,8 +110,6 @@ void DisplayPlaneManager::BeginFrameUpdate() {
     (*i)->SetEnabled(false);
   }
 
-  if (!in_flight_surfaces_.empty())
-    std::vector<NativeSurface *>().swap(in_flight_surfaces_);
 }
 
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
@@ -323,16 +321,6 @@ bool DisplayPlaneManager::TestCommit(
   return true;
 }
 
-void DisplayPlaneManager::EndFrameUpdate() {
-  for (auto &fb : surfaces_) {
-    fb->SetInUse(false);
-  }
-
-  for (auto &fb : in_flight_surfaces_) {
-    fb->SetInUse(true);
-  }
-}
-
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   for (auto &fb : surfaces_) {
@@ -351,7 +339,6 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   surface->SetPlaneTarget(plane, gpu_fd_);
   plane.SetOffScreenTarget(surface);
-  in_flight_surfaces_.emplace_back(surface);
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
@@ -362,10 +349,6 @@ void DisplayPlaneManager::ValidateFinalLayers(
     }
   }
 
-  for (auto &fb : in_flight_surfaces_) {
-    fb->ResetInFlightMode();
-  }
-
   std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &plane : composition) {
     commit_planes.emplace_back(
@@ -374,7 +357,6 @@ void DisplayPlaneManager::ValidateFinalLayers(
 
   // If this combination fails just fall back to 3D for all layers.
   if (!TestCommit(commit_planes)) {
-    std::vector<NativeSurface *>().swap(in_flight_surfaces_);
     // We start off with Primary plane.
     DisplayPlane *current_plane = primary_plane_.get();
     DisplayPlaneStateList().swap(composition);

@@ -113,6 +113,7 @@ class DisplayQueue {
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
+  std::vector<NativeSurface*> in_flight_surfaces_;
 };
 
 }  // namespace hwcomposer
