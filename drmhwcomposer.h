@@ -144,7 +144,6 @@ struct DrmHwcLayer {
   uint8_t alpha = 0xff;
   DrmHwcRect<float> source_crop;
   DrmHwcRect<int> display_frame;
-  std::vector<DrmHwcRect<int>> source_damage;
 
   UniqueFd acquire_fence;
   OutputFd release_fence;
