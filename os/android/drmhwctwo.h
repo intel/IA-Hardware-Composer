@@ -39,6 +39,8 @@ class DrmHwcTwo : public hwc2_device_t {
  public:
   static int HookDevOpen(const struct hw_module_t *module, const char *name,
                          struct hw_device_t **dev);
+  static void GetExplicitSync();
+  static bool IsExplicitSyncEnabled();
 
   DrmHwcTwo();
 
@@ -236,6 +238,7 @@ class DrmHwcTwo : public hwc2_device_t {
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
 
+  static bool ExplicitSyncEnabled;
   hwcomposer::GpuDevice device_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;

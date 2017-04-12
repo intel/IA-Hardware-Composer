@@ -27,6 +27,7 @@
 #include "nativesurface.h"
 #include "nativesync.h"
 #include "overlaylayer.h"
+#include "drmhwctwo.h"
 
 namespace hwcomposer {
 
@@ -125,20 +126,21 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   auto layer_begin = layers->begin();
   auto layer_end = layers->end();
   bool render_layers = false;
-#ifndef DISABLE_OVERLAY_USAGE
-  // Check if the combination of layers is same as last frame
-  // and if so check if we can use the result of last validation.
-  if (!previous_layers.empty() && use_cache_ && !pending_modeset) {
-    ValidateCachedLayers(previous_planes_state, previous_layers, layers,
-                         &composition, &render_layers);
-    if (!composition.empty())
-      return std::make_tuple(render_layers, std::move(composition));
-  }
+  //not DISABLE_OVERLAY_USAGE
+  if (android::DrmHwcTwo::IsExplicitSyncEnabled()) {
+    // Check if the combination of layers is same as last frame
+    // and if so check if we can use the result of last validation.
+    if (!previous_layers.empty() && use_cache_ && !pending_modeset) {
+      ValidateCachedLayers(previous_planes_state, previous_layers, layers,
+                           &composition, &render_layers);
+      if (!composition.empty())
+        return std::make_tuple(render_layers, std::move(composition));
+    }
 
-  // Dont use cache next frame if we are doing modeset now. With modeset
-  // we force all layers for 3D composition.
-  use_cache_ = !pending_modeset;
-#endif
+    // Dont use cache next frame if we are doing modeset now. With modeset
+    // we force all layers for 3D composition.
+    use_cache_ = !pending_modeset;
+  }
   // We start off with Primary plane.
   DisplayPlane *current_plane = primary_plane_.get();
   OverlayLayer *primary_layer = &(*(layers->begin()));
@@ -454,9 +456,9 @@ void DisplayPlaneManager::ValidateCachedLayers(
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
-#ifdef DISABLE_OVERLAY_USAGE
-  return true;
-#endif
+  //DISABLE_OVERLAY_USAGE
+  if (!android::DrmHwcTwo::IsExplicitSyncEnabled())
+    return true;
 
   if (!target_plane->ValidateLayer(layer))
     return true;

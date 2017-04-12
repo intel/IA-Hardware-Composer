@@ -71,6 +71,9 @@ HWC2::Error DrmHwcTwo::Init() {
                                           HWC2::DisplayType::Physical));
 
   displays_.at(HWC_DISPLAY_PRIMARY).Init();
+
+  GetExplicitSync();
+
   return HWC2::Error::None;
 }
 
@@ -114,6 +117,24 @@ HWC2::Error DrmHwcTwo::DestroyVirtualDisplay(hwc2_display_t display) {
 void DrmHwcTwo::Dump(uint32_t *size, char *buffer) {
   // TODO: Implement dump
   unsupported(__func__, size, buffer);
+}
+
+bool android::DrmHwcTwo::ExplicitSyncEnabled = 1;
+
+//static
+void DrmHwcTwo::GetExplicitSync() {
+  char value[PROPERTY_VALUE_MAX];
+  property_get("board.enable.explicit.sync", value, "1");
+  ExplicitSyncEnabled = atoi(value);
+  if (ExplicitSyncEnabled)
+    ALOGI("EXPLICIT SYNC and OVERLAY USAGE are enabled");
+  else
+    ALOGI("EXPLICIT SYNC and OVERLAY USAGE are disabled");
+}
+
+//static
+bool DrmHwcTwo::IsExplicitSyncEnabled() {
+  return ExplicitSyncEnabled;
 }
 
 uint32_t DrmHwcTwo::GetMaxVirtualDisplayCount() {
@@ -957,6 +978,7 @@ int DrmHwcTwo::HookDevOpen(const struct hw_module_t *module, const char *name,
   ctx->common.module = const_cast<hw_module_t *>(module);
   *dev = &ctx->common;
   ctx.release();
+
   return 0;
 }
 
