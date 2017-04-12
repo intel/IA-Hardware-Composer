@@ -28,9 +28,8 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       buffer_handler_(NULL),
       width_(width),
       height_(height),
-      ref_count_(0),
       framebuffer_format_(0),
-      in_flight_(false) {
+      in_use_(false) {
 }
 
 NativeSurface::~NativeSurface() {
@@ -52,7 +51,6 @@ bool NativeSurface::Init(OverlayBufferManager *buffer_manager) {
     return false;
   }
 
-  ref_count_ = 0;
   InitializeLayer(buffer_manager, native_handle_);
 
   return true;
@@ -72,13 +70,7 @@ void NativeSurface::SetNativeFence(int fd) {
 }
 
 void NativeSurface::SetInUse(bool inuse) {
-  if (inuse) {
-    ref_count_ = 3;
-  } else if (ref_count_) {
-    ref_count_--;
-  }
-
-  in_flight_ = false;
+  in_use_ = inuse;
 }
 
 void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
@@ -91,7 +83,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   width_ = display_rect.right - display_rect.left;
   height_ = display_rect.bottom - display_rect.top;
   plane.SetOverlayLayer(&layer_);
-  in_flight_ = true;
+  SetInUse(true);
 
   if (framebuffer_format_ == format)
     return;
@@ -112,10 +104,6 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
   layer_.SetBuffer(buffer);
-}
-
-void NativeSurface::ResetInFlightMode() {
-  in_flight_ = false;
 }
 
 }  // namespace hwcomposer

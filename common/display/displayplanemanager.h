@@ -61,7 +61,6 @@ class DisplayPlaneManager {
 
   void DisablePipe(drmModeAtomicReqPtr property_set);
 
-  void EndFrameUpdate();
   bool CheckPlaneFormat(uint32_t format);
 
  protected:
@@ -92,7 +91,6 @@ class DisplayPlaneManager {
 
   OverlayBufferManager *buffer_manager_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
-  std::vector<NativeSurface *> in_flight_surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;

@@ -68,7 +68,7 @@ class NativeSurface {
   void SetInUse(bool inuse);
 
   bool InUse() const {
-    return ref_count_ > 1 || in_flight_;
+    return in_use_;
   }
 
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
@@ -85,9 +85,8 @@ class NativeSurface {
   NativeBufferHandler* buffer_handler_;
   uint32_t width_;
   uint32_t height_;
-  uint32_t ref_count_;
+  bool in_use_;
   uint32_t framebuffer_format_;
-  bool in_flight_;
   NativeFence fd_;
 };
 

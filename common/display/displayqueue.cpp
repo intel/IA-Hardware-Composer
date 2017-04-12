@@ -26,6 +26,7 @@
 #include "hwctrace.h"
 #include "overlaylayer.h"
 #include "vblankeventhandler.h"
+#include "nativesurface.h"
 
 namespace hwcomposer {
 
@@ -291,13 +292,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   kms_fence_handler_->EnsureReadyForNextFrame();
 
+  for (NativeSurface* surface : in_flight_surfaces_) {
+    surface->SetInUse(false);
+  }
+
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
     ETRACE("Failed to Commit layers.");
     return false;
   }
-
-  display_plane_manager_->EndFrameUpdate();
 
 #ifdef DISABLE_EXPLICIT_SYNC
   compositor_.InsertFence(fence);
@@ -311,6 +314,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 #endif
   previous_layers_.swap(layers);
   previous_plane_state_.swap(current_composition_planes);
+
+  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
+
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    if (plane_state.GetCompositionState() ==
+        DisplayPlaneState::State::kRender) {
+      in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
+    }
+  }
+
   return true;
 }
 
