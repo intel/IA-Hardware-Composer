@@ -152,6 +152,18 @@ class PlanStageProtected : public Planner::PlanStage {
                       std::vector<DrmPlane *> *planes);
 };
 
+// This plan stage provisions the precomp plane with any remaining layers that
+// are on top of the current precomp layers. This stage should be included in
+// all platforms before loosely allocating layers (i.e. PlanStageGreedy) if
+// any previous plan could have modified the precomp plane layers
+// (ex. PlanStageProtected).
+class PlanStagePrecomp : public Planner::PlanStage {
+ public:
+  int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
+                      std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+                      std::vector<DrmPlane *> *planes);
+};
+
 // This plan stage places as many layers on dedicated planes as possible (first
 // come first serve), and then sticks the rest in a precomposition plane (if
 // needed).

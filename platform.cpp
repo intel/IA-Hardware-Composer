@@ -140,6 +140,34 @@ int PlanStageProtected::ProvisionPlanes(
   return 0;
 }
 
+int PlanStagePrecomp::ProvisionPlanes(
+    std::vector<DrmCompositionPlane> *composition,
+    std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+    std::vector<DrmPlane *> *planes) {
+  DrmCompositionPlane *precomp = GetPrecomp(composition);
+  if (!precomp || precomp->source_layers().empty())
+    return 0;
+
+  // Find lowest zorder out of precomp layers
+  size_t precomp_zorder = *std::min_element(
+      precomp->source_layers().begin(), precomp->source_layers().end(),
+      [](size_t a, size_t b) { return a < b; });
+
+  // if there are any remaining layers on top of any of the precomp layers,
+  // add them to precomp to avoid blending issues since precomp is always at
+  // highest zorder
+  for (auto i = layers.begin(); i != layers.end();) {
+    if (i->first < precomp_zorder) {
+      i++;
+      continue;
+    }
+    precomp->source_layers().emplace_back(i->first);
+    i = layers.erase(i);
+  }
+
+  return 0;
+}
+
 int PlanStageGreedy::ProvisionPlanes(
     std::vector<DrmCompositionPlane> *composition,
     std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
