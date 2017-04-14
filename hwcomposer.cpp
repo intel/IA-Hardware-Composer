@@ -298,6 +298,18 @@ void DrmHwcNativeHandle::Clear() {
   }
 }
 
+class DrmVsyncCallback : public VsyncCallback {
+ public:
+  DrmVsyncCallback(hwc_procs_t const *procs) : procs_(procs) {
+  }
+
+  void Callback(int display, int64_t timestamp) {
+    procs_->vsync(procs_, display, timestamp);
+  }
+ private:
+  hwc_procs_t const *procs_;
+};
+
 int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
                                   const gralloc_module_t *gralloc) {
   sf_handle = sf_layer->handle;
@@ -683,8 +695,10 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
 
   ctx->procs = procs;
 
-  for (std::pair<const int, hwc_drm_display> &display_entry : ctx->displays)
-    display_entry.second.vsync_worker.SetProcs(procs);
+  for (std::pair<const int, hwc_drm_display> &display_entry : ctx->displays) {
+    auto callback = std::make_shared<DrmVsyncCallback>(procs);
+    display_entry.second.vsync_worker.RegisterCallback(std::move(callback));
+  }
 
   ctx->hotplug_handler.Init(&ctx->drm, procs);
   ctx->drm.event_listener()->RegisterHotplugHandler(&ctx->hotplug_handler);
