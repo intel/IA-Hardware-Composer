@@ -24,6 +24,7 @@ namespace hwcomposer {
 KMSFenceEventHandler::KMSFenceEventHandler(OverlayBufferManager* buffer_manager)
     : HWCThread(-8, "KMSFenceEventHandler"),
       kms_fence_(0),
+      kms_ready_fence_(0),
       buffer_manager_(buffer_manager) {
 }
 
@@ -41,13 +42,20 @@ bool KMSFenceEventHandler::Initialize() {
 }
 
 bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
-  ScopedSpinLock lock(spin_lock_);
+  // Lets ensure the job associated with previous frame
+  // has been done, else commit will fail with -EBUSY.
+  if (kms_ready_fence_ > 0) {
+    HWCPoll(kms_ready_fence_, -1);
+    close(kms_ready_fence_);
+    kms_ready_fence_ = 0;
+  }
+
   return true;
 }
 
 void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
                                      std::vector<OverlayLayer>& layers) {
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   for (OverlayLayer& layer : layers) {
     OverlayBuffer* const buffer = layer.GetBuffer();
     buffers_.emplace_back(buffer);
@@ -58,6 +66,8 @@ void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
   }
 
   kms_fence_ = kms_fence;
+  kms_ready_fence_ = dup(kms_fence);
+  spin_lock_.unlock();
   Resume();
 }
 
@@ -66,17 +76,16 @@ void KMSFenceEventHandler::ExitThread() {
 }
 
 void KMSFenceEventHandler::HandleRoutine() {
-  ScopedSpinLock lock(spin_lock_);
-  // Lets ensure the job associated with previous frame
-  // has been done, else commit will fail with -EBUSY.
+  spin_lock_.lock();
   if (kms_fence_ > 0) {
     HWCPoll(kms_fence_, -1);
     close(kms_fence_);
-    kms_fence_ = -1;
+    kms_fence_ = 0;
   }
 
   buffer_manager_->UnRegisterBuffers(buffers_);
   std::vector<const OverlayBuffer*>().swap(buffers_);
+  spin_lock_.unlock();
 }
 
 }  // namespace hwcomposer
