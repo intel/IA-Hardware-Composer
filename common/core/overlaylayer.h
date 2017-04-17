@@ -53,12 +53,6 @@ struct OverlayLayer {
     return state_;
   }
 
-  // Only KMSFenceEventHandler should use this.
-  // KMSFenceEventHandler will call this API when
-  // the buffer associated with this layer is no
-  // longer ready by display.
-  void MarkBufferReleased();
-
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
   }
@@ -104,6 +98,12 @@ struct OverlayLayer {
   void SetBuffer(ImportedBuffer* buffer) {
     imported_buffer_.reset(buffer);
   }
+
+  // Only KMSFenceEventHandler should use this.
+  // KMSFenceEventHandler will call this API when
+  // the buffer associated with this layer is no
+  // longer owned by this layer.
+  void ReleaseBuffer();
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
   const HwcRect<float>& GetSourceCrop() const {

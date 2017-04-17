@@ -36,8 +36,8 @@ struct OverlayLayer;
 
 struct ImportedBuffer {
  public:
-  ImportedBuffer(OverlayBuffer* buffer, OverlayBufferManager* buffer_manager,
-                 int release_fence)
+  ImportedBuffer(OverlayBuffer* const buffer,
+                 OverlayBufferManager* buffer_manager, int release_fence)
       : buffer_(buffer),
         release_fence_(release_fence),
         buffer_manager_(buffer_manager) {
@@ -45,8 +45,9 @@ struct ImportedBuffer {
 
   ~ImportedBuffer();
 
-  OverlayBuffer* buffer_;
+  OverlayBuffer* const buffer_;
   int release_fence_;
+  bool owned_buffer_ = true;
 
  private:
   OverlayBufferManager* buffer_manager_;
@@ -79,20 +80,20 @@ class OverlayBufferManager {
   // Increments RefCount of buffer by 1. Buffer will not be released
   // or associated fence object signalled until UnRegisterBuffer
   // is called and RefCount decreases to zero.
-  void RegisterBuffer(OverlayBuffer* buffer);
+  void RegisterBuffer(const OverlayBuffer* const buffer);
 
   // Decreases RefCount of buffer by 1. Buffer will be released
   // and associated fence object will be signalled if RefCount
   // is equal to zero.
-  void UnRegisterBuffer(OverlayBuffer* buffer);
+  void UnRegisterBuffer(const OverlayBuffer* const buffer);
 
   // Convenient function to call together RegisterBuffer for
   // OverlayBuffers.
-  void RegisterBuffers(const std::vector<OverlayBuffer*>& buffers);
+  void RegisterBuffers(const std::vector<const OverlayBuffer*>& buffers);
 
   // Convenient function to call together UnRegisterBuffers for
   // OverlayBuffers.
-  void UnRegisterBuffers(const std::vector<OverlayBuffer*>& buffers);
+  void UnRegisterBuffers(const std::vector<const OverlayBuffer*>& buffers);
 
   // Convenient function to signal buffers as free to be re-used
   // without deleting buffer associated with the layer.

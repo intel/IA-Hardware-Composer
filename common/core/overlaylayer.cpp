@@ -63,8 +63,8 @@ void OverlayLayer::SetReleaseFenceState(NativeSync::State state) {
   state_ = state;
 }
 
-void OverlayLayer::MarkBufferReleased() {
-  imported_buffer_->buffer_ = NULL;
+void OverlayLayer::ReleaseBuffer() {
+  imported_buffer_->owned_buffer_ = false;
 }
 
 void OverlayLayer::SetIndex(uint32_t index) {

@@ -44,10 +44,10 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
       old_blob_id_(0),
       gpu_fd_(gpu_fd),
       lut_size_(0),
-      buffer_manager_(buffer_manager),
       broadcastrgb_id_(0),
       broadcastrgb_full_(-1),
-      broadcastrgb_automatic_(-1) {
+      broadcastrgb_automatic_(-1),
+      buffer_manager_(buffer_manager) {
   compositor_.Init();
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));

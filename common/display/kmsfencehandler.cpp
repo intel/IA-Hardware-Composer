@@ -55,7 +55,7 @@ void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
       // Instead of registering again, we mark the buffer
       // released in layer so that it's not deleted till we
       // explicitly unregister the buffer.
-      layer.MarkBufferReleased();
+      layer.ReleaseBuffer();
     }
   }
 
@@ -73,7 +73,7 @@ void KMSFenceEventHandler::HandleRoutine() {
 // buffer here.
 #ifndef DOUBLE_BUFFERED
   buffer_manager_->UnRegisterBuffers(buffers_);
-  std::vector<OverlayBuffer*>().swap(buffers_);
+  std::vector<const OverlayBuffer*>().swap(buffers_);
 #endif
   // Lets ensure the job associated with previous frame
   // has been done, else commit will fail with -EBUSY.
@@ -84,7 +84,7 @@ void KMSFenceEventHandler::HandleRoutine() {
   }
 #ifdef DOUBLE_BUFFERED
   buffer_manager_->UnRegisterBuffers(buffers_);
-  std::vector<OverlayBuffer*>().swap(buffers_);
+  std::vector<const OverlayBuffer*>().swap(buffers_);
 #endif
 }
 

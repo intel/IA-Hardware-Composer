@@ -105,7 +105,7 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
                                     HWCNativeHandle native_handle) {
   ImportedBuffer *buffer =
       buffer_manager->CreateBufferFromNativeHandle(native_handle);
-  OverlayBuffer *overlay_buffer = buffer->buffer_;
+  const OverlayBuffer *overlay_buffer = buffer->buffer_;
   width_ = overlay_buffer->GetWidth();
   height_ = overlay_buffer->GetHeight();
   layer_.SetNativeHandle(native_handle_);
