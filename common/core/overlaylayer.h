@@ -53,11 +53,6 @@ struct OverlayLayer {
     return state_;
   }
 
-  // OverlayBufferManager has signalled the
-  // fence object associated with buffer of this
-  // layer.
-  void MarkBufferSignalled();
-
   // Only KMSFenceEventHandler should use this.
   // KMSFenceEventHandler will call this API when
   // the buffer associated with this layer is no

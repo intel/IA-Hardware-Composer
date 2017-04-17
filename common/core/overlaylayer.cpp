@@ -63,10 +63,6 @@ void OverlayLayer::SetReleaseFenceState(NativeSync::State state) {
   state_ = state;
 }
 
-void OverlayLayer::MarkBufferSignalled() {
-  imported_buffer_->release_fence_ = -1;
-}
-
 void OverlayLayer::MarkBufferReleased() {
   imported_buffer_->buffer_ = NULL;
 }
