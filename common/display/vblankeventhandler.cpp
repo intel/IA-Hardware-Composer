@@ -29,8 +29,8 @@ namespace hwcomposer {
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
-PageFlipEventHandler::PageFlipEventHandler()
-    : HWCThread(-8, "PageFlipEventHandler"),
+VblankEventHandler::VblankEventHandler()
+    : HWCThread(-8, "VblankEventHandler"),
       display_(0),
       enabled_(false),
       refresh_(0.0),
@@ -39,17 +39,17 @@ PageFlipEventHandler::PageFlipEventHandler()
       last_timestamp_(-1) {
 }
 
-PageFlipEventHandler::~PageFlipEventHandler() {
+VblankEventHandler::~VblankEventHandler() {
 }
 
-void PageFlipEventHandler::Init(float refresh, int fd, int pipe) {
+void VblankEventHandler::Init(float refresh, int fd, int pipe) {
   ScopedSpinLock lock(spin_lock_);
   refresh_ = refresh;
   fd_ = fd;
   pipe_ = pipe;
 }
 
-bool PageFlipEventHandler::SetPowerMode(uint32_t power_mode) {
+bool VblankEventHandler::SetPowerMode(uint32_t power_mode) {
   if (power_mode == kOn && enabled_) {
     VSyncControl(enabled_);
   } else {
@@ -59,7 +59,7 @@ bool PageFlipEventHandler::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
-int PageFlipEventHandler::RegisterCallback(
+int VblankEventHandler::RegisterCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display) {
   spin_lock_.lock();
   callback_ = callback;
@@ -68,15 +68,15 @@ int PageFlipEventHandler::RegisterCallback(
   spin_lock_.unlock();
 
   if (!InitWorker()) {
-    ETRACE("Failed to initalize thread for PageFlipEventHandler. %s",
+    ETRACE("Failed to initalize thread for VblankEventHandler. %s",
            PRINTERROR());
   }
 
   return 0;
 }
 
-int PageFlipEventHandler::VSyncControl(bool enabled) {
-  IPAGEFLIPEVENTTRACE("PageFlipEventHandler VSyncControl enabled %d", enabled);
+int VblankEventHandler::VSyncControl(bool enabled) {
+  IPAGEFLIPEVENTTRACE("VblankEventHandler VSyncControl enabled %d", enabled);
   if (enabled_ == enabled)
     return 0;
 
@@ -84,7 +84,7 @@ int PageFlipEventHandler::VSyncControl(bool enabled) {
   enabled_ = enabled;
   if (enabled_ && callback_) {
     if (!InitWorker()) {
-      ETRACE("Failed to initalize thread for PageFlipEventHandler. %s",
+      ETRACE("Failed to initalize thread for VblankEventHandler. %s",
              PRINTERROR());
     }
   } else {
@@ -96,8 +96,8 @@ int PageFlipEventHandler::VSyncControl(bool enabled) {
   return 0;
 }
 
-void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
-                                               unsigned int usec) {
+void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
+                                             unsigned int usec) {
   ScopedSpinLock lock(spin_lock_);
   if (!enabled_ || !callback_)
     return;
@@ -112,10 +112,10 @@ void PageFlipEventHandler::HandlePageFlipEvent(unsigned int sec,
   callback_->Callback(display_, timestamp);
 }
 
-void PageFlipEventHandler::HandleWait() {
+void VblankEventHandler::HandleWait() {
 }
 
-void PageFlipEventHandler::HandleRoutine() {
+void VblankEventHandler::HandleRoutine() {
   spin_lock_.lock();
 
   bool enabled = enabled_;

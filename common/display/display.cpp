@@ -46,11 +46,11 @@ Display::Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
 
 Display::~Display() {
   display_queue_->SetPowerMode(kOff);
-  flip_handler_->SetPowerMode(kOff);
+  vblank_handler_->SetPowerMode(kOff);
 }
 
 bool Display::Initialize(OverlayBufferManager *buffer_manager) {
-  flip_handler_.reset(new PageFlipEventHandler());
+  vblank_handler_.reset(new VblankEventHandler());
   display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_, buffer_manager));
 
   return true;
@@ -99,7 +99,7 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
     return false;
   }
 
-  flip_handler_->Init(refresh_, gpu_fd_, pipe_);
+  vblank_handler_->Init(refresh_, gpu_fd_, pipe_);
   return true;
 }
 
@@ -114,7 +114,7 @@ void Display::ShutDown() {
 
   IHOTPLUGEVENTTRACE("Display::ShutDown recieved.");
   display_queue_->SetPowerMode(kOff);
-  flip_handler_->SetPowerMode(kOff);
+  vblank_handler_->SetPowerMode(kOff);
   connector_ = 0;
 }
 
@@ -200,7 +200,7 @@ bool Display::SetPowerMode(uint32_t power_mode) {
   if (!is_connected_)
     return true;
 
-  flip_handler_->SetPowerMode(power_mode);
+  vblank_handler_->SetPowerMode(power_mode);
   return display_queue_->SetPowerMode(power_mode);
 }
 
@@ -218,11 +218,11 @@ bool Display::Present(std::vector<HwcLayer *> &source_layers,
 
 int Display::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                    uint32_t display_id) {
-  return flip_handler_->RegisterCallback(callback, display_id);
+  return vblank_handler_->RegisterCallback(callback, display_id);
 }
 
 void Display::VSyncControl(bool enabled) {
-  flip_handler_->VSyncControl(enabled);
+  vblank_handler_->VSyncControl(enabled);
 }
 
 bool Display::CheckPlaneFormat(uint32_t format) {

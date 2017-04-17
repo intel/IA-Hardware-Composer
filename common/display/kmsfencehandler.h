@@ -52,4 +52,4 @@ class KMSFenceEventHandler : public HWCThread {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
+#endif  // COMMON_DISPLAY_KMSFENCEHANDLER_H_

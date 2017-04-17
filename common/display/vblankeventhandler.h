@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
-#define COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
+#ifndef COMMON_DISPLAY_VBLANK_EVENT_HANDLER_H_
+#define COMMON_DISPLAY_VBLANK_EVENT_HANDLER_H_
 
 #include <stdint.h>
 
@@ -28,10 +28,10 @@
 
 namespace hwcomposer {
 
-class PageFlipEventHandler : public HWCThread {
+class VblankEventHandler : public HWCThread {
  public:
-  PageFlipEventHandler();
-  ~PageFlipEventHandler() override;
+  VblankEventHandler();
+  ~VblankEventHandler() override;
 
   void Init(float refresh, int fd, int pipe);
 
@@ -64,4 +64,4 @@ class PageFlipEventHandler : public HWCThread {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_DISPLAY_PAGEFLIPEVENTHANDLER_H_
+#endif  // COMMON_DISPLAY_VBLANK_EVENT_HANDLER_H_

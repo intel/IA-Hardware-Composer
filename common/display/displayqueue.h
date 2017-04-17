@@ -45,7 +45,6 @@ struct gamma_colors {
 class DisplayPlaneManager;
 struct HwcLayer;
 class OverlayBufferManager;
-class PageFlipEventHandler;
 
 class DisplayQueue {
  public:
@@ -109,7 +108,6 @@ class DisplayQueue {
   uint64_t fence_ = 0;
   bool needs_modeset_ = false;
   bool needs_color_correction_ = false;
-  std::unique_ptr<PageFlipEventHandler> flip_handler_;
   std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
