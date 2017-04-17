@@ -24,7 +24,6 @@
 
 #include <memory>
 
-#include "nativesync.h"
 #include "overlaybuffermanager.h"
 
 namespace hwcomposer {
@@ -44,14 +43,6 @@ struct OverlayLayer {
   // be signalled when this layer is no
   // longer in use.
   int GetReleaseFence();
-
-  // Release Fence state which will determine
-  // as to when we signal the fence associated
-  // with the buffer of this layer.
-  void SetReleaseFenceState(NativeSync::State state);
-  NativeSync::State GetReleaseFenceState() const {
-    return state_;
-  }
 
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
@@ -144,7 +135,6 @@ struct OverlayLayer {
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
-  NativeSync::State state_ = NativeSync::State::kSignalOnPageFlipEvent;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
 };
 

@@ -266,8 +266,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  buffer_manager_->SignalBuffersIfReady(layers);
-
   uint64_t fence = 0;
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());

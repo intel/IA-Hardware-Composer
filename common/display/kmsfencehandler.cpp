@@ -49,14 +49,12 @@ void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
                                      std::vector<OverlayLayer>& layers) {
   ScopedSpinLock lock(spin_lock_);
   for (OverlayLayer& layer : layers) {
-    OverlayBuffer* buffer = layer.GetBuffer();
-    if (buffer) {
-      buffers_.emplace_back(buffer);
-      // Instead of registering again, we mark the buffer
-      // released in layer so that it's not deleted till we
-      // explicitly unregister the buffer.
-      layer.ReleaseBuffer();
-    }
+    OverlayBuffer* const buffer = layer.GetBuffer();
+    buffers_.emplace_back(buffer);
+    // Instead of registering again, we mark the buffer
+    // released in layer so that it's not deleted till we
+    // explicitly unregister the buffer.
+    layer.ReleaseBuffer();
   }
 
   kms_fence_ = kms_fence;

@@ -95,10 +95,6 @@ class OverlayBufferManager {
   // OverlayBuffers.
   void UnRegisterBuffers(const std::vector<const OverlayBuffer*>& buffers);
 
-  // Convenient function to signal buffers as free to be re-used
-  // without deleting buffer associated with the layer.
-  void SignalBuffersIfReady(std::vector<OverlayLayer>& layers);
-
   void UnRegisterLayerBuffers(std::vector<OverlayLayer>& layers);
 
   NativeBufferHandler* GetNativeBufferHandler() const {

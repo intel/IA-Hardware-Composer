@@ -142,28 +142,6 @@ void OverlayBufferManager::UnRegisterBuffers(
   }
 }
 
-void OverlayBufferManager::SignalBuffersIfReady(
-    std::vector<OverlayLayer>& layers) {
-  ScopedSpinLock lock(spin_lock_);
-  for (OverlayLayer& layer : layers) {
-    if (layer.GetReleaseFenceState() != NativeSync::State::kReady) {
-      continue;
-    }
-
-    const OverlayBuffer* const buffer = layer.GetBuffer();
-    if (!buffer)
-      continue;
-
-    for (Buffer& overlay_buffer : buffers_) {
-      if (overlay_buffer.buffer_.get() != buffer)
-        continue;
-
-      overlay_buffer.sync_object_.reset(nullptr);
-      break;
-    }
-  }
-}
-
 void OverlayBufferManager::UnRegisterLayerBuffers(
     std::vector<OverlayLayer>& layers) {
   ScopedSpinLock lock(spin_lock_);

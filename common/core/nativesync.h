@@ -25,13 +25,6 @@ namespace hwcomposer {
 
 class NativeSync {
  public:
-  // kReady:  Fence can be signalled immediately. This is usually
-  //          the case when we need to fallback to 3D Composition for
-  //          a given buffer.
-  // kSignalOnPageFlipEvent: Release the fence when we recieve PageFlipEvent
-  //                         notification.
-  enum class State : int32_t { kReady, kSignalOnPageFlipEvent };
-
   NativeSync();
   virtual ~NativeSync();
 
