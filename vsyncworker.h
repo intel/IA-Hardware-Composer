@@ -41,7 +41,7 @@ class VSyncWorker : public Worker {
   ~VSyncWorker() override;
 
   int Init(DrmResources *drm, int display);
-  int RegisterCallback(std::shared_ptr<VsyncCallback> callback);
+  void RegisterCallback(std::shared_ptr<VsyncCallback> callback);
 
   void VSyncControl(bool enabled);
 

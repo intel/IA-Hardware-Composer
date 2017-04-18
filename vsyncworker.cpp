@@ -48,21 +48,10 @@ int VSyncWorker::Init(DrmResources *drm, int display) {
   return InitWorker();
 }
 
-int VSyncWorker::RegisterCallback(std::shared_ptr<VsyncCallback> callback) {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to lock vsync worker lock %d\n", ret);
-    return ret;
-  }
-
+void VSyncWorker::RegisterCallback(std::shared_ptr<VsyncCallback> callback) {
+  Lock();
   callback_ = callback;
-
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to unlock vsync worker lock %d\n", ret);
-    return ret;
-  }
-  return 0;
+  Unlock();
 }
 
 void VSyncWorker::VSyncControl(bool enabled) {
@@ -138,10 +127,7 @@ void VSyncWorker::Routine() {
   int display = display_;
   std::shared_ptr<VsyncCallback> callback(callback_);
 
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to unlock worker %d", ret);
-  }
+  Unlock();
 
   if (!enabled)
     return;
