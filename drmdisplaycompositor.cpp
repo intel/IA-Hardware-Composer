@@ -626,6 +626,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
           if (ret)
             ALOGW("Acquire fence %d wait %d failed (%d). Total time %d",
                   acquire_fence, i, ret, total_fence_timeout);
+          else
+            break;
         }
         if (ret) {
           ALOGE("Failed to wait for acquire %d/%d", acquire_fence, ret);
