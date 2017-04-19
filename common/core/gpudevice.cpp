@@ -164,21 +164,23 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
 
 void GpuDevice::DisplayManager::HotPlugEventHandler() {
   CTRACE();
-  char buffer[1024];
+  uint32_t buffer_size = 1024;
+  char buffer[buffer_size];
   int ret;
 
   while (true) {
     bool drm_event = false, hotplug_event = false;
     memset(&buffer, 0, sizeof(buffer));
-    size_t srclen = strlen(buffer);
+    size_t srclen = buffer_size - 1;
     ret = read(hotplug_fd_.get(), &buffer, srclen);
-    buffer[srclen] = '\0';
-    if (ret == 0) {
-      return;
-    } else if (ret < 0) {
-      ETRACE("Failed to read uevent. %s", PRINTERROR());
+    if (ret <= 0) {
+      if (ret < 0)
+        ETRACE("Failed to read uevent. %s", PRINTERROR());
+
       return;
     }
+
+    buffer[ret] = '\0';
 
     for (int32_t i = 0; i < ret;) {
       char *event = buffer + i;
