@@ -94,6 +94,7 @@ class Display : public NativeDisplay {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   bool SetBroadcastRGB(const char *range_property) override;
+  void SetExplicitSync(bool explicit_sync_enabled) override;
 
  protected:
   uint32_t CrtcId() const override {
@@ -127,6 +128,7 @@ class Display : public NativeDisplay {
   bool is_connected_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;
+  bool is_explicit_sync_enabled_;
 };
 
 }  // namespace hwcomposer

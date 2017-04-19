@@ -123,18 +123,18 @@ bool GLRenderer::MakeCurrent() {
 }
 
 void GLRenderer::InsertFence(uint64_t kms_fence) {
-#ifndef DISABLE_EXPLICIT_SYNC
-  EGLint attrib_list[] = {
-      EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
-      EGL_NONE,
-  };
-  EGLSyncKHR fence = eglCreateSyncKHR(
-      context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
-  eglWaitSyncKHR(context_.GetDisplay(), fence, 0);
-  eglDestroySyncKHR(context_.GetDisplay(), fence);
-#else
-  glFlush();
-#endif
+  if (is_explicit_sync_enabled_) {
+    EGLint attrib_list[] = {
+        EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
+        EGL_NONE,
+    };
+    EGLSyncKHR fence = eglCreateSyncKHR(
+        context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
+    eglWaitSyncKHR(context_.GetDisplay(), fence, 0);
+    eglDestroySyncKHR(context_.GetDisplay(), fence);
+  } else {
+    glFlush();
+  }
 }
 
 GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
@@ -154,6 +154,11 @@ GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
   }
 
   return 0;
+}
+
+void GLRenderer::SetExplicitSync(bool explicit_sync_enabled) {
+  is_explicit_sync_enabled_ = explicit_sync_enabled;
+  context_.SetExplicitSync(explicit_sync_enabled);
 }
 
 }  // namespace hwcomposer

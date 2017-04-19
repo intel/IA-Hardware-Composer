@@ -63,6 +63,8 @@ class DisplayPlane {
 
   void Dump() const;
 
+  void SetExplicitSync(bool explicit_sync_enabled);
+
  private:
   struct Property {
     Property();
@@ -96,6 +98,7 @@ class DisplayPlane {
   bool enabled_;
 
   std::vector<uint32_t> supported_formats_;
+  bool is_explicit_sync_enabled_;
 };
 
 }  // namespace hwcomposer

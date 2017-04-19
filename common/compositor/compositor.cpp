@@ -40,17 +40,20 @@ Compositor::~Compositor() {
 }
 
 void Compositor::Init() {
-  gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
-}
-
-bool Compositor::BeginFrame() {
   if (!renderer_) {
     renderer_.reset(CreateRenderer());
     if (!renderer_->Init()) {
       ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
       renderer_.reset(nullptr);
-      return false;
     }
+  }
+
+  gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
+}
+
+bool Compositor::BeginFrame() {
+  if (!renderer_) {
+    return false;
   }
 
   return true;
@@ -262,6 +265,10 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
         region.rect, SetBitsToVector(region.id_set.getBits() >> layer_offset,
                                      source_layers)});
   }
+}
+
+void Compositor::SetExplicitSync(bool explicit_sync_enabled) {
+  renderer_->SetExplicitSync(explicit_sync_enabled);
 }
 
 }  // namespace hwcomposer

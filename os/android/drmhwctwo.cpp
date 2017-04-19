@@ -37,8 +37,11 @@
 #include <memory>
 #include <algorithm>
 #include <vector>
+#include "nativedisplay.h"
 
 namespace android {
+
+bool android::DrmHwcTwo::is_explicit_sync_enabled_ = true;
 
 class DrmVsyncCallback : public hwcomposer::VsyncCallback {
  public:
@@ -65,6 +68,14 @@ DrmHwcTwo::DrmHwcTwo() {
 }
 
 HWC2::Error DrmHwcTwo::Init() {
+  char value[PROPERTY_VALUE_MAX];
+  property_get("board.enable.explicit.sync", value, "1");
+  is_explicit_sync_enabled_ = atoi(value);
+  if (is_explicit_sync_enabled_)
+    ALOGI("EXPLICIT SYNC and OVERLAY USAGE are enabled");
+  else
+    ALOGI("EXPLICIT SYNC and OVERLAY USAGE are disabled");
+
   displays_.emplace(std::piecewise_construct,
                     std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
                     std::forward_as_tuple(&device_, HWC_DISPLAY_PRIMARY,
@@ -179,6 +190,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init() {
       return HWC2::Error::BadDisplay;
     }
   }
+
+  display_->SetExplicitSync(is_explicit_sync_enabled_);
 
   // Fetch the number of modes from the display
   uint32_t num_configs;
@@ -576,14 +589,14 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
           ++*num_types;
           break;
         default:
-#ifdef DISABLE_OVERLAY_USAGE
-          layer.set_validated_type(HWC2::Composition::Client);
-#else
-          if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
+          if (is_explicit_sync_enabled_) {
+            if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
+              layer.set_validated_type(HWC2::Composition::Client);
+            else
+              layer.set_validated_type(layer.sf_type());
+          } else {
             layer.set_validated_type(HWC2::Composition::Client);
-          else
-            layer.set_validated_type(layer.sf_type());
-#endif
+          }
           break;
       }
     }

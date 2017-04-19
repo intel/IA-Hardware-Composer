@@ -38,6 +38,7 @@ class EGLOffScreenContext {
 
   void RestoreState();
 
+  void SetExplicitSync(bool explicit_sync_enabled);
  private:
   EGLDisplay egl_display_;
   EGLContext egl_ctx_;
@@ -46,6 +47,7 @@ class EGLOffScreenContext {
   EGLSurface saved_egl_read_ = EGL_NO_SURFACE;
   EGLSurface saved_egl_draw_ = EGL_NO_SURFACE;
   bool restore_context_;
+  bool is_explicit_sync_enabled_;
 };
 
 }  // namespace hwcomposer

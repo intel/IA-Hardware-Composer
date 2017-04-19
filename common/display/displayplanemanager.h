@@ -63,6 +63,10 @@ class DisplayPlaneManager {
 
   bool CheckPlaneFormat(uint32_t format);
 
+  void SetExplicitSync(bool explicit_sync_enabled);
+ private:
+  bool is_explicit_sync_enabled_;
+
  protected:
   struct OverlayPlane {
    public:

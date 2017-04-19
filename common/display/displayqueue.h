@@ -63,9 +63,9 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   bool SetBroadcastRGB(const char* range_property);
+  void SetExplicitSync(bool explicit_sync_enabled);
 
   void HandleExit();
-
  private:
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
@@ -114,6 +114,7 @@ class DisplayQueue {
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
+  bool is_explicit_sync_enabled_;
 };
 
 }  // namespace hwcomposer
