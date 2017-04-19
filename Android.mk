@@ -75,10 +75,10 @@ LOCAL_CPPFLAGS += \
 	-DHWC2_INCLUDE_STRINGIFICATION \
 	-DUSE_ANDROID_SYNC \
 	-DUSE_ANDROID_SHIM \
-	-fPIC -O2 \
+	-O2 \
 	-D_FORTIFY_SOURCE=2 \
 	-fstack-protector-strong \
-	-fPIE -Wformat -Wformat-security
+	-Wformat -Wformat-security
 
 ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)),true)
 LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
