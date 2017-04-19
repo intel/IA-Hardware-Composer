@@ -17,6 +17,9 @@
 #ifndef OS_ANDROID_PLATFORMDEFINES_H_
 #define OS_ANDROID_PLATFORMDEFINES_H_
 
+#ifndef LOG_TAG
+#define LOG_TAG "iahwcomposer"
+#endif
 #include <cutils/log.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
