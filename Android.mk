@@ -69,6 +69,7 @@ LOCAL_SRC_FILES := \
 	drmproperty.cpp \
 	glworker.cpp \
 	hwcomposer.cpp \
+        hwcutils.cpp \
         platform.cpp \
         platformdrmgeneric.cpp \
         platformnv.cpp \
