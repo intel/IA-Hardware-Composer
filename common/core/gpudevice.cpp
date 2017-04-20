@@ -184,9 +184,9 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
 
     for (int32_t i = 0; i < ret;) {
       char *event = buffer + i;
-      if (strcmp(event, "DEVTYPE=drm_minor"))
+      if (!strcmp(event, "DEVTYPE=drm_minor"))
         drm_event = true;
-      else if (strcmp(event, "HOTPLUG=1"))
+      else if (!strcmp(event, "HOTPLUG=1"))
         hotplug_event = true;
 
       if (hotplug_event && drm_event)
