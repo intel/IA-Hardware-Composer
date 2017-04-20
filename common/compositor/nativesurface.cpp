@@ -28,8 +28,8 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       buffer_handler_(NULL),
       width_(width),
       height_(height),
-      framebuffer_format_(0),
-      in_use_(false) {
+      in_use_(false),
+      framebuffer_format_(0) {
 }
 
 NativeSurface::~NativeSurface() {
@@ -95,15 +95,16 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
 
 void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
                                     HWCNativeHandle native_handle) {
-  ImportedBuffer *buffer =
-      buffer_manager->CreateBufferFromNativeHandle(native_handle);
-  const OverlayBuffer *overlay_buffer = buffer->buffer_;
-  width_ = overlay_buffer->GetWidth();
-  height_ = overlay_buffer->GetHeight();
+  buffer_.reset(new OverlayBuffer());
+  buffer_->InitializeFromNativeHandle(native_handle,
+                                      buffer_manager->GetNativeBufferHandler());
+  imported_buffer_.reset(new ImportedBuffer(buffer_.get(), buffer_manager, -1));
+  width_ = buffer_->GetWidth();
+  height_ = buffer_->GetHeight();
   layer_.SetNativeHandle(native_handle_);
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(buffer);
+  layer_.SetBuffer(imported_buffer_.get());
 }
 
 }  // namespace hwcomposer
