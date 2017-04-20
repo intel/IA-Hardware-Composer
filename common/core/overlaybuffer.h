@@ -75,6 +75,7 @@ class OverlayBuffer {
  protected:
   OverlayBuffer() = default;
   friend class OverlayBufferManager;
+  friend class NativeSurface;
 
  private:
   uint32_t width_ = 0;

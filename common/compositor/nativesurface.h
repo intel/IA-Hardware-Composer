@@ -21,6 +21,7 @@
 
 #include "displayplanestate.h"
 #include "nativefence.h"
+#include "overlaybuffer.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
@@ -88,6 +89,8 @@ class NativeSurface {
   bool in_use_;
   uint32_t framebuffer_format_;
   NativeFence fd_;
+  std::unique_ptr<ImportedBuffer> imported_buffer_;
+  std::unique_ptr<OverlayBuffer> buffer_;
 };
 
 }  // namespace hwcomposer
