@@ -231,9 +231,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
   }
 
-  // Reset any DisplayQueue Manager and Compositor state.
-  display_plane_manager_->BeginFrameUpdate();
-
   uint32_t flags = 0;
   if (needs_modeset_) {
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;

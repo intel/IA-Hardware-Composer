@@ -102,16 +102,6 @@ bool DisplayPlaneManager::Initialize(uint32_t pipe_id, uint32_t width,
   return true;
 }
 
-void DisplayPlaneManager::BeginFrameUpdate() {
-  if (cursor_plane_)
-    cursor_plane_->SetEnabled(false);
-
-  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
-    (*i)->SetEnabled(false);
-  }
-
-}
-
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> *layers,
     const std::vector<OverlayLayer> &previous_layers,
@@ -253,6 +243,15 @@ bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
     return false;
   }
 
+  // Disable any cursor/overlay planes assuming they will not
+  // be used for this commit.
+  if (cursor_plane_)
+    cursor_plane_->SetEnabled(false);
+
+  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
+    (*i)->SetEnabled(false);
+  }
+
   for (const DisplayPlaneState &comp_plane : comp_planes) {
     DisplayPlane *plane = comp_plane.plane();
     const OverlayLayer *layer = comp_plane.GetOverlayLayer();
@@ -268,10 +267,11 @@ bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
   }
 
   for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
-    if ((*i)->IsEnabled())
+    DisplayPlane *plane = (*i).get();
+    if (plane->IsEnabled())
       continue;
 
-    (*i)->Disable(pset);
+    plane->Disable(pset);
   }
 
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);

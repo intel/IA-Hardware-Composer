@@ -49,8 +49,6 @@ class DisplayPlaneManager {
 
   bool Initialize(uint32_t pipe_id, uint32_t width, uint32_t height);
 
-  void BeginFrameUpdate();
-
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> *layers,
       const std::vector<OverlayLayer> &previous_layers,
