@@ -27,6 +27,8 @@ namespace hwcomposer {
 
 class NativeDisplay;
 
+#define DRM_HOTPLUG_EVENT_SIZE 256
+
 class DisplayHotPlugEventCallback {
  public:
   virtual ~DisplayHotPlugEventCallback() {
