@@ -111,6 +111,9 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
   drmModePropertyPtr broadcastrgb_props =
       drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
 
+  if (!broadcastrgb_props)
+    return true;
+
   if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM))
     return false;
 
