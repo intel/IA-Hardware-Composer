@@ -244,4 +244,10 @@ void Display::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
 bool Display::SetBroadcastRGB(const char *range_property) {
   return display_queue_->SetBroadcastRGB(range_property);
 }
+
+void Display::SetExplicitSync(bool explicit_sync_enabled) {
+  is_explicit_sync_enabled_ = explicit_sync_enabled;
+  display_queue_->SetExplicitSync(explicit_sync_enabled);
+}
+
 }  // namespace hwcomposer

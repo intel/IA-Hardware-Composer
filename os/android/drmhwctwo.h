@@ -239,6 +239,9 @@ class DrmHwcTwo : public hwc2_device_t {
   hwcomposer::GpuDevice device_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
+
+ private:
+  static bool is_explicit_sync_enabled_;
 };
 }  // namespace android
 
