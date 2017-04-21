@@ -346,6 +346,12 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
   compositor_.Reset();
+
+  for (NativeSurface* surface : in_flight_surfaces_) {
+    surface->SetInUse(false);
+  }
+
+  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
