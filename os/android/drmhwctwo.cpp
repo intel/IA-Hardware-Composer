@@ -425,6 +425,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
 
+  if (type_ == HWC2::DisplayType::Virtual)
+    return HWC2::Error::None;
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
@@ -513,8 +516,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetColorTransform(const float *matrix,
 HWC2::Error DrmHwcTwo::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
                                                    int32_t release_fence) {
   supported(__func__);
-  if (type_ == HWC2::DisplayType::Virtual)
-    ALOGE("SetOutputBuffer called \n");
 
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->handle_ = buffer;
