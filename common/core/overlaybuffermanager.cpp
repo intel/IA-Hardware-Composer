@@ -40,7 +40,6 @@ bool OverlayBufferManager::Initialize(uint32_t gpu_fd) {
 }
 
 ImportedBuffer* OverlayBufferManager::CreateBuffer(const HwcBuffer& bo) {
-  ScopedSpinLock lock(spin_lock_);
   buffers_.emplace_back();
   Buffer& buffer = buffers_.back();
   buffer.buffer_.reset(new OverlayBuffer());
@@ -57,7 +56,6 @@ ImportedBuffer* OverlayBufferManager::CreateBuffer(const HwcBuffer& bo) {
 
 ImportedBuffer* OverlayBufferManager::CreateBufferFromNativeHandle(
     HWCNativeHandle handle) {
-  ScopedSpinLock lock(spin_lock_);
   buffers_.emplace_back();
   Buffer& buffer = buffers_.back();
   buffer.buffer_.reset(new OverlayBuffer());
@@ -73,7 +71,6 @@ ImportedBuffer* OverlayBufferManager::CreateBufferFromNativeHandle(
 }
 
 void OverlayBufferManager::RegisterBuffer(const OverlayBuffer* const buffer) {
-  ScopedSpinLock lock(spin_lock_);
   for (Buffer& overlay_buffer : buffers_) {
     if (overlay_buffer.buffer_.get() != buffer)
       continue;
@@ -85,7 +82,6 @@ void OverlayBufferManager::RegisterBuffer(const OverlayBuffer* const buffer) {
 
 void OverlayBufferManager::RegisterBuffers(
     const std::vector<const OverlayBuffer*>& buffers) {
-  ScopedSpinLock lock(spin_lock_);
   for (const OverlayBuffer* const buffer : buffers) {
     for (Buffer& overlay_buffer : buffers_) {
       if (overlay_buffer.buffer_.get() != buffer)
@@ -98,7 +94,6 @@ void OverlayBufferManager::RegisterBuffers(
 }
 
 void OverlayBufferManager::UnRegisterBuffer(const OverlayBuffer* const buffer) {
-  ScopedSpinLock lock(spin_lock_);
   int32_t index = -1;
   for (Buffer& overlay_buffer : buffers_) {
     index++;
@@ -120,7 +115,6 @@ void OverlayBufferManager::UnRegisterBuffer(const OverlayBuffer* const buffer) {
 
 void OverlayBufferManager::UnRegisterBuffers(
     const std::vector<const OverlayBuffer*>& buffers) {
-  ScopedSpinLock lock(spin_lock_);
   for (const OverlayBuffer* const buffer : buffers) {
     int32_t index = -1;
     for (Buffer& overlay_buffer : buffers_) {
@@ -144,7 +138,6 @@ void OverlayBufferManager::UnRegisterBuffers(
 
 void OverlayBufferManager::UnRegisterLayerBuffers(
     std::vector<OverlayLayer>& layers) {
-  ScopedSpinLock lock(spin_lock_);
   for (OverlayLayer& layer : layers) {
     const OverlayBuffer* const buffer = layer.GetBuffer();
     if (!buffer)
