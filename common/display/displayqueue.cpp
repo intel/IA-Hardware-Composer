@@ -254,7 +254,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     HwcLayer* layer = source_layers.at(layer_index);
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
-    overlay_layer.SetNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetTransform(layer->GetTransform());
     overlay_layer.SetAlpha(layer->GetAlpha());
     overlay_layer.SetBlending(layer->GetBlending());
