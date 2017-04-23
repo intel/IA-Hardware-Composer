@@ -207,8 +207,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
   size_t size = source_layers.size();
+  size_t previous_size = previous_layers_.size();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
+  bool layers_changed = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -229,6 +231,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
+
+    if (previous_size > layer_index) {
+      overlay_layer.ValidatePreviousFrameState(
+          previous_layers_.at(layer_index));
+      if (overlay_layer.HasLayerAttributesChanged()) {
+        layers_changed = true;
+      }
+    }
+  }
+
+  if (size != previous_size) {
+    layers_changed = true;
   }
 
   uint32_t flags = 0;
@@ -246,8 +260,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   // Validate Overlays and Layers usage.
   std::tie(render_layers, current_composition_planes) =
-      display_plane_manager_->ValidateLayers(
-          &layers, previous_layers_, previous_plane_state_, needs_modeset_);
+      display_plane_manager_->ValidateLayers(&layers, previous_plane_state_,
+                                             needs_modeset_, layers_changed);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
