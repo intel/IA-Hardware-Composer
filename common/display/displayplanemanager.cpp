@@ -102,7 +102,8 @@ bool DisplayPlaneManager::Initialize(uint32_t pipe_id, uint32_t width,
 }
 
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
-    std::vector<OverlayLayer> &layers, bool pending_modeset) {
+    std::vector<OverlayLayer> &layers, bool pending_modeset,
+    bool disable_overlay) {
   CTRACE();
   DisplayPlaneStateList composition;
   std::vector<OverlayPlane> commit_planes;
@@ -119,7 +120,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   ++layer_begin;
   // Lets ensure we fall back to GPU composition in case
   // primary layer cannot be scanned out directly.
-  if ((pending_modeset && layers.size() > 1) ||
+  if ((pending_modeset && layers.size() > 1) || disable_overlay ||
       FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
     DisplayPlaneState &last_plane = composition.back();
     render_layers = true;
@@ -364,10 +365,6 @@ void DisplayPlaneManager::ValidateFinalLayers(
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
-#ifdef DISABLE_OVERLAY_USAGE
-  return true;
-#endif
-
   if (!target_plane->ValidateLayer(layer))
     return true;
 
