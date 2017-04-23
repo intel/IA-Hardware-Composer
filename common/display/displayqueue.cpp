@@ -187,6 +187,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
     case kOn:
       needs_modeset_ = true;
       needs_color_correction_ = true;
+      flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
       drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                                   DRM_MODE_DPMS_ON);
 
@@ -284,17 +285,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     layers_changed = true;
   }
 
-  uint32_t flags = 0;
   if (needs_modeset_) {
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
     layers_changed = true;
     use_layer_cache_ = false;
   } else {
-#ifdef DISABLE_OVERLAY_USAGE
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-#else
-    flags |= DRM_MODE_ATOMIC_NONBLOCK;
-#endif
     use_layer_cache_ = true;
   }
 
@@ -349,7 +343,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   kms_fence_handler_->EnsureReadyForNextFrame();
 
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
-                                           pset.get(), flags)) {
+                                           pset.get(), flags_)) {
     ETRACE("Failed to Commit layers.");
     return false;
   }
@@ -365,6 +359,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     spin_lock_.lock();
     buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
     spin_lock_.unlock();
+    if (needs_modeset_ && out_fence_ptr_prop_ != 0) {
+      flags_ = 0;
+      flags_ |= DRM_MODE_ATOMIC_NONBLOCK;
+    }
+
+    needs_modeset_ = false;
   }
 
   for (NativeSurface* surface : in_flight_surfaces_) {

@@ -50,7 +50,8 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t pipe_id, uint32_t width, uint32_t height);
 
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
-      std::vector<OverlayLayer> &layers, bool pending_modeset);
+      std::vector<OverlayLayer> &layers, bool pending_modeset,
+      bool disable_overlay);
 
   bool CommitFrame(const DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, uint32_t flags);
