@@ -101,7 +101,6 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   imported_buffer_.reset(new ImportedBuffer(buffer_.get(), buffer_manager, -1));
   width_ = buffer_->GetWidth();
   height_ = buffer_->GetHeight();
-  layer_.SetNativeHandle(native_handle_);
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
   layer_.SetBuffer(imported_buffer_.get());

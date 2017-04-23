@@ -52,12 +52,6 @@ struct OverlayLayer {
     return index_;
   }
 
-  void SetNativeHandle(HWCNativeHandle handle);
-
-  HWCNativeHandle GetNativeHandle() const {
-    return sf_handle_;
-  }
-
   void SetTransform(int32_t sf_transform);
 
   uint32_t GetTransform() const {
@@ -152,7 +146,6 @@ struct OverlayLayer {
   HwcRect<int> display_frame_;
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  HWCNativeHandle sf_handle_ = 0;
   bool layer_pos_changed_ = true;
   bool layer_attributes_changed_ = true;
   std::unique_ptr<ImportedBuffer> imported_buffer_;

@@ -33,10 +33,6 @@ void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
 }
 
-void OverlayLayer::SetNativeHandle(HWCNativeHandle handle) {
-  sf_handle_ = handle;
-}
-
 void OverlayLayer::SetTransform(int32_t transform) {
   transform_ = transform;
   rotation_ = 0;
