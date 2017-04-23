@@ -110,7 +110,9 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   }
 
   glDisable(GL_SCISSOR_TEST);
-  surface->SetNativeFence(context_.GetSyncFD());
+  if (!disable_explicit_sync_)
+    surface->SetNativeFence(context_.GetSyncFD());
+
   return true;
 }
 
@@ -135,6 +137,10 @@ void GLRenderer::InsertFence(uint64_t kms_fence) {
   } else {
     glFlush();
   }
+}
+
+void GLRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
+  disable_explicit_sync_ = disable_explicit_sync;
 }
 
 GLProgram *GLRenderer::GetProgram(unsigned texture_count) {

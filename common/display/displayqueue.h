@@ -114,6 +114,7 @@ class DisplayQueue {
   bool needs_color_correction_ = false;
   bool use_layer_cache_ = false;
   bool needs_modeset_ = true;
+  bool disable_overlay_usage_ = false;
   std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
