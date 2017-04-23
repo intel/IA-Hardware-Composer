@@ -26,6 +26,11 @@ namespace hwcomposer {
 template <typename T>
 using HwcRect = Rect<T>;
 
+struct HwcRegion {
+  uint32_t kNumRects = 0;
+  HwcRect<int> const* kRects;
+};
+
 enum class HWCBlending : int32_t {
   kBlendingNone = 0x0100,
   kBlendingPremult = 0x0105,

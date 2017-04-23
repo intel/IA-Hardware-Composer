@@ -62,6 +62,11 @@ struct HwcLayer {
     return display_frame_;
   }
 
+  void SetSurfaceDamage(const HwcRegion& surface_damage);
+  const HwcRegion& GetSurfaceDamage() const {
+    return surface_damage_;
+  }
+
  private:
   uint32_t transform_ = 0;
   uint8_t alpha_ = 0xff;
@@ -69,6 +74,7 @@ struct HwcLayer {
   HwcRect<int> display_frame_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
+  HwcRegion surface_damage_;
 };
 
 }  // namespace hwcomposer
