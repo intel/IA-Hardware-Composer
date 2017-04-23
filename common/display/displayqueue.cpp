@@ -203,6 +203,47 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
+void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
+                                   DisplayPlaneStateList* composition,
+                                   bool* render_layers) {
+  bool needs_gpu_composition = false;
+  for (const DisplayPlaneState& plane : previous_plane_state_) {
+    bool region_changed = false;
+    composition->emplace_back(plane.plane());
+    DisplayPlaneState& last_plane = composition->back();
+    last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
+                         plane.GetCompositionState());
+
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      needs_gpu_composition = true;
+      const std::vector<size_t>& source_layers = plane.source_layers();
+      size_t layers_size = source_layers.size();
+      for (size_t i = 0; i < layers_size; i++) {
+        size_t source_index = source_layers.at(i);
+        if (layers.at(source_index).HasLayerPositionChanged()) {
+          region_changed = true;
+          break;
+        }
+      }
+
+      display_plane_manager_->EnsureOffScreenTarget(last_plane);
+      if (!region_changed) {
+        const std::vector<CompositionRegion>& comp_regions =
+            plane.GetCompositionRegion();
+        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                 comp_regions.end());
+      }
+    } else {
+      const OverlayLayer* layer =
+          &(*(layers.begin() + last_plane.source_layers().front()));
+      layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
+      last_plane.SetOverlayLayer(layer);
+    }
+  }
+
+  *render_layers = needs_gpu_composition;
+}
+
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
@@ -241,27 +282,33 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  if (size != previous_size) {
+  if (!use_layer_cache_ || (size != previous_size)) {
     layers_changed = true;
   }
 
   uint32_t flags = 0;
   if (needs_modeset_) {
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+    layers_changed = true;
+    use_layer_cache_ = false;
   } else {
 #ifdef DISABLE_OVERLAY_USAGE
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 #else
     flags |= DRM_MODE_ATOMIC_NONBLOCK;
 #endif
+    use_layer_cache_ = true;
   }
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
   // Validate Overlays and Layers usage.
-  std::tie(render_layers, current_composition_planes) =
-      display_plane_manager_->ValidateLayers(&layers, previous_plane_state_,
-                                             needs_modeset_, layers_changed);
+  if (!layers_changed) {
+    GetCachedLayers(layers, &current_composition_planes, &render_layers);
+  } else {
+    std::tie(render_layers, current_composition_planes) =
+        display_plane_manager_->ValidateLayers(layers, needs_modeset_);
+  }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 

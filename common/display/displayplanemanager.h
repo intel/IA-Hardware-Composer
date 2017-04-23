@@ -50,9 +50,7 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t pipe_id, uint32_t width, uint32_t height);
 
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
-      std::vector<OverlayLayer> *layers,
-      const DisplayPlaneStateList &previous_planes_state, bool pending_modeset,
-      bool layers_changed);
+      std::vector<OverlayLayer> &layers, bool pending_modeset);
 
   bool CommitFrame(const DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, uint32_t flags);
@@ -60,6 +58,8 @@ class DisplayPlaneManager {
   void DisablePipe(drmModeAtomicReqPtr property_set);
 
   bool CheckPlaneFormat(uint32_t format);
+
+  void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
  protected:
   struct OverlayPlane {
@@ -78,13 +78,8 @@ class DisplayPlaneManager {
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
-  void EnsureOffScreenTarget(DisplayPlaneState &plane);
   void ValidateFinalLayers(DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> *layers);
-  void ValidateCachedLayers(
-      const DisplayPlaneStateList &previous_composition_planes,
-      const std::vector<OverlayLayer> *layers,
-      DisplayPlaneStateList *composition, bool *render_layers);
+			   std::vector<OverlayLayer> &layers);
 
   OverlayBufferManager *buffer_manager_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
@@ -96,7 +91,6 @@ class DisplayPlaneManager {
   uint32_t height_;
   uint32_t crtc_id_;
   uint32_t gpu_fd_;
-  bool use_cache_;
 };
 
 }  // namespace hwcomposer
