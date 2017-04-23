@@ -43,6 +43,8 @@ class Renderer {
   virtual void RestoreState() = 0;
 
   virtual bool MakeCurrent() = 0;
+
+  virtual void SetExplicitSyncSupport(bool disable_explicit_sync) = 0;
 };
 
 }  // namespace hwcomposer

@@ -57,6 +57,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
+  disable_overlay_usage_ = out_fence_ptr_prop_ == 0;
 
   memset(&mode_, 0, sizeof(mode_));
   display_plane_manager_.reset(
@@ -128,15 +129,11 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 
 bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
                             uint64_t* out_fence) {
-  if (out_fence_ptr_prop_ != 0) {
-    int ret = drmModeAtomicAddProperty(
-        property_set, crtc_id_, out_fence_ptr_prop_, (uintptr_t)out_fence);
-    if (ret < 0) {
-      ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
-      return false;
-    }
-  } else {
-    *out_fence = 0;
+  int ret = drmModeAtomicAddProperty(property_set, crtc_id_,
+                                     out_fence_ptr_prop_, (uintptr_t)out_fence);
+  if (ret < 0) {
+    ETRACE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
+    return false;
   }
 
   return true;
@@ -147,8 +144,6 @@ bool DisplayQueue::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
     drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
     old_blob_id_ = 0;
   }
-
-  needs_modeset_ = false;
 
   drmModeCreatePropertyBlob(gpu_fd_, &mode_, sizeof(drmModeModeInfo),
                             &blob_id_);
@@ -299,12 +294,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     GetCachedLayers(layers, &current_composition_planes, &render_layers);
   } else {
     std::tie(render_layers, current_composition_planes) =
-        display_plane_manager_->ValidateLayers(layers, needs_modeset_);
+        display_plane_manager_->ValidateLayers(layers, needs_modeset_,
+                                               disable_overlay_usage_);
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
-  if (!compositor_.BeginFrame()) {
+  if (!compositor_.BeginFrame(disable_overlay_usage_)) {
     ETRACE("Failed to initialize compositor.");
     return false;
   }
@@ -331,7 +327,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       ETRACE("Failed to Modeset.");
       return false;
     }
-  } else {
+  } else if (!disable_overlay_usage_) {
     GetFence(pset.get(), &fence);
   }
 
@@ -359,7 +355,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     spin_lock_.lock();
     buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
     spin_lock_.unlock();
-    if (needs_modeset_ && out_fence_ptr_prop_ != 0) {
+    if (!disable_overlay_usage_) {
       flags_ = 0;
       flags_ |= DRM_MODE_ATOMIC_NONBLOCK;
     }

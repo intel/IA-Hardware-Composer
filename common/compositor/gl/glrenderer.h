@@ -42,6 +42,8 @@ class GLRenderer : public Renderer {
 
   bool MakeCurrent() override;
 
+  void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+
  private:
   GLProgram *GetProgram(unsigned texture_count);
 
@@ -49,6 +51,7 @@ class GLRenderer : public Renderer {
 
   std::vector<std::unique_ptr<GLProgram>> programs_;
   GLuint vertex_array_ = 0;
+  bool disable_explicit_sync_ = false;
 };
 
 }  // namespace hwcomposer

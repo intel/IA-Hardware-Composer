@@ -82,7 +82,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     overlay_layer.SetBuffer(buffer);
   }
 
-  if (!compositor_.BeginFrame()) {
+  if (!compositor_.BeginFrame(true)) {
     ETRACE("Failed to initialize compositor.");
     return false;
   }
