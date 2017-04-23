@@ -66,6 +66,8 @@ class DisplayQueue {
 
   void HandleExit();
 
+  void HandleCommitUpdate(const std::vector<const OverlayBuffer*>& buffers);
+
  private:
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
@@ -117,6 +119,7 @@ class DisplayQueue {
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
+  SpinLock spin_lock_;
 };
 
 }  // namespace hwcomposer

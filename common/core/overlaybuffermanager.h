@@ -108,7 +108,6 @@ class OverlayBufferManager {
     uint32_t ref_count_ = 0;
   };
 
-  SpinLock spin_lock_;
   std::vector<Buffer> buffers_;
   std::unique_ptr<NativeBufferHandler> buffer_handler_;
 };

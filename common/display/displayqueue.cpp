@@ -62,7 +62,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
 
-  kms_fence_handler_.reset(new KMSFenceEventHandler(buffer_manager_));
+  kms_fence_handler_.reset(new KMSFenceEventHandler(this));
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
   /* use 0x80 as default brightness for all colors */
@@ -249,7 +249,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
   bool layers_changed = false;
-
+  spin_lock_.lock();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
     layers.emplace_back();
@@ -278,6 +278,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       }
     }
   }
+
+  spin_lock_.unlock();
 
   if (!use_layer_cache_ || (size != previous_size)) {
     layers_changed = true;
@@ -347,10 +349,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   kms_fence_handler_->EnsureReadyForNextFrame();
 
-  for (NativeSurface* surface : in_flight_surfaces_) {
-    surface->SetInUse(false);
-  }
-
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags)) {
     ETRACE("Failed to Commit layers.");
@@ -365,7 +363,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
     compositor_.InsertFence(fence);
+    spin_lock_.lock();
     buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
+    spin_lock_.unlock();
+  }
+
+  for (NativeSurface* surface : in_flight_surfaces_) {
+    surface->SetInUse(false);
   }
 
   previous_layers_.swap(layers);
@@ -381,6 +385,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   return true;
+}
+
+void DisplayQueue::HandleCommitUpdate(
+    const std::vector<const OverlayBuffer*>& buffers) {
+  spin_lock_.lock();
+  buffer_manager_->UnRegisterBuffers(buffers);
+  spin_lock_.unlock();
 }
 
 void DisplayQueue::HandleExit() {
