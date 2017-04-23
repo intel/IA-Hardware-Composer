@@ -51,8 +51,8 @@ class DisplayPlaneManager {
 
   std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
       std::vector<OverlayLayer> *layers,
-      const std::vector<OverlayLayer> &previous_layers,
-      const DisplayPlaneStateList &previous_planes_state, bool pending_modeset);
+      const DisplayPlaneStateList &previous_planes_state, bool pending_modeset,
+      bool layers_changed);
 
   bool CommitFrame(const DisplayPlaneStateList &planes,
                    drmModeAtomicReqPtr property_set, uint32_t flags);
@@ -80,10 +80,9 @@ class DisplayPlaneManager {
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
   void ValidateFinalLayers(DisplayPlaneStateList &list,
-			   std::vector<OverlayLayer> *layers);
+                           std::vector<OverlayLayer> *layers);
   void ValidateCachedLayers(
       const DisplayPlaneStateList &previous_composition_planes,
-      const std::vector<OverlayLayer> &previous_layers,
       const std::vector<OverlayLayer> *layers,
       DisplayPlaneStateList *composition, bool *render_layers);
 

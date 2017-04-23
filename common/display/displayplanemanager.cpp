@@ -104,8 +104,8 @@ bool DisplayPlaneManager::Initialize(uint32_t pipe_id, uint32_t width,
 
 std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> *layers,
-    const std::vector<OverlayLayer> &previous_layers,
-    const DisplayPlaneStateList &previous_planes_state, bool pending_modeset) {
+    const DisplayPlaneStateList &previous_planes_state, bool pending_modeset,
+    bool layers_changed) {
   CTRACE();
   DisplayPlaneStateList composition;
   std::vector<OverlayPlane> commit_planes;
@@ -116,9 +116,9 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 #ifndef DISABLE_OVERLAY_USAGE
   // Check if the combination of layers is same as last frame
   // and if so check if we can use the result of last validation.
-  if (!previous_layers.empty() && use_cache_ && !pending_modeset) {
-    ValidateCachedLayers(previous_planes_state, previous_layers, layers,
-                         &composition, &render_layers);
+  if (!layers_changed && use_cache_ && !pending_modeset) {
+    ValidateCachedLayers(previous_planes_state, layers, &composition,
+                         &render_layers);
     if (!composition.empty())
       return std::make_tuple(render_layers, std::move(composition));
   }
@@ -379,52 +379,42 @@ void DisplayPlaneManager::ValidateFinalLayers(
 
 void DisplayPlaneManager::ValidateCachedLayers(
     const DisplayPlaneStateList &previous_composition_planes,
-    const std::vector<OverlayLayer> &previous_layers,
     const std::vector<OverlayLayer> *layers, DisplayPlaneStateList *composition,
     bool *render_layers) {
-  size_t size = layers->size();
-  if (size != previous_layers.size()) {
-    return;
-  }
-
-  for (size_t i = 0; i < size; i++) {
-    if (previous_layers.at(i) != layers->at(i)) {
-      return;
-    }
-  }
-
   bool needs_gpu_composition = false;
   for (const DisplayPlaneState &plane : previous_composition_planes) {
-    composition->emplace_back(plane.plane());
-    DisplayPlaneState &last_plane = composition->back();
-    last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
-                         plane.GetCompositionState());
-    if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
-      EnsureOffScreenTarget(last_plane);
+    bool region_changed = false;
+    bool gpu_composition =
+        plane.GetCompositionState() == DisplayPlaneState::State::kRender;
+    if (gpu_composition) {
       needs_gpu_composition = true;
-      const std::vector<CompositionRegion> &comp_regions =
-          plane.GetCompositionRegion();
-      const std::vector<size_t> &source_layers = last_plane.source_layers();
-      bool region_changed = false;
+      const std::vector<size_t> &source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
       for (size_t i = 0; i < layers_size; i++) {
-        size_t index = source_layers.at(i);
-        const HwcRect<int> &previous =
-            previous_layers.at(index).GetDisplayFrame();
-        const HwcRect<int> &current = layers->at(index).GetDisplayFrame();
-        if ((previous.left != current.left) || (previous.top != current.top)) {
+        size_t source_index = source_layers.at(i);
+        if (layers->at(source_index).HasLayerPositionChanged()) {
           region_changed = true;
           break;
         }
       }
+    }
 
+    composition->emplace_back(plane.plane());
+    DisplayPlaneState &last_plane = composition->back();
+    last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
+                         plane.GetCompositionState());
+
+    if (gpu_composition) {
+      EnsureOffScreenTarget(last_plane);
       if (!region_changed) {
+        const std::vector<CompositionRegion> &comp_regions =
+            plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
                                                  comp_regions.end());
       }
     } else {
-      const OverlayLayer *layer =
-          &(*(layers->begin() + last_plane.source_layers().front()));
+      size_t source_index = last_plane.source_layers().front();
+      const OverlayLayer *layer = &(*(layers->begin() + source_index));
       layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
       last_plane.SetOverlayLayer(layer);
     }

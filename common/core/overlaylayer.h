@@ -29,8 +29,6 @@
 namespace hwcomposer {
 
 struct OverlayLayer {
-  bool operator!=(const OverlayLayer& rhs) const;
-
   void SetAcquireFence(int fd) {
     acquire_fence_.Reset(fd);
   }
@@ -109,14 +107,34 @@ struct OverlayLayer {
   uint32_t GetSourceCropWidth() const {
     return source_crop_width_;
   }
+
   uint32_t GetSourceCropHeight() const {
     return source_crop_height_;
   }
+
   uint32_t GetDisplayFrameWidth() const {
     return display_frame_width_;
   }
+
   uint32_t GetDisplayFrameHeight() const {
     return display_frame_height_;
+  }
+
+  // Validates current state with previous frame state of
+  // layer at same z order.
+  void ValidatePreviousFrameState(const OverlayLayer& rhs);
+
+  // Returns true if position of layer has
+  // changed from previous frame.
+  bool HasLayerPositionChanged() const {
+    return layer_pos_changed_;
+  }
+
+  // Returns true if any other attribute of layer
+  // other than psotion has changed from previous
+  // frame.
+  bool HasLayerAttributesChanged() const {
+    return layer_attributes_changed_;
   }
 
   void Dump();
@@ -135,6 +153,8 @@ struct OverlayLayer {
   ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
+  bool layer_pos_changed_ = true;
+  bool layer_attributes_changed_ = true;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
 };
 
