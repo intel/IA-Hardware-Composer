@@ -123,18 +123,18 @@ bool GLRenderer::MakeCurrent() {
 }
 
 void GLRenderer::InsertFence(uint64_t kms_fence) {
-#ifndef DISABLE_EXPLICIT_SYNC
-  EGLint attrib_list[] = {
-      EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
-      EGL_NONE,
-  };
-  EGLSyncKHR fence = eglCreateSyncKHR(
-      context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
-  eglWaitSyncKHR(context_.GetDisplay(), fence, 0);
-  eglDestroySyncKHR(context_.GetDisplay(), fence);
-#else
-  glFlush();
-#endif
+  if (kms_fence > 0) {
+    EGLint attrib_list[] = {
+        EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
+        EGL_NONE,
+    };
+    EGLSyncKHR fence = eglCreateSyncKHR(
+        context_.GetDisplay(), EGL_SYNC_NATIVE_FENCE_ANDROID, attrib_list);
+    eglWaitSyncKHR(context_.GetDisplay(), fence, 0);
+    eglDestroySyncKHR(context_.GetDisplay(), fence);
+  } else {
+    glFlush();
+  }
 }
 
 GLProgram *GLRenderer::GetProgram(unsigned texture_count) {

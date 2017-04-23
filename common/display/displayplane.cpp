@@ -126,13 +126,11 @@ bool DisplayPlane::Initialize(uint32_t gpu_fd,
   if (!ret)
     ETRACE("Could not get alpha property");
 
-#ifndef DISABLE_EXPLICIT_SYNC
   ret = in_fence_fd_prop_.Initialize(gpu_fd, "IN_FENCE_FD", plane_props);
-  if (!ret)
+  if (!ret) {
     ETRACE("Could not get IN_FENCE_FD property");
-#else
-  in_fence_fd_prop_.id = 0;
-#endif
+    in_fence_fd_prop_.id = 0;
+  }
 
   return true;
 }
@@ -197,12 +195,11 @@ bool DisplayPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
     success =
         drmModeAtomicAddProperty(property_set, id_, alpha_prop_.id, alpha) < 0;
   }
-#ifndef DISABLE_EXPLICIT_SYNC
+
   if (fence != -1 && in_fence_fd_prop_.id) {
     success = drmModeAtomicAddProperty(property_set, id_, in_fence_fd_prop_.id,
                                        fence) < 0;
   }
-#endif
 
   if (success) {
     ETRACE("Could not update properties for plane with id: %d", id_);
