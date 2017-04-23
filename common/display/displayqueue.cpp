@@ -253,6 +253,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   spin_lock_.lock();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
+    const HwcRegion& current_surface_damage = layer->GetSurfaceDamage();
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetTransform(layer->GetTransform());
@@ -270,18 +271,22 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (ret < 0)
       ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
 
+    if (!use_layer_cache_)
+      continue;
+
     if (previous_size > layer_index) {
-      overlay_layer.ValidatePreviousFrameState(
-          previous_layers_.at(layer_index));
-      if (overlay_layer.HasLayerAttributesChanged()) {
-        layers_changed = true;
-      }
+      overlay_layer.SetSurfaceDamage(current_surface_damage,
+                                     previous_layers_.at(layer_index));
+    }
+
+    if (overlay_layer.HasLayerAttributesChanged()) {
+      layers_changed = true;
     }
   }
 
   spin_lock_.unlock();
 
-  if (!use_layer_cache_ || (size != previous_size)) {
+  if (!use_layer_cache_ || size != previous_size) {
     layers_changed = true;
   }
 
