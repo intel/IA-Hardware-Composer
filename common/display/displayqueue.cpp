@@ -301,12 +301,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
-  if (!compositor_.BeginFrame(disable_overlay_usage_)) {
-    ETRACE("Failed to initialize compositor.");
-    return false;
-  }
-
   if (render_layers) {
+      if (!compositor_.BeginFrame(disable_overlay_usage_)) {
+	ETRACE("Failed to initialize compositor.");
+	return false;
+      }
+
     // Prepare for final composition.
     if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
       ETRACE("Failed to prepare for the frame composition. ");
@@ -346,13 +346,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (fence > 0) {
-    compositor_.InsertFence(dup(fence));
+    if (render_layers)
+      compositor_.InsertFence(dup(fence));
     *retire_fence = dup(fence);
     kms_fence_handler_->WaitFence(fence, previous_layers_);
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
-    compositor_.InsertFence(fence);
+    if (render_layers)
+      compositor_.InsertFence(fence);
+
     spin_lock_.lock();
     buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
     spin_lock_.unlock();
