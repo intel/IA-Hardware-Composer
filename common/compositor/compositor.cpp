@@ -65,6 +65,7 @@ void Compositor::Reset() {
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                       std::vector<OverlayLayer> &layers,
                       const std::vector<HwcRect<int>> &display_frame) {
+  CTRACE();
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
   ScopedRendererState state(renderer_.get());
@@ -160,6 +161,7 @@ void Compositor::InsertFence(uint64_t fence) {
 bool Compositor::Render(std::vector<OverlayLayer> &layers,
                         NativeSurface *surface,
                         const std::vector<CompositionRegion> &comp_regions) {
+  CTRACE();
   std::vector<RenderState> states;
   size_t num_regions = comp_regions.size();
   states.reserve(num_regions);
@@ -200,6 +202,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
                                 const std::vector<size_t> &source_layers,
                                 const std::vector<HwcRect<int>> &display_frame,
                                 std::vector<CompositionRegion> &comp_regions) {
+  CTRACE();
   if (source_layers.size() > 64) {
     ETRACE("Failed to separate layers because there are more than 64");
     return;

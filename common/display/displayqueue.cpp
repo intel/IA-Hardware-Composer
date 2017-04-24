@@ -199,6 +199,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    DisplayPlaneStateList* composition,
                                    bool* render_layers) {
+  CTRACE();
   bool needs_gpu_composition = false;
   for (const DisplayPlaneState& plane : previous_plane_state_) {
     bool region_changed = false;

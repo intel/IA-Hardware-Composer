@@ -43,12 +43,17 @@ bool KMSFenceEventHandler::Initialize() {
 }
 
 bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
+  CTRACE();
   // Lets ensure the job associated with previous frame
   // has been done, else commit will fail with -EBUSY.
-  if (kms_ready_fence_ > 0) {
-    HWCPoll(kms_ready_fence_, -1);
-    close(kms_ready_fence_);
-    kms_ready_fence_ = 0;
+  ready_fence_lock_.lock();
+  uint64_t kms_ready_fence = kms_ready_fence_;
+  ready_fence_lock_.unlock();
+
+  if (kms_ready_fence > 0) {
+    HWCPoll(kms_ready_fence, -1);
+    close(kms_ready_fence);
+    kms_ready_fence = 0;
   }
 
   return true;
@@ -56,7 +61,9 @@ bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
 
 void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
                                      std::vector<OverlayLayer>& layers) {
+  CTRACE();
   spin_lock_.lock();
+  kms_fence_ = kms_fence;
   for (OverlayLayer& layer : layers) {
     OverlayBuffer* const buffer = layer.GetBuffer();
     buffers_.emplace_back(buffer);
@@ -66,8 +73,10 @@ void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
     layer.ReleaseBuffer();
   }
 
-  kms_fence_ = kms_fence;
+  ready_fence_lock_.lock();
   kms_ready_fence_ = dup(kms_fence);
+  ready_fence_lock_.unlock();
+
   spin_lock_.unlock();
   Resume();
 }
@@ -78,15 +87,30 @@ void KMSFenceEventHandler::ExitThread() {
 
 void KMSFenceEventHandler::HandleRoutine() {
   spin_lock_.lock();
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
+  std::vector<const OverlayBuffer*> buffers;
+  buffers.swap(buffers_);
+  uint64_t kms_fence = kms_fence_;
+  kms_fence_ = 0;
+  spin_lock_.unlock();
+
+  ready_fence_lock_.lock();
+  uint64_t kms_ready_fence = kms_ready_fence_;
+  ready_fence_lock_.unlock();
+
+  if (kms_fence > 0) {
+    HWCPoll(kms_fence, -1);
+    close(kms_fence);
+    kms_fence = 0;
   }
 
-  display_queue_->HandleCommitUpdate(buffers_);
-  std::vector<const OverlayBuffer*>().swap(buffers_);
-  spin_lock_.unlock();
+  ready_fence_lock_.lock();
+  if (kms_ready_fence == kms_ready_fence_) {
+    close(kms_ready_fence_);
+    kms_ready_fence_ = 0;
+  }
+  ready_fence_lock_.unlock();
+
+  display_queue_->HandleCommitUpdate(buffers);
 }
 
 }  // namespace hwcomposer

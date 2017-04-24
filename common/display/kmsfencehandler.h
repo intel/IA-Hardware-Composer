@@ -48,6 +48,7 @@ class KMSFenceEventHandler : public HWCThread {
 
  private:
   SpinLock spin_lock_;
+  SpinLock ready_fence_lock_;
   std::vector<const OverlayBuffer*> buffers_;
   uint64_t kms_fence_;
   uint64_t kms_ready_fence_;
