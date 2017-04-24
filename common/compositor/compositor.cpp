@@ -43,7 +43,7 @@ void Compositor::Init() {
   gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
 }
 
-bool Compositor::BeginFrame() {
+bool Compositor::BeginFrame(bool disable_explicit_sync) {
   if (!renderer_) {
     renderer_.reset(CreateRenderer());
     if (!renderer_->Init()) {
@@ -52,6 +52,8 @@ bool Compositor::BeginFrame() {
       return false;
     }
   }
+
+  renderer_->SetExplicitSyncSupport(disable_explicit_sync);
 
   return true;
 }

@@ -21,40 +21,6 @@
 
 namespace hwcomposer {
 
-bool OverlayLayer::operator!=(const OverlayLayer& rhs) const {
-  OverlayBuffer* buffer = imported_buffer_->buffer_;
-  if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
-    return true;
-
-  // We expect cursor plane to support alpha always.
-  if (!(buffer->GetUsage() & kLayerCursor)) {
-    if (alpha_ != rhs.alpha_)
-      return true;
-  }
-
-  if (blending_ != rhs.blending_)
-    return true;
-
-  // We check only for rotation and not transfor as this
-  // valueis arrived from transform_
-  if (rotation_ != rhs.rotation_)
-    return true;
-
-  if (display_frame_width_ != rhs.display_frame_width_)
-    return true;
-
-  if (display_frame_height_ != rhs.display_frame_height_)
-    return true;
-
-  if (source_crop_width_ != rhs.source_crop_width_)
-    return true;
-
-  if (source_crop_height_ != rhs.source_crop_height_)
-    return true;
-
-  return false;
-}
-
 int OverlayLayer::GetReleaseFence() {
   return imported_buffer_->release_fence_;
 }
@@ -65,10 +31,6 @@ void OverlayLayer::ReleaseBuffer() {
 
 void OverlayLayer::SetIndex(uint32_t index) {
   index_ = index;
-}
-
-void OverlayLayer::SetNativeHandle(HWCNativeHandle handle) {
-  sf_handle_ = handle;
 }
 
 void OverlayLayer::SetTransform(int32_t transform) {
@@ -108,6 +70,46 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_width_ = display_frame.right - display_frame.left;
   display_frame_height_ = display_frame.bottom - display_frame.top;
   display_frame_ = display_frame;
+}
+
+void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs) {
+  OverlayBuffer* buffer = imported_buffer_->buffer_;
+  if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
+    return;
+
+  // We expect cursor plane to support alpha always.
+  if (!(buffer->GetUsage() & kLayerCursor)) {
+    if (alpha_ != rhs.alpha_)
+      return;
+  }
+
+  if (blending_ != rhs.blending_)
+    return;
+
+  // We check only for rotation and not transform as this
+  // value is arrived from transform_
+  if (rotation_ != rhs.rotation_)
+    return;
+
+  if (display_frame_width_ != rhs.display_frame_width_)
+    return;
+
+  if (display_frame_height_ != rhs.display_frame_height_)
+    return;
+
+  if (source_crop_width_ != rhs.source_crop_width_)
+    return;
+
+  if (source_crop_height_ != rhs.source_crop_height_)
+    return;
+
+  layer_attributes_changed_ = false;
+
+  const HwcRect<int>& previous = rhs.GetDisplayFrame();
+  if ((previous.left == display_frame_.left) &&
+      (previous.top == display_frame_.top)) {
+    layer_pos_changed_ = false;
+  }
 }
 
 void OverlayLayer::Dump() {

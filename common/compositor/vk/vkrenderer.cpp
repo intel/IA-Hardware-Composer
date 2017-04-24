@@ -682,11 +682,6 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 }
 
 void VKRenderer::InsertFence(uint64_t kms_fence) {
-#ifndef DISABLE_EXPLICIT_SYNC
-// TODO create and sync on egl fence
-#else
-// TODO flush context and close kms_fence
-#endif
 }
 
 void VKRenderer::RestoreState() {
@@ -694,6 +689,9 @@ void VKRenderer::RestoreState() {
 
 bool VKRenderer::MakeCurrent() {
   return true;
+}
+
+void VKRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
 VKProgram *VKRenderer::GetProgram(unsigned texture_count) {

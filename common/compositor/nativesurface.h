@@ -57,10 +57,6 @@ class NativeSurface {
     return &layer_;
   }
 
-  HWCNativeHandle GetNativeHandle() const {
-    return native_handle_;
-  }
-
   void SetNativeFence(int fd);
   int ReleaseNativeFence() {
     return fd_.Release();
@@ -73,8 +69,6 @@ class NativeSurface {
   }
 
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
-
-  void ResetInFlightMode();
 
  protected:
   OverlayLayer layer_;

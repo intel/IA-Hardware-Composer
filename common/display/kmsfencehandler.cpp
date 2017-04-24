@@ -16,16 +16,17 @@
 
 #include "kmsfencehandler.h"
 
+#include "displayqueue.h"
 #include "hwcutils.h"
 #include "hwctrace.h"
 
 namespace hwcomposer {
 
-KMSFenceEventHandler::KMSFenceEventHandler(OverlayBufferManager* buffer_manager)
+KMSFenceEventHandler::KMSFenceEventHandler(DisplayQueue* display_queue)
     : HWCThread(-8, "KMSFenceEventHandler"),
       kms_fence_(0),
       kms_ready_fence_(0),
-      buffer_manager_(buffer_manager) {
+      display_queue_(display_queue) {
 }
 
 KMSFenceEventHandler::~KMSFenceEventHandler() {
@@ -83,7 +84,7 @@ void KMSFenceEventHandler::HandleRoutine() {
     kms_fence_ = 0;
   }
 
-  buffer_manager_->UnRegisterBuffers(buffers_);
+  display_queue_->HandleCommitUpdate(buffers_);
   std::vector<const OverlayBuffer*>().swap(buffers_);
   spin_lock_.unlock();
 }
