@@ -15,6 +15,22 @@
 ifeq ($(strip $(BOARD_USES_DRM_HWCOMPOSER)),true)
 
 LOCAL_PATH := $(call my-dir)
+
+# =====================
+# libdrmhwc_utils.a
+# =====================
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := \
+	worker.cpp
+
+LOCAL_MODULE := libdrmhwc_utils
+
+include $(BUILD_STATIC_LIBRARY)
+
+# =====================
+# hwcomposer.drm.so
+# =====================
 include $(CLEAR_VARS)
 
 LOCAL_SHARED_LIBRARIES := \
@@ -28,6 +44,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libui \
 	libutils
 
+LOCAL_STATIC_LIBRARIES := libdrmhwc_utils
 
 LOCAL_C_INCLUDES := \
 	external/drm_gralloc \
@@ -60,8 +77,7 @@ LOCAL_SRC_FILES := \
 	platformnv.cpp \
 	separate_rects.cpp \
 	virtualcompositorworker.cpp \
-	vsyncworker.cpp \
-	worker.cpp
+	vsyncworker.cpp
 
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \
@@ -80,4 +96,5 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+include $(call all-makefiles-under,$(LOCAL_PATH))
 endif
