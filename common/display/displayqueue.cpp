@@ -413,18 +413,14 @@ void DisplayQueue::HandleExit() {
     ETRACE("Failed to set display to inactive");
     return;
   }
+
+  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
   display_plane_manager_->DisablePipe(pset.get());
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
   std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
   compositor_.Reset();
-
-  for (NativeSurface* surface : in_flight_surfaces_) {
-    surface->SetInUse(false);
-  }
-
-  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
