@@ -43,7 +43,8 @@ class GLWorkerCompositor {
 
   int Init();
   int Composite(DrmHwcLayer *layers, DrmCompositionRegion *regions,
-                size_t num_regions, const sp<GraphicBuffer> &framebuffer);
+                size_t num_regions, const sp<GraphicBuffer> &framebuffer,
+                Importer *importer);
   void Finish();
 
  private:
