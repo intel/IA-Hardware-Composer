@@ -65,12 +65,20 @@ DrmHwcTwo::DrmHwcTwo() {
 }
 
 HWC2::Error DrmHwcTwo::Init() {
+  char value[PROPERTY_VALUE_MAX];
+  property_get("board.disable.explicit.sync", value, "0");
+  disable_explicit_sync_ = atoi(value);
+  if (disable_explicit_sync_)
+    ALOGI("EXPLICIT SYNC support is disabled");
+  else
+    ALOGI("EXPLICIT SYNC support is enabled");
+
   displays_.emplace(std::piecewise_construct,
                     std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
                     std::forward_as_tuple(&device_, HWC_DISPLAY_PRIMARY,
                                           HWC2::DisplayType::Physical));
 
-  displays_.at(HWC_DISPLAY_PRIMARY).Init();
+  displays_.at(HWC_DISPLAY_PRIMARY).Init(disable_explicit_sync_);
   return HWC2::Error::None;
 }
 
@@ -92,7 +100,7 @@ HWC2::Error DrmHwcTwo::CreateVirtualDisplay(uint32_t width, uint32_t height,
                     std::forward_as_tuple(&device_, HWC_DISPLAY_VIRTUAL,
                                           HWC2::DisplayType::Virtual));
   *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  displays_.at(*display).Init(width, height);
+  displays_.at(*display).Init(width, height, disable_explicit_sync_);
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -153,7 +161,8 @@ DrmHwcTwo::HwcDisplay::HwcDisplay(hwcomposer::GpuDevice *device,
 }
 
 // This function will be called only for Virtual Display Init
-HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height) {
+HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height,
+                                        bool disable_explicit_sync) {
   supported(__func__);
   if (!device_->Initialize()) {
     ALOGE("Can't initialize drm object.");
@@ -161,10 +170,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height) {
   }
   display_ = device_->GetVirtualDisplay();
   display_->InitVirtualDisplay(width, height);
-  return Init();
+  return Init(disable_explicit_sync);
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::Init() {
+HWC2::Error DrmHwcTwo::HwcDisplay::Init(bool disable_explicit_sync) {
   supported(__func__);
 
   if (type_ != HWC2::DisplayType::Virtual) {
@@ -179,6 +188,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init() {
       return HWC2::Error::BadDisplay;
     }
   }
+
+  disable_explicit_sync_ = disable_explicit_sync;
+  display_->SetExplicitSyncSupport(disable_explicit_sync_);
 
   // Fetch the number of modes from the display
   uint32_t num_configs;
@@ -577,14 +589,11 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
           ++*num_types;
           break;
         default:
-#ifdef DISABLE_OVERLAY_USAGE
-          layer.set_validated_type(HWC2::Composition::Client);
-#else
-          if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
+	  if (disable_explicit_sync_ || display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
             layer.set_validated_type(HWC2::Composition::Client);
-          else
-            layer.set_validated_type(layer.sf_type());
-#endif
+          } else {
+              layer.set_validated_type(layer.sf_type());
+          }
           break;
       }
     }

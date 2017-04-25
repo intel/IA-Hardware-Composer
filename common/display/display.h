@@ -94,6 +94,7 @@ class Display : public NativeDisplay {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   bool SetBroadcastRGB(const char *range_property) override;
+  void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
  protected:
   uint32_t CrtcId() const override {

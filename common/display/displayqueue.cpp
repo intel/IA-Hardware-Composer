@@ -615,4 +615,12 @@ bool DisplayQueue::SetBroadcastRGB(const char* range_property) {
   return true;
 }
 
+void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
+  if (disable_explicit_sync == true) {
+    disable_overlay_usage_ = true;
+  } else {
+    disable_overlay_usage_ = out_fence_ptr_prop_ == 0;
+  }
+}
+
 }  // namespace hwcomposer

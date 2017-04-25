@@ -142,6 +142,8 @@ class NativeDisplay {
   */
   virtual bool CheckPlaneFormat(uint32_t format) = 0;
 
+  virtual void SetExplicitSyncSupport(bool /*explicit_sync_enabled*/) {
+  }
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,

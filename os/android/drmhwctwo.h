@@ -122,8 +122,9 @@ class DrmHwcTwo : public hwc2_device_t {
     HwcDisplay(hwcomposer::GpuDevice *device, hwc2_display_t handle,
                HWC2::DisplayType type);
     HwcDisplay(const HwcDisplay &) = delete;
-    HWC2::Error Init();
-    HWC2::Error Init(uint32_t width, uint32_t height);
+    HWC2::Error Init(bool disable_explicit_sync);
+    HWC2::Error Init(uint32_t width, uint32_t height,
+                     bool disable_explicit_sync);
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
@@ -184,6 +185,7 @@ class DrmHwcTwo : public hwc2_device_t {
     uint32_t frame_no_ = 0;
     // True after validateDisplay
     bool checkValidateDisplay = false;
+    bool disable_explicit_sync_ = false;
   };
 
   static DrmHwcTwo *toDrmHwcTwo(hwc2_device_t *dev) {
@@ -239,6 +241,8 @@ class DrmHwcTwo : public hwc2_device_t {
   hwcomposer::GpuDevice device_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
+
+  bool disable_explicit_sync_ = false;
 };
 }  // namespace android
 

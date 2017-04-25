@@ -63,6 +63,7 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   bool SetBroadcastRGB(const char* range_property);
+  void SetExplicitSyncSupport(bool disable_explicit_sync);
 
   void HandleExit();
 
