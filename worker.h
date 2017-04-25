@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2015-2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,33 +17,39 @@
 #ifndef ANDROID_WORKER_H_
 #define ANDROID_WORKER_H_
 
-#include <pthread.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string>
+
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 namespace android {
 
 class Worker {
  public:
-  int Lock();
-  int Unlock();
+  void Lock() {
+    mutex_.lock();
+  }
+  void Unlock() {
+    mutex_.unlock();
+  }
 
-  // Must be called with the lock acquired
-  int SignalLocked();
-  int ExitLocked();
+  void Signal() {
+    cond_.notify_all();
+  }
+  void Exit();
 
-  // Convenience versions of above, acquires the lock
-  int Signal();
-  int Exit();
+  bool initialized() const {
+    return initialized_;
+  }
 
  protected:
   Worker(const char *name, int priority);
   virtual ~Worker();
 
   int InitWorker();
-
-  bool initialized() const;
-
   virtual void Routine() = 0;
 
   /*
@@ -54,22 +60,22 @@ class Worker {
    */
   int WaitForSignalOrExitLocked(int64_t max_nanoseconds = -1);
 
- private:
-  static void *InternalRoutine(void *worker);
+  bool should_exit() const {
+    return exit_;
+  }
 
-  // Must be called with the lock acquired
-  int SignalThreadLocked(bool exit);
+  std::mutex mutex_;
+  std::condition_variable cond_;
+
+ private:
+  void InternalRoutine();
 
   std::string name_;
   int priority_;
 
-  pthread_t thread_;
-  pthread_mutex_t lock_;
-  pthread_cond_t cond_;
-
+  std::unique_ptr<std::thread> thread_;
   bool exit_;
   bool initialized_;
 };
 }
-
 #endif

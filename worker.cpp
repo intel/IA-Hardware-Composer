@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2015-2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,190 +14,79 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "hwc-drm-worker"
-
 #include "worker.h"
 
-#include <errno.h>
-#include <pthread.h>
-#include <stdlib.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
-#include <sys/signal.h>
-#include <time.h>
-
-#include <cutils/log.h>
 
 namespace android {
-
-static const int64_t kBillion = 1000000000LL;
 
 Worker::Worker(const char *name, int priority)
     : name_(name), priority_(priority), exit_(false), initialized_(false) {
 }
 
 Worker::~Worker() {
-  if (!initialized_)
-    return;
-
-  pthread_kill(thread_, SIGTERM);
-  pthread_cond_destroy(&cond_);
-  pthread_mutex_destroy(&lock_);
+  Exit();
 }
 
 int Worker::InitWorker() {
-  pthread_condattr_t cond_attr;
-  pthread_condattr_init(&cond_attr);
-  pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
-  int ret = pthread_cond_init(&cond_, &cond_attr);
-  if (ret) {
-    ALOGE("Failed to int thread %s condition %d", name_.c_str(), ret);
-    return ret;
-  }
+  if (initialized())
+    return -EALREADY;
 
-  ret = pthread_mutex_init(&lock_, NULL);
-  if (ret) {
-    ALOGE("Failed to init thread %s lock %d", name_.c_str(), ret);
-    pthread_cond_destroy(&cond_);
-    return ret;
-  }
-
-  ret = pthread_create(&thread_, NULL, InternalRoutine, this);
-  if (ret) {
-    ALOGE("Could not create thread %s %d", name_.c_str(), ret);
-    pthread_mutex_destroy(&lock_);
-    pthread_cond_destroy(&cond_);
-    return ret;
-  }
+  thread_ = std::unique_ptr<std::thread>(
+      new std::thread(&Worker::InternalRoutine, this));
   initialized_ = true;
+
   return 0;
 }
 
-bool Worker::initialized() const {
-  return initialized_;
-}
-
-int Worker::Lock() {
-  return pthread_mutex_lock(&lock_);
-}
-
-int Worker::Unlock() {
-  return pthread_mutex_unlock(&lock_);
-}
-
-int Worker::SignalLocked() {
-  return SignalThreadLocked(false);
-}
-
-int Worker::ExitLocked() {
-  int signal_ret = SignalThreadLocked(true);
-  if (signal_ret)
-    ALOGE("Failed to signal thread %s with exit %d", name_.c_str(), signal_ret);
-
-  int join_ret = pthread_join(thread_, NULL);
-  if (join_ret && join_ret != ESRCH)
-    ALOGE("Failed to join thread %s in exit %d", name_.c_str(), join_ret);
-
-  return signal_ret | join_ret;
-}
-
-int Worker::Signal() {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to acquire lock in Signal() %d\n", ret);
-    return ret;
+void Worker::Exit() {
+  if (initialized()) {
+    Lock();
+    exit_ = true;
+    Unlock();
+    cond_.notify_all();
+    thread_->join();
+    initialized_ = false;
   }
-
-  int signal_ret = SignalLocked();
-
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to release lock in Signal() %d\n", ret);
-    return ret;
-  }
-  return signal_ret;
-}
-
-int Worker::Exit() {
-  int ret = Lock();
-  if (ret) {
-    ALOGE("Failed to acquire lock in Exit() %d\n", ret);
-    return ret;
-  }
-
-  int exit_ret = ExitLocked();
-
-  ret = Unlock();
-  if (ret) {
-    ALOGE("Failed to release lock in Exit() %d\n", ret);
-    return ret;
-  }
-  return exit_ret;
 }
 
 int Worker::WaitForSignalOrExitLocked(int64_t max_nanoseconds) {
-  if (exit_)
+  int ret = 0;
+  if (should_exit())
     return -EINTR;
 
-  int ret = 0;
+  std::unique_lock<std::mutex> lk(mutex_, std::adopt_lock);
   if (max_nanoseconds < 0) {
-    ret = pthread_cond_wait(&cond_, &lock_);
-  } else {
-    struct timespec abs_deadline;
-    ret = clock_gettime(CLOCK_MONOTONIC, &abs_deadline);
-    if (ret)
-      return ret;
-    int64_t nanos = (int64_t)abs_deadline.tv_nsec + max_nanoseconds;
-    abs_deadline.tv_sec += nanos / kBillion;
-    abs_deadline.tv_nsec = nanos % kBillion;
-    ret = pthread_cond_timedwait(&cond_, &lock_, &abs_deadline);
-    if (ret == ETIMEDOUT)
-      ret = -ETIMEDOUT;
+    cond_.wait(lk);
+  } else if (std::cv_status::timeout ==
+             cond_.wait_for(lk, std::chrono::nanoseconds(max_nanoseconds))) {
+    ret = -ETIMEDOUT;
   }
 
-  if (exit_)
-    return -EINTR;
+  // exit takes precedence on timeout
+  if (should_exit())
+    ret = -EINTR;
+
+  // release leaves lock unlocked when returning
+  lk.release();
 
   return ret;
 }
 
-// static
-void *Worker::InternalRoutine(void *arg) {
-  Worker *worker = (Worker *)arg;
+void Worker::InternalRoutine() {
+  setpriority(PRIO_PROCESS, 0, priority_);
+  prctl(PR_SET_NAME, name_.c_str());
 
-  setpriority(PRIO_PROCESS, 0, worker->priority_);
+  std::unique_lock<std::mutex> lk(mutex_, std::defer_lock);
 
   while (true) {
-    int ret = worker->Lock();
-    if (ret) {
-      ALOGE("Failed to lock %s thread %d", worker->name_.c_str(), ret);
-      continue;
-    }
+    lk.lock();
+    if (should_exit())
+      return;
+    lk.unlock();
 
-    bool exit = worker->exit_;
-
-    ret = worker->Unlock();
-    if (ret) {
-      ALOGE("Failed to unlock %s thread %d", worker->name_.c_str(), ret);
-      break;
-    }
-    if (exit)
-      break;
-
-    worker->Routine();
+    Routine();
   }
-  return NULL;
-}
-
-int Worker::SignalThreadLocked(bool exit) {
-  if (exit)
-    exit_ = exit;
-
-  int ret = pthread_cond_signal(&cond_);
-  if (ret) {
-    ALOGE("Failed to signal condition on %s thread %d", name_.c_str(), ret);
-    return ret;
-  }
-
-  return 0;
 }
 }
