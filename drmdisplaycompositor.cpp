@@ -375,7 +375,8 @@ int DrmDisplayCompositor::ApplySquash(DrmDisplayComposition *display_comp) {
 
   std::vector<DrmCompositionRegion> &regions = display_comp->squash_regions();
   ret = pre_compositor_->Composite(display_comp->layers().data(),
-                                   regions.data(), regions.size(), fb.buffer());
+                                   regions.data(), regions.size(), fb.buffer(),
+                                   display_comp->importer());
   pre_compositor_->Finish();
 
   if (ret) {
@@ -408,7 +409,8 @@ int DrmDisplayCompositor::ApplyPreComposite(
 
   std::vector<DrmCompositionRegion> &regions = display_comp->pre_comp_regions();
   ret = pre_compositor_->Composite(display_comp->layers().data(),
-                                   regions.data(), regions.size(), fb.buffer());
+                                   regions.data(), regions.size(), fb.buffer(),
+                                   display_comp->importer());
   pre_compositor_->Finish();
 
   if (ret) {
