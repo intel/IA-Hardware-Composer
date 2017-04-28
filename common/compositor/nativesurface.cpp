@@ -35,8 +35,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
 NativeSurface::~NativeSurface() {
   // Ensure we close any framebuffers before
   // releasing buffer.
-  if (layer_.GetBuffer())
-    layer_.GetBuffer()->ReleaseFrameBuffer();
+  buffer_.release();
 
   if (buffer_handler_ && native_handle_) {
     buffer_handler_->DestroyBuffer(native_handle_);
@@ -98,12 +97,13 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   buffer_.reset(new OverlayBuffer());
   buffer_->InitializeFromNativeHandle(native_handle,
                                       buffer_manager->GetNativeBufferHandler());
-  imported_buffer_.reset(new ImportedBuffer(buffer_.get(), buffer_manager, -1));
+  ImportedBuffer* imported_buffer_ = new ImportedBuffer(buffer_.get(), buffer_manager, -1);
+  imported_buffer_->owned_buffer_ = false;
   width_ = buffer_->GetWidth();
   height_ = buffer_->GetHeight();
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(imported_buffer_.get());
+  layer_.SetBuffer(imported_buffer_);
 }
 
 }  // namespace hwcomposer
