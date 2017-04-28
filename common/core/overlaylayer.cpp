@@ -114,22 +114,6 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs) {
 
 void OverlayLayer::SetSurfaceDamage(const HwcRegion& surface_damage,
                                     const OverlayLayer& rhs) {
-  if (surface_damage.kNumRects == 1) {
-    const HwcRect<int>* rect = surface_damage.kRects;
-    if ((rect->top == 0) && (rect->bottom == 0) && (rect->left == 0) &&
-        (rect->right == 0)) {
-      layer_attributes_changed_ = false;
-
-      const HwcRect<int>& previous = rhs.GetDisplayFrame();
-      if ((previous.left == display_frame_.left) &&
-          (previous.top == display_frame_.top)) {
-        layer_pos_changed_ = false;
-      }
-
-      return;
-    }
-  }
-
   ValidatePreviousFrameState(rhs);
 }
 

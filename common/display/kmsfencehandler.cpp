@@ -48,6 +48,7 @@ bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
   // has been done, else commit will fail with -EBUSY.
   ready_fence_lock_.lock();
   uint64_t kms_ready_fence = kms_ready_fence_;
+  kms_ready_fence_ = 0;
   ready_fence_lock_.unlock();
 
   if (kms_ready_fence > 0) {
@@ -104,7 +105,7 @@ void KMSFenceEventHandler::HandleRoutine() {
   }
 
   ready_fence_lock_.lock();
-  if (kms_ready_fence == kms_ready_fence_) {
+  if (kms_ready_fence_ && kms_ready_fence == kms_ready_fence_) {
     close(kms_ready_fence_);
     kms_ready_fence_ = 0;
   }
