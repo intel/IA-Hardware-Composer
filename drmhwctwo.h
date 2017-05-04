@@ -118,6 +118,8 @@ class DrmHwcTwo : public hwc2_device_t {
     hwc_rect_t display_frame_;
     float alpha_ = 1.0f;
     hwc_frect_t source_crop_;
+    int32_t cursor_x_;
+    int32_t cursor_y_;
     HWC2::Transform transform_ = HWC2::Transform::None;
     uint32_t z_order_ = 0;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
@@ -205,6 +207,7 @@ class DrmHwcTwo : public hwc2_device_t {
     HwcLayer client_layer_;
     UniqueFd retire_fence_;
     UniqueFd next_retire_fence_;
+    int32_t color_mode_;
 
     uint32_t frame_no_ = 0;
   };
