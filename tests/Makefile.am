@@ -21,7 +21,10 @@
 #  SOFTWARE.
 #
 
-bin_PROGRAMS = testlayers colorcorrection_autotest
+bin_PROGRAMS = testlayers
+if !ENABLE_GBM
+bin_PROGRAMS += colorcorrection_autotest
+endif
 
 testlayers_LDFLAGS = \
 	-no-undefined
@@ -62,7 +65,6 @@ if !ENABLE_GBM
 testlayers_SOURCES +=   \
     ./common/videolayerrenderer.cpp \
     ./common/imagelayerrenderer.cpp
-endif
 
 colorcorrection_autotest_LDFLAGS = \
         -no-undefined
@@ -81,3 +83,4 @@ colorcorrection_autotest_CFLAGS = \
 colorcorrection_autotest_SOURCES = \
      ./autotests/colorcorrection_autotest.cpp \
      ./common/igt.cpp
+endif
