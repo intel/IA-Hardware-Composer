@@ -21,9 +21,14 @@
 
 class StreamTextureImpl;
 
+namespace hwcomposer {
+class NativeBufferHandler;
+}
+
 class GLCubeLayerRenderer : public GLLayerRenderer {
  public:
-  GLCubeLayerRenderer(struct gbm_device *gbm_dev, bool enable_texture);
+  GLCubeLayerRenderer(hwcomposer::NativeBufferHandler *buffer_handler,
+                      bool enable_texture);
   ~GLCubeLayerRenderer() override;
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,

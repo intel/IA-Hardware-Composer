@@ -23,7 +23,7 @@
 
 class VideoLayerRenderer : public LayerRenderer {
  public:
-  VideoLayerRenderer(struct gbm_device* gbm_dev);
+  VideoLayerRenderer(hwcomposer::NativeBufferHandler* buffer_handler);
   ~VideoLayerRenderer() override;
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,

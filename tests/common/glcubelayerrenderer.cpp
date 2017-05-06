@@ -22,6 +22,8 @@
 #include <iostream>
 #include <cmath>
 
+#include <nativebufferhandler.h>
+
 struct Dimension {
   EGLint width = 0;
   EGLint height = 0;
@@ -34,7 +36,8 @@ class StreamTextureImpl {
     glDeleteTextures(1, &gl_tex_);
     gl_->eglDestroyImageKHR(gl_->display, image_);
     close(fd_);
-    gbm_bo_destroy(bo_);
+    if (buffer_handler_)
+      buffer_handler_->DestroyBuffer(handle_);
   }
 
   void *Map() {
@@ -61,21 +64,23 @@ class StreamTextureImpl {
     return dimension_;
   }
 
-  bool Initialize(struct gbm_device *gbm) {
-    bo_ = gbm_bo_create(gbm, dimension_.width, dimension_.height,
-                        GBM_FORMAT_ARGB8888, GBM_BO_USE_LINEAR);
-    if (!bo_) {
-      printf("failed to create a gbm buffer.\n");
+  bool Initialize(hwcomposer::NativeBufferHandler *buffer_handler) {
+    // bo_ = gbm_bo_create(gbm, dimension_.width, dimension_.height,
+    //			GBM_FORMAT_ARGB8888, GBM_BO_USE_LINEAR);
+    buffer_handler_ = buffer_handler;
+    if (!buffer_handler_->CreateBuffer(dimension_.width, dimension_.height,
+                                       GBM_FORMAT_ARGB8888, &handle_)) {
+      ETRACE("StreamTextureImpl: CreateBuffer failed");
       return false;
     }
 
-    fd_ = gbm_bo_get_fd(bo_);
-    if (fd_ < 0) {
-      printf("failed to get fb for bo: %d\n", fd_);
+    if (!buffer_handler_->ImportBuffer(handle_, &bo_)) {
+      ETRACE("StreamTextureImpl: ImportBuffer failed");
       return false;
     }
 
-    dimension_.stride = gbm_bo_get_stride(bo_);
+    dimension_.stride = bo_.pitches[0];
+    fd_ = bo_.prime_fd;
     EGLint offset = 0;
     const EGLint khr_image_attrs[] = {
         EGL_DMA_BUF_PLANE0_FD_EXT,     fd_,
@@ -112,7 +117,9 @@ class StreamTextureImpl {
 
  private:
   glContext *gl_;
-  struct gbm_bo *bo_ = nullptr;
+  HWCNativeHandle handle_;
+  HwcBuffer bo_;
+  hwcomposer::NativeBufferHandler *buffer_handler_ = nullptr;
   int fd_ = -1;
   EGLImageKHR image_ = nullptr;
   GLuint gl_tex_ = 0;
@@ -120,9 +127,9 @@ class StreamTextureImpl {
   void *addr_ = nullptr;
 };
 
-GLCubeLayerRenderer::GLCubeLayerRenderer(struct gbm_device *dev,
-                                         bool enable_texture)
-    : GLLayerRenderer(dev) {
+GLCubeLayerRenderer::GLCubeLayerRenderer(
+    hwcomposer::NativeBufferHandler *buffer_handler, bool enable_texture)
+    : GLLayerRenderer(buffer_handler) {
   enable_texture_ = enable_texture;
 }
 
@@ -545,7 +552,7 @@ bool GLCubeLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     if (!stream_texture_)
       return false;
 
-    stream_texture_->Initialize(gbm_dev_);
+    stream_texture_->Initialize(buffer_handler_);
   }
 
   return true;
@@ -613,10 +620,7 @@ void GLCubeLayerRenderer::glDrawFrame() {
   esRotate(&modelview, 10.0f + (0.15f * frame_count_), 0.0f, 0.0f, 1.0f);
   frame_count_++;
 
-  uint32_t height = native_handle_.import_data.height;
-  uint32_t width = native_handle_.import_data.width;
-
-  GLfloat aspect = (GLfloat)(height) / (GLfloat)(width);
+  GLfloat aspect = (GLfloat)(height_) / (GLfloat)(width_);
 
   ESMatrix projection;
   esMatrixLoadIdentity(&projection);

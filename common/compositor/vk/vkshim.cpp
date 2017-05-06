@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "vkshim.h"
-#include <gbm.h>
 
 #include "hwctrace.h"
 

@@ -37,6 +37,14 @@ class NativeBufferHandler {
   virtual bool DestroyBuffer(HWCNativeHandle handle) = 0;
 
   virtual bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) = 0;
+
+  virtual uint32_t GetTotalPlanes(HWCNativeHandle handle) = 0;
+
+  virtual void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
+                    uint32_t width, uint32_t height, uint32_t *stride,
+                    void **map_data, size_t plane) = 0;
+
+  virtual void UnMap(HWCNativeHandle handle, void *map_data) = 0;
 };
 
 }  // namespace hwcomposer

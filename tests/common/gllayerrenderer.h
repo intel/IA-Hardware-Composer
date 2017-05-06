@@ -24,7 +24,7 @@
 
 class GLLayerRenderer : public LayerRenderer {
  public:
-  GLLayerRenderer(struct gbm_device* gbm_dev);
+  GLLayerRenderer(hwcomposer::NativeBufferHandler* buffer_handler);
   ~GLLayerRenderer() override;
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,

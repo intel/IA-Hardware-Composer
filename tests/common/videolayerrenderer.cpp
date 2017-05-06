@@ -18,8 +18,11 @@
 #include <stdio.h>
 #include <drm_fourcc.h>
 
-VideoLayerRenderer::VideoLayerRenderer(struct gbm_device* gbm_dev)
-    : LayerRenderer(gbm_dev) {
+#include <nativebufferhandler.h>
+
+VideoLayerRenderer::VideoLayerRenderer(
+    hwcomposer::NativeBufferHandler* buffer_handler)
+    : LayerRenderer(buffer_handler) {
 }
 
 VideoLayerRenderer::~VideoLayerRenderer() {
@@ -198,11 +201,9 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
   }
 
   void* pOpaque = NULL;
-  uint32_t width = native_handle_.import_data.width;
-  uint32_t height = native_handle_.import_data.height;
   uint32_t mapStride;
-  void* pBo = gbm_bo_map(gbm_bo_, 0, 0, width, height, GBM_BO_TRANSFER_WRITE,
-                         &mapStride, &pOpaque, 0);
+  void* pBo = buffer_handler_->Map(handle_, 0, 0, width_, height_, &mapStride,
+                                   &pOpaque, 0);
   if (!pBo) {
     ETRACE("gbm_bo_map is not successful!");
     return;
@@ -210,14 +211,11 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
 
   char* pReadLoc = NULL;
   for (int i = 0; i < planes_; i++) {
-    uint32_t planeReadCount = 0;
-    pReadLoc = (char*)pBo + native_handle_.import_data.offsets[i];
+    pReadLoc = (char*)pBo + bo_.offsets[i];
 
-    uint32_t lineBytes =
-        get_linewidth_from_format(native_handle_.import_data.format, width, i);
+    uint32_t lineBytes = get_linewidth_from_format(format_, width_, i);
     uint32_t readHeight = 0;
-    uint32_t planeHeight =
-        get_height_from_format(native_handle_.import_data.format, height, i);
+    uint32_t planeHeight = get_height_from_format(format_, height_, i);
 
     while (readHeight < planeHeight) {
       uint32_t lineReadCount = fread(pReadLoc, 1, lineBytes, resource_fd_);
@@ -228,11 +226,11 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
         ETRACE("Maybe not aligned video source file with line width!");
         break;
       }
-      pReadLoc += native_handle_.import_data.strides[i];
+      pReadLoc += bo_.pitches[i];
       readHeight++;
     }
   }
 
-  gbm_bo_unmap(gbm_bo_, pOpaque);
+  buffer_handler_->UnMap(handle_, pOpaque);
   *pfence = -1;
 }

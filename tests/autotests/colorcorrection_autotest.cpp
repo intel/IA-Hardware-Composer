@@ -35,10 +35,11 @@
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <gbm.h>
 #include <drm_fourcc.h>
 #include <gpudevice.h>
+#include <hwcbuffer.h>
 #include <hwclayer.h>
+#include <nativebufferhandler.h>
 #include <nativedisplay.h>
 #include <platformdefines.h>
 #include <nativefence.h>
@@ -52,12 +53,12 @@ static uint64_t arg_frames = 0;
 
 /* keep multiple frames, layers support for future usages */
 struct frame {
-  struct gbm_bo *gbm_bo;
   std::vector<std::unique_ptr<hwcomposer::HwcLayer>> layers;
   std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>>
       layers_fences;
   std::vector<int32_t> fences;
-  struct gbm_handle native_handle;
+  HWCNativeHandle handle_;
+  HwcBuffer bo_;
 };
 
 static struct frame test_frame;
@@ -194,49 +195,18 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   hwcomposer::SpinLock spin_lock_;
 };
 
-static struct { struct gbm_device *dev; } gbm;
-
-struct drm_fb {
-  struct gbm_bo *bo;
-};
-
-static int init_gbm(int fd) {
-  gbm.dev = gbm_create_device(fd);
-  if (!gbm.dev) {
-    printf("failed to create gbm device\n");
-    return -1;
-  }
-
-  return 0;
-}
+hwcomposer::NativeBufferHandler *buffer_handler;
 
 static void init_frame(int32_t width, int32_t height) {
-  test_frame.gbm_bo = gbm_bo_create(gbm.dev, width, height, GBM_FORMAT_XRGB8888,
-                                    GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-  if (!test_frame.gbm_bo) {
-    printf("failed to create gbm_bo\n");
+  if (!buffer_handler->CreateBuffer(width, height, 0, &test_frame.handle_)) {
+    ETRACE("ColorCorrection: CreateBuffer failed");
     exit(EXIT_FAILURE);
   }
 
-  int gbm_bo_fd = gbm_bo_get_fd(test_frame.gbm_bo);
-  if (gbm_bo_fd == -1) {
-    printf("gbm_bo_get_fd() failed\n");
+  if (!buffer_handler->ImportBuffer(test_frame.handle_, &test_frame.bo_)) {
+    ETRACE("ColorCorrection: CreateBuffer failed");
     exit(EXIT_FAILURE);
   }
-
-  int planes = gbm_bo_get_num_planes(test_frame.gbm_bo);
-  for (size_t i = 0; i < planes; i++) {
-    test_frame.native_handle.import_data.offsets[i] =
-        gbm_bo_get_plane_offset(test_frame.gbm_bo, i);
-    test_frame.native_handle.import_data.strides[i] =
-        gbm_bo_get_plane_stride(test_frame.gbm_bo, i);
-    test_frame.native_handle.import_data.fds[i] = gbm_bo_fd;
-  }
-
-  test_frame.native_handle.import_data.width = width;
-  test_frame.native_handle.import_data.height = height;
-  test_frame.native_handle.import_data.format =
-      gbm_bo_get_format(test_frame.gbm_bo);
 
   test_frame.layers_fences.resize(1);
   hwcomposer::HwcLayer *hwc_layer = NULL;
@@ -244,7 +214,7 @@ static void init_frame(int32_t width, int32_t height) {
   hwc_layer->SetTransform(0);
   hwc_layer->SetSourceCrop(hwcomposer::HwcRect<float>(0, 0, width, height));
   hwc_layer->SetDisplayFrame(hwcomposer::HwcRect<int>(0, 0, width, height));
-  hwc_layer->SetNativeHandle(&test_frame.native_handle);
+  hwc_layer->SetNativeHandle(test_frame.handle_);
   test_frame.layers.push_back(std::unique_ptr<hwcomposer::HwcLayer>(hwc_layer));
 }
 
@@ -320,26 +290,22 @@ int main(int argc, char *argv[]) {
   primary_width = displays.at(0)->Width();
   primary_height = displays.at(0)->Height();
 
-  ret = init_gbm(fd);
-  if (ret) {
-    printf("failed to initialize GBM\n");
-    close(fd);
-    return ret;
-  }
+  buffer_handler = hwcomposer::NativeBufferHandler::CreateInstance(fd);
+
+  if (!buffer_handler)
+    exit(-1);
 
   init_frame(primary_width, primary_height);
 
-  uint32_t width = test_frame.native_handle.import_data.width;
-  uint32_t height = test_frame.native_handle.import_data.height;
-  uint32_t stride = test_frame.native_handle.import_data.strides[0];
   void *pOpaque = NULL;
   uint32_t mapStride;
-  void *pBo = gbm_bo_map(test_frame.gbm_bo, 0, 0, width, height,
-                         GBM_BO_TRANSFER_WRITE, &mapStride, &pOpaque, 0);
-
+  void *pBo =
+      buffer_handler->Map(test_frame.handle_, 0, 0, test_frame.bo_.width,
+                          test_frame.bo_.height, &mapStride, &pOpaque, 0);
   if (!pBo) {
     ret = 1;
     printf("gbm_bo_map is not successful!");
+    delete buffer_handler;
     return ret;
   }
 
@@ -368,7 +334,7 @@ int main(int argc, char *argv[]) {
   }
   test_frame.layers_fences[0].clear();
   std::vector<hwcomposer::HwcLayer *>().swap(layers);
-  draw_colors(pBo, height, stride, false);
+  draw_colors(pBo, test_frame.bo_.height, test_frame.bo_.pitches[0], false);
   test_frame.layers[0]->acquire_fence.Reset(-1);
   layers.emplace_back(test_frame.layers[0].get());
   callback->PresentLayers(layers, test_frame.layers_fences, test_frame.fences);
@@ -392,13 +358,13 @@ int main(int argc, char *argv[]) {
   }
   test_frame.layers_fences[0].clear();
   std::vector<hwcomposer::HwcLayer *>().swap(layers);
-  draw_colors(pBo, height, stride, true);
+  draw_colors(pBo, test_frame.bo_.height, test_frame.bo_.pitches[0], true);
   test_frame.layers[0]->acquire_fence.Reset(-1);
   layers.emplace_back(test_frame.layers[0].get());
   callback->PresentLayers(layers, test_frame.layers_fences, test_frame.fences);
   get_crc_list(displays, gamma_crc_list);
 
-  gbm_bo_unmap(test_frame.gbm_bo, pOpaque);
+  buffer_handler->UnMap(test_frame.handle_, pOpaque);
 
   // restore default gamma and broadcast RGB
   callback->SetGamma(1, 1, 1);
@@ -423,5 +389,6 @@ int main(int argc, char *argv[]) {
     printf("\nFAILED\n");
   }
 
+  delete buffer_handler;
   exit(ret);
 }

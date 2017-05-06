@@ -34,6 +34,7 @@ struct gbm_handle {
   struct gbm_import_fd_data import_data;
 #endif
   struct gbm_bo* bo = NULL;
+  uint32_t total_planes = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;
