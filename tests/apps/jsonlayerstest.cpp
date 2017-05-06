@@ -268,10 +268,6 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
 static struct { struct gbm_device *dev; } gbm;
 
-struct drm_fb {
-  struct gbm_bo *bo;
-};
-
 static int init_gbm(int fd) {
   gbm.dev = gbm_create_device(fd);
   if (!gbm.dev) {
