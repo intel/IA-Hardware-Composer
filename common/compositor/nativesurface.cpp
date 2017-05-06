@@ -46,7 +46,7 @@ bool NativeSurface::Init(OverlayBufferManager *buffer_manager) {
   buffer_handler_ = buffer_manager->GetNativeBufferHandler();
   buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_);
   if (!native_handle_) {
-    ETRACE("Failed to create buffer.");
+    ETRACE("NativeSurface: Failed to create buffer.");
     return false;
   }
 

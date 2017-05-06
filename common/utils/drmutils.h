@@ -14,11 +14,11 @@
 // limitations under the License.
 */
 
-#ifndef OS_LINUX_GBMUTILS_H_
-#define OS_LINUX_GBMUTILS_H_
+#ifndef COMMON_UTILS_DRMUTILS_H_
+#define COMMON_UTILS_DRMUTILS_H_
 
 #include <drm_fourcc.h>
-static size_t gbm_bo_get_num_planes(uint32_t format) {
+static size_t drm_bo_get_num_planes(uint32_t format) {
   switch (format) {
     case DRM_FORMAT_ABGR1555:
     case DRM_FORMAT_ABGR2101010:
@@ -74,8 +74,8 @@ static size_t gbm_bo_get_num_planes(uint32_t format) {
       return 3;
   }
 
-  fprintf(stderr, "GBM: UNKNOWN FORMAT %d\n", format);
+  fprintf(stderr, "DRM: UNKNOWN FORMAT %d\n", format);
   return 0;
 }
 
-#endif  // OS_LINUX_GBMUTILS_H_
+#endif  // COMMON_UTILS_DRMUTILS_H_

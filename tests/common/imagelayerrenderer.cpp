@@ -16,8 +16,9 @@
 
 #include "imagelayerrenderer.h"
 
-ImageLayerRenderer::ImageLayerRenderer(struct gbm_device* gdb_dev)
-    : LayerRenderer(gdb_dev) {
+ImageLayerRenderer::ImageLayerRenderer(
+    hwcomposer::NativeBufferHandler* buffer_handler)
+    : LayerRenderer(buffer_handler) {
 }
 
 ImageLayerRenderer::~ImageLayerRenderer() {

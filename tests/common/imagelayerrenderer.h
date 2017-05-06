@@ -22,7 +22,7 @@
 
 class ImageLayerRenderer : public LayerRenderer {
  public:
-  ImageLayerRenderer(struct gbm_device* gbm_dev);
+  ImageLayerRenderer(hwcomposer::NativeBufferHandler* buffer_handler);
   ~ImageLayerRenderer();
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,
