@@ -30,7 +30,6 @@
 
 #include "compositor.h"
 #include "hwcthread.h"
-#include "kmsfencehandler.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
@@ -64,8 +63,6 @@ class DisplayQueue {
   void SetExplicitSyncSupport(bool disable_explicit_sync);
 
   void HandleExit();
-
-  void HandleCommitUpdate(const std::vector<const OverlayBuffer*>& buffers);
 
  private:
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
@@ -109,18 +106,16 @@ class DisplayQueue {
   uint32_t broadcastrgb_id_;
   int64_t broadcastrgb_full_;
   int64_t broadcastrgb_automatic_;
-  uint64_t fence_ = 0;
+  int32_t fence_ = 0;
   bool needs_color_correction_ = false;
   bool use_layer_cache_ = false;
   bool needs_modeset_ = true;
   bool disable_overlay_usage_ = false;
-  std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
-  SpinLock spin_lock_;
 };
 
 }  // namespace hwcomposer

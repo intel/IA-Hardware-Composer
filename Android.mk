@@ -58,7 +58,6 @@ LOCAL_SRC_FILES := \
 	common/display/displayqueue.cpp \
 	common/display/headless.cpp \
 	common/display/vblankeventhandler.cpp \
-        common/display/kmsfencehandler.cpp \
 	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/fdhandler.cpp \

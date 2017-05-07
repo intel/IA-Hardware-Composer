@@ -13,7 +13,6 @@ common_SOURCES =              \
     common/display/displayplane.cpp \
     common/display/displayplanemanager.cpp \
     common/display/headless.cpp \
-    common/display/kmsfencehandler.cpp \
     common/display/vblankeventhandler.cpp \
     common/display/virtualdisplay.cpp \
     common/utils/drmscopedtypes.cpp \

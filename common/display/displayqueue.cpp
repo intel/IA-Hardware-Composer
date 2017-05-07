@@ -24,6 +24,7 @@
 
 #include "displayplanemanager.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "overlaylayer.h"
 #include "vblankeventhandler.h"
 #include "nativesurface.h"
@@ -63,7 +64,6 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
 
-  kms_fence_handler_.reset(new KMSFenceEventHandler(this));
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
   /* use 0x80 as default brightness for all colors */
@@ -189,9 +189,6 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
       drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                                   DRM_MODE_DPMS_ON);
-
-      if (!kms_fence_handler_->Initialize())
-        return false;
       break;
     default:
       break;
@@ -250,7 +247,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
   bool layers_changed = false;
-  spin_lock_.lock();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
     const HwcRegion& current_surface_damage = layer->GetSurfaceDamage();
@@ -279,8 +275,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       layers_changed = true;
     }
   }
-
-  spin_lock_.unlock();
 
   if (!use_layer_cache_ || size != previous_size) {
     layers_changed = true;
@@ -342,13 +336,23 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     needs_color_correction_ = false;
   }
 
-  kms_fence_handler_->EnsureReadyForNextFrame();
+  if (fence_ > 0) {
+      HWCPoll(fence_, -1);
+      close(fence_);
+      fence_ = 0;
+  }
 
   if (!display_plane_manager_->CommitFrame(current_composition_planes,
                                            pset.get(), flags_)) {
     ETRACE("Failed to Commit layers.");
     return false;
   }
+
+  for (NativeSurface* surface : in_flight_surfaces_) {
+    surface->SetInUse(false);
+  }
+
+  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
 
   if (fence > 0) {
     if (render_layers)
@@ -366,61 +370,45 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         }
       } else if (plane.GetCompositionState() ==
                  DisplayPlaneState::State::kRender) {
+        NativeSurface* surface = plane.GetOffScreenTarget();
+        in_flight_surfaces_.emplace_back(surface);
         for (size_t layer_index = 0; layer_index < size; layer_index++) {
           HwcLayer* layer = source_layers.at(layers.at(layer_index));
-          layer->release_fence =
-              dup(plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence());
+          layer->release_fence = dup(surface->GetLayer()->GetAcquireFence());
         }
       }
     }
 
-    kms_fence_handler_->WaitFence(fence, previous_layers_);
+    fence_ = fence;
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
     if (render_layers)
       compositor_.InsertFence(fence);
 
-    spin_lock_.lock();
-    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
-    spin_lock_.unlock();
     if (!disable_overlay_usage_) {
       flags_ = 0;
       flags_ |= DRM_MODE_ATOMIC_NONBLOCK;
     }
 
+    for (DisplayPlaneState& plane_state : current_composition_planes) {
+      if (plane_state.GetCompositionState() ==
+          DisplayPlaneState::State::kRender) {
+        in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
+      }
+    }
+
     needs_modeset_ = false;
   }
 
-  for (NativeSurface* surface : in_flight_surfaces_) {
-    surface->SetInUse(false);
-  }
-
+  buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
   previous_layers_.swap(layers);
   previous_plane_state_.swap(current_composition_planes);
-
-  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
-
-  for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    if (plane_state.GetCompositionState() ==
-        DisplayPlaneState::State::kRender) {
-      in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
-    }
-  }
 
   return true;
 }
 
-void DisplayQueue::HandleCommitUpdate(
-    const std::vector<const OverlayBuffer*>& buffers) {
-  spin_lock_.lock();
-  buffer_manager_->UnRegisterBuffers(buffers);
-  spin_lock_.unlock();
-}
-
 void DisplayQueue::HandleExit() {
-  kms_fence_handler_->ExitThread();
-
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -442,6 +430,10 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
   compositor_.Reset();
+  if (fence_ > 0) {
+    close(fence_);
+    fence_ = 0;
+  }
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,

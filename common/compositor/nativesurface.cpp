@@ -69,7 +69,7 @@ bool NativeSurface::InitializeForOffScreenRendering(
 void NativeSurface::SetNativeFence(int fd) {
   if (fd_) {
     close(fd_);
-    fd_ = -1;
+    fd_ = 0;
   }
 
   fd_ = fd;
