@@ -25,7 +25,6 @@
 #include "factory.h"
 #include "hwctrace.h"
 #include "nativesurface.h"
-#include "nativesync.h"
 #include "overlaylayer.h"
 
 namespace hwcomposer {

@@ -21,14 +21,11 @@
 #include <xf86drmMode.h>
 
 #include <hwcbuffer.h>
-#include <scopedfd.h>
 
 #include <memory>
 #include <map>
 #include <vector>
 #include <tuple>
-
-#include "nativesync.h"
 
 #include "displayplanestate.h"
 

@@ -23,7 +23,6 @@
 
 #include <vector>
 
-#include "nativesync.h"
 #include "overlaylayer.h"
 
 #include "hwcthread.h"

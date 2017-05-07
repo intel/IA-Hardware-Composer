@@ -19,14 +19,13 @@
 
 #include <hwcdefs.h>
 #include <platformdefines.h>
-
-#include <nativefence.h>
+#include <scopedfd.h>
 
 namespace hwcomposer {
 
 struct HwcLayer {
   ScopedFd acquire_fence;
-  NativeFence release_fence;
+  int32_t release_fence = -1;
 
   void SetNativeHandle(HWCNativeHandle handle);
 

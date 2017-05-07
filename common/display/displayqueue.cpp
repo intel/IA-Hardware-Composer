@@ -267,10 +267,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     ImportedBuffer* buffer =
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer);
-    int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
-    if (ret < 0)
-      ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
-
     if (!use_layer_cache_)
       continue;
 
@@ -359,6 +355,25 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       compositor_.InsertFence(dup(fence));
 
     *retire_fence = dup(fence);
+
+    for (DisplayPlaneState& plane : current_composition_planes) {
+      const std::vector<size_t>& layers = plane.source_layers();
+      size_t size = layers.size();
+      if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+        for (size_t layer_index = 0; layer_index < size; layer_index++) {
+          HwcLayer* layer = source_layers.at(layers.at(layer_index));
+          layer->release_fence = dup(fence);
+        }
+      } else if (plane.GetCompositionState() ==
+                 DisplayPlaneState::State::kRender) {
+        for (size_t layer_index = 0; layer_index < size; layer_index++) {
+          HwcLayer* layer = source_layers.at(layers.at(layer_index));
+          layer->release_fence =
+              dup(plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence());
+        }
+      }
+    }
+
     kms_fence_handler_->WaitFence(fence, previous_layers_);
   } else {
     // This is the best we can do in this case, flush any 3D

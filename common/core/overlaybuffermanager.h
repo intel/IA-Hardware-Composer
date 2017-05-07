@@ -19,13 +19,11 @@
 #include <platformdefines.h>
 
 #include <nativebufferhandler.h>
-#include <nativefence.h>
 #include <spinlock.h>
 
 #include <memory>
 #include <vector>
 
-#include "nativesync.h"
 #include "overlaybuffer.h"
 
 namespace hwcomposer {
@@ -37,16 +35,13 @@ struct OverlayLayer;
 struct ImportedBuffer {
  public:
   ImportedBuffer(OverlayBuffer* const buffer,
-                 OverlayBufferManager* buffer_manager, int release_fence)
-      : buffer_(buffer),
-        release_fence_(release_fence),
-        buffer_manager_(buffer_manager) {
+                 OverlayBufferManager* buffer_manager)
+      : buffer_(buffer), buffer_manager_(buffer_manager) {
   }
 
   ~ImportedBuffer();
 
   OverlayBuffer* const buffer_;
-  int release_fence_;
   bool owned_buffer_ = true;
 
  private:
@@ -104,7 +99,6 @@ class OverlayBufferManager {
  private:
   struct Buffer {
     std::unique_ptr<OverlayBuffer> buffer_;
-    std::unique_ptr<NativeSync> sync_object_;
     uint32_t ref_count_ = 0;
   };
 

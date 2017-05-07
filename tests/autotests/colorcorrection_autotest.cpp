@@ -41,7 +41,6 @@
 #include <hwclayer.h>
 #include <nativedisplay.h>
 #include <platformdefines.h>
-#include <nativefence.h>
 #include <spinlock.h>
 #include <sys/mman.h>
 #include <igt.h>
@@ -54,9 +53,6 @@ static uint64_t arg_frames = 0;
 struct frame {
   struct gbm_bo *gbm_bo;
   std::vector<std::unique_ptr<hwcomposer::HwcLayer>> layers;
-  std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>>
-      layers_fences;
-  std::vector<int32_t> fences;
   struct gbm_handle native_handle;
 };
 
@@ -93,11 +89,9 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     return connected_displays_;
   }
 
-  void PresentLayers(
-      std::vector<hwcomposer::HwcLayer *> &layers,
-      std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>> &
-          layers_fences,
-      std::vector<int32_t> &fences) {
+  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers,
+		     std::vector<int32_t> &layers_fences,
+		     std::vector<int32_t> &fences) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
 
@@ -109,11 +103,8 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->Present(layers, &retire_fence);
       fences.emplace_back(retire_fence);
       // store fences for each display for each layer
-      unsigned int fence_index = 0;
       for (auto layer : layers) {
-        hwcomposer::NativeFence *fence = new hwcomposer::NativeFence();
-        fence->Reset(layer->release_fence.Release());
-        layers_fences[fence_index].emplace_back(fence);
+	layers_fences.emplace_back(layer->release_fence);
       }
     }
   }
@@ -238,7 +229,6 @@ static void init_frame(int32_t width, int32_t height) {
   test_frame.native_handle.import_data.format =
       gbm_bo_get_format(test_frame.gbm_bo);
 
-  test_frame.layers_fences.resize(1);
   hwcomposer::HwcLayer *hwc_layer = NULL;
   hwc_layer = new hwcomposer::HwcLayer();
   hwc_layer->SetTransform(0);
@@ -344,6 +334,8 @@ int main(int argc, char *argv[]) {
   }
 
   std::vector<hwcomposer::HwcLayer *> layers;
+  std::vector<int32_t> layers_fences;
+  std::vector<int32_t> fences;
 
   igt_crc_t *solid_crc_list = (igt_crc_t *)malloc(sizeof(igt_crc_t) * 16);
   igt_crc_t *gamma_crc_list = (igt_crc_t *)malloc(sizeof(igt_crc_t) * 16);
@@ -352,7 +344,7 @@ int main(int argc, char *argv[]) {
 
   callback->SetBroadcastRGB("Full");
   // Show solid colors
-  for (int32_t &fence : test_frame.fences) {
+  for (int32_t &fence : fences) {
     if (fence == -1)
       continue;
 
@@ -361,22 +353,26 @@ int main(int argc, char *argv[]) {
     fence = -1;
   }
 
-  for (auto &fence : test_frame.layers_fences[0]) {
-    if (fence->get() != -1) {
-      ret = sync_wait(fence->get(), 1000);
+  for (auto &fence : layers_fences) {
+    if (fence != -1) {
+      ret = sync_wait(fence, -1);
+      close(fence);
     }
   }
-  test_frame.layers_fences[0].clear();
+
+  std::vector<int32_t>().swap(layers_fences);
+  std::vector<int32_t>().swap(fences);
+
   std::vector<hwcomposer::HwcLayer *>().swap(layers);
   draw_colors(pBo, height, stride, false);
   test_frame.layers[0]->acquire_fence.Reset(-1);
   layers.emplace_back(test_frame.layers[0].get());
-  callback->PresentLayers(layers, test_frame.layers_fences, test_frame.fences);
+  callback->PresentLayers(layers, layers_fences, fences);
   get_crc_list(displays, solid_crc_list);
 
   // set gamma to remap gradient to solid
   callback->SetGamma(0, 0, 0);
-  for (int32_t &fence : test_frame.fences) {
+  for (int32_t &fence : fences) {
     if (fence == -1)
       continue;
 
@@ -385,17 +381,21 @@ int main(int argc, char *argv[]) {
     fence = -1;
   }
 
-  for (auto &fence : test_frame.layers_fences[0]) {
-    if (fence->get() != -1) {
-      ret = sync_wait(fence->get(), 1000);
+  for (auto &fence : layers_fences) {
+    if (fence != -1) {
+      ret = sync_wait(fence, -1);
+      close(fence);
     }
   }
-  test_frame.layers_fences[0].clear();
+
+  std::vector<int32_t>().swap(layers_fences);
+  std::vector<int32_t>().swap(fences);
+
   std::vector<hwcomposer::HwcLayer *>().swap(layers);
   draw_colors(pBo, height, stride, true);
   test_frame.layers[0]->acquire_fence.Reset(-1);
   layers.emplace_back(test_frame.layers[0].get());
-  callback->PresentLayers(layers, test_frame.layers_fences, test_frame.fences);
+  callback->PresentLayers(layers, layers_fences, fences);
   get_crc_list(displays, gamma_crc_list);
 
   gbm_bo_unmap(test_frame.gbm_bo, pOpaque);

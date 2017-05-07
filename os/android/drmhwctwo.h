@@ -21,7 +21,6 @@
 
 #include <gpudevice.h>
 #include <hwclayer.h>
-#include <nativefence.h>
 #include <platformdefines.h>
 #include <scopedfd.h>
 

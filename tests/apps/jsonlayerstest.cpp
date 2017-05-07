@@ -51,7 +51,6 @@
 #include <hwcdefs.h>
 #include <nativedisplay.h>
 #include <platformdefines.h>
-#include <nativefence.h>
 #include <spinlock.h>
 
 #include "glcubelayerrenderer.h"
@@ -71,9 +70,6 @@ glContext gl;
 struct frame {
   std::vector<std::unique_ptr<hwcomposer::HwcLayer>> layers;
   std::vector<std::unique_ptr<LayerRenderer>> layer_renderers;
-  std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>>
-      layers_fences;
-  std::vector<int32_t> fences;
 };
 
 bool init_gl() {
@@ -165,11 +161,9 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     return connected_displays_;
   }
 
-  void PresentLayers(
-      std::vector<hwcomposer::HwcLayer *> &layers,
-      std::vector<std::vector<std::unique_ptr<hwcomposer::NativeFence>>> &
-          layers_fences,
-      std::vector<int32_t> &fences) {
+  void PresentLayers(std::vector<hwcomposer::HwcLayer *> &layers,
+                     std::vector<int32_t> &layers_fences,
+                     std::vector<int32_t> &fences) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
 
@@ -181,11 +175,8 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->Present(layers, &retire_fence);
       fences.emplace_back(retire_fence);
       // store fences for each display for each layer
-      unsigned int fence_index = 0;
       for (auto layer : layers) {
-        hwcomposer::NativeFence *fence = new hwcomposer::NativeFence();
-        fence->Reset(layer->release_fence.Release());
-        layers_fences[fence_index].emplace_back(fence);
+        layers_fences.emplace_back(layer->release_fence);
       }
     }
   }
@@ -432,7 +423,6 @@ static void init_frames(int32_t width, int32_t height) {
 
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
-    frame->layers_fences.resize(test_parameters.layers_parameters.size());
 
     for (size_t j = 0; j < test_parameters.layers_parameters.size(); ++j) {
       LAYER_PARAMETER layer_parameter = test_parameters.layers_parameters[j];
@@ -587,11 +577,14 @@ int main(int argc, char *argv[]) {
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
   uint32_t frame_total = 0;
+  uint32_t current_frame = 0;
+  std::vector<int32_t> layers_fences;
+  std::vector<int32_t> fences;
 
   for (uint64_t i = 0; arg_frames == 0 || i < arg_frames; ++i) {
-    struct frame *frame = &frames[i % ARRAY_SIZE(frames)];
+    struct frame *frame = &frames[current_frame];
     std::vector<hwcomposer::HwcLayer *>().swap(layers);
-    for (int32_t &fence : frame->fences) {
+    for (int32_t &fence : fences) {
       if (fence == -1)
         continue;
 
@@ -600,21 +593,29 @@ int main(int argc, char *argv[]) {
       fence = -1;
     }
 
-    for (uint32_t j = 0; j < frame->layers.size(); j++) {
-      for (auto &fence : frame->layers_fences[j]) {
-        if (fence->get() != -1) {
-          ret = sync_wait(fence->get(), -1);
-        }
+    for (auto &fence : layers_fences) {
+      if (fence != -1) {
+        ret = sync_wait(fence, -1);
+        close(fence);
       }
+    }
 
-      frame->layers_fences[j].clear();
+    std::vector<int32_t>().swap(layers_fences);
+    std::vector<int32_t>().swap(fences);
+
+    for (uint32_t j = 0; j < frame->layers.size(); j++) {
       frame->layer_renderers[j]->Draw(&gpu_fence_fd);
       frame->layers[j]->acquire_fence.Reset(gpu_fence_fd);
       layers.emplace_back(frame->layers[j].get());
     }
 
-    callback->PresentLayers(layers, frame->layers_fences, frame->fences);
+    callback->PresentLayers(layers, layers_fences, fences);
     frame_total++;
+    if (current_frame > 0) {
+      current_frame = 0;
+    } else {
+      current_frame++;
+    }
 
     if (!strcmp(test_parameters.power_mode.c_str(), "on")) {
       if (frame_total == 500) {

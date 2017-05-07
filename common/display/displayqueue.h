@@ -18,7 +18,6 @@
 #define COMMON_DISPLAY_DISPLAYQUEUE_H_
 
 #include <drmscopedtypes.h>
-#include <scopedfd.h>
 #include <spinlock.h>
 
 #include <stdlib.h>
@@ -32,7 +31,6 @@
 #include "compositor.h"
 #include "hwcthread.h"
 #include "kmsfencehandler.h"
-#include "nativesync.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
