@@ -39,7 +39,7 @@ class KMSFenceEventHandler : public HWCThread {
 
   bool Initialize();
 
-  void WaitFence(uint64_t kms_fence, std::vector<OverlayLayer>& layers);
+  void WaitFence(uint32_t kms_fence, std::vector<OverlayLayer>& layers);
 
   bool EnsureReadyForNextFrame();
 
@@ -50,8 +50,8 @@ class KMSFenceEventHandler : public HWCThread {
   SpinLock spin_lock_;
   SpinLock ready_fence_lock_;
   std::vector<const OverlayBuffer*> buffers_;
-  uint64_t kms_fence_;
-  uint64_t kms_ready_fence_;
+  uint32_t kms_fence_;
+  uint32_t kms_ready_fence_;
   DisplayQueue* display_queue_;
 };
 

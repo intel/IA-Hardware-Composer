@@ -73,7 +73,7 @@ class DisplayQueue {
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers);
-  bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
+  bool GetFence(drmModeAtomicReqPtr property_set, int32_t* out_fence);
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;

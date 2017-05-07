@@ -154,7 +154,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::InsertFence(uint64_t fence) {
+void Compositor::InsertFence(uint32_t fence) {
   renderer_->InsertFence(fence);
 }
 
