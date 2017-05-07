@@ -47,7 +47,7 @@ bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
   // Lets ensure the job associated with previous frame
   // has been done, else commit will fail with -EBUSY.
   ready_fence_lock_.lock();
-  uint64_t kms_ready_fence = kms_ready_fence_;
+  uint32_t kms_ready_fence = kms_ready_fence_;
   kms_ready_fence_ = 0;
   ready_fence_lock_.unlock();
 
@@ -60,7 +60,7 @@ bool KMSFenceEventHandler::EnsureReadyForNextFrame() {
   return true;
 }
 
-void KMSFenceEventHandler::WaitFence(uint64_t kms_fence,
+void KMSFenceEventHandler::WaitFence(uint32_t kms_fence,
                                      std::vector<OverlayLayer>& layers) {
   CTRACE();
   spin_lock_.lock();
@@ -90,12 +90,12 @@ void KMSFenceEventHandler::HandleRoutine() {
   spin_lock_.lock();
   std::vector<const OverlayBuffer*> buffers;
   buffers.swap(buffers_);
-  uint64_t kms_fence = kms_fence_;
+  uint32_t kms_fence = kms_fence_;
   kms_fence_ = 0;
   spin_lock_.unlock();
 
   ready_fence_lock_.lock();
-  uint64_t kms_ready_fence = kms_ready_fence_;
+  uint32_t kms_ready_fence = kms_ready_fence_;
   ready_fence_lock_.unlock();
 
   if (kms_fence > 0) {

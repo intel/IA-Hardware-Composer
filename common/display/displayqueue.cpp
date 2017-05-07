@@ -132,7 +132,7 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
 }
 
 bool DisplayQueue::GetFence(drmModeAtomicReqPtr property_set,
-                            uint64_t* out_fence) {
+                            int32_t* out_fence) {
   int ret = drmModeAtomicAddProperty(property_set, crtc_id_,
                                      out_fence_ptr_prop_, (uintptr_t)out_fence);
   if (ret < 0) {
@@ -323,7 +323,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  uint64_t fence = 0;
+  int32_t fence = 0;
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
 
@@ -357,6 +357,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (fence > 0) {
     if (render_layers)
       compositor_.InsertFence(dup(fence));
+
     *retire_fence = dup(fence);
     kms_fence_handler_->WaitFence(fence, previous_layers_);
   } else {
