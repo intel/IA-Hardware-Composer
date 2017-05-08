@@ -80,7 +80,7 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
   std::unique_ptr<OverlayBufferManager> buffer_manager_;
   int fd_ = -1;
-  ScopedFd hotplug_fd_;
+  int hotplug_fd_;
   SpinLock spin_lock_;
 };
 
@@ -90,6 +90,7 @@ GpuDevice::DisplayManager::DisplayManager() : HWCThread(-8, "DisplayManager") {
 
 GpuDevice::DisplayManager::~DisplayManager() {
   CTRACE();
+  close(hotplug_fd_);
 }
 
 bool GpuDevice::DisplayManager::Init(uint32_t fd) {
@@ -131,8 +132,8 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     ETRACE("Failed to connect display.");
     return false;
   }
-  hotplug_fd_.Reset(socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT));
-  if (hotplug_fd_.get() < 0) {
+  hotplug_fd_ = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
+  if (hotplug_fd_ < 0) {
     ETRACE("Failed to create socket for hot plug monitor. %s", PRINTERROR());
     return true;
   }
@@ -143,14 +144,14 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
   addr.nl_pid = getpid();
   addr.nl_groups = -1;
 
-  ret = bind(hotplug_fd_.get(), (struct sockaddr *)&addr, sizeof(addr));
+  ret = bind(hotplug_fd_, (struct sockaddr *)&addr, sizeof(addr));
   if (ret) {
     ETRACE("Failed to bind sockaddr_nl and hot plug monitor fd. %s",
            PRINTERROR());
     return true;
   }
 
-  fd_handler_.AddFd(hotplug_fd_.get());
+  fd_handler_.AddFd(hotplug_fd_);
 
   if (!InitWorker()) {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
@@ -164,7 +165,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
 
 void GpuDevice::DisplayManager::HotPlugEventHandler() {
   CTRACE();
-  int fd = hotplug_fd_.get();
+  int fd = hotplug_fd_;
   char buffer[DRM_HOTPLUG_EVENT_SIZE];
   int ret;
 
@@ -213,7 +214,7 @@ void GpuDevice::DisplayManager::HandleWait() {
 void GpuDevice::DisplayManager::HandleRoutine() {
   CTRACE();
   IHOTPLUGEVENTTRACE("DisplayManager::Routine.");
-  if (fd_handler_.IsReady(hotplug_fd_.get())) {
+  if (fd_handler_.IsReady(hotplug_fd_)) {
     IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
     HotPlugEventHandler();
   }
@@ -357,6 +358,8 @@ GpuDevice::GpuDevice() : initialized_(false) {
 
 GpuDevice::~GpuDevice() {
   CTRACE();
+  display_manager_.reset(nullptr);
+  close(fd_);
 }
 
 bool GpuDevice::Initialize() {
@@ -364,25 +367,25 @@ bool GpuDevice::Initialize() {
   if (initialized_)
     return true;
 
-  fd_.Reset(drmOpen("i915", NULL));
-  if (fd_.get() < 0) {
+  fd_ = drmOpen("i915", NULL);
+  if (fd_ < 0) {
     ETRACE("Failed to open dri %s", PRINTERROR());
     return -ENODEV;
   }
 
   struct drm_set_client_cap cap = {DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1};
-  drmIoctl(fd_.get(), DRM_IOCTL_SET_CLIENT_CAP, &cap);
-  int ret = drmSetClientCap(fd_.get(), DRM_CLIENT_CAP_ATOMIC, 1);
+  drmIoctl(fd_, DRM_IOCTL_SET_CLIENT_CAP, &cap);
+  int ret = drmSetClientCap(fd_, DRM_CLIENT_CAP_ATOMIC, 1);
   if (ret) {
     ETRACE("Failed to set atomic cap %s", PRINTERROR());
     return false;
   }
-  ScopedDrmResourcesPtr res(drmModeGetResources(fd_.get()));
+  ScopedDrmResourcesPtr res(drmModeGetResources(fd_));
 
   initialized_ = true;
   display_manager_.reset(new DisplayManager());
 
-  return display_manager_->Init(fd_.get());
+  return display_manager_->Init(fd_);
 }
 
 NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {

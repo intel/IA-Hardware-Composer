@@ -17,7 +17,6 @@
 #ifndef PUBLIC_GPUDEVICE_H_
 #define PUBLIC_GPUDEVICE_H_
 
-#include <scopedfd.h>
 #include <stdint.h>
 
 #include <memory>
@@ -56,10 +55,8 @@ class GpuDevice {
 
  private:
   class DisplayManager;
-  // Order is important here as we need fd_ to be valid
-  // till all cleanup is done.
-  ScopedFd fd_;
   std::unique_ptr<DisplayManager> display_manager_;
+  int fd_;
   bool initialized_;
 };
 
