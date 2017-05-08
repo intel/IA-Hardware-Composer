@@ -18,7 +18,6 @@
 #define PUBLIC_SCOPEDFD_H_
 
 #include <unistd.h>
-#include "spinlock.h"
 
 namespace hwcomposer {
 
@@ -38,35 +37,27 @@ class ScopedFd {
   }
 
   ~ScopedFd() {
-    spin_lock_.lock();
     if (fd_ > 0)
       close(fd_);
-    spin_lock_.unlock();
   }
 
   int Release() {
-    spin_lock_.lock();
     int old_fd = fd_;
     fd_ = -1;
-    spin_lock_.unlock();
     return old_fd;
   }
 
   int Reset(int fd) {
-    spin_lock_.lock();
     if (fd_ > 0)
       close(fd_);
     fd_ = fd;
-    spin_lock_.unlock();
     return fd_;
   }
 
   void Close() {
-    spin_lock_.lock();
     if (fd_ > 0)
       close(fd_);
     fd_ = -1;
-    spin_lock_.unlock();
   }
 
   int get() const {
@@ -74,7 +65,6 @@ class ScopedFd {
   }
 
  private:
-  SpinLock spin_lock_;
   int fd_ = -1;
 };
 
