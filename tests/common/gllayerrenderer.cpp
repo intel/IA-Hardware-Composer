@@ -69,7 +69,7 @@ bool GLLayerRenderer::Init_GL(glContext* gl) {
 
 bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
                            glContext* gl, const char* resource_path) {
-  if (format != GBM_FORMAT_XRGB8888)
+  if (format != DRM_FORMAT_XRGB8888)
     return false;
   if (!LayerRenderer::Init(width, height, format, gl))
     return false;
@@ -84,8 +84,8 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
       EGL_WIDTH,                     (EGLint)width,
       EGL_HEIGHT,                    (EGLint)height,
       EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_XRGB8888,
-      EGL_DMA_BUF_PLANE0_FD_EXT,     fd_,
-      EGL_DMA_BUF_PLANE0_PITCH_EXT,  stride_,
+      EGL_DMA_BUF_PLANE0_FD_EXT,     (EGLint)fd_,
+      EGL_DMA_BUF_PLANE0_PITCH_EXT,  (EGLint)stride_,
       EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
       EGL_NONE,
   };

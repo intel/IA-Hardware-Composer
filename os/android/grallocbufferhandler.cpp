@@ -23,6 +23,7 @@
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
 #include <cutils/native_handle.h>
+#include "commondrmutils.h"
 
 #ifdef USE_MINIGBM
 #include <cros_gralloc_handle.h>
@@ -34,7 +35,7 @@
 #include <hwcdefs.h>
 #include <hwctrace.h>
 #include "drmhwcgralloc.h"
-#include "drmutils.h"
+#include "commondrmutils.h"
 
 namespace hwcomposer {
 

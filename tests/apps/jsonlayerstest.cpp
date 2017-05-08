@@ -275,125 +275,125 @@ hwcomposer::NativeBufferHandler *buffer_handler;
 static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
   switch (format) {
     case LAYER_FORMAT_C8:
-      return GBM_FORMAT_C8;
+      return DRM_FORMAT_C8;
     case LAYER_FORMAT_R8:
-      return GBM_FORMAT_R8;
+      return DRM_FORMAT_R8;
     case LAYER_FORMAT_GR88:
-      return GBM_FORMAT_GR88;
+      return DRM_FORMAT_GR88;
     case LAYER_FORMAT_RGB332:
-      return GBM_FORMAT_RGB332;
+      return DRM_FORMAT_RGB332;
     case LAYER_FORMAT_BGR233:
-      return GBM_FORMAT_BGR233;
+      return DRM_FORMAT_BGR233;
     case LAYER_FORMAT_XRGB4444:
-      return GBM_FORMAT_XRGB4444;
+      return DRM_FORMAT_XRGB4444;
     case LAYER_FORMAT_XBGR4444:
-      return GBM_FORMAT_XBGR4444;
+      return DRM_FORMAT_XBGR4444;
     case LAYER_FORMAT_RGBX4444:
-      return GBM_FORMAT_RGBX4444;
+      return DRM_FORMAT_RGBX4444;
     case LAYER_FORMAT_BGRX4444:
-      return GBM_FORMAT_BGRX4444;
+      return DRM_FORMAT_BGRX4444;
     case LAYER_FORMAT_ARGB4444:
-      return GBM_FORMAT_ARGB4444;
+      return DRM_FORMAT_ARGB4444;
     case LAYER_FORMAT_ABGR4444:
-      return GBM_FORMAT_ABGR4444;
+      return DRM_FORMAT_ABGR4444;
     case LAYER_FORMAT_RGBA4444:
-      return GBM_FORMAT_RGBA4444;
+      return DRM_FORMAT_RGBA4444;
     case LAYER_FORMAT_BGRA4444:
-      return GBM_FORMAT_BGRA4444;
+      return DRM_FORMAT_BGRA4444;
     case LAYER_FORMAT_XRGB1555:
-      return GBM_FORMAT_XRGB1555;
+      return DRM_FORMAT_XRGB1555;
     case LAYER_FORMAT_XBGR1555:
-      return GBM_FORMAT_XBGR1555;
+      return DRM_FORMAT_XBGR1555;
     case LAYER_FORMAT_RGBX5551:
-      return GBM_FORMAT_RGBX5551;
+      return DRM_FORMAT_RGBX5551;
     case LAYER_FORMAT_BGRX5551:
-      return GBM_FORMAT_BGRX5551;
+      return DRM_FORMAT_BGRX5551;
     case LAYER_FORMAT_ARGB1555:
-      return GBM_FORMAT_ARGB1555;
+      return DRM_FORMAT_ARGB1555;
     case LAYER_FORMAT_ABGR1555:
-      return GBM_FORMAT_ABGR1555;
+      return DRM_FORMAT_ABGR1555;
     case LAYER_FORMAT_RGBA5551:
-      return GBM_FORMAT_RGBA5551;
+      return DRM_FORMAT_RGBA5551;
     case LAYER_FORMAT_BGRA5551:
-      return GBM_FORMAT_BGRA5551;
+      return DRM_FORMAT_BGRA5551;
     case LAYER_FORMAT_RGB565:
-      return GBM_FORMAT_RGB565;
+      return DRM_FORMAT_RGB565;
     case LAYER_FORMAT_BGR565:
-      return GBM_FORMAT_BGR565;
+      return DRM_FORMAT_BGR565;
     case LAYER_FORMAT_RGB888:
-      return GBM_FORMAT_RGB888;
+      return DRM_FORMAT_RGB888;
     case LAYER_FORMAT_BGR888:
-      return GBM_FORMAT_BGR888;
+      return DRM_FORMAT_BGR888;
     case LAYER_FORMAT_XRGB8888:
-      return GBM_FORMAT_XRGB8888;
+      return DRM_FORMAT_XRGB8888;
     case LAYER_FORMAT_XBGR8888:
-      return GBM_FORMAT_XBGR8888;
+      return DRM_FORMAT_XBGR8888;
     case LAYER_FORMAT_RGBX8888:
-      return GBM_FORMAT_RGBX8888;
+      return DRM_FORMAT_RGBX8888;
     case LAYER_FORMAT_BGRX8888:
-      return GBM_FORMAT_BGRX8888;
+      return DRM_FORMAT_BGRX8888;
     case LAYER_FORMAT_ARGB8888:
-      return GBM_FORMAT_ARGB8888;
+      return DRM_FORMAT_ARGB8888;
     case LAYER_FORMAT_ABGR8888:
-      return GBM_FORMAT_ABGR8888;
+      return DRM_FORMAT_ABGR8888;
     case LAYER_FORMAT_RGBA8888:
-      return GBM_FORMAT_RGBA8888;
+      return DRM_FORMAT_RGBA8888;
     case LAYER_FORMAT_BGRA8888:
-      return GBM_FORMAT_BGRA8888;
+      return DRM_FORMAT_BGRA8888;
     case LAYER_FORMAT_XRGB2101010:
-      return GBM_FORMAT_XRGB2101010;
+      return DRM_FORMAT_XRGB2101010;
     case LAYER_FORMAT_XBGR2101010:
-      return GBM_FORMAT_XBGR2101010;
+      return DRM_FORMAT_XBGR2101010;
     case LAYER_FORMAT_RGBX1010102:
-      return GBM_FORMAT_RGBX1010102;
+      return DRM_FORMAT_RGBX1010102;
     case LAYER_FORMAT_BGRX1010102:
-      return GBM_FORMAT_BGRX1010102;
+      return DRM_FORMAT_BGRX1010102;
     case LAYER_FORMAT_ARGB2101010:
-      return GBM_FORMAT_ARGB2101010;
+      return DRM_FORMAT_ARGB2101010;
     case LAYER_FORMAT_ABGR2101010:
-      return GBM_FORMAT_ABGR2101010;
+      return DRM_FORMAT_ABGR2101010;
     case LAYER_FORMAT_RGBA1010102:
-      return GBM_FORMAT_RGBA1010102;
+      return DRM_FORMAT_RGBA1010102;
     case LAYER_FORMAT_BGRA1010102:
-      return GBM_FORMAT_BGRA1010102;
+      return DRM_FORMAT_BGRA1010102;
     case LAYER_FORMAT_YUYV:
-      return GBM_FORMAT_YUYV;
+      return DRM_FORMAT_YUYV;
     case LAYER_FORMAT_YVYU:
-      return GBM_FORMAT_YVYU;
+      return DRM_FORMAT_YVYU;
     case LAYER_FORMAT_UYVY:
-      return GBM_FORMAT_UYVY;
+      return DRM_FORMAT_UYVY;
     case LAYER_FORMAT_VYUY:
-      return GBM_FORMAT_VYUY;
+      return DRM_FORMAT_VYUY;
     case LAYER_FORMAT_AYUV:
-      return GBM_FORMAT_AYUV;
+      return DRM_FORMAT_AYUV;
     case LAYER_FORMAT_NV12:
-      return GBM_FORMAT_NV12;
+      return DRM_FORMAT_NV12;
     case LAYER_FORMAT_NV21:
-      return GBM_FORMAT_NV21;
+      return DRM_FORMAT_NV21;
     case LAYER_FORMAT_NV16:
-      return GBM_FORMAT_NV16;
+      return DRM_FORMAT_NV16;
     case LAYER_FORMAT_NV61:
-      return GBM_FORMAT_NV61;
+      return DRM_FORMAT_NV61;
     case LAYER_FORMAT_YUV410:
-      return GBM_FORMAT_YUV410;
+      return DRM_FORMAT_YUV410;
     case LAYER_FORMAT_YVU410:
-      return GBM_FORMAT_YVU410;
+      return DRM_FORMAT_YVU410;
     case LAYER_FORMAT_YUV411:
-      return GBM_FORMAT_YUV411;
+      return DRM_FORMAT_YUV411;
     case LAYER_FORMAT_YVU411:
-      return GBM_FORMAT_YVU411;
+      return DRM_FORMAT_YVU411;
     case LAYER_FORMAT_YUV420:
-      return GBM_FORMAT_YUV420;
+      return DRM_FORMAT_YUV420;
     case LAYER_FORMAT_YVU420:
-      return GBM_FORMAT_YVU420;
+      return DRM_FORMAT_YVU420;
     case LAYER_FORMAT_YUV422:
-      return GBM_FORMAT_YUV422;
+      return DRM_FORMAT_YUV422;
     case LAYER_FORMAT_YVU422:
-      return GBM_FORMAT_YVU422;
+      return DRM_FORMAT_YVU422;
     case LAYER_FORMAT_YUV444:
-      return GBM_FORMAT_YUV444;
+      return DRM_FORMAT_YUV444;
     case LAYER_FORMAT_YVU444:
-      return GBM_FORMAT_YVU444;
+      return DRM_FORMAT_YVU444;
     case LAYER_FORMAT_UNDEFINED:
       return (uint32_t)-1;
   }

@@ -26,7 +26,7 @@
 #include <hwctrace.h>
 #include <platformdefines.h>
 
-#include "drmutils.h"
+#include "commondrmutils.h"
 
 namespace hwcomposer {
 
