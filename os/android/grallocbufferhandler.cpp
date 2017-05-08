@@ -23,6 +23,7 @@
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
 #include <cutils/native_handle.h>
+#include "commondrmutils.h"
 
 #ifdef USE_MINIGBM
 #include <cros_gralloc_handle.h>

@@ -22,6 +22,7 @@
 #include "esUtil.h"
 #include <EGL/eglext.h>
 #include <GLES2/gl2ext.h>
+#include <drm_fourcc.h>
 
 typedef struct {
   EGLDisplay display;
@@ -59,7 +60,7 @@ class LayerRenderer {
   HWCNativeHandle handle_;
   HwcBuffer bo_;
   hwcomposer::NativeBufferHandler* buffer_handler_ = NULL;
-  uint32_t format_ = GBM_FORMAT_XRGB8888;
+  uint32_t format_ = DRM_FORMAT_XRGB8888;
   uint32_t planes_ = 0;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
