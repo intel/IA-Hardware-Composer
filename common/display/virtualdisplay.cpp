@@ -56,6 +56,10 @@ bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
+bool VirtualDisplay::SetActiveConfig(uint32_t /*config*/) {
+  return true;
+}
+
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence) {
   CTRACE();
