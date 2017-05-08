@@ -116,4 +116,10 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+#Include tests only if eng build
+ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
+# Commenting for now include when ld issue is resolved
+#include $(LOCAL_PATH)/tests/third_party/json-c/Android.mk
+endif
+
 endif
