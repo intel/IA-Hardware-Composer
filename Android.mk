@@ -116,4 +116,5 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+#include $(LOCAL_PATH)/tests/third_party/json-c/Android.mk
 endif

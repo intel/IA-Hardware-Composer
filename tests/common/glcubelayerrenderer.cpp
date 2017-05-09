@@ -69,7 +69,7 @@ class StreamTextureImpl {
     //			GBM_FORMAT_ARGB8888, GBM_BO_USE_LINEAR);
     buffer_handler_ = buffer_handler;
     if (!buffer_handler_->CreateBuffer(dimension_.width, dimension_.height,
-                                       GBM_FORMAT_ARGB8888, &handle_)) {
+                                       DRM_FORMAT_ARGB8888, &handle_)) {
       ETRACE("StreamTextureImpl: CreateBuffer failed");
       return false;
     }
@@ -86,7 +86,7 @@ class StreamTextureImpl {
         EGL_DMA_BUF_PLANE0_FD_EXT,     fd_,
         EGL_WIDTH,                     dimension_.width,
         EGL_HEIGHT,                    dimension_.height,
-        EGL_LINUX_DRM_FOURCC_EXT,      GBM_FORMAT_ARGB8888,
+        EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_ARGB8888,
         EGL_DMA_BUF_PLANE0_PITCH_EXT,  dimension_.stride,
         EGL_DMA_BUF_PLANE0_OFFSET_EXT, offset,
         EGL_NONE};
@@ -138,7 +138,7 @@ GLCubeLayerRenderer::~GLCubeLayerRenderer() {
 
 bool GLCubeLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
                                glContext *gl, const char *resource_path) {
-  if (format != GBM_FORMAT_XRGB8888)
+  if (format != DRM_FORMAT_XRGB8888)
     return false;
   if (!GLLayerRenderer::Init(width, height, format, gl))
     return false;
