@@ -25,7 +25,6 @@
 #include "hwctrace.h"
 #include "nativegpuresource.h"
 #include "nativesurface.h"
-#include "nativesync.h"
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "renderstate.h"
@@ -154,7 +153,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::InsertFence(uint64_t fence) {
+void Compositor::InsertFence(uint32_t fence) {
   renderer_->InsertFence(fence);
 }
 

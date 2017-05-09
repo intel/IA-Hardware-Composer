@@ -40,6 +40,8 @@ NativeSurface::~NativeSurface() {
   if (buffer_handler_ && native_handle_) {
     buffer_handler_->DestroyBuffer(native_handle_);
   }
+
+  SetNativeFence(-1);
 }
 
 bool NativeSurface::Init(OverlayBufferManager *buffer_manager) {
@@ -65,7 +67,12 @@ bool NativeSurface::InitializeForOffScreenRendering(
 }
 
 void NativeSurface::SetNativeFence(int fd) {
-  fd_.Reset(fd);
+  if (fd_) {
+    close(fd_);
+    fd_ = 0;
+  }
+
+  fd_ = fd;
 }
 
 void NativeSurface::SetInUse(bool inuse) {
@@ -97,7 +104,8 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   buffer_.reset(new OverlayBuffer());
   buffer_->InitializeFromNativeHandle(native_handle,
                                       buffer_manager->GetNativeBufferHandler());
-  ImportedBuffer* imported_buffer_ = new ImportedBuffer(buffer_.get(), buffer_manager, -1);
+  ImportedBuffer *imported_buffer_ =
+      new ImportedBuffer(buffer_.get(), buffer_manager);
   imported_buffer_->owned_buffer_ = false;
   width_ = buffer_->GetWidth();
   height_ = buffer_->GetHeight();

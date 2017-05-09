@@ -18,7 +18,6 @@
 #define COMMON_DISPLAY_DISPLAYQUEUE_H_
 
 #include <drmscopedtypes.h>
-#include <scopedfd.h>
 #include <spinlock.h>
 
 #include <stdlib.h>
@@ -31,8 +30,6 @@
 
 #include "compositor.h"
 #include "hwcthread.h"
-#include "kmsfencehandler.h"
-#include "nativesync.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
@@ -67,13 +64,11 @@ class DisplayQueue {
 
   void HandleExit();
 
-  void HandleCommitUpdate(const std::vector<const OverlayBuffer*>& buffers);
-
  private:
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers);
-  bool GetFence(drmModeAtomicReqPtr property_set, uint64_t* out_fence);
+  bool GetFence(drmModeAtomicReqPtr property_set, int32_t* out_fence);
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;
@@ -111,18 +106,16 @@ class DisplayQueue {
   uint32_t broadcastrgb_id_;
   int64_t broadcastrgb_full_;
   int64_t broadcastrgb_automatic_;
-  uint64_t fence_ = 0;
+  int32_t fence_ = 0;
   bool needs_color_correction_ = false;
   bool use_layer_cache_ = false;
   bool needs_modeset_ = true;
   bool disable_overlay_usage_ = false;
-  std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
-  SpinLock spin_lock_;
 };
 
 }  // namespace hwcomposer

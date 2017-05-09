@@ -416,7 +416,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
     }
 
     layers[num_layers - 1] = l.first;
-    fences[num_layers - 1] = l.second.GetLayer()->release_fence.Release();
+    fences[num_layers - 1] = l.second.GetLayer()->release_fence;
   }
   *num_elements = num_layers;
   return HWC2::Error::None;

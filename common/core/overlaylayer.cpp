@@ -21,10 +21,6 @@
 
 namespace hwcomposer {
 
-int OverlayLayer::GetReleaseFence() {
-  return imported_buffer_->release_fence_;
-}
-
 void OverlayLayer::ReleaseBuffer() {
   imported_buffer_->owned_buffer_ = false;
 }

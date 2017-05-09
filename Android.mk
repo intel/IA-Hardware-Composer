@@ -49,7 +49,6 @@ LOCAL_SRC_FILES := \
 	common/compositor/renderstate.cpp \
 	common/core/hwclayer.cpp \
 	common/core/gpudevice.cpp \
-	common/core/nativesync.cpp \
 	common/core/overlaybuffer.cpp \
 	common/core/overlaybuffermanager.cpp \
 	common/core/overlaylayer.cpp \
@@ -59,7 +58,6 @@ LOCAL_SRC_FILES := \
 	common/display/displayqueue.cpp \
 	common/display/headless.cpp \
 	common/display/vblankeventhandler.cpp \
-        common/display/kmsfencehandler.cpp \
 	common/display/virtualdisplay.cpp \
 	common/utils/drmscopedtypes.cpp \
 	common/utils/fdhandler.cpp \

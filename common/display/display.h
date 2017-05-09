@@ -22,7 +22,6 @@
 #include <xf86drmMode.h>
 
 #include <nativedisplay.h>
-#include <scopedfd.h>
 #include <drmscopedtypes.h>
 
 #include <memory>
@@ -37,7 +36,6 @@ class DisplayPlaneManager;
 class DisplayQueue;
 class OverlayBufferManager;
 class GpuDevice;
-class NativeSync;
 struct HwcLayer;
 
 class Display : public NativeDisplay {
