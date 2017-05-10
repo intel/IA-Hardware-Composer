@@ -68,44 +68,43 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   if (gbm_format == 0)
     gbm_format = GBM_FORMAT_XRGB8888;
 
-  struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format,
-                                    GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  gbm_bo_ = gbm_bo_create(device_, w, h, gbm_format,
+                          GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
 
-  if (!bo) {
-    bo = gbm_bo_create(device_, w, h, gbm_format, GBM_BO_USE_RENDERING);
-    if (!bo) {
+  if (!gbm_bo_) {
+    gbm_bo_ = gbm_bo_create(device_, w, h, gbm_format, GBM_BO_USE_RENDERING);
+    if (!gbm_bo_) {
       ETRACE("GbmBufferHandler: failed to create gbm_bo");
       return false;
     }
   }
 
   struct gbm_handle *temp = new struct gbm_handle();
-  temp->import_data.width = gbm_bo_get_width(bo);
-  temp->import_data.height = gbm_bo_get_height(bo);
-  temp->import_data.format = gbm_bo_get_format(bo);
+  temp->import_data.width = gbm_bo_get_width(gbm_bo_);
+  temp->import_data.height = gbm_bo_get_height(gbm_bo_);
+  temp->import_data.format = gbm_bo_get_format(gbm_bo_);
 #if USE_MINIGBM
-  temp->import_data.fds[0] = gbm_bo_get_plane_fd(bo, 0);
-  size_t total_planes = gbm_bo_get_num_planes(bo);
+  temp->import_data.fds[0] = gbm_bo_get_plane_fd(gbm_bo_, 0);
+  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_);
   for (size_t i = 0; i < total_planes; i++) {
-    temp->import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
-    temp->import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
+    temp->import_data.offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
+    temp->import_data.strides[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
   }
   temp->total_planes = total_planes;
 #else
-  temp->import_data.fd = gbm_bo_get_fd(bo);
-  temp->import_data.stride = gbm_bo_get_stride(bo);
+  temp->import_data.fd = gbm_bo_get_fd(gbm_bo_);
+  temp->import_data.stride = gbm_bo_get_stride(gbm_bo_);
   temp->total_planes = drm_bo_get_num_planes(temp->import_data.format);
 #endif
 
-  temp->bo = bo;
   *handle = temp;
 
   return true;
 }
 
 bool GbmBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
-  if (handle->bo) {
-    gbm_bo_destroy(handle->bo);
+  if (gbm_bo_) {
+    gbm_bo_destroy(gbm_bo_);
 #ifdef USE_MINIGBM
     close(handle->import_data.fds[0]);
 #else
@@ -122,31 +121,31 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   memset(bo, 0, sizeof(struct HwcBuffer));
   uint32_t gem_handle = 0;
   bo->format = handle->import_data.format;
-  if (!handle->bo) {
+  if (!gbm_bo_) {
 #if USE_MINIGBM
-    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
-                               &handle->import_data, GBM_BO_USE_SCANOUT);
-    if (!handle->bo) {
-      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
-                                 &handle->import_data, GBM_BO_USE_RENDERING);
-      if (!handle->bo) {
+    gbm_bo_ = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
+                            &handle->import_data, GBM_BO_USE_SCANOUT);
+    if (!gbm_bo_) {
+      gbm_bo_ = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
+                              &handle->import_data, GBM_BO_USE_RENDERING);
+      if (!gbm_bo_) {
         ETRACE("can't import bo");
       }
     }
 #else
-    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
-                               GBM_BO_USE_SCANOUT);
-    if (!handle->bo) {
-      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD,
-                                 &handle->import_data, GBM_BO_USE_RENDERING);
-      if (!handle->bo) {
+    gbm_bo_ = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
+                            GBM_BO_USE_SCANOUT);
+    if (!gbm_bo_) {
+      gbm_bo_ = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
+                              GBM_BO_USE_RENDERING);
+      if (!gbm_bo_) {
         ETRACE("can't import bo");
       }
     }
 #endif
   }
 
-  gem_handle = gbm_bo_get_handle(handle->bo).u32;
+  gem_handle = gbm_bo_get_handle(gbm_bo_).u32;
 
   if (!gem_handle) {
     ETRACE("Invalid GEM handle. \n");
@@ -158,17 +157,17 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
 #if USE_MINIGBM
   bo->prime_fd = handle->import_data.fds[0];
-  size_t total_planes = gbm_bo_get_num_planes(handle->bo);
+  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_);
   for (size_t i = 0; i < total_planes; i++) {
     bo->gem_handles[i] = gem_handle;
-    bo->offsets[i] = gbm_bo_get_plane_offset(handle->bo, i);
-    bo->pitches[i] = gbm_bo_get_plane_stride(handle->bo, i);
+    bo->offsets[i] = gbm_bo_get_plane_offset(gbm_bo_, i);
+    bo->pitches[i] = gbm_bo_get_plane_stride(gbm_bo_, i);
   }
 #else
   bo->prime_fd = handle->import_data.fd;
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;
-  bo->pitches[0] = gbm_bo_get_stride(handle->bo);
+  bo->pitches[0] = gbm_bo_get_stride(gbm_bo_);
 #endif
 
   return true;
@@ -181,18 +180,18 @@ uint32_t GbmBufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
 void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
                             uint32_t width, uint32_t height, uint32_t *stride,
                             void **map_data, size_t plane) {
-  if (!handle->bo)
+  if (!gbm_bo_)
     return NULL;
 
-  return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
-                    stride, map_data, plane);
+  return gbm_bo_map(gbm_bo_, x, y, width, height, GBM_BO_TRANSFER_WRITE, stride,
+                    map_data, plane);
 }
 
 void GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
-  if (!handle->bo)
+  if (!gbm_bo_)
     return;
 
-  return gbm_bo_unmap(handle->bo, map_data);
+  return gbm_bo_unmap(gbm_bo_, map_data);
 }
 
 }  // namespace hwcomposer

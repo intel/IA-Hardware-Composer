@@ -33,7 +33,6 @@ struct gbm_handle {
 #else
   struct gbm_import_fd_data import_data;
 #endif
-  struct gbm_bo* bo = NULL;
   uint32_t total_planes = 0;
 };
 
