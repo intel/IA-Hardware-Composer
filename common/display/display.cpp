@@ -68,23 +68,9 @@ bool Display::Connect(const drmModeModeInfo &mode_info,
 
   IHOTPLUGEVENTTRACE("Display is being connected to a new connector.");
   connector_ = connector->connector_id;
-  width_ = mode_info.hdisplay;
-  height_ = mode_info.vdisplay;
-  refresh_ =
-      (mode_info.clock * 1000.0f) / (mode_info.htotal * mode_info.vtotal);
-
-  if (mode_info.flags & DRM_MODE_FLAG_INTERLACE)
-    refresh_ *= 2;
-
-  if (mode_info.flags & DRM_MODE_FLAG_DBLSCAN)
-    refresh_ /= 2;
-
-  if (mode_info.vscan > 1)
-    refresh_ /= mode_info.vscan;
-
-  dpix_ = connector->mmWidth ? (width_ * kUmPerInch) / connector->mmWidth : -1;
-  dpiy_ =
-      connector->mmHeight ? (height_ * kUmPerInch) / connector->mmHeight : -1;
+  mmWidth_ = connector->mmWidth;
+  mmHeight_ = connector->mmHeight;
+  SetDisplayAttribute(mode_info);
 
   is_connected_ = true;
 
@@ -118,28 +104,40 @@ void Display::ShutDown() {
   connector_ = 0;
 }
 
-bool Display::GetDisplayAttribute(uint32_t /*config*/,
+bool Display::GetDisplayAttribute(uint32_t config /*config*/,
                                   HWCDisplayAttribute attribute,
                                   int32_t *value) {
-  // We always get the values from preferred mode config.
+  float refresh;
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = width_;
+      *value = mode_[config].hdisplay;
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = height_;
+      *value = mode_[config].vdisplay;
       break;
     case HWCDisplayAttribute::kRefreshRate:
+      refresh = (mode_[config].clock * 1000.0f) /
+                (mode_[config].htotal * mode_[config].vtotal);
+
+      if (mode_[config].flags & DRM_MODE_FLAG_INTERLACE)
+        refresh *= 2;
+
+      if (mode_[config].flags & DRM_MODE_FLAG_DBLSCAN)
+        refresh /= 2;
+
+      if (mode_[config].vscan > 1)
+        refresh /= mode_[config].vscan;
       // in nanoseconds
-      *value = 1e9 / refresh_;
+      *value = 1e9 / refresh;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
-      *value = dpix_;
+      *value =
+          mmWidth_ ? (mode_[config].hdisplay * kUmPerInch) / mmWidth_ : -1;
       break;
     case HWCDisplayAttribute::kDpiY:
-      // Dots per 1000 inches
-      *value = dpiy_;
+      *value =
+          mmHeight_ ? (mode_[config].vdisplay * kUmPerInch) / mmHeight_ : -1;
       break;
     default:
       *value = -1;
@@ -150,11 +148,12 @@ bool Display::GetDisplayAttribute(uint32_t /*config*/,
 }
 
 bool Display::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
-  *num_configs = 1;
+  *num_configs = mode_.size();
   if (!configs)
     return true;
 
-  configs[0] = 1;
+  for (uint32_t i = 0; i < *num_configs; i++)
+    configs[i] = i;
 
   return true;
 }
@@ -247,6 +246,30 @@ bool Display::SetBroadcastRGB(const char *range_property) {
 
 void Display::SetExplicitSyncSupport(bool disable_explicit_sync) {
   display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
+}
+
+void Display::SetDrmModeModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
+  for (uint32_t i = 0; i < mode_info.size(); ++i)
+    mode_.emplace_back(mode_info[i]);
+}
+
+void Display::SetDisplayAttribute(const drmModeModeInfo &mode_info) {
+  width_ = mode_info.hdisplay;
+  height_ = mode_info.vdisplay;
+  refresh_ =
+      (mode_info.clock * 1000.0f) / (mode_info.htotal * mode_info.vtotal);
+
+  if (mode_info.flags & DRM_MODE_FLAG_INTERLACE)
+    refresh_ *= 2;
+
+  if (mode_info.flags & DRM_MODE_FLAG_DBLSCAN)
+    refresh_ /= 2;
+
+  if (mode_info.vscan > 1)
+    refresh_ /= mode_info.vscan;
+
+  dpix_ = mmWidth_ ? (width_ * kUmPerInch) / mmWidth_ : -1;
+  dpiy_ = mmHeight_ ? (height_ * kUmPerInch) / mmHeight_ : -1;
 }
 
 }  // namespace hwcomposer
