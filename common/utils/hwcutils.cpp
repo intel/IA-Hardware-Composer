@@ -23,6 +23,7 @@
 namespace hwcomposer {
 
 void HWCPoll(int fd, int timeout) {
+  CTRACE();
   struct pollfd fds[1];
   fds[0].fd = fd;
   fds[0].events = POLLIN;

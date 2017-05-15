@@ -47,7 +47,7 @@ extern "C" {
 #define ITRACE(fmt, ...) fprintf(stderr, "\n" fmt, ##__VA_ARGS__)
 #define WTRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)
 #define ETRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)
-
+#define STRACE() ((void)0)
 // _cplusplus
 #ifdef _cplusplus
 }

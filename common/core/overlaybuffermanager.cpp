@@ -128,6 +128,7 @@ void OverlayBufferManager::UnRegisterBuffers(
 
 void OverlayBufferManager::UnRegisterLayerBuffers(
     std::vector<OverlayLayer>& layers) {
+  CTRACE();
   for (OverlayLayer& layer : layers) {
     const OverlayBuffer* const buffer = layer.GetBuffer();
     if (!buffer)
