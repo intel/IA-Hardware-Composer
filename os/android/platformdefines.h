@@ -20,6 +20,12 @@
 #ifndef LOG_TAG
 #define LOG_TAG "iahwcomposer"
 #endif
+
+#ifndef ATRACE_TAG
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+#endif
+
+#include <utils/Trace.h>
 #include <cutils/log.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -45,7 +51,7 @@ typedef struct gralloc_handle* HWCNativeHandle;
 #define ITRACE(fmt, ...) ALOGI(fmt, ##__VA_ARGS__)
 #define WTRACE(fmt, ...) ALOGW("%s: " fmt, __func__, ##__VA_ARGS__)
 #define ETRACE(fmt, ...) ALOGE("%s: " fmt, __func__, ##__VA_ARGS__)
-
+#define STRACE() ATRACE_CALL()
 // _cplusplus
 #ifdef _cplusplus
 }
