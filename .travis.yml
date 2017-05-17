@@ -1,0 +1,34 @@
+language: c++
+sudo: required
+dist: trusty
+install:
+- sudo apt-get update
+- sudo apt-get install automake
+- sudo apt-get install autoconf
+- sudo apt-get install libtool
+- sudo apt-get install xutils-dev
+- sudo apt-get install libpciaccess-dev
+- sudo apt-get install python-mako
+- sudo dpkg -s python-mako
+- sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+- sudo apt-get update
+- sudo apt-get install gcc-4.9
+- sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
+- sudo apt-get install g++-4.9
+- sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
+script:
+- export HWC_BUILD_DIR=/tmp/
+- export WLD=/tmp/hwc-install
+- export LD_LIBRARY_PATH=$WLD/lib
+- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/share/pkgconfig
+- export PATH=$WLD/bin:$PATH
+- export ACLOCAL_PATH=$WLD/share/aclocal
+- export ACLOCAL="aclocal -I $ACLOCAL_PATH"
+- export DRV_I915=1
+- tar -xvf travisci/resources/hwc-install.tar.bz2 -C $HWC_BUILD_DIR
+- mkdir -p $WLD/share/aclocal
+- ./autogen.sh --prefix=$WLD
+- make -j5
+branches:
+  only:
+  - master
