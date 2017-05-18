@@ -57,6 +57,7 @@ GrallocBufferHandler::GrallocBufferHandler(uint32_t fd) : fd_(fd) {
 }
 
 GrallocBufferHandler::~GrallocBufferHandler() {
+  device->close(device);
 }
 
 bool GrallocBufferHandler::Init() {
@@ -66,6 +67,16 @@ bool GrallocBufferHandler::Init() {
     ETRACE("Failed to open gralloc module");
     return false;
   }
+  ret = gralloc_->methods->open(gralloc_, GRALLOC_HARDWARE_MODULE_ID, &device);
+  if (ret) {
+    ETRACE("Failed to open hw_device device");
+    return false;
+  }
+
+  gralloc1_dvc = reinterpret_cast<gralloc1_device_t *>(device);
+  pfn = reinterpret_cast<GRALLOC1_PFN_RETAIN> \
+           (gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_RETAIN));
+
   return true;
 }
 
@@ -77,7 +88,7 @@ bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int /*format*/,
                                  GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
                                      GRALLOC_USAGE_HW_COMPOSER);
   temp->handle_ = temp->buffer_->handle;
-  gralloc_->registerBuffer(gralloc_, temp->handle_);
+  (*pfn)(gralloc1_dvc, temp->handle_);
   *handle = temp;
 
   return true;
@@ -88,7 +99,7 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
     return false;
 
   if (handle->handle_) {
-    gralloc_->unregisterBuffer(gralloc_, handle->handle_);
+    (*pfn)(gralloc1_dvc, handle->handle_);
     handle->buffer_.clear();
   }
 
