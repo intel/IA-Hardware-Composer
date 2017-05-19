@@ -186,8 +186,7 @@ bool Display::SetActiveConfig(uint32_t /*config*/) {
 bool Display::GetActiveConfig(uint32_t *config) {
   if (!config)
     return false;
-
-  config[0] = 1;
+  *config = config_;
   return true;
 }
 
