@@ -628,4 +628,11 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+bool DisplayQueue::SetActiveConfig(drmModeModeInfo& mode_info) {
+  // update the Acive Mode
+  mode_ = mode_info;
+
+  return SetPowerMode(kOn);
+}
+
 }  // namespace hwcomposer

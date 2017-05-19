@@ -130,6 +130,7 @@ class Display : public NativeDisplay {
   uint32_t power_mode_;
   float refresh_;
   bool is_connected_;
+  uint32_t config_ = 0;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;
   std::vector<drmModeModeInfo> mode_;
