@@ -1,14 +1,8 @@
 {
-  "brightness_b": "200",
-  "brightness_g": "200",
-  "brightness_r": "200",
   "broadcast_rgb": "Full",
-  "contrast_b": "50",
-  "contrast_g": "50",
-  "contrast_r": "50",
-  "gamma_b": "0.3",
-  "gamma_g": "0.3",
-  "gamma_r": "0.3",
+  "gamma_b": "0",
+  "gamma_g": "0",
+  "gamma_r": "0",
   "layers_parameters": [
     {
       "format": 25,
@@ -30,7 +24,7 @@
         "width": 1920
       },
       "transform": 0,
-      "type": 0
+      "type": 4
     }
   ]
 }
