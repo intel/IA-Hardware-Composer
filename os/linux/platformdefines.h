@@ -34,6 +34,7 @@ struct gbm_handle {
   struct gbm_import_fd_data import_data;
 #endif
   struct gbm_bo* bo = NULL;
+  uint32_t total_planes = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;
@@ -47,7 +48,7 @@ extern "C" {
 #define ITRACE(fmt, ...) fprintf(stderr, "\n" fmt, ##__VA_ARGS__)
 #define WTRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)
 #define ETRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)
-
+#define STRACE() ((void)0)
 // _cplusplus
 #ifdef _cplusplus
 }

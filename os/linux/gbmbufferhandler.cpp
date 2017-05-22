@@ -26,9 +26,7 @@
 #include <hwctrace.h>
 #include <platformdefines.h>
 
-#ifndef USE_MINIGBM
-#include "gbmutils.h"
-#endif
+#include "drmutils.h"
 
 namespace hwcomposer {
 
@@ -66,8 +64,20 @@ bool GbmBufferHandler::Init() {
 
 bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                     HWCNativeHandle *handle) {
-  struct gbm_bo *bo = gbm_bo_create(device_, w, h, GBM_FORMAT_XRGB8888,
+  uint32_t gbm_format = format;
+  if (gbm_format == 0)
+    gbm_format = GBM_FORMAT_XRGB8888;
+
+  struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format,
                                     GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+
+  if (!bo) {
+    bo = gbm_bo_create(device_, w, h, gbm_format, GBM_BO_USE_RENDERING);
+    if (!bo) {
+      ETRACE("GbmBufferHandler: failed to create gbm_bo");
+      return false;
+    }
+  }
 
   struct gbm_handle *temp = new struct gbm_handle();
   temp->import_data.width = gbm_bo_get_width(bo);
@@ -80,10 +90,11 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     temp->import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
     temp->import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
   }
+  temp->total_planes = total_planes;
 #else
   temp->import_data.fd = gbm_bo_get_fd(bo);
-  size_t total_planes = gbm_bo_get_num_planes(temp->import_data.format);
   temp->import_data.stride = gbm_bo_get_stride(bo);
+  temp->total_planes = drm_bo_get_num_planes(temp->import_data.format);
 #endif
 
   temp->bo = bo;
@@ -155,13 +166,33 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   }
 #else
   bo->prime_fd = handle->import_data.fd;
-  size_t total_planes = gbm_bo_get_num_planes(gbm_bo_get_format(handle->bo));
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;
   bo->pitches[0] = gbm_bo_get_stride(handle->bo);
 #endif
 
   return true;
+}
+
+uint32_t GbmBufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
+  return handle->total_planes;
+}
+
+void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
+                            uint32_t width, uint32_t height, uint32_t *stride,
+                            void **map_data, size_t plane) {
+  if (!handle->bo)
+    return NULL;
+
+  return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
+                    stride, map_data, plane);
+}
+
+void GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
+  if (!handle->bo)
+    return;
+
+  return gbm_bo_unmap(handle->bo, map_data);
 }
 
 }  // namespace hwcomposer

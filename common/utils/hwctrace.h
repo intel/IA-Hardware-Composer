@@ -63,7 +63,7 @@ class TraceFunc {
 };
 #define CTRACE() TraceFunc hwctrace(__func__);
 #else
-#define CTRACE() ((void)0)
+#define CTRACE()  STRACE()
 #endif
 
 // Arguments tracing

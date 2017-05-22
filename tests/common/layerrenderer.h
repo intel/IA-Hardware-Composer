@@ -17,8 +17,8 @@
 #ifndef LAYER_RENDERER_H_
 #define LAYER_RENDERER_H_
 
-#include <gbm.h>
-#include "platformdefines.h"
+#include <hwcbuffer.h>
+#include <platformdefines.h>
 #include "esUtil.h"
 #include <EGL/eglext.h>
 #include <GLES2/gl2ext.h>
@@ -39,24 +39,32 @@ typedef struct {
   PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
 } glContext;
 
+namespace hwcomposer {
+class NativeBufferHandler;
+}
+
 class LayerRenderer {
  public:
-  LayerRenderer(struct gbm_device* gbm_dev);
+  LayerRenderer(hwcomposer::NativeBufferHandler* buffer_handler);
   virtual ~LayerRenderer();
 
   virtual bool Init(uint32_t width, uint32_t height, uint32_t format,
                     glContext* gl = NULL, const char* resourePath = NULL) = 0;
   virtual void Draw(int64_t* pfence) = 0;
-  struct gbm_handle* GetNativeBoHandle() {
-    return &native_handle_;
+  HWCNativeHandle GetNativeBoHandle() {
+    return handle_;
   }
 
  protected:
-  uint32_t planes_ = 0;
-  struct gbm_bo* gbm_bo_ = NULL;
-  struct gbm_handle native_handle_;
-  struct gbm_device* gbm_dev_ = NULL;
+  HWCNativeHandle handle_;
+  HwcBuffer bo_;
+  hwcomposer::NativeBufferHandler* buffer_handler_ = NULL;
   uint32_t format_ = GBM_FORMAT_XRGB8888;
+  uint32_t planes_ = 0;
+  uint32_t width_ = 0;
+  uint32_t height_ = 0;
+  uint32_t stride_ = 0;
+  uint32_t fd_ = 0;
 };
 
 #endif

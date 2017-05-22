@@ -133,6 +133,16 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   return true;
 }
+
+uint32_t GrallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
+  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
+  if (!gr_handle) {
+    ETRACE("could not find gralloc drm handle");
+    return false;
+  }
+
+  return drm_bo_get_num_planes(gr_handle->format);
+}
 #else
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   hwc_drm_bo_t hwc_bo;
@@ -168,6 +178,22 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   return true;
 }
+
+// stubs
+uint32_t GrallocBufferHandler::GetTotalPlanes(HWCNativeHandle /*handle*/) {
+  return 0;
+}
 #endif
+
+void *GrallocBufferHandler::Map(HWCNativeHandle /*handle*/, uint32_t /*x*/,
+                                uint32_t /*y*/, uint32_t /*width*/,
+                                uint32_t /*height*/, uint32_t * /*stride*/,
+                                void ** /*map_data*/, size_t /*plane*/) {
+  return NULL;
+}
+
+void GrallocBufferHandler::UnMap(HWCNativeHandle /*handle*/,
+                                 void * /*map_data*/) {
+}
 
 }  // namespace hwcomposer

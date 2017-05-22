@@ -37,7 +37,6 @@
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <gbm.h>
 #include <drm_fourcc.h>
 
 #include "esUtil.h"
@@ -58,6 +57,8 @@
 #include "videolayerrenderer.h"
 #include "imagelayerrenderer.h"
 #include "jsonhandlers.h"
+
+#include <nativebufferhandler.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -266,24 +267,9 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   hwcomposer::SpinLock spin_lock_;
 };
 
-static struct { struct gbm_device *dev; } gbm;
-
-struct drm_fb {
-  struct gbm_bo *bo;
-};
-
-static int init_gbm(int fd) {
-  gbm.dev = gbm_create_device(fd);
-  if (!gbm.dev) {
-    printf("failed to create gbm device\n");
-    return -1;
-  }
-
-  return 0;
-}
-
 char json_path[1024];
 TEST_PARAMETERS test_parameters;
+hwcomposer::NativeBufferHandler *buffer_handler;
 
 static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
   switch (format) {
@@ -443,17 +429,17 @@ static void init_frames(int32_t width, int32_t height) {
       switch (layer_parameter.type) {
         // todo: more GL layer categories intead of only one CubeLayer
         case LAYER_TYPE_GL:
-          renderer = new GLCubeLayerRenderer(gbm.dev, false);
+          renderer = new GLCubeLayerRenderer(buffer_handler, false);
           break;
 #ifdef USE_MINIGBM
         case LAYER_TYPE_VIDEO:
-          renderer = new VideoLayerRenderer(gbm.dev);
+          renderer = new VideoLayerRenderer(buffer_handler);
           break;
         case LAYER_TYPE_IMAGE:
-          renderer = new ImageLayerRenderer(gbm.dev);
+          renderer = new ImageLayerRenderer(buffer_handler);
           break;
         case LAYER_TYPE_GL_TEXTURE:
-          renderer = new GLCubeLayerRenderer(gbm.dev, true);
+          renderer = new GLCubeLayerRenderer(buffer_handler, true);
           break;
 #endif
         default:
@@ -563,15 +549,16 @@ int main(int argc, char *argv[]) {
   primary_width = displays.at(0)->Width();
   primary_height = displays.at(0)->Height();
 
-  ret = init_gbm(fd);
-  if (ret) {
-    printf("failed to initialize GBM\n");
-    close(fd);
-    return ret;
+  buffer_handler = hwcomposer::NativeBufferHandler::CreateInstance(fd);
+
+  if (!buffer_handler)
+    exit(-1);
+
+  if (!init_gl()) {
+    delete buffer_handler;
+    exit(-1);
   }
 
-  if (!init_gl())
-    exit(-1);
   init_frames(primary_width, primary_height);
 
   callback->SetBroadcastRGB(test_parameters.broadcast_rgb.c_str());
@@ -657,5 +644,6 @@ int main(int argc, char *argv[]) {
   callback->SetContrast(0x80, 0x80, 0x80);
 
   close(fd);
+  delete buffer_handler;
   exit(ret);
 }
