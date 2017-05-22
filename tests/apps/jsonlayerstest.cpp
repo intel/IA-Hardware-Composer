@@ -56,6 +56,7 @@
 #include "glcubelayerrenderer.h"
 #include "videolayerrenderer.h"
 #include "imagelayerrenderer.h"
+#include "cclayerrenderer.h"
 #include "jsonhandlers.h"
 
 #include <nativebufferhandler.h>
@@ -440,6 +441,9 @@ static void init_frames(int32_t width, int32_t height) {
           break;
         case LAYER_TYPE_GL_TEXTURE:
           renderer = new GLCubeLayerRenderer(buffer_handler, true);
+          break;
+        case LAYER_TYPE_CC:
+          renderer = new CCLayerRenderer(buffer_handler);
           break;
 #endif
         default:
