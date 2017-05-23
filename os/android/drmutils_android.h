@@ -15,8 +15,8 @@
 // limitations under the License.
 */
 
-#ifndef OS_ANDROID_DRMUTILS_H_
-#define OS_ANDROID_DRMUTILS_H_
+#ifndef OS_ANDROID_DRMUTILS_ANDROID_H_
+#define OS_ANDROID_DRMUTILS_ANDROID_H_
 
 #include <stdint.h>
 #include <drm_fourcc.h>

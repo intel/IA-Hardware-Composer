@@ -18,7 +18,7 @@
 #define LOG_TAG "hwc-drm-two"
 
 #include "drmhwctwo.h"
-#include "drmutils.h"
+#include "drmutils_android.h"
 
 #include <xf86drmMode.h>
 

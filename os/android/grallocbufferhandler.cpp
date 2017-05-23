@@ -34,6 +34,7 @@
 #include <hwcdefs.h>
 #include <hwctrace.h>
 #include "drmhwcgralloc.h"
+#include "drmutils.h"
 
 namespace hwcomposer {
 
