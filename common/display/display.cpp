@@ -159,7 +159,7 @@ bool Display::onGetDisplayConfigs(uint32_t* pNumConfigs, uint32_t* paConfigHandl
   return true;
 }
 
-bool Display::GetDisplayName(uint32_t *size, char *name) {
+bool Display::getName(uint32_t *size, char *name) const {
   std::ostringstream stream;
   stream << "Display-" << connector_;
   std::string string = stream.str();

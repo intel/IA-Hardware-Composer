@@ -47,7 +47,7 @@ class Display : public NativeDisplay {
 
   bool Initialize(OverlayBufferManager *buffer_manager) override;
 
-  DisplayType Type() const override {
+  DisplayType getDisplayType(void) const override {
     return DisplayType::kInternal;
   }
 
@@ -55,15 +55,15 @@ class Display : public NativeDisplay {
     return pipe_;
   }
 
-  uint32_t Width() const override {
+  uint32_t getWidth(void) const override {
     return width_;
   }
 
-  uint32_t Height() const override {
+  uint32_t getHeight(void) const override {
     return height_;
   }
 
-  int32_t GetRefreshRate() const override {
+  int32_t getRefresh(void) const override {
     return refresh_;
   }
 
@@ -77,7 +77,7 @@ class Display : public NativeDisplay {
 
   bool onGetDisplayConfigs(uint32_t *pNumConfigs,
                            uint32_t *paConfigHandles) const override;
-  bool GetDisplayName(uint32_t *size, char *name) override;
+  bool getName(uint32_t *size, char *name) const override;
   int GetDisplayPipe() override;
   bool onSetActiveConfig(uint32_t configIndex) override;
   bool onGetActiveConfig(uint32_t *configIndex) const override;

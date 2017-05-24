@@ -46,16 +46,27 @@ class NativeDisplay {
   }
 
   virtual bool Initialize(OverlayBufferManager *buffer_manager) = 0;
-
-  virtual DisplayType Type() const = 0;
+  // Get display type.
+  virtual DisplayType getDisplayType(void) const = 0;
 
   virtual uint32_t Pipe() const = 0;
 
-  virtual uint32_t Width() const = 0;
+  /**
+   * API to Get the 'current' display horizontal size in pixels.
+   * This should be based on the config for all subsequent frames.
+   */
+  virtual uint32_t getWidth(void) const = 0;
+  /**
+   * API to Get the 'current' display vertical size in pixels.
+   * This should be based on the config for all subsequent frames.
+   */
+  virtual uint32_t getHeight(void) const = 0;
 
-  virtual uint32_t Height() const = 0;
-
-  virtual int32_t GetRefreshRate() const = 0;
+  /**
+   * API to Get the 'current' display refresh in Hz.
+   * This should be based on the config for all subsequent frames.
+   */
+  virtual int32_t getRefresh(void) const = 0;
 
   virtual uint32_t PowerMode() const = 0;
   /**
@@ -77,7 +88,7 @@ class NativeDisplay {
    */
   virtual bool onGetDisplayConfigs(uint32_t *pNumConfigs,
                                    uint32_t *paConfigHandles) const = 0;
-  virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
+  virtual bool getName(uint32_t *size, char *name) const = 0;
   /**
   * API for getting connected display's pipe id.
   * @return "-1" for unconnected display, valid values are 0 ~ 2.

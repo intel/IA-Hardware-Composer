@@ -85,7 +85,7 @@ bool Headless::onGetDisplayConfigs(uint32_t* pNumConfigs, uint32_t* paConfigHand
   return true;
 }
 
-bool Headless::GetDisplayName(uint32_t *size, char *name) {
+bool Headless::getName(uint32_t *size, char *name) const {
   std::ostringstream stream;
   stream << "Headless";
   std::string string = stream.str();

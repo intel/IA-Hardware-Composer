@@ -31,7 +31,7 @@ class Headless : public NativeDisplay {
 
   bool Initialize(OverlayBufferManager *buffer_manager) override;
 
-  DisplayType Type() const override {
+  DisplayType getDisplayType() const override {
     return DisplayType::kHeadless;
   }
 
@@ -39,15 +39,15 @@ class Headless : public NativeDisplay {
     return 0;
   }
 
-  uint32_t Width() const override {
+  uint32_t getWidth(void) const override {
     return 1;
   }
 
-  uint32_t Height() const override {
+  uint32_t getHeight(void) const override {
     return 1;
   }
 
-  int32_t GetRefreshRate() const override {
+  int32_t getRefresh(void) const override {
     return 0;
   }
 
@@ -61,7 +61,7 @@ class Headless : public NativeDisplay {
 
   bool onGetDisplayConfigs(uint32_t *pNumConfigs,
                            uint32_t *paConfigHandles) const override;
-  bool GetDisplayName(uint32_t *size, char *name) override;
+  bool getName(uint32_t *size, char *name) const override;
   int GetDisplayPipe() override;
   bool onSetActiveConfig(uint32_t configIndex) override;
   bool onGetActiveConfig(uint32_t *configIndex) const override;

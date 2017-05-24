@@ -560,8 +560,8 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  primary_width = displays.at(0)->Width();
-  primary_height = displays.at(0)->Height();
+  primary_width = displays.at(0)->getWidth();
+  primary_height = displays.at(0)->getHeight();
 
   ret = init_gbm(fd);
   if (ret) {

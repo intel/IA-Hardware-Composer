@@ -281,7 +281,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
                                                           uint32_t height,
                                                           int32_t format,
                                                           int32_t dataspace) {
-  if (width != display_->Width() || height != display_->Height()) {
+  if (width != display_->getWidth() || height != display_->getHeight()) {
     return HWC2::Error::Unsupported;
   }
 
@@ -362,7 +362,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayName(uint32_t *size, char *name) {
   supported(__func__);
-  if (!display_->GetDisplayName(size, name))
+  if (!display_->getName(size, name))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;
@@ -487,15 +487,16 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   }
 
   // Setup the client layer's dimensions
-  hwc_rect_t display_frame = {.left = 0,
-                              .top = 0,
-                              .right = static_cast<int>(display_->Width()),
-                              .bottom = static_cast<int>(display_->Height())};
+  hwc_rect_t display_frame = {
+      .left = 0,
+      .top = 0,
+      .right = static_cast<int>(display_->getWidth()),
+      .bottom = static_cast<int>(display_->getHeight())};
   client_layer_.SetLayerDisplayFrame(display_frame);
   hwc_frect_t source_crop = {.left = 0.0f,
                              .top = 0.0f,
-                             .right = display_->Width() + 0.0f,
-                             .bottom = display_->Height() + 0.0f};
+                             .right = display_->getWidth() + 0.0f,
+                             .bottom = display_->getHeight() + 0.0f};
   client_layer_.SetLayerSourceCrop(source_crop);
 
   return HWC2::Error::None;
