@@ -104,15 +104,15 @@ int Headless::GetDisplayPipe() {
   return -1;
 }
 
-bool Headless::SetActiveConfig(uint32_t /*config*/) {
+bool Headless::onSetActiveConfig(uint32_t /*configIndex*/) {
   return false;
 }
 
-bool Headless::GetActiveConfig(uint32_t *config) {
-  if (!config)
+bool Headless::onGetActiveConfig(uint32_t *configIndex) const {
+  if (!configIndex)
     return false;
 
-  config[0] = 0;
+  configIndex[0] = 0;
   return true;
 }
 

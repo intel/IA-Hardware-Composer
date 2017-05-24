@@ -180,15 +180,15 @@ int Display::GetDisplayPipe() {
   return pipe_;
 }
 
-bool Display::SetActiveConfig(uint32_t /*config*/) {
+bool Display::onSetActiveConfig(uint32_t /*configIndex*/) {
   return true;
 }
 
-bool Display::GetActiveConfig(uint32_t *config) {
-  if (!config)
+bool Display::onGetActiveConfig(uint32_t *configIndex) const {
+  if (!configIndex)
     return false;
 
-  config[0] = 1;
+  configIndex[0] = 1;
   return true;
 }
 

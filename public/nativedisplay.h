@@ -83,8 +83,18 @@ class NativeDisplay {
   * @return "-1" for unconnected display, valid values are 0 ~ 2.
   */
   virtual int GetDisplayPipe() = 0;
-  virtual bool SetActiveConfig(uint32_t config) = 0;
-  virtual bool GetActiveConfig(uint32_t *config) = 0;
+  /**
+   * API to Set a display config using an index into the list of configs.
+   * Entrypoint for SurfaceFlinger/Hwc.
+   * @param config, config handle for which display attribute to be set
+   */
+  virtual bool onSetActiveConfig(uint32_t configIndex) = 0;
+  /**
+   * API to Get Active display config.
+   * Entrypoint for SurfaceFlinger/Hwc.
+   * @param *config,Active DisplayconfigHandle
+   */
+  virtual bool onGetActiveConfig(uint32_t *configIndex) const = 0;
 
   virtual bool SetPowerMode(uint32_t power_mode) = 0;
 

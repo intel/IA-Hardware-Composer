@@ -63,8 +63,8 @@ class Headless : public NativeDisplay {
                            uint32_t *paConfigHandles) const override;
   bool GetDisplayName(uint32_t *size, char *name) override;
   int GetDisplayPipe() override;
-  bool SetActiveConfig(uint32_t config) override;
-  bool GetActiveConfig(uint32_t *config) override;
+  bool onSetActiveConfig(uint32_t configIndex) override;
+  bool onGetActiveConfig(uint32_t *configIndex) const override;
 
   bool SetPowerMode(uint32_t power_mode) override;
 

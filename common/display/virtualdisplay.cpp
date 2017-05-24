@@ -48,11 +48,11 @@ void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
   height_ = height;
 }
 
-bool VirtualDisplay::GetActiveConfig(uint32_t *config) {
-  if (!config)
+bool VirtualDisplay::onGetActiveConfig(uint32_t *configIndex) const {
+  if (!configIndex)
     return false;
 
-  config[0] = 1;
+  configIndex[0] = 1;
   return true;
 }
 

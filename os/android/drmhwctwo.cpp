@@ -253,7 +253,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
   supported(__func__);
-  if (!display_->GetActiveConfig(config))
+  if (!display_->onGetActiveConfig(config))
     return HWC2::Error::BadConfig;
 
   return HWC2::Error::None;
@@ -481,7 +481,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   supported(__func__);
-  if (!display_->SetActiveConfig(config)) {
+  if (!display_->onSetActiveConfig(config)) {
     ALOGE("Could not find active mode for %d", config);
     return HWC2::Error::BadConfig;
   }
