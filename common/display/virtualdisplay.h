@@ -35,7 +35,7 @@ class VirtualDisplay : public Headless {
 
   void InitVirtualDisplay(uint32_t width, uint32_t height) override;
 
-  bool GetActiveConfig(uint32_t *config) override;
+  bool onGetActiveConfig(uint32_t *configIndex) const override;
 
   bool SetActiveConfig(uint32_t config) override;
 

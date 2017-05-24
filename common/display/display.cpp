@@ -118,48 +118,48 @@ void Display::ShutDown() {
   connector_ = 0;
 }
 
-bool Display::GetDisplayAttribute(uint32_t /*config*/,
-                                  HWCDisplayAttribute attribute,
-                                  int32_t *value) {
+bool Display::onGetDisplayAttribute(uint32_t /*configHandle*/,
+                                    HWCDisplayAttribute attribute,
+                                    int32_t *pValue) const {
   // We always get the values from preferred mode config.
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = width_;
+      *pValue = width_;
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = height_;
+      *pValue = height_;
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = 1e9 / refresh_;
+      *pValue = 1e9 / refresh_;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
-      *value = dpix_;
+      *pValue = dpix_;
       break;
     case HWCDisplayAttribute::kDpiY:
       // Dots per 1000 inches
-      *value = dpiy_;
+      *pValue = dpiy_;
       break;
     default:
-      *value = -1;
+      *pValue = -1;
       return false;
   }
 
   return true;
 }
 
-bool Display::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
-  *num_configs = 1;
-  if (!configs)
+bool Display::onGetDisplayConfigs(uint32_t* pNumConfigs, uint32_t* paConfigHandles) const{
+  *pNumConfigs = 1;
+  if (!paConfigHandles)
     return true;
 
-  configs[0] = 1;
+  paConfigHandles[0] = 1;
 
   return true;
 }
 
-bool Display::GetDisplayName(uint32_t *size, char *name) {
+bool Display::getName(uint32_t *size, char *name) const {
   std::ostringstream stream;
   stream << "Display-" << connector_;
   std::string string = stream.str();
@@ -180,15 +180,15 @@ int Display::GetDisplayPipe() {
   return pipe_;
 }
 
-bool Display::SetActiveConfig(uint32_t /*config*/) {
+bool Display::onSetActiveConfig(uint32_t /*configIndex*/) {
   return true;
 }
 
-bool Display::GetActiveConfig(uint32_t *config) {
-  if (!config)
+bool Display::onGetActiveConfig(uint32_t *configIndex) const {
+  if (!configIndex)
     return false;
 
-  config[0] = 1;
+  configIndex[0] = 1;
   return true;
 }
 

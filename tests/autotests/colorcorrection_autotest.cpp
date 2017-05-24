@@ -287,8 +287,8 @@ int main(int argc, char *argv[]) {
     printf("Can't open GPU file");
     exit(-1);
   }
-  primary_width = displays.at(0)->Width();
-  primary_height = displays.at(0)->Height();
+  primary_width = displays.at(0)->getWidth();
+  primary_height = displays.at(0)->getHeight();
 
   buffer_handler = hwcomposer::NativeBufferHandler::CreateInstance(fd);
 

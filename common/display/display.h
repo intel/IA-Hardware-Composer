@@ -47,7 +47,7 @@ class Display : public NativeDisplay {
 
   bool Initialize(OverlayBufferManager *buffer_manager) override;
 
-  DisplayType Type() const override {
+  DisplayType getDisplayType(void) const override {
     return DisplayType::kInternal;
   }
 
@@ -55,15 +55,15 @@ class Display : public NativeDisplay {
     return pipe_;
   }
 
-  uint32_t Width() const override {
+  uint32_t getWidth(void) const override {
     return width_;
   }
 
-  uint32_t Height() const override {
+  uint32_t getHeight(void) const override {
     return height_;
   }
 
-  int32_t GetRefreshRate() const override {
+  int32_t getRefresh(void) const override {
     return refresh_;
   }
 
@@ -71,14 +71,16 @@ class Display : public NativeDisplay {
     return power_mode_;
   }
 
-  bool GetDisplayAttribute(uint32_t config, HWCDisplayAttribute attribute,
-                           int32_t *value) override;
+  bool onGetDisplayAttribute(uint32_t configHandle,
+                             HWCDisplayAttribute attribute,
+                             int32_t *pValue) const override;
 
-  bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
-  bool GetDisplayName(uint32_t *size, char *name) override;
+  bool onGetDisplayConfigs(uint32_t *pNumConfigs,
+                           uint32_t *paConfigHandles) const override;
+  bool getName(uint32_t *size, char *name) const override;
   int GetDisplayPipe() override;
-  bool SetActiveConfig(uint32_t config) override;
-  bool GetActiveConfig(uint32_t *config) override;
+  bool onSetActiveConfig(uint32_t configIndex) override;
+  bool onGetActiveConfig(uint32_t *configIndex) const override;
 
   bool SetPowerMode(uint32_t power_mode) override;
 

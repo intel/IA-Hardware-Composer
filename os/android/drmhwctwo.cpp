@@ -253,7 +253,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
   supported(__func__);
-  if (!display_->GetActiveConfig(config))
+  if (!display_->onGetActiveConfig(config))
     return HWC2::Error::BadConfig;
 
   return HWC2::Error::None;
@@ -281,7 +281,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
                                                           uint32_t height,
                                                           int32_t format,
                                                           int32_t dataspace) {
-  if (width != display_->Width() || height != display_->Height()) {
+  if (width != display_->getWidth() || height != display_->getHeight()) {
     return HWC2::Error::Unsupported;
   }
 
@@ -321,26 +321,26 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
   auto attribute = static_cast<HWC2::Attribute>(attribute_in);
   switch (attribute) {
     case HWC2::Attribute::Width:
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kWidth, value);
       break;
     case HWC2::Attribute::Height:
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kHeight, value);
       break;
     case HWC2::Attribute::VsyncPeriod:
       // in nanoseconds
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kRefreshRate, value);
       break;
     case HWC2::Attribute::DpiX:
       // Dots per 1000 inches
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kDpiX, value);
       break;
     case HWC2::Attribute::DpiY:
       // Dots per 1000 inches
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kDpiY, value);
       break;
     default:
@@ -354,7 +354,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                                      hwc2_config_t *configs) {
   supported(__func__);
 
-  if (!display_->GetDisplayConfigs(num_configs, configs))
+  if (!display_->onGetDisplayConfigs(num_configs, configs))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;
@@ -362,7 +362,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayName(uint32_t *size, char *name) {
   supported(__func__);
-  if (!display_->GetDisplayName(size, name))
+  if (!display_->getName(size, name))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;
@@ -481,21 +481,22 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   supported(__func__);
-  if (!display_->SetActiveConfig(config)) {
+  if (!display_->onSetActiveConfig(config)) {
     ALOGE("Could not find active mode for %d", config);
     return HWC2::Error::BadConfig;
   }
 
   // Setup the client layer's dimensions
-  hwc_rect_t display_frame = {.left = 0,
-                              .top = 0,
-                              .right = static_cast<int>(display_->Width()),
-                              .bottom = static_cast<int>(display_->Height())};
+  hwc_rect_t display_frame = {
+      .left = 0,
+      .top = 0,
+      .right = static_cast<int>(display_->getWidth()),
+      .bottom = static_cast<int>(display_->getHeight())};
   client_layer_.SetLayerDisplayFrame(display_frame);
   hwc_frect_t source_crop = {.left = 0.0f,
                              .top = 0.0f,
-                             .right = display_->Width() + 0.0f,
-                             .bottom = display_->Height() + 0.0f};
+                             .right = display_->getWidth() + 0.0f,
+                             .bottom = display_->getHeight() + 0.0f};
   client_layer_.SetLayerSourceCrop(source_crop);
 
   return HWC2::Error::None;

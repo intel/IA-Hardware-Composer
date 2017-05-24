@@ -46,46 +46,46 @@ void Headless::DisConnect() {
 void Headless::ShutDown() {
 }
 
-bool Headless::GetDisplayAttribute(uint32_t /*config*/,
-                                   HWCDisplayAttribute attribute,
-                                   int32_t *value) {
+bool Headless::onGetDisplayAttribute(uint32_t /*configHandle*/,
+                                     HWCDisplayAttribute attribute,
+                                     int32_t *pValue) const {
   // We always get the values from preferred mode config.
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = 1;
+      *pValue = 1;
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = 1;
+      *pValue = 1;
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = 60;
+      *pValue = 60;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
-      *value = 1;
+      *pValue = 1;
       break;
     case HWCDisplayAttribute::kDpiY:
       // Dots per 1000 inches
-      *value = 1;
+      *pValue = 1;
       break;
     default:
-      *value = -1;
+      *pValue = -1;
       return false;
   }
 
   return true;
 }
 
-bool Headless::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
-  *num_configs = 1;
-  if (configs)
-    configs[0] = 0;
+bool Headless::onGetDisplayConfigs(uint32_t* pNumConfigs, uint32_t* paConfigHandles) const {
+  *pNumConfigs = 1;
+  if (paConfigHandles)
+    paConfigHandles[0] = 0;
 
   return true;
 }
 
-bool Headless::GetDisplayName(uint32_t *size, char *name) {
+bool Headless::getName(uint32_t *size, char *name) const {
   std::ostringstream stream;
   stream << "Headless";
   std::string string = stream.str();
@@ -104,15 +104,15 @@ int Headless::GetDisplayPipe() {
   return -1;
 }
 
-bool Headless::SetActiveConfig(uint32_t /*config*/) {
+bool Headless::onSetActiveConfig(uint32_t /*configIndex*/) {
   return false;
 }
 
-bool Headless::GetActiveConfig(uint32_t *config) {
-  if (!config)
+bool Headless::onGetActiveConfig(uint32_t *configIndex) const {
+  if (!configIndex)
     return false;
 
-  config[0] = 0;
+  configIndex[0] = 0;
   return true;
 }
 
