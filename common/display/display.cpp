@@ -118,43 +118,43 @@ void Display::ShutDown() {
   connector_ = 0;
 }
 
-bool Display::GetDisplayAttribute(uint32_t /*config*/,
-                                  HWCDisplayAttribute attribute,
-                                  int32_t *value) {
+bool Display::onGetDisplayAttribute(uint32_t /*configHandle*/,
+                                    HWCDisplayAttribute attribute,
+                                    int32_t *pValue) const {
   // We always get the values from preferred mode config.
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = width_;
+      *pValue = width_;
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = height_;
+      *pValue = height_;
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = 1e9 / refresh_;
+      *pValue = 1e9 / refresh_;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
-      *value = dpix_;
+      *pValue = dpix_;
       break;
     case HWCDisplayAttribute::kDpiY:
       // Dots per 1000 inches
-      *value = dpiy_;
+      *pValue = dpiy_;
       break;
     default:
-      *value = -1;
+      *pValue = -1;
       return false;
   }
 
   return true;
 }
 
-bool Display::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
-  *num_configs = 1;
-  if (!configs)
+bool Display::onGetDisplayConfigs(uint32_t* pNumConfigs, uint32_t* paConfigHandles) const{
+  *pNumConfigs = 1;
+  if (!paConfigHandles)
     return true;
 
-  configs[0] = 1;
+  paConfigHandles[0] = 1;
 
   return true;
 }

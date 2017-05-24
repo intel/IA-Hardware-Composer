@@ -321,26 +321,26 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
   auto attribute = static_cast<HWC2::Attribute>(attribute_in);
   switch (attribute) {
     case HWC2::Attribute::Width:
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kWidth, value);
       break;
     case HWC2::Attribute::Height:
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kHeight, value);
       break;
     case HWC2::Attribute::VsyncPeriod:
       // in nanoseconds
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kRefreshRate, value);
       break;
     case HWC2::Attribute::DpiX:
       // Dots per 1000 inches
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kDpiX, value);
       break;
     case HWC2::Attribute::DpiY:
       // Dots per 1000 inches
-      display_->GetDisplayAttribute(
+      display_->onGetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kDpiY, value);
       break;
     default:
@@ -354,7 +354,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                                      hwc2_config_t *configs) {
   supported(__func__);
 
-  if (!display_->GetDisplayConfigs(num_configs, configs))
+  if (!display_->onGetDisplayConfigs(num_configs, configs))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;

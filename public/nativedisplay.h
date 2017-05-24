@@ -58,12 +58,25 @@ class NativeDisplay {
   virtual int32_t GetRefreshRate() const = 0;
 
   virtual uint32_t PowerMode() const = 0;
-
-  virtual bool GetDisplayAttribute(uint32_t config,
-                                   HWCDisplayAttribute attribute,
-                                   int32_t *value) = 0;
-
-  virtual bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) = 0;
+  /**
+   * API to Get display Attribute for specific config handle previously returned
+   * by onGetDisplayConfigs.
+   * Entrypoint for SurfaceFlinger/Hwc.
+   * @param configHandle,config handle for which Attribute value to be returned.
+   * @param attribute, DisplayAttribute.
+   * @pValue, Value of the Display Attribute.
+   */
+  virtual bool onGetDisplayAttribute(uint32_t configHandle,
+                                     HWCDisplayAttribute attribute,
+                                     int32_t *pValue) const = 0;
+  /**
+   * API to Get display config handles.
+   * Entrypoint for SurfaceFlinger/Hwc.
+   * @param *paConfigHandles,config handles upto *pNumConfigs (as set on entry).
+   * @param *pNumConfig will be total config count.
+   */
+  virtual bool onGetDisplayConfigs(uint32_t *pNumConfigs,
+                                   uint32_t *paConfigHandles) const = 0;
   virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
   /**
   * API for getting connected display's pipe id.

@@ -71,10 +71,12 @@ class Display : public NativeDisplay {
     return power_mode_;
   }
 
-  bool GetDisplayAttribute(uint32_t config, HWCDisplayAttribute attribute,
-                           int32_t *value) override;
+  bool onGetDisplayAttribute(uint32_t configHandle,
+                             HWCDisplayAttribute attribute,
+                             int32_t *pValue) const override;
 
-  bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
+  bool onGetDisplayConfigs(uint32_t *pNumConfigs,
+                           uint32_t *paConfigHandles) const override;
   bool GetDisplayName(uint32_t *size, char *name) override;
   int GetDisplayPipe() override;
   bool SetActiveConfig(uint32_t config) override;
