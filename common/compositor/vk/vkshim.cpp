@@ -14,6 +14,7 @@
 
 #include "vkshim.h"
 
+#include "platformdefines.h"
 #include "hwctrace.h"
 
 namespace hwcomposer {
