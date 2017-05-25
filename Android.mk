@@ -98,7 +98,27 @@ ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)),true)
 LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
 endif
 
-ifeq ($(strip $(BOARD_USES_VULKAN)),)
+ifeq ($(strip $(BOARD_USES_VULKAN)),true)
+LOCAL_SHARED_LIBRARIES += \
+        libvulkan
+
+LOCAL_CPPFLAGS += \
+        -DUSE_VK \
+        -DDISABLE_EXPLICIT_SYNC
+
+LOCAL_C_INCLUDES += \
+        $(INTEL_MINIGBM) \
+        $(LOCAL_PATH)/common/compositor/vk \
+        $(LOCAL_PATH)/../mesa/include
+
+LOCAL_SRC_FILES += \
+        common/compositor/vk/vkprogram.cpp \
+        common/compositor/vk/vkrenderer.cpp \
+        common/compositor/vk/vksurface.cpp \
+        common/compositor/vk/nativevkresource.cpp \
+        common/compositor/vk/vkshim.cpp \
+        common/compositor/scopedrendererstate.cpp
+else
 LOCAL_CPPFLAGS += \
 	-DUSE_GL
 
