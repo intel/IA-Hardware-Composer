@@ -95,6 +95,8 @@ class Display : public NativeDisplay {
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   bool SetBroadcastRGB(const char *range_property) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetDrmModeModeInfo(const std::vector<drmModeModeInfo> &mode_info) override;
+  void SetDisplayAttribute(const drmModeModeInfo &mode_info) override;
 
  protected:
   uint32_t CrtcId() const override {
@@ -122,12 +124,16 @@ class Display : public NativeDisplay {
   int32_t height_;
   int32_t dpix_;
   int32_t dpiy_;
+  uint32_t mmWidth_;
+  uint32_t mmHeight_;
   uint32_t gpu_fd_;
   uint32_t power_mode_;
   float refresh_;
   bool is_connected_;
+  uint32_t config_ = 0;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayQueue> display_queue_;
+  std::vector<drmModeModeInfo> mode_;
 };
 
 }  // namespace hwcomposer
