@@ -184,8 +184,13 @@ void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
   if (!handle->bo)
     return NULL;
 
+#if USE_MINIGBM
   return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
                     stride, map_data, plane);
+#else
+  return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
+                    stride, map_data);
+#endif
 }
 
 void GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
