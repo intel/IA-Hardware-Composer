@@ -31,7 +31,6 @@
 
 #include "compositor.h"
 #include "hwcthread.h"
-#include "kmsfencehandler.h"
 #include "vblankeventhandler.h"
 #include "nativesync.h"
 #include "platformdefines.h"
@@ -67,8 +66,6 @@ class DisplayQueue {
   void SetExplicitSyncSupport(bool disable_explicit_sync);
 
   void HandleExit();
-
-  void HandleCommitUpdate(const std::vector<const OverlayBuffer*>& buffers);
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
@@ -139,26 +136,26 @@ class DisplayQueue {
   uint32_t brightness_;
   uint32_t contrast_;
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
+  int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
   uint64_t lut_size_;
   uint32_t broadcastrgb_id_;
   int64_t broadcastrgb_full_;
   int64_t broadcastrgb_automatic_;
-  uint64_t fence_ = 0;
   bool needs_color_correction_ = false;
   bool use_layer_cache_ = false;
   bool needs_modeset_ = true;
   bool disable_overlay_usage_ = false;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
-  std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
+  std::vector<OverlayLayer> in_flight_layers_;
   std::vector<OverlayLayer> previous_layers_;
   std::vector<HwcRect<int>> previous_layers_rects_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
+  std::vector<NativeSurface*> previous_surfaces_;
   IdleFrameTracker idle_tracker_;
-  SpinLock spin_lock_;
 };
 
 }  // namespace hwcomposer

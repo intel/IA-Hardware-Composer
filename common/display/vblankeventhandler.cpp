@@ -48,17 +48,19 @@ void VblankEventHandler::Init(float refresh, int fd, int pipe) {
   ScopedSpinLock lock(spin_lock_);
   refresh_ = refresh;
   fd_ = fd;
-  pipe_ = pipe;
-
-  if (!InitWorker()) {
-    ETRACE("Failed to initalize thread for VblankEventHandler. %s",
-           PRINTERROR());
-  }
+  uint32_t high_crtc = (pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
+  type_ = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE |
+                             (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
 }
 
 bool VblankEventHandler::SetPowerMode(uint32_t power_mode) {
   if (power_mode != kOn) {
     Exit();
+  } else {
+    if (!InitWorker()) {
+      ETRACE("Failed to initalize thread for VblankEventHandler. %s",
+             PRINTERROR());
+    }
   }
 
   return true;
@@ -71,12 +73,6 @@ int VblankEventHandler::RegisterCallback(
   display_ = display;
   last_timestamp_ = -1;
   spin_lock_.unlock();
-
-  if (!InitWorker()) {
-    ETRACE("Failed to initalize thread for VblankEventHandler. %s",
-           PRINTERROR());
-  }
-
   return 0;
 }
 
@@ -85,19 +81,16 @@ int VblankEventHandler::VSyncControl(bool enabled) {
   if (enabled_ == enabled)
     return 0;
 
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   enabled_ = enabled;
   last_timestamp_ = -1;
+  spin_lock_.unlock();
 
   return 0;
 }
 
 void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
                                              unsigned int usec) {
-  ScopedSpinLock lock(spin_lock_);
-  if (!enabled_ || !callback_)
-    return;
-
   int64_t timestamp = (int64_t)sec * kOneSecondNs + (int64_t)usec * 1000;
   IPAGEFLIPEVENTTRACE("HandleVblankCallBack Frame Time %f",
                       static_cast<float>(timestamp - last_timestamp_) / (1000));
@@ -105,33 +98,27 @@ void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
 
   IPAGEFLIPEVENTTRACE("Callback called from HandlePageFlipEvent. %lu",
                       timestamp);
-  callback_->Callback(display_, timestamp);
+  spin_lock_.lock();
+  if (enabled_ && callback_) {
+    callback_->Callback(display_, timestamp);
+  }
+  spin_lock_.unlock();
 }
 
 void VblankEventHandler::HandleWait() {
 }
 
 void VblankEventHandler::HandleRoutine() {
-  spin_lock_.lock();
-
-  bool enabled = enabled_;
-  int fd = fd_;
-  int pipe = pipe_;
-
-  spin_lock_.unlock();
-
   queue_->HandleIdleCase();
-
-  if (!enabled)
-    return;
-
-  uint32_t high_crtc = (pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
 
   drmVBlank vblank;
   memset(&vblank, 0, sizeof(vblank));
-  vblank.request.type = (drmVBlankSeqType)(
-      DRM_VBLANK_RELATIVE | (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
   vblank.request.sequence = 1;
+
+  spin_lock_.lock();
+  int fd = fd_;
+  vblank.request.type = type_;
+  spin_lock_.unlock();
 
   int ret = drmWaitVBlank(fd, &vblank);
   if (!ret)

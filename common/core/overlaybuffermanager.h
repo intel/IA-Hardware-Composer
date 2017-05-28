@@ -92,9 +92,7 @@ class OverlayBufferManager {
   void RegisterBuffers(const std::vector<const OverlayBuffer*>& buffers);
 
   // Convenient function to call together UnRegisterBuffers for
-  // OverlayBuffers.
-  void UnRegisterBuffers(const std::vector<const OverlayBuffer*>& buffers);
-
+  // layers.
   void UnRegisterLayerBuffers(std::vector<OverlayLayer>& layers);
 
   NativeBufferHandler* GetNativeBufferHandler() const {

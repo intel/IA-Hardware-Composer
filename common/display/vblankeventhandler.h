@@ -18,6 +18,7 @@
 #define COMMON_DISPLAY_VBLANK_EVENT_HANDLER_H_
 
 #include <stdint.h>
+#include <xf86drm.h>
 
 #include <nativedisplay.h>
 #include <spinlock.h>
@@ -63,6 +64,7 @@ class VblankEventHandler : public HWCThread {
   int fd_;
   int pipe_;
   int64_t last_timestamp_;
+  drmVBlankSeqType type_;
   DisplayQueue* queue_;
 };
 

@@ -113,29 +113,6 @@ void OverlayBufferManager::UnRegisterBuffer(const OverlayBuffer* const buffer) {
   }
 }
 
-void OverlayBufferManager::UnRegisterBuffers(
-    const std::vector<const OverlayBuffer*>& buffers) {
-  for (const OverlayBuffer* const buffer : buffers) {
-    int32_t index = -1;
-    for (Buffer& overlay_buffer : buffers_) {
-      index++;
-      if (overlay_buffer.buffer_.get() != buffer)
-        continue;
-
-      overlay_buffer.ref_count_--;
-      if (overlay_buffer.ref_count_ > 0) {
-        index = -1;
-      }
-
-      break;
-    }
-
-    if (index >= 0 && index < buffers_.size()) {
-      buffers_.erase(buffers_.begin() + index);
-    }
-  }
-}
-
 void OverlayBufferManager::UnRegisterLayerBuffers(
     std::vector<OverlayLayer>& layers) {
   CTRACE();
