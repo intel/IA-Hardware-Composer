@@ -117,6 +117,10 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 }
 
 void GLRenderer::RestoreState() {
+  if (disable_explicit_sync_) {
+    glFinish();
+  }
+
   context_.RestoreState();
 }
 
