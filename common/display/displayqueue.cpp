@@ -63,6 +63,8 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
 
+  vblank_handler_.reset(new VblankEventHandler());
+
   kms_fence_handler_.reset(new KMSFenceEventHandler(this));
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
@@ -83,8 +85,8 @@ DisplayQueue::~DisplayQueue() {
     drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
 }
 
-bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
-                              uint32_t connector,
+bool DisplayQueue::Initialize(float refresh, uint32_t width, uint32_t height,
+                              uint32_t pipe, uint32_t connector,
                               const drmModeModeInfo& mode_info) {
   frame_ = 0;
   previous_layers_.clear();
@@ -127,6 +129,8 @@ bool DisplayQueue::Initialize(uint32_t width, uint32_t height, uint32_t pipe,
     }
   }
   drmModeFreeProperty(broadcastrgb_props);
+
+  vblank_handler_->Init(refresh, gpu_fd_, pipe);
 
   return true;
 }
@@ -182,6 +186,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       HandleExit();
       break;
     case kDozeSuspend:
+      vblank_handler_->SetPowerMode(kDozeSuspend);
       break;
     case kOn:
       needs_modeset_ = true;
@@ -192,6 +197,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 
       if (!kms_fence_handler_->Initialize())
         return false;
+
+      vblank_handler_->SetPowerMode(kOn);
       break;
     default:
       break;
@@ -427,6 +434,7 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(previous_layers_);
   previous_plane_state_.clear();
   compositor_.Reset();
+  vblank_handler_->SetPowerMode(kOff);
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
@@ -627,6 +635,15 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   } else {
     disable_overlay_usage_ = out_fence_ptr_prop_ == 0;
   }
+}
+
+int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
+                                        uint32_t display_id) {
+  return vblank_handler_->RegisterCallback(callback, display_id);
+}
+
+void DisplayQueue::VSyncControl(bool enabled) {
+  vblank_handler_->VSyncControl(enabled);
 }
 
 }  // namespace hwcomposer
