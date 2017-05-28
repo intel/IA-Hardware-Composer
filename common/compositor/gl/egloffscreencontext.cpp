@@ -66,8 +66,6 @@ bool EGLOffScreenContext::Init() {
     return false;
   }
 
-  eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_ctx_);
-
   return true;
 }
 
