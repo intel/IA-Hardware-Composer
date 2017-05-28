@@ -62,7 +62,8 @@ class OverlayBuffer {
     return fb_id_;
   }
 
-  GpuImage ImportImage(GpuDisplay egl_display);
+  EGLImageKHR ImportImage(EGLDisplay egl_display);
+  struct vk_import ImportImage(VkDevice dev);
 
   bool CreateFrameBuffer(uint32_t gpu_fd);
 

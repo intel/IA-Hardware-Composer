@@ -19,11 +19,8 @@
 
 #include <stdint.h>
 
-#ifdef USE_GL
-#include "shim.h"
-#elif USE_VK
 #include "vkshim.h"
-#endif
+#include "shim.h"
 
 namespace hwcomposer {
 
@@ -37,28 +34,21 @@ static float TransformMatrices[] = {
     0.0f, 1.0f, 1.0f, 0.0f,  // swap x and y
 };
 // clang-format on
-
-#ifdef USE_GL
-typedef unsigned GpuResourceHandle;
-typedef EGLImageKHR GpuImage;
-typedef EGLDisplay GpuDisplay;
-#elif USE_VK
-typedef struct vk_resource {
+struct vk_resource {
   VkImage image;
   VkImageView image_view;
-} GpuResourceHandle;
-typedef struct vk_import {
+};
+
+struct vk_import {
   VkImage image;
   VkDeviceMemory memory;
   VkResult res;
-} GpuImage;
+};
 
-typedef VkDevice GpuDisplay;
-#else
-typedef unsigned GpuResourceHandle;
-typedef void* GpuImage;
-typedef void* GpuDisplay;
-#endif
+union GpuResourceHandle {
+  unsigned gl;
+  struct vk_resource vk;
+};
 
 }  // namespace hwcomposer
 #endif  // COMMON_COMPOSITOR_COMPOSITORDEFS_H_

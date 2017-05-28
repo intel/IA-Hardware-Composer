@@ -75,9 +75,9 @@ bool NativeVKResource::PrepareResources(
     }
     src_image_views_.emplace_back(image_view);
 
-    struct vk_resource resource;
-    resource.image = import.image;
-    resource.image_view = image_view;
+    GpuResourceHandle resource;
+    resource.vk.image = import.image;
+    resource.vk.image_view = image_view;
     layer_textures_.emplace_back(resource);
   }
   return true;
@@ -110,7 +110,8 @@ void NativeVKResource::Reset() {
 GpuResourceHandle NativeVKResource::GetResourceHandle(
     uint32_t layer_index) const {
   if (layer_textures_.size() < layer_index) {
-    struct vk_resource res = {};
+    GpuResourceHandle res;
+    res.vk = {};
     return res;
   }
 
