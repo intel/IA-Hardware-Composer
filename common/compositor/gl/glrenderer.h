@@ -42,6 +42,8 @@ class GLRenderer : public Renderer {
 
   bool MakeCurrent() override;
 
+  bool MakeCurrentIdle() override;
+
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
  private:

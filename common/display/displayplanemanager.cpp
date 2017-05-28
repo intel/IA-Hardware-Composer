@@ -287,6 +287,17 @@ void DisplayPlaneManager::DisablePipe(drmModeAtomicReqPtr property_set) {
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
 }
 
+void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
+  std::vector<std::unique_ptr<NativeSurface>> surfaces;
+  for (auto &fb : surfaces_) {
+    if (fb->InUse()) {
+      surfaces.emplace_back(fb.release());
+    }
+  }
+
+  surfaces.swap(surfaces_);
+}
+
 bool DisplayPlaneManager::TestCommit(
     const std::vector<OverlayPlane> &commit_planes) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());

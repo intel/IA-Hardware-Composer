@@ -28,9 +28,11 @@
 
 namespace hwcomposer {
 
+class DisplayQueue;
+
 class VblankEventHandler : public HWCThread {
  public:
-  VblankEventHandler();
+  VblankEventHandler(DisplayQueue* queue);
   ~VblankEventHandler() override;
 
   void Init(float refresh, int fd, int pipe);
@@ -61,6 +63,7 @@ class VblankEventHandler : public HWCThread {
   int fd_;
   int pipe_;
   int64_t last_timestamp_;
+  DisplayQueue* queue_;
 };
 
 }  // namespace hwcomposer

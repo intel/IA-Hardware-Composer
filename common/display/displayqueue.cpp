@@ -63,7 +63,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
 
-  vblank_handler_.reset(new VblankEventHandler());
+  vblank_handler_.reset(new VblankEventHandler(this));
 
   kms_fence_handler_.reset(new KMSFenceEventHandler(this));
   /* use 0x80 as default brightness for all colors */
@@ -191,7 +191,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
     case kOn:
       needs_modeset_ = true;
       needs_color_correction_ = true;
-      flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
+      flags_ = 0;
+      flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
       drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                                   DRM_MODE_DPMS_ON);
 
@@ -252,6 +253,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
+  ScopedIdleStateTracker tracker(idle_tracker_);
   size_t size = source_layers.size();
   size_t previous_size = previous_layers_.size();
   std::vector<OverlayLayer> layers;
@@ -400,6 +402,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  previous_layers_rects_.swap(layers_rects);
+
   return true;
 }
 
@@ -431,10 +435,15 @@ void DisplayQueue::HandleExit() {
   display_plane_manager_->DisablePipe(pset.get());
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
+  buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
   std::vector<OverlayLayer>().swap(previous_layers_);
+  previous_plane_state_.clear();
+  std::vector<HwcRect<int>>().swap(previous_layers_rects_);
   previous_plane_state_.clear();
   compositor_.Reset();
   vblank_handler_->SetPowerMode(kOff);
+  idle_tracker_.preparing_composition_ = false;
+  idle_tracker_.idle_frames_ = 0;
 }
 
 void DisplayQueue::GetDrmObjectProperty(const char* name,
@@ -644,6 +653,88 @@ int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
 
 void DisplayQueue::VSyncControl(bool enabled) {
   vblank_handler_->VSyncControl(enabled);
+}
+
+void DisplayQueue::HandleIdleCase() {
+  idle_tracker_.idle_lock_.lock();
+  if (idle_tracker_.preparing_composition_) {
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  if (previous_plane_state_.size() <= 1) {
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  if (idle_tracker_.idle_frames_ > 5) {
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  if (idle_tracker_.idle_frames_ < 5) {
+    idle_tracker_.idle_frames_++;
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  idle_tracker_.idle_frames_++;
+  DisplayPlaneStateList current_composition_planes;
+  bool render_layers;
+  std::tie(render_layers, current_composition_planes) =
+      display_plane_manager_->ValidateLayers(previous_layers_, false, true);
+
+  if (render_layers) {
+    if (!compositor_.BeginFrame(true)) {
+      ETRACE("Failed to initialize compositor.");
+      idle_tracker_.idle_lock_.unlock();
+      return;
+    }
+
+    // Prepare for final composition.
+    if (!compositor_.DrawIdleState(current_composition_planes, previous_layers_,
+                                   previous_layers_rects_)) {
+      ETRACE("Failed to prepare for the frame composition. ");
+      idle_tracker_.idle_lock_.unlock();
+      return;
+    }
+  }
+
+  // Do the actual commit.
+  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+
+  if (!pset) {
+    ETRACE("Failed to allocate property set %d", -ENOMEM);
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+
+  kms_fence_handler_->EnsureReadyForNextFrame();
+
+  if (!display_plane_manager_->CommitFrame(current_composition_planes,
+                                           pset.get(), flags)) {
+    ETRACE("Failed to Commit layers.");
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  for (NativeSurface* surface : in_flight_surfaces_) {
+    surface->SetInUse(false);
+  }
+
+  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
+
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    if (plane_state.GetCompositionState() ==
+        DisplayPlaneState::State::kRender) {
+      in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
+    }
+  }
+
+  display_plane_manager_->ReleaseFreeOffScreenTargets();
+  idle_tracker_.idle_lock_.unlock();
 }
 
 }  // namespace hwcomposer

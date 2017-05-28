@@ -154,6 +154,55 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
+bool Compositor::DrawIdleState(DisplayPlaneStateList &comp_planes,
+                               std::vector<OverlayLayer> &layers,
+                               const std::vector<HwcRect<int>> &display_frame) {
+  CTRACE();
+  const DisplayPlaneState *comp = NULL;
+  std::vector<size_t> dedicated_layers;
+  ScopedIdleRendererState state(renderer_.get());
+  if (!state.IsValid()) {
+    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
+    return false;
+  }
+
+  if (!gpu_resource_handler_->PrepareResources(layers)) {
+    ETRACE(
+        "Failed to prepare GPU resources for compositing the frame, "
+        "error: %s",
+        PRINTERROR());
+    return false;
+  }
+
+  for (DisplayPlaneState &plane : comp_planes) {
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+      dedicated_layers.insert(dedicated_layers.end(),
+                              plane.source_layers().begin(),
+                              plane.source_layers().end());
+    } else if (plane.GetCompositionState() ==
+               DisplayPlaneState::State::kRender) {
+      comp = &plane;
+      std::vector<CompositionRegion> &comp_regions =
+          plane.GetCompositionRegion();
+      if (comp_regions.empty()) {
+        SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
+                       comp_regions);
+      }
+
+      std::vector<size_t>().swap(dedicated_layers);
+      if (comp_regions.empty())
+        continue;
+
+      if (!Render(layers, plane.GetOffScreenTarget(), comp_regions)) {
+        ETRACE("Failed to Render layer.");
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 void Compositor::InsertFence(uint64_t fence) {
   renderer_->InsertFence(fence);
 }

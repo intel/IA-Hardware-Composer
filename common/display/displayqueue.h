@@ -75,7 +75,34 @@ class DisplayQueue {
 
   void VSyncControl(bool enabled);
 
+  void HandleIdleCase();
+
  private:
+  struct IdleFrameTracker {
+    uint32_t idle_frames_ = 0;
+    SpinLock idle_lock_;
+    bool preparing_composition_ = true;
+  };
+
+  struct ScopedIdleStateTracker {
+    ScopedIdleStateTracker(struct IdleFrameTracker& tracker)
+        : tracker_(tracker) {
+      tracker_.idle_lock_.lock();
+      tracker_.idle_frames_ = 0;
+      tracker_.preparing_composition_ = true;
+      tracker_.idle_lock_.unlock();
+    }
+
+    ~ScopedIdleStateTracker() {
+      tracker_.idle_lock_.lock();
+      tracker_.preparing_composition_ = false;
+      tracker_.idle_lock_.unlock();
+    }
+
+   private:
+    struct IdleFrameTracker& tracker_;
+  };
+
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers);
@@ -126,9 +153,11 @@ class DisplayQueue {
   std::unique_ptr<KMSFenceEventHandler> kms_fence_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> previous_layers_;
+  std::vector<HwcRect<int>> previous_layers_rects_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
+  IdleFrameTracker idle_tracker_;
   SpinLock spin_lock_;
 };
 

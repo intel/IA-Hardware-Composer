@@ -39,5 +39,22 @@ struct ScopedRendererState {
   bool is_valid_;
 };
 
+struct ScopedIdleRendererState {
+  ScopedIdleRendererState(Renderer* renderer);
+
+  ScopedIdleRendererState(const ScopedRendererState& rhs) = delete;
+
+  ~ScopedIdleRendererState();
+
+  ScopedIdleRendererState& operator=(const ScopedRendererState& rhs) = delete;
+
+  bool IsValid() const {
+    return is_valid_;
+  }
+
+ private:
+  bool is_valid_;
+};
+
 }  // namespace hwcomposer
 #endif  // SCOPED_RENDERER_STATE_H_

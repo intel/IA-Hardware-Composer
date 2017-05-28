@@ -23,20 +23,22 @@
 
 #include <memory>
 
+#include "displayqueue.h"
 #include "hwctrace.h"
 
 namespace hwcomposer {
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
-VblankEventHandler::VblankEventHandler()
+VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
     : HWCThread(-8, "VblankEventHandler"),
       display_(0),
       enabled_(false),
       refresh_(0.0),
       fd_(-1),
       pipe_(-1),
-      last_timestamp_(-1) {
+      last_timestamp_(-1),
+      queue_(queue) {
 }
 
 VblankEventHandler::~VblankEventHandler() {
@@ -47,12 +49,15 @@ void VblankEventHandler::Init(float refresh, int fd, int pipe) {
   refresh_ = refresh;
   fd_ = fd;
   pipe_ = pipe;
+
+  if (!InitWorker()) {
+    ETRACE("Failed to initalize thread for VblankEventHandler. %s",
+           PRINTERROR());
+  }
 }
 
 bool VblankEventHandler::SetPowerMode(uint32_t power_mode) {
-  if (power_mode == kOn && enabled_) {
-    VSyncControl(enabled_);
-  } else {
+  if (power_mode != kOn) {
     Exit();
   }
 
@@ -82,15 +87,6 @@ int VblankEventHandler::VSyncControl(bool enabled) {
 
   ScopedSpinLock lock(spin_lock_);
   enabled_ = enabled;
-  if (enabled_ && callback_) {
-    if (!InitWorker()) {
-      ETRACE("Failed to initalize thread for VblankEventHandler. %s",
-             PRINTERROR());
-    }
-  } else {
-    Exit();
-  }
-
   last_timestamp_ = -1;
 
   return 0;
@@ -123,6 +119,8 @@ void VblankEventHandler::HandleRoutine() {
   int pipe = pipe_;
 
   spin_lock_.unlock();
+
+  queue_->HandleIdleCase();
 
   if (!enabled)
     return;

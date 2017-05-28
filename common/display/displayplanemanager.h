@@ -62,6 +62,8 @@ class DisplayPlaneManager {
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
+  void ReleaseFreeOffScreenTargets();
+
  protected:
   struct OverlayPlane {
    public:

@@ -215,9 +215,21 @@ bool DisplayPlane::Disable(drmModeAtomicReqPtr property_set) {
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, 0) < 0;
   success |= drmModeAtomicAddProperty(property_set, id_, fb_prop_.id, 0) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, crtc_x_prop_.id, 0) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, crtc_y_prop_.id, 0) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id, 0) < 0;
+  success |=
+      drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id, 0) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id, 0) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id, 0) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id, 0) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id, 0) < 0;
 
   if (success) {
-    ETRACE("Failed to disable plane with id: %d", id_);
+    ETRACE("Could not update properties for plane with id: %d", id_);
     return false;
   }
 

@@ -691,6 +691,10 @@ bool VKRenderer::MakeCurrent() {
   return true;
 }
 
+bool VKRenderer::MakeCurrentIdle() {
+  return true;
+}
+
 void VKRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 

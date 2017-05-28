@@ -34,6 +34,7 @@ class VKRenderer : public Renderer {
   void InsertFence(uint64_t kms_fence) override;
   void RestoreState() override;
   bool MakeCurrent() override;
+  bool MakeCurrentIdle() override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
  private:

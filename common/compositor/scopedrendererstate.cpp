@@ -30,4 +30,11 @@ ScopedRendererState::~ScopedRendererState() {
     renderer_->RestoreState();
 }
 
+ScopedIdleRendererState::ScopedIdleRendererState(Renderer* renderer) {
+  is_valid_ = renderer->MakeCurrentIdle();
+}
+
+ScopedIdleRendererState::~ScopedIdleRendererState() {
+}
+
 }  // namespace hwcomposer

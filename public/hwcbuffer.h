@@ -18,6 +18,7 @@
 #define PUBLIC_HWCBUFFER_H_
 
 #include <stdint.h>
+#include <unistd.h>
 
 struct HwcBuffer {
   uint32_t width;
@@ -26,7 +27,7 @@ struct HwcBuffer {
   uint32_t pitches[4];
   uint32_t offsets[4];
   uint32_t gem_handles[4];
-  uint32_t prime_fd;
+  uint32_t prime_fd = 0;
   uint32_t usage;
 };
 

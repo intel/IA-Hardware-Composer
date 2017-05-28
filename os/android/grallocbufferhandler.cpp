@@ -91,6 +91,9 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 
   if (handle->handle_) {
     gralloc_->unregisterBuffer(gralloc_, handle->handle_);
+  }
+
+  if (handle->buffer_.get()) {
     handle->buffer_.clear();
   }
 
@@ -101,12 +104,12 @@ bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
 }
 #ifdef USE_MINIGBM
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
-  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
-  if (!gr_handle) {
+  if (!handle->handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
   }
 
+  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
   memset(bo, 0, sizeof(struct HwcBuffer));
   bo->format = gr_handle->format;
   bo->width = gr_handle->width;
