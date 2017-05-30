@@ -18,6 +18,7 @@ common_SOURCES =              \
     common/utils/hwcutils.cpp \
     common/utils/disjoint_layers.cpp \
     os/linux/gbmbufferhandler.cpp \
+    os/linux/platformdefines.cpp \
     common/compositor/scopedrendererstate.cpp \
     wsi/physicaldisplay.cpp \
     wsi/drm/drmdisplay.cpp \

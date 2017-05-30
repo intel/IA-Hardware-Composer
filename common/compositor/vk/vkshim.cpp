@@ -14,7 +14,6 @@
 
 #include "vkshim.h"
 
-#include <gbm.h>
 #include "hwctrace.h"
 
 namespace hwcomposer {
@@ -34,33 +33,6 @@ size_t ub_offset_align_;
 std::vector<VkImageMemoryBarrier> src_barrier_before_clear_;
 VkImageMemoryBarrier dst_barrier_before_clear_;
 VkFramebuffer framebuffer_;
-
-VkFormat DrmToVkFormat(int drm_format) {
-  switch (drm_format) {
-    case DRM_FORMAT_BGR888:
-      return VK_FORMAT_R8G8B8_UNORM;
-    case DRM_FORMAT_ARGB8888:
-      return VK_FORMAT_B8G8R8A8_UNORM;
-    case DRM_FORMAT_XBGR8888:
-      return VK_FORMAT_R8G8B8A8_UNORM;
-    case DRM_FORMAT_ABGR8888:
-      return VK_FORMAT_R8G8B8A8_UNORM;
-    case DRM_FORMAT_BGR565:
-      return VK_FORMAT_R5G6B5_UNORM_PACK16;
-    default:
-      return VK_FORMAT_UNDEFINED;
-  }
-}
-
-VkFormat GbmToVkFormat(int gbm_format) {
-  switch (gbm_format) {
-    case GBM_FORMAT_XRGB8888:
-      return VK_FORMAT_R8G8B8A8_UNORM;
-    default:
-      ETRACE("%s: gbm_format %d unhandled\n", __func__, gbm_format);
-      return VK_FORMAT_UNDEFINED;
-  }
-}
 
 RingBuffer::Allocation RingBuffer::Allocate(size_t size, size_t alignment) {
   if (size > buffer_size_)

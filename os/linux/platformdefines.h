@@ -27,6 +27,10 @@
 
 #include <libsync.h>
 
+#ifdef USE_VK
+#include <vulkan/vulkan.h>
+#endif
+
 struct gbm_handle {
 #ifdef USE_MINIGBM
   struct gbm_import_fd_planar_data import_data;
@@ -43,6 +47,10 @@ typedef struct gbm_handle* HWCNativeHandle;
 
 #ifdef _cplusplus
 extern "C" {
+#endif
+
+#ifdef USE_VK
+VkFormat NativeToVkFormat(int gbm_format);
 #endif
 
 #define VTRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)

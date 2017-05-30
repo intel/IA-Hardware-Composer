@@ -30,6 +30,10 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
+#ifdef USE_VK
+#include <vulkan/vulkan.h>
+#endif
+
 #include <ui/GraphicBuffer.h>
 
 #ifdef _cplusplus
@@ -45,6 +49,10 @@ struct gralloc_handle {
 };
 
 typedef struct gralloc_handle* HWCNativeHandle;
+
+#ifdef USE_VK
+VkFormat NativeToVkFormat(int drm_format);
+#endif
 
 #define VTRACE(fmt, ...) ALOGV("%s: " fmt, __func__, ##__VA_ARGS__)
 #define DTRACE(fmt, ...) ALOGD("%s: " fmt, __func__, ##__VA_ARGS__)
