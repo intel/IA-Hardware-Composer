@@ -693,6 +693,7 @@ void DisplayQueue::HandleIdleCase() {
   }
 
   idle_tracker_.idle_frames_++;
+#if 0
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
   std::tie(render_layers, current_composition_planes) =
@@ -746,6 +747,7 @@ void DisplayQueue::HandleIdleCase() {
   }
 
   display_plane_manager_->ReleaseFreeOffScreenTargets();
+#endif
   idle_tracker_.idle_lock_.unlock();
 }
 
