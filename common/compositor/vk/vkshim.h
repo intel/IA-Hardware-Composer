@@ -15,7 +15,6 @@
 #ifndef VKSHIM_H_
 #define VKSHIM_H_
 
-#include <drm/drm_fourcc.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_intel.h>
 #include <vector>
@@ -23,9 +22,6 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 namespace hwcomposer {
-
-VkFormat DrmToVkFormat(int drm_format);
-VkFormat GbmToVkFormat(int gbm_format);
 
 // Generic ring buffer that always allocates contiguous regions. Chunks can be
 // freed in any order, but the in flight pointer (read_offset_) only advances

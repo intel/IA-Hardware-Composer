@@ -56,7 +56,7 @@ bool NativeVKResource::PrepareResources(
     view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     view_create.image = import.image;
     view_create.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_create.format = GbmToVkFormat(layer.GetBuffer()->GetFormat());
+    view_create.format = NativeToVkFormat(buffer->GetFormat());
     view_create.components = {};
     view_create.components.r = VK_COMPONENT_SWIZZLE_R;
     view_create.components.g = VK_COMPONENT_SWIZZLE_G;

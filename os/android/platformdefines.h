@@ -32,9 +32,7 @@
 
 #include <ui/GraphicBuffer.h>
 
-#ifdef USE_VK
-#include <gbm.h>
-#endif
+#include "platformcommondefines.h"
 
 #ifdef _cplusplus
 extern "C" {
