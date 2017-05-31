@@ -19,7 +19,7 @@
 
 #include <nativebufferhandler.h>
 
-#include <hardware/gralloc.h>
+#include <hardware/gralloc1.h>
 
 namespace hwcomposer {
 
@@ -45,7 +45,10 @@ class GrallocBufferHandler : public NativeBufferHandler {
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
   uint32_t fd_;
-  const gralloc_module_t *gralloc_;
+  const hw_module_t *gralloc_;
+  hw_device_t *device;
+  gralloc1_device_t *gralloc1_dvc;
+  GRALLOC1_PFN_RETAIN pfn;
 };
 
 }  // namespace hwcomposer
