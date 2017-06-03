@@ -37,11 +37,6 @@ struct OverlayLayer {
     return acquire_fence_.get();
   }
 
-  // Creates a Release Fence which will
-  // be signalled when this layer is no
-  // longer in use.
-  int GetReleaseFence();
-
   void ReleaseAcquireFence() {
     acquire_fence_.Reset(-1);
   }

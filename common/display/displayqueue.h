@@ -32,7 +32,6 @@
 #include "compositor.h"
 #include "hwcthread.h"
 #include "vblankeventhandler.h"
-#include "nativesync.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {

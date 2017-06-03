@@ -97,7 +97,8 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   buffer_.reset(new OverlayBuffer());
   buffer_->InitializeFromNativeHandle(native_handle,
                                       buffer_manager->GetNativeBufferHandler());
-  ImportedBuffer* imported_buffer_ = new ImportedBuffer(buffer_.get(), buffer_manager, -1);
+  ImportedBuffer *imported_buffer_ =
+      new ImportedBuffer(buffer_.get(), buffer_manager);
   imported_buffer_->owned_buffer_ = false;
   width_ = buffer_->GetWidth();
   height_ = buffer_->GetHeight();

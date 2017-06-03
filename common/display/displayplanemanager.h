@@ -28,8 +28,6 @@
 #include <vector>
 #include <tuple>
 
-#include "nativesync.h"
-
 #include "displayplanestate.h"
 
 namespace hwcomposer {

@@ -36,7 +36,6 @@ class DisplayPlaneManager;
 class DisplayQueue;
 class OverlayBufferManager;
 class GpuDevice;
-class NativeSync;
 struct HwcLayer;
 
 class Display : public NativeDisplay {

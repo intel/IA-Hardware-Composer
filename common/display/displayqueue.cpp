@@ -272,9 +272,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     ImportedBuffer* buffer =
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer);
-    int ret = layer->release_fence.Reset(overlay_layer.GetReleaseFence());
-    if (ret < 0)
-      ETRACE("Failed to create fence for layer, error: %s", PRINTERROR());
 
     if (!use_layer_cache_)
       continue;
@@ -367,6 +364,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     *retire_fence = dup(fence);
     kms_fence_ = fence;
+
+    for (DisplayPlaneState& plane : current_composition_planes) {
+      const std::vector<size_t>& layers = plane.source_layers();
+      size_t size = layers.size();
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        HwcLayer* layer = source_layers.at(layers.at(layer_index));
+        layer->release_fence.Reset(dup(fence));
+      }
+    }
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
@@ -662,25 +668,6 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
-  }
-
-  if (previous_layers_.size()) {
-    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
-    std::vector<OverlayLayer>().swap(previous_layers_);
-  }
-
-  if (previous_surfaces_.size()) {
-    for (NativeSurface* surface : previous_surfaces_) {
-      surface->SetInUse(false);
-    }
-
-    std::vector<NativeSurface*>().swap(previous_surfaces_);
-  }
-
   if (idle_tracker_.idle_frames_ < 5) {
     idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
@@ -693,6 +680,12 @@ void DisplayQueue::HandleIdleCase() {
   }
 
   idle_tracker_.idle_frames_++;
+  if (kms_fence_ > 0) {
+    HWCPoll(kms_fence_, -1);
+    close(kms_fence_);
+    kms_fence_ = 0;
+  }
+
 #if 0
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
@@ -708,7 +701,7 @@ void DisplayQueue::HandleIdleCase() {
 
     // Prepare for final composition.
     if (!compositor_.DrawIdleState(current_composition_planes,
-                                   in_flight_layers_, previous_layers_rects_)) {
+				   in_flight_layers_, previous_layers_rects_)) {
       ETRACE("Failed to prepare for the frame composition. ");
       idle_tracker_.idle_lock_.unlock();
       return;
@@ -733,6 +726,19 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
+  if (previous_layers_.size()) {
+    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
+    std::vector<OverlayLayer>().swap(previous_layers_);
+  }
+
+  if (previous_surfaces_.size()) {
+    for (NativeSurface* surface : previous_surfaces_) {
+      surface->SetInUse(false);
+    }
+
+    std::vector<NativeSurface*>().swap(previous_surfaces_);
+  }
+
   for (NativeSurface* surface : in_flight_surfaces_) {
     surface->SetInUse(false);
   }
@@ -741,13 +747,14 @@ void DisplayQueue::HandleIdleCase() {
 
   for (DisplayPlaneState& plane_state : current_composition_planes) {
     if (plane_state.GetCompositionState() ==
-        DisplayPlaneState::State::kRender) {
+	DisplayPlaneState::State::kRender) {
       in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
     }
   }
 
   display_plane_manager_->ReleaseFreeOffScreenTargets();
 #endif
+
   idle_tracker_.idle_lock_.unlock();
 }
 

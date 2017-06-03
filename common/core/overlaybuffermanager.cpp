@@ -45,13 +45,8 @@ ImportedBuffer* OverlayBufferManager::CreateBuffer(const HwcBuffer& bo) {
   buffer.buffer_.reset(new OverlayBuffer());
   buffer.buffer_->Initialize(bo);
   buffer.ref_count_ = 1;
-  buffer.sync_object_.reset(new NativeSync());
-  if (!buffer.sync_object_->Init()) {
-    ETRACE("Failed to create sync object.");
-  }
 
-  return new ImportedBuffer(buffer.buffer_.get(), this,
-                            buffer.sync_object_->CreateNextTimelineFence());
+  return new ImportedBuffer(buffer.buffer_.get(), this);
 }
 
 ImportedBuffer* OverlayBufferManager::CreateBufferFromNativeHandle(
@@ -61,13 +56,8 @@ ImportedBuffer* OverlayBufferManager::CreateBufferFromNativeHandle(
   buffer.buffer_.reset(new OverlayBuffer());
   buffer.buffer_->InitializeFromNativeHandle(handle, buffer_handler_.get());
   buffer.ref_count_ = 1;
-  buffer.sync_object_.reset(new NativeSync());
-  if (!buffer.sync_object_->Init()) {
-    ETRACE("Failed to create sync object.");
-  }
 
-  return new ImportedBuffer(buffer.buffer_.get(), this,
-                            buffer.sync_object_->CreateNextTimelineFence());
+  return new ImportedBuffer(buffer.buffer_.get(), this);
 }
 
 void OverlayBufferManager::RegisterBuffer(const OverlayBuffer* const buffer) {

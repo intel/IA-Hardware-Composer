@@ -25,7 +25,6 @@
 #include "hwctrace.h"
 #include "nativegpuresource.h"
 #include "nativesurface.h"
-#include "nativesync.h"
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "renderstate.h"
