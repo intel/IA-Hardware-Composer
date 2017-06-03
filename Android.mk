@@ -49,7 +49,6 @@ LOCAL_SRC_FILES := \
 	common/compositor/renderstate.cpp \
 	common/core/hwclayer.cpp \
 	common/core/gpudevice.cpp \
-	common/core/nativesync.cpp \
 	common/core/overlaybuffer.cpp \
 	common/core/overlaybuffermanager.cpp \
 	common/core/overlaylayer.cpp \
