@@ -18,6 +18,16 @@
 
 namespace hwcomposer {
 
+HwcLayer::~HwcLayer() {
+  if (release_fd_ > 0) {
+    close(release_fd_);
+  }
+
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+  }
+}
+
 void HwcLayer::SetNativeHandle(HWCNativeHandle handle) {
   sf_handle_ = handle;
 }
@@ -44,6 +54,26 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 
 void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   surface_damage_ = surface_damage;
+}
+
+void HwcLayer::SetReleaseFence(int32_t fd) {
+  release_fd_ = fd;
+}
+
+int32_t HwcLayer::GetReleaseFence() {
+  int32_t old_fd = release_fd_;
+  release_fd_ = -1;
+  return old_fd;
+}
+
+void HwcLayer::SetAcquireFence(int32_t fd) {
+  acquire_fence_ = fd;
+}
+
+int32_t HwcLayer::GetAcquireFence() {
+  int32_t old_fd = acquire_fence_;
+  acquire_fence_ = -1;
+  return old_fd;
 }
 
 }  // namespace hwcomposer

@@ -18,7 +18,6 @@
 #define COMMON_DISPLAY_DISPLAYQUEUE_H_
 
 #include <drmscopedtypes.h>
-#include <scopedfd.h>
 #include <spinlock.h>
 
 #include <stdlib.h>

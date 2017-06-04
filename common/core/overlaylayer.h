@@ -20,8 +20,6 @@
 #include <hwcdefs.h>
 #include <platformdefines.h>
 
-#include <nativefence.h>
-
 #include <memory>
 
 #include "overlaybuffermanager.h"
@@ -29,17 +27,11 @@
 namespace hwcomposer {
 
 struct OverlayLayer {
-  void SetAcquireFence(int fd) {
-    acquire_fence_.Reset(fd);
-  }
+  void SetAcquireFence(int32_t acquire_fence);
 
-  int GetAcquireFence() const {
-    return acquire_fence_.get();
-  }
+  int32_t GetAcquireFence() const;
 
-  void ReleaseAcquireFence() {
-    acquire_fence_.Reset(-1);
-  }
+  int32_t ReleaseAcquireFence();
 
   void SetIndex(uint32_t index);
 
@@ -69,13 +61,9 @@ struct OverlayLayer {
     return rotation_;
   }
 
-  OverlayBuffer* GetBuffer() const {
-    return imported_buffer_->buffer_;
-  }
+  OverlayBuffer* GetBuffer() const;
 
-  void SetBuffer(ImportedBuffer* buffer) {
-    imported_buffer_.reset(buffer);
-  }
+  void SetBuffer(ImportedBuffer* buffer, int32_t acquire_fence);
 
   // Only KMSFenceEventHandler should use this.
   // KMSFenceEventHandler will call this API when
@@ -143,7 +131,6 @@ struct OverlayLayer {
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
-  ScopedFd acquire_fence_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   bool layer_pos_changed_ = true;
   bool layer_attributes_changed_ = true;

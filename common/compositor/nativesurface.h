@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "displayplanestate.h"
-#include "nativefence.h"
 #include "overlaybuffer.h"
 #include "platformdefines.h"
 
@@ -57,10 +56,7 @@ class NativeSurface {
     return &layer_;
   }
 
-  void SetNativeFence(int fd);
-  int ReleaseNativeFence() {
-    return fd_.Release();
-  }
+  void SetNativeFence(int32_t fd);
 
   void SetInUse(bool inuse);
 
@@ -82,7 +78,6 @@ class NativeSurface {
   uint32_t height_;
   bool in_use_;
   uint32_t framebuffer_format_;
-  NativeFence fd_;
   std::unique_ptr<OverlayBuffer> buffer_;
 };
 

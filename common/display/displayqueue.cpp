@@ -267,11 +267,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetSourceCrop(layer->GetSourceCrop());
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetIndex(layer_index);
-    overlay_layer.SetAcquireFence(layer->acquire_fence.Release());
     layers_rects.emplace_back(layer->GetDisplayFrame());
     ImportedBuffer* buffer =
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
-    overlay_layer.SetBuffer(buffer);
+    overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
 
     if (!use_layer_cache_)
       continue;
@@ -368,16 +367,25 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     for (DisplayPlaneState& plane : current_composition_planes) {
       const std::vector<size_t>& layers = plane.source_layers();
       size_t size = layers.size();
-      for (size_t layer_index = 0; layer_index < size; layer_index++) {
-        HwcLayer* layer = source_layers.at(layers.at(layer_index));
-        layer->release_fence.Reset(dup(fence));
+      if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+        for (size_t layer_index = 0; layer_index < size; layer_index++) {
+          HwcLayer* layer = source_layers.at(layers.at(layer_index));
+          layer->SetReleaseFence(dup(fence));
+        }
+      } else if (plane.GetCompositionState() ==
+                 DisplayPlaneState::State::kRender) {
+        for (size_t layer_index = 0; layer_index < size; layer_index++) {
+          HwcLayer* layer = source_layers.at(layers.at(layer_index));
+          layer->SetReleaseFence(
+              dup(plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence()));
+        }
       }
     }
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
     if (render_layers)
-      compositor_.InsertFence(fence);
+      compositor_.InsertFence(0);
 
     if (!disable_overlay_usage_) {
       flags_ = 0;

@@ -18,15 +18,13 @@
 #define PUBLIC_HWCLAYER_H_
 
 #include <hwcdefs.h>
-#include <platformdefines.h>
 
-#include <nativefence.h>
+#include <platformdefines.h>
 
 namespace hwcomposer {
 
 struct HwcLayer {
-  ScopedFd acquire_fence;
-  NativeFence release_fence;
+  ~HwcLayer();
 
   void SetNativeHandle(HWCNativeHandle handle);
 
@@ -67,6 +65,40 @@ struct HwcLayer {
     return surface_damage_;
   }
 
+  /**
+   * API for setting release fence for this layer.
+   * @param fd will be populated with Native Fence object.
+   *        When fd is signalled, any previous frame
+   *        composition results can be invalidated.
+   */
+  void SetReleaseFence(int32_t fd);
+
+  /**
+   * API for getting release fence of this layer.
+   * @return "-1" if no valid release fence present
+   *         for this layer. Ownership of fd is passed
+   *         to caller and caller is responsible for
+   *	     closing the fd.
+   */
+  int32_t GetReleaseFence();
+
+  /**
+   * API for setting acquire fence for this layer.
+   * @param fd will be populated with Native Fence object.
+   *        When fd is signalled, the buffer associated
+   *        with the layer is ready to be read from.
+   */
+  void SetAcquireFence(int32_t fd);
+
+  /**
+   * API for getting acquire fence of this layer.
+   * @return "-1" if no valid acquire fence present
+   *         for this layer. Ownership of acquire
+   *         fence is passed to caller and caller is
+   *	     responsible for closing the fd.
+   */
+  int32_t GetAcquireFence();
+
  private:
   uint32_t transform_ = 0;
   uint8_t alpha_ = 0xff;
@@ -75,6 +107,8 @@ struct HwcLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
   HwcRegion surface_damage_;
+  int32_t release_fd_ = -1;
+  int32_t acquire_fence_ = -1;
 };
 
 }  // namespace hwcomposer

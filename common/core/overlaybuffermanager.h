@@ -19,7 +19,6 @@
 #include <platformdefines.h>
 
 #include <nativebufferhandler.h>
-#include <nativefence.h>
 #include <spinlock.h>
 
 #include <memory>
@@ -44,6 +43,7 @@ struct ImportedBuffer {
 
   OverlayBuffer* const buffer_;
   bool owned_buffer_ = true;
+  int32_t acquire_fence_ = -1;
 
  private:
   OverlayBufferManager* buffer_manager_;

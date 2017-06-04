@@ -21,6 +21,29 @@
 
 namespace hwcomposer {
 
+void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
+  imported_buffer_->acquire_fence_ = acquire_fence;
+}
+
+int32_t OverlayLayer::GetAcquireFence() const {
+  return imported_buffer_->acquire_fence_;
+}
+
+int32_t OverlayLayer::ReleaseAcquireFence() {
+  int32_t old_fd = imported_buffer_->acquire_fence_;
+  imported_buffer_->acquire_fence_ = -1;
+  return old_fd;
+}
+
+OverlayBuffer* OverlayLayer::GetBuffer() const {
+  return imported_buffer_->buffer_;
+}
+
+void OverlayLayer::SetBuffer(ImportedBuffer* buffer, int32_t acquire_fence) {
+  imported_buffer_.reset(buffer);
+  imported_buffer_->acquire_fence_ = acquire_fence;
+}
+
 void OverlayLayer::ReleaseBuffer() {
   imported_buffer_->owned_buffer_ = false;
 }
@@ -148,7 +171,7 @@ void OverlayLayer::Dump() {
   DUMPTRACE("SourceHeight: %d", source_crop_height_);
   DUMPTRACE("DstWidth: %d", display_frame_width_);
   DUMPTRACE("DstHeight: %d", display_frame_height_);
-  DUMPTRACE("AquireFence: %d", acquire_fence_.get());
+  DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
 
   imported_buffer_->buffer_->Dump();
 }

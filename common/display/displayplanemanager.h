@@ -21,7 +21,6 @@
 #include <xf86drmMode.h>
 
 #include <hwcbuffer.h>
-#include <scopedfd.h>
 
 #include <memory>
 #include <map>

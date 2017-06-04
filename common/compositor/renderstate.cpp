@@ -34,10 +34,10 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   height_ = bounds[3] - bounds[1];
   for (size_t texture_index : region.source_layers) {
     OverlayLayer &layer = layers.at(texture_index);
-    int fence = layer.GetAcquireFence();
+    int fence = layer.ReleaseAcquireFence();
     if (fence > 0) {
       HWCPoll(fence, -1);
-      layer.ReleaseAcquireFence();
+      close(fence);
     }
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();

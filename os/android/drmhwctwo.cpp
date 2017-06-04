@@ -404,19 +404,22 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
                                                     hwc2_layer_t *layers,
                                                     int32_t *fences) {
   supported(__func__);
+  if (layers == NULL || fences == NULL) {
+    *num_elements = layers_.size();
+    return HWC2::Error::None;
+  }
+
   uint32_t num_layers = 0;
 
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     ++num_layers;
-    if (layers == NULL || fences == NULL) {
-      continue;
-    } else if (num_layers > *num_elements) {
+    if (num_layers > *num_elements) {
       ALOGW("Overflow num_elements %d/%d", num_layers, *num_elements);
       return HWC2::Error::None;
     }
 
     layers[num_layers - 1] = l.first;
-    fences[num_layers - 1] = l.second.GetLayer()->release_fence.Release();
+    fences[num_layers - 1] = l.second.GetLayer()->GetReleaseFence();
   }
   *num_elements = num_layers;
   return HWC2::Error::None;
@@ -634,7 +637,6 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBlendMode(int32_t mode) {
 HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
                                                 int32_t acquire_fence) {
   supported(__func__);
-  hwcomposer::ScopedFd uf(acquire_fence);
 
   // The buffer and acquire_fence are handled elsewhere
   if (sf_type_ == HWC2::Composition::Client ||
@@ -644,7 +646,7 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
 
   native_handle_.handle_ = buffer;
   hwc_layer_.SetNativeHandle(&native_handle_);
-  hwc_layer_.acquire_fence.Reset(dup(uf.Release()));
+  hwc_layer_.SetAcquireFence(dup(acquire_fence));
   return HWC2::Error::None;
 }
 

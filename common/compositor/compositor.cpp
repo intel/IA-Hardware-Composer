@@ -148,7 +148,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   if (!Render(layers, surface.get(), comp_regions))
     return false;
 
-  *retire_fence = surface->ReleaseNativeFence();
+  *retire_fence = surface->GetLayer()->ReleaseAcquireFence();
 
   return true;
 }
@@ -230,7 +230,6 @@ bool Compositor::Render(std::vector<OverlayLayer> &layers,
   if (!renderer_->Draw(states, surface))
     return false;
 
-  surface->GetLayer()->SetAcquireFence(surface->ReleaseNativeFence());
   return true;
 }
 

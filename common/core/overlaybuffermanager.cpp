@@ -24,6 +24,10 @@ namespace hwcomposer {
 ImportedBuffer::~ImportedBuffer() {
   if (owned_buffer_)
     buffer_manager_->UnRegisterBuffer(buffer_);
+
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+  }
 }
 
 OverlayBufferManager::~OverlayBufferManager() {

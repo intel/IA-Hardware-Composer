@@ -64,8 +64,14 @@ bool NativeSurface::InitializeForOffScreenRendering(
   return true;
 }
 
-void NativeSurface::SetNativeFence(int fd) {
-  fd_.Reset(fd);
+void NativeSurface::SetNativeFence(int32_t fd) {
+  // Release any existing fence.
+  int32_t old_fd = layer_.ReleaseAcquireFence();
+  if (old_fd > 0) {
+    close(old_fd);
+  }
+
+  layer_.SetAcquireFence(fd);
 }
 
 void NativeSurface::SetInUse(bool inuse) {
@@ -104,7 +110,7 @@ void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
   height_ = buffer_->GetHeight();
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(imported_buffer_);
+  layer_.SetBuffer(imported_buffer_, -1);
 }
 
 }  // namespace hwcomposer

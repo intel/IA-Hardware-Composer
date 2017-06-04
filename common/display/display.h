@@ -22,7 +22,6 @@
 #include <xf86drmMode.h>
 
 #include <nativedisplay.h>
-#include <scopedfd.h>
 #include <drmscopedtypes.h>
 
 #include <memory>

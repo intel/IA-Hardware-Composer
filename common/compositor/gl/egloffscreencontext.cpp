@@ -157,6 +157,7 @@ void EGLOffScreenContext::RestoreState() {
 
 EGLint EGLOffScreenContext::GetSyncFD() {
   EGLint sync_fd = -1;
+
   EGLSyncKHR egl_sync =
       eglCreateSyncKHR(egl_display_, EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
   if (egl_sync == EGL_NO_SYNC_KHR) {

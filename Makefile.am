@@ -63,8 +63,6 @@ libhwcinc_HEADERS =	\
 	$(top_srcdir)/public/hwcrect.h	\
 	$(top_srcdir)/public/nativebufferhandler.h	\
 	$(top_srcdir)/public/nativedisplay.h	\
-	$(top_srcdir)/public/nativefence.h	\
-	$(top_srcdir)/public/scopedfd.h	\
 	$(top_srcdir)/public/spinlock.h
 
 .PHONY: ChangeLog INSTALL

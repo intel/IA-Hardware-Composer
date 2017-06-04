@@ -21,9 +21,7 @@
 
 #include <gpudevice.h>
 #include <hwclayer.h>
-#include <nativefence.h>
 #include <platformdefines.h>
-#include <scopedfd.h>
 
 #include <map>
 #include <utility>
@@ -73,7 +71,7 @@ class DrmHwcTwo : public hwc2_device_t {
     }
 
     void set_acquire_fence(int acquire_fence) {
-      hwc_layer_.acquire_fence.Reset(dup(acquire_fence));
+      hwc_layer_.SetAcquireFence(dup(acquire_fence));
     }
 
     hwcomposer::HwcLayer *GetLayer() {
