@@ -178,7 +178,14 @@ int Display::GetDisplayPipe() {
   return pipe_;
 }
 
-bool Display::SetActiveConfig(uint32_t /*config*/) {
+bool Display::SetActiveConfig(uint32_t config /*config*/) {
+  // update the activeConfig
+  config_ = config;
+  if (!display_queue_->SetActiveConfig(mode_[config_]))
+    return false;
+
+  SetDisplayAttribute(mode_[config_]);
+
   return true;
 }
 

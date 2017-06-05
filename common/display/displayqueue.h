@@ -68,6 +68,7 @@ class DisplayQueue {
   void HandleExit();
 
   void HandleCommitUpdate(const std::vector<const OverlayBuffer*>& buffers);
+  bool SetActiveConfig(drmModeModeInfo& mode_info);
 
  private:
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
