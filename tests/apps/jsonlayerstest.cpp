@@ -68,6 +68,10 @@
  */
 static uint64_t arg_frames = 0;
 
+/*flag set to test displaymode*/
+static int display_mode;
+int force_mode = 0, config_index = 0, print_display_config = 0;
+
 glContext gl;
 
 struct frame {
@@ -250,6 +254,44 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->SetPowerMode(power_mode);
   }
 
+  void SetActiveConfig(uint32_t config) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    for (auto &display : connected_displays_)
+      display->SetActiveConfig(config);
+  }
+
+  void GetDisplayAttribute(uint32_t config,
+                           hwcomposer::HWCDisplayAttribute attribute,
+                           int32_t *value) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+    int32_t tempValue;
+    for (auto &display : connected_displays_)
+      display->GetDisplayAttribute(config, attribute, &tempValue);
+    *value = tempValue;
+  }
+
+  void GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    uint32_t numConfigs, configIndex;
+
+    if (connected_displays_.empty())
+      return;
+    for (auto &display : connected_displays_)
+      display->GetDisplayConfigs(&numConfigs, NULL);
+    *num_configs = numConfigs;
+  }
+
   void PopulateConnectedDisplays() {
     if (connected_displays_.empty()) {
       connected_displays_ = device_->GetConnectedPhysicalDisplays();
@@ -415,14 +457,36 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
 }
 
 static void init_frames(int32_t width, int32_t height) {
-  parseParametersJson(json_path, &test_parameters);
-
+  LAYER_PARAMETER layer_parameter;
+  size_t LAYER_PARAM_SIZE;
+  if (display_mode) {
+    layer_parameter.type = static_cast<LAYER_TYPE>(0);
+    layer_parameter.format = static_cast<LAYER_FORMAT>(25);
+    layer_parameter.transform = static_cast<LAYER_TRANSFORM>(0);
+    layer_parameter.resource_path = "";
+    layer_parameter.source_width = width;
+    layer_parameter.source_height = height;
+    layer_parameter.source_crop_x = 0;
+    layer_parameter.source_crop_y = 0;
+    layer_parameter.source_crop_width = width;
+    layer_parameter.source_crop_height = height;
+    layer_parameter.frame_x = 0;
+    layer_parameter.frame_y = 0;
+    layer_parameter.frame_width = width;
+    layer_parameter.frame_height = height;
+    LAYER_PARAM_SIZE = 1;
+  } else {
+    parseParametersJson(json_path, &test_parameters);
+    LAYER_PARAM_SIZE = test_parameters.layers_parameters.size();
+  }
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
-    frame->layers_fences.resize(test_parameters.layers_parameters.size());
+    frame->layers_fences.resize(LAYER_PARAM_SIZE);
 
-    for (size_t j = 0; j < test_parameters.layers_parameters.size(); ++j) {
-      LAYER_PARAMETER layer_parameter = test_parameters.layers_parameters[j];
+    for (size_t j = 0; j < LAYER_PARAM_SIZE; ++j) {
+      if (!display_mode)
+        LAYER_PARAMETER layer_parameter = test_parameters.layers_parameters[j];
+
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
       uint32_t gbm_format = layerformat2gbmformat(layer_parameter.format);
@@ -470,7 +534,8 @@ static void init_frames(int32_t width, int32_t height) {
 static void print_help(void) {
   printf(
       "usage: testjsonlayers [-h|--help] [-f|--frames <frames>] [-j|--json "
-      "<jsonfile>] [-p|--powermode <on/off/doze/dozesuspend>]\n");
+      "<jsonfile>] [-p|--powermode <on/off/doze/dozesuspend>][--displaymode "
+      "<print/forcemode displayconfigindex]\n");
 }
 
 static void parse_args(int argc, char *argv[]) {
@@ -478,6 +543,7 @@ static void parse_args(int argc, char *argv[]) {
       {"help", no_argument, NULL, 'h'},
       {"frames", required_argument, NULL, 'f'},
       {"json", required_argument, NULL, 'j'},
+      {"displaymode", required_argument, &display_mode, 1},
       {0},
   };
 
@@ -491,6 +557,15 @@ static void parse_args(int argc, char *argv[]) {
   while ((opt = getopt_long(argc, argv, "+:hf:j:", longopts,
                             /*longindex*/ &longindex)) != -1) {
     switch (opt) {
+      case 0:
+        if (!strcmp(optarg, "forcemode")) {
+          force_mode = 1;
+          config_index = atoi(argv[optind++]);
+        }
+        if (!strcmp(optarg, "print")) {
+          print_display_config = 1;
+        }
+        break;
       case 'h':
         print_help();
         exit(0);
@@ -563,17 +638,51 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  init_frames(primary_width, primary_height);
+  if (display_mode) {
+    printf("\nSUPPORTED DISPLAY MODE\n");
+    uint32_t numConfigs, configIndex;
+    callback->GetDisplayConfigs(&numConfigs, NULL);
+    int32_t tempValue;
+    printf("\nMode WidthxHeight\tRefreshRate\tXDpi\tYDpi\n");
+    for (uint32_t i = 0; i < numConfigs; i++) {
+      printf("%-6d", i);
+      callback->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kWidth,
+                                    &tempValue);
+      printf("%-4dx", tempValue);
+      callback->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kHeight,
+                                    &tempValue);
+      printf("%-6d\t", tempValue);
+      callback->GetDisplayAttribute(
+          i, hwcomposer::HWCDisplayAttribute::kRefreshRate, &tempValue);
+      printf("%d\t", tempValue);
+      callback->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kDpiX,
+                                    &tempValue);
+      printf("%d\t", tempValue);
+      callback->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kDpiY,
+                                    &tempValue);
+      printf("%d\t\n", tempValue);
+    }
+    if (print_display_config)
+      exit(0);
+    if (force_mode) {
+      callback->SetActiveConfig(config_index);
+      primary_width = displays.at(0)->Width();
+      primary_height = displays.at(0)->Height();
+      init_frames(primary_width, primary_height);
+    }
+  } else {
+    init_frames(primary_width, primary_height);
 
-  callback->SetBroadcastRGB(test_parameters.broadcast_rgb.c_str());
-  callback->SetGamma(test_parameters.gamma_r, test_parameters.gamma_g,
-                     test_parameters.gamma_b);
-  callback->SetBrightness(test_parameters.brightness_r,
-                          test_parameters.brightness_g,
-                          test_parameters.brightness_b);
-  callback->SetContrast(test_parameters.contrast_r, test_parameters.contrast_g,
-                        test_parameters.contrast_b);
-
+    callback->SetBroadcastRGB(test_parameters.broadcast_rgb.c_str());
+    callback->SetGamma(test_parameters.gamma_r, test_parameters.gamma_g,
+                       test_parameters.gamma_b);
+    callback->SetBrightness(test_parameters.brightness_r,
+                            test_parameters.brightness_g,
+                            test_parameters.brightness_b);
+    callback->SetContrast(test_parameters.contrast_r,
+                          test_parameters.contrast_g,
+                          test_parameters.contrast_b);
+  }
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
