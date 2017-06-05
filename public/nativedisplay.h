@@ -144,6 +144,20 @@ class NativeDisplay {
 
   virtual void SetExplicitSyncSupport(bool /*explicit_sync_enabled*/) {
   }
+  /**
+  * API to Get the suported modes of the display
+  * @param mode_info vector of drmModeModeInfo
+  */
+  virtual void SetDrmModeModeInfo(
+      const std::vector<drmModeModeInfo> & /*mode_info*/) {
+  }
+  /**
+  * API to Set the Display attribute based on mode set
+  * @param mode_info  drmModeModeInfo
+  */
+  virtual void SetDisplayAttribute(const drmModeModeInfo & /*mode_info*/) {
+  }
+
  protected:
   virtual uint32_t CrtcId() const = 0;
   virtual bool Connect(const drmModeModeInfo &mode_info,
