@@ -427,6 +427,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // order the layers by z-order
   bool use_client_layer = false;
   uint32_t client_z_order = 0;
+  bool use_cursor_layer = false;
+  uint32_t cursor_z_order = 0;
+  DrmHwcTwo::HwcLayer *cursor_layer;
   *retire_fence = -1;
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
 
@@ -443,8 +446,12 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
-      case HWC2::Composition::Cursor:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
+        break;
+      case HWC2::Composition::Cursor:
+        use_cursor_layer = true;
+        cursor_layer = &l.second;
+        cursor_z_order = l.second.z_order();
         break;
       case HWC2::Composition::Client:
         // Place it at the z_order of the highest client layer
@@ -461,11 +468,19 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     z_map.emplace(std::make_pair(client_z_order, &client_layer_));
   }
 
+  // Place the cursor at the highest z-order
+  if (use_cursor_layer) {
+    if (z_map.rbegin()->second->z_order() > cursor_z_order)
+      cursor_z_order = (z_map.rbegin()->second->z_order()) + 1;
+    z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
+  }
+
   std::vector<hwcomposer::HwcLayer *> layers;
   // now that they're ordered by z, add them to the composition
   for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
     layers.emplace_back(l.second->GetLayer());
   }
+
   if (layers.empty())
     return HWC2::Error::None;
 
