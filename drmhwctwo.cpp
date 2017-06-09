@@ -701,7 +701,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
         break;
     }
   }
-  return HWC2::Error::None;
+  return *num_types ? HWC2::Error::HasChanges : HWC2::Error::None;
 }
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
