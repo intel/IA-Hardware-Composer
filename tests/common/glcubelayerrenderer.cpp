@@ -36,8 +36,10 @@ class StreamTextureImpl {
     glDeleteTextures(1, &gl_tex_);
     gl_->eglDestroyImageKHR(gl_->display, image_);
     close(fd_);
-    if (buffer_handler_)
-      buffer_handler_->DestroyBuffer(handle_);
+    if (buffer_handler_ && handle_) {
+      buffer_handler_->ReleaseBuffer(handle_);
+      buffer_handler_->DestroyHandle(handle_);
+    }
   }
 
   void *Map() {

@@ -33,6 +33,11 @@ namespace hwcomposer {
 
 OverlayBuffer::~OverlayBuffer() {
   ReleaseFrameBuffer();
+
+  if (buffer_handler_ && handle_) {
+    buffer_handler_->ReleaseBuffer(handle_);
+    buffer_handler_->DestroyHandle(handle_);
+  }
 }
 
 void OverlayBuffer::Initialize(const HwcBuffer& bo) {
@@ -52,13 +57,13 @@ void OverlayBuffer::Initialize(const HwcBuffer& bo) {
 void OverlayBuffer::InitializeFromNativeHandle(
     HWCNativeHandle handle, NativeBufferHandler* buffer_handler) {
   struct HwcBuffer bo;
-
-  if (!buffer_handler->ImportBuffer(handle, &bo)) {
+  buffer_handler->CopyHandle(handle, &handle_);
+  if (!buffer_handler->ImportBuffer(handle_, &bo)) {
     ETRACE("Failed to Import buffer.");
     return;
   }
 
-  handle_ = handle;
+  buffer_handler_ = buffer_handler;
   Initialize(bo);
 }
 

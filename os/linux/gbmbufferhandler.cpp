@@ -98,55 +98,90 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 #endif
 
   temp->bo = bo;
+  temp->hwc_buffer_ = true;
   *handle = temp;
 
   return true;
 }
 
-bool GbmBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
-  if (handle->bo) {
-    gbm_bo_destroy(handle->bo);
+bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
+  if (handle->bo || handle->imported_bo) {
+    if (handle->bo && handle->hwc_buffer_) {
+      gbm_bo_destroy(handle->bo);
+    }
+
+    if (handle->imported_bo) {
+      gbm_bo_destroy(handle->imported_bo);
+    }
 #ifdef USE_MINIGBM
     close(handle->import_data.fds[0]);
 #else
     close(handle->import_data.fd);
 #endif
-    delete handle;
-    handle = NULL;
   }
 
   return true;
+}
+
+void GbmBufferHandler::DestroyHandle(HWCNativeHandle handle) {
+  delete handle;
+  handle = NULL;
+}
+
+void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
+                                  HWCNativeHandle *target) {
+  struct gbm_handle *temp = new struct gbm_handle();
+  temp->import_data.width = source->import_data.width;
+  temp->import_data.height = source->import_data.height;
+  temp->import_data.format = source->import_data.format;
+#if USE_MINIGBM
+  temp->import_data.fds[0] = dup(source->import_data.fds[0]);
+  size_t total_planes = source->total_planes;
+  for (size_t i = 0; i < total_planes; i++) {
+    temp->import_data.offsets[i] = source->import_data.offsets[i];
+    temp->import_data.strides[i] = source->import_data.strides[i];
+  }
+#else
+  temp->import_data.fd = dup(source->import_data.fd);
+  temp->import_data.stride = source->import_data.stride;
+#endif
+  temp->bo = source->bo;
+  temp->total_planes = source->total_planes;
+  *target = temp;
 }
 
 bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   memset(bo, 0, sizeof(struct HwcBuffer));
   uint32_t gem_handle = 0;
   bo->format = handle->import_data.format;
-  if (!handle->bo) {
+  if (!handle->imported_bo) {
 #if USE_MINIGBM
-    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
-                               &handle->import_data, GBM_BO_USE_SCANOUT);
-    if (!handle->bo) {
-      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR,
-                                 &handle->import_data, GBM_BO_USE_RENDERING);
-      if (!handle->bo) {
+    handle->imported_bo =
+        gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR, &handle->import_data,
+                      GBM_BO_USE_SCANOUT);
+    if (!handle->imported_bo) {
+      handle->imported_bo =
+          gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR, &handle->import_data,
+                        GBM_BO_USE_RENDERING);
+      if (!handle->imported_bo) {
         ETRACE("can't import bo");
       }
     }
 #else
-    handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
-                               GBM_BO_USE_SCANOUT);
-    if (!handle->bo) {
-      handle->bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD,
-                                 &handle->import_data, GBM_BO_USE_RENDERING);
-      if (!handle->bo) {
+    handle->imported_bo = gbm_bo_import(
+        device_, GBM_BO_IMPORT_FD, &handle->import_data, GBM_BO_USE_SCANOUT);
+    if (!handle->imported_bo) {
+      handle->imported_bo =
+          gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
+                        GBM_BO_USE_RENDERING);
+      if (!handle->imported_bo) {
         ETRACE("can't import bo");
       }
     }
 #endif
   }
 
-  gem_handle = gbm_bo_get_handle(handle->bo).u32;
+  gem_handle = gbm_bo_get_handle(handle->imported_bo).u32;
 
   if (!gem_handle) {
     ETRACE("Invalid GEM handle. \n");
@@ -155,6 +190,8 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 
   bo->width = handle->import_data.width;
   bo->height = handle->import_data.height;
+  // FIXME: Set right flag here.
+  bo->usage |= hwcomposer::kLayerNormal;
 
 #if USE_MINIGBM
   bo->prime_fd = handle->import_data.fds[0];

@@ -18,7 +18,7 @@
 #define LOG_TAG "hwc-drm-two"
 
 #include "drmhwctwo.h"
-#include "drmutils_android.h"
+#include "utils_android.h"
 
 #include <xf86drmMode.h>
 
@@ -291,7 +291,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
     return HWC2::Error::None;
   } else {
     // Convert HAL to fourcc-based DRM formats
-    uint32_t drm_format = GetDrmFormat(format);
+    uint32_t drm_format = GetDrmFormatFromHALFormat(format);
     if (display_->CheckPlaneFormat(drm_format) &&
         (dataspace == HAL_DATASPACE_UNKNOWN ||
          dataspace == HAL_DATASPACE_STANDARD_UNSPECIFIED))

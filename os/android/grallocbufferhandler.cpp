@@ -36,6 +36,7 @@
 #include <hwctrace.h>
 #include "drmhwcgralloc.h"
 #include "commondrmutils.h"
+#include "utils_android.h"
 
 namespace hwcomposer {
 
@@ -71,76 +72,31 @@ bool GrallocBufferHandler::Init() {
   return true;
 }
 
-bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int /*format*/,
+bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                         HWCNativeHandle *handle) {
-  struct gralloc_handle *temp = new struct gralloc_handle();
-  temp->buffer_ =
-      new android::GraphicBuffer(w, h, android::PIXEL_FORMAT_RGBA_8888,
-                                 GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
-                                     GRALLOC_USAGE_HW_COMPOSER);
-  temp->handle_ = temp->buffer_->handle;
-  gralloc_->registerBuffer(gralloc_, temp->handle_);
-  *handle = temp;
-
-  return true;
+  return CreateGraphicsBuffer(w, h, format, handle);
 }
 
-bool GrallocBufferHandler::DestroyBuffer(HWCNativeHandle handle) {
-  if (!handle)
-    return false;
-
-  if (handle->handle_) {
-    gralloc_->unregisterBuffer(gralloc_, handle->handle_);
-  }
-
-  if (handle->buffer_.get()) {
-    handle->buffer_.clear();
-  }
-
-  delete handle;
-  handle = NULL;
-
-  return true;
+bool GrallocBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
+  return ReleaseGraphicsBuffer(handle);
 }
+
+void GrallocBufferHandler::DestroyHandle(HWCNativeHandle handle) {
+  DestroyBufferHandle(handle);
+}
+
 #ifdef USE_MINIGBM
 bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
-  if (!handle->handle_) {
+  if (!handle->imported_handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
   }
 
-  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
-  memset(bo, 0, sizeof(struct HwcBuffer));
-  bo->format = gr_handle->format;
-  bo->width = gr_handle->width;
-  bo->height = gr_handle->height;
-  bo->prime_fd = gr_handle->fds[0];
-
-  uint32_t id;
-  if (drmPrimeFDToHandle(fd_, bo->prime_fd, &id)) {
-    ETRACE("drmPrimeFDToHandle failed.");
-    return false;
-  }
-
-  for (size_t p = 0; p < DRV_MAX_PLANES; p++) {
-    bo->offsets[p] = gr_handle->offsets[p];
-    bo->pitches[p] = gr_handle->strides[p];
-    bo->gem_handles[p] = id;
-  }
-
-  if (gr_handle->usage & GRALLOC_USAGE_PROTECTED) {
-    bo->usage |= hwcomposer::kLayerProtected;
-  } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
-    bo->usage |= hwcomposer::kLayerCursor;
-    // We support DRM_FORMAT_ARGB8888 for cursor.
-    bo->format = DRM_FORMAT_ARGB8888;
-  }
-
-  return true;
+  return ImportGraphicsBuffer(handle, bo, fd_);
 }
 
 uint32_t GrallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
-  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
+  auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
     return false;
@@ -159,6 +115,7 @@ bool GrallocBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
   }
 
   memset(bo, 0, sizeof(struct HwcBuffer));
+  gralloc_->registerBuffer(gralloc_, handle->handle_);
   gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle->handle_);
   bo->width = hwc_bo.width;
   bo->height = hwc_bo.height;
@@ -189,6 +146,11 @@ uint32_t GrallocBufferHandler::GetTotalPlanes(HWCNativeHandle /*handle*/) {
   return 0;
 }
 #endif
+
+void GrallocBufferHandler::CopyHandle(HWCNativeHandle source,
+                                      HWCNativeHandle *target) {
+  CopyBufferHandle(source, target);
+}
 
 void *GrallocBufferHandler::Map(HWCNativeHandle /*handle*/, uint32_t /*x*/,
                                 uint32_t /*y*/, uint32_t /*width*/,

@@ -40,6 +40,7 @@ VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
 }
 
 VirtualDisplay::~VirtualDisplay() {
+  delete output_handle_;
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {

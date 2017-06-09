@@ -34,9 +34,13 @@ class NativeBufferHandler {
   virtual bool CreateBuffer(uint32_t w, uint32_t h, int format,
                             HWCNativeHandle *handle) = 0;
 
-  virtual bool DestroyBuffer(HWCNativeHandle handle) = 0;
+  virtual bool ReleaseBuffer(HWCNativeHandle handle) = 0;
+
+  virtual void DestroyHandle(HWCNativeHandle handle) = 0;
 
   virtual bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) = 0;
+
+  virtual void CopyHandle(HWCNativeHandle source, HWCNativeHandle *target) = 0;
 
   virtual uint32_t GetTotalPlanes(HWCNativeHandle handle) = 0;
 

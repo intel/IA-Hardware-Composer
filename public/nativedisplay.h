@@ -133,6 +133,11 @@ class NativeDisplay {
   // Virtual display related.
   virtual void InitVirtualDisplay(uint32_t /*width*/, uint32_t /*height*/) {
   }
+
+  /**
+  * API for setting output buffer for virtual display.
+  * @param buffer ownership is taken by display.
+  */
   virtual void SetOutputBuffer(HWCNativeHandle /*buffer*/,
                                int32_t /*acquire_fence*/) {
   }

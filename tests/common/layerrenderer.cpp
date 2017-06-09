@@ -23,8 +23,10 @@ LayerRenderer::LayerRenderer(hwcomposer::NativeBufferHandler* buffer_handler) {
 }
 
 LayerRenderer::~LayerRenderer() {
-  if (buffer_handler_)
-    buffer_handler_->DestroyBuffer(handle_);
+  if (buffer_handler_ && handle_) {
+    buffer_handler_->ReleaseBuffer(handle_);
+    buffer_handler_->DestroyHandle(handle_);
+  }
 }
 
 bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,

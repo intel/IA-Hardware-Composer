@@ -693,7 +693,6 @@ void DisplayQueue::HandleIdleCase() {
     close(kms_fence_);
     kms_fence_ = 0;
   }
-
 #if 0
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
@@ -762,7 +761,6 @@ void DisplayQueue::HandleIdleCase() {
 
   display_plane_manager_->ReleaseFreeOffScreenTargets();
 #endif
-
   idle_tracker_.idle_lock_.unlock();
 }
 

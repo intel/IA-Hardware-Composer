@@ -37,8 +37,8 @@ NativeSurface::~NativeSurface() {
   // releasing buffer.
   buffer_.release();
 
-  if (buffer_handler_ && native_handle_) {
-    buffer_handler_->DestroyBuffer(native_handle_);
+  if (native_handle_) {
+    buffer_handler_->DestroyHandle(native_handle_);
   }
 }
 
