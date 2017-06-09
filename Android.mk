@@ -65,8 +65,13 @@ LOCAL_SRC_FILES := \
 	common/utils/hwcthread.cpp \
 	common/utils/hwcutils.cpp \
 	common/utils/disjoint_layers.cpp \
-	os/android/grallocbufferhandler.cpp \
-	os/android/drmhwctwo.cpp
+	os/android/drmhwctwo.cpp \
+
+ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
+LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
+else
+LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
+endif
 
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \

@@ -40,8 +40,6 @@
 
 namespace hwcomposer {
 
-#define DRV_MAX_PLANES 4
-
 // static
 NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
   GrallocBufferHandler *handler = new GrallocBufferHandler(fd);
