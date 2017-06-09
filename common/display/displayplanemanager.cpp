@@ -144,7 +144,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
   // Retrieve cursor layer data.
   DisplayPlane *cursor_plane = NULL;
-  for (auto j = layers.rbegin(); j != layers.rend(); ++j) {
+  for (auto j = layer_end - 1; j != layer_begin; j--) {
     if (j->GetBuffer()->GetUsage() & kLayerCursor) {
       cursor_layer = &(*(j));
       // Handle Cursor layer.
@@ -161,7 +161,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
             cursor_plane = NULL;
             commit_planes.pop_back();
           } else
-            layer_end = std::next(j).base();
+            layer_end = j;
         }
       }
       break;
