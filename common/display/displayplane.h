@@ -39,9 +39,12 @@ class DisplayPlane {
   bool Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats);
 
   bool UpdateProperties(drmModeAtomicReqPtr property_set, uint32_t crtc_id,
-                        const OverlayLayer* layer) const;
+                        const OverlayLayer* layer,
+                        bool test_commit = false) const;
 
   bool ValidateLayer(const OverlayLayer* layer);
+
+  void SetNativeFence(int32_t fd);
 
   bool Disable(drmModeAtomicReqPtr property_set);
 
@@ -96,6 +99,7 @@ class DisplayPlane {
   bool enabled_;
 
   std::vector<uint32_t> supported_formats_;
+  int32_t kms_fence_ = 0;
 };
 
 }  // namespace hwcomposer
