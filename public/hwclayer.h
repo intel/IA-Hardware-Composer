@@ -83,7 +83,7 @@ struct HwcLayer {
    * changed from last Present call to NativeDisplay.
    */
   bool HasSurfaceDamageRegionChanged() const {
-    return surface_damage_changed_;
+    return state_ & kSurfaceDamaged;
   }
 
   /**
@@ -91,7 +91,38 @@ struct HwcLayer {
    * for last Present call to NativeDisplay.
    */
   bool HasLayerContentChanged() const {
-    return layer_content_changed_;
+    return state_ & kLayerContentChanged;
+  }
+
+  /**
+   * API for setting visible region for this layer. The
+   * new visible region will take into effect in next Present
+   * call, by default this would be same as default frame.
+   * @param visible_region should contain regions of
+   *        layer which are visible.
+   */
+  void SetVisibleRegion(const HwcRegion& visible_region);
+
+  /**
+   * API for getting visible rect of this layer.
+   */
+  const HwcRect<int>& GetVisibleRect() const {
+    return visible_rect_;
+  }
+
+  /**
+   * API for querying if visible region has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasVisibleRegionChanged() const {
+    return state_ & kVisibleRegionChanged;
+  }
+
+  /**
+   * API for querying if layer is visible.
+   */
+  bool IsVisible() const {
+    return state_ & kVisible;
   }
 
   /**
@@ -128,18 +159,38 @@ struct HwcLayer {
    */
   int32_t GetAcquireFence();
 
+  /**
+   * API for querying if this layer has been presented
+   * atleast once during Present call to NativeDisplay.
+   */
+  bool IsValidated() const {
+    return state_ & kLayerValidated;
+  }
+
  private:
+  void Validate();
+  friend class DisplayQueue;
+
+  enum LayerState {
+    kSurfaceDamaged = 0,
+    kLayerContentChanged = 1 << 0,
+    kVisibleRegionChanged = 1 << 1,
+    kVisible = 1 << 2,
+    kLayerValidated = 1 << 3,
+    kVisibleRegionSet = 1 << 4
+  };
+
   uint32_t transform_ = 0;
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
+  HwcRect<int> visible_rect_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
   int32_t acquire_fence_ = -1;
-  bool surface_damage_changed_ = true;
-  bool layer_content_changed_ = true;
+  int32_t state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
 };
 
 }  // namespace hwcomposer

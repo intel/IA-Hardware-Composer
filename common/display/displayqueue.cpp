@@ -251,14 +251,22 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
+  use_layer_cache_ = !needs_modeset_;
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
-  bool layers_changed = false;
+  bool frame_changed = (size != previous_size);
+  if (!use_layer_cache_)
+    frame_changed = true;
+  bool layers_changed = frame_changed;
+
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
     const HwcRect<int>& current_surface_damage = layer->GetSurfaceDamage();
+    if (!layer->IsVisible())
+      continue;
+
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetTransform(layer->GetTransform());
@@ -272,8 +280,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
 
-    if (!use_layer_cache_)
+    if (frame_changed) {
+      layer->Validate();
       continue;
+    }
 
     if (previous_size > layer_index) {
       overlay_layer.SetSurfaceDamage(current_surface_damage,
@@ -283,17 +293,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (overlay_layer.HasLayerAttributesChanged()) {
       layers_changed = true;
     }
-  }
 
-  if (!use_layer_cache_ || size != previous_size) {
-    layers_changed = true;
-  }
-
-  if (needs_modeset_) {
-    layers_changed = true;
-    use_layer_cache_ = false;
-  } else {
-    use_layer_cache_ = true;
+    layer->Validate();
   }
 
   DisplayPlaneStateList current_composition_planes;

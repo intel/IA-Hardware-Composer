@@ -734,9 +734,16 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerTransform(int32_t transform) {
 }
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
-  supported(__func__);
-  // TODO: We don't use this information, marking as unsupported
-  unsupported(__func__, visible);
+    uint32_t num_rects = visible.numRects;
+    hwcomposer::HwcRegion hwc_region;
+
+    for (size_t rect = 0; rect < num_rects; ++rect) {
+      hwc_region.emplace_back(visible.rects[rect].left, visible.rects[rect].top,
+			      visible.rects[rect].right,
+			      visible.rects[rect].bottom);
+    }
+
+    hwc_layer_.SetVisibleRegion(hwc_region);
   return HWC2::Error::None;
 }
 
