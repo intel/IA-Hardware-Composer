@@ -60,9 +60,38 @@ struct HwcLayer {
     return display_frame_;
   }
 
+  /**
+   * API for setting surface damage for this layer.
+   * @param surface_damage should contain exactly 1
+   *        rect with all zeros if content of the
+   *        layer has not changed from last Present call.
+   *        If no of rects is zero than assumption is that
+   *        the contents of layer has completely changed
+   *        from last Present call.
+   */
   void SetSurfaceDamage(const HwcRegion& surface_damage);
-  const HwcRegion& GetSurfaceDamage() const {
+
+  /**
+   * API for getting surface damage of this layer.
+   */
+  const HwcRect<int>& GetSurfaceDamage() const {
     return surface_damage_;
+  }
+
+  /**
+   * API for querying if surface damage region has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasSurfaceDamageRegionChanged() const {
+    return surface_damage_changed_;
+  }
+
+  /**
+   * API for querying if content of layer has changed
+   * for last Present call to NativeDisplay.
+   */
+  bool HasLayerContentChanged() const {
+    return layer_content_changed_;
   }
 
   /**
@@ -104,11 +133,13 @@ struct HwcLayer {
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
+  HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
-  HwcRegion surface_damage_;
   int32_t release_fd_ = -1;
   int32_t acquire_fence_ = -1;
+  bool surface_damage_changed_ = true;
+  bool layer_content_changed_ = true;
 };
 
 }  // namespace hwcomposer

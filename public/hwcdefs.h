@@ -21,15 +21,14 @@
 
 #include <hwcrect.h>
 
+#include <vector>
+
 namespace hwcomposer {
 
 template <typename T>
 using HwcRect = Rect<T>;
 
-struct HwcRegion {
-  uint32_t kNumRects = 0;
-  HwcRect<int> const* kRects;
-};
+typedef std::vector<HwcRect<int>> HwcRegion;
 
 enum class HWCBlending : int32_t {
   kBlendingNone = 0x0100,
