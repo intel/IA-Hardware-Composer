@@ -258,7 +258,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool layers_changed = false;
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
-    const HwcRegion& current_surface_damage = layer->GetSurfaceDamage();
+    const HwcRect<int>& current_surface_damage = layer->GetSurfaceDamage();
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetTransform(layer->GetTransform());

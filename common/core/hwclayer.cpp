@@ -53,7 +53,54 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 }
 
 void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
-  surface_damage_ = surface_damage;
+  uint32_t rects = surface_damage.size();
+  surface_damage_changed_ = false;
+  layer_content_changed_ = true;
+  HwcRect<int> new_damage_rect;
+  if (rects == 1) {
+    const HwcRect<int>& rect = surface_damage.at(0);
+    if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
+        (rect.right == 0)) {
+      layer_content_changed_ = false;
+    }
+
+    new_damage_rect.left = rect.left;
+    new_damage_rect.right = rect.right;
+    new_damage_rect.bottom = rect.bottom;
+    new_damage_rect.top = rect.top;
+  } else if (rects == 0) {
+    new_damage_rect = display_frame_;
+  } else {
+    const HwcRect<int>& damage_region = surface_damage.at(0);
+
+    for (uint32_t r = 1; r < rects; r++) {
+      const HwcRect<int>& rect = surface_damage.at(r);
+      new_damage_rect.left = std::min(damage_region.left, rect.left);
+      new_damage_rect.top = std::min(damage_region.top, rect.top);
+      new_damage_rect.right = std::max(damage_region.right, rect.right);
+      new_damage_rect.bottom = std::max(damage_region.bottom, rect.bottom);
+    }
+  }
+
+  if (surface_damage_.left != new_damage_rect.left) {
+    surface_damage_changed_ = true;
+    surface_damage_.left = new_damage_rect.left;
+  }
+
+  if (surface_damage_.top != new_damage_rect.top) {
+    surface_damage_changed_ = true;
+    surface_damage_.top = new_damage_rect.top;
+  }
+
+  if (surface_damage_.right != new_damage_rect.right) {
+    surface_damage_changed_ = true;
+    surface_damage_.right = new_damage_rect.right;
+  }
+
+  if (surface_damage_.bottom != new_damage_rect.bottom) {
+    surface_damage_changed_ = true;
+    surface_damage_.bottom = new_damage_rect.bottom;
+  }
 }
 
 void HwcLayer::SetReleaseFence(int32_t fd) {

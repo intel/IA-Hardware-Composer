@@ -116,7 +116,7 @@ struct OverlayLayer {
 
   // Damage region associated with this layer from
   // previous frame.
-  void SetSurfaceDamage(const HwcRegion& surface_damage,
+  void SetSurfaceDamage(const HwcRect<int>& surface_damage,
                         const OverlayLayer& rhs);
   void Dump();
 

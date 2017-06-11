@@ -57,21 +57,11 @@ class DisplayPlaneState {
   }
 
   void AddLayer(size_t index, const HwcRect<int> &display_frame) {
-    if (display_frame_.left > display_frame.left) {
-      display_frame_.left = display_frame.left;
-    }
-
-    if (display_frame_.top > display_frame.top) {
-      display_frame_.top = display_frame.top;
-    }
-
-    if (display_frame_.right < display_frame.right) {
-      display_frame_.right = display_frame.right;
-    }
-
-    if (display_frame_.bottom < display_frame.bottom) {
-      display_frame_.bottom = display_frame.bottom;
-    }
+    display_frame_.left = std::min(display_frame_.left, display_frame.left);
+    display_frame_.top = std::min(display_frame_.top, display_frame.top);
+    display_frame_.right = std::max(display_frame_.right, display_frame.right);
+    display_frame_.bottom =
+        std::max(display_frame_.bottom, display_frame.bottom);
 
     source_layers_.emplace_back(index);
     state_ = State::kRender;

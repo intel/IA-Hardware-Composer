@@ -140,7 +140,7 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs) {
   }
 }
 
-void OverlayLayer::SetSurfaceDamage(const HwcRegion& surface_damage,
+void OverlayLayer::SetSurfaceDamage(const HwcRect<int>& surface_damage,
                                     const OverlayLayer& rhs) {
   ValidatePreviousFrameState(rhs);
 }
