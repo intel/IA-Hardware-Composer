@@ -19,20 +19,29 @@
 #include <drm_mode.h>
 #include <hwctrace.h>
 
+#include "hwcutils.h"
+
 namespace hwcomposer {
 
 void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
+  // Release any existing fence.
+  if (imported_buffer_->acquire_fence_ > 0) {
+    close(imported_buffer_->acquire_fence_);
+  }
+
   imported_buffer_->acquire_fence_ = acquire_fence;
+  acquire_fence_signalled_ = false;
 }
 
 int32_t OverlayLayer::GetAcquireFence() const {
   return imported_buffer_->acquire_fence_;
 }
 
-int32_t OverlayLayer::ReleaseAcquireFence() {
-  int32_t old_fd = imported_buffer_->acquire_fence_;
-  imported_buffer_->acquire_fence_ = -1;
-  return old_fd;
+void OverlayLayer::WaitAcquireFence() {
+  if (imported_buffer_->acquire_fence_ > 0 && !acquire_fence_signalled_) {
+    HWCPoll(imported_buffer_->acquire_fence_, -1);
+    acquire_fence_signalled_ = true;
+  }
 }
 
 OverlayBuffer* OverlayLayer::GetBuffer() const {

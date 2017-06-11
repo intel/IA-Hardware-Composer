@@ -374,10 +374,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         }
       } else if (plane.GetCompositionState() ==
                  DisplayPlaneState::State::kRender) {
-        for (size_t layer_index = 0; layer_index < size; layer_index++) {
-          HwcLayer* layer = source_layers.at(layers.at(layer_index));
-          layer->SetReleaseFence(
-              dup(plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence()));
+        int32_t fence =
+            plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
+        if (fence > 0) {
+          for (size_t layer_index = 0; layer_index < size; layer_index++) {
+            HwcLayer* layer = source_layers.at(layers.at(layer_index));
+            layer->SetReleaseFence(dup(fence));
+          }
         }
       }
     }

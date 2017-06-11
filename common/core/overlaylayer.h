@@ -31,7 +31,7 @@ struct OverlayLayer {
 
   int32_t GetAcquireFence() const;
 
-  int32_t ReleaseAcquireFence();
+  void WaitAcquireFence();
 
   void SetIndex(uint32_t index);
 
@@ -134,6 +134,7 @@ struct OverlayLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   bool layer_pos_changed_ = true;
   bool layer_attributes_changed_ = true;
+  bool acquire_fence_signalled_ = false;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
 };
 

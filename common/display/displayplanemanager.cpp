@@ -238,7 +238,12 @@ bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
   for (const DisplayPlaneState &comp_plane : comp_planes) {
     DisplayPlane *plane = comp_plane.plane();
     const OverlayLayer *layer = comp_plane.GetOverlayLayer();
-    plane->SetNativeFence(dup(layer->GetAcquireFence());
+    int32_t fence = layer->GetAcquireFence();
+    if (fence > 0) {
+      plane->SetNativeFence(dup(fence));
+    } else {
+      plane->SetNativeFence(-1);
+    }
     if (!plane->UpdateProperties(pset, crtc_id_, layer))
       return false;
 
