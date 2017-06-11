@@ -65,12 +65,6 @@ bool NativeSurface::InitializeForOffScreenRendering(
 }
 
 void NativeSurface::SetNativeFence(int32_t fd) {
-  // Release any existing fence.
-  int32_t old_fd = layer_.ReleaseAcquireFence();
-  if (old_fd > 0) {
-    close(old_fd);
-  }
-
   layer_.SetAcquireFence(fd);
 }
 

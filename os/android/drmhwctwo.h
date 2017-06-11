@@ -71,7 +71,8 @@ class DrmHwcTwo : public hwc2_device_t {
     }
 
     void set_acquire_fence(int acquire_fence) {
-      hwc_layer_.SetAcquireFence(dup(acquire_fence));
+      if (acquire_fence > 0)
+        hwc_layer_.SetAcquireFence(dup(acquire_fence));
     }
 
     hwcomposer::HwcLayer *GetLayer() {
