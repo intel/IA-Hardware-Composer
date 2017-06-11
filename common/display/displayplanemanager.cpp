@@ -238,6 +238,7 @@ bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
   for (const DisplayPlaneState &comp_plane : comp_planes) {
     DisplayPlane *plane = comp_plane.plane();
     const OverlayLayer *layer = comp_plane.GetOverlayLayer();
+    plane->SetNativeFence(dup(layer->GetAcquireFence());
     if (!plane->UpdateProperties(pset, crtc_id_, layer))
       return false;
 
@@ -301,7 +302,7 @@ bool DisplayPlaneManager::TestCommit(
     const std::vector<OverlayPlane> &commit_planes) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   for (auto i = commit_planes.begin(); i != commit_planes.end(); i++) {
-    if (!(i->plane->UpdateProperties(pset.get(), crtc_id_, i->layer))) {
+    if (!(i->plane->UpdateProperties(pset.get(), crtc_id_, i->layer, true))) {
       return false;
     }
   }
