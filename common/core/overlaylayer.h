@@ -26,6 +26,8 @@
 
 namespace hwcomposer {
 
+struct HwcLayer;
+
 struct OverlayLayer {
   void SetAcquireFence(int32_t acquire_fence);
 
@@ -99,28 +101,37 @@ struct OverlayLayer {
 
   // Validates current state with previous frame state of
   // layer at same z order.
-  void ValidatePreviousFrameState(const OverlayLayer& rhs);
+  void ValidatePreviousFrameState(const OverlayLayer& rhs, HwcLayer* layer);
 
   // Returns true if position of layer has
   // changed from previous frame.
   bool HasLayerPositionChanged() const {
-    return layer_pos_changed_;
+    return state_ & kLayerPositionChanged;
   }
 
   // Returns true if any other attribute of layer
   // other than psotion has changed from previous
   // frame.
   bool HasLayerAttributesChanged() const {
-    return layer_attributes_changed_;
+    return state_ & kLayerAttributesChanged;
   }
 
-  // Damage region associated with this layer from
-  // previous frame.
-  void SetSurfaceDamage(const HwcRect<int>& surface_damage,
-                        const OverlayLayer& rhs);
+  // Returns true if content of the layer has
+  // changed.
+  bool HasLayerContentChanged() const {
+    return state_ & kLayerContentChanged;
+  }
+
   void Dump();
 
  private:
+  enum LayerState {
+    kLayerAttributesChanged = 1 << 0,
+    kLayerPositionChanged = 1 << 1,
+    kLayerContentChanged = 1 << 2,
+    kLayerAcquireFenceSignalled = 1 << 3
+  };
+
   uint32_t transform_;
   uint32_t rotation_;
   uint32_t index_;
@@ -132,9 +143,8 @@ struct OverlayLayer {
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  bool layer_pos_changed_ = true;
-  bool layer_attributes_changed_ = true;
-  bool acquire_fence_signalled_ = false;
+  uint32_t state_ =
+      kLayerAttributesChanged | kLayerPositionChanged | kLayerContentChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
 };
 

@@ -263,7 +263,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
-    const HwcRect<int>& current_surface_damage = layer->GetSurfaceDamage();
     if (!layer->IsVisible())
       continue;
 
@@ -286,8 +285,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     if (previous_size > layer_index) {
-      overlay_layer.SetSurfaceDamage(current_surface_damage,
-                                     in_flight_layers_.at(layer_index));
+      overlay_layer.ValidatePreviousFrameState(
+          in_flight_layers_.at(layer_index), layer);
     }
 
     if (overlay_layer.HasLayerAttributesChanged()) {

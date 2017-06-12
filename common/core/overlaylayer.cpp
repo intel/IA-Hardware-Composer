@@ -21,6 +21,8 @@
 
 #include "hwcutils.h"
 
+#include <hwclayer.h>
+
 namespace hwcomposer {
 
 void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
@@ -30,7 +32,7 @@ void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
   }
 
   imported_buffer_->acquire_fence_ = acquire_fence;
-  acquire_fence_signalled_ = false;
+  state_ &= ~kLayerAcquireFenceSignalled;
 }
 
 int32_t OverlayLayer::GetAcquireFence() const {
@@ -38,9 +40,10 @@ int32_t OverlayLayer::GetAcquireFence() const {
 }
 
 void OverlayLayer::WaitAcquireFence() {
-  if (imported_buffer_->acquire_fence_ > 0 && !acquire_fence_signalled_) {
+  if (imported_buffer_->acquire_fence_ > 0 &&
+      !(state_ & kLayerAcquireFenceSignalled)) {
     HWCPoll(imported_buffer_->acquire_fence_, -1);
-    acquire_fence_signalled_ = true;
+    state_ |= kLayerAcquireFenceSignalled;
   }
 }
 
@@ -100,7 +103,8 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_ = display_frame;
 }
 
-void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs) {
+void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
+                                              HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_;
   if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
     return;
@@ -111,38 +115,19 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs) {
       return;
   }
 
-  if (blending_ != rhs.blending_)
-    return;
-
-  // We check only for rotation and not transform as this
-  // value is arrived from transform_
-  if (rotation_ != rhs.rotation_)
-    return;
-
-  if (display_frame_width_ != rhs.display_frame_width_)
-    return;
-
-  if (display_frame_height_ != rhs.display_frame_height_)
-    return;
-
-  if (source_crop_width_ != rhs.source_crop_width_)
-    return;
-
-  if (source_crop_height_ != rhs.source_crop_height_)
-    return;
-
-  layer_attributes_changed_ = false;
-
-  const HwcRect<int>& previous = rhs.GetDisplayFrame();
-  if ((previous.left == display_frame_.left) &&
-      (previous.top == display_frame_.top)) {
-    layer_pos_changed_ = false;
+  if (!layer->HasLayerAttributesChanged()) {
+    state_ &= ~kLayerAttributesChanged;
   }
-}
 
-void OverlayLayer::SetSurfaceDamage(const HwcRect<int>& surface_damage,
-                                    const OverlayLayer& rhs) {
-  ValidatePreviousFrameState(rhs);
+  if (!layer->HasLayerPositionChanged()) {
+    state_ &= ~kLayerPositionChanged;
+  }
+
+  if (!(state_ & kLayerPositionChanged) && !layer->HasVisibleRegionChanged() &&
+      !layer->HasSurfaceDamageRegionChanged() &&
+      !layer->HasLayerContentChanged()) {
+    state_ &= ~kLayerContentChanged;
+  }
 }
 
 void OverlayLayer::Dump() {
