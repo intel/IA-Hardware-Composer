@@ -121,13 +121,24 @@ static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int /*format*/,
   return true;
 }
 
-static bool ReleaseGraphicsBuffer(HWCNativeHandle handle) {
+static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (!handle)
     return false;
 
   if (handle->buffer_.get() && handle->hwc_buffer_) {
     handle->buffer_.clear();
   }
+
+  if (handle->gem_handle_ > 0) {
+    struct drm_gem_close gem_close;
+    memset(&gem_close, 0, sizeof(gem_close));
+    gem_close.handle = handle->gem_handle_;
+    int ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+    if (ret)
+      ETRACE("Failed to close gem handle %d", ret);
+  }
+
+  handle->gem_handle_ = 0;
 
   return true;
 }
@@ -141,7 +152,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
   bo->height = gr_handle->height;
   bo->prime_fd = gr_handle->fds[0];
 
-  uint32_t id;
+  uint32_t id = 0;
   if (drmPrimeFDToHandle(fd, bo->prime_fd, &id)) {
     ETRACE("drmPrimeFDToHandle failed.");
     return false;
@@ -162,6 +173,8 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
   } else {
     bo->usage |= hwcomposer::kLayerNormal;
   }
+
+  handle->gem_handle_ = id;
 
   return true;
 }

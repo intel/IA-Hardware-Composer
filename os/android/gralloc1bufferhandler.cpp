@@ -83,7 +83,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 }
 
 bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
-  if (!ReleaseGraphicsBuffer(handle))
+  if (!ReleaseGraphicsBuffer(handle, fd_))
     return false;
 
   gralloc1_device_t *gralloc1_dvc =

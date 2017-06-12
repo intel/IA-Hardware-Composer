@@ -76,7 +76,7 @@ bool GrallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 }
 
 bool GrallocBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
-  return ReleaseGraphicsBuffer(handle);
+  return ReleaseGraphicsBuffer(handle, fd_);
 }
 
 void GrallocBufferHandler::DestroyHandle(HWCNativeHandle handle) {
