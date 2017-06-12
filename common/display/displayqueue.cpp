@@ -211,25 +211,42 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   CTRACE();
   bool needs_gpu_composition = false;
   for (const DisplayPlaneState& plane : previous_plane_state_) {
-    bool region_changed = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                          plane.GetCompositionState());
 
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
-      needs_gpu_composition = true;
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
+        plane.SurfaceRecycled()) {
+      bool region_changed = false;
+      bool content_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
-        if (layers.at(source_index).HasLayerPositionChanged()) {
+        const OverlayLayer& layer = layers.at(source_index);
+        if (layer.HasLayerPositionChanged()) {
           region_changed = true;
+          break;
+        }
+
+        if (layer.HasLayerContentChanged()) {
+          content_changed = true;
           break;
         }
       }
 
-      display_plane_manager_->EnsureOffScreenTarget(last_plane);
+      if (region_changed || content_changed) {
+        display_plane_manager_->EnsureOffScreenTarget(last_plane);
+        last_plane.ForceGPURendering();
+        needs_gpu_composition = true;
+      } else {
+        NativeSurface* surface = plane.GetOffScreenTarget();
+        surface->SetNativeFence(-1);
+        surface->SetPlaneTarget(last_plane, gpu_fd_);
+        last_plane.ReUseOffScreenTarget(surface);
+      }
+
       if (!region_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
@@ -372,8 +389,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           HwcLayer* layer = source_layers.at(layers.at(layer_index));
           layer->SetReleaseFence(dup(fence));
         }
-      } else if (plane.GetCompositionState() ==
-                 DisplayPlaneState::State::kRender) {
+      } else if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
         int32_t fence =
             plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
         if (fence > 0) {
@@ -412,8 +428,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
     if (plane_state.GetCompositionState() ==
-        DisplayPlaneState::State::kRender) {
-      in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
+            DisplayPlaneState::State::kRender ||
+        plane_state.SurfaceRecycled()) {
+      NativeSurface* surface = plane_state.GetOffScreenTarget();
+      if (!surface)
+        continue;
+
+      surface->SetInUse(true);
+      in_flight_surfaces_.emplace_back(surface);
     }
   }
 

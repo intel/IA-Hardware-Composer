@@ -193,8 +193,14 @@ void HwcLayer::Validate() {
   state_ &= ~kVisibleRegionChanged;
   state_ &= ~kSurfaceDamaged;
   state_ |= kLayerValidated;
-  layer_cache_ &= kLayerAttributesChanged;
-  layer_cache_ &= kLayerPositionChanged;
+  layer_cache_ &= ~kLayerAttributesChanged;
+  layer_cache_ &= ~kLayerPositionChanged;
 }
 
+void HwcLayer::SetLayerZOrder(uint32_t order) {
+  if (z_order_ != order) {
+    state_ |= kSurfaceDamaged;
+    z_order_ = order;
+  }
+}
 }  // namespace hwcomposer

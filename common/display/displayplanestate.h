@@ -87,6 +87,16 @@ class DisplayPlaneState {
     layer_ = layer;
   }
 
+  void ReUseOffScreenTarget(NativeSurface *surface) {
+    offscreen_target_ = surface;
+    state_ = State::kScanout;
+    recycled_surface_ = true;
+  }
+
+  bool SurfaceRecycled() const {
+    return recycled_surface_;
+  }
+
   const OverlayLayer *GetOverlayLayer() const {
     return layer_;
   }
@@ -123,6 +133,7 @@ class DisplayPlaneState {
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
   std::vector<CompositionRegion> composition_region_;
+  bool recycled_surface_ = false;
 };
 
 }  // namespace hwcomposer

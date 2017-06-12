@@ -186,6 +186,8 @@ struct HwcLayer {
     return state_ & kLayerValidated;
   }
 
+  void SetLayerZOrder(uint32_t order);
+
  private:
   void Validate();
   friend class DisplayQueue;
@@ -214,6 +216,7 @@ struct HwcLayer {
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
   int32_t acquire_fence_ = -1;
+  uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
   int layer_cache_ = kLayerAttributesChanged;
 };

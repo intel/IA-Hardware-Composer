@@ -749,7 +749,9 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetLayerZOrder(uint32_t order) {
   supported(__func__);
+
   z_order_ = order;
+  hwc_layer_.SetLayerZOrder(z_order_);
   return HWC2::Error::None;
 }
 
