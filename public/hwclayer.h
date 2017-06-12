@@ -126,6 +126,25 @@ struct HwcLayer {
   }
 
   /**
+   * API for querying if layer attributes has
+   * changed from last Present call to NativeDisplay.
+   * This takes into consideration any changes to
+   * transform, display frame, source rect and
+   * blending.
+   */
+  bool HasLayerAttributesChanged() const {
+    return layer_cache_ & kLayerAttributesChanged;
+  }
+
+  /**
+   * API for querying if layer position has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasLayerPositionChanged() const {
+    return layer_cache_ & kLayerPositionChanged;
+  }
+
+  /**
    * API for setting release fence for this layer.
    * @param fd will be populated with Native Fence object.
    *        When fd is signalled, any previous frame
@@ -172,15 +191,20 @@ struct HwcLayer {
   friend class DisplayQueue;
 
   enum LayerState {
-    kSurfaceDamaged = 0,
-    kLayerContentChanged = 1 << 0,
-    kVisibleRegionChanged = 1 << 1,
-    kVisible = 1 << 2,
-    kLayerValidated = 1 << 3,
-    kVisibleRegionSet = 1 << 4
+    kSurfaceDamaged = 1 << 0,
+    kLayerContentChanged = 1 << 1,
+    kVisibleRegionChanged = 1 << 2,
+    kVisible = 1 << 3,
+    kLayerValidated = 1 << 4,
+    kVisibleRegionSet = 1 << 5
   };
 
-  uint32_t transform_ = 0;
+  enum LayerCache {
+    kLayerAttributesChanged = 1 << 0,
+    kLayerPositionChanged = 1 << 1
+  };
+
+  int32_t transform_ = 0;
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
@@ -190,7 +214,8 @@ struct HwcLayer {
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
   int32_t acquire_fence_ = -1;
-  int32_t state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
+  int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
+  int layer_cache_ = kLayerAttributesChanged;
 };
 
 }  // namespace hwcomposer

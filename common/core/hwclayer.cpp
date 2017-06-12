@@ -33,6 +33,10 @@ void HwcLayer::SetNativeHandle(HWCNativeHandle handle) {
 }
 
 void HwcLayer::SetTransform(int32_t transform) {
+  if (transform != transform_) {
+    layer_cache_ |= kLayerAttributesChanged;
+  }
+
   transform_ = transform;
 }
 
@@ -41,15 +45,53 @@ void HwcLayer::SetAlpha(uint8_t alpha) {
 }
 
 void HwcLayer::SetBlending(HWCBlending blending) {
+  if (blending != blending_) {
+    layer_cache_ |= kLayerAttributesChanged;
+  }
+
   blending_ = blending;
 }
 
 void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
+  uint32_t new_src_crop_width = source_crop.right - source_crop.left;
+  uint32_t new_src_crop_height = source_crop.bottom - source_crop.top;
+
+  uint32_t old_src_crop_width = source_crop_.right - source_crop_.left;
+  uint32_t old_src_crop_height = source_crop_.bottom - source_crop_.top;
+
+  if ((new_src_crop_width != old_src_crop_width) ||
+      (new_src_crop_height != old_src_crop_height)) {
+    layer_cache_ |= kLayerAttributesChanged;
+  }
+
+  if ((source_crop.left != source_crop_.left) &&
+      (source_crop.top != source_crop_.top)) {
+    layer_cache_ |= kLayerPositionChanged;
+  }
+
   source_crop_ = source_crop;
 }
 
 void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
+  uint32_t new_display_frame_width = display_frame.right - display_frame.left;
+  uint32_t new_display_frame_height = display_frame.bottom - display_frame.top;
+
+  uint32_t old_display_frame_width = display_frame_.right - display_frame_.left;
+  uint32_t old_display_frame_height =
+      display_frame_.bottom - display_frame_.top;
+
+  if ((new_display_frame_width != old_display_frame_width) ||
+      (new_display_frame_height != old_display_frame_height)) {
+    layer_cache_ |= kLayerAttributesChanged;
+  }
+
+  if ((display_frame.left != display_frame_.left) &&
+      (display_frame.top != display_frame_.top)) {
+    layer_cache_ |= kLayerPositionChanged;
+  }
+
   display_frame_ = display_frame;
+
   if (!(state_ & kVisibleRegionSet)) {
     visible_rect_ = display_frame;
   }
@@ -151,6 +193,8 @@ void HwcLayer::Validate() {
   state_ &= ~kVisibleRegionChanged;
   state_ &= ~kSurfaceDamaged;
   state_ |= kLayerValidated;
+  layer_cache_ &= kLayerAttributesChanged;
+  layer_cache_ &= kLayerPositionChanged;
 }
 
 }  // namespace hwcomposer
