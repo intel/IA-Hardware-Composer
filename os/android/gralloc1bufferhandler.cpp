@@ -77,7 +77,7 @@ bool Gralloc1BufferHandler::Init() {
   return true;
 }
 
-bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int /*format*/,
+bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle) {
   return CreateGraphicsBuffer(w, h, format, handle);
 }
