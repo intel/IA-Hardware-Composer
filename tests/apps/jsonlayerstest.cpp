@@ -479,7 +479,7 @@ static void init_frames(int32_t width, int32_t height) {
 
     for (size_t j = 0; j < LAYER_PARAM_SIZE; ++j) {
       if (!display_mode)
-        LAYER_PARAMETER layer_parameter = test_parameters.layers_parameters[j];
+        layer_parameter = test_parameters.layers_parameters[j];
 
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
