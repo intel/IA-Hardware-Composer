@@ -72,6 +72,8 @@ class DisplayQueue {
 
   void HandleIdleCase();
 
+  bool SetActiveConfig(drmModeModeInfo& mode_info);
+
  private:
   struct IdleFrameTracker {
     uint32_t idle_frames_ = 0;

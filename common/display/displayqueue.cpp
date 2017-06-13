@@ -789,4 +789,14 @@ void DisplayQueue::HandleIdleCase() {
   idle_tracker_.idle_lock_.unlock();
 }
 
+bool DisplayQueue::SetActiveConfig(drmModeModeInfo& mode_info) {
+  // update the Active Mode
+  mode_ = mode_info;
+  // Mark it as needs modeset, so that in next queue update we do a modeset
+  needs_modeset_ = true;
+  flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+
+  return true;
+}
+
 }  // namespace hwcomposer
