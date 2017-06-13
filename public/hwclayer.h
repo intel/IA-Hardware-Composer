@@ -186,7 +186,10 @@ struct HwcLayer {
     return state_ & kLayerValidated;
   }
 
-  void SetLayerZOrder(uint32_t order);
+  /**
+   * API for setting ZOrder for this layer.
+   */
+  void SetLayerZOrder(uint32_t z_order);
 
  private:
   void Validate();

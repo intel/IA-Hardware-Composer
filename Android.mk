@@ -119,6 +119,12 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+# libhwcservice
+HWC_BUILD_DIRS := \
+$(LOCAL_PATH)/os/android/libhwcservice/Android.mk
+
+include $(HWC_BUILD_DIRS)
+
 #Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
 # Commenting for now include when ld issue is resolved
