@@ -26,9 +26,6 @@
 
 #include "hwctrace.h"
 
-// minigbm specific DRM_FORMAT_YVU420_ANDROID enum
-#define DRM_FORMAT_YVU420_ANDROID              fourcc_code('9', '9', '9', '7')
-
 namespace hwcomposer {
 
 OverlayBuffer::~OverlayBuffer() {
@@ -89,10 +86,6 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
           egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
           static_cast<EGLClientBuffer>(nullptr), attr_list_nv12);
     } else {
-      // switch minigbm specific enum to a standard one
-      if (format_ == DRM_FORMAT_YVU420_ANDROID)
-        format_ = DRM_FORMAT_YVU420;
-
       const EGLint attr_list_yv12[] = {
           EGL_WIDTH,                     static_cast<EGLint>(width_),
           EGL_HEIGHT,                    static_cast<EGLint>(height_),
@@ -174,7 +167,6 @@ void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
     case DRM_FORMAT_UYVY:
     case DRM_FORMAT_NV12:
     case DRM_FORMAT_YUV420:
-    case DRM_FORMAT_YVU420_ANDROID:
       is_yuv_ = true;
       break;
     default:

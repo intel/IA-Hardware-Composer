@@ -40,6 +40,9 @@ extern "C" {
 
 #define DRM_FORMAT_NONE fourcc_code('0', '0', '0', '0')
 
+// minigbm specific DRM_FORMAT_YVU420_ANDROID enum
+#define DRM_FORMAT_YVU420_ANDROID fourcc_code('9', '9', '9', '7')
+
 #define DRV_MAX_PLANES 4
 
 // Conversion from HAL to fourcc-based DRM formats
@@ -175,6 +178,10 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
   }
 
   handle->gem_handle_ = id;
+
+  // switch minigbm specific enum to a standard one
+  if (bo->format == DRM_FORMAT_YVU420_ANDROID)
+    bo->format = DRM_FORMAT_YVU420;
 
   return true;
 }
