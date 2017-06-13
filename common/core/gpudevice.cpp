@@ -249,21 +249,16 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     // Ensure we have atleast one valid mode.
     if (connector->count_modes == 0)
       continue;
-
-    drmModeModeInfo mode;
-    memset(&mode, 0, sizeof(mode));
+    std::vector<drmModeModeInfo> mode;
+    uint32_t preferred_mode;
     bool found_prefered_mode = false;
     for (int32_t i = 0; i < connector->count_modes; ++i) {
-      mode = connector->modes[i];
+      mode.emplace_back(connector->modes[i]);
       // There is only one preferred mode per connector.
-      if (mode.type & DRM_MODE_TYPE_PREFERRED) {
-        found_prefered_mode = true;
-        break;
+      if (mode[i].type & DRM_MODE_TYPE_PREFERRED) {
+        preferred_mode = i;
       }
     }
-
-    if (!found_prefered_mode)
-      continue;
 
     // Lets try to find crts for any connected encoder.
     if (connector->encoder_id) {
@@ -271,8 +266,11 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
           drmModeGetEncoder(fd_, connector->encoder_id));
       if (encoder && encoder->crtc_id) {
         for (auto &display : displays_) {
+          // Get the modes supported for each display
+          display->SetDrmModeModeInfo(mode);
+          // At initilaization  preferred mode is set!
           if (encoder->crtc_id == display->CrtcId() &&
-              display->Connect(mode, connector.get())) {
+              display->Connect(mode[preferred_mode], connector.get())) {
             connected_displays_.emplace_back(display.get());
             break;
           }
@@ -289,7 +287,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
         for (auto &display : displays_) {
           if (!display->IsConnected() &&
               (encoder->possible_crtcs & (1 << display->Pipe())) &&
-              display->Connect(mode, connector.get())) {
+              display->Connect(mode[preferred_mode], connector.get())) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             connected_displays_.emplace_back(display.get());
             found_encoder = true;
