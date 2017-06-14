@@ -166,6 +166,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
           if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
             cursor_plane = NULL;
             commit_planes.pop_back();
+	    j->GPURenderedCursor();
           } else
             layer_end = j;
         }

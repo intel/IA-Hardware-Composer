@@ -109,8 +109,11 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
   if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
     return;
 
-  // We expect cursor plane to support alpha always.
-  if (!(buffer->GetUsage() & kLayerCursor)) {
+  bool cursor_alpha_changed = false;
+  if (buffer->GetUsage() & kLayerCursor) {
+    // We expect cursor plane to support alpha always.
+    cursor_alpha_changed = rhs.gpu_rendered_cursor_ && (alpha_ != rhs.alpha_);
+  } else {
     if (alpha_ != rhs.alpha_)
       return;
   }
@@ -125,7 +128,7 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
 
   if (!(state_ & kLayerPositionChanged) && !layer->HasVisibleRegionChanged() &&
       !layer->HasSurfaceDamageRegionChanged() &&
-      !layer->HasLayerContentChanged()) {
+      !layer->HasLayerContentChanged() && !cursor_alpha_changed) {
     state_ &= ~kLayerContentChanged;
   }
 }

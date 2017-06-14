@@ -122,6 +122,8 @@ struct OverlayLayer {
     return state_ & kLayerContentChanged;
   }
 
+  void GPURenderedCursor() { gpu_rendered_cursor_ = true; }
+
   void Dump();
 
  private:
@@ -146,6 +148,7 @@ struct OverlayLayer {
   uint32_t state_ =
       kLayerAttributesChanged | kLayerPositionChanged | kLayerContentChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
+  bool gpu_rendered_cursor_ = false;
 };
 
 }  // namespace hwcomposer
