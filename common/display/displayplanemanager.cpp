@@ -119,22 +119,28 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   ++layer_begin;
   // Lets ensure we fall back to GPU composition in case
   // primary layer cannot be scanned out directly.
-  if ((pending_modeset && layers.size() > 1) || disable_overlay ||
-      FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
-    DisplayPlaneState &last_plane = composition.back();
-    render_layers = true;
-    // Case where we have just one layer which needs to be composited using
-    // GPU.
-    last_plane.ForceGPURendering();
+  bool previous_video = primary_layer->GetBuffer()->IsVideoBuffer();
+  bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
+  if (force_gpu || FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
+    if (force_gpu || !previous_video) {
+      DisplayPlaneState &last_plane = composition.back();
+      render_layers = true;
+      // Case where we have just one layer which needs to be composited using
+      // GPU.
+      last_plane.ForceGPURendering();
 
-    for (auto i = layer_begin; i != layer_end; ++i) {
-      last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
+      for (auto i = layer_begin; i != layer_end; ++i) {
+        last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
+      }
+
+      EnsureOffScreenTarget(last_plane);
+      // We need to composite primary using GPU, lets use this for
+      // all layers in this case.
+      return std::make_tuple(render_layers, std::move(composition));
+    } else {
+      DisplayPlaneState &last_plane = composition.back();
+      last_plane.ForceGPURendering();
     }
-
-    EnsureOffScreenTarget(last_plane);
-    // We need to composite primary using GPU, lets use this for
-    // all layers in this case.
-    return std::make_tuple(render_layers, std::move(composition));
   }
 
   // We are just compositing Primary layer and nothing else.
@@ -181,8 +187,14 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
         ++layer_begin;
         // If we are able to composite buffer with the given plane, lets use
         // it.
-        if (!FallbacktoGPU(j->get(), layer, commit_planes)) {
+        bool fall_back = FallbacktoGPU(j->get(), layer, commit_planes);
+        if (!fall_back || previous_video ||
+            layer->GetBuffer()->IsVideoBuffer()) {
           composition.emplace_back(j->get(), layer, index);
+          if (fall_back)
+            composition.back().ForceGPURendering();
+
+          previous_video = layer->GetBuffer()->IsVideoBuffer();
           break;
         } else {
           last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());

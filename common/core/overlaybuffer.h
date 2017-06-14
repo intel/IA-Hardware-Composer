@@ -70,6 +70,10 @@ class OverlayBuffer {
 
   void SetRecommendedFormat(uint32_t format);
 
+  bool IsVideoBuffer() const {
+    return is_yuv_;
+  }
+
   void Dump();
 
  protected:

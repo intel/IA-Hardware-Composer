@@ -125,6 +125,13 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     }
   }
 
+  // Lets clip surface damage to display frame rect.
+  new_damage_rect.left = std::max(display_frame_.left, new_damage_rect.left);
+  new_damage_rect.top = std::max(display_frame_.top, new_damage_rect.top);
+  new_damage_rect.right = std::min(display_frame_.right, new_damage_rect.right);
+  new_damage_rect.bottom =
+      std::min(display_frame_.bottom, new_damage_rect.bottom);
+
   if ((surface_damage_.left == new_damage_rect.left) ||
       (surface_damage_.top == new_damage_rect.top) ||
       (surface_damage_.right == new_damage_rect.right) ||
