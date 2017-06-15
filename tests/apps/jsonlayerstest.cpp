@@ -704,6 +704,9 @@ int main(int argc, char *argv[]) {
       frame->layers_fences[j].clear();
       frame->layer_renderers[j]->Draw(&gpu_fence_fd);
       frame->layers[j]->SetAcquireFence(gpu_fence_fd);
+      std::vector<hwcomposer::HwcRect<int>> damage_region;
+      damage_region.emplace_back(frame->layers[j]->GetDisplayFrame());
+      frame->layers[j]->SetSurfaceDamage(damage_region);
       layers.emplace_back(frame->layers[j].get());
     }
 
