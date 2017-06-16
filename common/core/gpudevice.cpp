@@ -309,7 +309,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     if (!headless_)
       headless_.reset(new Headless(fd_, 0, 0));
   } else if (headless_) {
-    headless_.release();
+    headless_.reset(nullptr);
   }
 
   if (callback_) {

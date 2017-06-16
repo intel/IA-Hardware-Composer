@@ -26,6 +26,8 @@
 #include "overlaybuffermanager.h"
 #include "overlaylayer.h"
 
+#include "hwcutils.h"
+
 namespace hwcomposer {
 
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
@@ -40,6 +42,10 @@ VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
 }
 
 VirtualDisplay::~VirtualDisplay() {
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+  }
+
   delete output_handle_;
 }
 
@@ -83,10 +89,17 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     index.emplace_back(layer_index);
     ImportedBuffer *buffer =
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
+
     overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
   }
 
-  if (!compositor_.BeginFrame(true)) {
+  if (acquire_fence_ > 0) {
+    HWCPoll(acquire_fence_, -1);
+    close(acquire_fence_);
+    acquire_fence_ = 0;
+  }
+
+  if (!compositor_.BeginFrame(false)) {
     ETRACE("Failed to initialize compositor.");
     return false;
   }
@@ -104,8 +117,19 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
 void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
-  output_handle_ = buffer;
-  acquire_fence_ = acquire_fence;
+  if (!output_handle_ || output_handle_ != buffer) {
+    delete output_handle_;
+    output_handle_ = buffer;
+  }
+
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+    acquire_fence_ = -1;
+  }
+
+  if (acquire_fence > 0) {
+    acquire_fence_ = dup(acquire_fence);
+  }
 }
 
 }  // namespace hwcomposer

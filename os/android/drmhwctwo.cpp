@@ -410,7 +410,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
   }
 
   uint32_t num_layers = 0;
-
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     ++num_layers;
     if (num_layers > *num_elements) {
@@ -421,6 +420,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
     layers[num_layers - 1] = l.first;
     fences[num_layers - 1] = l.second.GetLayer()->GetReleaseFence();
   }
+
   *num_elements = num_layers;
   return HWC2::Error::None;
 }
@@ -441,9 +441,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // continue displaying the current state and stop applying display
   // update from the client
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
-    return HWC2::Error::None;
-
-  if (type_ == HWC2::DisplayType::Virtual)
     return HWC2::Error::None;
 
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
@@ -593,31 +590,25 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   supported(__func__);
   *num_types = 0;
   *num_requests = 0;
-  if (type_ == HWC2::DisplayType::Virtual) {
-    for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
-      DrmHwcTwo::HwcLayer &layer = l.second;
-      layer.set_validated_type(HWC2::Composition::Client);
-      ++*num_types;
-    }
-  } else {
-    for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
-      DrmHwcTwo::HwcLayer &layer = l.second;
-      switch (layer.sf_type()) {
-        case HWC2::Composition::SolidColor:
-        case HWC2::Composition::Sideband:
+  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
+    DrmHwcTwo::HwcLayer &layer = l.second;
+    switch (layer.sf_type()) {
+      case HWC2::Composition::SolidColor:
+      case HWC2::Composition::Sideband:
+        layer.set_validated_type(HWC2::Composition::Client);
+        ++*num_types;
+        break;
+      default:
+        if (disable_explicit_sync_ ||
+            display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
           layer.set_validated_type(HWC2::Composition::Client);
-          ++*num_types;
-          break;
-        default:
-	  if (disable_explicit_sync_ || display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
-            layer.set_validated_type(HWC2::Composition::Client);
-          } else {
-              layer.set_validated_type(layer.sf_type());
-          }
-          break;
-      }
+        } else {
+          layer.set_validated_type(layer.sf_type());
+        }
+        break;
     }
   }
+
   checkValidateDisplay = true;
   return HWC2::Error::None;
 }

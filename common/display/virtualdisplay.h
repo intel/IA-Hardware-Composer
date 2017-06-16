@@ -46,7 +46,7 @@ class VirtualDisplay : public Headless {
 
  private:
   HWCNativeHandle output_handle_;
-  int32_t acquire_fence_;
+  int32_t acquire_fence_ = -1;
   OverlayBufferManager *buffer_manager_;
   Compositor compositor_;
   uint32_t width_;
