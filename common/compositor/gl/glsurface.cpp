@@ -60,8 +60,23 @@ bool GLSurface::InitializeGPUResources() {
                          texture, 0);
 
   fb_ = gl_fb;
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    ETRACE("GL Framebuffer is not complete.");
+  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE) {
+    switch (status) {
+      case (GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT):
+        ETRACE("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT.");
+        break;
+      case (GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT):
+        ETRACE("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT.");
+        break;
+      case (GL_FRAMEBUFFER_UNSUPPORTED):
+        ETRACE("GL_FRAMEBUFFER_UNSUPPORTED.");
+        break;
+      default:
+        break;
+    }
+
+    ETRACE("GL Framebuffer is not complete %d.", texture);
     return false;
   }
 
