@@ -203,6 +203,11 @@ void GpuDevice::DisplayManager::HotPlugEventHandler() {
       UpdateDisplayState();
     }
   }
+  /* Adding sleep to avoid busy loop. The busy loop returns only
+   * if read() completes / fails. Race conditions can cause this
+   * busy loop hog the system. This 1 ms sleep can avoid that.
+   */
+  usleep(1000);
 }
 
 void GpuDevice::DisplayManager::HandleWait() {
