@@ -33,8 +33,6 @@ struct OverlayLayer {
 
   int32_t GetAcquireFence() const;
 
-  void WaitAcquireFence();
-
   void SetIndex(uint32_t index);
 
   uint32_t GetIndex() const {

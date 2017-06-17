@@ -39,14 +39,6 @@ int32_t OverlayLayer::GetAcquireFence() const {
   return imported_buffer_->acquire_fence_;
 }
 
-void OverlayLayer::WaitAcquireFence() {
-  if (imported_buffer_->acquire_fence_ > 0 &&
-      !(state_ & kLayerAcquireFenceSignalled)) {
-    HWCPoll(imported_buffer_->acquire_fence_, -1);
-    state_ |= kLayerAcquireFenceSignalled;
-  }
-}
-
 OverlayBuffer* OverlayLayer::GetBuffer() const {
   return imported_buffer_->buffer_;
 }

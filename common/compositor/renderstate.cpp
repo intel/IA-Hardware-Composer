@@ -33,7 +33,6 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   height_ = bounds[3] - bounds[1];
   for (size_t texture_index : region.source_layers) {
     OverlayLayer &layer = layers.at(texture_index);
-    layer.WaitAcquireFence();
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.handle_ = resources->GetResourceHandle(texture_index);
