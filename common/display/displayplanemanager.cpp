@@ -119,10 +119,10 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   ++layer_begin;
   // Lets ensure we fall back to GPU composition in case
   // primary layer cannot be scanned out directly.
-  bool previous_video = primary_layer->GetBuffer()->IsVideoBuffer();
+  bool prefer_seperate_plane = primary_layer->PreferSeparatePlane();
   bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
   if (force_gpu || FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
-    if (force_gpu || !previous_video) {
+    if (force_gpu || !prefer_seperate_plane) {
       DisplayPlaneState &last_plane = composition.back();
       render_layers = true;
       // Case where we have just one layer which needs to be composited using
@@ -189,13 +189,15 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
         // If we are able to composite buffer with the given plane, lets use
         // it.
         bool fall_back = FallbacktoGPU(j->get(), layer, commit_planes);
-        if (!fall_back || previous_video ||
-            layer->GetBuffer()->IsVideoBuffer()) {
+        if (!fall_back || prefer_seperate_plane ||
+            layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
-          if (fall_back)
+          if (fall_back) {
+            EnsureOffScreenTarget(last_plane);
             composition.back().ForceGPURendering();
+          }
 
-          previous_video = layer->GetBuffer()->IsVideoBuffer();
+          prefer_seperate_plane = layer->PreferSeparatePlane();
           break;
         } else {
           last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
@@ -355,10 +357,10 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
-    DisplayPlaneStateList &composition,
-    std::vector<OverlayLayer> &layers) {
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
   for (DisplayPlaneState &plane : composition) {
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender &&
+        !plane.GetOffScreenTarget()) {
       EnsureOffScreenTarget(plane);
     }
   }

@@ -299,6 +299,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
     overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
 
+    overlay_layer.ValidateForOverlayUsage();
+
     if (frame_changed) {
       layer->Validate();
       continue;

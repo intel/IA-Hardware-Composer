@@ -98,6 +98,9 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_;
+  if (!prefer_separate_plane_)
+    prefer_separate_plane_ = rhs.prefer_separate_plane_;
+
   if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
     return;
 
@@ -123,6 +126,10 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
       !layer->HasLayerContentChanged() && !cursor_alpha_changed) {
     state_ &= ~kLayerContentChanged;
   }
+}
+
+void OverlayLayer::ValidateForOverlayUsage() {
+  prefer_separate_plane_ = imported_buffer_->buffer_->IsVideoBuffer();
 }
 
 void OverlayLayer::Dump() {

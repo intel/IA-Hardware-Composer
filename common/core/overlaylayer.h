@@ -101,6 +101,10 @@ struct OverlayLayer {
   // layer at same z order.
   void ValidatePreviousFrameState(const OverlayLayer& rhs, HwcLayer* layer);
 
+  // Check if we want to use a separate overlay for this
+  // layer.
+  void ValidateForOverlayUsage();
+
   // Returns true if position of layer has
   // changed from previous frame.
   bool HasLayerPositionChanged() const {
@@ -120,7 +124,17 @@ struct OverlayLayer {
     return state_ & kLayerContentChanged;
   }
 
-  void GPURenderedCursor() { gpu_rendered_cursor_ = true; }
+  void GPURenderedCursor() {
+    gpu_rendered_cursor_ = true;
+  }
+
+  // Returns true if we should prefer
+  // a separate plane for this layer
+  // when validating layers in
+  // DisplayPlaneManager.
+  bool PreferSeparatePlane() const {
+    return prefer_separate_plane_;
+  }
 
   void Dump();
 
@@ -147,6 +161,7 @@ struct OverlayLayer {
       kLayerAttributesChanged | kLayerPositionChanged | kLayerContentChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_cursor_ = false;
+  bool prefer_separate_plane_ = false;
 };
 
 }  // namespace hwcomposer
