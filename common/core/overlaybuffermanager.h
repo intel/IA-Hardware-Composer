@@ -19,7 +19,6 @@
 #include <platformdefines.h>
 
 #include <nativebufferhandler.h>
-#include <spinlock.h>
 
 #include <memory>
 #include <vector>

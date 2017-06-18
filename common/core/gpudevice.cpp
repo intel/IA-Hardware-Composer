@@ -228,7 +228,7 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     return false;
   }
 
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
     display->DisConnect();
@@ -316,12 +316,13 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
     callback_->Callback(connected_displays_);
   }
 
+  spin_lock_.unlock();
   return true;
 }
 
 NativeDisplay *GpuDevice::DisplayManager::GetDisplay(uint32_t display_id) {
   CTRACE();
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
 
   NativeDisplay *display = NULL;
   if (headless_.get()) {
@@ -331,6 +332,7 @@ NativeDisplay *GpuDevice::DisplayManager::GetDisplay(uint32_t display_id) {
       display = connected_displays_.at(display_id);
   }
 
+  spin_lock_.unlock();
   return display;
 }
 
@@ -345,8 +347,9 @@ GpuDevice::DisplayManager::GetConnectedPhysicalDisplays() const {
 
 void GpuDevice::DisplayManager::RegisterHotPlugEventCallback(
     std::shared_ptr<DisplayHotPlugEventCallback> callback) {
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   callback_ = callback;
+  spin_lock_.unlock();
 }
 
 GpuDevice::GpuDevice() : initialized_(false) {

@@ -45,12 +45,13 @@ VblankEventHandler::~VblankEventHandler() {
 }
 
 void VblankEventHandler::Init(float refresh, int fd, int pipe) {
-  ScopedSpinLock lock(spin_lock_);
+  spin_lock_.lock();
   refresh_ = refresh;
   fd_ = fd;
   uint32_t high_crtc = (pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
   type_ = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE |
                              (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+  spin_lock_.unlock();
 }
 
 bool VblankEventHandler::SetPowerMode(uint32_t power_mode) {
