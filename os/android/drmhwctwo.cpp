@@ -56,6 +56,22 @@ class DrmVsyncCallback : public hwcomposer::VsyncCallback {
   hwc2_function_pointer_t hook_;
 };
 
+class DrmRefreshCallback : public hwcomposer::RefreshCallback {
+ public:
+  DrmRefreshCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
+      : data_(data), hook_(hook) {
+  }
+
+  void Callback(uint32_t display) {
+    auto hook = reinterpret_cast<HWC2_PFN_REFRESH>(hook_);
+    hook(data_, display);
+  }
+
+ private:
+  hwc2_callback_data_t data_;
+  hwc2_function_pointer_t hook_;
+};
+
 DrmHwcTwo::DrmHwcTwo() {
   common.tag = HARDWARE_DEVICE_TAG;
   common.version = HWC_DEVICE_API_VERSION_2_0;
@@ -148,6 +164,12 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
         d.second.RegisterVsyncCallback(data, function);
       break;
     }
+    case HWC2::Callback::Refresh: {
+      for (std::pair<const hwc2_display_t, DrmHwcTwo::HwcDisplay> &d :
+           displays_)
+        d.second.RegisterRefreshCallback(data, function);
+      break;
+    }
     default:
       break;
   }
@@ -218,6 +240,15 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
     ALOGE("Failed to register callback d=%" PRIu64 " ret=%d", handle_, ret);
     return HWC2::Error::BadDisplay;
   }
+  return HWC2::Error::None;
+}
+
+HWC2::Error DrmHwcTwo::HwcDisplay::RegisterRefreshCallback(
+    hwc2_callback_data_t data, hwc2_function_pointer_t func) {
+  supported(__func__);
+  auto callback = std::make_shared<DrmRefreshCallback>(data, func);
+  display_->RegisterRefreshCallback(std::move(callback),
+                                    static_cast<int>(handle_));
   return HWC2::Error::None;
 }
 

@@ -85,6 +85,9 @@ class Display : public NativeDisplay {
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
 
+  void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
+                               uint32_t display_id) override;
+
   void VSyncControl(bool enabled) override;
   bool CheckPlaneFormat(uint32_t format) override;
   void SetGamma(float red, float green, float blue) override;

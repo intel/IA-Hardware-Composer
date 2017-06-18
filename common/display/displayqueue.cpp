@@ -268,14 +268,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
+
   use_layer_cache_ = !needs_modeset_;
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
   bool frame_changed = (size != previous_size);
-  if (!use_layer_cache_)
+  bool idle_frame = tracker.RenderIdleMode();
+  if (!use_layer_cache_ || idle_frame)
     frame_changed = true;
+
   bool layers_changed = frame_changed;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -315,13 +318,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
+  bool disable_overlays = idle_frame || disable_overlay_usage_;
+  bool validate_layers = layers_changed || tracker.RevalidateLayers();
+
   // Validate Overlays and Layers usage.
-  if (!layers_changed) {
+  if (!validate_layers) {
+    // Before forcing layer validation check if content has changed
+    // if not continue showing the current buffer.
     GetCachedLayers(layers, &current_composition_planes, &render_layers);
   } else {
+    tracker.ResetTrackerState();
     std::tie(render_layers, current_composition_planes) =
         display_plane_manager_->ValidateLayers(layers, needs_modeset_,
-                                               disable_overlay_usage_);
+                                               disable_overlays);
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
@@ -475,7 +484,7 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   previous_plane_state_.clear();
   std::vector<HwcRect<int>>().swap(previous_layers_rects_);
-  idle_tracker_.preparing_composition_ = false;
+  idle_tracker_.state_ = 0;
   idle_tracker_.idle_frames_ = 0;
   if (kms_fence_ > 0) {
     close(kms_fence_);
@@ -689,6 +698,14 @@ int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
   return vblank_handler_->RegisterCallback(callback, display_id);
 }
 
+void DisplayQueue::RegisterRefreshCallback(
+    std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
+  idle_tracker_.idle_lock_.lock();
+  refresh_callback_ = callback;
+  refrsh_display_id_ = display_id;
+  idle_tracker_.idle_lock_.unlock();
+}
+
 void DisplayQueue::VSyncControl(bool enabled) {
   vblank_handler_->VSyncControl(enabled);
 }
@@ -696,96 +713,28 @@ void DisplayQueue::VSyncControl(bool enabled) {
 void DisplayQueue::HandleIdleCase() {
   idle_tracker_.idle_lock_.lock();
 
-  if (idle_tracker_.preparing_composition_) {
+  if (idle_tracker_.state_ & FrameStateTracker::kPrepareComposition) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (idle_tracker_.idle_frames_ < 5) {
+  if (idle_tracker_.idle_frames_ < 100) {
     idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 5) {
+  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 100) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
   idle_tracker_.idle_frames_++;
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
-  }
-#if 0
-  DisplayPlaneStateList current_composition_planes;
-  bool render_layers;
-  std::tie(render_layers, current_composition_planes) =
-      display_plane_manager_->ValidateLayers(in_flight_layers_, false, true);
-
-  if (render_layers) {
-    if (!compositor_.BeginFrame(true)) {
-      ETRACE("Failed to initialize compositor.");
-      idle_tracker_.idle_lock_.unlock();
-      return;
-    }
-
-    // Prepare for final composition.
-    if (!compositor_.DrawIdleState(current_composition_planes,
-				   in_flight_layers_, previous_layers_rects_)) {
-      ETRACE("Failed to prepare for the frame composition. ");
-      idle_tracker_.idle_lock_.unlock();
-      return;
-    }
+  if (refresh_callback_) {
+    refresh_callback_->Callback(refrsh_display_id_);
   }
 
-  // Do the actual commit.
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-
-  if (!pset) {
-    ETRACE("Failed to allocate property set %d", -ENOMEM);
-    idle_tracker_.idle_lock_.unlock();
-    return;
-  }
-
-  uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
-
-  if (!display_plane_manager_->CommitFrame(current_composition_planes,
-                                           pset.get(), flags)) {
-    ETRACE("Failed to Commit layers.");
-    idle_tracker_.idle_lock_.unlock();
-    return;
-  }
-
-  if (previous_layers_.size()) {
-    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
-    std::vector<OverlayLayer>().swap(previous_layers_);
-  }
-
-  if (previous_surfaces_.size()) {
-    for (NativeSurface* surface : previous_surfaces_) {
-      surface->SetInUse(false);
-    }
-
-    std::vector<NativeSurface*>().swap(previous_surfaces_);
-  }
-
-  for (NativeSurface* surface : in_flight_surfaces_) {
-    surface->SetInUse(false);
-  }
-
-  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
-
-  for (DisplayPlaneState& plane_state : current_composition_planes) {
-    if (plane_state.GetCompositionState() ==
-	DisplayPlaneState::State::kRender) {
-      in_flight_surfaces_.emplace_back(plane_state.GetOffScreenTarget());
-    }
-  }
-
-  display_plane_manager_->ReleaseFreeOffScreenTargets();
-#endif
+  idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
   idle_tracker_.idle_lock_.unlock();
 }
 

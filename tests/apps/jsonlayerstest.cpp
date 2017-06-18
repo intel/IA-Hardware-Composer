@@ -152,7 +152,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   }
 
   void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
-    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    spin_lock_.lock();
     connected_displays_.swap(connected_displays);
 
     for (auto &display : connected_displays_) {
@@ -160,12 +160,14 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->RegisterVsyncCallback(callback, 0);
       display->VSyncControl(true);
     }
+
+    spin_lock_.unlock();
   }
 
   const std::vector<hwcomposer::NativeDisplay *> &GetConnectedDisplays() {
-    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    spin_lock_.lock();
     PopulateConnectedDisplays();
-
+    spin_lock_.unlock();
     return connected_displays_;
   }
 

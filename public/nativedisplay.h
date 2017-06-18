@@ -40,6 +40,13 @@ class VsyncCallback {
   virtual void Callback(uint32_t display, int64_t timestamp) = 0;
 };
 
+class RefreshCallback {
+ public:
+  virtual ~RefreshCallback() {
+  }
+  virtual void Callback(uint32_t display) = 0;
+};
+
 class NativeDisplay {
  public:
   virtual ~NativeDisplay() {
@@ -89,6 +96,20 @@ class NativeDisplay {
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
   virtual void VSyncControl(bool enabled) = 0;
+
+  /**
+   * API for registering for refresh callback requests.
+   * @param callback, function which will be used by HWC to request client to
+   *        trigger a screen refresh. This will be used to optimize scenarios
+   *        like idle mode.
+   * @param display_id will be populated with Native Fence object provided
+   *        we are able to display source_layers. When retire_fence is
+   *        signalled source_layers are shown on the output and any previous
+   *        frame composition results can be invalidated.
+   */
+  virtual void RegisterRefreshCallback(
+      std::shared_ptr<RefreshCallback> /*callback*/, uint32_t /*display_id*/) {
+  }
 
   // Color Correction related APIS.
   /**

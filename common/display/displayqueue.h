@@ -68,6 +68,9 @@ class DisplayQueue {
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
 
+  void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
+                               uint32_t display_id);
+
   void VSyncControl(bool enabled);
 
   void HandleIdleCase();
@@ -75,29 +78,74 @@ class DisplayQueue {
   bool SetActiveConfig(drmModeModeInfo& mode_info);
 
  private:
-  struct IdleFrameTracker {
+  struct FrameStateTracker {
+    enum FrameState {
+      kPrepareComposition = 1 << 0,  // Preparing for current frame composition.
+      kRenderIdleDisplay = 1 << 1,  // We are in idle mode, disable all overlays
+                                    // and use only one plane.
+      kRevalidateLayers = 1 << 3,   // We disabled overlay usage for idle mode,
+                                    // if we are continously updating
+      // frames, revalidate layers to use planes.
+      kTrackingFrames = 1 << 4  // Tracking frames to see when layers need to be
+                                // revalidated after
+                                // disabling overlays for idle case scenario.
+    };
+
     uint32_t idle_frames_ = 0;
     SpinLock idle_lock_;
-    bool preparing_composition_ = true;
+    uint32_t state_;
+    uint32_t continuous_frames_ = 0;
   };
 
   struct ScopedIdleStateTracker {
-    ScopedIdleStateTracker(struct IdleFrameTracker& tracker)
+    ScopedIdleStateTracker(struct FrameStateTracker& tracker)
         : tracker_(tracker) {
       tracker_.idle_lock_.lock();
       tracker_.idle_frames_ = 0;
-      tracker_.preparing_composition_ = true;
+      tracker_.state_ |= FrameStateTracker::kPrepareComposition;
       tracker_.idle_lock_.unlock();
+    }
+
+    bool RenderIdleMode() const {
+      return tracker_.state_ & FrameStateTracker::kRenderIdleDisplay;
+    }
+
+    bool RevalidateLayers() const {
+      return tracker_.state_ & FrameStateTracker::kRevalidateLayers;
+    }
+
+    void ResetTrackerState() {
+      if (!(tracker_.state_ & FrameStateTracker::kRenderIdleDisplay)) {
+        tracker_.state_ = 0;
+	tracker_.continuous_frames_ = 0;
+      }
     }
 
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
-      tracker_.preparing_composition_ = false;
+      tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
+      if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
+        tracker_.state_ &= ~FrameStateTracker::kRenderIdleDisplay;
+	tracker_.state_ |= FrameStateTracker::kTrackingFrames;
+        tracker_.continuous_frames_ = 0;
+      } else if (tracker_.state_ & FrameStateTracker::kTrackingFrames) {
+        if (tracker_.continuous_frames_ > 10) {
+          tracker_.state_ &= ~FrameStateTracker::kTrackingFrames;
+          tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
+          tracker_.continuous_frames_ = 0;
+        } else {
+          tracker_.continuous_frames_++;
+        }
+      } else if (tracker_.state_ & FrameStateTracker::kRevalidateLayers) {
+        tracker_.state_ &= ~FrameStateTracker::kRevalidateLayers;
+	tracker_.continuous_frames_ = 0;
+      }
+
       tracker_.idle_lock_.unlock();
     }
 
    private:
-    struct IdleFrameTracker& tracker_;
+    struct FrameStateTracker& tracker_;
   };
 
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
@@ -155,7 +203,12 @@ class DisplayQueue {
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;
   std::vector<NativeSurface*> previous_surfaces_;
-  IdleFrameTracker idle_tracker_;
+  FrameStateTracker idle_tracker_;
+  // shared_ptr since we need to use this outside of the thread lock (to
+  // actually call the hook) and we don't want the memory freed until we're
+  // done
+  std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
+  uint32_t refrsh_display_id_;
 };
 
 }  // namespace hwcomposer

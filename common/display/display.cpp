@@ -221,6 +221,11 @@ int Display::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
   return display_queue_->RegisterVsyncCallback(callback, display_id);
 }
 
+void Display::RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
+                                      uint32_t display_id) {
+  return display_queue_->RegisterRefreshCallback(callback, display_id);
+}
+
 void Display::VSyncControl(bool enabled) {
   display_queue_->VSyncControl(enabled);
 }
