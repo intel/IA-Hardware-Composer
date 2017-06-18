@@ -23,8 +23,6 @@ namespace hwcomposer {
 EGLOffScreenContext::EGLOffScreenContext()
     : egl_display_(EGL_NO_DISPLAY),
       egl_ctx_(EGL_NO_CONTEXT),
-      egl_idle_display_(EGL_NO_DISPLAY),
-      egl_idle_ctx_(EGL_NO_CONTEXT),
       restore_context_(false) {
 }
 
@@ -32,10 +30,6 @@ EGLOffScreenContext::~EGLOffScreenContext() {
   if (egl_display_ != EGL_NO_DISPLAY && egl_ctx_ != EGL_NO_CONTEXT)
     if (eglDestroyContext(egl_display_, egl_ctx_) == EGL_FALSE)
       ETRACE("Failed to destroy OpenGL ES Context.");
-
-  if (egl_idle_display_ != EGL_NO_DISPLAY && egl_idle_ctx_ != EGL_NO_CONTEXT)
-    if (eglDestroyContext(egl_idle_display_, egl_idle_ctx_) == EGL_FALSE)
-      ETRACE("Failed to destroy Idle OpenGL ES Context.");
 }
 
 bool EGLOffScreenContext::Init() {
@@ -75,49 +69,6 @@ bool EGLOffScreenContext::Init() {
   return true;
 }
 
-bool EGLOffScreenContext::InitIdleContext() {
-  EGLint num_configs;
-  EGLConfig egl_config;
-  static const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
-                                           EGL_NONE};
-
-  static const EGLint config_attribs[] = {EGL_SURFACE_TYPE, EGL_DONT_CARE,
-                                          EGL_NONE};
-
-  egl_idle_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  if (egl_idle_display_ == EGL_NO_DISPLAY) {
-    ETRACE("Failed to get egl display");
-    return false;
-  }
-
-  if (!eglInitialize(egl_idle_display_, NULL, NULL)) {
-    ETRACE("Egl Initialization failed.");
-    return false;
-  }
-
-  if (!eglChooseConfig(egl_idle_display_, config_attribs, &egl_config, 1,
-                       &num_configs)) {
-    ETRACE("Failed to choose a valid EGLConfig.");
-    return false;
-  }
-
-  egl_idle_ctx_ = eglCreateContext(egl_idle_display_, egl_config,
-                                   EGL_NO_CONTEXT, context_attribs);
-
-  if (egl_idle_ctx_ == EGL_NO_CONTEXT) {
-    ETRACE("Failed to create EGL Context.");
-    return false;
-  }
-
-  if (!eglMakeCurrent(egl_idle_display_, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                      egl_idle_ctx_)) {
-    ETRACE("failed to make context current");
-    return false;
-  }
-
-  return true;
-}
-
 bool EGLOffScreenContext::MakeCurrent() {
   saved_egl_display_ = eglGetCurrentDisplay();
   saved_egl_ctx_ = eglGetCurrentContext();
@@ -134,14 +85,6 @@ bool EGLOffScreenContext::MakeCurrent() {
       ETRACE("failed to make context current");
       return false;
     }
-  }
-
-  return true;
-}
-
-bool EGLOffScreenContext::MakeCurrentIdle() {
-  if (egl_idle_display_ == EGL_NO_DISPLAY) {
-    return InitIdleContext();
   }
 
   return true;

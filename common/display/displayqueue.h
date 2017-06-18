@@ -198,7 +198,6 @@ class DisplayQueue {
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
   std::vector<OverlayLayer> previous_layers_;
-  std::vector<HwcRect<int>> previous_layers_rects_;
   DisplayPlaneStateList previous_plane_state_;
   OverlayBufferManager* buffer_manager_;
   std::vector<NativeSurface*> in_flight_surfaces_;

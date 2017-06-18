@@ -36,16 +36,11 @@ class EGLOffScreenContext {
 
   bool MakeCurrent();
 
-  bool MakeCurrentIdle();
-
   void RestoreState();
 
  private:
-  bool InitIdleContext();
   EGLDisplay egl_display_;
   EGLContext egl_ctx_;
-  EGLDisplay egl_idle_display_;
-  EGLContext egl_idle_ctx_;
   EGLDisplay saved_egl_display_ = EGL_NO_DISPLAY;
   EGLContext saved_egl_ctx_ = EGL_NO_CONTEXT;
   EGLSurface saved_egl_read_ = EGL_NO_SURFACE;

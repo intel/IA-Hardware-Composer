@@ -153,41 +153,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-bool Compositor::DrawIdleState(DisplayPlaneStateList &comp_planes,
-                               std::vector<OverlayLayer> &layers,
-                               const std::vector<HwcRect<int>> &display_frame) {
-  CTRACE();
-  std::vector<size_t> dedicated_layers;
-  ScopedIdleRendererState state(renderer_.get());
-  if (!state.IsValid()) {
-    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
-    return false;
-  }
-
-  if (!gpu_resource_handler_->PrepareResources(layers)) {
-    ETRACE(
-        "Failed to prepare GPU resources for compositing the frame, "
-        "error: %s",
-        PRINTERROR());
-    return false;
-  }
-
-  DisplayPlaneState &plane = comp_planes.at(0);
-  std::vector<CompositionRegion> &comp_regions =
-      plane.GetCompositionRegion();
-  if (comp_regions.empty()) {
-    SeparateLayers(dedicated_layers, plane.source_layers(), display_frame,
-		   comp_regions);
-  }
-
-  if (!Render(layers, plane.GetOffScreenTarget(), comp_regions)) {
-    ETRACE("Failed to Render layer.");
-    return false;
-  }
-
-  return true;
-}
-
 void Compositor::InsertFence(uint64_t fence) {
   renderer_->InsertFence(fence);
 }

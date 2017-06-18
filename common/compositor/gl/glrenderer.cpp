@@ -128,10 +128,6 @@ bool GLRenderer::MakeCurrent() {
   return context_.MakeCurrent();
 }
 
-bool GLRenderer::MakeCurrentIdle() {
-  return context_.MakeCurrentIdle();
-}
-
 void GLRenderer::InsertFence(uint64_t kms_fence) {
   if (kms_fence > 0) {
     EGLint attrib_list[] = {

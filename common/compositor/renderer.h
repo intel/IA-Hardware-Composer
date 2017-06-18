@@ -44,8 +44,6 @@ class Renderer {
 
   virtual bool MakeCurrent() = 0;
 
-  virtual bool MakeCurrentIdle() = 0;
-
   virtual void SetExplicitSyncSupport(bool disable_explicit_sync) = 0;
 };
 

@@ -50,9 +50,6 @@ class Compositor {
                      OverlayBufferManager *buffer_manager, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t *retire_fence);
-  bool DrawIdleState(DisplayPlaneStateList &comp_planes,
-                     std::vector<OverlayLayer> &layers,
-                     const std::vector<HwcRect<int>> &display_frame);
   void InsertFence(uint64_t fence);
 
  private:

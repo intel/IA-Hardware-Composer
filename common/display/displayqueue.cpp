@@ -318,7 +318,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
-  bool disable_overlays = idle_frame || disable_overlay_usage_;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
 
   // Validate Overlays and Layers usage.
@@ -329,8 +328,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   } else {
     tracker.ResetTrackerState();
     std::tie(render_layers, current_composition_planes) =
-        display_plane_manager_->ValidateLayers(layers, needs_modeset_,
-                                               disable_overlays);
+        display_plane_manager_->ValidateLayers(
+            layers, needs_modeset_, idle_frame || disable_overlay_usage_);
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
@@ -448,7 +447,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  previous_layers_rects_.swap(layers_rects);
+  if (idle_frame)
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
 
   return true;
 }
@@ -483,7 +483,6 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(previous_layers_);
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   previous_plane_state_.clear();
-  std::vector<HwcRect<int>>().swap(previous_layers_rects_);
   idle_tracker_.state_ = 0;
   idle_tracker_.idle_frames_ = 0;
   if (kms_fence_ > 0) {
