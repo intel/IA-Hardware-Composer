@@ -193,8 +193,11 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
             layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
           if (fall_back) {
-            EnsureOffScreenTarget(last_plane);
+            DisplayPlaneState &plane = composition.back();
+            EnsureOffScreenTarget(plane);
             composition.back().ForceGPURendering();
+            OverlayPlane &back = commit_planes.back();
+            back.layer = plane.GetOverlayLayer();
           }
 
           prefer_seperate_plane = layer->PreferSeparatePlane();
@@ -358,15 +361,13 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
 void DisplayPlaneManager::ValidateFinalLayers(
     DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
+  std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &plane : composition) {
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender &&
         !plane.GetOffScreenTarget()) {
       EnsureOffScreenTarget(plane);
     }
-  }
 
-  std::vector<OverlayPlane> commit_planes;
-  for (DisplayPlaneState &plane : composition) {
     commit_planes.emplace_back(
         OverlayPlane(plane.plane(), plane.GetOverlayLayer()));
   }
@@ -375,6 +376,12 @@ void DisplayPlaneManager::ValidateFinalLayers(
   if (!TestCommit(commit_planes)) {
     // We start off with Primary plane.
     DisplayPlane *current_plane = primary_plane_.get();
+    for (DisplayPlaneState &plane : composition) {
+      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+        plane.GetOffScreenTarget()->SetInUse(false);
+      }
+    }
+
     DisplayPlaneStateList().swap(composition);
     auto layer_begin = layers.begin();
     OverlayLayer *primary_layer = &(*(layer_begin));
@@ -390,6 +397,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     }
 
     EnsureOffScreenTarget(last_plane);
+    ReleaseFreeOffScreenTargets();
   }
 }
 
