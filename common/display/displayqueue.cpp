@@ -89,9 +89,6 @@ bool DisplayQueue::Initialize(float refresh, uint32_t width, uint32_t height,
                               uint32_t pipe, uint32_t connector,
                               const drmModeModeInfo& mode_info) {
   frame_ = 0;
-  previous_layers_.clear();
-  previous_plane_state_.clear();
-
   if (!display_plane_manager_->Initialize(pipe, width, height)) {
     ETRACE("Failed to initialize DisplayQueue Manager.");
     return false;
@@ -382,6 +379,21 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     return false;
   }
 
+  in_flight_layers_.swap(layers);
+  previous_plane_state_.swap(current_composition_planes);
+  UpdateSurfaceInUse();
+
+  if (idle_frame) {
+    if (previous_surfaces_.size() > 0) {
+      for (NativeSurface* surface : previous_surfaces_) {
+        surface->SetInUse(false);
+      }
+
+      std::vector<NativeSurface*>().swap(previous_surfaces_);
+    }
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
+  }
+
   if (fence > 0) {
     if (render_layers)
       compositor_.InsertFence(dup(fence));
@@ -389,25 +401,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     *retire_fence = dup(fence);
     kms_fence_ = fence;
 
-    for (DisplayPlaneState& plane : current_composition_planes) {
-      const std::vector<size_t>& layers = plane.source_layers();
-      size_t size = layers.size();
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
-        for (size_t layer_index = 0; layer_index < size; layer_index++) {
-          HwcLayer* layer = source_layers.at(layers.at(layer_index));
-          layer->SetReleaseFence(dup(fence));
-        }
-      } else if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
-        int32_t fence =
-            plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
-        if (fence > 0) {
-          for (size_t layer_index = 0; layer_index < size; layer_index++) {
-            HwcLayer* layer = source_layers.at(layers.at(layer_index));
-            layer->SetReleaseFence(dup(fence));
-          }
-        }
-      }
-    }
+    SetReleaseFenceToLayers(fence, source_layers);
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
@@ -422,34 +416,52 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     needs_modeset_ = false;
   }
 
-  for (NativeSurface* surface : previous_surfaces_) {
-    surface->SetInUse(false);
-  }
+  return true;
+}
 
-  previous_layers_.swap(in_flight_layers_);
-  in_flight_layers_.swap(layers);
-  previous_plane_state_.swap(current_composition_planes);
+void DisplayQueue::UpdateSurfaceInUse() {
+  if (previous_surfaces_.size() > 0) {
+    for (NativeSurface* surface : previous_surfaces_) {
+      surface->SetInUse(false);
+    }
+
+    std::vector<NativeSurface*>().swap(previous_surfaces_);
+  }
 
   previous_surfaces_.swap(in_flight_surfaces_);
   std::vector<NativeSurface*>().swap(in_flight_surfaces_);
 
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    if (plane_state.GetCompositionState() ==
-            DisplayPlaneState::State::kRender ||
-        plane_state.SurfaceRecycled()) {
-      NativeSurface* surface = plane_state.GetOffScreenTarget();
-      if (!surface)
-        continue;
+    NativeSurface* surface = plane_state.GetOffScreenTarget();
+    if (!surface)
+      continue;
 
-      surface->SetInUse(true);
-      in_flight_surfaces_.emplace_back(surface);
+    surface->SetInUse(true);
+    in_flight_surfaces_.emplace_back(surface);
+  }
+}
+
+void DisplayQueue::SetReleaseFenceToLayers(
+    int32_t fence, std::vector<HwcLayer*>& source_layers) const {
+  for (const DisplayPlaneState& plane : previous_plane_state_) {
+    const std::vector<size_t>& layers = plane.source_layers();
+    size_t size = layers.size();
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        HwcLayer* layer = source_layers.at(layers.at(layer_index));
+        layer->SetReleaseFence(dup(fence));
+      }
+    } else if (plane.GetCompositionState() ==
+               DisplayPlaneState::State::kRender) {
+      int32_t fence = plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
+      if (fence > 0) {
+        for (size_t layer_index = 0; layer_index < size; layer_index++) {
+          HwcLayer* layer = source_layers.at(layers.at(layer_index));
+          layer->SetReleaseFence(dup(fence));
+        }
+      }
     }
   }
-
-  if (idle_frame)
-    display_plane_manager_->ReleaseFreeOffScreenTargets();
-
-  return true;
 }
 
 void DisplayQueue::HandleExit() {
@@ -473,9 +485,8 @@ void DisplayQueue::HandleExit() {
                               DRM_MODE_DPMS_OFF);
   compositor_.Reset();
   vblank_handler_->SetPowerMode(kOff);
-  std::vector<OverlayLayer>().swap(previous_layers_);
   std::vector<OverlayLayer>().swap(in_flight_layers_);
-  previous_plane_state_.clear();
+  DisplayPlaneStateList().swap(previous_plane_state_);
   idle_tracker_.state_ = 0;
   idle_tracker_.idle_frames_ = 0;
   if (kms_fence_ > 0) {

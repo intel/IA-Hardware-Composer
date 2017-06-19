@@ -152,6 +152,9 @@ class DisplayQueue {
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers);
   bool GetFence(drmModeAtomicReqPtr property_set, int32_t* out_fence);
+  void SetReleaseFenceToLayers(int32_t fence,
+                               std::vector<HwcLayer*>& source_layers) const;
+  void UpdateSurfaceInUse();
   void GetDrmObjectProperty(const char* name,
                             const ScopedDrmObjectPropertyPtr& props,
                             uint32_t* id) const;
@@ -197,11 +200,10 @@ class DisplayQueue {
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
-  std::vector<OverlayLayer> previous_layers_;
-  DisplayPlaneStateList previous_plane_state_;
-  NativeBufferHandler* buffer_handler_;
   std::vector<NativeSurface*> in_flight_surfaces_;
   std::vector<NativeSurface*> previous_surfaces_;
+  DisplayPlaneStateList previous_plane_state_;
+  NativeBufferHandler* buffer_handler_;
   FrameStateTracker idle_tracker_;
   // shared_ptr since we need to use this outside of the thread lock (to
   // actually call the hook) and we don't want the memory freed until we're
