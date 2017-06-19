@@ -33,7 +33,7 @@ namespace hwcomposer {
 class DisplayPlaneState;
 class DisplayPlaneManager;
 class DisplayQueue;
-class OverlayBufferManager;
+class NativeBufferHandler;
 class GpuDevice;
 struct HwcLayer;
 
@@ -42,7 +42,7 @@ class Display : public NativeDisplay {
   Display(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Display() override;
 
-  bool Initialize(OverlayBufferManager *buffer_manager) override;
+  bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
     return DisplayType::kInternal;

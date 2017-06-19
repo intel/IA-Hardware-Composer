@@ -18,6 +18,7 @@
 
 #include "compositionregion.h"
 #include "nativegpuresource.h"
+#include "overlaybuffer.h"
 #include "overlaylayer.h"
 
 namespace hwcomposer {

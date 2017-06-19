@@ -42,12 +42,12 @@ struct gamma_colors {
 
 class DisplayPlaneManager;
 struct HwcLayer;
-class OverlayBufferManager;
+class NativeBufferHandler;
 
 class DisplayQueue {
  public:
   DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
-               OverlayBufferManager* buffer_manager);
+               NativeBufferHandler* buffer_handler);
   ~DisplayQueue();
 
   bool Initialize(float refresh, uint32_t width, uint32_t height, uint32_t pipe,
@@ -199,7 +199,7 @@ class DisplayQueue {
   std::vector<OverlayLayer> in_flight_layers_;
   std::vector<OverlayLayer> previous_layers_;
   DisplayPlaneStateList previous_plane_state_;
-  OverlayBufferManager* buffer_manager_;
+  NativeBufferHandler* buffer_handler_;
   std::vector<NativeSurface*> in_flight_surfaces_;
   std::vector<NativeSurface*> previous_surfaces_;
   FrameStateTracker idle_tracker_;

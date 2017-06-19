@@ -31,7 +31,7 @@ Headless::Headless(uint32_t gpu_fd, uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
 Headless::~Headless() {
 }
 
-bool Headless::Initialize(OverlayBufferManager * /*buffer_manager*/) {
+bool Headless::Initialize(NativeBufferHandler * /*buffer_manager*/) {
   return true;
 }
 

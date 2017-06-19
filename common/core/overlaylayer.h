@@ -22,11 +22,13 @@
 
 #include <memory>
 
-#include "overlaybuffermanager.h"
+#include "overlaybuffer.h"
 
 namespace hwcomposer {
 
 struct HwcLayer;
+class OverlayBuffer;
+class NativeBufferHandler;
 
 struct OverlayLayer {
   void SetAcquireFence(int32_t acquire_fence);
@@ -63,13 +65,9 @@ struct OverlayLayer {
 
   OverlayBuffer* GetBuffer() const;
 
-  void SetBuffer(ImportedBuffer* buffer, int32_t acquire_fence);
-
-  // Only KMSFenceEventHandler should use this.
-  // KMSFenceEventHandler will call this API when
-  // the buffer associated with this layer is no
-  // longer owned by this layer.
-  void ReleaseBuffer();
+  void SetBuffer(NativeBufferHandler* buffer_handler, HWCNativeHandle handle,
+                 int32_t acquire_fence);
+  void ResetBuffer();
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
   const HwcRect<float>& GetSourceCrop() const {
@@ -144,6 +142,15 @@ struct OverlayLayer {
     kLayerPositionChanged = 1 << 1,
     kLayerContentChanged = 1 << 2,
     kLayerAcquireFenceSignalled = 1 << 3
+  };
+
+  struct ImportedBuffer {
+   public:
+    ImportedBuffer(OverlayBuffer* buffer, int32_t acquire_fence);
+    ~ImportedBuffer();
+
+    std::unique_ptr<OverlayBuffer> buffer_;
+    int32_t acquire_fence_ = -1;
   };
 
   uint32_t transform_;

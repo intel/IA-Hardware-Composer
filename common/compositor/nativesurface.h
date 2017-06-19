@@ -26,7 +26,6 @@
 namespace hwcomposer {
 
 class NativeBufferHandler;
-class OverlayBufferManager;
 
 class NativeSurface {
  public:
@@ -37,9 +36,9 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(OverlayBufferManager* buffer_manager);
+  bool Init(NativeBufferHandler* buffer_handler);
 
-  bool InitializeForOffScreenRendering(OverlayBufferManager* buffer_manager,
+  bool InitializeForOffScreenRendering(NativeBufferHandler* buffer_handler,
                                        HWCNativeHandle native_handle);
 
   virtual bool MakeCurrent() = 0;
@@ -70,7 +69,7 @@ class NativeSurface {
   OverlayLayer layer_;
 
  private:
-  void InitializeLayer(OverlayBufferManager* buffer_manager,
+  void InitializeLayer(NativeBufferHandler* buffer_handler,
                        HWCNativeHandle native_handle);
   HWCNativeHandle native_handle_;
   NativeBufferHandler* buffer_handler_;
@@ -78,7 +77,6 @@ class NativeSurface {
   uint32_t height_;
   bool in_use_;
   uint32_t framebuffer_format_;
-  std::unique_ptr<OverlayBuffer> buffer_;
 };
 
 }  // namespace hwcomposer

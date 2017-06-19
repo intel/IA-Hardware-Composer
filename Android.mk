@@ -50,7 +50,6 @@ LOCAL_SRC_FILES := \
 	common/core/hwclayer.cpp \
 	common/core/gpudevice.cpp \
 	common/core/overlaybuffer.cpp \
-	common/core/overlaybuffermanager.cpp \
 	common/core/overlaylayer.cpp \
 	common/display/display.cpp \
 	common/display/displayplane.cpp \

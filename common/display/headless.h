@@ -29,7 +29,7 @@ class Headless : public NativeDisplay {
   Headless(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
   ~Headless() override;
 
-  bool Initialize(OverlayBufferManager *buffer_manager) override;
+  bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
     return DisplayType::kHeadless;

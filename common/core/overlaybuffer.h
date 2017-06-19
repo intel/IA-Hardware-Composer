@@ -78,8 +78,7 @@ class OverlayBuffer {
 
  protected:
   OverlayBuffer() = default;
-  friend class OverlayBufferManager;
-  friend class NativeSurface;
+  friend struct OverlayLayer;
 
  private:
   uint32_t width_ = 0;

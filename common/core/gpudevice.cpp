@@ -37,12 +37,13 @@
 #include <utility>
 #include <vector>
 
+#include <nativebufferhandler.h>
+
 #include "display.h"
 #include "displayplanemanager.h"
 #include "drmscopedtypes.h"
 #include "headless.h"
 #include "hwcthread.h"
-#include "overlaybuffermanager.h"
 #include "spinlock.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
@@ -78,7 +79,7 @@ class GpuDevice::DisplayManager : public HWCThread {
   std::vector<std::unique_ptr<NativeDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
-  std::unique_ptr<OverlayBufferManager> buffer_manager_;
+  std::unique_ptr<NativeBufferHandler> buffer_handler_;
   int fd_ = -1;
   int hotplug_fd_;
   SpinLock spin_lock_;
@@ -102,9 +103,9 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     return false;
   }
 
-  buffer_manager_.reset(new OverlayBufferManager());
-  if (!buffer_manager_->Initialize(fd_)) {
-    ETRACE("Failed to Initialize Buffer Manager.");
+  buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
+  if (!buffer_handler_) {
+    ETRACE("Failed to create native buffer handler instance");
     return false;
   }
 
@@ -118,7 +119,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     }
 
     std::unique_ptr<NativeDisplay> display(new Display(fd_, i, c->crtc_id));
-    if (!display->Initialize(buffer_manager_.get())) {
+    if (!display->Initialize(buffer_handler_.get())) {
       ETRACE("Failed to Initialize Display %d", c->crtc_id);
       return false;
     }
@@ -126,7 +127,7 @@ bool GpuDevice::DisplayManager::Init(uint32_t fd) {
     displays_.emplace_back(std::move(display));
   }
 
-  virtual_display_.reset(new VirtualDisplay(fd_, buffer_manager_.get(), 0, 0));
+  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
 
   if (!UpdateDisplayState()) {
     ETRACE("Failed to connect display.");

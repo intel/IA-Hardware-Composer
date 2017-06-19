@@ -31,7 +31,7 @@ typedef struct _drmModeModeInfo drmModeModeInfo;
 namespace hwcomposer {
 struct HwcLayer;
 class GpuDevice;
-class OverlayBufferManager;
+class NativeBufferHandler;
 
 class VsyncCallback {
  public:
@@ -52,7 +52,7 @@ class NativeDisplay {
   virtual ~NativeDisplay() {
   }
 
-  virtual bool Initialize(OverlayBufferManager *buffer_manager) = 0;
+  virtual bool Initialize(NativeBufferHandler *buffer_handler) = 0;
 
   virtual DisplayType Type() const = 0;
 

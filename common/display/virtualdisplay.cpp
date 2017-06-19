@@ -19,11 +19,11 @@
 #include <drm_fourcc.h>
 
 #include <hwclayer.h>
+#include <nativebufferhandler.h>
 
 #include <vector>
 
 #include "hwctrace.h"
-#include "overlaybuffermanager.h"
 #include "overlaylayer.h"
 
 #include "hwcutils.h"
@@ -31,12 +31,12 @@
 namespace hwcomposer {
 
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
-                               OverlayBufferManager *buffer_manager,
+                               NativeBufferHandler *buffer_handler,
                                uint32_t pipe_id, uint32_t crtc_id)
     : Headless(gpu_fd, pipe_id, crtc_id),
       output_handle_(0),
       acquire_fence_(-1),
-      buffer_manager_(buffer_manager),
+      buffer_handler_(buffer_handler),
       width_(0),
       height_(0) {
 }
@@ -87,10 +87,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     overlay_layer.SetIndex(layer_index);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     index.emplace_back(layer_index);
-    ImportedBuffer *buffer =
-        buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
-
-    overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
+    overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
+                            layer->GetAcquireFence());
   }
 
   if (acquire_fence_ > 0) {
@@ -105,7 +103,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 
   // Prepare for final composition.
-  if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_manager_,
+  if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
                                  width_, height_, output_handle_,
                                  retire_fence)) {
     ETRACE("Failed to prepare for the frame composition ret=%d", ret);

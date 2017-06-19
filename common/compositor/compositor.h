@@ -28,7 +28,7 @@
 
 namespace hwcomposer {
 
-class OverlayBufferManager;
+class NativeBufferHandler;
 struct OverlayLayer;
 
 class Compositor {
@@ -47,7 +47,7 @@ class Compositor {
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     OverlayBufferManager *buffer_manager, uint32_t width,
+                     NativeBufferHandler *buffer_handler, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t *retire_fence);
   void InsertFence(uint64_t fence);

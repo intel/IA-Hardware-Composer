@@ -32,7 +32,7 @@
 namespace hwcomposer {
 
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
-                           OverlayBufferManager* buffer_manager)
+                           NativeBufferHandler* buffer_handler)
     : frame_(0),
       dpms_prop_(0),
       out_fence_ptr_prop_(0),
@@ -49,7 +49,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
       broadcastrgb_id_(0),
       broadcastrgb_full_(-1),
       broadcastrgb_automatic_(-1),
-      buffer_manager_(buffer_manager) {
+      buffer_handler_(buffer_handler) {
   compositor_.Init();
   ScopedDrmObjectPropertyPtr crtc_props(
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
@@ -62,7 +62,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
 
   memset(&mode_, 0, sizeof(mode_));
   display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_manager_));
+      new DisplayPlaneManager(gpu_fd_, crtc_id_, buffer_handler_));
 
   vblank_handler_.reset(new VblankEventHandler(this));
 
@@ -295,10 +295,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetIndex(layer_index);
     layers_rects.emplace_back(layer->GetDisplayFrame());
-    ImportedBuffer* buffer =
-        buffer_manager_->CreateBufferFromNativeHandle(layer->GetNativeHandle());
-    overlay_layer.SetBuffer(buffer, layer->GetAcquireFence());
-
+    overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
+                            layer->GetAcquireFence());
     overlay_layer.ValidateForOverlayUsage();
 
     if (frame_changed) {
@@ -428,7 +426,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     surface->SetInUse(false);
   }
 
-  buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
   previous_layers_.swap(in_flight_layers_);
   in_flight_layers_.swap(layers);
   previous_plane_state_.swap(current_composition_planes);
@@ -476,12 +473,6 @@ void DisplayQueue::HandleExit() {
                               DRM_MODE_DPMS_OFF);
   compositor_.Reset();
   vblank_handler_->SetPowerMode(kOff);
-  if (previous_layers_.size())
-    buffer_manager_->UnRegisterLayerBuffers(previous_layers_);
-
-  if (in_flight_layers_.size())
-    buffer_manager_->UnRegisterLayerBuffers(in_flight_layers_);
-
   std::vector<OverlayLayer>().swap(previous_layers_);
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   previous_plane_state_.clear();

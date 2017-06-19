@@ -25,11 +25,11 @@
 
 namespace hwcomposer {
 struct HwcLayer;
-class OverlayBufferManager;
+class NativeBufferHandler;
 
 class VirtualDisplay : public Headless {
  public:
-  VirtualDisplay(uint32_t gpu_fd, OverlayBufferManager *buffer_manager,
+  VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
                  uint32_t pipe_id, uint32_t crtc_id);
   ~VirtualDisplay() override;
 
@@ -47,7 +47,7 @@ class VirtualDisplay : public Headless {
  private:
   HWCNativeHandle output_handle_;
   int32_t acquire_fence_ = -1;
-  OverlayBufferManager *buffer_manager_;
+  NativeBufferHandler *buffer_handler_;
   Compositor compositor_;
   uint32_t width_;
   uint32_t height_;

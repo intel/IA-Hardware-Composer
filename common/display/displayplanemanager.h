@@ -34,13 +34,13 @@ namespace hwcomposer {
 class DisplayPlane;
 class DisplayPlaneState;
 class GpuDevice;
-class OverlayBufferManager;
+class NativeBufferHandler;
 struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
   DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
-                      OverlayBufferManager *buffer_manager);
+                      NativeBufferHandler *buffer_handler);
 
   virtual ~DisplayPlaneManager();
 
@@ -79,9 +79,9 @@ class DisplayPlaneManager {
                      const std::vector<OverlayPlane> &commit_planes) const;
 
   void ValidateFinalLayers(DisplayPlaneStateList &list,
-			   std::vector<OverlayLayer> &layers);
+                           std::vector<OverlayLayer> &layers);
 
-  OverlayBufferManager *buffer_manager_;
+  NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;

@@ -48,8 +48,8 @@ Display::~Display() {
   display_queue_->SetPowerMode(kOff);
 }
 
-bool Display::Initialize(OverlayBufferManager *buffer_manager) {
-  display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_, buffer_manager));
+bool Display::Initialize(NativeBufferHandler *buffer_handler) {
+  display_queue_.reset(new DisplayQueue(gpu_fd_, crtc_id_, buffer_handler));
 
   return true;
 }

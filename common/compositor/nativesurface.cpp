@@ -19,7 +19,6 @@
 #include "displayplane.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
-#include "overlaybuffermanager.h"
 
 namespace hwcomposer {
 
@@ -35,29 +34,29 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
 NativeSurface::~NativeSurface() {
   // Ensure we close any framebuffers before
   // releasing buffer.
-  buffer_.reset(nullptr);
+  layer_.ResetBuffer();
 
   if (native_handle_) {
     buffer_handler_->DestroyHandle(native_handle_);
   }
 }
 
-bool NativeSurface::Init(OverlayBufferManager *buffer_manager) {
-  buffer_handler_ = buffer_manager->GetNativeBufferHandler();
+bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
+  buffer_handler_ = buffer_handler;
   buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_);
   if (!native_handle_) {
     ETRACE("NativeSurface: Failed to create buffer.");
     return false;
   }
 
-  InitializeLayer(buffer_manager, native_handle_);
+  InitializeLayer(buffer_handler, native_handle_);
 
   return true;
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    OverlayBufferManager *buffer_manager, HWCNativeHandle native_handle) {
-  InitializeLayer(buffer_manager, native_handle);
+    NativeBufferHandler *buffer_handler, HWCNativeHandle native_handle) {
+  InitializeLayer(buffer_handler, native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
 
@@ -92,19 +91,11 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
 }
 
-void NativeSurface::InitializeLayer(OverlayBufferManager *buffer_manager,
+void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
                                     HWCNativeHandle native_handle) {
-  buffer_.reset(new OverlayBuffer());
-  buffer_->InitializeFromNativeHandle(native_handle,
-                                      buffer_manager->GetNativeBufferHandler());
-  ImportedBuffer *imported_buffer_ =
-      new ImportedBuffer(buffer_.get(), buffer_manager);
-  imported_buffer_->owned_buffer_ = false;
-  width_ = buffer_->GetWidth();
-  height_ = buffer_->GetHeight();
   layer_.SetBlending(HWCBlending::kBlendingPremult);
   layer_.SetTransform(0);
-  layer_.SetBuffer(imported_buffer_, -1);
+  layer_.SetBuffer(buffer_handler, native_handle, -1);
 }
 
 }  // namespace hwcomposer

@@ -30,8 +30,8 @@
 namespace hwcomposer {
 
 DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
-                                         OverlayBufferManager *buffer_manager)
-    : buffer_manager_(buffer_manager),
+                                         NativeBufferHandler *buffer_handler)
+    : buffer_handler_(buffer_handler),
       width_(0),
       height_(0),
       crtc_id_(crtc_id),
@@ -350,7 +350,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   if (!surface) {
     NativeSurface *new_surface = CreateBackBuffer(width_, height_);
-    new_surface->Init(buffer_manager_);
+    new_surface->Init(buffer_handler_);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

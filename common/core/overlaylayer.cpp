@@ -22,8 +22,21 @@
 #include "hwcutils.h"
 
 #include <hwclayer.h>
+#include <nativebufferhandler.h>
 
 namespace hwcomposer {
+
+OverlayLayer::ImportedBuffer::~ImportedBuffer() {
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+  }
+}
+
+OverlayLayer::ImportedBuffer::ImportedBuffer(OverlayBuffer* buffer,
+                                             int32_t acquire_fence)
+    : acquire_fence_(acquire_fence) {
+  buffer_.reset(buffer);
+}
 
 void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
   // Release any existing fence.
@@ -40,16 +53,18 @@ int32_t OverlayLayer::GetAcquireFence() const {
 }
 
 OverlayBuffer* OverlayLayer::GetBuffer() const {
-  return imported_buffer_->buffer_;
+  return imported_buffer_->buffer_.get();
 }
 
-void OverlayLayer::SetBuffer(ImportedBuffer* buffer, int32_t acquire_fence) {
-  imported_buffer_.reset(buffer);
-  imported_buffer_->acquire_fence_ = acquire_fence;
+void OverlayLayer::SetBuffer(NativeBufferHandler* buffer_handler,
+                             HWCNativeHandle handle, int32_t acquire_fence) {
+  OverlayBuffer* buffer = new OverlayBuffer();
+  buffer->InitializeFromNativeHandle(handle, buffer_handler);
+  imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
 }
 
-void OverlayLayer::ReleaseBuffer() {
-  imported_buffer_->owned_buffer_ = false;
+void OverlayLayer::ResetBuffer() {
+  imported_buffer_.reset(nullptr);
 }
 
 void OverlayLayer::SetIndex(uint32_t index) {
@@ -97,7 +112,7 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 
 void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
                                               HwcLayer* layer) {
-  OverlayBuffer* buffer = imported_buffer_->buffer_;
+  OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   if (!prefer_separate_plane_)
     prefer_separate_plane_ = rhs.prefer_separate_plane_;
 
