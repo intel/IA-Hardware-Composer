@@ -289,6 +289,8 @@ bool GpuDevice::DisplayManager::UpdateDisplayState() {
               (encoder->possible_crtcs & (1 << display->Pipe())) &&
               display->Connect(mode.at(preferred_mode), connector.get())) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
+            // Set the modes supported for each display
+            display->SetDrmModeInfo(mode);
             connected_displays_.emplace_back(display.get());
             found_encoder = true;
             break;
