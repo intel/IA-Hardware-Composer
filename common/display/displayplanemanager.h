@@ -81,6 +81,9 @@ class DisplayPlaneManager {
   void ValidateFinalLayers(DisplayPlaneStateList &list,
                            std::vector<OverlayLayer> &layers);
 
+  void SetOffScreenTarget(DisplayPlaneState &plane,
+                          OverlayPlane &overlay_plane);
+
   NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;

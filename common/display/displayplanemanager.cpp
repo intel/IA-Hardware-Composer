@@ -122,24 +122,19 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   bool prefer_seperate_plane = primary_layer->PreferSeparatePlane();
   bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
   if (force_gpu || FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
+    render_layers = true;
     if (force_gpu || !prefer_seperate_plane) {
       DisplayPlaneState &last_plane = composition.back();
-      render_layers = true;
-      // Case where we have just one layer which needs to be composited using
-      // GPU.
-      last_plane.ForceGPURendering();
-
       for (auto i = layer_begin; i != layer_end; ++i) {
         last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
       }
 
-      EnsureOffScreenTarget(last_plane);
+      SetOffScreenTarget(last_plane, commit_planes.back());
       // We need to composite primary using GPU, lets use this for
       // all layers in this case.
       return std::make_tuple(render_layers, std::move(composition));
     } else {
-      DisplayPlaneState &last_plane = composition.back();
-      last_plane.ForceGPURendering();
+      SetOffScreenTarget(composition.back(), commit_planes.back());
     }
   }
 
@@ -193,11 +188,8 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
             layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
           if (fall_back) {
-            DisplayPlaneState &plane = composition.back();
-            EnsureOffScreenTarget(plane);
-            composition.back().ForceGPURendering();
-            OverlayPlane &back = commit_planes.back();
-            back.layer = plane.GetOverlayLayer();
+            SetOffScreenTarget(composition.back(), commit_planes.back());
+            render_layers = true;
           }
 
           prefer_seperate_plane = layer->PreferSeparatePlane();
@@ -233,6 +225,15 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   }
 
   return std::make_tuple(render_layers, std::move(composition));
+}
+
+void DisplayPlaneManager::SetOffScreenTarget(DisplayPlaneState &plane,
+                                             OverlayPlane &overlay_plane) {
+  EnsureOffScreenTarget(plane);
+  // Case where we have just one layer which needs to be composited using
+  // GPU.
+  plane.ForceGPURendering();
+  overlay_plane.layer = plane.GetOverlayLayer();
 }
 
 bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
