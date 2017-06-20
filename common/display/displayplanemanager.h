@@ -57,7 +57,10 @@ class DisplayPlaneManager {
 
   bool CheckPlaneFormat(uint32_t format);
 
-  void EnsureOffScreenTarget(DisplayPlaneState &plane);
+  void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
+
+  void SetOffScreenCursorPlaneTarget(DisplayPlaneState &plane, uint32_t width,
+                                     uint32_t height);
 
   void ReleaseFreeOffScreenTargets();
 
@@ -81,14 +84,16 @@ class DisplayPlaneManager {
   void ValidateFinalLayers(DisplayPlaneStateList &list,
                            std::vector<OverlayLayer> &layers);
 
-  void SetOffScreenTarget(DisplayPlaneState &plane,
-                          OverlayPlane &overlay_plane);
+  void ResetPlaneTarget(DisplayPlaneState &plane, OverlayPlane &overlay_plane);
+
+  void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
   NativeBufferHandler *buffer_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
+  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
 
   uint32_t width_;
   uint32_t height_;

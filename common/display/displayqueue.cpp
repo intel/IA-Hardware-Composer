@@ -215,7 +215,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
-      bool region_changed = false;
       bool content_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
@@ -229,9 +228,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (region_changed || content_changed) {
-        display_plane_manager_->EnsureOffScreenTarget(last_plane);
-        last_plane.ForceGPURendering();
+      if (content_changed) {
+        display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         needs_gpu_composition = true;
       } else {
         NativeSurface* surface = plane.GetOffScreenTarget();
@@ -240,7 +238,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ReUseOffScreenTarget(surface);
       }
 
-      if (!region_changed) {
+      if (!content_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),

@@ -120,6 +120,10 @@ struct OverlayLayer {
     gpu_rendered_cursor_ = true;
   }
 
+  bool IsCursorLayer() const {
+    return cursor_layer_;
+  }
+
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in
@@ -162,6 +166,7 @@ struct OverlayLayer {
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_cursor_ = false;
   bool prefer_separate_plane_ = false;
+  bool cursor_layer_ = false;
 };
 
 }  // namespace hwcomposer

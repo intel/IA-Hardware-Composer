@@ -129,12 +129,12 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
         last_plane.AddLayer(i->GetIndex(), i->GetDisplayFrame());
       }
 
-      SetOffScreenTarget(last_plane, commit_planes.back());
+      ResetPlaneTarget(last_plane, commit_planes.back());
       // We need to composite primary using GPU, lets use this for
       // all layers in this case.
       return std::make_tuple(render_layers, std::move(composition));
     } else {
-      SetOffScreenTarget(composition.back(), commit_planes.back());
+      ResetPlaneTarget(composition.back(), commit_planes.back());
     }
   }
 
@@ -188,7 +188,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
             layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
           if (fall_back) {
-            SetOffScreenTarget(composition.back(), commit_planes.back());
+            ResetPlaneTarget(composition.back(), commit_planes.back());
             render_layers = true;
           }
 
@@ -227,13 +227,40 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
   return std::make_tuple(render_layers, std::move(composition));
 }
 
-void DisplayPlaneManager::SetOffScreenTarget(DisplayPlaneState &plane,
-                                             OverlayPlane &overlay_plane) {
+void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
+                                           OverlayPlane &overlay_plane) {
+  SetOffScreenPlaneTarget(plane);
+  overlay_plane.layer = plane.GetOverlayLayer();
+}
+
+void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
   EnsureOffScreenTarget(plane);
+
   // Case where we have just one layer which needs to be composited using
   // GPU.
   plane.ForceGPURendering();
-  overlay_plane.layer = plane.GetOverlayLayer();
+}
+
+void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
+    DisplayPlaneState &plane, uint32_t width, uint32_t height) {
+  NativeSurface *surface = NULL;
+  for (auto &fb : cursor_surfaces_) {
+    if (!fb->InUse()) {
+      surface = fb.get();
+      break;
+    }
+  }
+
+  if (!surface) {
+    NativeSurface *new_surface = CreateBackBuffer(width, height);
+    new_surface->Init(buffer_handler_, true);
+    cursor_surfaces_.emplace_back(std::move(new_surface));
+    surface = cursor_surfaces_.back().get();
+  }
+
+  surface->SetPlaneTarget(plane, gpu_fd_);
+  plane.SetOffScreenTarget(surface);
+  plane.ForceGPURendering();
 }
 
 bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
@@ -309,17 +336,26 @@ void DisplayPlaneManager::DisablePipe(drmModeAtomicReqPtr property_set) {
     ETRACE("Failed to disable pipe:%s\n", PRINTERROR());
 
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
+  std::vector<std::unique_ptr<NativeSurface>>().swap(cursor_surfaces_);
 }
 
 void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
+  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces;
   for (auto &fb : surfaces_) {
     if (fb->InUse()) {
       surfaces.emplace_back(fb.release());
     }
   }
 
+  for (auto &cursor_fb : cursor_surfaces_) {
+    if (cursor_fb->InUse()) {
+      cursor_surfaces.emplace_back(cursor_fb.release());
+    }
+  }
+
   surfaces.swap(surfaces_);
+  cursor_surfaces.swap(cursor_surfaces_);
 }
 
 bool DisplayPlaneManager::TestCommit(

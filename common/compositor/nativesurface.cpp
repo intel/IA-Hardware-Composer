@@ -41,15 +41,20 @@ NativeSurface::~NativeSurface() {
   }
 }
 
-bool NativeSurface::Init(NativeBufferHandler *buffer_handler) {
+bool NativeSurface::Init(NativeBufferHandler *buffer_handler,
+                         bool cursor_layer) {
   buffer_handler_ = buffer_handler;
-  buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_);
+  buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_,
+                                cursor_layer);
   if (!native_handle_) {
     ETRACE("NativeSurface: Failed to create buffer.");
     return false;
   }
 
   InitializeLayer(buffer_handler, native_handle_);
+  if (cursor_layer) {
+    layer_.GPURenderedCursor();
+  }
 
   return true;
 }

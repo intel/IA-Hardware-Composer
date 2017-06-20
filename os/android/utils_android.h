@@ -111,12 +111,16 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
 }
 #ifdef USE_MINIGBM
 static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int /*format*/,
-                                 HWCNativeHandle *handle) {
+                                 HWCNativeHandle *handle, bool cursor_usage) {
   struct gralloc_handle *temp = new struct gralloc_handle();
+  uint32_t usage =
+      GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
+  if (cursor_usage) {
+    usage |= GRALLOC_USAGE_CURSOR;
+  }
+
   temp->buffer_ =
-      new android::GraphicBuffer(w, h, android::PIXEL_FORMAT_RGBA_8888,
-                                 GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
-                                     GRALLOC_USAGE_HW_COMPOSER);
+      new android::GraphicBuffer(w, h, android::PIXEL_FORMAT_RGBA_8888, usage);
   temp->handle_ = temp->buffer_->handle;
   temp->hwc_buffer_ = true;
   *handle = temp;

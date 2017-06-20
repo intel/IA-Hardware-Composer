@@ -63,7 +63,8 @@ bool GbmBufferHandler::Init() {
 }
 
 bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
-                                    HWCNativeHandle *handle) {
+                                    HWCNativeHandle *handle,
+                                    bool cursor_usage) {
   uint32_t gbm_format = format;
   if (gbm_format == 0)
     gbm_format = GBM_FORMAT_XRGB8888;

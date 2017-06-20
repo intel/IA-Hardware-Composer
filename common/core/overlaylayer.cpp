@@ -60,6 +60,7 @@ void OverlayLayer::SetBuffer(NativeBufferHandler* buffer_handler,
                              HWCNativeHandle handle, int32_t acquire_fence) {
   OverlayBuffer* buffer = new OverlayBuffer();
   buffer->InitializeFromNativeHandle(handle, buffer_handler);
+  cursor_layer_ = buffer->GetUsage() & kLayerCursor;
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
 }
 
