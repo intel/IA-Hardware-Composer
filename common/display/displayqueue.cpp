@@ -222,10 +222,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
-        if (layer.HasLayerPositionChanged()) {
-          region_changed = true;
-          break;
-        }
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;

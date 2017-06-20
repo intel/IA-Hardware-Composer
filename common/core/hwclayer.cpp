@@ -64,11 +64,6 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
     layer_cache_ |= kLayerAttributesChanged;
   }
 
-  if ((source_crop.left != source_crop_.left) &&
-      (source_crop.top != source_crop_.top)) {
-    layer_cache_ |= kLayerPositionChanged;
-  }
-
   source_crop_ = source_crop;
 }
 
@@ -83,11 +78,6 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   if ((new_display_frame_width != old_display_frame_width) ||
       (new_display_frame_height != old_display_frame_height)) {
     layer_cache_ |= kLayerAttributesChanged;
-  }
-
-  if ((display_frame.left != display_frame_.left) &&
-      (display_frame.top != display_frame_.top)) {
-    layer_cache_ |= kLayerPositionChanged;
   }
 
   display_frame_ = display_frame;
@@ -201,7 +191,6 @@ void HwcLayer::Validate() {
   state_ &= ~kSurfaceDamaged;
   state_ |= kLayerValidated;
   layer_cache_ &= ~kLayerAttributesChanged;
-  layer_cache_ &= ~kLayerPositionChanged;
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
