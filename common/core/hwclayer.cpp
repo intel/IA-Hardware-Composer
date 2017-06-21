@@ -167,6 +167,11 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
 }
 
 void HwcLayer::SetReleaseFence(int32_t fd) {
+  if (release_fd_ > 0) {
+    close(release_fd_);
+    release_fd_ = -1;
+  }
+
   release_fd_ = fd;
 }
 
@@ -177,6 +182,11 @@ int32_t HwcLayer::GetReleaseFence() {
 }
 
 void HwcLayer::SetAcquireFence(int32_t fd) {
+  if (acquire_fence_ > 0) {
+    close(acquire_fence_);
+    acquire_fence_ = -1;
+  }
+
   acquire_fence_ = fd;
 }
 
