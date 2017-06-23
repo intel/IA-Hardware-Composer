@@ -473,7 +473,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // update from the client
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
-
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
@@ -501,8 +500,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   // Place the cursor at the highest z-order
   if (use_cursor_layer) {
-    if (z_map.rbegin()->second->z_order() > cursor_z_order)
-      cursor_z_order = (z_map.rbegin()->second->z_order()) + 1;
+    if (z_map.size()) {
+      if (z_map.rbegin()->second->z_order() > cursor_z_order)
+        cursor_z_order = (z_map.rbegin()->second->z_order()) + 1;
+    }
     z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
   }
 
