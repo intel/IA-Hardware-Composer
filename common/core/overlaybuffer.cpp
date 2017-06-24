@@ -46,9 +46,26 @@ void OverlayBuffer::Initialize(const HwcBuffer& bo) {
     gem_handles_[i] = bo.gem_handles[i];
   }
 
-  SetRecommendedFormat(bo.format);
+  format_ = bo.format;
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
+  if (usage_ & hwcomposer::kLayerCursor) {
+    // We support DRM_FORMAT_ARGB8888 for cursor.
+    frame_buffer_format_ = DRM_FORMAT_ARGB8888;
+  } else {
+    frame_buffer_format_ = format_;
+  }
+
+  switch (format_) {
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_YUV420:
+      is_yuv_ = true;
+      break;
+    default:
+      is_yuv_ = false;
+  }
 }
 
 void OverlayBuffer::InitializeFromNativeHandle(
@@ -161,27 +178,18 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
 }
 
 void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
-  format_ = format;
-  switch (format_) {
-    case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_UYVY:
-    case DRM_FORMAT_NV12:
-    case DRM_FORMAT_YUV420:
-      is_yuv_ = true;
-      break;
-    default:
-      is_yuv_ = false;
-  }
+  frame_buffer_format_ = format;
 }
 
 bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   ReleaseFrameBuffer();
-  int ret = drmModeAddFB2(gpu_fd, width_, height_, format_, gem_handles_,
-                          pitches_, offsets_, &fb_id_, 0);
+  int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
+                          gem_handles_, pitches_, offsets_, &fb_id_, 0);
 
   if (ret) {
     ETRACE("drmModeAddFB2 error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",
-           width_, height_, format_, format_ >> 8, format_ >> 16, format_ >> 24,
+           width_, height_, frame_buffer_format_, frame_buffer_format_ >> 8,
+           frame_buffer_format_ >> 16, frame_buffer_format_ >> 24,
            gem_handles_[0], pitches_[0], strerror(-ret));
 
     fb_id_ = 0;
