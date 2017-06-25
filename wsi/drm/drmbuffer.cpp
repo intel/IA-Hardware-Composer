@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "overlaybuffer.h"
+#include "drmbuffer.h"
 
 #include <drm_fourcc.h>
 #include <unistd.h>
@@ -28,7 +28,7 @@
 
 namespace hwcomposer {
 
-OverlayBuffer::~OverlayBuffer() {
+DrmBuffer::~DrmBuffer() {
   ReleaseFrameBuffer();
 
   if (buffer_handler_ && handle_) {
@@ -37,7 +37,7 @@ OverlayBuffer::~OverlayBuffer() {
   }
 }
 
-void OverlayBuffer::Initialize(const HwcBuffer& bo) {
+void DrmBuffer::Initialize(const HwcBuffer& bo) {
   width_ = bo.width;
   height_ = bo.height;
   for (uint32_t i = 0; i < 4; i++) {
@@ -68,7 +68,7 @@ void OverlayBuffer::Initialize(const HwcBuffer& bo) {
   }
 }
 
-void OverlayBuffer::InitializeFromNativeHandle(
+void DrmBuffer::InitializeFromNativeHandle(
     HWCNativeHandle handle, NativeBufferHandler* buffer_handler) {
   struct HwcBuffer bo;
   buffer_handler->CopyHandle(handle, &handle_);
@@ -81,7 +81,7 @@ void OverlayBuffer::InitializeFromNativeHandle(
   Initialize(bo);
 }
 
-GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
+GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
 #ifdef USE_GL
   EGLImageKHR image = EGL_NO_IMAGE_KHR;
   // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
@@ -177,11 +177,11 @@ GpuImage OverlayBuffer::ImportImage(GpuDisplay egl_display) {
 #endif
 }
 
-void OverlayBuffer::SetRecommendedFormat(uint32_t format) {
+void DrmBuffer::SetRecommendedFormat(uint32_t format) {
   frame_buffer_format_ = format;
 }
 
-bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
+bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   ReleaseFrameBuffer();
   int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
                           gem_handles_, pitches_, offsets_, &fb_id_, 0);
@@ -200,15 +200,15 @@ bool OverlayBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   return true;
 }
 
-void OverlayBuffer::ReleaseFrameBuffer() {
+void DrmBuffer::ReleaseFrameBuffer() {
   if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
     ETRACE("Failed to remove fb %s", PRINTERROR());
 
   fb_id_ = 0;
 }
 
-void OverlayBuffer::Dump() {
-  DUMPTRACE("OverlayBuffer Information Starts. -------------");
+void DrmBuffer::Dump() {
+  DUMPTRACE("DrmBuffer Information Starts. -------------");
   if (usage_ & kLayerNormal)
     DUMPTRACE("BufferUsage: kLayerNormal.");
   if (usage_ & kLayerCursor)
@@ -227,7 +227,11 @@ void OverlayBuffer::Dump() {
     DUMPTRACE("Offset:%d value:%d", i, offsets_[i]);
     DUMPTRACE("Gem Handles:%d value:%d", i, gem_handles_[i]);
   }
-  DUMPTRACE("OverlayBuffer Information Ends. -------------");
+  DUMPTRACE("DrmBuffer Information Ends. -------------");
+}
+
+OverlayBuffer* OverlayBuffer::CreateOverlayBuffer() {
+  return new DrmBuffer();
 }
 
 }  // namespace hwcomposer

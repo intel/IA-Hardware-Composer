@@ -16,11 +16,6 @@
 
 #include "displayplanemanager.h"
 
-#include <drm_fourcc.h>
-
-#include <set>
-#include <utility>
-
 #include "displayplane.h"
 #include "factory.h"
 #include "hwctrace.h"
@@ -29,82 +24,31 @@
 
 namespace hwcomposer {
 
-DisplayPlaneManager::DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
-                                         NativeBufferHandler *buffer_handler)
+DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
+                                         NativeBufferHandler *buffer_handler,
+                                         DisplayPlaneHandler *plane_handler)
     : buffer_handler_(buffer_handler),
+      plane_handler_(plane_handler),
       width_(0),
       height_(0),
-      crtc_id_(crtc_id),
       gpu_fd_(gpu_fd) {
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(uint32_t pipe_id, uint32_t width,
-                                     uint32_t height) {
-  ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));
-  if (!plane_resources) {
-    ETRACE("Failed to get plane resources");
-    return false;
-  }
-
-  uint32_t num_planes = plane_resources->count_planes;
-  uint32_t pipe_bit = 1 << pipe_id;
-  std::set<uint32_t> plane_ids;
-  for (uint32_t i = 0; i < num_planes; ++i) {
-    ScopedDrmPlanePtr drm_plane(
-        drmModeGetPlane(gpu_fd_, plane_resources->planes[i]));
-    if (!drm_plane) {
-      ETRACE("Failed to get plane ");
-      return false;
-    }
-
-    if (!(pipe_bit & drm_plane->possible_crtcs))
-      continue;
-
-    uint32_t formats_size = drm_plane->count_formats;
-    plane_ids.insert(drm_plane->plane_id);
-    std::unique_ptr<DisplayPlane> plane(
-        CreatePlane(drm_plane->plane_id, drm_plane->possible_crtcs));
-    std::vector<uint32_t> supported_formats(formats_size);
-    for (uint32_t j = 0; j < formats_size; j++)
-      supported_formats[j] = drm_plane->formats[j];
-
-    if (plane->Initialize(gpu_fd_, supported_formats)) {
-      if (plane->type() == DRM_PLANE_TYPE_CURSOR) {
-        cursor_plane_.reset(plane.release());
-      } else if (plane->type() == DRM_PLANE_TYPE_PRIMARY) {
-        plane->SetEnabled(true);
-        primary_plane_.reset(plane.release());
-      } else if (plane->type() == DRM_PLANE_TYPE_OVERLAY) {
-        overlay_planes_.emplace_back(plane.release());
-      }
-    }
-  }
-
-  if (!primary_plane_) {
-    ETRACE("Failed to get primary plane for display %d", crtc_id_);
-    return false;
-  }
-
-  // We expect layers to be in ascending order.
-  std::sort(
-      overlay_planes_.begin(), overlay_planes_.end(),
-      [](const std::unique_ptr<DisplayPlane> &l,
-         const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
-
+bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
   width_ = width;
   height_ = height;
-
-  return true;
+  return plane_handler_->PopulatePlanes(primary_plane_, cursor_plane_,
+                                        overlay_planes_);
 }
 
-std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
-    std::vector<OverlayLayer> &layers, bool pending_modeset,
-    bool disable_overlay) {
+bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
+                                         bool pending_modeset,
+                                         bool disable_overlay,
+                                         DisplayPlaneStateList &composition) {
   CTRACE();
-  DisplayPlaneStateList composition;
   std::vector<OverlayPlane> commit_planes;
   OverlayLayer *cursor_layer = NULL;
   auto layer_begin = layers.begin();
@@ -132,7 +76,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
       ResetPlaneTarget(last_plane, commit_planes.back());
       // We need to composite primary using GPU, lets use this for
       // all layers in this case.
-      return std::make_tuple(render_layers, std::move(composition));
+      return render_layers;
     } else {
       ResetPlaneTarget(composition.back(), commit_planes.back());
     }
@@ -140,7 +84,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
 
   // We are just compositing Primary layer and nothing else.
   if (layers.size() == 1) {
-    return std::make_tuple(render_layers, std::move(composition));
+    return render_layers;
   }
 
   // Retrieve cursor layer data.
@@ -224,7 +168,7 @@ std::tuple<bool, DisplayPlaneStateList> DisplayPlaneManager::ValidateLayers(
     ValidateFinalLayers(composition, layers);
   }
 
-  return std::make_tuple(render_layers, std::move(composition));
+  return render_layers;
 }
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
@@ -263,78 +207,8 @@ void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
   plane.ForceGPURendering();
 }
 
-bool DisplayPlaneManager::CommitFrame(const DisplayPlaneStateList &comp_planes,
-                                      drmModeAtomicReqPtr pset,
-                                      uint32_t flags) {
+void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
   CTRACE();
-  if (!pset) {
-    ETRACE("Failed to allocate property set %d", -ENOMEM);
-    return false;
-  }
-
-  // Disable any cursor/overlay planes assuming they will not
-  // be used for this commit.
-  if (cursor_plane_)
-    cursor_plane_->SetEnabled(false);
-
-  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
-    (*i)->SetEnabled(false);
-  }
-
-  for (const DisplayPlaneState &comp_plane : comp_planes) {
-    DisplayPlane *plane = comp_plane.plane();
-    const OverlayLayer *layer = comp_plane.GetOverlayLayer();
-    int32_t fence = layer->GetAcquireFence();
-    if (fence > 0) {
-      plane->SetNativeFence(dup(fence));
-    } else {
-      plane->SetNativeFence(-1);
-    }
-    if (!plane->UpdateProperties(pset, crtc_id_, layer))
-      return false;
-
-    plane->SetEnabled(true);
-  }
-
-  // Disable unused planes.
-  if (cursor_plane_ && !cursor_plane_->IsEnabled()) {
-    cursor_plane_->Disable(pset);
-  }
-
-  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
-    DisplayPlane *plane = (*i).get();
-    if (plane->IsEnabled())
-      continue;
-
-    plane->Disable(pset);
-  }
-
-  int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
-  if (ret) {
-    ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
-    return false;
-  }
-
-  return true;
-}
-
-void DisplayPlaneManager::DisablePipe(drmModeAtomicReqPtr property_set) {
-  CTRACE();
-  // Disable planes.
-  if (cursor_plane_)
-    cursor_plane_->Disable(property_set);
-
-  for (auto i = overlay_planes_.begin(); i != overlay_planes_.end(); ++i) {
-    (*i)->Disable(property_set);
-  }
-
-  primary_plane_->Disable(property_set);
-
-  int ret = drmModeAtomicCommit(gpu_fd_, property_set,
-                                DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-  if (ret)
-    ETRACE("Failed to disable pipe:%s\n", PRINTERROR());
-
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
   std::vector<std::unique_ptr<NativeSurface>>().swap(cursor_surfaces_);
 }
@@ -356,24 +230,6 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
 
   surfaces.swap(surfaces_);
   cursor_surfaces.swap(cursor_surfaces_);
-}
-
-bool DisplayPlaneManager::TestCommit(
-    const std::vector<OverlayPlane> &commit_planes) const {
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-  for (auto i = commit_planes.begin(); i != commit_planes.end(); i++) {
-    if (!(i->plane->UpdateProperties(pset.get(), crtc_id_, i->layer, true))) {
-      return false;
-    }
-  }
-
-  if (drmModeAtomicCommit(gpu_fd_, pset.get(), DRM_MODE_ATOMIC_TEST_ONLY,
-                          NULL)) {
-    IDISPLAYMANAGERTRACE("Test Commit Failed. %s ", PRINTERROR());
-    return false;
-  }
-
-  return true;
 }
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
@@ -410,7 +266,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
   }
 
   // If this combination fails just fall back to 3D for all layers.
-  if (!TestCommit(commit_planes)) {
+  if (!plane_handler_->TestCommit(commit_planes)) {
     // We start off with Primary plane.
     DisplayPlane *current_plane = primary_plane_.get();
     for (DisplayPlaneState &plane : composition) {
@@ -453,17 +309,11 @@ bool DisplayPlaneManager::FallbacktoGPU(
   // TODO(kalyank): Take relevant factors into consideration to determine if
   // Plane Composition makes sense. i.e. layer size etc
 
-  if (!TestCommit(commit_planes)) {
+  if (!plane_handler_->TestCommit(commit_planes)) {
     return true;
   }
 
   return false;
-}
-
-std::unique_ptr<DisplayPlane> DisplayPlaneManager::CreatePlane(
-    uint32_t plane_id, uint32_t possible_crtcs) {
-  return std::unique_ptr<DisplayPlane>(
-      new DisplayPlane(plane_id, possible_crtcs));
 }
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,30 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_DISPLAY_DISPLAYPLANE_H_
-#define COMMON_DISPLAY_DISPLAYPLANE_H_
+#ifndef WSI_DRMPLANE_H_
+#define WSI_DRMPLANE_H_
 
 #include <stdlib.h>
 #include <stdint.h>
+
 #include <xf86drmMode.h>
 
 #include <drmscopedtypes.h>
 
 #include <vector>
 
+#include "displayplane.h"
+
 namespace hwcomposer {
 
 class GpuDevice;
 struct OverlayLayer;
 
-class DisplayPlane {
+class DrmPlane : public DisplayPlane {
  public:
-  DisplayPlane(uint32_t plane_id, uint32_t possible_crtcs);
+  DrmPlane(uint32_t plane_id, uint32_t possible_crtcs);
 
-  ~DisplayPlane();
+  ~DrmPlane();
 
   bool Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats);
 
@@ -42,29 +45,28 @@ class DisplayPlane {
                         const OverlayLayer* layer,
                         bool test_commit = false) const;
 
-  bool ValidateLayer(const OverlayLayer* layer);
-
   void SetNativeFence(int32_t fd);
 
   bool Disable(drmModeAtomicReqPtr property_set);
-
-  uint32_t id() const;
 
   bool GetCrtcSupported(uint32_t pipe_id) const;
 
   uint32_t type() const;
 
-  void SetEnabled(bool enabled);
+  uint32_t id() const override;
+  void SetEnabled(bool enabled) override;
 
-  bool IsEnabled() const {
+  bool IsEnabled() const override {
     return enabled_;
   }
 
-  bool IsSupportedFormat(uint32_t format);
+  bool ValidateLayer(const OverlayLayer* layer) override;
 
-  uint32_t GetFormatForFrameBuffer(uint32_t format);
+  bool IsSupportedFormat(uint32_t format) override;
 
-  void Dump() const;
+  uint32_t GetFormatForFrameBuffer(uint32_t format) override;
+
+  void Dump() const override;
 
  private:
   struct Property {
@@ -103,4 +105,4 @@ class DisplayPlane {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_DISPLAY_DISPLAYPLANE_H_
+#endif  // WSI_DRMPLANE_H_

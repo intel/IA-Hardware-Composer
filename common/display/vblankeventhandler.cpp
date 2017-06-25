@@ -18,10 +18,6 @@
 
 #include <stdlib.h>
 #include <time.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-
-#include <memory>
 
 #include "displayqueue.h"
 #include "hwctrace.h"
@@ -39,6 +35,7 @@ VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
       pipe_(-1),
       last_timestamp_(-1),
       queue_(queue) {
+  memset(&type_, 0, sizeof(type_));
 }
 
 VblankEventHandler::~VblankEventHandler() {

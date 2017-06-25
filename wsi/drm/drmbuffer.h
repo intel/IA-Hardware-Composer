@@ -13,72 +13,66 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-#ifndef COMMON_CORE_OVERLAYBUFFER_H_
-#define COMMON_CORE_OVERLAYBUFFER_H_
+#ifndef WSI_DRMBUFFER_H_
+#define WSI_DRMBUFFER_H_
 
 #include <platformdefines.h>
 
 #include <hwcbuffer.h>
 
-#include "compositordefs.h"
+#include "overlaybuffer.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
 
-class OverlayBuffer {
+class DrmBuffer : public OverlayBuffer {
  public:
-  OverlayBuffer(OverlayBuffer&& rhs) = default;
-  OverlayBuffer& operator=(OverlayBuffer&& other) = default;
+  DrmBuffer(DrmBuffer&& rhs) = default;
+  DrmBuffer& operator=(DrmBuffer&& other) = default;
 
-  ~OverlayBuffer();
+  DrmBuffer() = default;
+
+  ~DrmBuffer() override;
 
   void Initialize(const HwcBuffer& bo);
 
   void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  NativeBufferHandler* buffer_handler);
+                                  NativeBufferHandler* buffer_handler) override;
 
-  uint32_t GetWidth() const {
+  uint32_t GetWidth() const override {
     return width_;
   }
 
-  uint32_t GetHeight() const {
+  uint32_t GetHeight() const override {
     return height_;
   }
 
-  uint32_t GetFormat() const {
+  uint32_t GetFormat() const override {
     return format_;
   }
 
-  uint32_t GetStride() const {
-    return pitches_[0];
-  }
-
-  uint32_t GetUsage() const {
+  uint32_t GetUsage() const override {
     return usage_;
   }
 
-  uint32_t GetFb() const {
+  uint32_t GetFb() const override {
     return fb_id_;
   }
 
-  GpuImage ImportImage(GpuDisplay egl_display);
+  GpuImage ImportImage(GpuDisplay egl_display) override;
 
-  bool CreateFrameBuffer(uint32_t gpu_fd);
+  bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
-  void ReleaseFrameBuffer();
+  void ReleaseFrameBuffer() override;
 
-  void SetRecommendedFormat(uint32_t format);
+  void SetRecommendedFormat(uint32_t format) override;
 
-  bool IsVideoBuffer() const {
+  bool IsVideoBuffer() const override {
     return is_yuv_;
   }
 
-  void Dump();
-
- protected:
-  OverlayBuffer() = default;
-  friend struct OverlayLayer;
+  void Dump() override;
 
  private:
   uint32_t width_ = 0;
@@ -98,4 +92,4 @@ class OverlayBuffer {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_CORE_OVERLAYBUFFER_H_
+#endif  // WSI_DRMBUFFER_H_

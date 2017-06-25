@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "displayplane.h"
+#include "drmplane.h"
 
 #include <drm_fourcc.h>
 
@@ -25,10 +25,10 @@
 
 namespace hwcomposer {
 
-DisplayPlane::Property::Property() {
+DrmPlane::Property::Property() {
 }
 
-bool DisplayPlane::Property::Initialize(
+bool DrmPlane::Property::Initialize(
     uint32_t fd, const char* name,
     const ScopedDrmObjectPropertyPtr& plane_props) {
   uint32_t count_props = plane_props->count_props;
@@ -47,7 +47,7 @@ bool DisplayPlane::Property::Initialize(
   return true;
 }
 
-DisplayPlane::DisplayPlane(uint32_t plane_id, uint32_t possible_crtcs)
+DrmPlane::DrmPlane(uint32_t plane_id, uint32_t possible_crtcs)
     : id_(plane_id),
       possible_crtc_mask_(possible_crtcs),
       type_(0),
@@ -55,12 +55,12 @@ DisplayPlane::DisplayPlane(uint32_t plane_id, uint32_t possible_crtcs)
       enabled_(false) {
 }
 
-DisplayPlane::~DisplayPlane() {
+DrmPlane::~DrmPlane() {
   SetNativeFence(-1);
 }
 
-bool DisplayPlane::Initialize(uint32_t gpu_fd,
-                              const std::vector<uint32_t>& formats) {
+bool DrmPlane::Initialize(uint32_t gpu_fd,
+                          const std::vector<uint32_t>& formats) {
   supported_formats_ = formats;
 
   ScopedDrmObjectPropertyPtr plane_props(
@@ -136,9 +136,9 @@ bool DisplayPlane::Initialize(uint32_t gpu_fd,
   return true;
 }
 
-bool DisplayPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
-                                    uint32_t crtc_id, const OverlayLayer* layer,
-                                    bool test_commit) const {
+bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
+                                uint32_t crtc_id, const OverlayLayer* layer,
+                                bool test_commit) const {
   uint64_t alpha = 0xFF;
   OverlayBuffer* buffer = layer->GetBuffer();
   const HwcRect<int>& display_frame = layer->GetDisplayFrame();
@@ -216,7 +216,7 @@ bool DisplayPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   return true;
 }
 
-void DisplayPlane::SetNativeFence(int32_t fd) {
+void DrmPlane::SetNativeFence(int32_t fd) {
   // Release any existing fence.
   if (kms_fence_ > 0) {
     close(kms_fence_);
@@ -225,7 +225,7 @@ void DisplayPlane::SetNativeFence(int32_t fd) {
   kms_fence_ = fd;
 }
 
-bool DisplayPlane::Disable(drmModeAtomicReqPtr property_set) {
+bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
   enabled_ = false;
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, 0) < 0;
@@ -253,23 +253,23 @@ bool DisplayPlane::Disable(drmModeAtomicReqPtr property_set) {
   return true;
 }
 
-uint32_t DisplayPlane::id() const {
+uint32_t DrmPlane::id() const {
   return id_;
 }
 
-bool DisplayPlane::GetCrtcSupported(uint32_t pipe_id) const {
+bool DrmPlane::GetCrtcSupported(uint32_t pipe_id) const {
   return !!((1 << pipe_id) & possible_crtc_mask_);
 }
 
-void DisplayPlane::SetEnabled(bool enabled) {
+void DrmPlane::SetEnabled(bool enabled) {
   enabled_ = enabled;
 }
 
-uint32_t DisplayPlane::type() const {
+uint32_t DrmPlane::type() const {
   return type_;
 }
 
-bool DisplayPlane::ValidateLayer(const OverlayLayer* layer) {
+bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
   uint64_t alpha = 0xFF;
 
   if (layer->GetBlending() == HWCBlending::kBlendingPremult)
@@ -298,7 +298,7 @@ bool DisplayPlane::ValidateLayer(const OverlayLayer* layer) {
   return true;
 }
 
-bool DisplayPlane::IsSupportedFormat(uint32_t format) {
+bool DrmPlane::IsSupportedFormat(uint32_t format) {
   if (last_valid_format_ == format)
     return true;
 
@@ -312,7 +312,7 @@ bool DisplayPlane::IsSupportedFormat(uint32_t format) {
   return false;
 }
 
-uint32_t DisplayPlane::GetFormatForFrameBuffer(uint32_t format) {
+uint32_t DrmPlane::GetFormatForFrameBuffer(uint32_t format) {
   if (IsSupportedFormat(format))
     return format;
 
@@ -331,7 +331,7 @@ uint32_t DisplayPlane::GetFormatForFrameBuffer(uint32_t format) {
   return format;
 }
 
-void DisplayPlane::Dump() const {
+void DrmPlane::Dump() const {
   DUMPTRACE("Plane Information Starts. -------------");
   DUMPTRACE("Plane ID: %d", id_);
   switch (type_) {

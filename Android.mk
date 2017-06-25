@@ -24,46 +24,47 @@ LOCAL_SHARED_LIBRARIES := \
 	libGLESv2 \
 	libhardware \
 	liblog \
-	libsync \
 	libui \
 	libutils
 
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
-	system/core/libsync \
-	system/core/libsync/include \
 	$(LOCAL_PATH)/public \
 	$(LOCAL_PATH)/common/core \
 	$(LOCAL_PATH)/common/compositor \
 	$(LOCAL_PATH)/common/compositor/gl \
 	$(LOCAL_PATH)/common/display \
 	$(LOCAL_PATH)/common/utils \
-	$(LOCAL_PATH)/common/watchers \
-	$(LOCAL_PATH)/os/android
+	$(LOCAL_PATH)/os \
+	$(LOCAL_PATH)/os/android \
+	$(LOCAL_PATH)/wsi \
+	$(LOCAL_PATH)/wsi/drm
 
 LOCAL_SRC_FILES := \
 	common/compositor/compositor.cpp \
 	common/compositor/factory.cpp \
 	common/compositor/nativesurface.cpp \
 	common/compositor/renderstate.cpp \
-	common/core/hwclayer.cpp \
 	common/core/gpudevice.cpp \
-	common/core/overlaybuffer.cpp \
+	common/core/hwclayer.cpp \
 	common/core/overlaylayer.cpp \
-	common/display/display.cpp \
-	common/display/displayplane.cpp \
 	common/display/displayplanemanager.cpp \
 	common/display/displayqueue.cpp \
 	common/display/headless.cpp \
 	common/display/vblankeventhandler.cpp \
 	common/display/virtualdisplay.cpp \
-	common/utils/drmscopedtypes.cpp \
 	common/utils/fdhandler.cpp \
 	common/utils/hwcevent.cpp \
 	common/utils/hwcthread.cpp \
 	common/utils/hwcutils.cpp \
 	common/utils/disjoint_layers.cpp \
+	wsi/physicaldisplay.cpp \
+	wsi/drm/drmdisplay.cpp \
+	wsi/drm/drmbuffer.cpp \
+	wsi/drm/drmplane.cpp \
+	wsi/drm/drmdisplaymanager.cpp \
+	wsi/drm/drmscopedtypes.cpp \
 	os/android/drmhwctwo.cpp \
 
 ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)

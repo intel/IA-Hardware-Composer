@@ -35,17 +35,6 @@ bool Headless::Initialize(NativeBufferHandler * /*buffer_manager*/) {
   return true;
 }
 
-bool Headless::Connect(const drmModeModeInfo & /*mode_info*/,
-                       const drmModeConnector * /*connector*/) {
-  return true;
-}
-
-void Headless::DisConnect() {
-}
-
-void Headless::ShutDown() {
-}
-
 bool Headless::GetDisplayAttribute(uint32_t /*config*/,
                                    HWCDisplayAttribute attribute,
                                    int32_t *value) {

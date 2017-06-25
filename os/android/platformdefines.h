@@ -32,9 +32,6 @@
 
 #include <ui/GraphicBuffer.h>
 
-#include <sw_sync.h>
-#include <sync/sync.h>
-
 #ifdef _cplusplus
 extern "C" {
 #endif

@@ -17,18 +17,17 @@
 #ifndef COMMON_DISPLAY_DISPLAYQUEUE_H_
 #define COMMON_DISPLAY_DISPLAYQUEUE_H_
 
-#include <drmscopedtypes.h>
 #include <spinlock.h>
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <xf86drmMode.h>
 
 #include <queue>
 #include <memory>
 #include <vector>
 
 #include "compositor.h"
+#include "displayplanemanager.h"
 #include "hwcthread.h"
 #include "vblankeventhandler.h"
 #include "platformdefines.h"
@@ -40,18 +39,19 @@ struct gamma_colors {
   float blue;
 };
 
-class DisplayPlaneManager;
+class PhysicalDisplay;
+class DisplayPlaneHandler;
 struct HwcLayer;
 class NativeBufferHandler;
 
 class DisplayQueue {
  public:
-  DisplayQueue(uint32_t gpu_fd, uint32_t crtc_id,
-               NativeBufferHandler* buffer_handler);
+  DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
+               NativeBufferHandler* buffer_handler, PhysicalDisplay* display);
   ~DisplayQueue();
 
-  bool Initialize(float refresh, uint32_t width, uint32_t height, uint32_t pipe,
-                  uint32_t connector, const drmModeModeInfo& mode_info);
+  bool Initialize(float refresh, uint32_t pipe, uint32_t width, uint32_t height,
+                  DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers,
                    int32_t* retire_fence);
@@ -60,10 +60,7 @@ class DisplayQueue {
   void SetGamma(float red, float green, float blue);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
-  bool SetBroadcastRGB(const char* range_property);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
-
-  void HandleExit();
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
@@ -75,9 +72,10 @@ class DisplayQueue {
 
   void HandleIdleCase();
 
-  bool SetActiveConfig(drmModeModeInfo& mode_info);
+  void DisplayConfigurationChanged();
 
  private:
+  void HandleExit();
   struct FrameStateTracker {
     enum FrameState {
       kPrepareComposition = 1 << 0,  // Preparing for current frame composition.
@@ -148,54 +146,22 @@ class DisplayQueue {
     struct FrameStateTracker& tracker_;
   };
 
-  bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers);
-  bool GetFence(drmModeAtomicReqPtr property_set, int32_t* out_fence);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
   void UpdateSurfaceInUse();
-  void GetDrmObjectProperty(const char* name,
-                            const ScopedDrmObjectPropertyPtr& props,
-                            uint32_t* id) const;
-  void ApplyPendingLUT(struct drm_color_lut* lut) const;
-  void GetDrmObjectPropertyValue(const char* name,
-                                 const ScopedDrmObjectPropertyPtr& props,
-                                 uint64_t* value) const;
-
-  void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
-                          uint32_t brightness) const;
-  float TransformGamma(float value, float gamma) const;
-  float TransformContrastBrightness(float value, float brightness,
-                                    float contrast) const;
 
   Compositor compositor_;
-  drmModeModeInfo mode_;
   uint32_t frame_;
-  uint32_t dpms_prop_;
-  uint32_t dpms_mode_ = DRM_MODE_DPMS_ON;
-  uint32_t out_fence_ptr_prop_;
-  uint32_t active_prop_;
-  uint32_t mode_id_prop_;
-  uint32_t lut_id_prop_;
-  uint32_t crtc_id_;
-  uint32_t connector_;
-  uint32_t crtc_prop_;
-  uint32_t blob_id_ = 0;
-  uint32_t old_blob_id_ = 0;
   uint32_t gpu_fd_;
   uint32_t brightness_;
   uint32_t contrast_;
-  uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
-  uint64_t lut_size_;
-  uint32_t broadcastrgb_id_;
-  int64_t broadcastrgb_full_;
-  int64_t broadcastrgb_automatic_;
   bool needs_color_correction_ = false;
+  bool configuration_changed_ = true;
   bool use_layer_cache_ = false;
-  bool needs_modeset_ = true;
   bool disable_overlay_usage_ = false;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
@@ -209,7 +175,8 @@ class DisplayQueue {
   // actually call the hook) and we don't want the memory freed until we're
   // done
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
-  uint32_t refrsh_display_id_;
+  uint32_t refrsh_display_id_ = 0;
+  PhysicalDisplay* display_ = NULL;
 };
 
 }  // namespace hwcomposer

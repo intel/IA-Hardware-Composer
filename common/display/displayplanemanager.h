@@ -17,9 +17,6 @@
 #ifndef COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 #define COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-
 #include <hwcbuffer.h>
 
 #include <memory>
@@ -28,6 +25,7 @@
 #include <tuple>
 
 #include "displayplanestate.h"
+#include "displayplanehandler.h"
 
 namespace hwcomposer {
 
@@ -39,21 +37,15 @@ struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
-  DisplayPlaneManager(int gpu_fd, uint32_t crtc_id,
-                      NativeBufferHandler *buffer_handler);
+  DisplayPlaneManager(int gpu_fd, NativeBufferHandler *buffer_handler,
+                      DisplayPlaneHandler *plane_handler);
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t pipe_id, uint32_t width, uint32_t height);
+  bool Initialize(uint32_t width, uint32_t height);
 
-  std::tuple<bool, DisplayPlaneStateList> ValidateLayers(
-      std::vector<OverlayLayer> &layers, bool pending_modeset,
-      bool disable_overlay);
-
-  bool CommitFrame(const DisplayPlaneStateList &planes,
-                   drmModeAtomicReqPtr property_set, uint32_t flags);
-
-  void DisablePipe(drmModeAtomicReqPtr property_set);
+  bool ValidateLayers(std::vector<OverlayLayer> &layers, bool pending_modeset,
+                      bool disable_overlay, DisplayPlaneStateList &composition);
 
   bool CheckPlaneFormat(uint32_t format);
 
@@ -64,20 +56,9 @@ class DisplayPlaneManager {
 
   void ReleaseFreeOffScreenTargets();
 
+  void ReleaseAllOffScreenTargets();
+
  protected:
-  struct OverlayPlane {
-   public:
-    OverlayPlane(DisplayPlane *plane, const OverlayLayer *layer)
-        : plane(plane), layer(layer) {
-    }
-    DisplayPlane *plane;
-    const OverlayLayer *layer;
-  };
-
-  virtual std::unique_ptr<DisplayPlane> CreatePlane(uint32_t plane_id,
-                                                    uint32_t possible_crtcs);
-  virtual bool TestCommit(const std::vector<OverlayPlane> &commit_planes) const;
-
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
@@ -89,6 +70,7 @@ class DisplayPlaneManager {
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
   NativeBufferHandler *buffer_handler_;
+  DisplayPlaneHandler *plane_handler_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::unique_ptr<DisplayPlane> primary_plane_;
   std::unique_ptr<DisplayPlane> cursor_plane_;
@@ -97,7 +79,6 @@ class DisplayPlaneManager {
 
   uint32_t width_;
   uint32_t height_;
-  uint32_t crtc_id_;
   uint32_t gpu_fd_;
 };
 

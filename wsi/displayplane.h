@@ -14,39 +14,34 @@
 // limitations under the License.
 */
 
-#ifndef PUBLIC_GPUDEVICE_H_
-#define PUBLIC_GPUDEVICE_H_
+#ifndef WSI_DISPLAYPLANE_H_
+#define WSI_DISPLAYPLANE_H_
 
+#include <stdlib.h>
 #include <stdint.h>
-
-#include "displaymanager.h"
 
 namespace hwcomposer {
 
-class NativeDisplay;
+struct OverlayLayer;
 
-class GpuDevice {
+class DisplayPlane {
  public:
-  GpuDevice();
+  virtual ~DisplayPlane() {
+  }
 
-  virtual ~GpuDevice();
+  virtual uint32_t id() const = 0;
+  virtual void SetEnabled(bool enabled) = 0;
 
-  // Open device.
-  bool Initialize();
+  virtual bool IsEnabled() const = 0;
 
-  NativeDisplay* GetDisplay(uint32_t display);
+  virtual bool ValidateLayer(const OverlayLayer* layer) = 0;
 
-  NativeDisplay* GetVirtualDisplay();
+  virtual bool IsSupportedFormat(uint32_t format) = 0;
 
-  std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
+  virtual uint32_t GetFormatForFrameBuffer(uint32_t format) = 0;
 
-  void RegisterHotPlugEventCallback(
-      std::shared_ptr<DisplayHotPlugEventCallback> callback);
-
- private:
-  std::unique_ptr<DisplayManager> display_manager_;
-  bool initialized_;
+  virtual void Dump() const = 0;
 };
 
 }  // namespace hwcomposer
-#endif  // PUBLIC_GPUDEVICE_H_
+#endif  // WSI_DISPLAYPLANE_H_

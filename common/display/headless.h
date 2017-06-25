@@ -75,22 +75,6 @@ class Headless : public NativeDisplay {
   void VSyncControl(bool enabled) override;
   bool CheckPlaneFormat(uint32_t format) override;
 
- protected:
-  uint32_t CrtcId() const override {
-    return 0;
-  }
-
-  bool Connect(const drmModeModeInfo &mode_info,
-               const drmModeConnector *connector) override;
-
-  bool IsConnected() const override {
-    return false;
-  }
-
-  void DisConnect() override;
-
-  void ShutDown() override;
-
   uint32_t fd_;
 };
 

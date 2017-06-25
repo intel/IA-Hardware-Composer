@@ -171,31 +171,40 @@ class NativeDisplay {
   virtual void SetExplicitSyncSupport(bool /*explicit_sync_enabled*/) {
   }
 
- protected:
-  virtual uint32_t CrtcId() const = 0;
-  virtual bool Connect(const drmModeModeInfo &mode_info,
-                       const drmModeConnector *connector) = 0;
-
-  virtual bool IsConnected() const = 0;
-
-  virtual void DisConnect() = 0;
-
-  virtual void ShutDown() = 0;
   /**
-  * API to Set the suported modes of the display
-  * @param mode_info vector of drmModeModeInfo
+  * API to disconnect the display. Note that this doesn't necessarily
+  * mean display is turned off. Implementation is free to reset any display
+  * state which they seem appropriate for this state. Any subsequent calls
+  * to Present after this call will not show any content on screen till
+  * Connect() is called.
   */
-  virtual void SetDrmModeInfo(
-      const std::vector<drmModeModeInfo> & /*mode_info*/) {
-  }
-  /**
-  * API to Set the Display attribute based on mode set
-  * @param mode_info  drmModeModeInfo
-  */
-  virtual void SetDisplayAttribute(const drmModeModeInfo & /*mode_info*/) {
+  virtual void DisConnect() {
   }
 
-  friend class GpuDevice;
+  /**
+  * API to connect the display. Note that this doesn't necessarily
+  * mean display is turned on. Implementation is free to reset any display
+  * state which they seem appropriate for this state. Any subsequent calls
+  * to Present after this call will show content on screen provided
+  * Powermode is kon.
+  */
+  virtual void Connect() {
+  }
+
+  /**
+  * API to check if display is connected.
+  */
+  virtual bool IsConnected() const {
+    return false;
+  }
 };
+
+class DisplayHotPlugEventCallback {
+ public:
+  virtual ~DisplayHotPlugEventCallback() {
+  }
+  virtual void Callback(std::vector<NativeDisplay*> connected_displays) = 0;
+};
+
 }  // namespace hwcomposer
 #endif  // PUBLIC_NATIVEDISPLAY_H_

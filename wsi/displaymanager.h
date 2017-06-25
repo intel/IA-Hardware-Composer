@@ -14,39 +14,33 @@
 // limitations under the License.
 */
 
-#ifndef PUBLIC_GPUDEVICE_H_
-#define PUBLIC_GPUDEVICE_H_
+#ifndef WSI_MANAGER_H_
+#define WSI_MANAGER_H_
 
 #include <stdint.h>
 
-#include "displaymanager.h"
+#include "nativedisplay.h"
 
 namespace hwcomposer {
 
-class NativeDisplay;
-
-class GpuDevice {
+class DisplayManager {
  public:
-  GpuDevice();
+  static DisplayManager *CreateDisplayManager();
+  DisplayManager() = default;
+  virtual ~DisplayManager() {
+  }
 
-  virtual ~GpuDevice();
+  virtual bool Initialize() = 0;
 
-  // Open device.
-  bool Initialize();
+  virtual NativeDisplay *GetDisplay(uint32_t display) = 0;
 
-  NativeDisplay* GetDisplay(uint32_t display);
+  virtual NativeDisplay *GetVirtualDisplay() = 0;
 
-  NativeDisplay* GetVirtualDisplay();
+  virtual std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() const = 0;
 
-  std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
-
-  void RegisterHotPlugEventCallback(
-      std::shared_ptr<DisplayHotPlugEventCallback> callback);
-
- private:
-  std::unique_ptr<DisplayManager> display_manager_;
-  bool initialized_;
+  virtual void RegisterHotPlugEventCallback(
+      std::shared_ptr<DisplayHotPlugEventCallback> callback) = 0;
 };
 
 }  // namespace hwcomposer
-#endif  // PUBLIC_GPUDEVICE_H_
+#endif  // WSI_MANAGER_H_

@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_UTILS_COMMONDRMUTILS_H_
-#define COMMON_UTILS_COMMONDRMUTILS_H_
+#ifndef WSI_COMMONDRMUTILS_H_
+#define WSI_COMMONDRMUTILS_H_
 
 #include <drm_fourcc.h>
 static size_t drm_bo_get_num_planes(uint32_t format) {
@@ -78,4 +78,4 @@ static size_t drm_bo_get_num_planes(uint32_t format) {
   return 0;
 }
 
-#endif  // COMMON_UTILS_COMMONDRMUTILS_H_
+#endif  // WSI_COMMONDRMUTILS_H_

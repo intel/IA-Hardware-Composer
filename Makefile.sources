@@ -3,18 +3,14 @@ common_SOURCES =              \
     common/compositor/factory.cpp \
     common/compositor/nativesurface.cpp \
     common/compositor/renderstate.cpp \
-    common/core/gpudevice.cpp \
     common/core/hwclayer.cpp \
-    common/core/overlaybuffer.cpp \
     common/core/overlaylayer.cpp \
-    common/display/display.cpp \
+    common/core/gpudevice.cpp \
     common/display/displayqueue.cpp \
-    common/display/displayplane.cpp \
     common/display/displayplanemanager.cpp \
     common/display/headless.cpp \
     common/display/vblankeventhandler.cpp \
     common/display/virtualdisplay.cpp \
-    common/utils/drmscopedtypes.cpp \
     common/utils/fdhandler.cpp \
     common/utils/hwcevent.cpp \
     common/utils/hwcthread.cpp \
@@ -22,6 +18,12 @@ common_SOURCES =              \
     common/utils/disjoint_layers.cpp \
     os/linux/gbmbufferhandler.cpp \
     common/compositor/scopedrendererstate.cpp \
+    wsi/physicaldisplay.cpp \
+    wsi/drm/drmdisplay.cpp \
+    wsi/drm/drmbuffer.cpp \
+    wsi/drm/drmplane.cpp \
+    wsi/drm/drmdisplaymanager.cpp \
+    wsi/drm/drmscopedtypes.cpp \
 	$(NULL)
 
 gl_SOURCES =              \

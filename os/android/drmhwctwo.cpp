@@ -20,8 +20,6 @@
 #include "drmhwctwo.h"
 #include "utils_android.h"
 
-#include <xf86drmMode.h>
-
 #include <inttypes.h>
 
 #include <cutils/log.h>
