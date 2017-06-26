@@ -26,6 +26,31 @@
 
 namespace hwcomposer {
 
+/* rotation property bits */
+#ifndef DRM_ROTATE_0
+#define DRM_ROTATE_0 0
+#endif
+
+#ifndef DRM_ROTATE_90
+#define DRM_ROTATE_90 1
+#endif
+
+#ifndef DRM_ROTATE_180
+#define DRM_ROTATE_180 2
+#endif
+
+#ifndef DRM_ROTATE_270
+#define DRM_ROTATE_270 3
+#endif
+
+#ifndef DRM_ROTATE_X
+#define DRM_REFLECT_X 4
+#endif
+
+#ifndef DRM_ROTATE_Y
+#define DRM_REFLECT_Y 5
+#endif
+
 OverlayLayer::ImportedBuffer::~ImportedBuffer() {
   if (acquire_fence_ > 0) {
     close(acquire_fence_);
