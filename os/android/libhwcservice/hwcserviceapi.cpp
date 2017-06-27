@@ -67,7 +67,7 @@ const char* HwcService_GetHwcVersion(HWCSHANDLE hwcs) {
     return NULL;
   }
 
-  static String8 version = pContext->mHwcService->getHwcVersion();
+  static String8 version = pContext->mHwcService->GetHwcVersion();
   if (version.length() == 0) {
     return NULL;
   }

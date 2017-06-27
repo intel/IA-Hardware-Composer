@@ -93,6 +93,10 @@ HWC2::Error DrmHwcTwo::Init() {
                                           HWC2::DisplayType::Physical));
 
   displays_.at(HWC_DISPLAY_PRIMARY).Init(disable_explicit_sync_);
+
+  // Start the hwc service
+  hwcService_.Start(*this);
+
   return HWC2::Error::None;
 }
 

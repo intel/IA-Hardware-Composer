@@ -13,6 +13,11 @@
 # limitations under the License.
 
 ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
+# Obtain root HWC source path
+HWC_PATH := $(call my-dir)
+
+HWC_VERSION_GIT_BRANCH := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
+HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
@@ -25,8 +30,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libhardware \
 	liblog \
 	libui \
-	libutils
-
+	libutils \
+	libhwcservice \
+	libbinder
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
@@ -66,6 +72,7 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmdisplaymanager.cpp \
 	wsi/drm/drmscopedtypes.cpp \
 	os/android/drmhwctwo.cpp \
+        os/android/hwcservice.cpp
 
 ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
@@ -73,6 +80,9 @@ else
 LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
 endif
 
+LOCAL_CFLAGS += -DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\""
+LOCAL_CFLAGS += -DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\""
+LOCAL_CFLAGS += -Wno-date-time
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \
 	-DHWC2_INCLUDE_STRINGIFICATION \

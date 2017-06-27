@@ -53,7 +53,7 @@ class BpService : public BpInterface<IService> {
     TRANSACT_GET_CONTROLS,
   };
 
-  virtual String8 getHwcVersion() {
+  virtual String8 GetHwcVersion() {
     Parcel data, reply;
     data.writeInterfaceToken(IService::getInterfaceDescriptor());
     remote()->transact(GET_HWC_VERSION, data, &reply);
@@ -118,7 +118,7 @@ status_t BnService::onTransact(uint32_t code, const Parcel& data, Parcel* reply,
   switch (code) {
     case BpService::GET_HWC_VERSION: {
       CHECK_INTERFACE(IService, data, reply);
-      reply->writeString8(getHwcVersion());
+      reply->writeString8(GetHwcVersion());
       return NO_ERROR;
     }
 

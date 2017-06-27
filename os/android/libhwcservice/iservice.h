@@ -38,7 +38,7 @@ class IService : public IInterface {
   virtual sp<IDiagnostic> getDiagnostic() = 0;
   virtual sp<IControls> getControls() = 0;
 
-  virtual String8 getHwcVersion() = 0;
+  virtual String8 GetHwcVersion() = 0;
   virtual void dumpOptions(void) = 0;
   virtual status_t setOption(String8 option, String8 optionValue) = 0;
   virtual status_t enableLogviewToLogcat(bool enable = true) = 0;

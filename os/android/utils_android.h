@@ -32,7 +32,10 @@
 #include <cros_gralloc_helpers.h>
 #endif
 
+#include <hwcdefs.h>
 #include "hwcbuffer.h"
+
+#define HWC_UNUSED(x) ((void)&(x))
 
 #ifdef __cplusplus
 extern "C" {
