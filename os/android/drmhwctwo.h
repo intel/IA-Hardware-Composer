@@ -32,7 +32,7 @@ class NativeDisplay;
 }
 
 namespace android {
-
+class HwcService;
 class DrmHwcTwo : public hwc2_device_t {
  public:
   static int HookDevOpen(const struct hw_module_t *module, const char *name,
@@ -245,6 +245,7 @@ class DrmHwcTwo : public hwc2_device_t {
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 
   bool disable_explicit_sync_ = false;
+  android::HwcService *hwcService_;
 };
 }  // namespace android
 
