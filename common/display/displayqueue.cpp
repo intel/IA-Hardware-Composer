@@ -112,12 +112,16 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
       bool content_changed = false;
+      bool region_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
 
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
+        if (layer.HasLayerPositionChanged()) {
+          region_changed = true;
+        }
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
@@ -143,7 +147,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ReUseOffScreenTarget();
       }
 
-      if (!content_changed) {
+      if (region_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
@@ -176,9 +180,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     frame_changed = true;
 
   bool layers_changed = frame_changed;
+  *retire_fence = -1;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
+    layer->SetReleaseFence(-1);
     if (!layer->IsVisible())
       continue;
 

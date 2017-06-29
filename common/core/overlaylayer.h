@@ -107,6 +107,12 @@ struct OverlayLayer {
   // layer.
   void ValidateForOverlayUsage();
 
+  // Returns true if position of layer has
+  // changed from previous frame.
+  bool HasLayerPositionChanged() const {
+    return state_ & kLayerPositionChanged;
+  }
+
   // Returns true if any other attribute of layer
   // other than psotion has changed from previous
   // frame.
@@ -141,7 +147,8 @@ struct OverlayLayer {
  private:
   enum LayerState {
     kLayerAttributesChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1
+    kLayerPositionChanged = 1 << 1,
+    kLayerContentChanged = 1 << 2
   };
 
   struct ImportedBuffer {
@@ -165,7 +172,8 @@ struct OverlayLayer {
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  uint32_t state_ = kLayerAttributesChanged | kLayerContentChanged;
+  uint32_t state_ =
+      kLayerAttributesChanged | kLayerPositionChanged | kLayerContentChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_cursor_ = false;
   bool prefer_separate_plane_ = false;

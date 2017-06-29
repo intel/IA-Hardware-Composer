@@ -137,6 +137,14 @@ struct HwcLayer {
   }
 
   /**
+   * API for querying if layer position has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasLayerPositionChanged() const {
+    return layer_cache_ & kLayerPositionChanged;
+  }
+
+  /**
    * API for setting release fence for this layer.
    * @param fd will be populated with Native Fence object.
    *        When fd is signalled, any previous frame
@@ -197,7 +205,8 @@ struct HwcLayer {
   };
 
   enum LayerCache {
-    kLayerAttributesChanged = 1 << 0
+    kLayerAttributesChanged = 1 << 0,
+    kLayerPositionChanged = 1 << 1
   };
 
   int32_t transform_ = 0;
