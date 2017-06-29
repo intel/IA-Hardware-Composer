@@ -150,7 +150,8 @@ class DisplayQueue {
                        DisplayPlaneStateList* composition, bool* render_layers);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
-  void UpdateSurfaceInUse();
+  void UpdateSurfaceInUse(bool in_use,
+                          DisplayPlaneStateList& current_composition_planes);
 
   Compositor compositor_;
   uint32_t frame_;
@@ -163,11 +164,10 @@ class DisplayQueue {
   bool configuration_changed_ = true;
   bool use_layer_cache_ = false;
   bool disable_overlay_usage_ = false;
+  bool release_surfaces_ = false;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
-  std::vector<NativeSurface*> in_flight_surfaces_;
-  std::vector<NativeSurface*> previous_surfaces_;
   DisplayPlaneStateList previous_plane_state_;
   NativeBufferHandler* buffer_handler_;
   FrameStateTracker idle_tracker_;

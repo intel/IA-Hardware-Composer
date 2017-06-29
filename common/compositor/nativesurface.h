@@ -51,6 +51,14 @@ class NativeSurface {
     return height_;
   }
 
+  uint32_t GetViewportWidth() const {
+    return viewport_width_;
+  }
+
+  uint32_t GetViewportHeight() const {
+    return viewport_height_;
+  }
+
   OverlayLayer* GetLayer() {
     return &layer_;
   }
@@ -63,7 +71,13 @@ class NativeSurface {
     return in_use_;
   }
 
+  bool ClearSurface() const {
+    return clear_surface_;
+  }
+
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
+
+  void RecycleSurface(DisplayPlaneState& plane);
 
  protected:
   OverlayLayer layer_;
@@ -75,7 +89,10 @@ class NativeSurface {
   NativeBufferHandler* buffer_handler_;
   uint32_t width_;
   uint32_t height_;
+  uint32_t viewport_width_;
+  uint32_t viewport_height_;
   bool in_use_;
+  bool clear_surface_ = true;
   uint32_t framebuffer_format_;
 };
 

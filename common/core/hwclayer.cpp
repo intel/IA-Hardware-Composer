@@ -96,6 +96,8 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
+      surface_damage_ = rect;
+      return;
     }
 
     new_damage_rect.left = rect.left;
@@ -121,10 +123,9 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   new_damage_rect.right = std::min(display_frame_.right, new_damage_rect.right);
   new_damage_rect.bottom =
       std::min(display_frame_.bottom, new_damage_rect.bottom);
-
-  if ((surface_damage_.left == new_damage_rect.left) ||
-      (surface_damage_.top == new_damage_rect.top) ||
-      (surface_damage_.right == new_damage_rect.right) ||
+  if ((surface_damage_.left == new_damage_rect.left) &&
+      (surface_damage_.top == new_damage_rect.top) &&
+      (surface_damage_.right == new_damage_rect.right) &&
       (surface_damage_.bottom == new_damage_rect.bottom)) {
     return;
   }
@@ -148,9 +149,9 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
     new_visible_rect.bottom = std::max(new_region.bottom, rect.bottom);
   }
 
-  if ((visible_rect_.left == new_visible_rect.left) ||
-      (visible_rect_.top == new_visible_rect.top) ||
-      (visible_rect_.right == new_visible_rect.right) ||
+  if ((visible_rect_.left == new_visible_rect.left) &&
+      (visible_rect_.top == new_visible_rect.top) &&
+      (visible_rect_.right == new_visible_rect.right) &&
       (visible_rect_.bottom == new_visible_rect.bottom)) {
     return;
   }
@@ -200,6 +201,7 @@ void HwcLayer::Validate() {
   state_ &= ~kVisibleRegionChanged;
   state_ &= ~kSurfaceDamaged;
   state_ |= kLayerValidated;
+  state_ &= ~kLayerContentChanged;
   layer_cache_ &= ~kLayerAttributesChanged;
 }
 

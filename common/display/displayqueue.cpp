@@ -103,35 +103,44 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool* render_layers) {
   CTRACE();
   bool needs_gpu_composition = false;
-  for (const DisplayPlaneState& plane : previous_plane_state_) {
+  for (DisplayPlaneState& plane : previous_plane_state_) {
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
-                         plane.GetCompositionState());
+                         plane.GetSurfaceDamage(), plane.GetCompositionState());
 
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
       bool content_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
+
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
-          break;
+          last_plane.AddSurfaceDamage(layer.GetSurfaceDamage());
         }
       }
 
+      plane.TransferSurfaces(last_plane, content_changed);
       if (content_changed) {
-        display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        if (last_plane.GetSurfaces().size() == 3) {
+          last_plane.GetOffScreenTarget()->RecycleSurface(last_plane);
+        } else {
+          display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+          if (last_plane.GetSurfaces().size() == 3)
+            last_plane.ResetSurfaceDamage();
+        }
+
+        last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
         NativeSurface* surface = plane.GetOffScreenTarget();
-        surface->SetNativeFence(-1);
-        surface->SetPlaneTarget(last_plane, gpu_fd_);
-        last_plane.ReUseOffScreenTarget(surface);
+        surface->RecycleSurface(last_plane);
+        last_plane.ReUseOffScreenTarget();
       }
 
       if (!content_changed) {
@@ -206,6 +215,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
+  bool composition_passed = true;
 
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
@@ -223,16 +233,23 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DUMP_CURRENT_COMPOSITION_PLANES();
 
   if (render_layers) {
-      if (!compositor_.BeginFrame(disable_overlay_usage_)) {
-	ETRACE("Failed to initialize compositor.");
-	return false;
-      }
+    if (!compositor_.BeginFrame(disable_overlay_usage_)) {
+      ETRACE("Failed to initialize compositor.");
+      composition_passed = false;
+    }
 
     // Prepare for final composition.
     if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
       ETRACE("Failed to prepare for the frame composition. ");
-      return false;
+      composition_passed = false;
     }
+  }
+
+  if (!composition_passed) {
+    UpdateSurfaceInUse(false, current_composition_planes);
+    UpdateSurfaceInUse(true, previous_plane_state_);
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
+    return false;
   }
 
   int32_t fence = 0;
@@ -247,23 +264,30 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     needs_color_correction_ = false;
   }
 
-  display_->Commit(current_composition_planes, previous_plane_state_,
-                   disable_overlay_usage_, &fence);
+  composition_passed =
+      display_->Commit(current_composition_planes, previous_plane_state_,
+                       disable_overlay_usage_, &fence);
+
+  if (!composition_passed) {
+    UpdateSurfaceInUse(false, current_composition_planes);
+    UpdateSurfaceInUse(true, previous_plane_state_);
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
+    return false;
+  }
 
   in_flight_layers_.swap(layers);
-  previous_plane_state_.swap(current_composition_planes);
-  UpdateSurfaceInUse();
-
-  if (idle_frame) {
-    if (previous_surfaces_.size() > 0) {
-      for (NativeSurface* surface : previous_surfaces_) {
-        surface->SetInUse(false);
-      }
-
-      std::vector<NativeSurface*>().swap(previous_surfaces_);
-    }
+  if (release_surfaces_) {
     display_plane_manager_->ReleaseFreeOffScreenTargets();
+    release_surfaces_ = false;
   }
+
+  UpdateSurfaceInUse(false, previous_plane_state_);
+  previous_plane_state_.swap(current_composition_planes);
+  UpdateSurfaceInUse(true, previous_plane_state_);
+  release_surfaces_ = validate_layers;
+
+  if (idle_frame)
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
 
   if (fence > 0) {
     if (render_layers)
@@ -283,25 +307,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   return true;
 }
 
-void DisplayQueue::UpdateSurfaceInUse() {
-  if (previous_surfaces_.size() > 0) {
-    for (NativeSurface* surface : previous_surfaces_) {
-      surface->SetInUse(false);
-    }
-
-    std::vector<NativeSurface*>().swap(previous_surfaces_);
-  }
-
-  previous_surfaces_.swap(in_flight_surfaces_);
-  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
-
-  for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    NativeSurface* surface = plane_state.GetOffScreenTarget();
-    if (!surface)
+void DisplayQueue::UpdateSurfaceInUse(
+    bool in_use, DisplayPlaneStateList& current_composition_planes) {
+  for (DisplayPlaneState& plane_state : current_composition_planes) {
+    if (!in_use && !plane_state.ReleaseSurfaces())
       continue;
 
-    surface->SetInUse(true);
-    in_flight_surfaces_.emplace_back(surface);
+    if (in_use)
+      plane_state.SurfaceTransitionComplete();
+
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    for (NativeSurface* surface : surfaces) {
+      surface->SetInUse(in_use);
+    }
   }
 }
 
@@ -329,8 +347,6 @@ void DisplayQueue::SetReleaseFenceToLayers(
 }
 
 void DisplayQueue::HandleExit() {
-  std::vector<NativeSurface*>().swap(in_flight_surfaces_);
-  std::vector<NativeSurface*>().swap(previous_surfaces_);
   display_->Disable(previous_plane_state_);
   display_plane_manager_->ReleaseAllOffScreenTargets();
 

@@ -70,7 +70,6 @@ void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
   }
 
   imported_buffer_->acquire_fence_ = acquire_fence;
-  state_ &= ~kLayerAcquireFenceSignalled;
 }
 
 int32_t OverlayLayer::GetAcquireFence() const {
@@ -139,6 +138,7 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
+  surface_damage_ = layer->GetSurfaceDamage();
   if (!prefer_separate_plane_)
     prefer_separate_plane_ = rhs.prefer_separate_plane_;
 

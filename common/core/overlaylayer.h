@@ -79,6 +79,10 @@ struct OverlayLayer {
     return display_frame_;
   }
 
+  const HwcRect<int>& GetSurfaceDamage() const {
+    return surface_damage_;
+  }
+
   uint32_t GetSourceCropWidth() const {
     return source_crop_width_;
   }
@@ -137,8 +141,7 @@ struct OverlayLayer {
  private:
   enum LayerState {
     kLayerAttributesChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1,
-    kLayerAcquireFenceSignalled = 1 << 2
+    kLayerContentChanged = 1 << 1
   };
 
   struct ImportedBuffer {
@@ -160,9 +163,9 @@ struct OverlayLayer {
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
+  HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  uint32_t state_ =
-      kLayerAttributesChanged | kLayerContentChanged;
+  uint32_t state_ = kLayerAttributesChanged | kLayerContentChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_cursor_ = false;
   bool prefer_separate_plane_ = false;
