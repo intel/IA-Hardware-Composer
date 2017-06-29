@@ -152,6 +152,7 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
 
   IDISPLAYMANAGERTRACE("buffer->GetFb() ---------------------- STARTS %d",
                        buffer->GetFb());
+
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, crtc_id) < 0;
   success |= drmModeAtomicAddProperty(property_set, id_, fb_prop_.id,
@@ -180,12 +181,19 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                         layer->GetDisplayFrameWidth()) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
                                         layer->GetDisplayFrameHeight()) < 0;
+
+    int src_y = static_cast<int>(source_crop.top) << 16;
+    if (layer->GetSourceCropHeight() == layer->GetDisplayFrameHeight())
+      src_y = 0;
+
+    int src_x = static_cast<int>(source_crop.left) << 16;
+    if (layer->GetSourceCropWidth() == layer->GetDisplayFrameWidth())
+      src_x = 0;
+
     success |=
-        drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id,
-                                 static_cast<int>(source_crop.left) << 16) < 0;
+        drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id, src_x) < 0;
     success |=
-        drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id,
-                                 static_cast<int>(source_crop.top) << 16) < 0;
+        drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id, src_y) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
                                         layer->GetSourceCropWidth() << 16) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,
