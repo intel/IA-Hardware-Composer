@@ -232,6 +232,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     GetCachedLayers(layers, &current_composition_planes, &render_layers);
   } else {
     tracker.ResetTrackerState();
+    MarkBackBuffersForReUse();
     render_layers = display_plane_manager_->ValidateLayers(
         layers, configuration_changed_, idle_frame || disable_overlay_usage_,
         current_composition_planes);
@@ -327,6 +328,16 @@ void DisplayQueue::UpdateSurfaceInUse(
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     for (NativeSurface* surface : surfaces) {
       surface->SetInUse(in_use);
+    }
+  }
+}
+
+void DisplayQueue::MarkBackBuffersForReUse() {
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    size_t size = surfaces.size();
+    for (size_t i = 1; i < size; i++) {
+        surfaces.at(i)->SetInUse(false);
     }
   }
 }

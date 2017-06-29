@@ -153,6 +153,8 @@ class DisplayQueue {
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
 
+  void MarkBackBuffersForReUse();
+
   Compositor compositor_;
   uint32_t frame_;
   uint32_t gpu_fd_;
