@@ -42,7 +42,7 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t width, uint32_t height);
+  bool Initialize();
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, bool pending_modeset,
                       bool disable_overlay, DisplayPlaneStateList &composition);
@@ -77,8 +77,6 @@ class DisplayPlaneManager {
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
 
-  uint32_t width_;
-  uint32_t height_;
   uint32_t gpu_fd_;
 };
 

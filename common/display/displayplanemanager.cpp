@@ -29,17 +29,13 @@ DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
                                          DisplayPlaneHandler *plane_handler)
     : buffer_handler_(buffer_handler),
       plane_handler_(plane_handler),
-      width_(0),
-      height_(0),
       gpu_fd_(gpu_fd) {
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
-  width_ = width;
-  height_ = height;
+bool DisplayPlaneManager::Initialize() {
   return plane_handler_->PopulatePlanes(primary_plane_, cursor_plane_,
                                         overlay_planes_);
 }
