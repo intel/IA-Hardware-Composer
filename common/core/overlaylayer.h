@@ -35,10 +35,22 @@ struct OverlayLayer {
 
   int32_t GetAcquireFence() const;
 
-  void SetIndex(uint32_t index);
+  // Sets z order of this layer.
+  void SetZorder(uint32_t z_order);
 
-  uint32_t GetIndex() const {
-    return index_;
+  // Get z order of this layer.
+  uint32_t GetZorder() const {
+    return z_order_;
+  }
+
+  // Set index of hwclayer which this layer
+  // represents.
+  void SetLayerIndex(uint32_t index);
+
+  // Index of hwclayer which this layer
+  // represents.
+  uint32_t GetLayerIndex() const {
+    return layer_index_;
   }
 
   void SetTransform(int32_t sf_transform);
@@ -162,7 +174,8 @@ struct OverlayLayer {
 
   uint32_t transform_;
   uint32_t rotation_;
-  uint32_t index_;
+  uint32_t z_order_;
+  uint32_t layer_index_;
   uint32_t source_crop_width_;
   uint32_t source_crop_height_;
   uint32_t display_frame_width_;

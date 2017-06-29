@@ -92,8 +92,12 @@ void OverlayLayer::ResetBuffer() {
   imported_buffer_.reset(nullptr);
 }
 
-void OverlayLayer::SetIndex(uint32_t index) {
-  index_ = index;
+void OverlayLayer::SetZorder(uint32_t z_order) {
+  z_order_ = z_order;
+}
+
+void OverlayLayer::SetLayerIndex(uint32_t layer_index) {
+  layer_index_ = layer_index;
 }
 
 void OverlayLayer::SetTransform(int32_t transform) {
