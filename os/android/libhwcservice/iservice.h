@@ -35,20 +35,20 @@ class IService : public IInterface {
  public:
   DECLARE_META_INTERFACE(Service);
 
-  virtual sp<IDiagnostic> getDiagnostic() = 0;
-  virtual sp<IControls> getControls() = 0;
+  virtual sp<IDiagnostic> GetDiagnostic() = 0;
+  virtual sp<IControls> GetControls() = 0;
 
   virtual String8 GetHwcVersion() = 0;
-  virtual void dumpOptions(void) = 0;
-  virtual status_t setOption(String8 option, String8 optionValue) = 0;
-  virtual status_t enableLogviewToLogcat(bool enable = true) = 0;
+  virtual void DumpOptions(void) = 0;
+  virtual status_t SetOption(String8 option, String8 optionValue) = 0;
+  virtual status_t EnableLogviewToLogcat(bool enable = true) = 0;
 };
 
 /**
  */
 class BnService : public BnInterface<IService> {
  public:
-  virtual status_t onTransact(uint32_t, const Parcel&, Parcel*, uint32_t);
+  status_t onTransact(uint32_t, const Parcel&, Parcel*, uint32_t) override;
 };
 
 }  // namespace hwcomposer

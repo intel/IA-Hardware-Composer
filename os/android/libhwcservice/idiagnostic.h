@@ -36,13 +36,13 @@ class IDiagnostic : public IInterface {
         101,  // Status to indicate log entries have been overwritten
   };
 
-  virtual status_t readLogParcel(android::Parcel* reply) = 0;
+  virtual status_t ReadLogParcel(android::Parcel* reply) = 0;
 
   // Debug API
-  virtual void enableDisplay(uint32_t d) = 0;
-  virtual void disableDisplay(uint32_t d, bool bBlank) = 0;
-  virtual void maskLayer(uint32_t d, uint32_t layer, bool bHide) = 0;
-  virtual void dumpFrames(uint32_t d, int32_t frames, bool bSync) = 0;
+  virtual void EnableDisplay(uint32_t d) = 0;
+  virtual void DisableDisplay(uint32_t d, bool bBlank) = 0;
+  virtual void MaskLayer(uint32_t d, uint32_t layer, bool bHide) = 0;
+  virtual void DumpFrames(uint32_t d, int32_t frames, bool bSync) = 0;
 };
 
 class BnDiagnostic : public android::BnInterface<IDiagnostic> {
@@ -53,7 +53,7 @@ class BnDiagnostic : public android::BnInterface<IDiagnostic> {
   virtual ~BnDiagnostic() {
   }
 
-  virtual status_t onTransact(uint32_t, const Parcel&, Parcel*, uint32_t);
+  status_t onTransact(uint32_t, const Parcel&, Parcel*, uint32_t) override;
 };
 
 }  // hwcomposer

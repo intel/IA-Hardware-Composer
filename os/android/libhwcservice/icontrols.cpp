@@ -60,8 +60,8 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_WIDI_SET_SINGLE_DISPLAY,
   };
 
-  virtual status_t displaySetOverscan(uint32_t display, int32_t xoverscan,
-                                      int32_t yoverscan) {
+  status_t DisplaySetOverscan(uint32_t display, int32_t xoverscan,
+                              int32_t yoverscan) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -77,8 +77,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displayGetOverscan(uint32_t display, int32_t *xoverscan,
-                                      int32_t *yoverscan) {
+  status_t DisplayGetOverscan(uint32_t display, int32_t *xoverscan,
+                              int32_t *yoverscan) override {
     if (!xoverscan || !yoverscan) {
       return android::BAD_VALUE;
     }
@@ -100,8 +100,8 @@ class BpControls : public BpInterface<IControls> {
     return OK;
   }
 
-  virtual status_t displaySetScaling(uint32_t display,
-                                     EHwcsScalingMode eScalingMode) {
+  status_t DisplaySetScaling(uint32_t display,
+                             EHwcsScalingMode eScalingMode) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -116,8 +116,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displayGetScaling(uint32_t display,
-                                     EHwcsScalingMode *eScalingMode) {
+  status_t DisplayGetScaling(uint32_t display,
+                             EHwcsScalingMode *eScalingMode) override {
     if (!eScalingMode) {
       return android::BAD_VALUE;
     }
@@ -138,7 +138,7 @@ class BpControls : public BpInterface<IControls> {
     return OK;
   }
 
-  virtual status_t displayEnableBlank(uint32_t display, bool blank) {
+  status_t DisplayEnableBlank(uint32_t display, bool blank) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -153,8 +153,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displayRestoreDefaultColorParam(uint32_t display,
-                                                   EHwcsColorControl color) {
+  status_t DisplayRestoreDefaultColorParam(uint32_t display,
+                                           EHwcsColorControl color) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -169,9 +169,9 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displayGetColorParam(uint32_t display,
-                                        EHwcsColorControl color, float *value,
-                                        float *startvalue, float *endvalue) {
+  status_t DisplayGetColorParam(uint32_t display, EHwcsColorControl color,
+                                float *value, float *startvalue,
+                                float *endvalue) override {
     if (!value || !startvalue || !endvalue) {
       return android::BAD_VALUE;
     }
@@ -192,8 +192,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displaySetColorParam(uint32_t display,
-                                        EHwcsColorControl color, float value) {
+  status_t DisplaySetColorParam(uint32_t display, EHwcsColorControl color,
+                                float value) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -209,8 +209,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual Vector<HwcsDisplayModeInfo> displayModeGetAvailableModes(
-      uint32_t display) {
+  Vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
+      uint32_t display) override {
     Vector<HwcsDisplayModeInfo> vector;
     Parcel data;
     Parcel reply;
@@ -236,8 +236,8 @@ class BpControls : public BpInterface<IControls> {
     return vector;
   }
 
-  virtual status_t displayModeGetMode(uint32_t display,
-                                      HwcsDisplayModeInfo *pMode) {
+  status_t DisplayModeGetMode(uint32_t display,
+                              HwcsDisplayModeInfo *pMode) override {
     if (!pMode) {
       return android::BAD_VALUE;
     }
@@ -259,8 +259,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t displayModeSetMode(uint32_t display,
-                                      const HwcsDisplayModeInfo *pMode) {
+  status_t DisplayModeSetMode(uint32_t display,
+                              const HwcsDisplayModeInfo *pMode) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -279,8 +279,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t videoEnableEncryptedSession(uint32_t sessionID,
-                                               uint32_t instanceID) {
+  status_t VideoEnableEncryptedSession(uint32_t sessionID,
+                                       uint32_t instanceID) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -295,7 +295,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t videoDisableEncryptedSession(uint32_t sessionID) {
+  status_t VideoDisableAllEncryptedSessions(uint32_t sessionID) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -308,7 +308,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t videoDisableAllEncryptedSessions() {
+  status_t VideoDisableAllEncryptedSessions() override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -320,8 +320,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual bool videoIsEncryptedSessionEnabled(uint32_t sessionID,
-                                              uint32_t instanceID) {
+  bool VideoIsEncryptedSessionEnabled(uint32_t sessionID,
+                                      uint32_t instanceID) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -336,7 +336,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t videoSetOptimizationMode(EHwcsOptimizationMode mode) {
+  status_t VideoSetOptimizationMode(EHwcsOptimizationMode mode) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -350,8 +350,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t mdsUpdateVideoState(int64_t videoSessionID,
-                                       bool isPrepared) {
+  status_t MdsUpdateVideoState(int64_t videoSessionID,
+                               bool isPrepared) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -366,7 +366,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t mdsUpdateVideoFPS(int64_t videoSessionID, int32_t fps) {
+  status_t MdsUpdateVideoFPS(int64_t videoSessionID, int32_t fps) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -380,7 +380,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t mdsUpdateInputState(bool state) {
+  status_t MdsUpdateInputState(bool state) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -393,7 +393,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t widiGetSingleDisplay(bool *pEnabled) {
+  status_t WidiGetSingleDisplay(bool *pEnabled) override {
     if (!pEnabled) {
       return android::BAD_VALUE;
     }
@@ -410,7 +410,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  virtual status_t widiSetSingleDisplay(bool enable) {
+  status_t WidiSetSingleDisplay(bool enable) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -434,7 +434,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t display = data.readInt32();
       int32_t xoverscan = data.readInt32();
       int32_t yoverscan = data.readInt32();
-      status_t ret = this->displaySetOverscan(display, xoverscan, yoverscan);
+      status_t ret = this->DisplaySetOverscan(display, xoverscan, yoverscan);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -443,7 +443,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t display = data.readInt32();
       int32_t xoverscan;
       int32_t yoverscan;
-      status_t ret = this->displayGetOverscan(display, &xoverscan, &yoverscan);
+      status_t ret = this->DisplayGetOverscan(display, &xoverscan, &yoverscan);
       reply->writeInt32(ret);
       reply->writeInt32(xoverscan);
       reply->writeInt32(yoverscan);
@@ -453,7 +453,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
       EHwcsScalingMode scaling = (EHwcsScalingMode)data.readInt32();
-      status_t ret = this->displaySetScaling(display, scaling);
+      status_t ret = this->DisplaySetScaling(display, scaling);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -461,7 +461,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
       EHwcsScalingMode scaling;
-      status_t ret = this->displayGetScaling(display, &scaling);
+      status_t ret = this->DisplayGetScaling(display, &scaling);
       reply->writeInt32(ret);
       reply->writeInt32((int32_t)scaling);
       return NO_ERROR;
@@ -470,7 +470,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
       bool blank = (bool)data.readInt32();
-      status_t ret = this->displayEnableBlank(display, blank);
+      status_t ret = this->DisplayEnableBlank(display, blank);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -478,7 +478,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
       EHwcsColorControl color = (EHwcsColorControl)data.readInt32();
-      status_t ret = this->displayRestoreDefaultColorParam(display, color);
+      status_t ret = this->DisplayRestoreDefaultColorParam(display, color);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -489,7 +489,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       float value;
       float startvalue;
       float endvalue;
-      status_t ret = this->displayGetColorParam(display, color, &value,
+      status_t ret = this->DisplayGetColorParam(display, color, &value,
                                                 &startvalue, &endvalue);
       reply->writeFloat(value);
       reply->writeFloat(startvalue);
@@ -502,7 +502,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t display = data.readInt32();
       EHwcsColorControl color = (EHwcsColorControl)data.readInt32();
       float value = data.readFloat();
-      status_t ret = this->displaySetColorParam(display, color, value);
+      status_t ret = this->DisplaySetColorParam(display, color, value);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -511,7 +511,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t display = data.readInt32();
 
       Vector<HwcsDisplayModeInfo> vector =
-          this->displayModeGetAvailableModes(display);
+          this->DisplayModeGetAvailableModes(display);
       reply->writeInt32(vector.size());
       for (uint32_t i = 0; i < vector.size(); i++) {
         reply->writeInt32(vector[i].width);
@@ -526,7 +526,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
       HwcsDisplayModeInfo info;
-      status_t ret = this->displayModeGetMode(display, &info);
+      status_t ret = this->DisplayModeGetMode(display, &info);
       reply->writeInt32(info.width);
       reply->writeInt32(info.height);
       reply->writeInt32(info.refresh);
@@ -544,7 +544,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       info.refresh = data.readInt32();
       info.flags = data.readInt32();
       info.ratio = data.readInt32();
-      status_t ret = this->displayModeSetMode(display, &info);
+      status_t ret = this->DisplayModeSetMode(display, &info);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -552,20 +552,20 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t sessionID = data.readInt32();
       uint32_t instanceID = data.readInt32();
-      status_t ret = this->videoEnableEncryptedSession(sessionID, instanceID);
+      status_t ret = this->VideoEnableEncryptedSession(sessionID, instanceID);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION: {
       CHECK_INTERFACE(IControls, data, reply);
       int32_t sessionID = data.readInt32();
-      status_t ret = this->videoDisableEncryptedSession(sessionID);
+      status_t ret = this->VideoDisableAllEncryptedSessions(sessionID);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS: {
       CHECK_INTERFACE(IControls, data, reply);
-      status_t ret = this->videoDisableAllEncryptedSessions();
+      status_t ret = this->VideoDisableAllEncryptedSessions();
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -574,14 +574,14 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t sessionID = data.readInt32();
       uint32_t instanceID = data.readInt32();
       bool bEnabled =
-          this->videoIsEncryptedSessionEnabled(sessionID, instanceID);
+          this->VideoIsEncryptedSessionEnabled(sessionID, instanceID);
       reply->writeInt32(bEnabled);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_VIDEO_SET_OPTIMIZATION_MODE: {
       CHECK_INTERFACE(IControls, data, reply);
       EHwcsOptimizationMode mode = (EHwcsOptimizationMode)data.readInt32();
-      status_t ret = this->videoSetOptimizationMode(mode);
+      status_t ret = this->VideoSetOptimizationMode(mode);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -589,7 +589,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       int64_t videoSessionID = data.readInt64();
       bool isPrepared = data.readInt32();
-      status_t ret = this->mdsUpdateVideoState(videoSessionID, isPrepared);
+      status_t ret = this->MdsUpdateVideoState(videoSessionID, isPrepared);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -597,21 +597,21 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       int64_t videoSessionID = data.readInt64();
       int32_t fps = data.readInt32();
-      status_t ret = this->mdsUpdateVideoFPS(videoSessionID, fps);
+      status_t ret = this->MdsUpdateVideoFPS(videoSessionID, fps);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_MDS_UPDATE_INPUT_STATE: {
       CHECK_INTERFACE(IControls, data, reply);
       bool state = data.readInt32();
-      status_t ret = this->mdsUpdateInputState(state);
+      status_t ret = this->MdsUpdateInputState(state);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_WIDI_GET_SINGLE_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
       bool enable = false;
-      status_t ret = this->widiGetSingleDisplay(&enable);
+      status_t ret = this->WidiGetSingleDisplay(&enable);
       reply->writeInt32(enable);
       reply->writeInt32(ret);
       return NO_ERROR;
@@ -619,7 +619,7 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     case BpControls::TRANSACT_WIDI_SET_SINGLE_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
       bool enable = data.readInt32();
-      status_t ret = this->widiSetSingleDisplay(enable);
+      status_t ret = this->WidiSetSingleDisplay(enable);
       reply->writeInt32(ret);
       return NO_ERROR;
     }

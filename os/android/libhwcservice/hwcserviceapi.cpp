@@ -47,7 +47,7 @@ HWCSHANDLE HwcService_Connect() {
     return NULL;
   }
 
-  context.mControls = context.mHwcService->getControls();
+  context.mControls = context.mHwcService->GetControls();
   if (context.mControls == NULL) {
     return NULL;
   }
@@ -80,7 +80,7 @@ status_t HwcService_Display_SetOverscan(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displaySetOverscan(display, xoverscan, yoverscan);
+  return pContext->mControls->DisplaySetOverscan(display, xoverscan, yoverscan);
 }
 
 status_t HwcService_Display_GetOverscan(HWCSHANDLE hwcs, uint32_t display,
@@ -90,7 +90,7 @@ status_t HwcService_Display_GetOverscan(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayGetOverscan(display, xoverscan, yoverscan);
+  return pContext->mControls->DisplayGetOverscan(display, xoverscan, yoverscan);
 }
 
 status_t HwcService_Display_SetScaling(HWCSHANDLE hwcs, uint32_t display,
@@ -99,7 +99,7 @@ status_t HwcService_Display_SetScaling(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displaySetScaling(display, eScalingMode);
+  return pContext->mControls->DisplaySetScaling(display, eScalingMode);
 }
 
 status_t HwcService_Display_GetScaling(HWCSHANDLE hwcs, uint32_t display,
@@ -108,7 +108,7 @@ status_t HwcService_Display_GetScaling(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayGetScaling(display, eScalingMode);
+  return pContext->mControls->DisplayGetScaling(display, eScalingMode);
 }
 
 status_t HwcService_Display_EnableBlank(HWCSHANDLE hwcs, uint32_t display,
@@ -117,7 +117,7 @@ status_t HwcService_Display_EnableBlank(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayEnableBlank(display, blank);
+  return pContext->mControls->DisplayEnableBlank(display, blank);
 }
 
 status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
@@ -127,7 +127,7 @@ status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayRestoreDefaultColorParam(display, color);
+  return pContext->mControls->DisplayRestoreDefaultColorParam(display, color);
 }
 
 status_t HwcService_Display_GetColorParam(HWCSHANDLE hwcs, uint32_t display,
@@ -137,7 +137,7 @@ status_t HwcService_Display_GetColorParam(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayGetColorParam(display, color, value,
+  return pContext->mControls->DisplayGetColorParam(display, color, value,
                                                    startvalue, endvalue);
 }
 
@@ -148,7 +148,7 @@ status_t HwcService_Display_SetColorParam(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displaySetColorParam(display, color, value);
+  return pContext->mControls->DisplaySetColorParam(display, color, value);
 }
 
 status_t HwcService_DisplayMode_GetAvailableModes(
@@ -159,7 +159,7 @@ status_t HwcService_DisplayMode_GetAvailableModes(
     return -1;
   }
   Vector<HwcsDisplayModeInfo> modes =
-      pContext->mControls->displayModeGetAvailableModes(display);
+      pContext->mControls->DisplayModeGetAvailableModes(display);
   if (pModeList && (modeCount > 0)) {
     size_t count = modes.size();
     if (count > modeCount)
@@ -175,7 +175,7 @@ status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayModeGetMode(display, pMode);
+  return pContext->mControls->DisplayModeGetMode(display, pMode);
 }
 
 status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
@@ -184,7 +184,7 @@ status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->displayModeSetMode(display, pMode);
+  return pContext->mControls->DisplayModeSetMode(display, pMode);
 }
 
 status_t HwcService_Video_EnableEncryptedSession(HWCSHANDLE hwcs,
@@ -194,7 +194,7 @@ status_t HwcService_Video_EnableEncryptedSession(HWCSHANDLE hwcs,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->videoEnableEncryptedSession(sessionID,
+  return pContext->mControls->VideoEnableEncryptedSession(sessionID,
                                                           instanceID);
 }
 
@@ -204,7 +204,7 @@ status_t HwcService_Video_DisableEncryptedSession(HWCSHANDLE hwcs,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->videoDisableEncryptedSession(sessionID);
+  return pContext->mControls->VideoDisableAllEncryptedSessions(sessionID);
 }
 
 status_t HwcService_Video_DisableAllEncryptedSessions(HWCSHANDLE hwcs) {
@@ -212,7 +212,7 @@ status_t HwcService_Video_DisableAllEncryptedSessions(HWCSHANDLE hwcs) {
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->videoDisableAllEncryptedSessions();
+  return pContext->mControls->VideoDisableAllEncryptedSessions();
 }
 
 EHwcsBool HwcService_Video_IsEncryptedSessionEnabled(HWCSHANDLE hwcs,
@@ -222,7 +222,7 @@ EHwcsBool HwcService_Video_IsEncryptedSessionEnabled(HWCSHANDLE hwcs,
   if (!pContext) {
     return HWCS_FALSE;
   }
-  return pContext->mControls->videoIsEncryptedSessionEnabled(sessionID,
+  return pContext->mControls->VideoIsEncryptedSessionEnabled(sessionID,
                                                              instanceID)
              ? HWCS_TRUE
              : HWCS_FALSE;
@@ -234,7 +234,7 @@ status_t HwcService_Video_SetOptimizationMode(HWCSHANDLE hwcs,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->videoSetOptimizationMode(mode);
+  return pContext->mControls->VideoSetOptimizationMode(mode);
 }
 
 status_t HwcService_MDS_UpdateVideoState(HWCSHANDLE hwcs,
@@ -244,7 +244,7 @@ status_t HwcService_MDS_UpdateVideoState(HWCSHANDLE hwcs,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->mdsUpdateVideoState(videoSessionID, isPrepared);
+  return pContext->mControls->MdsUpdateVideoState(videoSessionID, isPrepared);
 }
 
 status_t HwcService_MDS_UpdateVideoFPS(HWCSHANDLE hwcs, int64_t videoSessionID,
@@ -253,7 +253,7 @@ status_t HwcService_MDS_UpdateVideoFPS(HWCSHANDLE hwcs, int64_t videoSessionID,
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->mdsUpdateVideoFPS(videoSessionID, fps);
+  return pContext->mControls->MdsUpdateVideoFPS(videoSessionID, fps);
 }
 
 status_t HwcService_MDS_UpdateInputState(HWCSHANDLE hwcs, EHwcsBool state) {
@@ -261,7 +261,7 @@ status_t HwcService_MDS_UpdateInputState(HWCSHANDLE hwcs, EHwcsBool state) {
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->mdsUpdateInputState(state);
+  return pContext->mControls->MdsUpdateInputState(state);
 }
 
 status_t HwcService_Widi_GetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool* enable) {
@@ -273,7 +273,7 @@ status_t HwcService_Widi_GetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool* enable) {
     return android::BAD_VALUE;
   }
   bool bEnabled = false;
-  status_t ret = pContext->mControls->widiGetSingleDisplay(&bEnabled);
+  status_t ret = pContext->mControls->WidiGetSingleDisplay(&bEnabled);
   *enable = bEnabled ? HWCS_TRUE : HWCS_FALSE;
   return ret;
 }
@@ -283,6 +283,6 @@ status_t HwcService_Widi_SetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool enable) {
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->widiSetSingleDisplay(enable);
+  return pContext->mControls->WidiSetSingleDisplay(enable);
 }
 }

@@ -37,11 +37,11 @@ class HwcService : public BnService {
       HWC_UNUSED(mHwc);
     }
 
-    virtual status_t readLogParcel(Parcel* parcel);
-    virtual void enableDisplay(uint32_t d);
-    virtual void disableDisplay(uint32_t d, bool bBlank);
-    virtual void maskLayer(uint32_t d, uint32_t layer, bool bHide);
-    virtual void dumpFrames(uint32_t d, int32_t frames, bool bSync);
+    status_t ReadLogParcel(Parcel* parcel) override;
+    void EnableDisplay(uint32_t d) override;
+    void DisableDisplay(uint32_t d, bool bBlank) override;
+    void MaskLayer(uint32_t d, uint32_t layer, bool bHide) override;
+    void DumpFrames(uint32_t d, int32_t frames, bool bSync) override;
 
    private:
     DrmHwcTwo& mHwc;
@@ -49,55 +49,55 @@ class HwcService : public BnService {
 
   bool Start(DrmHwcTwo& hwc);
 
-  sp<IDiagnostic> getDiagnostic();
-  sp<IControls> getControls();
+  sp<IDiagnostic> GetDiagnostic();
+  sp<IControls> GetControls();
 
   android::String8 GetHwcVersion();
 
-  void dumpOptions(void);
-  status_t setOption(android::String8 option, android::String8 optionValue);
-  status_t enableLogviewToLogcat(bool enable = true);
+  void DumpOptions(void);
+  status_t SetOption(android::String8 option, android::String8 optionValue);
+  status_t EnableLogviewToLogcat(bool enable = true);
 
   class Controls : public BnControls {
    public:
     Controls(DrmHwcTwo& hwc, HwcService& hwcService);
     virtual ~Controls();
 
-    status_t displaySetOverscan(uint32_t display, int32_t xoverscan,
+    status_t DisplaySetOverscan(uint32_t display, int32_t xoverscan,
                                 int32_t yoverscan);
-    status_t displayGetOverscan(uint32_t display, int32_t* xoverscan,
+    status_t DisplayGetOverscan(uint32_t display, int32_t* xoverscan,
                                 int32_t* yoverscan);
-    status_t displaySetScaling(uint32_t display, EHwcsScalingMode eScalingMode);
-    status_t displayGetScaling(uint32_t display,
+    status_t DisplaySetScaling(uint32_t display, EHwcsScalingMode eScalingMode);
+    status_t DisplayGetScaling(uint32_t display,
                                EHwcsScalingMode* eScalingMode);
-    status_t displayEnableBlank(uint32_t display, bool blank);
-    status_t displayRestoreDefaultColorParam(uint32_t display,
+    status_t DisplayEnableBlank(uint32_t display, bool blank);
+    status_t DisplayRestoreDefaultColorParam(uint32_t display,
                                              EHwcsColorControl color);
-    status_t displayGetColorParam(uint32_t display, EHwcsColorControl color,
+    status_t DisplayGetColorParam(uint32_t display, EHwcsColorControl color,
                                   float* value, float* startvalue,
                                   float* endvalue);
-    status_t displaySetColorParam(uint32_t display, EHwcsColorControl color,
+    status_t DisplaySetColorParam(uint32_t display, EHwcsColorControl color,
                                   float value);
 
-    android::Vector<HwcsDisplayModeInfo> displayModeGetAvailableModes(
+    android::Vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
         uint32_t display);
-    status_t displayModeGetMode(uint32_t display, HwcsDisplayModeInfo* pMode);
-    status_t displayModeSetMode(uint32_t display,
+    status_t DisplayModeGetMode(uint32_t display, HwcsDisplayModeInfo* pMode);
+    status_t DisplayModeSetMode(uint32_t display,
                                 const HwcsDisplayModeInfo* pMode);
 
-    status_t videoEnableEncryptedSession(uint32_t sessionID,
+    status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                          uint32_t instanceID);
-    status_t videoDisableEncryptedSession(uint32_t sessionID);
-    status_t videoDisableAllEncryptedSessions();
-    bool videoIsEncryptedSessionEnabled(uint32_t sessionID,
+    status_t VideoDisableAllEncryptedSessions(uint32_t sessionID);
+    status_t VideoDisableAllEncryptedSessions();
+    bool VideoIsEncryptedSessionEnabled(uint32_t sessionID,
                                         uint32_t instanceID);
     bool needSetKeyFrameHint();
-    status_t videoSetOptimizationMode(EHwcsOptimizationMode mode);
-    status_t mdsUpdateVideoState(int64_t videoSessionID, bool isPrepared);
-    status_t mdsUpdateVideoFPS(int64_t videoSessionID, int32_t fps);
-    status_t mdsUpdateInputState(bool state);
-    status_t widiGetSingleDisplay(bool* pEnabled);
-    status_t widiSetSingleDisplay(bool enable);
+    status_t VideoSetOptimizationMode(EHwcsOptimizationMode mode);
+    status_t MdsUpdateVideoState(int64_t videoSessionID, bool isPrepared);
+    status_t MdsUpdateVideoFPS(int64_t videoSessionID, int32_t fps);
+    status_t MdsUpdateInputState(bool state);
+    status_t WidiGetSingleDisplay(bool* pEnabled);
+    status_t WidiSetSingleDisplay(bool enable);
 
    private:
     DrmHwcTwo& mHwc;
@@ -129,9 +129,9 @@ class HwcService : public BnService {
                         int64_t para[]) = 0;
   };
 
-  void registerListener(ENotification notify, NotifyCallback* pCallback);
-  void unregisterListener(ENotification notify, NotifyCallback* pCallback);
-  void notify(ENotification notify, int32_t paraCnt, int64_t para[]);
+  void RegisterListener(ENotification notify, NotifyCallback* pCallback);
+  void UnregisterListener(ENotification notify, NotifyCallback* pCallback);
+  void Notify(ENotification notify, int32_t paraCnt, int64_t para[]);
 
  private:
   HwcService();

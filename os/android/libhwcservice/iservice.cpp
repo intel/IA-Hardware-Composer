@@ -53,7 +53,7 @@ class BpService : public BpInterface<IService> {
     TRANSACT_GET_CONTROLS,
   };
 
-  virtual String8 GetHwcVersion() {
+  String8 GetHwcVersion() override {
     Parcel data, reply;
     data.writeInterfaceToken(IService::getInterfaceDescriptor());
     remote()->transact(GET_HWC_VERSION, data, &reply);
@@ -61,12 +61,12 @@ class BpService : public BpInterface<IService> {
     return ret;
   }
 
-  virtual void dumpOptions(void) {
+  void DumpOptions(void) override {
     Parcel data, reply;
     remote()->transact(DUMP_OPTIONS, data, &reply);
   }
 
-  virtual status_t setOption(String8 option, String8 optionValue) {
+  status_t SetOption(String8 option, String8 optionValue) override {
     Parcel data, reply;
     data.writeInterfaceToken(IService::getInterfaceDescriptor());
     data.writeString16(String16(option));
@@ -76,7 +76,7 @@ class BpService : public BpInterface<IService> {
     return ret;
   }
 
-  virtual status_t enableLogviewToLogcat(bool enable = true) {
+  status_t EnableLogviewToLogcat(bool enable = true) override {
     Parcel data, reply;
     data.writeInterfaceToken(IService::getInterfaceDescriptor());
     if (enable) {
@@ -88,7 +88,7 @@ class BpService : public BpInterface<IService> {
     return ret;
   }
 
-  virtual sp<IDiagnostic> getDiagnostic() {
+  sp<IDiagnostic> GetDiagnostic() override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -99,7 +99,7 @@ class BpService : public BpInterface<IService> {
     return interface_cast<IDiagnostic>(reply.readStrongBinder());
   }
 
-  virtual sp<IControls> getControls() {
+  sp<IControls> GetControls() override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -126,41 +126,41 @@ status_t BnService::onTransact(uint32_t code, const Parcel& data, Parcel* reply,
       CHECK_INTERFACE(IService, data, reply);
       String16 option = data.readString16();
       String16 optionValue = data.readString16();
-      status_t ret = setOption(String8(option), String8(optionValue));
+      status_t ret = SetOption(String8(option), String8(optionValue));
       reply->writeInt32(ret);
       return NO_ERROR;
     }
 
     case BpService::DUMP_OPTIONS: {
       CHECK_INTERFACE(IService, data, reply);
-      dumpOptions();
+      DumpOptions();
       return NO_ERROR;
     }
 
     case BpService::DISABLE_LOG_TO_LOGCAT: {
       CHECK_INTERFACE(IService, data, reply);
-      status_t ret = enableLogviewToLogcat(false);
+      status_t ret = EnableLogviewToLogcat(false);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
 
     case BpService::ENABLE_LOG_TO_LOGCAT: {
       CHECK_INTERFACE(IService, data, reply);
-      status_t ret = enableLogviewToLogcat();
+      status_t ret = EnableLogviewToLogcat();
       reply->writeInt32(ret);
       return NO_ERROR;
     }
 
     case BpService::TRANSACT_GET_DIAGNOSTIC: {
       CHECK_INTERFACE(IService, data, reply);
-      sp<IBinder> b = IInterface::asBinder(this->getDiagnostic());
+      sp<IBinder> b = IInterface::asBinder(this->GetDiagnostic());
       reply->writeStrongBinder(b);
       return NO_ERROR;
     }
 
     case BpService::TRANSACT_GET_CONTROLS: {
       CHECK_INTERFACE(IService, data, reply);
-      sp<IBinder> b = IInterface::asBinder(this->getControls());
+      sp<IBinder> b = IInterface::asBinder(this->GetControls());
       reply->writeStrongBinder(b);
       return NO_ERROR;
     }

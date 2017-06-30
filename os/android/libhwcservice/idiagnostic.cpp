@@ -42,7 +42,7 @@ class BpDiagnostic : public BpInterface<IDiagnostic> {
       delete mReply;
   }
 
-  status_t readLogParcel(Parcel* reply) {
+  status_t ReadLogParcel(Parcel* reply) {
     Parcel data;
     data.writeInterfaceToken(IDiagnostic::getInterfaceDescriptor());
     status_t ret = remote()->transact(TRANSACT_READ_LOG_PARCEL, data, reply);
@@ -52,7 +52,7 @@ class BpDiagnostic : public BpInterface<IDiagnostic> {
     return ret;
   }
 
-  void enableDisplay(uint32_t d) {
+  void EnableDisplay(uint32_t d) {
     Parcel data, reply;
     data.writeInterfaceToken(IDiagnostic::getInterfaceDescriptor());
     data.writeInt32(d);
@@ -63,7 +63,7 @@ class BpDiagnostic : public BpInterface<IDiagnostic> {
     }
   }
 
-  void disableDisplay(uint32_t d, bool bBlank) {
+  void DisableDisplay(uint32_t d, bool bBlank) {
     Parcel data, reply;
     data.writeInterfaceToken(IDiagnostic::getInterfaceDescriptor());
     data.writeInt32(d);
@@ -75,7 +75,7 @@ class BpDiagnostic : public BpInterface<IDiagnostic> {
     }
   }
 
-  void maskLayer(uint32_t d, uint32_t layer, bool bHide) {
+  void MaskLayer(uint32_t d, uint32_t layer, bool bHide) {
     Parcel data, reply;
     data.writeInterfaceToken(IDiagnostic::getInterfaceDescriptor());
     data.writeInt32(d);
@@ -88,7 +88,7 @@ class BpDiagnostic : public BpInterface<IDiagnostic> {
     }
   }
 
-  void dumpFrames(uint32_t d, int32_t frames, bool bSync) {
+  void DumpFrames(uint32_t d, int32_t frames, bool bSync) {
     Parcel data, reply;
     data.writeInterfaceToken(IDiagnostic::getInterfaceDescriptor());
     data.writeInt32(d);
@@ -112,14 +112,14 @@ status_t BnDiagnostic::onTransact(uint32_t code, const Parcel& data,
   switch (code) {
     case BpDiagnostic::TRANSACT_READ_LOG_PARCEL: {
       CHECK_INTERFACE(IDiagnostic, data, reply);
-      status_t err = readLogParcel(reply);
+      status_t err = ReadLogParcel(reply);
       return err;
     }
 
     case BpDiagnostic::TRANSACT_ENABLE_DISPLAY: {
       CHECK_INTERFACE(IDiagnostic, data, reply);
       uint32_t d = data.readInt32();
-      enableDisplay(d);
+      EnableDisplay(d);
       return NO_ERROR;
     }
 
@@ -127,7 +127,7 @@ status_t BnDiagnostic::onTransact(uint32_t code, const Parcel& data,
       CHECK_INTERFACE(IDiagnostic, data, reply);
       uint32_t d = data.readInt32();
       bool bBlank = data.readInt32();
-      disableDisplay(d, bBlank);
+      DisableDisplay(d, bBlank);
       return NO_ERROR;
     }
 
@@ -136,7 +136,7 @@ status_t BnDiagnostic::onTransact(uint32_t code, const Parcel& data,
       uint32_t d = data.readInt32();
       uint32_t layer = data.readInt32();
       bool bHide = data.readInt32();
-      maskLayer(d, layer, bHide);
+      MaskLayer(d, layer, bHide);
       return NO_ERROR;
     }
 
@@ -145,7 +145,7 @@ status_t BnDiagnostic::onTransact(uint32_t code, const Parcel& data,
       uint32_t d = data.readInt32();
       int32_t frames = data.readInt32();
       bool bSync = data.readInt32();
-      dumpFrames(d, frames, bSync);
+      DumpFrames(d, frames, bSync);
       return NO_ERROR;
     }
 

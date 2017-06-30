@@ -47,20 +47,20 @@ String8 HwcService::GetHwcVersion() {
   return String8((HWC_VERSION_STRING));
 }
 
-status_t HwcService::setOption(String8 option, String8 value) {
+status_t HwcService::SetOption(String8 option, String8 value) {
   return OK;
 }
 
-void HwcService::dumpOptions(void) {
+void HwcService::DumpOptions(void) {
   // ALOGD("%s", OptionManager::getInstance().dump().string());
 }
 
-status_t HwcService::enableLogviewToLogcat(bool enable) {
+status_t HwcService::EnableLogviewToLogcat(bool enable) {
   // TO DO
   return OK;
 }
 
-sp<IDiagnostic> HwcService::getDiagnostic() {
+sp<IDiagnostic> HwcService::GetDiagnostic() {
   // if (sbInternalBuild || sbLogViewerBuild)
   {
     Mutex::Autolock _l(mLock);
@@ -71,24 +71,24 @@ sp<IDiagnostic> HwcService::getDiagnostic() {
   return mpDiagnostic;
 }
 
-sp<IControls> HwcService::getControls() {
+sp<IControls> HwcService::GetControls() {
   Mutex::Autolock _l(mLock);
   ALOG_ASSERT(mpHwc);
   return new Controls(*mpHwc, *this);
 }
 
-status_t HwcService::Diagnostic::readLogParcel(Parcel *parcel) {
+status_t HwcService::Diagnostic::ReadLogParcel(Parcel *parcel) {
   // TO DO
   return OK;
 }
 
-void HwcService::Diagnostic::enableDisplay(uint32_t) { /* nothing */
+void HwcService::Diagnostic::EnableDisplay(uint32_t) { /* nothing */
 }
-void HwcService::Diagnostic::disableDisplay(uint32_t, bool) { /* nothing */
+void HwcService::Diagnostic::DisableDisplay(uint32_t, bool) { /* nothing */
 }
-void HwcService::Diagnostic::maskLayer(uint32_t, uint32_t, bool) { /* nothing */
+void HwcService::Diagnostic::MaskLayer(uint32_t, uint32_t, bool) { /* nothing */
 }
-void HwcService::Diagnostic::dumpFrames(uint32_t, int32_t, bool) { /* nothing */
+void HwcService::Diagnostic::DumpFrames(uint32_t, int32_t, bool) { /* nothing */
 }
 
 HwcService::Controls::Controls(DrmHwcTwo &hwc, HwcService &hwcService)
@@ -148,58 +148,58 @@ HwcService::Controls::~Controls() {
       HWCS_EXIT_OK_FMT(fmt, __VA_ARGS__); \
     HWCS_EXIT_ERROR(____code);            \
   } while (0)
-status_t HwcService::Controls::displaySetOverscan(uint32_t display,
+status_t HwcService::Controls::DisplaySetOverscan(uint32_t display,
                                                   int32_t xoverscan,
                                                   int32_t yoverscan) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayGetOverscan(uint32_t display,
+status_t HwcService::Controls::DisplayGetOverscan(uint32_t display,
                                                   int32_t *xoverscan,
                                                   int32_t *yoverscan) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displaySetScaling(
+status_t HwcService::Controls::DisplaySetScaling(
     uint32_t display, EHwcsScalingMode eScalingMode) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayGetScaling(
+status_t HwcService::Controls::DisplayGetScaling(
     uint32_t display, EHwcsScalingMode *peScalingMode) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayEnableBlank(uint32_t display,
+status_t HwcService::Controls::DisplayEnableBlank(uint32_t display,
                                                   bool blank) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayRestoreDefaultColorParam(
+status_t HwcService::Controls::DisplayRestoreDefaultColorParam(
     uint32_t display, EHwcsColorControl color) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayGetColorParam(uint32_t display,
+status_t HwcService::Controls::DisplayGetColorParam(uint32_t display,
                                                     EHwcsColorControl color,
                                                     float *, float *, float *) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displaySetColorParam(uint32_t display,
+status_t HwcService::Controls::DisplaySetColorParam(uint32_t display,
                                                     EHwcsColorControl color,
                                                     float value) {
   // TO DO
   return OK;
 }
-Vector<HwcsDisplayModeInfo> HwcService::Controls::displayModeGetAvailableModes(
+Vector<HwcsDisplayModeInfo> HwcService::Controls::DisplayModeGetAvailableModes(
     uint32_t display) {
   // TO DO
   Vector<HwcsDisplayModeInfo> modes;
@@ -207,36 +207,36 @@ Vector<HwcsDisplayModeInfo> HwcService::Controls::displayModeGetAvailableModes(
   return modes;
 }
 
-status_t HwcService::Controls::displayModeGetMode(uint32_t display,
+status_t HwcService::Controls::DisplayModeGetMode(uint32_t display,
                                                   HwcsDisplayModeInfo *pMode) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::displayModeSetMode(
+status_t HwcService::Controls::DisplayModeSetMode(
     uint32_t display, const HwcsDisplayModeInfo *pMode) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::videoEnableEncryptedSession(
+status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::videoDisableEncryptedSession(
+status_t HwcService::Controls::VideoDisableAllEncryptedSessions(
     uint32_t sessionID) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::videoDisableAllEncryptedSessions() {
+status_t HwcService::Controls::VideoDisableAllEncryptedSessions() {
   // TO DO
   return OK;
 }
 
-bool HwcService::Controls::videoIsEncryptedSessionEnabled(uint32_t sessionID,
+bool HwcService::Controls::VideoIsEncryptedSessionEnabled(uint32_t sessionID,
                                                           uint32_t instanceID) {
   // TO DO
   return OK;
@@ -247,49 +247,49 @@ bool HwcService::Controls::needSetKeyFrameHint() {
   return OK;
 }
 
-status_t HwcService::Controls::videoSetOptimizationMode(
+status_t HwcService::Controls::VideoSetOptimizationMode(
     EHwcsOptimizationMode mode) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::mdsUpdateVideoState(int64_t videoSessionID,
+status_t HwcService::Controls::MdsUpdateVideoState(int64_t videoSessionID,
                                                    bool isPrepared) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::mdsUpdateVideoFPS(int64_t videoSessionID,
+status_t HwcService::Controls::MdsUpdateVideoFPS(int64_t videoSessionID,
                                                  int32_t fps) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::mdsUpdateInputState(bool state) {
+status_t HwcService::Controls::MdsUpdateInputState(bool state) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::widiGetSingleDisplay(bool *pEnabled) {
+status_t HwcService::Controls::WidiGetSingleDisplay(bool *pEnabled) {
   // TO DO
   return OK;
 }
 
-status_t HwcService::Controls::widiSetSingleDisplay(bool enable) {
+status_t HwcService::Controls::WidiSetSingleDisplay(bool enable) {
   // TO DO
   return OK;
 }
-void HwcService::registerListener(ENotification notify,
+void HwcService::RegisterListener(ENotification notify,
                                   NotifyCallback *pCallback) {
   // TO DO
 }
 
-void HwcService::unregisterListener(ENotification notify,
+void HwcService::UnregisterListener(ENotification notify,
                                     NotifyCallback *pCallback) {
   // TO DO
 }
 
-void HwcService::notify(ENotification notify, int32_t paraCnt, int64_t para[]) {
+void HwcService::Notify(ENotification notify, int32_t paraCnt, int64_t para[]) {
   // TO DO
 }
 
