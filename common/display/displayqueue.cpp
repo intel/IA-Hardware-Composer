@@ -344,11 +344,27 @@ void DisplayQueue::MarkBackBuffersForReUse() {
 
 void DisplayQueue::SetReleaseFenceToLayers(
     int32_t fence, std::vector<HwcLayer*>& source_layers) const {
-    size_t size = source_layers.size();
-    for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      HwcLayer* layer = source_layers.at(layer_index);
-      layer->SetReleaseFence(dup(fence));
+  for (const DisplayPlaneState& plane : previous_plane_state_) {
+    const std::vector<size_t>& layers = plane.source_layers();
+    size_t size = layers.size();
+    int32_t release_fence = -1;
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+      if (plane.SurfaceRecycled())
+        continue;
+
+      release_fence = fence;
+    } else if (plane.GetCompositionState() ==
+               DisplayPlaneState::State::kRender) {
+      release_fence = plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
     }
+
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      const OverlayLayer& overlay_layer =
+          in_flight_layers_.at(layers.at(layer_index));
+      HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+      layer->SetReleaseFence(dup(release_fence));
+    }
+  }
 }
 
 void DisplayQueue::HandleExit() {
