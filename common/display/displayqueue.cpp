@@ -348,14 +348,11 @@ void DisplayQueue::SetReleaseFenceToLayers(
     const std::vector<size_t>& layers = plane.source_layers();
     size_t size = layers.size();
     int32_t release_fence = -1;
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
-      if (plane.SurfaceRecycled())
-        continue;
-
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout &&
+        !plane.SurfaceRecycled()) {
       release_fence = fence;
-    } else if (plane.GetCompositionState() ==
-               DisplayPlaneState::State::kRender) {
-      release_fence = plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
+    } else {
+      release_fence = plane.GetOverlayLayer()->GetAcquireFence();
     }
 
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
