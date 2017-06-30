@@ -348,21 +348,32 @@ void DisplayQueue::SetReleaseFenceToLayers(
     const std::vector<size_t>& layers = plane.source_layers();
     size_t size = layers.size();
     int32_t release_fence = -1;
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
-      if (plane.SurfaceRecycled())
-        continue;
+    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout &&
+        !plane.SurfaceRecycled()) {
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        const OverlayLayer& overlay_layer =
+            in_flight_layers_.at(layers.at(layer_index));
+        HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+        layer->SetReleaseFence(dup(fence));
+      }
+    } else {
+      release_fence = plane.GetOverlayLayer()->ReleaseAcquireFence();
 
-      release_fence = fence;
-    } else if (plane.GetCompositionState() ==
-               DisplayPlaneState::State::kRender) {
-      release_fence = plane.GetOffScreenTarget()->GetLayer()->GetAcquireFence();
-    }
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        const OverlayLayer& overlay_layer =
+            in_flight_layers_.at(layers.at(layer_index));
+        HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+        if (release_fence > 0) {
+          layer->SetReleaseFence(dup(release_fence));
+        } else {
+          layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
+        }
+      }
 
-    for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      const OverlayLayer& overlay_layer =
-          in_flight_layers_.at(layers.at(layer_index));
-      HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
-      layer->SetReleaseFence(dup(release_fence));
+      if (release_fence > 0) {
+        close(release_fence);
+        release_fence = -1;
+      }
     }
   }
 }

@@ -35,6 +35,8 @@ struct OverlayLayer {
 
   int32_t GetAcquireFence() const;
 
+  int32_t ReleaseAcquireFence() const;
+
   // Sets z order of this layer.
   void SetZorder(uint32_t z_order);
 

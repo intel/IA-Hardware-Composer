@@ -76,6 +76,12 @@ int32_t OverlayLayer::GetAcquireFence() const {
   return imported_buffer_->acquire_fence_;
 }
 
+int32_t OverlayLayer::ReleaseAcquireFence() const {
+  int32_t fence = imported_buffer_->acquire_fence_;
+  imported_buffer_->acquire_fence_ = -1;
+  return fence;
+}
+
 OverlayBuffer* OverlayLayer::GetBuffer() const {
   return imported_buffer_->buffer_.get();
 }
