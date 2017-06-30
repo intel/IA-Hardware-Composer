@@ -86,7 +86,8 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
     return false;
 
   glViewport(0, 0, frame_width, frame_height);
-  glClear(GL_COLOR_BUFFER_BIT);
+  if (surface->ClearSurface())
+    glClear(GL_COLOR_BUFFER_BIT);
   glEnable(GL_SCISSOR_TEST);
 
   for (const RenderState &state : render_states) {
