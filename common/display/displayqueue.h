@@ -147,7 +147,8 @@ class DisplayQueue {
   };
 
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       DisplayPlaneStateList* composition, bool* render_layers);
+                       DisplayPlaneStateList* composition, bool* render_layers,
+                       bool* can_ignore_commit);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
   void UpdateSurfaceInUse(bool in_use,

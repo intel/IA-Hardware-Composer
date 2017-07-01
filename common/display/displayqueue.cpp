@@ -99,9 +99,11 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    DisplayPlaneStateList* composition,
-                                   bool* render_layers) {
+                                   bool* render_layers,
+                                   bool* can_ignore_commit) {
   CTRACE();
   bool needs_gpu_composition = false;
+  bool ignore_commit = true;
   for (DisplayPlaneState& plane : previous_plane_state_) {
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
@@ -157,10 +159,17 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           &(*(layers.begin() + last_plane.source_layers().front()));
       layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
       last_plane.SetOverlayLayer(layer);
+      if (layer->HasLayerPositionChanged() || layer->HasLayerContentChanged()) {
+        ignore_commit = false;
+      }
     }
   }
 
   *render_layers = needs_gpu_composition;
+  if (needs_gpu_composition)
+    ignore_commit = false;
+
+  *can_ignore_commit = ignore_commit;
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
@@ -224,12 +233,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
   bool composition_passed = true;
+  bool can_ignore_commit = false;
 
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
     // Before forcing layer validation check if content has changed
     // if not continue showing the current buffer.
-    GetCachedLayers(layers, &current_composition_planes, &render_layers);
+    GetCachedLayers(layers, &current_composition_planes, &render_layers,
+                    &can_ignore_commit);
+
+    if (can_ignore_commit) {
+      return true;
+    }
+
   } else {
     tracker.ResetTrackerState();
     MarkBackBuffersForReUse();
