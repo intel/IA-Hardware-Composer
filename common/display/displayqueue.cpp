@@ -59,12 +59,13 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
 DisplayQueue::~DisplayQueue() {
 }
 
-bool DisplayQueue::Initialize(float refresh, uint32_t pipe,
+bool DisplayQueue::Initialize(float refresh, uint32_t pipe, uint32_t width,
+                              uint32_t height,
                               DisplayPlaneHandler* plane_handler) {
   frame_ = 0;
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, buffer_handler_, plane_handler));
-  if (!display_plane_manager_->Initialize()) {
+  if (!display_plane_manager_->Initialize(width, height)) {
     ETRACE("Failed to initialize DisplayPlane Manager.");
     return false;
   }

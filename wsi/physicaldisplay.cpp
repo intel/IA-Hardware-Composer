@@ -67,7 +67,7 @@ void PhysicalDisplay::Connect() {
 
   display_state_ |= kConnected;
 
-  if (!display_queue_->Initialize(refresh_, pipe_, this)) {
+  if (!display_queue_->Initialize(refresh_, pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
   }
 
