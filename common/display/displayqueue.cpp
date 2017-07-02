@@ -114,7 +114,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
       bool content_changed = false;
-      bool region_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       size_t layers_size = source_layers.size();
 
@@ -132,6 +131,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (content_changed) {
         if (last_plane.GetSurfaces().size() == 3) {
           last_plane.GetOffScreenTarget()->RecycleSurface(last_plane);
+          last_plane.DisableClearSurface();
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
           if (last_plane.GetSurfaces().size() == 3)
@@ -229,10 +229,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
   bool composition_passed = true;
-  bool can_ignore_commit = false;
 
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
+    bool can_ignore_commit = false;
     // Before forcing layer validation check if content has changed
     // if not continue showing the current buffer.
     GetCachedLayers(layers, &current_composition_planes, &render_layers,

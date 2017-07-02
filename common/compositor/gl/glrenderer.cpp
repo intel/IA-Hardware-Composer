@@ -79,14 +79,14 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface) {
+                      NativeSurface *surface, bool clear_surface) {
   GLuint frame_width = surface->GetWidth();
   GLuint frame_height = surface->GetHeight();
   if (!surface->MakeCurrent())
     return false;
 
   glViewport(0, 0, frame_width, frame_height);
-  if (surface->ClearSurface())
+  if (clear_surface)
     glClear(GL_COLOR_BUFFER_BIT);
   glEnable(GL_SCISSOR_TEST);
 

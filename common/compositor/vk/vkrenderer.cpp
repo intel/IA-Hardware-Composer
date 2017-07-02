@@ -466,7 +466,7 @@ bool VKRenderer::Init() {
 }
 
 bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface) {
+                      NativeSurface *surface, bool clear_surface) {
   VkResult res;
   uint32_t frame_width = surface->GetWidth();
   uint32_t frame_height = surface->GetHeight();

@@ -73,10 +73,6 @@ void NativeSurface::SetNativeFence(int32_t fd) {
 }
 
 void NativeSurface::SetInUse(bool inuse) {
-  if (in_use_ != inuse) {
-    clear_surface_ = true;
-  }
-
   in_use_ = inuse;
 }
 
@@ -109,7 +105,6 @@ void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
   viewport_height_ = surface_damage.bottom - surface_damage.top;
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
-  clear_surface_ = false;
   layer_.SetAcquireFence(-1);
 }
 

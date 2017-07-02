@@ -71,10 +71,6 @@ class NativeSurface {
     return in_use_;
   }
 
-  bool ClearSurface() const {
-    return clear_surface_;
-  }
-
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
   void RecycleSurface(DisplayPlaneState& plane);
@@ -92,7 +88,6 @@ class NativeSurface {
   uint32_t viewport_width_;
   uint32_t viewport_height_;
   bool in_use_;
-  bool clear_surface_ = true;
   uint32_t framebuffer_format_;
 };
 

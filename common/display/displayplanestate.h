@@ -190,6 +190,14 @@ class DisplayPlaneState {
     return composition_region_;
   }
 
+  void DisableClearSurface() {
+    clear_surface_ = false;
+  }
+
+  bool ClearSurface() const {
+    return clear_surface_;
+  }
+
  private:
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
@@ -201,6 +209,7 @@ class DisplayPlaneState {
   bool recycled_surface_ = false;
   bool transferred_surfaces_ = false;
   bool surfaces_in_transition_ = false;
+  bool clear_surface_ = true;
   std::vector<NativeSurface *> surfaces_;
 };
 

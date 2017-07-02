@@ -100,7 +100,8 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (comp_regions.empty())
         continue;
 
-      if (!Render(layers, plane.GetOffScreenTarget(), comp_regions)) {
+      if (!Render(layers, plane.GetOffScreenTarget(), comp_regions,
+                  plane.ClearSurface())) {
         ETRACE("Failed to Render layer.");
         return false;
       }
@@ -145,7 +146,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width, height));
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
 
-  if (!Render(layers, surface.get(), comp_regions))
+  if (!Render(layers, surface.get(), comp_regions, true))
     return false;
 
   *retire_fence = dup(surface->GetLayer()->GetAcquireFence());
@@ -159,7 +160,8 @@ void Compositor::InsertFence(uint64_t fence) {
 
 bool Compositor::Render(std::vector<OverlayLayer> &layers,
                         NativeSurface *surface,
-                        const std::vector<CompositionRegion> &comp_regions) {
+                        const std::vector<CompositionRegion> &comp_regions,
+                        bool clear_surface) {
   CTRACE();
   std::vector<RenderState> states;
   size_t num_regions = comp_regions.size();
@@ -178,7 +180,7 @@ bool Compositor::Render(std::vector<OverlayLayer> &layers,
     states.emplace(it, state);
   }
 
-  if (!renderer_->Draw(states, surface))
+  if (!renderer_->Draw(states, surface, clear_surface))
     return false;
 
   return true;
