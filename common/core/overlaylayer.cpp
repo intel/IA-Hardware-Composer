@@ -168,10 +168,6 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
     state_ &= ~kLayerAttributesChanged;
   }
 
-  if (!layer->HasLayerPositionChanged()) {
-    state_ &= ~kLayerPositionChanged;
-  }
-
   if (!layer->HasVisibleRegionChanged() &&
       !layer->HasSurfaceDamageRegionChanged() &&
       !layer->HasLayerContentChanged() && !cursor_alpha_changed) {

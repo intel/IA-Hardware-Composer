@@ -121,9 +121,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
-        if (layer.HasLayerPositionChanged()) {
-          region_changed = true;
-        }
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
@@ -149,18 +146,16 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ReUseOffScreenTarget();
       }
 
-      if (region_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
                                                  comp_regions.end());
-      }
     } else {
       const OverlayLayer* layer =
           &(*(layers.begin() + last_plane.source_layers().front()));
       layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
       last_plane.SetOverlayLayer(layer);
-      if (layer->HasLayerPositionChanged() || layer->HasLayerContentChanged()) {
+      if (layer->HasLayerContentChanged()) {
         ignore_commit = false;
       }
     }
