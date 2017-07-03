@@ -177,7 +177,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
-  std::vector<HwcRect<int>> layers_rects;
   bool frame_changed = (size != previous_size);
   bool idle_frame = tracker.RenderIdleMode();
   if (!use_layer_cache_ || idle_frame)
@@ -202,7 +201,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
     overlay_layer.SetLayerIndex(layer_index);
     overlay_layer.SetZorder(index);
-    layers_rects.emplace_back(layer->GetDisplayFrame());
     overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
                             layer->GetAcquireFence());
     overlay_layer.ValidateForOverlayUsage();
@@ -259,10 +257,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       composition_passed = false;
     }
 
-    // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
-      ETRACE("Failed to prepare for the frame composition. ");
-      composition_passed = false;
+    if (composition_passed) {
+      std::vector<HwcRect<int>> layers_rects;
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        const OverlayLayer& layer = layers.at(layer_index);
+        layers_rects.emplace_back(layer.GetDisplayFrame());
+      }
+
+      // Prepare for final composition.
+      if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+        ETRACE("Failed to prepare for the frame composition. ");
+        composition_passed = false;
+      }
     }
   }
 
