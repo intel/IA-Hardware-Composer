@@ -115,6 +115,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         plane.SurfaceRecycled()) {
       bool content_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
+      HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
 
       for (size_t i = 0; i < layers_size; i++) {
@@ -123,14 +124,25 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
-          last_plane.AddSurfaceDamage(layer.GetSurfaceDamage());
+          const HwcRect<int>& layer_damage = layer.GetDisplayFrame();
+          surface_damage.left =
+              std::min(surface_damage.left, layer_damage.left);
+          surface_damage.top = std::min(surface_damage.top, layer_damage.top);
+          surface_damage.right =
+              std::max(surface_damage.right, layer_damage.right);
+          surface_damage.bottom =
+              std::max(surface_damage.bottom, layer_damage.bottom);
         }
       }
 
       plane.TransferSurfaces(last_plane, content_changed);
       if (content_changed) {
         if (last_plane.GetSurfaces().size() == 3) {
-          last_plane.GetOffScreenTarget()->RecycleSurface(last_plane);
+          NativeSurface* surface = last_plane.GetOffScreenTarget();
+          surface->RecycleSurface(last_plane);
+          surface->UpdateSurfaceDamage(
+              surface_damage,
+              plane.GetOffScreenTarget()->GetLastSurfaceDamage());
           last_plane.DisableClearSurface();
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);

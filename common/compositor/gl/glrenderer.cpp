@@ -80,14 +80,29 @@ bool GLRenderer::Init() {
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
                       NativeSurface *surface, bool clear_surface) {
-  GLuint frame_width = surface->GetWidth();
-  GLuint frame_height = surface->GetHeight();
+  GLuint frame_width(0);
+  GLuint frame_height(0);
+  GLuint left(0);
+  GLuint top(0);
+  if (clear_surface) {
+    frame_width = surface->GetWidth();
+    frame_height = surface->GetHeight();
+  } else {
+    const HwcRect<int> &damage = surface->GetSurfaceDamage();
+    frame_width = damage.right - damage.left;
+    frame_height = damage.bottom - damage.top;
+    left = damage.left;
+    top = damage.top;
+  }
+
   if (!surface->MakeCurrent())
     return false;
 
-  glViewport(0, 0, frame_width, frame_height);
+  glViewport(left, top, frame_width, frame_height);
+
   if (clear_surface)
     glClear(GL_COLOR_BUFFER_BIT);
+
   glEnable(GL_SCISSOR_TEST);
 
   for (const RenderState &state : render_states) {
@@ -95,12 +110,22 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
     if (size == 0)
       break;
 
+    if (!clear_surface) {
+      // If viewport and layer doesn't interact we can avoid re-rendering
+      // the layer.
+      if ((left >= (state.width_ + state.x_)) ||
+          (left + frame_width <= state.x_) ||
+          (top >= state.height_ + state.y_) ||
+          (top + frame_height <= state.y_)) {
+        continue;
+      }
+    }
+
     GLProgram *program = GetProgram(size);
     if (!program)
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
-
     glScissor(state.x_, state.y_, state.width_, state.height_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 

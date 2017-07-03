@@ -51,14 +51,6 @@ class NativeSurface {
     return height_;
   }
 
-  uint32_t GetViewportWidth() const {
-    return viewport_width_;
-  }
-
-  uint32_t GetViewportHeight() const {
-    return viewport_height_;
-  }
-
   OverlayLayer* GetLayer() {
     return &layer_;
   }
@@ -74,6 +66,14 @@ class NativeSurface {
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
   void RecycleSurface(DisplayPlaneState& plane);
+  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
+                           const HwcRect<int>& last_surface_damage);
+  const HwcRect<int>& GetLastSurfaceDamage() const {
+    return last_surface_damage_;
+  }
+  const HwcRect<int>& GetSurfaceDamage() const {
+    return surface_damage_;
+  }
 
  protected:
   OverlayLayer layer_;
@@ -85,10 +85,10 @@ class NativeSurface {
   NativeBufferHandler* buffer_handler_;
   uint32_t width_;
   uint32_t height_;
-  uint32_t viewport_width_;
-  uint32_t viewport_height_;
   bool in_use_;
   uint32_t framebuffer_format_;
+  HwcRect<int> surface_damage_;
+  HwcRect<int> last_surface_damage_;
 };
 
 }  // namespace hwcomposer
