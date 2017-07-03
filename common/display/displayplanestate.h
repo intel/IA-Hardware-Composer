@@ -96,11 +96,6 @@ class DisplayPlaneState {
     return recycled_surface_;
   }
 
-  bool ReleaseSurfaces() const {
-    return surfaces_in_transition_ ||
-           !(recycled_surface_ || transferred_surfaces_);
-  }
-
   const OverlayLayer *GetOverlayLayer() const {
     return layer_;
   }
@@ -131,14 +126,6 @@ class DisplayPlaneState {
 
     if (starting_index == 1)
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
-
-    transferred_surfaces_ = true;
-    plane_state.surfaces_in_transition_ = true;
-  }
-
-  void SurfaceTransitionComplete() {
-    surfaces_in_transition_ = false;
-    transferred_surfaces_ = false;
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {
@@ -181,8 +168,6 @@ class DisplayPlaneState {
   std::vector<size_t> source_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
-  bool transferred_surfaces_ = false;
-  bool surfaces_in_transition_ = false;
   bool clear_surface_ = true;
   std::vector<NativeSurface *> surfaces_;
 };

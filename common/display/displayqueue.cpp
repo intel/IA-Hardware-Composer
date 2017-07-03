@@ -247,6 +247,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                     &can_ignore_commit);
 
     if (can_ignore_commit) {
+      HandleCommitIgnored(current_composition_planes);
       return true;
     }
 
@@ -347,15 +348,26 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 void DisplayQueue::UpdateSurfaceInUse(
     bool in_use, DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane_state : current_composition_planes) {
-    if (!in_use && !plane_state.ReleaseSurfaces())
-      continue;
-
-    if (in_use)
-      plane_state.SurfaceTransitionComplete();
-
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     for (NativeSurface* surface : surfaces) {
       surface->SetInUse(in_use);
+    }
+  }
+}
+
+void DisplayQueue::HandleCommitIgnored(
+    DisplayPlaneStateList& current_composition_planes) {
+  for (DisplayPlaneState& plane_state : current_composition_planes) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    for (NativeSurface* surface : surfaces) {
+      surface->SetInUse(false);
+    }
+  }
+
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    for (NativeSurface* surface : surfaces) {
+      surface->SetInUse(true);
     }
   }
 }
@@ -364,7 +376,7 @@ void DisplayQueue::MarkBackBuffersForReUse() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     size_t size = surfaces.size();
-    for (size_t i = 1; i < size; i++) {
+    for (size_t i = 2; i < size; i++) {
         surfaces.at(i)->SetInUse(false);
     }
   }

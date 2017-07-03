@@ -71,14 +71,7 @@ void PhysicalDisplay::Connect() {
     ETRACE("Failed to initialize Display Queue.");
   }
 
-  if (display_state_ & kPendingPowerMode) {
-    UpdatePowerMode();
-  } else {
-    if (power_mode_ == kOn) {
-      display_state_ |= kNeedsModeset;
-      display_state_ |= kUpdateDisplay;
-    }
-  }
+  UpdatePowerMode();
 }
 
 uint32_t PhysicalDisplay::PowerMode() const {

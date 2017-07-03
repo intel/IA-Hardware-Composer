@@ -154,6 +154,8 @@ class DisplayQueue {
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
 
+  void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
+
   void MarkBackBuffersForReUse();
 
   Compositor compositor_;
