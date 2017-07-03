@@ -109,7 +109,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
-                         plane.GetSurfaceDamage(), plane.GetCompositionState());
+                         plane.GetCompositionState());
 
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
@@ -146,8 +146,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           last_plane.DisableClearSurface();
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-          if (last_plane.GetSurfaces().size() == 3)
-            last_plane.ResetSurfaceDamage();
         }
 
         last_plane.ForceGPURendering();

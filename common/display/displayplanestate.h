@@ -43,7 +43,6 @@ class DisplayPlaneState {
       : plane_(plane), layer_(layer) {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
-    surface_damage_ = display_frame_;
   }
 
   explicit DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
@@ -63,32 +62,13 @@ class DisplayPlaneState {
     display_frame_.right = std::max(display_frame_.right, display_frame.right);
     display_frame_.bottom =
         std::max(display_frame_.bottom, display_frame.bottom);
-    surface_damage_ = display_frame_;
 
     source_layers_.emplace_back(index);
     state_ = State::kRender;
   }
 
-  void AddSurfaceDamage(const HwcRect<int> &surface_damage) {
-    surface_damage_.left = std::min(surface_damage_.left, surface_damage.left);
-    surface_damage_.top = std::min(surface_damage_.top, surface_damage.top);
-    surface_damage_.right =
-        std::max(surface_damage_.right, surface_damage.right);
-    surface_damage_.bottom =
-        std::max(surface_damage_.bottom, surface_damage.bottom);
-  }
-
-  const HwcRect<int> &GetSurfaceDamage() const {
-    return surface_damage_;
-  }
-
-  void ResetSurfaceDamage() {
-    surface_damage_ = HwcRect<int>(0, 0, 0, 0);
-  }
-
   void AddLayers(const std::vector<size_t> &source_layers,
-                 const HwcRect<int> &display_frame,
-                 const HwcRect<int> &surface_damage, State state) {
+                 const HwcRect<int> &display_frame, State state) {
     for (const int &index : source_layers) {
       source_layers_.emplace_back(index);
     }
@@ -96,11 +76,6 @@ class DisplayPlaneState {
     display_frame_.top = display_frame.top;
     display_frame_.right = display_frame.right;
     display_frame_.bottom = display_frame.bottom;
-
-    surface_damage_.left = surface_damage.left;
-    surface_damage_.top = surface_damage.top;
-    surface_damage_.right = surface_damage.right;
-    surface_damage_.bottom = surface_damage.bottom;
     state_ = state;
   }
 
@@ -203,7 +178,6 @@ class DisplayPlaneState {
   DisplayPlane *plane_ = NULL;
   const OverlayLayer *layer_ = NULL;
   HwcRect<int> display_frame_;
-  HwcRect<int> surface_damage_;
   std::vector<size_t> source_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
