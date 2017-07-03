@@ -109,7 +109,7 @@ bool DrmDisplayManager::Initialize() {
   memset(&addr, 0, sizeof(addr));
   addr.nl_family = AF_NETLINK;
   addr.nl_pid = getpid();
-  addr.nl_groups = -1;
+  addr.nl_groups = 0xffffffff;
 
   ret = bind(hotplug_fd_, (struct sockaddr *)&addr, sizeof(addr));
   if (ret) {
@@ -154,8 +154,11 @@ void DrmDisplayManager::HotPlugEventHandler() {
       char *event = buffer + i;
       if (!strcmp(event, "DEVTYPE=drm_minor"))
         drm_event = true;
-      else if (!strcmp(event, "HOTPLUG=1"))
+      else if (!strcmp(event, "HOTPLUG=1") ||  // Common hotplug request
+               !strcmp(event,
+                       "HDMI-Change")) {  // Hotplug happened during suspend
         hotplug_event = true;
+      }
 
       if (hotplug_event && drm_event)
         break;
