@@ -102,6 +102,7 @@ static void CopyBufferHandle(HWCNativeHandle source, HWCNativeHandle *target) {
   temp->handle_ = source->handle_;
   temp->buffer_ = source->buffer_;
   temp->imported_handle_ = dup_buffer_handle(source->handle_);
+  temp->hwc_buffer_ = source->hwc_buffer_;
   *target = temp;
 }
 
