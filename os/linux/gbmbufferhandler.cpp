@@ -85,9 +85,9 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   temp->import_data.height = gbm_bo_get_height(bo);
   temp->import_data.format = gbm_bo_get_format(bo);
 #if USE_MINIGBM
-  temp->import_data.fds[0] = gbm_bo_get_plane_fd(bo, 0);
   size_t total_planes = gbm_bo_get_num_planes(bo);
   for (size_t i = 0; i < total_planes; i++) {
+    temp->import_data.fds[i] = gbm_bo_get_plane_fd(bo, i);
     temp->import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
     temp->import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
   }
@@ -115,7 +115,8 @@ bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
       gbm_bo_destroy(handle->imported_bo);
     }
 #ifdef USE_MINIGBM
-    close(handle->import_data.fds[0]);
+    for (size_t i = 0; i < handle->total_planes; i++)
+      close(handle->import_data.fds[i]);
 #else
     close(handle->import_data.fd);
 #endif
@@ -136,9 +137,9 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
   temp->import_data.height = source->import_data.height;
   temp->import_data.format = source->import_data.format;
 #if USE_MINIGBM
-  temp->import_data.fds[0] = dup(source->import_data.fds[0]);
   size_t total_planes = source->total_planes;
   for (size_t i = 0; i < total_planes; i++) {
+    temp->import_data.fds[i] = dup(source->import_data.fds[i]);
     temp->import_data.offsets[i] = source->import_data.offsets[i];
     temp->import_data.strides[i] = source->import_data.strides[i];
   }
