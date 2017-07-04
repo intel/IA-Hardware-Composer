@@ -46,7 +46,7 @@ enum HWCTransform {
 };
 
 enum HWCLayerType {
-  kLayerNormal = 0,
+  kLayerNormal = 1 << 0,
   kLayerCursor = 1 << 1,
   kLayerProtected = 1 << 2,
   kLayerVideo = 1 << 3

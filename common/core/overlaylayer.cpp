@@ -158,9 +158,12 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
   bool cursor_alpha_changed = false;
   if (buffer->GetUsage() & kLayerCursor) {
     // We expect cursor plane to support alpha always.
-    cursor_alpha_changed = rhs.gpu_rendered_cursor_ && (alpha_ != rhs.alpha_);
+    if (rhs.gpu_rendered_cursor_) {
+      cursor_alpha_changed =
+          (alpha_ != rhs.alpha_) || layer->HasDisplayRectChanged();
+    }
   } else {
-    if (alpha_ != rhs.alpha_)
+    if (alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged())
       return;
   }
 

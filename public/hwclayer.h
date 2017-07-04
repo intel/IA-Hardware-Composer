@@ -119,6 +119,14 @@ struct HwcLayer {
   }
 
   /**
+   * API for querying if Display FrameRect has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasDisplayRectChanged() const {
+    return layer_cache_ & kDisplayFrameRectChanged;
+  }
+
+  /**
    * API for querying if layer is visible.
    */
   bool IsVisible() const {
@@ -197,7 +205,8 @@ struct HwcLayer {
   };
 
   enum LayerCache {
-    kLayerAttributesChanged = 1 << 0
+    kLayerAttributesChanged = 1 << 0,
+    kDisplayFrameRectChanged = 1 << 1
   };
 
   int32_t transform_ = 0;
@@ -212,7 +221,7 @@ struct HwcLayer {
   int32_t acquire_fence_ = -1;
   uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
-  int layer_cache_ = kLayerAttributesChanged;
+  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
 };
 
 }  // namespace hwcomposer
