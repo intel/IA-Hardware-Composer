@@ -95,7 +95,9 @@ HWC2::Error DrmHwcTwo::Init() {
   displays_.at(HWC_DISPLAY_PRIMARY).Init(disable_explicit_sync_);
 
   // Start the hwc service
-  hwcService_.Start(*this);
+  // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
+  //        to hang in a loop while cold boot before going to home screen
+  // hwcService_.Start(*this);
 
   return HWC2::Error::None;
 }
