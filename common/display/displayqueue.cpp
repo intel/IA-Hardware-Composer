@@ -258,6 +258,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (can_ignore_commit) {
       HandleCommitIgnored(current_composition_planes);
+      display_plane_manager_->ReleaseFreeOffScreenTargets();
       return true;
     }
 
@@ -386,7 +387,7 @@ void DisplayQueue::MarkBackBuffersForReUse() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     size_t size = surfaces.size();
-    for (size_t i = 2; i < size; i++) {
+    for (size_t i = 1; i < size; i++) {
         surfaces.at(i)->SetInUse(false);
     }
   }
