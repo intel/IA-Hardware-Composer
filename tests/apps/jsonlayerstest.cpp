@@ -480,8 +480,26 @@ static void init_frames(int32_t width, int32_t height) {
     frame->layers_fences.resize(LAYER_PARAM_SIZE);
 
     for (size_t j = 0; j < LAYER_PARAM_SIZE; ++j) {
-      if (!display_mode)
+      if (!display_mode) {
         layer_parameter = test_parameters.layers_parameters[j];
+        if (layer_parameter.source_width > width)
+          layer_parameter.source_width = width;
+
+        if (layer_parameter.source_height > height)
+          layer_parameter.source_height = height;
+
+        if (layer_parameter.source_crop_width > width)
+          layer_parameter.source_crop_width = width;
+
+        if (layer_parameter.source_crop_height > height)
+          layer_parameter.source_crop_height = height;
+
+        if (layer_parameter.frame_width > width)
+          layer_parameter.frame_width = width;
+
+        if (layer_parameter.frame_height > height)
+          layer_parameter.frame_height = height;
+      }
 
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
@@ -676,6 +694,7 @@ int main(int argc, char *argv[]) {
                           test_parameters.contrast_g,
                           test_parameters.contrast_b);
   }
+
   init_frames(primary_width, primary_height);
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
