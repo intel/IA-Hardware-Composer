@@ -55,6 +55,10 @@ NativeGLResource::~NativeGLResource() {
   Reset();
 }
 
+void NativeGLResource::ReleaseGPUResources() {
+  Reset();
+}
+
 void NativeGLResource::Reset() {
   GLuint texture_id = 0;
   size_t size = layer_textures_.size();

@@ -40,6 +40,7 @@ class NativeGpuResource {
 
   virtual bool PrepareResources(const std::vector<OverlayLayer>& layers) = 0;
   virtual GpuResourceHandle GetResourceHandle(uint32_t layer_index) const = 0;
+  virtual void ReleaseGPUResources() = 0;
 };
 
 }  // namespace hwcomposer

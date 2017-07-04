@@ -158,6 +158,10 @@ void Compositor::InsertFence(uint64_t fence) {
   renderer_->InsertFence(fence);
 }
 
+void Compositor::ReleaseGpuResources() {
+  gpu_resource_handler_->ReleaseGPUResources();
+}
+
 bool Compositor::Render(std::vector<OverlayLayer> &layers,
                         NativeSurface *surface,
                         const std::vector<CompositionRegion> &comp_regions,

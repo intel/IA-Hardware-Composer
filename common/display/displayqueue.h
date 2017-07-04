@@ -158,6 +158,8 @@ class DisplayQueue {
 
   void MarkBackBuffersForReUse();
 
+  void ReleaseSurfaces(bool gpu_rendered);
+
   Compositor compositor_;
   uint32_t frame_;
   uint32_t gpu_fd_;

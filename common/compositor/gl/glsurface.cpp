@@ -27,10 +27,14 @@ GLSurface::GLSurface(uint32_t width, uint32_t height)
 }
 
 GLSurface::~GLSurface() {
-  if (fb_)
+  if (fb_) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteFramebuffers(1, &fb_);
-  if (tex_)
+  }
+  if (tex_) {
+    glBindTexture(GL_TEXTURE_2D, 0);
     glDeleteTextures(1, &tex_);
+  }
 }
 
 bool GLSurface::InitializeGPUResources() {

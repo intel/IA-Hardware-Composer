@@ -34,6 +34,8 @@ class NativeGLResource : public NativeGpuResource {
   bool PrepareResources(const std::vector<OverlayLayer>& layers) override;
   GpuResourceHandle GetResourceHandle(uint32_t layer_index) const override;
 
+  void ReleaseGPUResources() override;
+
  private:
   void Reset();
   std::vector<GLuint> layer_textures_;
