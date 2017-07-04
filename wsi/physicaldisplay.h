@@ -28,6 +28,7 @@
 #include "platformdefines.h"
 #include "displayplanestate.h"
 #include "displayplanehandler.h"
+#include <spinlock.h>
 
 namespace hwcomposer {
 class DisplayPlaneState;
@@ -93,7 +94,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void Connect() override;
 
   bool IsConnected() const override {
-    return display_state_ & kConnected;
+    return !(display_state_ & kDisconnectionInProgress);
   }
 
   bool TestCommit(
@@ -155,7 +156,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     kConnected = 1 << 0,
     kNeedsModeset = 1 << 1,
     kPendingPowerMode = 1 << 2,
-    kUpdateDisplay = 1 << 2
+    kUpdateDisplay = 1 << 3,
+    kDisconnectionInProgress = 1 << 4,
+    kInitialized = 1 << 5  // Display Queue is initialized.
   };
 
   uint32_t pipe_;
@@ -168,6 +171,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   uint32_t power_mode_ = kOn;
   float refresh_;
   uint32_t display_state_ = 0;
+  SpinLock modeset_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;
 };
 

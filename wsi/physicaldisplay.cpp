@@ -56,22 +56,27 @@ bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
 
 void PhysicalDisplay::DisConnect() {
   IHOTPLUGEVENTTRACE("PhysicalDisplay::DisConnect recieved.");
-  display_state_ &= ~kConnected;
-  display_state_ &= ~kUpdateDisplay;
+  display_state_ |= kDisconnectionInProgress;
 }
 
 void PhysicalDisplay::Connect() {
   IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved.");
+  display_state_ &= ~kDisconnectionInProgress;
   if (display_state_ & kConnected)
     return;
 
+  modeset_lock_.lock();
   display_state_ |= kConnected;
+  display_state_ &= ~kInitialized;
 
   if (!display_queue_->Initialize(refresh_, pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
+  } else {
+    display_state_ |= kInitialized;
   }
 
   UpdatePowerMode();
+  modeset_lock_.unlock();
 }
 
 uint32_t PhysicalDisplay::PowerMode() const {
@@ -106,7 +111,15 @@ bool PhysicalDisplay::SetPowerMode(uint32_t power_mode) {
   if (power_mode_ == power_mode)
     return true;
 
-  power_mode_ = power_mode;
+  modeset_lock_.lock();
+  // Don't update power mode in case disconnect is in
+  // progress.
+  if (!(display_state_ & kDisconnectionInProgress)) {
+    power_mode_ = power_mode;
+  } else if (power_mode == kOff) {
+    display_state_ &= ~kConnected;
+  }
+  modeset_lock_.unlock();
 
   if (!(display_state_ & kConnected)) {
     display_state_ |= kPendingPowerMode;
@@ -128,17 +141,29 @@ bool PhysicalDisplay::UpdatePowerMode() {
     display_state_ &= ~kUpdateDisplay;
   }
 
+  if (!(display_state_ & kInitialized))
+    return true;
+
   return display_queue_->SetPowerMode(power_mode_);
 }
 
 bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                               int32_t *retire_fence) {
   CTRACE();
+  modeset_lock_.lock();
 
   if (!(display_state_ & kUpdateDisplay)) {
-    ETRACE("Trying to update an Disconnected Display.");
-    return false;
+    bool success = true;
+    if (power_mode_ != kDozeSuspend) {
+      ETRACE("Trying to update an Disconnected Display.%p \n", this);
+      success = false;
+    }
+
+    modeset_lock_.unlock();
+    return success;
   }
+
+  modeset_lock_.unlock();
 
   return display_queue_->QueueUpdate(source_layers, retire_fence);
 }
