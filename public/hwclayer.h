@@ -137,11 +137,20 @@ struct HwcLayer {
    * API for querying if layer attributes has
    * changed from last Present call to NativeDisplay.
    * This takes into consideration any changes to
-   * transform, display frame, source rect and
-   * blending.
+   * transform of the layer.
    */
   bool HasLayerAttributesChanged() const {
     return layer_cache_ & kLayerAttributesChanged;
+  }
+
+  /**
+   * API for querying if layer attributes has
+   * changed from last Present call to NativeDisplay.
+   * This takes into consideration any changes to
+   * alpha and blending.
+   */
+  bool HasContentAttributesChanged() const {
+    return layer_cache_ & kDIsplayContentAttributesChanged;
   }
 
   /**
@@ -206,7 +215,8 @@ struct HwcLayer {
 
   enum LayerCache {
     kLayerAttributesChanged = 1 << 0,
-    kDisplayFrameRectChanged = 1 << 1
+    kDisplayFrameRectChanged = 1 << 1,
+    kDIsplayContentAttributesChanged = 1 << 2
   };
 
   int32_t transform_ = 0;
@@ -221,7 +231,8 @@ struct HwcLayer {
   int32_t acquire_fence_ = -1;
   uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
-  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
+  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged |
+                     kDIsplayContentAttributesChanged;
 };
 
 }  // namespace hwcomposer

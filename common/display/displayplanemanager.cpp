@@ -105,7 +105,6 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
           if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
             cursor_plane = NULL;
             commit_planes.pop_back();
-	    j->GPURenderedCursor();
           } else
             layer_end = j;
         }
@@ -166,6 +165,17 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
 
   if (render_layers) {
     ValidateFinalLayers(composition, layers);
+    for (DisplayPlaneState &plane : composition) {
+      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+        const std::vector<size_t> &source_layers = plane.source_layers();
+        size_t layers_size = source_layers.size();
+        for (size_t i = 0; i < layers_size; i++) {
+          size_t source_index = source_layers.at(i);
+          OverlayLayer &layer = layers.at(source_index);
+          layer.GPURendered();
+        }
+      }
+    }
   }
 
   return render_layers;

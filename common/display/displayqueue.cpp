@@ -115,6 +115,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (plane.GetCompositionState() == DisplayPlaneState::State::kRender ||
         plane.SurfaceRecycled()) {
       bool content_changed = false;
+      bool region_changed = false;
       const std::vector<size_t>& source_layers = plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -144,6 +145,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           surface_damage.bottom =
               std::max(surface_damage.bottom, previous_layer_damage.bottom);
         }
+
+        if (layer.HasDimensionsChanged()) {
+          region_changed = true;
+        }
       }
 
       plane.TransferSurfaces(last_plane, content_changed);
@@ -167,10 +172,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ReUseOffScreenTarget();
       }
 
+      if (!region_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
                                                  comp_regions.end());
+      }
     } else {
       const OverlayLayer* layer =
           &(*(layers.begin() + last_plane.source_layers().front()));

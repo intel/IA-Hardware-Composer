@@ -134,8 +134,8 @@ struct OverlayLayer {
     return state_ & kLayerContentChanged;
   }
 
-  void GPURenderedCursor() {
-    gpu_rendered_cursor_ = true;
+  void GPURendered() {
+    gpu_rendered_ = true;
   }
 
   bool IsCursorLayer() const {
@@ -150,12 +150,17 @@ struct OverlayLayer {
     return prefer_separate_plane_;
   }
 
+  bool HasDimensionsChanged() const {
+    return state_ & kDimensionsChanged;
+  }
+
   void Dump();
 
  private:
   enum LayerState {
     kLayerAttributesChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1
+    kLayerContentChanged = 1 << 1,
+    kDimensionsChanged = 1 << 2
   };
 
   struct ImportedBuffer {
@@ -181,9 +186,9 @@ struct OverlayLayer {
   HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   uint32_t state_ =
-      kLayerAttributesChanged | kLayerContentChanged;
+      kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  bool gpu_rendered_cursor_ = false;
+  bool gpu_rendered_ = false;
   bool prefer_separate_plane_ = false;
   bool cursor_layer_ = false;
 };

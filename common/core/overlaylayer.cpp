@@ -155,25 +155,29 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
   if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
     return;
 
-  bool cursor_alpha_changed = false;
-  if (buffer->GetUsage() & kLayerCursor) {
-    // We expect cursor plane to support alpha always.
-    if (rhs.gpu_rendered_cursor_) {
-      cursor_alpha_changed =
-          (alpha_ != rhs.alpha_) || layer->HasDisplayRectChanged();
-    }
+  bool content_changed = false;
+  // We expect cursor plane to support alpha always.
+  if (rhs.gpu_rendered_ || (buffer->GetUsage() & kLayerCursor)) {
+    content_changed = alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
+                      layer->HasContentAttributesChanged() ||
+                      layer->HasLayerAttributesChanged();
+    gpu_rendered_ = true;
   } else {
-    if (alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged())
+    if (alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
+        layer->HasContentAttributesChanged() ||
+        layer->HasLayerAttributesChanged())
       return;
   }
 
-  if (!layer->HasLayerAttributesChanged()) {
-    state_ &= ~kLayerAttributesChanged;
+  state_ &= ~kLayerAttributesChanged;
+
+  if (!layer->HasDisplayRectChanged()) {
+    state_ &= ~kDimensionsChanged;
   }
 
   if (!layer->HasVisibleRegionChanged() &&
       !layer->HasSurfaceDamageRegionChanged() &&
-      !layer->HasLayerContentChanged() && !cursor_alpha_changed) {
+      !layer->HasLayerContentChanged() && !content_changed) {
     state_ &= ~kLayerContentChanged;
   }
 }

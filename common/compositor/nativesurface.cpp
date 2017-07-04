@@ -52,10 +52,6 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler,
   }
 
   InitializeLayer(buffer_handler, native_handle_);
-  if (cursor_layer) {
-    layer_.GPURenderedCursor();
-  }
-
   return true;
 }
 

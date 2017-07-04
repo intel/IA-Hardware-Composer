@@ -41,12 +41,16 @@ void HwcLayer::SetTransform(int32_t transform) {
 }
 
 void HwcLayer::SetAlpha(uint8_t alpha) {
+  if (alpha_ != alpha) {
+    layer_cache_ |= kDIsplayContentAttributesChanged;
+  }
+
   alpha_ = alpha;
 }
 
 void HwcLayer::SetBlending(HWCBlending blending) {
   if (blending != blending_) {
-    layer_cache_ |= kLayerAttributesChanged;
+    layer_cache_ |= kDIsplayContentAttributesChanged;
   }
 
   blending_ = blending;
@@ -204,6 +208,7 @@ void HwcLayer::Validate() {
   state_ &= ~kLayerContentChanged;
   layer_cache_ &= ~kLayerAttributesChanged;
   layer_cache_ &= ~kDisplayFrameRectChanged;
+  layer_cache_ &= ~kDIsplayContentAttributesChanged;
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
