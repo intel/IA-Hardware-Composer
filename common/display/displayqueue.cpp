@@ -125,6 +125,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
           const HwcRect<int>& layer_damage = layer.GetDisplayFrame();
+           const OverlayLayer& previous_layer = in_flight_layers_.at(source_index);
+          const HwcRect<int>& previous_layer_damage = previous_layer.GetDisplayFrame();
           surface_damage.left =
               std::min(surface_damage.left, layer_damage.left);
           surface_damage.top = std::min(surface_damage.top, layer_damage.top);
@@ -132,6 +134,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               std::max(surface_damage.right, layer_damage.right);
           surface_damage.bottom =
               std::max(surface_damage.bottom, layer_damage.bottom);
+
+          surface_damage.left =
+              std::min(surface_damage.left, previous_layer_damage.left);
+          surface_damage.top = std::min(surface_damage.top, previous_layer_damage.top);
+          surface_damage.right =
+              std::max(surface_damage.right, previous_layer_damage.right);
+          surface_damage.bottom =
+              std::max(surface_damage.bottom, previous_layer_damage.bottom);
         }
       }
 
