@@ -746,7 +746,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
   native_handle_.handle_ = buffer;
   hwc_layer_.SetNativeHandle(&native_handle_);
   if (acquire_fence > 0)
-    hwc_layer_.SetAcquireFence(dup(acquire_fence));
+    hwc_layer_.SetAcquireFence(acquire_fence);
   return HWC2::Error::None;
 }
 
