@@ -79,8 +79,8 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if surface damage region has
-   * changed from last Present call to NativeDisplay.
+   * API for querying if layer has been damaged
+   * from last Present call to NativeDisplay.
    */
   bool HasSurfaceDamageRegionChanged() const {
     return state_ & kSurfaceDamaged;

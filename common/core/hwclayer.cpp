@@ -100,6 +100,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
+      state_ &= ~kSurfaceDamaged;
       surface_damage_ = rect;
       return;
     }
@@ -203,7 +204,6 @@ int32_t HwcLayer::GetAcquireFence() {
 
 void HwcLayer::Validate() {
   state_ &= ~kVisibleRegionChanged;
-  state_ &= ~kSurfaceDamaged;
   state_ |= kLayerValidated;
   state_ &= ~kLayerContentChanged;
   layer_cache_ &= ~kLayerAttributesChanged;
