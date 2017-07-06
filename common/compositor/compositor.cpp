@@ -129,6 +129,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
         "Failed to prepare GPU resources for compositing the frame, "
         "error: %s",
         PRINTERROR());
+    ReleaseGpuResources();
     return false;
   }
 
@@ -140,16 +141,22 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
         "Failed to prepare offscreen buffer. "
         "error: %s",
         PRINTERROR());
+    ReleaseGpuResources();
     return false;
   }
 
-  std::unique_ptr<NativeSurface> surface(CreateBackBuffer(width, height));
+  NativeSurface *surface = CreateBackBuffer(width, height);
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
 
-  if (!Render(layers, surface.get(), comp_regions, true))
+  if (!Render(layers, surface, comp_regions, true)) {
+    ReleaseGpuResources();
     return false;
+  }
 
   *retire_fence = surface->GetLayer()->ReleaseAcquireFence();
+
+  ReleaseGpuResources();
+  delete surface;
 
   return true;
 }
