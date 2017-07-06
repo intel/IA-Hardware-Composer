@@ -172,6 +172,7 @@ class DisplayQueue {
   bool use_layer_cache_ = false;
   bool disable_overlay_usage_ = false;
   bool release_surfaces_ = false;
+  bool ignore_idle_refresh_ = false;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
@@ -184,6 +185,7 @@ class DisplayQueue {
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
   PhysicalDisplay* display_ = NULL;
+  SpinLock power_mode_lock_;
 };
 
 }  // namespace hwcomposer

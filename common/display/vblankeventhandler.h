@@ -58,7 +58,7 @@ class VblankEventHandler : public HWCThread {
   std::shared_ptr<VsyncCallback> callback_ = NULL;
   SpinLock spin_lock_;
   uint32_t display_;
-  bool enabled_;
+  bool enabled_ = false;
 
   float refresh_;
   int fd_;

@@ -91,6 +91,9 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       configuration_changed_ = true;
       needs_color_correction_ = true;
       vblank_handler_->SetPowerMode(kOn);
+      power_mode_lock_.lock();
+      ignore_idle_refresh_ = false;
+      power_mode_lock_.unlock();
       break;
     default:
       break;
@@ -159,7 +162,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           surface->UpdateSurfaceDamage(
               surface_damage,
               plane.GetOffScreenTarget()->GetLastSurfaceDamage());
-          // TODO: We should be able to clear surface even when only
+          // TODO: We should be able to avoid clearing surface even when
           // region has changed but need proper tracking of surfacedamage.
           if (!region_changed)
             last_plane.DisableClearSurface();
@@ -459,11 +462,14 @@ void DisplayQueue::SetReleaseFenceToLayers(
 }
 
 void DisplayQueue::HandleExit() {
+  power_mode_lock_.lock();
+  ignore_idle_refresh_ = true;
+  power_mode_lock_.unlock();
+  vblank_handler_->SetPowerMode(kOff);
   display_->Disable(previous_plane_state_);
   display_plane_manager_->ReleaseAllOffScreenTargets();
 
   compositor_.Reset();
-  vblank_handler_->SetPowerMode(kOff);
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
   idle_tracker_.state_ = 0;
@@ -531,23 +537,24 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  if (idle_tracker_.idle_frames_ < 100) {
+  if (idle_tracker_.idle_frames_ < 50) {
     idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 100) {
+  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 50) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
   idle_tracker_.idle_frames_++;
-  if (refresh_callback_) {
+  power_mode_lock_.lock();
+  if (!ignore_idle_refresh_ && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
+    idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
   }
-
-  idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
+  power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
 }
 
