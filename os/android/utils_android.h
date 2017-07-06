@@ -34,6 +34,7 @@
 
 #include <hwcdefs.h>
 #include "hwcbuffer.h"
+#include "hwctrace.h"
 
 #define HWC_UNUSED(x) ((void)&(x))
 
@@ -165,7 +166,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
 
   uint32_t id = 0;
   if (drmPrimeFDToHandle(fd, bo->prime_fd, &id)) {
-    ETRACE("drmPrimeFDToHandle failed.");
+    ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
     return false;
   }
 

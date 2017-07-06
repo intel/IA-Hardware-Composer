@@ -149,7 +149,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   if (!Render(layers, surface.get(), comp_regions, true))
     return false;
 
-  *retire_fence = dup(surface->GetLayer()->GetAcquireFence());
+  *retire_fence = surface->GetLayer()->ReleaseAcquireFence();
 
   return true;
 }

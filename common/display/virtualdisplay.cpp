@@ -70,6 +70,10 @@ bool VirtualDisplay::SetActiveConfig(uint32_t /*config*/) {
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence) {
   CTRACE();
+  if (powered_off_) {
+    return true;
+  }
+
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
   std::vector<size_t> index;
@@ -128,6 +132,16 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   if (acquire_fence > 0) {
     acquire_fence_ = dup(acquire_fence);
   }
+}
+
+bool VirtualDisplay::SetPowerMode(uint32_t power_mode) {
+  if (power_mode == kOn) {
+    powered_off_ = false;
+  } else {
+    powered_off_ = true;
+  }
+
+  return true;
 }
 
 }  // namespace hwcomposer
