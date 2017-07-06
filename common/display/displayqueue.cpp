@@ -159,7 +159,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           surface->UpdateSurfaceDamage(
               surface_damage,
               plane.GetOffScreenTarget()->GetLastSurfaceDamage());
-          last_plane.DisableClearSurface();
+          // TODO: We should be able to clear surface even when only
+          // region has changed but need proper tracking of surfacedamage.
+          if (!region_changed)
+            last_plane.DisableClearSurface();
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         }
@@ -183,7 +186,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           &(*(layers.begin() + last_plane.source_layers().front()));
       layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
       last_plane.SetOverlayLayer(layer);
-      if (layer->HasLayerContentChanged()) {
+      if (layer->HasLayerContentChanged() || layer->HasDimensionsChanged()) {
         ignore_commit = false;
       }
     }
