@@ -20,6 +20,7 @@
 
 #include <binder/IInterface.h>
 #include <utils/String8.h>
+#include <utils/Mutex.h>
 #include "libhwcservice/icontrols.h"
 #include "libhwcservice/idiagnostic.h"
 #include "libhwcservice/iservice.h"
