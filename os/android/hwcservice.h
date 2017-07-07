@@ -23,6 +23,7 @@
 #include "libhwcservice/icontrols.h"
 #include "libhwcservice/idiagnostic.h"
 #include "libhwcservice/iservice.h"
+#include "spinlock.h"
 #include "utils_android.h"
 
 namespace android {
@@ -148,7 +149,7 @@ class HwcService : public BnService {
     NotifyCallback* mpCallback;
   };
 
-  Mutex mLock;
+  SpinLock lock_;
   DrmHwcTwo* mpHwc;
 
   sp<IDiagnostic> mpDiagnostic;
