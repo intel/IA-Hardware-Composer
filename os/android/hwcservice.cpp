@@ -63,16 +63,17 @@ status_t HwcService::EnableLogviewToLogcat(bool enable) {
 sp<IDiagnostic> HwcService::GetDiagnostic() {
   // if (sbInternalBuild || sbLogViewerBuild)
   {
-    Mutex::Autolock _l(mLock);
+    mSpinLock.lock();
     ALOG_ASSERT(mpHwc);
     if (mpDiagnostic == NULL)
       mpDiagnostic = new Diagnostic(*mpHwc);
   }
+  mSpinLock.unlock();
   return mpDiagnostic;
 }
 
 sp<IControls> HwcService::GetControls() {
-  Mutex::Autolock _l(mLock);
+  // TODO: Check the need for lock
   ALOG_ASSERT(mpHwc);
   return new Controls(*mpHwc, *this);
 }
