@@ -71,6 +71,7 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
       DisplayPlaneState &last_plane = composition.back();
       for (auto i = layer_begin; i != layer_end; ++i) {
         last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame());
+        i->GPURendered();
       }
 
       ResetPlaneTarget(last_plane, commit_planes.back());

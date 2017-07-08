@@ -161,7 +161,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           surface->UpdateSurfaceDamage(
               surface_damage,
               plane.GetOffScreenTarget()->GetLastSurfaceDamage());
-          last_plane.DisableClearSurface();
+          if (!region_changed)
+            last_plane.DisableClearSurface();
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         }
