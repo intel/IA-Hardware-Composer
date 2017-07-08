@@ -46,6 +46,10 @@ VirtualDisplay::~VirtualDisplay() {
     close(acquire_fence_);
   }
 
+  if (handle_) {
+    buffer_handler_->DestroyHandle(handle_);
+  }
+
   delete output_handle_;
 }
 
@@ -70,48 +74,93 @@ bool VirtualDisplay::SetActiveConfig(uint32_t /*config*/) {
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence) {
   CTRACE();
-  if (powered_off_) {
-    return true;
-  }
-
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
   std::vector<size_t> index;
   int ret = 0;
   size_t size = source_layers.size();
+  size_t previous_size = in_flight_layers_.size();
+  bool frame_changed = (size != previous_size);
+  bool layers_changed = frame_changed;
+  *retire_fence = -1;
+  uint32_t z_order = 0;
+
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    HwcLayer *layer = source_layers.at(layer_index);
+    HwcLayer* layer = source_layers.at(layer_index);
+    layer->SetReleaseFence(-1);
+    if (!layer->IsVisible())
+      continue;
+
     layers.emplace_back();
-    OverlayLayer &overlay_layer = layers.back();
+    OverlayLayer& overlay_layer = layers.back();
     overlay_layer.SetTransform(layer->GetTransform());
     overlay_layer.SetAlpha(layer->GetAlpha());
     overlay_layer.SetBlending(layer->GetBlending());
     overlay_layer.SetSourceCrop(layer->GetSourceCrop());
     overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
-    overlay_layer.SetZorder(layer_index);
-    layers_rects.emplace_back(layer->GetDisplayFrame());
-    index.emplace_back(layer_index);
+    overlay_layer.SetLayerIndex(layer_index);
+    overlay_layer.SetZorder(z_order);
     overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
                             layer->GetAcquireFence());
+    index.emplace_back(z_order);
+    layers_rects.emplace_back(layer->GetDisplayFrame());
+    z_order++;
+
+    if (frame_changed) {
+      layer->Validate();
+      continue;
+    }
+
+    if (previous_size > layer_index) {
+      overlay_layer.ValidatePreviousFrameState(
+          in_flight_layers_.at(layer_index), layer);
+    }
+
+    if (overlay_layer.HasLayerAttributesChanged() ||
+        overlay_layer.HasLayerContentChanged() ||
+        overlay_layer.HasDimensionsChanged()) {
+      layers_changed = true;
+    }
+
+    layer->Validate();
   }
 
-  if (acquire_fence_ > 0) {
-    HWCPoll(acquire_fence_, -1);
-    close(acquire_fence_);
-    acquire_fence_ = 0;
+  if (layers_changed) {
+    if (!compositor_.BeginFrame(false)) {
+      ETRACE("Failed to initialize compositor.");
+      return false;
+    }
+
+    if (acquire_fence_ > 0) {
+      compositor_.InsertFence(acquire_fence_);
+      acquire_fence_ = 0;
+    }
+
+    // Prepare for final composition.
+    if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
+                                   width_, height_, output_handle_,
+                                   retire_fence)) {
+      ETRACE("Failed to prepare for the frame composition ret=%d", ret);
+      return false;
+    }
+
+    in_flight_layers_.swap(layers);
   }
 
-  if (!compositor_.BeginFrame(false)) {
-    ETRACE("Failed to initialize compositor.");
-    return false;
-  }
+  int32_t fence = *retire_fence;
 
-  // Prepare for final composition.
-  if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
-                                 width_, height_, output_handle_,
-                                 retire_fence)) {
-    ETRACE("Failed to prepare for the frame composition ret=%d", ret);
-    return false;
+  if (fence > 0) {
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      HwcLayer* layer = source_layers.at(layer_index);
+      layer->SetReleaseFence(dup(fence));
+    }
+  } else {
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      const OverlayLayer& overlay_layer =
+          in_flight_layers_.at(index.at(layer_index));
+      HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+      layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
+    }
   }
 
   return true;
@@ -120,8 +169,17 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
   if (!output_handle_ || output_handle_ != buffer) {
+    if (handle_) {
+      buffer_handler_->DestroyHandle(handle_);
+    }
+
     delete output_handle_;
     output_handle_ = buffer;
+    handle_ = 0;
+
+    if (output_handle_) {
+      buffer_handler_->CopyHandle(output_handle_, &handle_);
+    }
   }
 
   if (acquire_fence_ > 0) {
@@ -132,16 +190,6 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   if (acquire_fence > 0) {
     acquire_fence_ = dup(acquire_fence);
   }
-}
-
-bool VirtualDisplay::SetPowerMode(uint32_t power_mode) {
-  if (power_mode == kOn) {
-    powered_off_ = false;
-  } else {
-    powered_off_ = true;
-  }
-
-  return true;
 }
 
 }  // namespace hwcomposer

@@ -203,6 +203,7 @@ struct HwcLayer {
  private:
   void Validate();
   friend class DisplayQueue;
+  friend class VirtualDisplay;
 
   enum LayerState {
     kSurfaceDamaged = 1 << 0,
