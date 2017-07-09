@@ -269,7 +269,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (can_ignore_commit) {
       HandleCommitIgnored(current_composition_planes);
-      ReleaseSurfaces(false);
       return true;
     }
 
@@ -308,7 +307,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (!composition_passed) {
     UpdateSurfaceInUse(false, current_composition_planes);
     UpdateSurfaceInUse(true, previous_plane_state_);
-    ReleaseSurfaces(false);
+    ReleaseSurfaces();
     return false;
   }
 
@@ -331,13 +330,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (!composition_passed) {
     UpdateSurfaceInUse(false, current_composition_planes);
     UpdateSurfaceInUse(true, previous_plane_state_);
-    ReleaseSurfaces(false);
+    ReleaseSurfaces();
     return false;
   }
 
   in_flight_layers_.swap(layers);
   if (release_surfaces_) {
-    ReleaseSurfaces(render_layers);
+    ReleaseSurfaces();
     release_surfaces_ = false;
   }
 
@@ -347,7 +346,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   release_surfaces_ = validate_layers;
 
   if (idle_frame)
-    ReleaseSurfaces(render_layers);
+    ReleaseSurfaces();
 
   if (fence > 0) {
     if (render_layers)
@@ -367,7 +366,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   return true;
 }
 
-void DisplayQueue::ReleaseSurfaces(bool gpu_rendered) {
+void DisplayQueue::ReleaseSurfaces() {
   if (!compositor_.BeginFrame(disable_overlay_usage_)) {
     ETRACE("Failed to initialize compositor.");
     return;
@@ -378,9 +377,6 @@ void DisplayQueue::ReleaseSurfaces(bool gpu_rendered) {
     ETRACE("Failed to make context current.");
     return;
   }
-
-  if (!gpu_rendered)
-    compositor_.ReleaseGpuResources();
 
   display_plane_manager_->ReleaseFreeOffScreenTargets();
 }
@@ -410,6 +406,8 @@ void DisplayQueue::HandleCommitIgnored(
       surface->SetInUse(true);
     }
   }
+
+  ReleaseSurfaces();
 }
 
 void DisplayQueue::MarkBackBuffersForReUse() {

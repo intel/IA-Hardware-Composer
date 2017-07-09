@@ -51,13 +51,13 @@ class Compositor {
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t *retire_fence);
   void InsertFence(uint64_t fence);
-  void ReleaseGpuResources();
 
   Renderer *GetRenderer() const {
     return renderer_.get();
   }
 
  private:
+  void ReleaseGpuResources();
   bool Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
               const std::vector<CompositionRegion> &comp_regions,
               bool clear_surface);

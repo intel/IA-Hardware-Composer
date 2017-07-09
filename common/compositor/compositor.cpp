@@ -78,6 +78,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         "Failed to prepare GPU resources for compositing the frame, "
         "error: %s",
         PRINTERROR());
+    ReleaseGpuResources();
     return false;
   }
 
@@ -103,11 +104,13 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (!Render(layers, plane.GetOffScreenTarget(), comp_regions,
                   plane.ClearSurface())) {
         ETRACE("Failed to Render layer.");
+        ReleaseGpuResources();
         return false;
       }
     }
   }
 
+  ReleaseGpuResources();
   return true;
 }
 
