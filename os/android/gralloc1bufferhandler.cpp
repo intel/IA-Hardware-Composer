@@ -47,6 +47,9 @@ Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd) : fd_(fd) {
 }
 
 Gralloc1BufferHandler::~Gralloc1BufferHandler() {
+  gralloc1_device_t *gralloc1_dvc =
+      reinterpret_cast<gralloc1_device_t *>(device_);
+  gralloc1_dvc->common.close(device_);
 }
 
 bool Gralloc1BufferHandler::Init() {
