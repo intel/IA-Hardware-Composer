@@ -532,6 +532,8 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
+  idle_tracker_.continuous_frames_ = 0;
+
   if (idle_tracker_.idle_frames_ < 50) {
     idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
