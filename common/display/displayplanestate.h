@@ -79,6 +79,14 @@ class DisplayPlaneState {
     state_ = state;
   }
 
+  void UpdateDisplayFrame(const HwcRect<int> &display_frame) {
+    display_frame_.left = std::min(display_frame_.left, display_frame.left);
+    display_frame_.top = std::min(display_frame_.top, display_frame.top);
+    display_frame_.right = std::max(display_frame_.right, display_frame.right);
+    display_frame_.bottom =
+        std::max(display_frame_.bottom, display_frame.bottom);
+  }
+
   void ForceGPURendering() {
     state_ = State::kRender;
   }

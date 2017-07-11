@@ -43,11 +43,11 @@ class NativeSurface {
 
   virtual bool MakeCurrent() = 0;
 
-  uint32_t GetWidth() const {
+  int GetWidth() const {
     return width_;
   }
 
-  uint32_t GetHeight() const {
+  int GetHeight() const {
     return height_;
   }
 
@@ -83,8 +83,8 @@ class NativeSurface {
                        HWCNativeHandle native_handle);
   HWCNativeHandle native_handle_;
   NativeBufferHandler* buffer_handler_;
-  uint32_t width_;
-  uint32_t height_;
+  int width_;
+  int height_;
   bool in_use_;
   uint32_t framebuffer_format_;
   HwcRect<int> surface_damage_;

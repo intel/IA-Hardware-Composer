@@ -126,30 +126,26 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
+        const HwcRect<int>& damage = layer.GetDisplayFrame();
 
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
           if (!region_changed) {
-          const HwcRect<int>& damage = layer.GetDisplayFrame();
-          surface_damage.left =
-              std::min(surface_damage.left, damage.left);
-          surface_damage.top = std::min(surface_damage.top, damage.top);
-          surface_damage.right =
-              std::max(surface_damage.right, damage.right);
-          surface_damage.bottom =
-              std::max(surface_damage.bottom, damage.bottom);
+            surface_damage.left = std::min(surface_damage.left, damage.left);
+            surface_damage.top = std::min(surface_damage.top, damage.top);
+            surface_damage.right = std::max(surface_damage.right, damage.right);
+            surface_damage.bottom =
+                std::max(surface_damage.bottom, damage.bottom);
           }
         }
 
         if (layer.HasDimensionsChanged()) {
+          last_plane.UpdateDisplayFrame(damage);
           region_changed = true;
         }
-
-        if (region_changed && content_changed)
-          break;
       }
 
-      plane.TransferSurfaces(last_plane, content_changed && region_changed);
+      plane.TransferSurfaces(last_plane, content_changed || region_changed);
       if (region_changed) {
         surface_damage = last_plane.GetDisplayFrame();
       }
