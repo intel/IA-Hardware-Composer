@@ -110,14 +110,6 @@ class DrmHwcTwo : public hwc2_device_t {
     struct gralloc_handle native_handle_;
   };
 
-  struct HwcCallback {
-    HwcCallback(hwc2_callback_data_t d, hwc2_function_pointer_t f)
-        : data(d), func(f) {
-    }
-    hwc2_callback_data_t data;
-    hwc2_function_pointer_t func;
-  };
-
   class HwcDisplay {
    public:
     HwcDisplay(hwcomposer::GpuDevice *device, hwc2_display_t handle,
@@ -175,7 +167,6 @@ class DrmHwcTwo : public hwc2_device_t {
     }
 
    private:
-    void AddFenceToRetireFence(int fd);
 
     hwcomposer::GpuDevice *device_;
     hwcomposer::NativeDisplay *display_ = NULL;
@@ -244,7 +235,6 @@ class DrmHwcTwo : public hwc2_device_t {
 
   hwcomposer::GpuDevice device_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
-  std::map<HWC2::Callback, HwcCallback> callbacks_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;

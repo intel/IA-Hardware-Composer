@@ -15,7 +15,6 @@
  */
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
-#define LOG_TAG "hwc-drm-two"
 
 #include "drmhwctwo.h"
 #include "utils_android.h"
@@ -153,7 +152,6 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
                                         hwc2_function_pointer_t function) {
   supported(__func__);
   auto callback = static_cast<HWC2::Callback>(descriptor);
-  callbacks_.emplace(callback, HwcCallback(data, function));
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
