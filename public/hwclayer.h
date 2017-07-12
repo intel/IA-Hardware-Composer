@@ -200,6 +200,13 @@ struct HwcLayer {
    */
   void SetLayerZOrder(uint32_t z_order);
 
+  /**
+   * API for getting ZOrder for this layer.
+   */
+  uint32_t GetZorder() const {
+    return z_order_;
+  }
+
  private:
   void Validate();
   friend class DisplayQueue;

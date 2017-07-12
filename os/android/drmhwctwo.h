@@ -64,7 +64,7 @@ class DrmHwcTwo : public hwc2_device_t {
     }
 
     uint32_t z_order() const {
-      return z_order_;
+      return hwc_layer_.GetZorder();
     }
 
     void set_buffer(buffer_handle_t buffer) {
@@ -104,7 +104,6 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Composition validated_type_ = HWC2::Composition::Invalid;
     int32_t cursor_x_;
     int32_t cursor_y_;
-    uint32_t z_order_ = 0;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
     hwcomposer::HwcLayer hwc_layer_;
     struct gralloc_handle native_handle_;
@@ -172,7 +171,7 @@ class DrmHwcTwo : public hwc2_device_t {
     hwcomposer::NativeDisplay *display_ = NULL;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
-    uint32_t layer_idx_ = 0;
+    int layer_idx_ = 0;
     std::map<hwc2_layer_t, HwcLayer> layers_;
     HwcLayer client_layer_;
     int32_t color_mode_;
