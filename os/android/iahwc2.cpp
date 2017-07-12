@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-#define ATRACE_TAG ATRACE_TAG_GRAPHICS
-
-#include "drmhwctwo.h"
+#include "iahwc2.h"
 #include "utils_android.h"
 
 #include <inttypes.h>
@@ -30,16 +28,11 @@
 #include <hwcdefs.h>
 #include <nativedisplay.h>
 
-#include <string>
-#include <memory>
-#include <algorithm>
-#include <vector>
-
 namespace android {
 
-class DrmVsyncCallback : public hwcomposer::VsyncCallback {
+class IAHWC2VsyncCallback : public hwcomposer::VsyncCallback {
  public:
-  DrmVsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
+  IAHWC2VsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
       : data_(data), hook_(hook) {
   }
 
@@ -53,9 +46,9 @@ class DrmVsyncCallback : public hwcomposer::VsyncCallback {
   hwc2_function_pointer_t hook_;
 };
 
-class DrmRefreshCallback : public hwcomposer::RefreshCallback {
+class IAHWC2RefreshCallback : public hwcomposer::RefreshCallback {
  public:
-  DrmRefreshCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
+  IAHWC2RefreshCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
       : data_(data), hook_(hook) {
   }
 
@@ -69,7 +62,7 @@ class DrmRefreshCallback : public hwcomposer::RefreshCallback {
   hwc2_function_pointer_t hook_;
 };
 
-DrmHwcTwo::DrmHwcTwo() {
+IAHWC2::IAHWC2() {
   common.tag = HARDWARE_DEVICE_TAG;
   common.version = HWC_DEVICE_API_VERSION_2_0;
   common.close = HookDevClose;
@@ -77,7 +70,7 @@ DrmHwcTwo::DrmHwcTwo() {
   getFunction = HookDevGetFunction;
 }
 
-HWC2::Error DrmHwcTwo::Init() {
+HWC2::Error IAHWC2::Init() {
   char value[PROPERTY_VALUE_MAX];
   property_get("board.disable.explicit.sync", value, "0");
   disable_explicit_sync_ = atoi(value);
@@ -101,19 +94,9 @@ HWC2::Error DrmHwcTwo::Init() {
   return HWC2::Error::None;
 }
 
-template <typename... Args>
-static inline HWC2::Error unsupported(char const *func, Args... /*args*/) {
-  ALOGV("Unsupported function: %s", func);
-  return HWC2::Error::Unsupported;
-}
-
-static inline void supported(char const *func) {
-  ALOGV("supported function: %s", func);
-}
-
-HWC2::Error DrmHwcTwo::CreateVirtualDisplay(uint32_t width, uint32_t height,
-                                            int32_t *format,
-                                            hwc2_display_t *display) {
+HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
+                                         int32_t *format,
+                                         hwc2_display_t *display) {
   displays_.emplace(std::piecewise_construct,
                     std::forward_as_tuple(HWC_DISPLAY_VIRTUAL),
                     std::forward_as_tuple(&device_, HWC_DISPLAY_VIRTUAL,
@@ -128,7 +111,7 @@ HWC2::Error DrmHwcTwo::CreateVirtualDisplay(uint32_t width, uint32_t height,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::DestroyVirtualDisplay(hwc2_display_t display) {
+HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
   if (display != (hwc2_display_t)HWC_DISPLAY_VIRTUAL) {
     ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
     return HWC2::Error::BadDisplay;
@@ -138,19 +121,17 @@ HWC2::Error DrmHwcTwo::DestroyVirtualDisplay(hwc2_display_t display) {
   return HWC2::Error::None;
 }
 
-void DrmHwcTwo::Dump(uint32_t *size, char *buffer) {
-  // TODO: Implement dump
-  unsupported(__func__, size, buffer);
+void IAHWC2::Dump(uint32_t * /*size*/, char * /*buffer*/) {
+  ALOGV("Unsupported function: %s", __func__);
 }
 
-uint32_t DrmHwcTwo::GetMaxVirtualDisplayCount() {
+uint32_t IAHWC2::GetMaxVirtualDisplayCount() {
   return 1;
 }
 
-HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
-                                        hwc2_callback_data_t data,
-                                        hwc2_function_pointer_t function) {
-  supported(__func__);
+HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
+                                     hwc2_callback_data_t data,
+                                     hwc2_function_pointer_t function) {
   auto callback = static_cast<HWC2::Callback>(descriptor);
 
   switch (callback) {
@@ -161,14 +142,12 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
       break;
     }
     case HWC2::Callback::Vsync: {
-      for (std::pair<const hwc2_display_t, DrmHwcTwo::HwcDisplay> &d :
-           displays_)
+      for (std::pair<const hwc2_display_t, IAHWC2::HwcDisplay> &d : displays_)
         d.second.RegisterVsyncCallback(data, function);
       break;
     }
     case HWC2::Callback::Refresh: {
-      for (std::pair<const hwc2_display_t, DrmHwcTwo::HwcDisplay> &d :
-           displays_)
+      for (std::pair<const hwc2_display_t, IAHWC2::HwcDisplay> &d : displays_)
         d.second.RegisterRefreshCallback(data, function);
       break;
     }
@@ -178,16 +157,14 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
   return HWC2::Error::None;
 }
 
-DrmHwcTwo::HwcDisplay::HwcDisplay(hwcomposer::GpuDevice *device,
-                                  hwc2_display_t handle, HWC2::DisplayType type)
+IAHWC2::HwcDisplay::HwcDisplay(hwcomposer::GpuDevice *device,
+                               hwc2_display_t handle, HWC2::DisplayType type)
     : device_(device), handle_(handle), type_(type) {
-  supported(__func__);
 }
 
 // This function will be called only for Virtual Display Init
-HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height,
-                                        bool disable_explicit_sync) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::Init(uint32_t width, uint32_t height,
+                                     bool disable_explicit_sync) {
   if (!device_->Initialize()) {
     ALOGE("Can't initialize drm object.");
     return HWC2::Error::NoResources;
@@ -197,9 +174,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(uint32_t width, uint32_t height,
   return Init(disable_explicit_sync);
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::Init(bool disable_explicit_sync) {
-  supported(__func__);
-
+HWC2::Error IAHWC2::HwcDisplay::Init(bool disable_explicit_sync) {
   if (type_ != HWC2::DisplayType::Virtual) {
     int display = static_cast<int>(handle_);
     if (!device_->Initialize()) {
@@ -232,10 +207,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(bool disable_explicit_sync) {
   return SetActiveConfig(default_config);
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
+HWC2::Error IAHWC2::HwcDisplay::RegisterVsyncCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
-  supported(__func__);
-  auto callback = std::make_shared<DrmVsyncCallback>(data, func);
+  auto callback = std::make_shared<IAHWC2VsyncCallback>(data, func);
   int ret = display_->RegisterVsyncCallback(std::move(callback),
                                             static_cast<int>(handle_));
   if (ret) {
@@ -245,24 +219,21 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::RegisterRefreshCallback(
+HWC2::Error IAHWC2::HwcDisplay::RegisterRefreshCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
-  supported(__func__);
-  auto callback = std::make_shared<DrmRefreshCallback>(data, func);
+  auto callback = std::make_shared<IAHWC2RefreshCallback>(data, func);
   display_->RegisterRefreshCallback(std::move(callback),
                                     static_cast<int>(handle_));
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
-  supported(__func__);
-  uint32_t num_changes = 0;
+HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
   if (!checkValidateDisplay) {
     ALOGV("AcceptChanges failed, not validated");
     return HWC2::Error::NotValidated;
   }
 
-  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
+  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_)
     l.second.accept_type_change();
 
   // reset the value to false
@@ -270,33 +241,29 @@ HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), HwcLayer());
   *layer = static_cast<hwc2_layer_t>(layer_idx_);
   ++layer_idx_;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
   layers_.erase(layer);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
   if (!display_->GetActiveConfig(config))
     return HWC2::Error::BadConfig;
 
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetChangedCompositionTypes(
+HWC2::Error IAHWC2::HwcDisplay::GetChangedCompositionTypes(
     uint32_t *num_elements, hwc2_layer_t *layers, int32_t *types) {
-  supported(__func__);
   uint32_t num_changes = 0;
-  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
     if (l.second.type_changed()) {
       if (layers && num_changes < *num_elements)
         layers[num_changes] = l.first;
@@ -310,10 +277,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetChangedCompositionTypes(
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
-                                                          uint32_t height,
-                                                          int32_t format,
-                                                          int32_t dataspace) {
+HWC2::Error IAHWC2::HwcDisplay::GetClientTargetSupport(uint32_t width,
+                                                       uint32_t height,
+                                                       int32_t format,
+                                                       int32_t dataspace) {
   if (width != display_->Width() || height != display_->Height()) {
     return HWC2::Error::Unsupported;
   }
@@ -334,9 +301,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetClientTargetSupport(uint32_t width,
   return HWC2::Error::Unsupported;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetColorModes(uint32_t *num_modes,
-                                                 int32_t *modes) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetColorModes(uint32_t *num_modes,
+                                              int32_t *modes) {
   if (!modes)
     *num_modes = 1;
 #ifndef DISABLE_NATIVE_COLOR_MODES
@@ -347,10 +313,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetColorModes(uint32_t *num_modes,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
-                                                       int32_t attribute_in,
-                                                       int32_t *value) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
+                                                    int32_t attribute_in,
+                                                    int32_t *value) {
   auto attribute = static_cast<HWC2::Attribute>(attribute_in);
   switch (attribute) {
     case HWC2::Attribute::Width:
@@ -383,67 +348,56 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
-                                                     hwc2_config_t *configs) {
-  supported(__func__);
-
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayConfigs(uint32_t *num_configs,
+                                                  hwc2_config_t *configs) {
   if (!display_->GetDisplayConfigs(num_configs, configs))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayName(uint32_t *size, char *name) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayName(uint32_t *size, char *name) {
   if (!display_->GetDisplayName(size, name))
     return HWC2::Error::BadDisplay;
 
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayRequests(int32_t *display_requests,
-                                                      uint32_t *num_elements,
-                                                      hwc2_layer_t *layers,
-                                                      int32_t *layer_requests) {
-  supported(__func__);
-  // TODO: I think virtual display should request
-  //      HWC2_DISPLAY_REQUEST_WRITE_CLIENT_TARGET_TO_OUTPUT here
-  unsupported(__func__, display_requests, num_elements, layers, layer_requests);
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayRequests(
+    int32_t * /*display_requests*/, uint32_t *num_elements,
+    hwc2_layer_t * /*layers*/, int32_t * /*layer_requests*/) {
   *num_elements = 0;
-  return HWC2::Error::None;
+  ALOGV("Unsupported function: %s", __func__);
+  return HWC2::Error::Unsupported;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayType(int32_t *type) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayType(int32_t *type) {
   *type = static_cast<int32_t>(type_);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetDozeSupport(int32_t *support) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetDozeSupport(int32_t *support) {
   *support = true;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetHdrCapabilities(
-    uint32_t *num_types, int32_t */*types*/, float */*max_luminance*/,
-    float */*max_average_luminance*/, float */*min_luminance*/) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetHdrCapabilities(
+    uint32_t *num_types, int32_t * /*types*/, float * /*max_luminance*/,
+    float * /*max_average_luminance*/, float * /*min_luminance*/) {
   *num_types = 0;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
-                                                    hwc2_layer_t *layers,
-                                                    int32_t *fences) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
+                                                 hwc2_layer_t *layers,
+                                                 int32_t *fences) {
   if (layers == NULL || fences == NULL) {
     *num_elements = layers_.size();
     return HWC2::Error::None;
   }
 
   uint32_t num_layers = 0;
-  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
     ++num_layers;
     if (num_layers > *num_elements) {
       ALOGW("Overflow num_elements %d/%d", num_layers, *num_elements);
@@ -458,16 +412,15 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // order the layers by z-order
   bool use_client_layer = false;
   uint32_t client_z_order = 0;
   bool use_cursor_layer = false;
   uint32_t cursor_z_order = 0;
-  DrmHwcTwo::HwcLayer *cursor_layer;
+  IAHWC2::HwcLayer *cursor_layer;
   *retire_fence = -1;
-  std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
+  std::map<uint32_t, IAHWC2::HwcLayer *> z_map;
 
   // if the power mode is doze suspend then its the hint that the drawing
   // into the display has suspended and remain in the low power state and
@@ -475,7 +428,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // update from the client
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
-  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
@@ -511,7 +464,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   std::vector<hwcomposer::HwcLayer *> layers;
   // now that they're ordered by z, add them to the composition
-  for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
+  for (std::pair<const uint32_t, IAHWC2::HwcLayer *> &l : z_map) {
     layers.emplace_back(l.second->GetLayer());
   }
 
@@ -528,8 +481,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   if (!display_->SetActiveConfig(config)) {
     ALOGE("Could not find active mode for %d", config);
     return HWC2::Error::BadConfig;
@@ -550,11 +502,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
-                                                   int32_t acquire_fence,
-                                                   int32_t dataspace,
-                                                   hwc_region_t damage) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::SetClientTarget(buffer_handle_t target,
+                                                int32_t acquire_fence,
+                                                int32_t dataspace,
+                                                hwc_region_t damage) {
   client_layer_.set_buffer(target);
   client_layer_.set_acquire_fence(acquire_fence);
   client_layer_.SetLayerDataspace(dataspace);
@@ -563,31 +514,26 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetColorMode(int32_t mode) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   color_mode_ = mode;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetColorTransform(const float *matrix,
-                                                     int32_t hint) {
-  supported(__func__);
-  // TODO: Force client composition if we get this
-  return unsupported(__func__, matrix, hint);
+HWC2::Error IAHWC2::HwcDisplay::SetColorTransform(const float * /*matrix*/,
+                                                  int32_t /*hint*/) {
+  ALOGV("Unsupported function: %s", __func__);
+  return HWC2::Error::Unsupported;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
-                                                   int32_t release_fence) {
-  supported(__func__);
-
+HWC2::Error IAHWC2::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
+                                                int32_t release_fence) {
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->handle_ = buffer;
   display_->SetOutputBuffer(temp, release_fence);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::SetPowerMode(int32_t mode_in) {
   uint32_t power_mode = 0;
   auto mode = static_cast<HWC2::PowerMode>(mode_in);
   switch (mode) {
@@ -613,24 +559,22 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
   display_->VSyncControl(enabled);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
-                                                   uint32_t *num_requests) {
-  supported(__func__);
-  *num_types = 0;
+HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
+                                                uint32_t *num_requests) {
   *num_requests = 0;
-  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
-    DrmHwcTwo::HwcLayer &layer = l.second;
+  uint32_t total_types = 0;
+  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
+    IAHWC2::HwcLayer &layer = l.second;
     switch (layer.sf_type()) {
       case HWC2::Composition::SolidColor:
       case HWC2::Composition::Sideband:
         layer.set_validated_type(HWC2::Composition::Client);
-        ++*num_types;
+        ++total_types;
         break;
       default:
         if (disable_explicit_sync_ ||
@@ -644,18 +588,17 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   }
 
   checkValidateDisplay = true;
+  *num_types = total_types;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
   cursor_x_ = x;
   cursor_y_ = y;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBlendMode(int32_t mode) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerBlendMode(int32_t mode) {
   switch (static_cast<HWC2::BlendMode>(mode)) {
     case HWC2::BlendMode::None:
       hwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingNone);
@@ -674,10 +617,8 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBlendMode(int32_t mode) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
-                                                int32_t acquire_fence) {
-  supported(__func__);
-
+HWC2::Error IAHWC2::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
+                                             int32_t acquire_fence) {
   // The buffer and acquire_fence are handled elsewhere
   if (sf_type_ == HWC2::Composition::Client ||
       sf_type_ == HWC2::Composition::Sideband ||
@@ -691,52 +632,45 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerColor(hwc_color_t /*color*/) {
-  // Probably we should query for the plane capabilities here, before
-  // always falling back for client composition ?
+HWC2::Error IAHWC2::HwcLayer::SetLayerColor(hwc_color_t /*color*/) {
   sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerCompositionType(int32_t type) {
+HWC2::Error IAHWC2::HwcLayer::SetLayerCompositionType(int32_t type) {
   sf_type_ = static_cast<HWC2::Composition>(type);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerDataspace(int32_t dataspace) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerDataspace(int32_t dataspace) {
   dataspace_ = static_cast<android_dataspace_t>(dataspace);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerDisplayFrame(hwc_rect_t frame) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerDisplayFrame(hwc_rect_t frame) {
   hwc_layer_.SetDisplayFrame(hwcomposer::HwcRect<int>(
       frame.left, frame.top, frame.right, frame.bottom));
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerPlaneAlpha(float alpha) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerPlaneAlpha(float alpha) {
   hwc_layer_.SetAlpha(static_cast<uint8_t>(255.0f * alpha + 0.5f));
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSidebandStream(
-    const native_handle_t *stream) {
-  supported(__func__);
-  // TODO: We don't support sideband
-  return unsupported(__func__, stream);
+HWC2::Error IAHWC2::HwcLayer::SetLayerSidebandStream(
+    const native_handle_t * /*stream*/) {
+  ALOGV("Unsupported function: %s", __func__);
+  return HWC2::Error::Unsupported;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSourceCrop(hwc_frect_t crop) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerSourceCrop(hwc_frect_t crop) {
   hwc_layer_.SetSourceCrop(
       hwcomposer::HwcRect<float>(crop.left, crop.top, crop.right, crop.bottom));
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
+HWC2::Error IAHWC2::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
   uint32_t num_rects = damage.numRects;
   hwcomposer::HwcRegion hwc_region;
 
@@ -751,8 +685,7 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerTransform(int32_t transform) {
-  supported(__func__);
+HWC2::Error IAHWC2::HwcLayer::SetLayerTransform(int32_t transform) {
   // 270* and 180* cannot be combined with flips. More specifically, they
   // already contain both horizontal and vertical flips, so those fields are
   // redundant in this case. 90* rotation can be combined with either horizontal
@@ -773,70 +706,65 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerTransform(int32_t transform) {
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
-    uint32_t num_rects = visible.numRects;
-    hwcomposer::HwcRegion hwc_region;
+HWC2::Error IAHWC2::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
+  uint32_t num_rects = visible.numRects;
+  hwcomposer::HwcRegion hwc_region;
 
-    for (size_t rect = 0; rect < num_rects; ++rect) {
-      hwc_region.emplace_back(visible.rects[rect].left, visible.rects[rect].top,
-			      visible.rects[rect].right,
-			      visible.rects[rect].bottom);
-    }
+  for (size_t rect = 0; rect < num_rects; ++rect) {
+    hwc_region.emplace_back(visible.rects[rect].left, visible.rects[rect].top,
+                            visible.rects[rect].right,
+                            visible.rects[rect].bottom);
+  }
 
-    hwc_layer_.SetVisibleRegion(hwc_region);
+  hwc_layer_.SetVisibleRegion(hwc_region);
   return HWC2::Error::None;
 }
 
-HWC2::Error DrmHwcTwo::HwcLayer::SetLayerZOrder(uint32_t order) {
-  supported(__func__);
-
+HWC2::Error IAHWC2::HwcLayer::SetLayerZOrder(uint32_t order) {
   hwc_layer_.SetLayerZOrder(order);
   return HWC2::Error::None;
 }
 
 // static
-int DrmHwcTwo::HookDevClose(hw_device_t * /*dev*/) {
-  unsupported(__func__);
+int IAHWC2::HookDevClose(hw_device_t * /*dev*/) {
+  ALOGV("Unsupported function: %s", __func__);
   return 0;
 }
 
 // static
-void DrmHwcTwo::HookDevGetCapabilities(hwc2_device_t * /*dev*/,
-                                       uint32_t *out_count,
-                                       int32_t * /*out_capabilities*/) {
-  supported(__func__);
+void IAHWC2::HookDevGetCapabilities(hwc2_device_t * /*dev*/,
+                                    uint32_t *out_count,
+                                    int32_t * /*out_capabilities*/) {
   *out_count = 0;
 }
 
 // static
-hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
-    struct hwc2_device * /*dev*/, int32_t descriptor) {
-  supported(__func__);
+hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
+                                                   int32_t descriptor) {
   auto func = static_cast<HWC2::FunctionDescriptor>(descriptor);
   switch (func) {
     // Device functions
     case HWC2::FunctionDescriptor::CreateVirtualDisplay:
       return ToHook<HWC2_PFN_CREATE_VIRTUAL_DISPLAY>(
-          DeviceHook<int32_t, decltype(&DrmHwcTwo::CreateVirtualDisplay),
-                     &DrmHwcTwo::CreateVirtualDisplay, uint32_t, uint32_t,
-                     int32_t*, hwc2_display_t *>);
+          DeviceHook<int32_t, decltype(&IAHWC2::CreateVirtualDisplay),
+                     &IAHWC2::CreateVirtualDisplay, uint32_t, uint32_t,
+                     int32_t *, hwc2_display_t *>);
     case HWC2::FunctionDescriptor::DestroyVirtualDisplay:
       return ToHook<HWC2_PFN_DESTROY_VIRTUAL_DISPLAY>(
-          DeviceHook<int32_t, decltype(&DrmHwcTwo::DestroyVirtualDisplay),
-                     &DrmHwcTwo::DestroyVirtualDisplay, hwc2_display_t>);
+          DeviceHook<int32_t, decltype(&IAHWC2::DestroyVirtualDisplay),
+                     &IAHWC2::DestroyVirtualDisplay, hwc2_display_t>);
     case HWC2::FunctionDescriptor::Dump:
-      return ToHook<HWC2_PFN_DUMP>(
-          DeviceHook<void, decltype(&DrmHwcTwo::Dump), &DrmHwcTwo::Dump,
-                     uint32_t *, char *>);
+      return ToHook<HWC2_PFN_DUMP>(DeviceHook<
+          void, decltype(&IAHWC2::Dump), &IAHWC2::Dump, uint32_t *, char *>);
     case HWC2::FunctionDescriptor::GetMaxVirtualDisplayCount:
       return ToHook<HWC2_PFN_GET_MAX_VIRTUAL_DISPLAY_COUNT>(
-          DeviceHook<uint32_t, decltype(&DrmHwcTwo::GetMaxVirtualDisplayCount),
-                     &DrmHwcTwo::GetMaxVirtualDisplayCount>);
+          DeviceHook<uint32_t, decltype(&IAHWC2::GetMaxVirtualDisplayCount),
+                     &IAHWC2::GetMaxVirtualDisplayCount>);
     case HWC2::FunctionDescriptor::RegisterCallback:
       return ToHook<HWC2_PFN_REGISTER_CALLBACK>(
-          DeviceHook<int32_t, decltype(&DrmHwcTwo::RegisterCallback),
-                     &DrmHwcTwo::RegisterCallback, int32_t,
-                     hwc2_callback_data_t, hwc2_function_pointer_t>);
+          DeviceHook<int32_t, decltype(&IAHWC2::RegisterCallback),
+                     &IAHWC2::RegisterCallback, int32_t, hwc2_callback_data_t,
+                     hwc2_function_pointer_t>);
 
     // Display functions
     case HWC2::FunctionDescriptor::AcceptDisplayChanges:
@@ -1005,23 +933,22 @@ hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
 }
 
 // static
-int DrmHwcTwo::HookDevOpen(const struct hw_module_t *module, const char *name,
-                           struct hw_device_t **dev) {
-  supported(__func__);
+int IAHWC2::HookDevOpen(const struct hw_module_t *module, const char *name,
+                        struct hw_device_t **dev) {
   if (strcmp(name, HWC_HARDWARE_COMPOSER)) {
     ALOGE("Invalid module name- %s", name);
     return -EINVAL;
   }
 
-  std::unique_ptr<DrmHwcTwo> ctx(new DrmHwcTwo());
+  std::unique_ptr<IAHWC2> ctx(new IAHWC2());
   if (!ctx) {
-    ALOGE("Failed to allocate DrmHwcTwo");
+    ALOGE("Failed to allocate IAHWC2");
     return -ENOMEM;
   }
 
   HWC2::Error err = ctx->Init();
   if (err != HWC2::Error::None) {
-    ALOGE("Failed to initialize DrmHwcTwo err=%d\n", err);
+    ALOGE("Failed to initialize IAHWC2 err=%d\n", err);
     return -EINVAL;
   }
 
@@ -1033,17 +960,17 @@ int DrmHwcTwo::HookDevOpen(const struct hw_module_t *module, const char *name,
 
 }  // namespace android
 
-static struct hw_module_methods_t hwc2_module_methods = {
-    .open = android::DrmHwcTwo::HookDevOpen,
+static struct hw_module_methods_t iahwc2_module_methods = {
+    .open = android::IAHWC2::HookDevOpen,
 };
 
 hw_module_t HAL_MODULE_INFO_SYM = {
     .tag = HARDWARE_MODULE_TAG,
     .module_api_version = HARDWARE_MODULE_API_VERSION(2, 0),
     .id = HWC_HARDWARE_MODULE_ID,
-    .name = "DrmHwcTwo module",
+    .name = "IAHWC2 module",
     .author = "The Android Open Source Project",
-    .methods = &hwc2_module_methods,
+    .methods = &iahwc2_module_methods,
     .dso = NULL,
     .reserved = {0},
 };

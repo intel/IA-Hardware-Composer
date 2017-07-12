@@ -18,7 +18,7 @@
 #include <binder/IInterface.h>
 #include <binder/IServiceManager.h>
 #include <binder/Parcel.h>
-#include "drmhwctwo.h"
+#include "iahwc2.h"
 
 #define HWC_VERSION_STRING                                             \
   "VERSION:HWC 2.0 GIT Branch & Latest Commit:" HWC_VERSION_GIT_BRANCH \
@@ -33,7 +33,7 @@ HwcService::HwcService() : mpHwc(NULL) {
 HwcService::~HwcService() {
 }
 
-bool HwcService::Start(DrmHwcTwo &hwc) {
+bool HwcService::Start(IAHWC2 &hwc) {
   mpHwc = &hwc;
   sp<IServiceManager> sm(defaultServiceManager());
   if (sm->addService(String16(IA_HWC_SERVICE_NAME), this, false)) {
@@ -94,7 +94,7 @@ void HwcService::Diagnostic::MaskLayer(uint32_t, uint32_t, bool) { /* nothing */
 void HwcService::Diagnostic::DumpFrames(uint32_t, int32_t, bool) { /* nothing */
 }
 
-HwcService::Controls::Controls(DrmHwcTwo &hwc, HwcService &hwcService)
+HwcService::Controls::Controls(IAHWC2 &hwc, HwcService &hwcService)
     : mHwc(hwc),
       mHwcService(hwcService),
       mbHaveSessionsEnabled(false),

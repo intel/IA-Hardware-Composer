@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef OS_ANDROID_DRMHWCTWO_H_
-#define OS_ANDROID_DRMHWCTWO_H_
+#ifndef OS_ANDROID_IAHWC2_H_
+#define OS_ANDROID_IAHWC2_H_
 
 #include <hardware/hwcomposer2.h>
 
@@ -35,12 +35,12 @@ class NativeDisplay;
 
 namespace android {
 class HwcService;
-class DrmHwcTwo : public hwc2_device_t {
+class IAHWC2 : public hwc2_device_t {
  public:
   static int HookDevOpen(const struct hw_module_t *module, const char *name,
                          struct hw_device_t **dev);
 
-  DrmHwcTwo();
+  IAHWC2();
 
   HWC2::Error Init();
 
@@ -182,8 +182,8 @@ class DrmHwcTwo : public hwc2_device_t {
     bool disable_explicit_sync_ = false;
   };
 
-  static DrmHwcTwo *toDrmHwcTwo(hwc2_device_t *dev) {
-    return static_cast<DrmHwcTwo *>(dev);
+  static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
+    return static_cast<IAHWC2 *>(dev);
   }
 
   template <typename PFN, typename T>
@@ -194,14 +194,14 @@ class DrmHwcTwo : public hwc2_device_t {
 
   template <typename T, typename HookType, HookType func, typename... Args>
   static T DeviceHook(hwc2_device_t *dev, Args... args) {
-    DrmHwcTwo *hwc = toDrmHwcTwo(dev);
+    IAHWC2 *hwc = toIAHWC2(dev);
     return static_cast<T>(((*hwc).*func)(std::forward<Args>(args)...));
   }
 
   template <typename HookType, HookType func, typename... Args>
   static int32_t DisplayHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                              Args... args) {
-    DrmHwcTwo *hwc = toDrmHwcTwo(dev);
+    IAHWC2 *hwc = toIAHWC2(dev);
     HwcDisplay &display = hwc->displays_.at(display_handle);
     return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
   }
@@ -209,7 +209,7 @@ class DrmHwcTwo : public hwc2_device_t {
   template <typename HookType, HookType func, typename... Args>
   static int32_t LayerHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                            hwc2_layer_t layer_handle, Args... args) {
-    DrmHwcTwo *hwc = toDrmHwcTwo(dev);
+    IAHWC2 *hwc = toIAHWC2(dev);
     HwcDisplay &display = hwc->displays_.at(display_handle);
     HwcLayer &layer = display.get_layer(layer_handle);
     return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
@@ -240,4 +240,4 @@ class DrmHwcTwo : public hwc2_device_t {
 };
 }  // namespace android
 
-#endif  // OS_ANDROID_DRMHWCTWO_H_
+#endif  // OS_ANDROID_IAHWC2_H_
