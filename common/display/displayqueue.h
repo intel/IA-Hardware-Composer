@@ -29,6 +29,7 @@
 #include "compositor.h"
 #include "displayplanemanager.h"
 #include "hwcthread.h"
+#include "hwclock.h"
 #include "vblankeventhandler.h"
 #include "platformdefines.h"
 
@@ -74,6 +75,8 @@ class DisplayQueue {
 
   void DisplayConfigurationChanged();
 
+  void ForceRefresh();
+
  private:
   void HandleExit();
   struct FrameStateTracker {
@@ -84,14 +87,16 @@ class DisplayQueue {
       kRevalidateLayers = 1 << 3,   // We disabled overlay usage for idle mode,
                                     // if we are continously updating
       // frames, revalidate layers to use planes.
-      kTrackingFrames = 1 << 4  // Tracking frames to see when layers need to be
-                                // revalidated after
-                                // disabling overlays for idle case scenario.
+      kTrackingFrames =
+          1 << 4,              // Tracking frames to see when layers need to be
+                               // revalidated after
+                               // disabling overlays for idle case scenario.
+      kIgnoreUpdates = 1 << 5  // Ignore present display calls.
     };
 
     uint32_t idle_frames_ = 0;
     SpinLock idle_lock_;
-    uint32_t state_;
+    uint32_t state_ = kIgnoreUpdates;
     uint32_t continuous_frames_ = 0;
   };
 
@@ -117,6 +122,10 @@ class DisplayQueue {
         tracker_.state_ = 0;
 	tracker_.continuous_frames_ = 0;
       }
+    }
+
+    bool IgnoreUpdate() const {
+      return tracker_.state_ & FrameStateTracker::kIgnoreUpdates;
     }
 
     ~ScopedIdleStateTracker() {
@@ -173,6 +182,7 @@ class DisplayQueue {
   bool disable_overlay_usage_ = false;
   bool release_surfaces_ = false;
   bool ignore_idle_refresh_ = false;
+  std::unique_ptr<HWCLock> hwc_lock_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;

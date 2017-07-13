@@ -54,6 +54,7 @@ LOCAL_SRC_FILES := \
 	common/compositor/renderstate.cpp \
 	common/core/gpudevice.cpp \
 	common/core/hwclayer.cpp \
+        common/core/hwclock.cpp \
 	common/core/overlaylayer.cpp \
 	common/display/displayplanemanager.cpp \
 	common/display/displayqueue.cpp \

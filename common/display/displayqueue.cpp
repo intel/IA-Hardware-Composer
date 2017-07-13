@@ -72,6 +72,13 @@ bool DisplayQueue::Initialize(float refresh, uint32_t pipe, uint32_t width,
   }
 
   vblank_handler_->Init(refresh, gpu_fd_, pipe);
+  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
+    hwc_lock_.reset(new HWCLock());
+    if (!hwc_lock_->RegisterCallBack(this)) {
+      idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
+      hwc_lock_.reset(nullptr);
+    }
+  }
 
   return true;
 }
@@ -199,6 +206,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
+  if (tracker.IgnoreUpdate())
+    return true;
 
   use_layer_cache_ = !configuration_changed_;
   size_t size = source_layers.size();
@@ -357,6 +366,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // operations and release buffers of previous layers.
     if (render_layers)
       compositor_.InsertFence(0);
+  }
+
+  if (hwc_lock_.get()) {
+    hwc_lock_->DisableWatch();
+    hwc_lock_.reset(nullptr);
   }
 
   return true;
@@ -546,6 +560,17 @@ void DisplayQueue::HandleIdleCase() {
   if (!ignore_idle_refresh_ && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
     idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
+  }
+  power_mode_lock_.unlock();
+  idle_tracker_.idle_lock_.unlock();
+}
+
+void DisplayQueue::ForceRefresh() {
+  idle_tracker_.idle_lock_.lock();
+  idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
+  power_mode_lock_.lock();
+  if (!ignore_idle_refresh_ && refresh_callback_) {
+    refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
