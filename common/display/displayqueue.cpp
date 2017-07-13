@@ -42,7 +42,11 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
       buffer_handler_(buffer_handler),
       display_(display) {
   compositor_.Init();
-  disable_overlay_usage_ = disable_overlay;
+  if (disable_overlay) {
+    state_ |= kDisableOverlayUsage;
+  } else {
+    state_ &= ~kDisableOverlayUsage;
+  }
 
   vblank_handler_.reset(new VblankEventHandler(this));
 
@@ -54,7 +58,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
   gamma_.red = 1;
   gamma_.green = 1;
   gamma_.blue = 1;
-  needs_color_correction_ = true;
+  state_ |= kNeedsColorCorrection;
 }
 
 DisplayQueue::~DisplayQueue() {
@@ -95,11 +99,11 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kDozeSuspend);
       break;
     case kOn:
-      configuration_changed_ = true;
-      needs_color_correction_ = true;
+      state_ |= kConfigurationChanged;
+      state_ |= kNeedsColorCorrection;
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
-      ignore_idle_refresh_ = false;
+      state_ &= ~kIgnoreIdleRefresh;
       power_mode_lock_.unlock();
       break;
     default:
@@ -209,13 +213,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (tracker.IgnoreUpdate())
     return true;
 
-  use_layer_cache_ = !configuration_changed_;
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   bool frame_changed = (size != previous_size);
   bool idle_frame = tracker.RenderIdleMode();
-  if (!use_layer_cache_ || idle_frame)
+  if ((state_ & kConfigurationChanged) || idle_frame)
     frame_changed = true;
 
   bool layers_changed = frame_changed;
@@ -263,6 +266,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
   bool composition_passed = true;
+  bool disable_ovelays = state_ & kDisableOverlayUsage;
 
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
@@ -281,15 +285,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     tracker.ResetTrackerState();
     MarkBackBuffersForReUse();
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, configuration_changed_, idle_frame || disable_overlay_usage_,
+        layers, state_ & kConfigurationChanged, idle_frame || disable_ovelays,
         current_composition_planes);
-    configuration_changed_ = false;
+    state_ &= ~kConfigurationChanged;
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
 
   if (render_layers) {
-    if (!compositor_.BeginFrame(disable_overlay_usage_)) {
+    if (!compositor_.BeginFrame(disable_ovelays)) {
       ETRACE("Failed to initialize compositor.");
       composition_passed = false;
     }
@@ -323,14 +327,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     kms_fence_ = 0;
   }
 
-  if (needs_color_correction_) {
+  if (state_ & kNeedsColorCorrection) {
     display_->SetColorCorrection(gamma_, contrast_, brightness_);
-    needs_color_correction_ = false;
+    state_ &= ~kNeedsColorCorrection;
   }
 
   composition_passed =
       display_->Commit(current_composition_planes, previous_plane_state_,
-                       disable_overlay_usage_, &fence);
+                       disable_ovelays, &fence);
 
   if (!composition_passed) {
     UpdateSurfaceInUse(false, current_composition_planes);
@@ -340,15 +344,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   in_flight_layers_.swap(layers);
-  if (release_surfaces_) {
+  if (state_ & kReleaseSurfaces) {
     ReleaseSurfaces();
-    release_surfaces_ = false;
+    state_ &= ~kReleaseSurfaces;
   }
 
   UpdateSurfaceInUse(false, previous_plane_state_);
   previous_plane_state_.swap(current_composition_planes);
   UpdateSurfaceInUse(true, previous_plane_state_);
-  release_surfaces_ = validate_layers;
+  if (validate_layers) {
+    state_ |= kReleaseSurfaces;
+  }
 
   if (idle_frame)
     ReleaseSurfaces();
@@ -377,7 +383,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 }
 
 void DisplayQueue::ReleaseSurfaces() {
-  if (!compositor_.BeginFrame(disable_overlay_usage_)) {
+  if (!compositor_.BeginFrame(state_ & kDisableOverlayUsage)) {
     ETRACE("Failed to initialize compositor.");
     return;
   }
@@ -468,7 +474,7 @@ void DisplayQueue::SetReleaseFenceToLayers(
 
 void DisplayQueue::HandleExit() {
   power_mode_lock_.lock();
-  ignore_idle_refresh_ = true;
+  state_ |= kIgnoreIdleRefresh;
   power_mode_lock_.unlock();
   vblank_handler_->SetPowerMode(kOff);
   display_->Disable(previous_plane_state_);
@@ -483,7 +489,16 @@ void DisplayQueue::HandleExit() {
     close(kms_fence_);
     kms_fence_ = 0;
   }
-  use_layer_cache_ = false;
+
+  bool disable_overlay = false;
+  if (state_ & kDisableOverlayUsage) {
+    disable_overlay = true;
+  }
+
+  state_ = kConfigurationChanged;
+  if (disable_overlay) {
+    state_ |= kDisableOverlayUsage;
+  }
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
@@ -494,7 +509,7 @@ void DisplayQueue::SetGamma(float red, float green, float blue) {
   gamma_.red = red;
   gamma_.green = green;
   gamma_.blue = blue;
-  needs_color_correction_ = true;
+  state_ |= kNeedsColorCorrection;
 }
 
 void DisplayQueue::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
@@ -502,7 +517,7 @@ void DisplayQueue::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
   green &= 0xFF;
   blue &= 0xFF;
   contrast_ = (red << 16) | (green << 8) | (blue);
-  needs_color_correction_ = true;
+  state_ |= kNeedsColorCorrection;
 }
 
 void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
@@ -510,11 +525,15 @@ void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
   green &= 0xFF;
   blue &= 0xFF;
   brightness_ = (red << 16) | (green << 8) | (blue);
-  needs_color_correction_ = true;
+  state_ |= kNeedsColorCorrection;
 }
 
 void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
-  disable_overlay_usage_ = disable_explicit_sync;
+  if (disable_explicit_sync) {
+    state_ |= kDisableOverlayUsage;
+  } else {
+    state_ &= ~kDisableOverlayUsage;
+  }
 }
 
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
@@ -557,7 +576,7 @@ void DisplayQueue::HandleIdleCase() {
 
   idle_tracker_.idle_frames_++;
   power_mode_lock_.lock();
-  if (!ignore_idle_refresh_ && refresh_callback_) {
+  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
     idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
   }
@@ -569,7 +588,7 @@ void DisplayQueue::ForceRefresh() {
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
   power_mode_lock_.lock();
-  if (!ignore_idle_refresh_ && refresh_callback_) {
+  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
@@ -578,7 +597,7 @@ void DisplayQueue::ForceRefresh() {
 
 void DisplayQueue::DisplayConfigurationChanged() {
   // Mark it as needs modeset, so that in next queue update we do a modeset
-  configuration_changed_ = true;
+  state_ |= kConfigurationChanged;
 }
 
 }  // namespace hwcomposer

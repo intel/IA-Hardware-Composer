@@ -78,6 +78,14 @@ class DisplayQueue {
   void ForceRefresh();
 
  private:
+  enum QueueState {
+    kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
+    kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
+    kDisableOverlayUsage = 1 << 3,   // Disable Overlays.
+    kReleaseSurfaces = 1 << 5,       // Release Native Surfaces.
+    kIgnoreIdleRefresh = 1 << 6  // Ignore refresh request during idle callback.
+  };
+
   void HandleExit();
   struct FrameStateTracker {
     enum FrameState {
@@ -176,9 +184,6 @@ class DisplayQueue {
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
-  bool needs_color_correction_ = false;
-  bool configuration_changed_ = true;
-  bool use_layer_cache_ = false;
   bool disable_overlay_usage_ = false;
   bool release_surfaces_ = false;
   bool ignore_idle_refresh_ = false;
@@ -194,6 +199,7 @@ class DisplayQueue {
   // done
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
+  uint32_t state_ = kConfigurationChanged;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
 };
