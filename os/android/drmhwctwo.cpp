@@ -639,7 +639,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
             display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
           layer.set_validated_type(HWC2::Composition::Client);
         } else {
-          layer.set_validated_type(layer.sf_type());
+          layer.set_validated_type(HWC2::Composition::Client);
         }
         break;
     }
