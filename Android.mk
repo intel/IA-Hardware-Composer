@@ -72,7 +72,7 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmplane.cpp \
 	wsi/drm/drmdisplaymanager.cpp \
 	wsi/drm/drmscopedtypes.cpp \
-        os/android/iahwc2.cpp \
+	os/android/drmhwctwo.cpp \
         os/android/hwcservice.cpp
 
 ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)

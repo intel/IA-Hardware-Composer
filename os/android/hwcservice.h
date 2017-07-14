@@ -27,14 +27,15 @@
 #include "utils_android.h"
 
 namespace android {
-class IAHWC2;
+class DrmHwcTwo;
 using namespace hwcomposer;
 
 class HwcService : public BnService {
  public:
   class Diagnostic : public BnDiagnostic {
    public:
-    Diagnostic(IAHWC2& hwc) : mHwc(hwc) {
+    Diagnostic(DrmHwcTwo& DrmHwcTwo) : mHwc(DrmHwcTwo) {
+      HWC_UNUSED(mHwc);
     }
 
     status_t ReadLogParcel(Parcel* parcel) override;
@@ -44,10 +45,10 @@ class HwcService : public BnService {
     void DumpFrames(uint32_t d, int32_t frames, bool bSync) override;
 
    private:
-    IAHWC2& mHwc;
+    DrmHwcTwo& mHwc;
   };
 
-  bool Start(IAHWC2& hwc);
+  bool Start(DrmHwcTwo& hwc);
 
   sp<IDiagnostic> GetDiagnostic();
   sp<IControls> GetControls();
@@ -60,7 +61,7 @@ class HwcService : public BnService {
 
   class Controls : public BnControls {
    public:
-    Controls(IAHWC2& hwc, HwcService& hwcService);
+    Controls(DrmHwcTwo& hwc, HwcService& hwcService);
     virtual ~Controls();
 
     status_t DisplaySetOverscan(uint32_t display, int32_t xoverscan,
@@ -100,7 +101,7 @@ class HwcService : public BnService {
     status_t WidiSetSingleDisplay(bool enable);
 
    private:
-    IAHWC2& mHwc;
+    DrmHwcTwo& mHwc;
     HwcService& mHwcService;
     bool mbHaveSessionsEnabled;
     EHwcsOptimizationMode mCurrentOptimizationMode;
@@ -136,7 +137,7 @@ class HwcService : public BnService {
  private:
   HwcService();
   virtual ~HwcService();
-  friend class IAHWC2;
+  friend class DrmHwcTwo;
 
   struct Notification {
     Notification() : mWhat(eInvalidNofiy), mpCallback(NULL) {
@@ -149,7 +150,7 @@ class HwcService : public BnService {
   };
 
   SpinLock lock_;
-  IAHWC2* mpHwc;
+  DrmHwcTwo* mpHwc;
 
   sp<IDiagnostic> mpDiagnostic;
 
