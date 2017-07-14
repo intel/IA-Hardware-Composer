@@ -437,7 +437,7 @@ void DisplayQueue::SetReleaseFenceToLayers(
         const OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));
         HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
-        layer->SetReleaseFence(dup(fence));
+        layer->SetReleaseFence(fence);
       }
     } else {
       release_fence = plane.GetOverlayLayer()->ReleaseAcquireFence();
@@ -447,7 +447,7 @@ void DisplayQueue::SetReleaseFenceToLayers(
             in_flight_layers_.at(layers.at(layer_index));
         HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
         if (release_fence > 0) {
-          layer->SetReleaseFence(dup(release_fence));
+          layer->SetReleaseFence(release_fence);
         } else {
           layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
         }
