@@ -47,6 +47,13 @@ class RefreshCallback {
   virtual void Callback(uint32_t display) = 0;
 };
 
+class HotPlugCallback {
+ public:
+  virtual ~HotPlugCallback() {
+  }
+  virtual void Callback(uint32_t display, bool connected) = 0;
+};
+
 class NativeDisplay {
  public:
   virtual ~NativeDisplay() {
@@ -102,13 +109,20 @@ class NativeDisplay {
    * @param callback, function which will be used by HWC to request client to
    *        trigger a screen refresh. This will be used to optimize scenarios
    *        like idle mode.
-   * @param display_id will be populated with Native Fence object provided
-   *        we are able to display source_layers. When retire_fence is
-   *        signalled source_layers are shown on the output and any previous
-   *        frame composition results can be invalidated.
+   * @param display_id will be populated with id of the display.
    */
   virtual void RegisterRefreshCallback(
       std::shared_ptr<RefreshCallback> /*callback*/, uint32_t /*display_id*/) {
+  }
+
+  /**
+   * API for registering for hotplug callback requests.
+   * @param callback, function which will be used by HWC to notify client of
+   *        a hot plug event.
+   * @param display_id will be populated with id of the display.
+   */
+  virtual void RegisterHotPlugCallback(
+      std::shared_ptr<HotPlugCallback> /*callback*/, uint32_t /*display_id*/) {
   }
 
   // Color Correction related APIS.
@@ -199,6 +213,12 @@ class NativeDisplay {
   }
 };
 
+
+/**
+* This is provided for Convenience in case
+* one doesnt want to register for hot plug
+* callback per display.
+*/
 class DisplayHotPlugEventCallback {
  public:
   virtual ~DisplayHotPlugEventCallback() {

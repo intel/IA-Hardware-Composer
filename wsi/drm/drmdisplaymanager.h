@@ -51,7 +51,9 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   NativeDisplay *GetVirtualDisplay() override;
 
-  std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() const override;
+  std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() override;
+
+  std::vector<NativeDisplay *> GetAllDisplays() override;
 
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback) override;

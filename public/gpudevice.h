@@ -40,6 +40,8 @@ class GpuDevice {
 
   std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
 
+  std::vector<NativeDisplay*> GetAllDisplays();
+
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
 

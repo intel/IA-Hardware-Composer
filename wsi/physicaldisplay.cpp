@@ -73,6 +73,9 @@ void PhysicalDisplay::Connect() {
     ETRACE("Failed to initialize Display Queue.");
   } else {
     display_state_ |= kInitialized;
+    if (hotplug_callback_) {
+      hotplug_callback_->Callback(hot_plug_display_id_, true);
+    }
   }
 
   UpdatePowerMode();
@@ -118,6 +121,9 @@ bool PhysicalDisplay::SetPowerMode(uint32_t power_mode) {
     power_mode_ = power_mode;
   } else if (power_mode == kOff) {
     display_state_ &= ~kConnected;
+    if (hotplug_callback_) {
+      hotplug_callback_->Callback(hot_plug_display_id_, false);
+    }
   }
   modeset_lock_.unlock();
 
@@ -176,6 +182,21 @@ int PhysicalDisplay::RegisterVsyncCallback(
 void PhysicalDisplay::RegisterRefreshCallback(
     std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
   return display_queue_->RegisterRefreshCallback(callback, display_id);
+}
+
+void PhysicalDisplay::RegisterHotPlugCallback(
+    std::shared_ptr<HotPlugCallback> callback, uint32_t display_id) {
+  modeset_lock_.lock();
+  hot_plug_display_id_ = display_id;
+  hotplug_callback_ = callback;
+  if (hotplug_callback_) {
+    if (display_state_ & kConnected) {
+      hotplug_callback_->Callback(hot_plug_display_id_, true);
+    } else {
+      hotplug_callback_->Callback(hot_plug_display_id_, false);
+    }
+  }
+  modeset_lock_.unlock();
 }
 
 void PhysicalDisplay::VSyncControl(bool enabled) {

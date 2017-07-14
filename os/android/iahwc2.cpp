@@ -37,9 +37,9 @@
 
 namespace android {
 
-class DrmVsyncCallback : public hwcomposer::VsyncCallback {
+class IAVsyncCallback : public hwcomposer::VsyncCallback {
  public:
-  DrmVsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
+  IAVsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
       : data_(data), hook_(hook) {
   }
 
@@ -53,15 +53,36 @@ class DrmVsyncCallback : public hwcomposer::VsyncCallback {
   hwc2_function_pointer_t hook_;
 };
 
-class DrmRefreshCallback : public hwcomposer::RefreshCallback {
+class IARefreshCallback : public hwcomposer::RefreshCallback {
  public:
-  DrmRefreshCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
+  IARefreshCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
       : data_(data), hook_(hook) {
   }
 
   void Callback(uint32_t display) {
     auto hook = reinterpret_cast<HWC2_PFN_REFRESH>(hook_);
     hook(data_, display);
+  }
+
+ private:
+  hwc2_callback_data_t data_;
+  hwc2_function_pointer_t hook_;
+};
+
+class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
+ public:
+  IAHotPlugEventCallback(hwc2_callback_data_t data,
+                         hwc2_function_pointer_t hook)
+      : data_(data), hook_(hook) {
+  }
+
+  void Callback(uint32_t display, bool connected) {
+    auto hook = reinterpret_cast<HWC2_PFN_HOTPLUG>(hook_);
+    int32_t status = static_cast<int32_t>(HWC2::Connection::Connected);
+    if (!connected)
+      status = static_cast<int32_t>(HWC2::Connection::Disconnected);
+
+    hook(data_, display, status);
   }
 
  private:
@@ -86,12 +107,23 @@ HWC2::Error IAHWC2::Init() {
   else
     ALOGI("EXPLICIT SYNC support is enabled");
 
-  displays_.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
-                    std::forward_as_tuple(&device_, HWC_DISPLAY_PRIMARY,
-                                          HWC2::DisplayType::Physical));
+  if (!device_.Initialize()) {
+    ALOGE("Can't initialize drm object.");
+    return HWC2::Error::NoResources;
+  }
 
-  displays_.at(HWC_DISPLAY_PRIMARY).Init(disable_explicit_sync_);
+  std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
+  size_t size = displays.size();
+  primary_display_.Init(displays.at(0), 0, disable_explicit_sync_);
+  for (size_t i = 1; i < size; ++i) {
+    uint32_t index = i - 1;
+    extended_displays_.emplace(std::piecewise_construct,
+                               std::forward_as_tuple(index),
+                               std::forward_as_tuple());
+
+    extended_displays_.at(index)
+        .Init(displays.at(index), index, disable_explicit_sync_);
+  }
 
   // Start the hwc service
   // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
@@ -114,12 +146,9 @@ static inline void supported(char const *func) {
 HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
-  displays_.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(HWC_DISPLAY_VIRTUAL),
-                    std::forward_as_tuple(&device_, HWC_DISPLAY_VIRTUAL,
-                                          HWC2::DisplayType::Virtual));
   *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  displays_.at(*display).Init(width, height, disable_explicit_sync_);
+  virtual_display_.InitVirtualDisplay(device_.GetVirtualDisplay(), width,
+                                       height, disable_explicit_sync_);
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -134,7 +163,6 @@ HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
     return HWC2::Error::BadDisplay;
   }
 
-  displays_.erase(display);
   return HWC2::Error::None;
 }
 
@@ -155,19 +183,27 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
-      auto hotplug = reinterpret_cast<HWC2_PFN_HOTPLUG>(function);
-      hotplug(data, HWC_DISPLAY_PRIMARY,
-              static_cast<int32_t>(HWC2::Connection::Connected));
+      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
+           extended_displays_)
+        d.second.RegisterHotPlugCallback(data, function);
+
+      primary_display_.RegisterHotPlugCallback(data, function);
       break;
     }
     case HWC2::Callback::Vsync: {
-      for (std::pair<const hwc2_display_t, IAHWC2::HwcDisplay> &d : displays_)
+      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
+           extended_displays_)
         d.second.RegisterVsyncCallback(data, function);
+
+      primary_display_.RegisterVsyncCallback(data, function);
       break;
     }
     case HWC2::Callback::Refresh: {
-      for (std::pair<const hwc2_display_t, IAHWC2::HwcDisplay> &d : displays_)
+      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
+           extended_displays_)
         d.second.RegisterRefreshCallback(data, function);
+
+      primary_display_.RegisterRefreshCallback(data, function);
       break;
     }
     default:
@@ -176,44 +212,40 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   return HWC2::Error::None;
 }
 
-IAHWC2::HwcDisplay::HwcDisplay(hwcomposer::GpuDevice *device,
-                               hwc2_display_t handle, HWC2::DisplayType type)
-    : device_(device), handle_(handle), type_(type) {
+IAHWC2::HwcDisplay::HwcDisplay() {
   supported(__func__);
 }
 
 // This function will be called only for Virtual Display Init
-HWC2::Error IAHWC2::HwcDisplay::Init(uint32_t width, uint32_t height,
-                                     bool disable_explicit_sync) {
+HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
+    hwcomposer::NativeDisplay *display, uint32_t width, uint32_t height,
+    bool disable_explicit_sync) {
   supported(__func__);
-  if (!device_->Initialize()) {
-    ALOGE("Can't initialize drm object.");
-    return HWC2::Error::NoResources;
-  }
-  display_ = device_->GetVirtualDisplay();
+  display_ = display;
+  type_ = HWC2::DisplayType::Virtual;
+  handle_ = HWC_DISPLAY_VIRTUAL;
   display_->InitVirtualDisplay(width, height);
-  return Init(disable_explicit_sync);
-}
-
-HWC2::Error IAHWC2::HwcDisplay::Init(bool disable_explicit_sync) {
-  supported(__func__);
-
-  if (type_ != HWC2::DisplayType::Virtual) {
-    int display = static_cast<int>(handle_);
-    if (!device_->Initialize()) {
-      ALOGE("Can't initialize drm object.");
-      return HWC2::Error::NoResources;
-    }
-    display_ = device_->GetDisplay(display);
-    if (!display_) {
-      ALOGE("Failed to retrieve display %d", display);
-      return HWC2::Error::BadDisplay;
-    }
-  }
-
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  return HWC2::Error::None;
+}
 
+HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
+                                     int display_index,
+                                     bool disable_explicit_sync) {
+  supported(__func__);
+  display_ = display;
+  type_ = HWC2::DisplayType::Physical;
+  if (display_index == 0) {
+    handle_ = HWC_DISPLAY_PRIMARY;
+  } else {
+    handle_ = HWC_DISPLAY_EXTERNAL;
+  }
+  disable_explicit_sync_ = disable_explicit_sync;
+  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  if (!display_->IsConnected()) {
+    return HWC2::Error::None;
+  }
   // Fetch the number of modes from the display
   uint32_t num_configs;
   HWC2::Error err = GetDisplayConfigs(&num_configs, NULL);
@@ -233,7 +265,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(bool disable_explicit_sync) {
 HWC2::Error IAHWC2::HwcDisplay::RegisterVsyncCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
   supported(__func__);
-  auto callback = std::make_shared<DrmVsyncCallback>(data, func);
+  auto callback = std::make_shared<IAVsyncCallback>(data, func);
   int ret = display_->RegisterVsyncCallback(std::move(callback),
                                             static_cast<int>(handle_));
   if (ret) {
@@ -246,8 +278,17 @@ HWC2::Error IAHWC2::HwcDisplay::RegisterVsyncCallback(
 HWC2::Error IAHWC2::HwcDisplay::RegisterRefreshCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
   supported(__func__);
-  auto callback = std::make_shared<DrmRefreshCallback>(data, func);
+  auto callback = std::make_shared<IARefreshCallback>(data, func);
   display_->RegisterRefreshCallback(std::move(callback),
+                                    static_cast<int>(handle_));
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::RegisterHotPlugCallback(
+    hwc2_callback_data_t data, hwc2_function_pointer_t func) {
+  supported(__func__);
+  auto callback = std::make_shared<IAHotPlugEventCallback>(data, func);
+  display_->RegisterHotPlugCallback(std::move(callback),
                                     static_cast<int>(handle_));
   return HWC2::Error::None;
 }

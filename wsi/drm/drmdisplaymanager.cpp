@@ -312,12 +312,32 @@ NativeDisplay *DrmDisplayManager::GetDisplay(uint32_t display_id) {
 }
 
 NativeDisplay *DrmDisplayManager::GetVirtualDisplay() {
-  return virtual_display_.get();
+  spin_lock_.lock();
+  NativeDisplay *display = virtual_display_.get();
+  spin_lock_.unlock();
+  return display;
 }
 
-std::vector<NativeDisplay *> DrmDisplayManager::GetConnectedPhysicalDisplays()
-    const {
-  return connected_displays_;
+std::vector<NativeDisplay *> DrmDisplayManager::GetConnectedPhysicalDisplays() {
+  spin_lock_.lock();
+  std::vector<NativeDisplay *> all_displays;
+  size_t size = connected_displays_.size();
+  for (size_t i = 0; i < size; ++i) {
+    all_displays.emplace_back(connected_displays_.at(i));
+  }
+  spin_lock_.unlock();
+  return all_displays;
+}
+
+std::vector<NativeDisplay *> DrmDisplayManager::GetAllDisplays() {
+  spin_lock_.lock();
+  std::vector<NativeDisplay *> all_displays;
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; ++i) {
+    all_displays.emplace_back(displays_.at(i).get());
+  }
+  spin_lock_.unlock();
+  return all_displays;
 }
 
 void DrmDisplayManager::RegisterHotPlugEventCallback(

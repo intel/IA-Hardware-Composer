@@ -82,6 +82,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
                                uint32_t display_id) override;
 
+  void RegisterHotPlugCallback(std::shared_ptr<HotPlugCallback> callback,
+                               uint32_t display_id) override;
+
   void VSyncControl(bool enabled) override;
   bool CheckPlaneFormat(uint32_t format) override;
   void SetGamma(float red, float green, float blue) override;
@@ -171,8 +174,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   uint32_t power_mode_ = kOn;
   float refresh_;
   uint32_t display_state_ = 0;
+  uint32_t hot_plug_display_id_ = 0;
   SpinLock modeset_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;
+  std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
 };
 
 }  // namespace hwcomposer

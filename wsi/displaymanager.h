@@ -36,7 +36,9 @@ class DisplayManager {
 
   virtual NativeDisplay *GetVirtualDisplay() = 0;
 
-  virtual std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() const = 0;
+  virtual std::vector<NativeDisplay *> GetConnectedPhysicalDisplays() = 0;
+
+  virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 
   virtual void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback) = 0;

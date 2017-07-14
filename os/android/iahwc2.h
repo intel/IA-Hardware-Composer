@@ -111,17 +111,21 @@ class IAHWC2 : public hwc2_device_t {
 
   class HwcDisplay {
    public:
-    HwcDisplay(hwcomposer::GpuDevice *device, hwc2_display_t handle,
-               HWC2::DisplayType type);
+    HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
-    HWC2::Error Init(bool disable_explicit_sync);
-    HWC2::Error Init(uint32_t width, uint32_t height,
+    HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
                      bool disable_explicit_sync);
+    HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
+                                   uint32_t width, uint32_t height,
+                                   bool disable_explicit_sync);
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
 
     HWC2::Error RegisterRefreshCallback(hwc2_callback_data_t data,
+                                        hwc2_function_pointer_t func);
+
+    HWC2::Error RegisterHotPlugCallback(hwc2_callback_data_t data,
                                         hwc2_function_pointer_t func);
 
     // HWC Hooks
@@ -166,7 +170,6 @@ class IAHWC2 : public hwc2_device_t {
     }
 
    private:
-    hwcomposer::GpuDevice *device_;
     hwcomposer::NativeDisplay *display_ = NULL;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
@@ -201,7 +204,19 @@ class IAHWC2 : public hwc2_device_t {
   static int32_t DisplayHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                              Args... args) {
     IAHWC2 *hwc = toIAHWC2(dev);
-    HwcDisplay &display = hwc->displays_.at(display_handle);
+    if (display_handle == HWC_DISPLAY_PRIMARY) {
+      HwcDisplay &display = hwc->primary_display_;
+      return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
+    }
+
+    if (display_handle == HWC_DISPLAY_VIRTUAL) {
+      return static_cast<int32_t>(
+          (hwc->virtual_display_.*func)(std::forward<Args>(args)...));
+    }
+
+    // TODO(kalyank): How do we map extended display id in case of more than
+    // one external display.
+    HwcDisplay &display = hwc->extended_displays_.at(0);
     return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
   }
 
@@ -209,7 +224,20 @@ class IAHWC2 : public hwc2_device_t {
   static int32_t LayerHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                            hwc2_layer_t layer_handle, Args... args) {
     IAHWC2 *hwc = toIAHWC2(dev);
-    HwcDisplay &display = hwc->displays_.at(display_handle);
+    if (display_handle == HWC_DISPLAY_PRIMARY) {
+      HwcDisplay &display = hwc->primary_display_;
+      HwcLayer &layer = display.get_layer(layer_handle);
+      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+    }
+
+    if (display_handle == HWC_DISPLAY_VIRTUAL) {
+      HwcLayer &layer = hwc->virtual_display_.get_layer(layer_handle);
+      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+    }
+
+    // TODO(kalyank): How do we map extended display id in case of more than
+    // one external display.
+    HwcDisplay &display = hwc->extended_displays_.at(0);
     HwcLayer &layer = display.get_layer(layer_handle);
     return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
   }
@@ -231,7 +259,9 @@ class IAHWC2 : public hwc2_device_t {
                                hwc2_function_pointer_t function);
 
   hwcomposer::GpuDevice device_;
-  std::map<hwc2_display_t, HwcDisplay> displays_;
+  std::map<uint32_t, HwcDisplay> extended_displays_;
+  HwcDisplay primary_display_;
+  HwcDisplay virtual_display_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;

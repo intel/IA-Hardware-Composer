@@ -47,6 +47,10 @@ std::vector<NativeDisplay *> GpuDevice::GetConnectedPhysicalDisplays() {
   return display_manager_->GetConnectedPhysicalDisplays();
 }
 
+std::vector<NativeDisplay *> GpuDevice::GetAllDisplays() {
+  return display_manager_->GetAllDisplays();
+}
+
 void GpuDevice::RegisterHotPlugEventCallback(
     std::shared_ptr<DisplayHotPlugEventCallback> callback) {
   display_manager_->RegisterHotPlugEventCallback(callback);
