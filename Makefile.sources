@@ -4,6 +4,7 @@ common_SOURCES =              \
     common/compositor/nativesurface.cpp \
     common/compositor/renderstate.cpp \
     common/core/hwclayer.cpp \
+    common/core/hwclock.cpp \
     common/core/overlaylayer.cpp \
     common/core/gpudevice.cpp \
     common/display/displayqueue.cpp \
