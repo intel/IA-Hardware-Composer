@@ -207,7 +207,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence) {
+                               int32_t* retire_fence, bool cloned_display) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
   if (tracker.IgnoreUpdate())
@@ -237,7 +237,25 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     overlay_layer.SetAlpha(layer->GetAlpha());
     overlay_layer.SetBlending(layer->GetBlending());
     overlay_layer.SetSourceCrop(layer->GetSourceCrop());
-    overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
+    if (scaling_tracker_.scaling_state_ == ScalingTracker::kNeedsScaling) {
+      HwcRect<int> display_frame = layer->GetDisplayFrame();
+      display_frame.left =
+          display_frame.left +
+          (display_frame.left * scaling_tracker_.scaling_width);
+      display_frame.top = display_frame.top +
+                          (display_frame.top * scaling_tracker_.scaling_height);
+      display_frame.right =
+          display_frame.right +
+          (display_frame.right * scaling_tracker_.scaling_width);
+      display_frame.bottom =
+          display_frame.bottom +
+          (display_frame.bottom * scaling_tracker_.scaling_height);
+
+      overlay_layer.SetDisplayFrame(display_frame);
+    } else {
+      overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
+    }
+
     overlay_layer.SetLayerIndex(layer_index);
     overlay_layer.SetZorder(index);
     overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
@@ -246,7 +264,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     index++;
 
     if (frame_changed) {
-      layer->Validate();
       continue;
     }
 
@@ -258,8 +275,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (overlay_layer.HasLayerAttributesChanged()) {
       layers_changed = true;
     }
-
-    layer->Validate();
   }
 
   DisplayPlaneStateList current_composition_planes;
@@ -359,7 +374,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (idle_frame)
     ReleaseSurfaces();
 
-  if (fence > 0) {
+  if (fence > 0 && !cloned_display) {
     if (render_layers)
       compositor_.InsertFence(dup(fence));
 
@@ -370,6 +385,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
+    if (fence > 0) {
+      close(fence);
+    }
+
     if (render_layers)
       compositor_.InsertFence(0);
   }
@@ -597,6 +616,24 @@ void DisplayQueue::ForceRefresh() {
 
 void DisplayQueue::DisplayConfigurationChanged() {
   // Mark it as needs modeset, so that in next queue update we do a modeset
+  state_ |= kConfigurationChanged;
+}
+
+void DisplayQueue::UpdateScalingRatio(uint32_t primary_width,
+                                      uint32_t primary_height,
+                                      uint32_t display_width,
+                                      uint32_t display_height) {
+  scaling_tracker_.scaling_state_ = ScalingTracker::kNeeedsNoSclaing;
+  uint32_t primary_area = primary_width * primary_height;
+  uint32_t display_area = display_width * display_height;
+  if (primary_area != display_area) {
+    scaling_tracker_.scaling_state_ = ScalingTracker::kNeedsScaling;
+    scaling_tracker_.scaling_width =
+        float(display_width - primary_width) / float(primary_width);
+    scaling_tracker_.scaling_height =
+        float(display_height - primary_height) / float(primary_height);
+  }
+
   state_ |= kConfigurationChanged;
 }
 

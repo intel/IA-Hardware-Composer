@@ -211,8 +211,39 @@ class NativeDisplay {
   virtual bool IsConnected() const {
     return false;
   }
-};
 
+  /**
+   * Scales layers of display to match it's resolutions in case
+   * this display is in cloned mode and resolution doesn't match
+   * with Source Display.
+   */
+  virtual void UpdateScalingRatio(uint32_t /*primary_width*/,
+                                  uint32_t /*primary_height*/,
+                                  uint32_t /*display_width*/,
+                                  uint32_t /*display_height*/) {
+  }
+
+  /**
+   * This display needs to clone source_display.
+   * We cannot have a display in cloned mode and extended mode at
+   * same time or clone more than one source_display at same time.
+   */
+  virtual void CloneDisplay(NativeDisplay * /*source_display*/) {
+  }
+
+ protected:
+  friend class PhysicalDisplay;
+  virtual void OwnPresentation(NativeDisplay * /*clone*/) {
+  }
+
+  virtual void DisOwnPresentation(NativeDisplay * /*clone*/) {
+  }
+
+  virtual bool PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
+                            int32_t * /*retire_fence*/) {
+    return false;
+  }
+};
 
 /**
 * This is provided for Convenience in case

@@ -28,6 +28,7 @@
 
 #include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -57,6 +58,7 @@ bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
 void PhysicalDisplay::DisConnect() {
   IHOTPLUGEVENTTRACE("PhysicalDisplay::DisConnect recieved.");
   display_state_ |= kDisconnectionInProgress;
+  display_state_ |= kRefreshClonedDisplays;
 }
 
 void PhysicalDisplay::Connect() {
@@ -158,6 +160,11 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   CTRACE();
   modeset_lock_.lock();
 
+  if (source_display_) {
+    ETRACE("Trying to update display independently when in cloned mode.%p \n",
+           this);
+  }
+
   if (!(display_state_ & kUpdateDisplay)) {
     bool success = true;
     if (power_mode_ != kDozeSuspend) {
@@ -169,9 +176,53 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     return success;
   }
 
+  if (display_state_ & kRefreshClonedDisplays) {
+    RefreshClones();
+  }
   modeset_lock_.unlock();
 
-  return display_queue_->QueueUpdate(source_layers, retire_fence);
+  bool cloned = !clones_.empty();
+  bool success =
+      display_queue_->QueueUpdate(source_layers, retire_fence, false);
+  if (success && cloned) {
+    HandleClonedDisplays(source_layers);
+  }
+
+  size_t size = source_layers.size();
+  for (size_t layer_index = 0; layer_index < size; layer_index++) {
+    HwcLayer *layer = source_layers.at(layer_index);
+    if (!layer->IsVisible())
+      continue;
+
+    layer->Validate();
+  }
+
+  return success;
+}
+
+bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
+                                   int32_t *retire_fence) {
+  CTRACE();
+  modeset_lock_.lock();
+  if (display_state_ & kRefreshClonedDisplays) {
+    RefreshClones();
+  }
+  modeset_lock_.unlock();
+
+  bool success = display_queue_->QueueUpdate(source_layers, retire_fence, true);
+  HandleClonedDisplays(source_layers);
+  return success;
+}
+
+void PhysicalDisplay::HandleClonedDisplays(
+    std::vector<HwcLayer *> &source_layers) {
+  if (clones_.empty())
+    return;
+
+  int32_t fence = -1;
+  for (auto display : clones_) {
+    display->PresentClone(source_layers, &fence);
+  }
 }
 
 int PhysicalDisplay::RegisterVsyncCallback(
@@ -236,6 +287,77 @@ bool PhysicalDisplay::TestCommit(
     const std::vector<OverlayPlane> & /*commit_planes*/) const {
   ETRACE("TestCommit unimplemented in PhysicalDisplay.");
   return false;
+}
+
+void PhysicalDisplay::UpdateScalingRatio(uint32_t primary_width,
+                                         uint32_t primary_height,
+                                         uint32_t display_width,
+                                         uint32_t display_height) {
+  display_queue_->UpdateScalingRatio(primary_width, primary_height,
+                                     display_width, display_height);
+}
+
+void PhysicalDisplay::CloneDisplay(NativeDisplay *source_display) {
+  if (source_display_) {
+    source_display_->DisOwnPresentation(this);
+    source_display_ = NULL;
+  }
+
+  source_display_ = source_display;
+  if (source_display_) {
+    source_display_->OwnPresentation(this);
+  }
+}
+
+void PhysicalDisplay::OwnPresentation(NativeDisplay *clone) {
+  cloned_displays_.emplace_back(clone);
+  display_state_ |= kRefreshClonedDisplays;
+}
+
+void PhysicalDisplay::DisOwnPresentation(NativeDisplay *clone) {
+  if (cloned_displays_.empty())
+    return;
+
+  std::vector<NativeDisplay *> displays;
+  size_t size = cloned_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    NativeDisplay *display = cloned_displays_.at(i);
+    if (display == clone)
+      continue;
+
+    displays.emplace_back(display);
+  }
+
+  cloned_displays_.swap(displays);
+  display_state_ |= kRefreshClonedDisplays;
+}
+
+void PhysicalDisplay::RefreshClones() {
+  display_state_ &= ~kRefreshClonedDisplays;
+  std::vector<NativeDisplay *>().swap(clones_);
+  if (cloned_displays_.empty())
+    return;
+
+  size_t size = cloned_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    NativeDisplay *display = cloned_displays_.at(i);
+    if (!display->IsConnected())
+      continue;
+
+    clones_.emplace_back(display);
+  }
+
+  uint32_t primary_width = Width();
+  uint32_t primary_height = Height();
+  for (auto display : clones_) {
+    uint32_t display_width = display->Width();
+    uint32_t display_height = display->Height();
+    if ((primary_width == display_width) && (primary_height == display_height))
+      return;
+
+    display->UpdateScalingRatio(primary_width, primary_height, display_width,
+                                display_height);
+  }
 }
 
 }  // namespace hwcomposer
