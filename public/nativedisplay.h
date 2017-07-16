@@ -211,8 +211,18 @@ class NativeDisplay {
   virtual bool IsConnected() const {
     return false;
   }
-};
 
+  /**
+   * Scales layers of display to match it's resolutions in case
+   * this display is in cloned mode and resolution doesn't match
+   * with Source Display.
+   */
+  virtual void UpdateScalingRatio(uint32_t /*primary_width*/,
+                                  uint32_t /*primary_height*/,
+                                  uint32_t /*display_width*/,
+                                  uint32_t /*display_height*/) {
+  }
+};
 
 /**
 * This is provided for Convenience in case

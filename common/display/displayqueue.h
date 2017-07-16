@@ -77,6 +77,9 @@ class DisplayQueue {
 
   void ForceRefresh();
 
+  void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
+                          uint32_t display_width, uint32_t display_height);
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
@@ -86,7 +89,16 @@ class DisplayQueue {
     kIgnoreIdleRefresh = 1 << 6  // Ignore refresh request during idle callback.
   };
 
-  void HandleExit();
+  struct ScalingTracker {
+    enum ScalingState {
+      kNeeedsNoSclaing = 0,  // Needs no scaling.
+      kNeedsScaling = 1,     // Needs scaling.
+    };
+    float scaling_height = 1.0;
+    float scaling_width = 1.0;
+    uint32_t scaling_state_ = ScalingTracker::kNeeedsNoSclaing;
+  };
+
   struct FrameStateTracker {
     enum FrameState {
       kPrepareComposition = 1 << 0,  // Preparing for current frame composition.
@@ -163,6 +175,7 @@ class DisplayQueue {
     struct FrameStateTracker& tracker_;
   };
 
+  void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        DisplayPlaneStateList* composition, bool* render_layers,
                        bool* can_ignore_commit);
@@ -194,6 +207,7 @@ class DisplayQueue {
   DisplayPlaneStateList previous_plane_state_;
   NativeBufferHandler* buffer_handler_;
   FrameStateTracker idle_tracker_;
+  ScalingTracker scaling_tracker_;
   // shared_ptr since we need to use this outside of the thread lock (to
   // actually call the hook) and we don't want the memory freed until we're
   // done

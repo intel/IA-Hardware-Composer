@@ -238,4 +238,16 @@ bool PhysicalDisplay::TestCommit(
   return false;
 }
 
+void PhysicalDisplay::UpdateScalingRatio(uint32_t primary_width,
+                                         uint32_t primary_height,
+                                         uint32_t display_width,
+                                         uint32_t display_height) {
+  if ((primary_width == display_width) && (primary_height == display_height))
+    return;
+  modeset_lock_.lock();
+  display_queue_->UpdateScalingRatio(primary_width, primary_height,
+                                     display_width, display_height);
+  modeset_lock_.unlock();
+}
+
 }  // namespace hwcomposer

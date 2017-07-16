@@ -108,6 +108,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
       std::unique_ptr<DisplayPlane> &cursor_plane,
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
 
+  void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
+                          uint32_t display_width,
+                          uint32_t display_height) override;
+
   /**
   * API for setting color correction for display.
   */
