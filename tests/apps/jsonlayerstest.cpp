@@ -154,11 +154,13 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
     spin_lock_.lock();
     connected_displays_.swap(connected_displays);
+    if (connected_displays_.empty())
+      return;
 
-    for (auto &display : connected_displays_) {
-      auto callback = std::make_shared<DisplayVSyncCallback>();
-      display->RegisterVsyncCallback(callback, 0);
-      display->VSyncControl(true);
+    hwcomposer::NativeDisplay *primary = connected_displays_.at(0);
+    for (size_t i = 1; i < connected_displays_.size(); i++) {
+      hwcomposer::NativeDisplay *cloned = connected_displays_.at(i);
+      cloned->CloneDisplay(primary);
     }
 
     spin_lock_.unlock();
@@ -180,15 +182,15 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     if (connected_displays_.empty())
       return;
 
-    for (auto &display : connected_displays_) {
-      int32_t retire_fence = -1;
-      display->Present(layers, &retire_fence);
-      fences.emplace_back(retire_fence);
-      // store fences for each display for each layer
-      unsigned int fence_index = 0;
-      for (auto layer : layers) {
-        layers_fences[fence_index].emplace_back(layer->GetReleaseFence());
-      }
+    // We only support cloned mode for now.
+    hwcomposer::NativeDisplay *primary = connected_displays_.at(0);
+    int32_t retire_fence = -1;
+    primary->Present(layers, &retire_fence);
+    fences.emplace_back(retire_fence);
+    // store fences for each display for each layer
+    unsigned int fence_index = 0;
+    for (auto layer : layers) {
+      layers_fences[fence_index].emplace_back(layer->GetReleaseFence());
     }
   }
 
@@ -627,9 +629,15 @@ int main(int argc, char *argv[]) {
   auto callback = std::make_shared<HotPlugEventCallback>(&device);
   device.RegisterHotPlugEventCallback(callback);
   const std::vector<hwcomposer::NativeDisplay *> &displays =
-      callback->GetConnectedDisplays();
+      device.GetAllDisplays();
   if (displays.empty())
     return 0;
+
+  hwcomposer::NativeDisplay *primary = displays.at(0);
+  for (size_t i = 1; i < displays.size(); i++) {
+    hwcomposer::NativeDisplay *cloned = displays.at(i);
+    cloned->CloneDisplay(primary);
+  }
 
   parse_args(argc, argv);
 
@@ -639,8 +647,8 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  primary_width = displays.at(0)->Width();
-  primary_height = displays.at(0)->Height();
+  primary_width = primary->Width();
+  primary_height = primary->Height();
 
   buffer_handler = hwcomposer::NativeBufferHandler::CreateInstance(fd);
 
@@ -680,8 +688,8 @@ int main(int argc, char *argv[]) {
       exit(0);
     if (force_mode) {
       callback->SetActiveConfig(config_index);
-      primary_width = displays.at(0)->Width();
-      primary_height = displays.at(0)->Height();
+      primary_width = primary->Width();
+      primary_height = primary->Height();
     }
   } else {
     callback->SetBroadcastRGB(test_parameters.broadcast_rgb.c_str());

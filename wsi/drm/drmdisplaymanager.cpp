@@ -285,13 +285,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
       headless_.reset(new Headless(fd_, 0, 0));
   } else if (headless_) {
     headless_.reset(nullptr);
-  } else {
-    uint32_t primary_width = connected_displays_.at(0)->Width();
-    uint32_t primary_height = connected_displays_.at(0)->Height();
-    for (auto display : connected_displays_) {
-      display->UpdateScalingRatio(primary_width, primary_height,
-                                  display->Width(), display->Height());
-    }
   }
 
   if (callback_) {

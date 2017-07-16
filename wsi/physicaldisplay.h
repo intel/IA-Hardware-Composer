@@ -112,6 +112,15 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
                           uint32_t display_width,
                           uint32_t display_height) override;
 
+  void CloneDisplay(NativeDisplay *source_display) override;
+
+  bool PresentClone(std::vector<HwcLayer *> &source_layers,
+                    int32_t *retire_fence) override;
+
+  void OwnPresentation(NativeDisplay *clone);
+
+  void DisOwnPresentation(NativeDisplay *clone);
+
   /**
   * API for setting color correction for display.
   */
@@ -157,6 +166,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
  private:
   bool UpdatePowerMode();
+  void RefreshClones();
+  void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
 
  protected:
   enum DisplayState {
@@ -165,7 +176,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     kPendingPowerMode = 1 << 2,
     kUpdateDisplay = 1 << 3,
     kDisconnectionInProgress = 1 << 4,
-    kInitialized = 1 << 5  // Display Queue is initialized.
+    kInitialized = 1 << 5,  // Display Queue is initialized.
+    kRefreshClonedDisplays = 1 << 6
   };
 
   uint32_t pipe_;
@@ -180,8 +192,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   uint32_t display_state_ = 0;
   uint32_t hot_plug_display_id_ = 0;
   SpinLock modeset_lock_;
+  SpinLock cloned_displays_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
+  NativeDisplay *source_display_ = NULL;
+  std::vector<NativeDisplay *> cloned_displays_;
+  std::vector<NativeDisplay *> clones_;
 };
 
 }  // namespace hwcomposer

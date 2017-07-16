@@ -114,8 +114,16 @@ HWC2::Error IAHWC2::Init() {
 
   std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
   size_t size = displays.size();
-  primary_display_.Init(displays.at(0), 0, disable_explicit_sync_);
-  for (size_t i = 1; i < size; ++i) {
+  NativeDisplay *primary_display = displays.at(0);
+  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
+  // For now we only support cloned mode.
+  for (size_t i = 1; i < size; i++) {
+    hwcomposer::NativeDisplay *cloned = displays.at(i);
+    cloned->CloneDisplay(primary_display);
+  }
+
+  // TODO: Enable support for extended mode.
+  /*for (size_t i = 1; i < size; ++i) {
     uint32_t index = i - 1;
     extended_displays_.emplace(std::piecewise_construct,
                                std::forward_as_tuple(index),
@@ -123,7 +131,7 @@ HWC2::Error IAHWC2::Init() {
 
     extended_displays_.at(index)
         .Init(displays.at(index), index, disable_explicit_sync_);
-  }
+  }*/
 
   // Start the hwc service
   // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
