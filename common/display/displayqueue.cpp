@@ -207,7 +207,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence) {
+                               int32_t* retire_fence, bool cloned_display) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
   if (tracker.IgnoreUpdate())
@@ -264,7 +264,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     index++;
 
     if (frame_changed) {
-      layer->Validate();
       continue;
     }
 
@@ -276,8 +275,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (overlay_layer.HasLayerAttributesChanged()) {
       layers_changed = true;
     }
-
-    layer->Validate();
   }
 
   DisplayPlaneStateList current_composition_planes;
@@ -377,7 +374,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (idle_frame)
     ReleaseSurfaces();
 
-  if (fence > 0) {
+  if (fence > 0 && !cloned_display) {
     if (render_layers)
       compositor_.InsertFence(dup(fence));
 
@@ -388,6 +385,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   } else {
     // This is the best we can do in this case, flush any 3D
     // operations and release buffers of previous layers.
+    if (fence > 0) {
+      close(fence);
+    }
+
     if (render_layers)
       compositor_.InsertFence(0);
   }

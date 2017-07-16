@@ -54,8 +54,8 @@ class DisplayQueue {
   bool Initialize(float refresh, uint32_t pipe, uint32_t width, uint32_t height,
                   DisplayPlaneHandler* plane_manager);
 
-  bool QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                   int32_t* retire_fence);
+  bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
+                   bool cloned_display);
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
