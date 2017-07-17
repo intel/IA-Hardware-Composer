@@ -122,8 +122,7 @@ HWC2::Error IAHWC2::Init() {
     cloned->CloneDisplay(primary_display);
   }
 
-  // TODO: Enable support for extended mode.
-  /*for (size_t i = 1; i < size; ++i) {
+  for (size_t i = 1; i < size; ++i) {
     uint32_t index = i - 1;
     extended_displays_.emplace(std::piecewise_construct,
                                std::forward_as_tuple(index),
@@ -131,7 +130,7 @@ HWC2::Error IAHWC2::Init() {
 
     extended_displays_.at(index)
         .Init(displays.at(index), index, disable_explicit_sync_);
-  }*/
+  }
 
   // Start the hwc service
   // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
@@ -246,6 +245,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   type_ = HWC2::DisplayType::Physical;
   if (display_index == 0) {
     handle_ = HWC_DISPLAY_PRIMARY;
+    cloned_mode_ = false;
   } else {
     handle_ = HWC_DISPLAY_EXTERNAL;
   }
@@ -691,6 +691,12 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   }
 
   checkValidateDisplay = true;
+  // If we are in cloned mode, disable it.
+  if (cloned_mode_) {
+    cloned_mode_ = false;
+    display_->CloneDisplay(NULL);
+  }
+
   return HWC2::Error::None;
 }
 
