@@ -182,6 +182,7 @@ class IAHWC2 : public hwc2_device_t {
     // True after validateDisplay
     bool checkValidateDisplay = false;
     bool disable_explicit_sync_ = false;
+    bool cloned_mode_ = true;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {

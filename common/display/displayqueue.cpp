@@ -286,7 +286,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
     bool can_ignore_commit = false;
-    // Before forcing layer validation check if content has changed
+    // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
     GetCachedLayers(layers, &current_composition_planes, &render_layers,
                     &can_ignore_commit);
