@@ -55,7 +55,7 @@ class DisplayQueue {
                   DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
-                   bool cloned_display);
+                   bool idle_update);
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
@@ -80,13 +80,22 @@ class DisplayQueue {
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
                           uint32_t display_width, uint32_t display_height);
 
+  void SetCloneMode(bool cloned);
+
+  bool WasLastFrameIdleUpdate() {
+    return state_ & kLastFrameIdleUpdate;
+  }
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kDisableOverlayUsage = 1 << 3,   // Disable Overlays.
     kReleaseSurfaces = 1 << 5,       // Release Native Surfaces.
-    kIgnoreIdleRefresh = 1 << 6  // Ignore refresh request during idle callback.
+    kIgnoreIdleRefresh =
+        1 << 6,                // Ignore refresh request during idle callback.
+    kClonedMode = 1 << 7,      // We are in cloned mode.
+    kLastFrameIdleUpdate = 1 << 8  // Last frame was a refresh for Idle state.
   };
 
   struct ScalingTracker {
@@ -197,9 +206,6 @@ class DisplayQueue {
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
-  bool disable_overlay_usage_ = false;
-  bool release_surfaces_ = false;
-  bool ignore_idle_refresh_ = false;
   std::unique_ptr<HWCLock> hwc_lock_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;

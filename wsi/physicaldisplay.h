@@ -115,7 +115,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void CloneDisplay(NativeDisplay *source_display) override;
 
   bool PresentClone(std::vector<HwcLayer *> &source_layers,
-                    int32_t *retire_fence) override;
+                    int32_t *retire_fence, bool idle_frame) override;
 
   void OwnPresentation(NativeDisplay *clone);
 
