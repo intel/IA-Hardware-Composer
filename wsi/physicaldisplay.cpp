@@ -201,7 +201,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
 }
 
 bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
-                                   int32_t *retire_fence) {
+                                   int32_t *retire_fence, bool idle_frame) {
   CTRACE();
   modeset_lock_.lock();
   if (display_state_ & kRefreshClonedDisplays) {
@@ -209,7 +209,8 @@ bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
   }
   modeset_lock_.unlock();
 
-  bool success = display_queue_->QueueUpdate(source_layers, retire_fence, true);
+  bool success =
+      display_queue_->QueueUpdate(source_layers, retire_fence, idle_frame);
   HandleClonedDisplays(source_layers);
   return success;
 }
@@ -221,7 +222,8 @@ void PhysicalDisplay::HandleClonedDisplays(
 
   int32_t fence = -1;
   for (auto display : clones_) {
-    display->PresentClone(source_layers, &fence);
+    display->PresentClone(source_layers, &fence,
+                          display_queue_->WasLastFrameIdleUpdate());
   }
 }
 
@@ -300,12 +302,14 @@ void PhysicalDisplay::UpdateScalingRatio(uint32_t primary_width,
 void PhysicalDisplay::CloneDisplay(NativeDisplay *source_display) {
   if (source_display_) {
     source_display_->DisOwnPresentation(this);
+    display_queue_->SetCloneMode(false);
     source_display_ = NULL;
   }
 
   source_display_ = source_display;
   if (source_display_) {
     source_display_->OwnPresentation(this);
+    display_queue_->SetCloneMode(true);
   }
 }
 

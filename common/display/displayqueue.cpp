@@ -207,7 +207,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence, bool cloned_display) {
+                               int32_t* retire_fence, bool idle_update) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
   if (tracker.IgnoreUpdate())
@@ -217,7 +217,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   bool frame_changed = (size != previous_size);
-  bool idle_frame = tracker.RenderIdleMode();
+  bool idle_frame = tracker.RenderIdleMode() || idle_update;
   if ((state_ & kConfigurationChanged) || idle_frame)
     frame_changed = true;
 
@@ -371,10 +371,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     state_ |= kReleaseSurfaces;
   }
 
-  if (idle_frame)
+  if (idle_frame) {
     ReleaseSurfaces();
+    state_ |= kLastFrameIdleUpdate;
+    if (state_ & kClonedMode) {
+      idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
+    }
+  } else {
+    state_ &= ~kLastFrameIdleUpdate;
+  }
 
-  if (fence > 0 && !cloned_display) {
+  if (fence > 0 && !(state_ & kClonedMode)) {
     if (render_layers)
       compositor_.InsertFence(dup(fence));
 
@@ -399,6 +406,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   return true;
+}
+
+void DisplayQueue::SetCloneMode(bool cloned) {
+  if (cloned) {
+    if (!(state_ & kClonedMode)) {
+      state_ |= kClonedMode;
+      vblank_handler_->SetPowerMode(kOff);
+    }
+  } else if (state_ & kClonedMode) {
+    state_ &= ~kClonedMode;
+    state_ |= kConfigurationChanged;
+    vblank_handler_->SetPowerMode(kOn);
+  }
 }
 
 void DisplayQueue::ReleaseSurfaces() {
@@ -514,9 +534,18 @@ void DisplayQueue::HandleExit() {
     disable_overlay = true;
   }
 
+  bool cloned_mode = false;
+  if (state_ & kClonedMode) {
+    cloned_mode = true;
+  }
+
   state_ = kConfigurationChanged;
   if (disable_overlay) {
     state_ |= kDisableOverlayUsage;
+  }
+
+  if (cloned_mode) {
+    state_ |= kClonedMode;
   }
 }
 
