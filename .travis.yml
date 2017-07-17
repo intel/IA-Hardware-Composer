@@ -9,6 +9,12 @@ install:
 - sudo apt-get install xutils-dev
 - sudo apt-get install libpciaccess-dev
 - sudo apt-get install python-mako
+- sudo apt-get install bison
+- sudo apt-get install flex
+- sudo apt-get install libomxil-bellagio-dev
+- sudo apt-get install libexpat1-dev
+- sudo apt-get install clang-format-3.5
+- sudo apt-get install llvm-dev
 - sudo dpkg -s python-mako
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
@@ -17,6 +23,7 @@ install:
 - sudo apt-get install g++-4.9
 - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
 script:
+- export LLVM_CONFIG=/usr/bin/llvm-config
 - export HWC_BUILD_DIR=/tmp/
 - export WLD=/tmp/hwc-install
 - export LD_LIBRARY_PATH=$WLD/lib
@@ -27,6 +34,30 @@ script:
 - export DRV_I915=1
 - tar -xvf travisci/resources/hwc-install.tar.bz2 -C $HWC_BUILD_DIR
 - mkdir -p $WLD/share/aclocal
+
+#clone and build libdrm : dependency
+- git clone https://github.com/intel/external-libdrm /tmp/libdrm
+- pushd /tmp/libdrm
+- ./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
+- make -j5 && make install
+- popd
+
+#clone and build mesa : dependency
+- git clone https://github.com/intel/external-mesa /tmp/mesa
+- pushd /tmp/mesa
+- ./autogen.sh --prefix=$WLD --enable-gles2 --disable-gallium-egl --with-egl-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --with-driver=dri --disable-glu --disable-glut --without-demos --disable-option-checking --disable-glx --enable-glx-tls --disable-nouveau --disable-gbm --with-gallium-drivers= --with-dri-drivers=i915,i965 --with-vulkan-drivers=intel
+- make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
+- popd
+
+#clone and build minigbm : dependency
+- git clone https://github.com/intel/minigbm /tmp/minigbm
+- pushd /tmp/minigbm
+- export DRV_I915=1
+- make CFLAGS=-DDRV_I915=1 -j5
+- make install DESTDIR=$WLD LIBDIR=lib/
+- popd
+
+#finally, build the hardware composer itself
 - ./autogen.sh --prefix=$WLD
 - make -j5
 branches:
