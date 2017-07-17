@@ -249,7 +249,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
       }
     } else {
       // Try to find an encoder for the connector.
-      bool found_encoder = false;
       for (int32_t j = 0; j < connector->count_encoders; ++j) {
         ScopedDrmEncoderPtr encoder(
             drmModeGetEncoder(fd_, connector->encoders[j]));
@@ -264,13 +263,10 @@ bool DrmDisplayManager::UpdateDisplayState() {
             // Set the modes supported for each display
             display->SetDrmModeInfo(mode);
             connected_displays_.emplace_back(display.get());
-            found_encoder = true;
             break;
           }
         }
       }
-      if (found_encoder)
-        break;
     }
   }
 
