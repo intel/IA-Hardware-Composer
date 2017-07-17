@@ -240,7 +240,7 @@ class NativeDisplay {
   }
 
   virtual bool PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                            int32_t * /*retire_fence*/) {
+                            int32_t * /*retire_fence*/, bool /*idle_frame*/) {
     return false;
   }
 };
