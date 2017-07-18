@@ -192,9 +192,13 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
-      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
-           extended_displays_)
+     // FIXME: Registering more than one display is causing
+      // Tearing issues for some reason.
+     /* for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
+           extended_displays_) {
         d.second.RegisterHotPlugCallback(data, function);
+        break;
+      }*/
 
       primary_display_.RegisterHotPlugCallback(data, function);
       break;
