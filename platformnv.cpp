@@ -22,6 +22,7 @@
 
 #include <cinttypes>
 #include <stdatomic.h>
+#include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -188,6 +189,7 @@ int NvImporter::GrallocSetNvBuffer(buffer_handle_t handle, NvBuffer_t *buf) {
 // static
 std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
   std::unique_ptr<Planner> planner(new Planner);
+  planner->AddStage<PlanStageNvLimits>();
   planner->AddStage<PlanStageProtectedRotated>();
   planner->AddStage<PlanStageProtected>();
   planner->AddStage<PlanStagePrecomp>();
@@ -270,6 +272,73 @@ int PlanStageProtectedRotated::ProvisionPlanes(
     }
     i = layers.erase(i);
   }
+  return 0;
+}
+
+bool PlanStageNvLimits::CheckLayer(DrmHwcLayer *layer) {
+    auto src_w = layer->source_crop.width();
+    auto src_h = layer->source_crop.height();
+    auto dst_w = layer->display_frame.width();
+    auto dst_h = layer->display_frame.height();
+    int h_limit = 4;
+    int v_limit;
+
+    switch (layer->buffer->format) {
+      case DRM_FORMAT_YVU420:
+      case DRM_FORMAT_BGR565:
+        v_limit = 4;
+        break;
+      default:
+        v_limit = 2;
+        break;
+    }
+
+    if (layer->transform &
+        (DrmHwcTransform::kRotate90 | DrmHwcTransform::kRotate270))
+      std::swap(dst_w, dst_h);
+
+    // check for max supported down scaling
+    if (((src_w / dst_w) > h_limit) || ((src_h / dst_h) > v_limit))
+      return false;
+
+    return true;
+}
+
+int PlanStageNvLimits::ProvisionPlanes(
+    std::vector<DrmCompositionPlane> *composition,
+    std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+    std::vector<DrmPlane *> *planes) {
+  int ret;
+
+  for (auto i = layers.begin(); i != layers.end();) {
+    // Skip layer if supported
+    if (CheckLayer(i->second)) {
+      i++;
+      continue;
+    }
+
+    if (i->second->protected_usage()) {
+      // Drop the layer if unsupported and protected, this will just display
+      // black in the area of this layer but it's better than failing miserably
+      i = layers.erase(i);
+      continue;
+    }
+
+    // If there's no precomp layer already queued, queue one now.
+    DrmCompositionPlane *precomp = GetPrecomp(composition);
+    if (precomp) {
+      precomp->source_layers().emplace_back(i->first);
+    } else if (!planes->empty()) {
+      DrmPlane *precomp_plane = planes->back();
+      planes->pop_back();
+      composition->emplace_back(DrmCompositionPlane::Type::kPrecomp,
+                                precomp_plane, crtc, i->first);
+    } else {
+      ALOGE("Not enough planes to reserve for precomp fb");
+    }
+    i = layers.erase(i);
+  }
+
   return 0;
 }
 }
