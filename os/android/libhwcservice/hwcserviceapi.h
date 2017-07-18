@@ -18,6 +18,7 @@
 #define OS_ANDROID_HWC_HWCSERVICEAPI_H_
 
 #include <stdint.h>
+#include <vector>
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,16 +134,16 @@ typedef struct _HwcsDisplayModeInfo {
   uint32_t width;
   uint32_t height;
   uint32_t refresh;
-  uint32_t flags;  // EHwcsModeFlags
-  uint32_t ratio;  // EHwcsModeAspectRatio
+  uint32_t xdpi;
+  uint32_t ydpi;
 } HwcsDisplayModeInfo;
 
 /// query all available modes
 // If non-NULL: fills pModeList with up to modeCount modes.
 // Returns the number of modes available.
 status_t HwcService_DisplayMode_GetAvailableModes(
-    HWCSHANDLE hwcs, uint32_t display, unsigned modeCount,
-    HwcsDisplayModeInfo *pModeList);
+    HWCSHANDLE hwcs, uint32_t display,
+    std::vector<HwcsDisplayModeInfo> &pModeList);
 
 /// get current mode
 status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
@@ -150,7 +151,7 @@ status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
 
 /// set mode
 status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
-                                        const HwcsDisplayModeInfo *pMode);
+                                        const uint32_t config);
 
 // VideoControl
 

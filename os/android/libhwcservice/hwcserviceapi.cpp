@@ -152,21 +152,14 @@ status_t HwcService_Display_SetColorParam(HWCSHANDLE hwcs, uint32_t display,
 }
 
 status_t HwcService_DisplayMode_GetAvailableModes(
-    HWCSHANDLE hwcs, uint32_t display, unsigned modeCount,
-    HwcsDisplayModeInfo* pModeList) {
+    HWCSHANDLE hwcs, uint32_t display,
+    std::vector<HwcsDisplayModeInfo>& pModeList) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
     return -1;
   }
-  Vector<HwcsDisplayModeInfo> modes =
-      pContext->mControls->DisplayModeGetAvailableModes(display);
-  if (pModeList && (modeCount > 0)) {
-    size_t count = modes.size();
-    if (count > modeCount)
-      count = modeCount;
-    memcpy(pModeList, modes.array(), sizeof(HwcsDisplayModeInfo) * count);
-  }
-  return modes.size();
+  pModeList = pContext->mControls->DisplayModeGetAvailableModes(display);
+  return OK;
 }
 
 status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
@@ -179,12 +172,12 @@ status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
 }
 
 status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
-                                        const HwcsDisplayModeInfo* pMode) {
+                                        const uint32_t config) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
     return -1;
   }
-  return pContext->mControls->DisplayModeSetMode(display, pMode);
+  return pContext->mControls->DisplayModeSetMode(display, config);
 }
 
 status_t HwcService_Video_EnableEncryptedSession(HWCSHANDLE hwcs,
