@@ -115,7 +115,8 @@ HWC2::Error IAHWC2::Init() {
   std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
   size_t size = displays.size();
   NativeDisplay *primary_display = displays.at(0);
-  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
+  display_manager_.SetPrimaryDisplay(primary_display);
+  primary_display_.Init(&display_manager_, primary_display, 0, disable_explicit_sync_);
   // For now we only support cloned mode.
   for (size_t i = 1; i < size; i++) {
     hwcomposer::NativeDisplay *cloned = displays.at(i);
@@ -129,7 +130,7 @@ HWC2::Error IAHWC2::Init() {
                                std::forward_as_tuple());
 
     extended_displays_.at(index)
-        .Init(displays.at(index), index, disable_explicit_sync_);
+        .Init(&display_manager_, displays.at(index), index, disable_explicit_sync_);
   }
 
   // Start the hwc service
@@ -154,8 +155,9 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
   *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  virtual_display_.InitVirtualDisplay(device_.GetVirtualDisplay(), width,
-                                       height, disable_explicit_sync_);
+  virtual_display_.InitVirtualDisplay(&display_manager_,
+                                      device_.GetVirtualDisplay(), width,
+                                      height, disable_explicit_sync_);
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -225,8 +227,8 @@ IAHWC2::HwcDisplay::HwcDisplay() {
 
 // This function will be called only for Virtual Display Init
 HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
-    hwcomposer::NativeDisplay *display, uint32_t width, uint32_t height,
-    bool disable_explicit_sync) {
+    MultiDisplayManager *display_manager, hwcomposer::NativeDisplay *display,
+    uint32_t width, uint32_t height, bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Virtual;
@@ -234,18 +236,20 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   display_->InitVirtualDisplay(width, height);
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_manager_ = display_manager;
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
+HWC2::Error IAHWC2::HwcDisplay::Init(MultiDisplayManager *display_manager,
+                                     hwcomposer::NativeDisplay *display,
                                      int display_index,
                                      bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Physical;
+  display_manager_ = display_manager;
   if (display_index == 0) {
     handle_ = HWC_DISPLAY_PRIMARY;
-    cloned_mode_ = false;
   } else {
     handle_ = HWC_DISPLAY_EXTERNAL;
   }
@@ -572,6 +576,8 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   }
 
   ++frame_no_;
+  display_manager_->UpdatedDisplay(display_,
+                                   type_ == HWC2::DisplayType::Physical);
   return HWC2::Error::None;
 }
 
@@ -691,12 +697,6 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   }
 
   checkValidateDisplay = true;
-  // If we are in cloned mode, disable it.
-  if (cloned_mode_) {
-    cloned_mode_ = false;
-    display_->CloneDisplay(NULL);
-  }
-
   return HWC2::Error::None;
 }
 
