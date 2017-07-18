@@ -135,7 +135,7 @@ HWC2::Error IAHWC2::Init() {
   // Start the hwc service
   // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
   //        to hang in a loop while cold boot before going to home screen
-  // hwcService_.Start(*this);
+  //hwcService_.Start(*this);
 
   return HWC2::Error::None;
 }
@@ -1081,6 +1081,18 @@ int IAHWC2::HookDevOpen(const struct hw_module_t *module, const char *name,
   *dev = &ctx->common;
   ctx.release();
   return 0;
+}
+
+hwcomposer::NativeDisplay *IAHWC2::GetExtendedDisplay(uint32_t dispIndex) {
+  return extended_displays_.at(dispIndex).GetDisplay();
+}
+
+hwcomposer::NativeDisplay *IAHWC2::GetPrimaryDisplay() {
+  return primary_display_.GetDisplay();
+}
+
+hwcomposer::NativeDisplay *IAHWC2::HwcDisplay::GetDisplay() {
+  return display_;
 }
 
 }  // namespace android

@@ -80,11 +80,10 @@ class HwcService : public BnService {
     status_t DisplaySetColorParam(uint32_t display, EHwcsColorControl color,
                                   float value);
 
-    android::Vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
+    std::vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
         uint32_t display);
     status_t DisplayModeGetMode(uint32_t display, HwcsDisplayModeInfo* pMode);
-    status_t DisplayModeSetMode(uint32_t display,
-                                const HwcsDisplayModeInfo* pMode);
+    status_t DisplayModeSetMode(uint32_t display, const uint32_t config);
 
     status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                          uint32_t instanceID);

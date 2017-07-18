@@ -132,7 +132,8 @@ include $(BUILD_SHARED_LIBRARY)
 
 # libhwcservice
 HWC_BUILD_DIRS := \
-$(LOCAL_PATH)/os/android/libhwcservice/Android.mk
+$(LOCAL_PATH)/os/android/libhwcservice/Android.mk \
+$(LOCAL_PATH)/os/android/libhwcservice/utils/Android.mk
 
 include $(HWC_BUILD_DIRS)
 

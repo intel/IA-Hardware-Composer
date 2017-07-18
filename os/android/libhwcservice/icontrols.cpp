@@ -209,9 +209,9 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  Vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
+  std::vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
       uint32_t display) override {
-    Vector<HwcsDisplayModeInfo> vector;
+    std::vector<HwcsDisplayModeInfo> vector;
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
@@ -223,15 +223,14 @@ class BpControls : public BpInterface<IControls> {
       return vector;
     }
     int32_t n = reply.readInt32();
-    vector.setCapacity(n);
     while (n--) {
       HwcsDisplayModeInfo info;
       info.width = reply.readInt32();
       info.height = reply.readInt32();
       info.refresh = reply.readInt32();
-      info.flags = reply.readInt32();
-      info.ratio = reply.readInt32();
-      vector.add(info);
+      info.xdpi = reply.readInt32();
+      info.ydpi = reply.readInt32();
+      vector.push_back(info);
     }
     return vector;
   }
@@ -254,22 +253,18 @@ class BpControls : public BpInterface<IControls> {
     pMode->width = reply.readInt32();
     pMode->height = reply.readInt32();
     pMode->refresh = reply.readInt32();
-    pMode->flags = reply.readInt32();
-    pMode->ratio = reply.readInt32();
+    pMode->xdpi = reply.readInt32();
+    pMode->ydpi = reply.readInt32();
     return reply.readInt32();
   }
 
   status_t DisplayModeSetMode(uint32_t display,
-                              const HwcsDisplayModeInfo *pMode) override {
+                              const uint32_t config) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(getInterfaceDescriptor());
     data.writeInt32(display);
-    data.writeInt32(pMode->width);
-    data.writeInt32(pMode->height);
-    data.writeInt32(pMode->refresh);
-    data.writeInt32(pMode->flags);
-    data.writeInt32(pMode->ratio);
+    data.writeInt32(config);
     status_t ret =
         remote()->transact(TRANSACT_DISPLAYMODE_SET_MODE, data, &reply);
     if (ret != NO_ERROR) {
@@ -510,15 +505,15 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
 
-      Vector<HwcsDisplayModeInfo> vector =
+      std::vector<HwcsDisplayModeInfo> vector =
           this->DisplayModeGetAvailableModes(display);
       reply->writeInt32(vector.size());
       for (uint32_t i = 0; i < vector.size(); i++) {
         reply->writeInt32(vector[i].width);
         reply->writeInt32(vector[i].height);
         reply->writeInt32(vector[i].refresh);
-        reply->writeInt32(vector[i].flags);
-        reply->writeInt32(vector[i].ratio);
+        reply->writeInt32(vector[i].xdpi);
+        reply->writeInt32(vector[i].ydpi);
       }
       return NO_ERROR;
     }
@@ -530,21 +525,16 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       reply->writeInt32(info.width);
       reply->writeInt32(info.height);
       reply->writeInt32(info.refresh);
-      reply->writeInt32(info.flags);
-      reply->writeInt32(info.ratio);
+      reply->writeInt32(info.xdpi);
+      reply->writeInt32(info.ydpi);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_DISPLAYMODE_SET_MODE: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
-      HwcsDisplayModeInfo info;
-      info.width = data.readInt32();
-      info.height = data.readInt32();
-      info.refresh = data.readInt32();
-      info.flags = data.readInt32();
-      info.ratio = data.readInt32();
-      status_t ret = this->DisplayModeSetMode(display, &info);
+      uint32_t config = data.readInt32();
+      status_t ret = this->DisplayModeSetMode(display, config);
       reply->writeInt32(ret);
       return NO_ERROR;
     }

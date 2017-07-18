@@ -45,12 +45,12 @@ class IControls : public android::IInterface {
                                         EHwcsColorControl color,
                                         float value) = 0;
 
-  virtual android::Vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
+  virtual std::vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
       uint32_t display) = 0;
   virtual status_t DisplayModeGetMode(uint32_t display,
                                       HwcsDisplayModeInfo *pMode) = 0;
   virtual status_t DisplayModeSetMode(uint32_t display,
-                                      const HwcsDisplayModeInfo *pMode) = 0;
+                                      const uint32_t config) = 0;
 
   virtual status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                                uint32_t instanceID) = 0;
