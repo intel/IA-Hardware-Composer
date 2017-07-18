@@ -381,11 +381,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     state_ &= ~kLastFrameIdleUpdate;
   }
 
-  if (fence > 0 && !(state_ & kClonedMode)) {
-    if (render_layers)
-      compositor_.InsertFence(dup(fence));
+  if (fence > 0) {
+    if (!(state_ & kClonedMode)) {
+        if (render_layers)
+            compositor_.InsertFence(dup(fence));
 
-    *retire_fence = dup(fence);
+        *retire_fence = dup(fence);
+    }
     kms_fence_ = fence;
 
     SetReleaseFenceToLayers(fence, source_layers);
