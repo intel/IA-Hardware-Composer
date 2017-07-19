@@ -3,7 +3,8 @@
 # $Header: $
 
 EAPI=5
-inherit cros-workon eutils autotools
+
+inherit base autotools multilib flag-o-matic toolchain-funcs cros-workon eutils
 
 CROS_WORKON_PROJECT="chromiumos/third_party/IA-Hardware-Composer"
 KEYWORDS="~x86 ~amd64"
@@ -31,5 +32,5 @@ src_compile() {
 }
 
 src_install() {
-	dobin tests/testlayers
+    base_src_install
 }
