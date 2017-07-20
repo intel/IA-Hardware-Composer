@@ -88,8 +88,9 @@ public:
  }
 
  void Callback(uint32_t display, bool connected) {
-      ALOGE("IAHotPlugEventCallback %d \n", display);
-   procs_->hotplug(procs_, display > 0 ? HWC_DISPLAY_EXTERNAL_BIT : HWC_DISPLAY_PRIMARY_BIT, connected);
+   procs_->hotplug(
+       procs_, display > 0 ? HWC_DISPLAY_EXTERNAL_BIT : HWC_DISPLAY_PRIMARY_BIT,
+       connected);
  }
 
 private:
@@ -97,16 +98,16 @@ private:
 };
 
 int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
-        ALOGE("InitFromHwcLayer 1 \n");
+  native_handle_.handle_ = sf_layer->handle;
+  hwc_layer_.SetNativeHandle(&native_handle_);
   hwc_layer_.SetAlpha(sf_layer->planeAlpha);
-      ALOGE("InitFromHwcLayer 1.1 \n");
   hwc_layer_.SetSourceCrop(hwcomposer::HwcRect<float>(
       sf_layer->sourceCropf.left, sf_layer->sourceCropf.top,
       sf_layer->sourceCropf.right, sf_layer->sourceCropf.bottom));
   hwc_layer_.SetDisplayFrame(hwcomposer::HwcRect<int>(
       sf_layer->displayFrame.left, sf_layer->displayFrame.top,
       sf_layer->displayFrame.right, sf_layer->displayFrame.bottom));
-    ALOGE("InitFromHwcLayer 3 \n");
+
   uint32_t transform = 0;
   // 270* and 180* cannot be combined with flips. More specifically, they
   // already contain both horizontal and vertical flips, so those fields are
@@ -124,7 +125,7 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
     if (sf_layer->transform & HWC_TRANSFORM_ROT_90)
       transform |= hwcomposer::HWCTransform::kRotate90;
   }
-    ALOGE("InitFromHwcLayer 4 \n");
+
   hwc_layer_.SetTransform(transform);
   hwc_layer_.SetAcquireFence(dup(sf_layer->acquireFenceFd));
 
@@ -143,12 +144,6 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
       return -EINVAL;
   }
 
-  ALOGE("InitFromHwcLayer 1 %p \n", sf_layer);
-native_handle_.handle_ = sf_layer->handle;
- ALOGE("InitFromHwcLayer 1.1 \n");
-hwc_layer_.SetNativeHandle(&native_handle_);
-    ALOGE("InitFromHwcLayer 2 \n");
-
   return 0;
 }
 
@@ -160,27 +155,26 @@ static bool hwc_skip_layer(const std::pair<int, int> &indices, int i) {
   return indices.first >= 0 && i >= indices.first && i <= indices.second;
 }
 
-static HwcDisplay &GetDisplay(struct hwc_context_t *ctx, int display) {
+static HwcDisplay *GetDisplay(struct hwc_context_t *ctx, int display) {
   if (display == HWC_DISPLAY_VIRTUAL) {
-    return ctx->virtual_display_;
+    return &ctx->virtual_display_;
   }
 
   if (display == 0) {
-    return ctx->primary_display_;
+    return &ctx->primary_display_;
   }
 
-  return ctx->extended_displays_.at(display - 1);
+  return &ctx->extended_displays_.at(display - 1);
 }
 
 static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
-     ALOGE("hwc_prepare 1 \n");
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   int total_displays = (int)num_displays;
   for (int i = 0; i < total_displays; ++i) {
     if (!display_contents[i])
       continue;
-    bool use_framebuffer_target = true;
+    bool use_framebuffer_target = false;
 #ifdef USE_DISABLE_OVERLAY_USAGE
     use_framebuffer_target = true;
 #endif
@@ -205,17 +199,17 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
       if (!use_framebuffer_target && !hwc_skip_layer(skip_layer_indices, j)) {
-                  HwcDisplay &native_display = GetDisplay(ctx, i);
-                  hwcomposer::NativeDisplay *display = native_display.display_;
+        HwcDisplay *native_display = GetDisplay(ctx, i);
+        hwcomposer::NativeDisplay *display = native_display->display_;
 
-                  // If the layer is off the screen, don't earmark it for an overlay.
-                  // We'll leave it as-is, which effectively just drops it from the frame
-                  const hwc_rect_t *frame = &layer->displayFrame;
-                  if ((frame->right - frame->left) <= 0 ||
-                      (frame->bottom - frame->top) <= 0 || frame->right <= 0 ||
-                      frame->bottom <= 0 || frame->left >= (int)display->Width() ||
-                      frame->top >= (int)display->Height())
-                    continue;
+        // If the layer is off the screen, don't earmark it for an overlay.
+        // We'll leave it as-is, which effectively just drops it from the frame
+        const hwc_rect_t *frame = &layer->displayFrame;
+        if ((frame->right - frame->left) <= 0 ||
+            (frame->bottom - frame->top) <= 0 || frame->right <= 0 ||
+            frame->bottom <= 0 || frame->left >= (int)display->Width() ||
+            frame->top >= (int)display->Height())
+          continue;
 
         if (layer->compositionType == HWC_FRAMEBUFFER)
           layer->compositionType = HWC_OVERLAY;
@@ -230,92 +224,52 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
         }
       }
     }
-  }ALOGE("hwc_prepare ends \n");
+  }
 
   return 0;
 }
 
 static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
                    hwc_display_contents_1_t **sf_display_contents) {
-    ALOGE("hwc_set 1 \n");
   ATRACE_CALL();
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-
-  // Phase one does nothing that would cause errors. Only take ownership of FDs.
   for (size_t i = 0; i < num_displays; ++i) {
     hwc_display_contents_1_t *dc = sf_display_contents[i];
     if (!sf_display_contents[i] || i == HWC_DISPLAY_VIRTUAL)
       continue;
-    ALOGE("hwc_set 2 \n");
+
     size_t num_dc_layers = dc->numHwLayers;
-    int framebuffer_target_index = -1;
-    for (size_t j = 0; j < num_dc_layers; ++j) {
-      hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
-      if (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET) {
-        framebuffer_target_index = j;
-        break;
-      }
-    }
-    ALOGE("hwc_set 3 \n");
-    HwcDisplay &native_display = GetDisplay(ctx, num_displays);
-    hwcomposer::NativeDisplay *display = native_display.display_;
-    std::vector<IAHwc1Layer> &layers = native_display.layers_;
+    HwcDisplay *native_display = GetDisplay(ctx, i);
+    hwcomposer::NativeDisplay *display = native_display->display_;
+    std::vector<IAHwc1Layer> &layers = native_display->layers_;
     size_t size = layers.size();
     std::vector<hwcomposer::HwcLayer *> source_layers;
     for (size_t j = 0; j < num_dc_layers; ++j) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
       if (!sf_layer->handle)
-          continue;
+        continue;
 
-      if (sf_layer->flags & HWC_SKIP_LAYER) {
-        if (framebuffer_target_index < 0)
-          continue;
-        int idx = framebuffer_target_index;
-        framebuffer_target_index = -1;
-        hwc_layer_1_t *fbt_layer = &dc->hwLayers[idx];
-        if (!fbt_layer->handle || (fbt_layer->flags & HWC_SKIP_LAYER)) {
-          ALOGE("Invalid HWC_FRAMEBUFFER_TARGET with HWC_SKIP_LAYER present");
-              ALOGE("hwc_set 4 \n");
-          continue;
-        }
-      }
-
-      if (size < j) {
+      if (layers.empty() || size < j) {
         layers.emplace_back();
       }
-    ALOGE("hwc_set 5 \n");
+
       IAHwc1Layer &layer = layers.at(j);
-       ALOGE("hwc_set 5.1  %d \n", j);
       layer.InitFromHwcLayer(sf_layer);
-       ALOGE("hwc_set 5.2 \n");
       layer.hwc_layer_.SetReleaseFence(-1);
       source_layers.emplace_back(&layer.hwc_layer_);
-       ALOGE("hwc_set 5.3 \n");
       sf_layer->acquireFenceFd = -1;
-       ALOGE("hwc_set 5.4 \n");
     }
 
-    if (source_layers.empty() && framebuffer_target_index >= 0) {
-      hwc_layer_1_t *sf_layer = &dc->hwLayers[framebuffer_target_index];
-      ALOGE("We are in exception \n");
-      if (!sf_layer->handle || (sf_layer->flags & HWC_SKIP_LAYER)) {
-        ALOGE(
-            "Expected valid layer with HWC_FRAMEBUFFER_TARGET when all "
-            "HWC_OVERLAY layers are skipped.");
-      }
-    }
-
-    ALOGE("hwc_set 6 \n");
     if (source_layers.empty())
-        return 0;
+      return 0;
+
     bool success = display->Present(source_layers, &dc->retireFenceFd);
-        ALOGE("hwc_set 7 \n");
     if (!success) {
       ALOGE("Failed to set layers in the composition");
       return -1;
     }
   }
-  ALOGE("hwc_set ends \n");
+
   return 0;
 }
 
@@ -323,10 +277,10 @@ static int hwc_event_control(struct hwc_composer_device_1 *dev, int display,
                              int event, int enabled) {
   if (event != HWC_EVENT_VSYNC || (enabled != 0 && enabled != 1))
     return -EINVAL;
- ALOGE("hwc_event_control %d \n", display);
+  ALOGE("hwc_event_control %d \n", display);
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
   temp->VSyncControl(enabled);
   return 0;
 }
@@ -353,8 +307,8 @@ static int hwc_set_power_mode(struct hwc_composer_device_1 *dev, int display,
       return -1;
   };
 
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
   temp->SetPowerMode(power_mode);
   return 0;
 }
@@ -391,14 +345,13 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
 
   std::vector<HwcDisplay> &extended = ctx->extended_displays_;
   size_t size = extended.size();
-   ETRACE("rESGIESTE %d \n", size);
-  for (size_t i = 0; i < 1; i++) {
-      ETRACE("rESGIESTE \n");
+  for (size_t i = 0; i < size; i++) {
     auto extended_callback = std::make_shared<IAVsyncCallback>(procs);
-    extended.at(i).display_->RegisterVsyncCallback(
-        std::move(extended_callback), 1);
+    extended.at(i)
+        .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
 
-    auto extended_hot_plug_callback = std::make_shared<IAHotPlugEventCallback>(procs);
+    auto extended_hot_plug_callback =
+        std::make_shared<IAHotPlugEventCallback>(procs);
     display->RegisterHotPlugCallback(std::move(extended_hot_plug_callback), 1);
   }
 }
@@ -406,11 +359,10 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
 static int hwc_get_display_configs(struct hwc_composer_device_1 *dev,
                                    int display, uint32_t *configs,
                                    size_t *num_configs) {
-     ALOGE("hwc_get_display_configs %d \n", display);
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   uint32_t size = 0;
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
 
   if (!temp->GetDisplayConfigs(&size, configs))
     return -1;
@@ -424,10 +376,9 @@ static int hwc_get_display_attributes(struct hwc_composer_device_1 *dev,
                                       int display, uint32_t config,
                                       const uint32_t *attributes,
                                       int32_t *values) {
-      ALOGE("hwc_get_display_attributes %d \n", display);
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
   for (int i = 0; attributes[i] != HWC_DISPLAY_NO_ATTRIBUTE; ++i) {
     switch (attributes[i]) {
       case HWC_DISPLAY_WIDTH:
@@ -464,11 +415,10 @@ static int hwc_get_display_attributes(struct hwc_composer_device_1 *dev,
 
 static int hwc_get_active_config(struct hwc_composer_device_1 *dev,
                                  int display) {
-       ALOGE("hwc_get_active_config %d \n", display);
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   uint32_t config;
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
 
   if (!temp->GetActiveConfig(&config))
     return -1;
@@ -478,10 +428,9 @@ static int hwc_get_active_config(struct hwc_composer_device_1 *dev,
 
 static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
                                  int index) {
-    ALOGE("hwc_set_active_config %d \n", display);
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
-  HwcDisplay &native_display = GetDisplay(ctx, display);
-  hwcomposer::NativeDisplay *temp = native_display.display_;
+  HwcDisplay *native_display = GetDisplay(ctx, display);
+  hwcomposer::NativeDisplay *temp = native_display->display_;
 
   temp->SetActiveConfig(index);
   return 0;
@@ -499,7 +448,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     ALOGE("Invalid module name- %s", name);
     return -EINVAL;
   }
-ALOGE("open called \n");
+
   std::unique_ptr<hwc_context_t> ctx(new hwc_context_t());
   if (!ctx) {
     ALOGE("Failed to allocate hwc context");
@@ -518,7 +467,7 @@ ALOGE("open called \n");
     ALOGE("Can't initialize drm object.");
     return -1;
   }
-ALOGE("open called1 \n");
+
   std::vector<hwcomposer::NativeDisplay *> displays =
       ctx->device_.GetAllDisplays();
   ctx->virtual_display_.display_ = ctx->device_.GetVirtualDisplay();
@@ -526,7 +475,6 @@ ALOGE("open called1 \n");
       ctx->disable_explicit_sync_);
 
   size_t size = displays.size();
-  ALOGE("open called2 %d \n", size);
   hwcomposer::NativeDisplay *primary_display = displays.at(0);
   ctx->primary_display_.display_ = primary_display;
   ctx->primary_display_.display_id_ = 0;
@@ -549,15 +497,13 @@ ALOGE("open called1 \n");
   }
 
   for (size_t i = 1; i < size; ++i) {
-    uint32_t index = i - 1;
-     ALOGE("added external %d \n", index);
     ctx->extended_displays_.emplace_back();
-    HwcDisplay& temp = ctx->extended_displays_.back();
+    HwcDisplay &temp = ctx->extended_displays_.back();
     temp.display_ = displays.at(i);
     temp.display_id_ = i;
     temp.display_->SetExplicitSyncSupport(ctx->disable_explicit_sync_);
   }
-ALOGE("open called3 \n");
+
   ctx->device.common.tag = HARDWARE_DEVICE_TAG;
   ctx->device.common.version = HWC_DEVICE_API_VERSION_1_4;
   ctx->device.common.module = const_cast<hw_module_t *>(module);
