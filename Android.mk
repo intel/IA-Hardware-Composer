@@ -72,7 +72,7 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmplane.cpp \
 	wsi/drm/drmdisplaymanager.cpp \
 	wsi/drm/drmscopedtypes.cpp \
-        os/android/iahwc2.cpp \
+        os/android/iahwc1.cpp \
         os/android/hwcservice.cpp \
         os/android/multidisplaymanager.cpp
 
