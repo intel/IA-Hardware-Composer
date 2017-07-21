@@ -19,7 +19,7 @@
 
 // Inline c++ helpers to augment HwcServiceApi.h
 
-#include <HwcServiceApi.h>
+#include <hwcserviceapi.h>
 
 #if __ANDROID__
 #include <utils/RefBase.h>
