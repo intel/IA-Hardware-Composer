@@ -1,4 +1,4 @@
-# Copyright (C) 2015 The Android Open Source Project
+# Copyright (c) 2017 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 
 ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
 # Obtain root HWC source path
@@ -141,6 +142,7 @@ include $(HWC_BUILD_DIRS)
 #Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
 # Commenting for now include when ld issue is resolved
+include $(HWC_PATH)/tests/hwc-val/tests/hwc/Android.mk
 #include $(LOCAL_PATH)/tests/third_party/json-c/Android.mk
 endif
 
