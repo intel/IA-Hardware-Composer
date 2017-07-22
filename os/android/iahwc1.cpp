@@ -54,9 +54,9 @@ class DisplayTimeLine {
 
   int32_t IncrementTimeLine() {
     int ret =
-        sw_sync_fence_create(timeline_fd_, "dummy fence", timeline_pt_ + 1);
+        sw_sync_fence_create(timeline_fd_, "display fence", timeline_pt_ + 1);
     if (ret < 0) {
-      ALOGE("Failed to create dummy fence %d %d", ret, timeline_fd_);
+      ALOGE("Failed to create display fence %d %d", ret, timeline_fd_);
       return ret;
     }
 
@@ -64,7 +64,7 @@ class DisplayTimeLine {
 
     ret = sw_sync_timeline_inc(timeline_fd_, 1);
     if (ret) {
-      ALOGE("Failed to increment dummy sync timeline %d", ret);
+      ALOGE("Failed to increment display sync timeline %d", ret);
       return ret;
     }
 
@@ -263,7 +263,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
   for (int i = 0; i < total_displays; ++i) {
     if (!display_contents[i])
       continue;
-    bool use_framebuffer_target = false;
+    bool use_framebuffer_target = ctx->disable_explicit_sync_;
 #ifdef USE_DISABLE_OVERLAY_USAGE
     use_framebuffer_target = true;
 #endif
@@ -349,6 +349,7 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       new_layer->index_ = j;
       new_layers.emplace_back(new_layer);
       sf_layer->acquireFenceFd = -1;
+      sf_layer->releaseFenceFd = -1;
     }
 
     if (source_layers.empty())
@@ -362,6 +363,8 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       delete layer;
     }
 
+    std::vector<IAHwc1Layer *>().swap(new_layers);
+
     bool success = display->Present(source_layers, &retire_fence);
     if (!success) {
       ALOGE("Failed to set layers in the composition");
@@ -371,31 +374,19 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     if (retire_fence > 0)
       close(retire_fence);
 
-    std::vector<hwcomposer::HwcLayer *>().swap(source_layers);
-  }
-
-  for (size_t i = 0; i < num_displays; ++i) {
-    hwc_display_contents_1_t *dc = sf_display_contents[i];
-    if (!dc)
-      continue;
-
-    HwcDisplay *native_display = GetDisplay(ctx, i);
-    std::vector<IAHwc1Layer *> &layers = native_display->layers_;
-    size_t size = layers.size();
-    if (size == 0)
-      continue;
-
+    size = old_layers.size();
     for (size_t i = 0; i < size; i++) {
-      hwcomposer::HwcLayer *layer = layers.at(i)->hwc_layer_;
+      hwcomposer::HwcLayer *layer = old_layers.at(i)->hwc_layer_;
       int32_t release_fence = layer->GetReleaseFence();
       if (release_fence <= 0)
         continue;
 
-      hwc_layer_1_t *sf_layer = &dc->hwLayers[layers.at(i)->index_];
+      hwc_layer_1_t *sf_layer = &dc->hwLayers[old_layers.at(i)->index_];
       sf_layer->releaseFenceFd = release_fence;
     }
 
     dc->retireFenceFd = native_display->timeline_.IncrementTimeLine();
+    std::vector<hwcomposer::HwcLayer *>().swap(source_layers);
   }
 
   return 0;

@@ -336,12 +336,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   int32_t fence = 0;
+#ifndef ENABLE_DOUBLE_BUFFERING
   if (kms_fence_ > 0) {
     HWCPoll(kms_fence_, -1);
     close(kms_fence_);
     kms_fence_ = 0;
   }
-
+#endif
   if (state_ & kNeedsColorCorrection) {
     display_->SetColorCorrection(gamma_, contrast_, brightness_);
     state_ &= ~kNeedsColorCorrection;
@@ -406,6 +407,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     hwc_lock_->DisableWatch();
     hwc_lock_.reset(nullptr);
   }
+
+#ifdef ENABLE_DOUBLE_BUFFERING
+  if (kms_fence_ > 0) {
+    HWCPoll(kms_fence_, -1);
+    close(kms_fence_);
+    kms_fence_ = 0;
+  }
+#endif
 
   return true;
 }

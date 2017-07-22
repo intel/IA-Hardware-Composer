@@ -83,6 +83,8 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SHARED_LIBRARIES += \
         libsync
+
+LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 else
 LOCAL_SRC_FILES += os/android/iahwc2.cpp \
                    os/android/hwcservice.cpp
