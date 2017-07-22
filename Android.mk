@@ -32,7 +32,7 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libui \
 	libutils \
-	libhwcservice \
+        libhwcservice \
 	libbinder
 
 LOCAL_C_INCLUDES := \
@@ -73,9 +73,20 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmplane.cpp \
 	wsi/drm/drmdisplaymanager.cpp \
 	wsi/drm/drmscopedtypes.cpp \
-        os/android/iahwc2.cpp \
-        os/android/hwcservice.cpp \
         os/android/multidisplaymanager.cpp
+
+ifeq ($(strip $(BOARD_USES_HWC1)), true)
+LOCAL_SRC_FILES += os/android/iahwc1.cpp
+LOCAL_C_INCLUDES += \
+        system/core/libsync \
+        system/core/libsync/include
+
+LOCAL_SHARED_LIBRARIES += \
+        libsync
+else
+LOCAL_SRC_FILES += os/android/iahwc2.cpp \
+                   os/android/hwcservice.cpp
+endif
 
 ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
@@ -132,6 +143,7 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+ifneq ($(strip $(BOARD_USES_HWC1)), true)
 # libhwcservice
 HWC_BUILD_DIRS := \
 $(LOCAL_PATH)/os/android/libhwcservice/Android.mk \
@@ -141,8 +153,14 @@ include $(HWC_BUILD_DIRS)
 
 #Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
-# Commenting for now include when ld issue is resolved
 include $(HWC_PATH)/tests/hwc-val/tests/hwc/Android.mk
+endif
+
+endif
+
+#Include tests only if eng build
+ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
+# Commenting for now include when ld issue is resolved
 #include $(LOCAL_PATH)/tests/third_party/json-c/Android.mk
 endif
 
