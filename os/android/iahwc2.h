@@ -44,6 +44,8 @@ class IAHWC2 : public hwc2_device_t {
   IAHWC2();
 
   HWC2::Error Init();
+  hwcomposer::NativeDisplay *GetPrimaryDisplay();
+  hwcomposer::NativeDisplay *GetExtendedDisplay(uint32_t);
 
  private:
   class HwcLayer {
@@ -171,6 +173,7 @@ class IAHWC2 : public hwc2_device_t {
     HwcLayer &get_layer(hwc2_layer_t layer) {
       return layers_.at(layer);
     }
+    hwcomposer::NativeDisplay *GetDisplay();
 
    private:
     hwcomposer::NativeDisplay *display_ = NULL;

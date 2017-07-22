@@ -202,23 +202,64 @@ status_t HwcService::Controls::DisplaySetColorParam(uint32_t display,
   // TO DO
   return OK;
 }
-Vector<HwcsDisplayModeInfo> HwcService::Controls::DisplayModeGetAvailableModes(
-    uint32_t display) {
-  // TO DO
-  Vector<HwcsDisplayModeInfo> modes;
 
+std::vector<HwcsDisplayModeInfo>
+HwcService::Controls::DisplayModeGetAvailableModes(uint32_t display) {
+  std::vector<HwcsDisplayModeInfo> modes;
+  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  uint32_t numConfigs, configIndex;
+  int32_t tempValue;
+  phyDisplay->GetDisplayConfigs(&numConfigs, NULL);
+  for (uint32_t i = 0; i < numConfigs; i++) {
+    HwcsDisplayModeInfo mode;
+    phyDisplay->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kWidth,
+                                    &tempValue);
+    mode.width = tempValue;
+    phyDisplay->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kHeight,
+                                    &tempValue);
+    mode.height = tempValue;
+    phyDisplay->GetDisplayAttribute(
+        i, hwcomposer::HWCDisplayAttribute::kRefreshRate, &tempValue);
+    mode.refresh = tempValue;
+    phyDisplay->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kDpiX,
+                                    &tempValue);
+    mode.xdpi = tempValue;
+    phyDisplay->GetDisplayAttribute(i, hwcomposer::HWCDisplayAttribute::kDpiY,
+                                    &tempValue);
+    mode.ydpi = tempValue;
+    modes.push_back(mode);
+  }
   return modes;
 }
 
 status_t HwcService::Controls::DisplayModeGetMode(uint32_t display,
                                                   HwcsDisplayModeInfo *pMode) {
-  // TO DO
+  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  uint32_t config;
+  int32_t tempValue;
+  phyDisplay->GetActiveConfig(&config);
+  phyDisplay->GetDisplayAttribute(
+      config, hwcomposer::HWCDisplayAttribute::kWidth, &tempValue);
+  pMode->width = tempValue;
+  phyDisplay->GetDisplayAttribute(
+      config, hwcomposer::HWCDisplayAttribute::kHeight, &tempValue);
+  pMode->height = tempValue;
+  phyDisplay->GetDisplayAttribute(
+      config, hwcomposer::HWCDisplayAttribute::kRefreshRate, &tempValue);
+  pMode->refresh = tempValue;
+  phyDisplay->GetDisplayAttribute(
+      config, hwcomposer::HWCDisplayAttribute::kDpiX, &tempValue);
+  pMode->xdpi = tempValue;
+  phyDisplay->GetDisplayAttribute(
+      config, hwcomposer::HWCDisplayAttribute::kDpiY, &tempValue);
+  pMode->ydpi = tempValue;
   return OK;
 }
 
-status_t HwcService::Controls::DisplayModeSetMode(
-    uint32_t display, const HwcsDisplayModeInfo *pMode) {
-  // TO DO
+status_t HwcService::Controls::DisplayModeSetMode(uint32_t display,
+                                                  const uint32_t config) {
+  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  phyDisplay->SetActiveConfig(config);
   return OK;
 }
 
