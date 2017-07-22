@@ -126,6 +126,7 @@ uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
 
 void Gralloc1BufferHandler::CopyHandle(HWCNativeHandle source,
                                        HWCNativeHandle *target) {
+      ALOGE("KAL: CopyHandle changed %p.", source);
   CopyBufferHandle(source, target);
 }
 

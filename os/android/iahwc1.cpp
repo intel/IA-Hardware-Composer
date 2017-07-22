@@ -38,8 +38,16 @@
 namespace android {
 
 struct IAHwc1Layer {
-  struct gralloc_handle native_handle_;
-  hwcomposer::HwcLayer hwc_layer_;
+    ~IAHwc1Layer() {
+       delete hwc_layer_;
+        hwc_layer_ = NULL;
+                ALOGE("KAL: Layer destroyed %p \n", native_handle_->handle_);
+        delete native_handle_;
+                native_handle_ = NULL;
+    }
+
+  struct gralloc_handle* native_handle_;
+  hwcomposer::HwcLayer* hwc_layer_ = NULL;
 
   int InitFromHwcLayer(hwc_layer_1_t *sf_layer);
 };
@@ -98,13 +106,18 @@ private:
 };
 
 int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
-  native_handle_.handle_ = sf_layer->handle;
-  hwc_layer_.SetNativeHandle(&native_handle_);
-  hwc_layer_.SetAlpha(sf_layer->planeAlpha);
-  hwc_layer_.SetSourceCrop(hwcomposer::HwcRect<float>(
+  if (!hwc_layer_) {
+      hwc_layer_ = new hwcomposer::HwcLayer();
+      native_handle_ = new struct gralloc_handle();
+  }
+  native_handle_->handle_ = sf_layer->handle;
+  ETRACE("KAL: InitFromHwcLayer %p %p \n",  native_handle_->handle_, sf_layer->handle);
+  hwc_layer_->SetNativeHandle(native_handle_);
+  hwc_layer_->SetAlpha(sf_layer->planeAlpha);
+  hwc_layer_->SetSourceCrop(hwcomposer::HwcRect<float>(
       sf_layer->sourceCropf.left, sf_layer->sourceCropf.top,
       sf_layer->sourceCropf.right, sf_layer->sourceCropf.bottom));
-  hwc_layer_.SetDisplayFrame(hwcomposer::HwcRect<int>(
+  hwc_layer_->SetDisplayFrame(hwcomposer::HwcRect<int>(
       sf_layer->displayFrame.left, sf_layer->displayFrame.top,
       sf_layer->displayFrame.right, sf_layer->displayFrame.bottom));
 
@@ -126,24 +139,24 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
       transform |= hwcomposer::HWCTransform::kRotate90;
   }
 
-  hwc_layer_.SetTransform(transform);
-  hwc_layer_.SetAcquireFence(dup(sf_layer->acquireFenceFd));
+  hwc_layer_->SetTransform(transform);
+  hwc_layer_->SetAcquireFence(dup(sf_layer->acquireFenceFd));
 
   switch (sf_layer->blending) {
     case HWC_BLENDING_NONE:
-      hwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingNone);
+      hwc_layer_->SetBlending(hwcomposer::HWCBlending::kBlendingNone);
       break;
     case HWC_BLENDING_PREMULT:
-      hwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
+      hwc_layer_->SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
       break;
     case HWC_BLENDING_COVERAGE:
-      hwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingCoverage);
+      hwc_layer_->SetBlending(hwcomposer::HWCBlending::kBlendingCoverage);
       break;
     default:
       ALOGE("Invalid blending in hwc_layer_1_t %d", sf_layer->blending);
       return -EINVAL;
   }
-
+  ETRACE("KAL: InitFromHwcLayer Done %p %p \n",  native_handle_->handle_, sf_layer->handle);
   return 0;
 }
 
@@ -156,12 +169,12 @@ static bool hwc_skip_layer(const std::pair<int, int> &indices, int i) {
 }
 
 static HwcDisplay *GetDisplay(struct hwc_context_t *ctx, int display) {
+    if (display == 0) {
+      return &ctx->primary_display_;
+    }
+
   if (display == HWC_DISPLAY_VIRTUAL) {
     return &ctx->virtual_display_;
-  }
-
-  if (display == 0) {
-    return &ctx->primary_display_;
   }
 
   return &ctx->extended_displays_.at(display - 1);
@@ -241,22 +254,28 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
     size_t num_dc_layers = dc->numHwLayers;
     HwcDisplay *native_display = GetDisplay(ctx, i);
     hwcomposer::NativeDisplay *display = native_display->display_;
-    std::vector<IAHwc1Layer> &layers = native_display->layers_;
-    size_t size = layers.size();
+    std::vector<IAHwc1Layer> &old_layers = native_display->layers_;
+    std::vector<IAHwc1Layer> new_layers;
+    size_t size = old_layers.size();
     std::vector<hwcomposer::HwcLayer *> source_layers;
     for (size_t j = 0; j < num_dc_layers; ++j) {
       hwc_layer_1_t *sf_layer = &dc->hwLayers[j];
-      if (!sf_layer->handle)
+      if (!sf_layer || !sf_layer->handle || (sf_layer->flags & HWC_SKIP_LAYER))
         continue;
 
-      if (layers.empty() || size < j) {
-        layers.emplace_back();
+      ALOGE("sf_layer->handle2_ %p \n", sf_layer->handle);
+
+      new_layers.emplace_back();
+      IAHwc1Layer *layer =  &(new_layers.back());
+      if (size > j) {
+          IAHwc1Layer &old_layer = old_layers.at(j);
+          layer->hwc_layer_ = old_layer.hwc_layer_;
+          old_layer.hwc_layer_ = NULL;
       }
 
-      IAHwc1Layer &layer = layers.at(j);
-      layer.InitFromHwcLayer(sf_layer);
-      layer.hwc_layer_.SetReleaseFence(-1);
-      source_layers.emplace_back(&layer.hwc_layer_);
+      layer->InitFromHwcLayer(sf_layer);
+      layer->hwc_layer_->SetReleaseFence(-1);
+      source_layers.emplace_back(layer->hwc_layer_);
       sf_layer->acquireFenceFd = -1;
     }
 
@@ -268,6 +287,9 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       ALOGE("Failed to set layers in the composition");
       return -1;
     }
+
+    std::vector<hwcomposer::HwcLayer *>().swap(source_layers);
+    old_layers.swap(new_layers);
   }
 
   return 0;
@@ -277,7 +299,7 @@ static int hwc_event_control(struct hwc_composer_device_1 *dev, int display,
                              int event, int enabled) {
   if (event != HWC_EVENT_VSYNC || (enabled != 0 && enabled != 1))
     return -EINVAL;
-  ALOGE("hwc_event_control %d \n", display);
+
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   HwcDisplay *native_display = GetDisplay(ctx, display);
   hwcomposer::NativeDisplay *temp = native_display->display_;

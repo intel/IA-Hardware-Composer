@@ -19,6 +19,7 @@
 namespace hwcomposer {
 
 HwcLayer::~HwcLayer() {
+    ETRACE("KAL: HwcLayer destroyed \n");
   if (release_fd_ > 0) {
     close(release_fd_);
   }
@@ -29,6 +30,7 @@ HwcLayer::~HwcLayer() {
 }
 
 void HwcLayer::SetNativeHandle(HWCNativeHandle handle) {
+    ETRACE("KAL: SetNativeHandle %p %p \n", sf_handle_ ? sf_handle_->handle_ : NULL, handle ? handle->handle_ : NULL);
   sf_handle_ = handle;
 }
 

@@ -99,6 +99,7 @@ static void free_buffer_handle(native_handle_t *handle) {
 }
 
 static void CopyBufferHandle(HWCNativeHandle source, HWCNativeHandle *target) {
+           ALOGE("KAL: CopyBufferHandle %p.", source->handle_);
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->handle_ = source->handle_;
   temp->buffer_ = source->buffer_;
