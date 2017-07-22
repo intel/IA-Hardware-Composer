@@ -40,6 +40,7 @@ bool HwcService::Start(IAHWC2 &hwc) {
     ALOGE("Failed to start %s service", IA_HWC_SERVICE_NAME);
     return false;
   }
+    ALOGE("started %s service", IA_HWC_SERVICE_NAME);
   return true;
 }
 

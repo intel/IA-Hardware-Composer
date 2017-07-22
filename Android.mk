@@ -140,7 +140,8 @@ include $(HWC_BUILD_DIRS)
 #Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
 # Commenting for now include when ld issue is resolved
+include $(HWC_PATH)/tests/hwc-val/tests/hwc/Android.mk
 #include $(LOCAL_PATH)/tests/third_party/json-c/Android.mk
-endif
+#endif
 
 endif
