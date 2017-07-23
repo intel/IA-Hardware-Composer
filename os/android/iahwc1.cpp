@@ -167,6 +167,12 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
     hwc_layer_ = new hwcomposer::HwcLayer();
   }
 
+  bool surface_damage = true;
+
+  if (hwc_layer_->GetNativeHandle() &&
+      (hwc_layer_->GetNativeHandle()->handle_ == sf_layer->handle))
+    surface_damage = false;
+
   native_handle_.handle_ = sf_layer->handle;
   hwc_layer_->SetNativeHandle(&native_handle_);
   hwc_layer_->SetAlpha(sf_layer->planeAlpha);
@@ -209,17 +215,25 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
       return -EINVAL;
   }
 
-  uint32_t num_rects = sf_layer->surfaceDamage.numRects;
-  hwcomposer::HwcRegion hwc_region;
+  if (surface_damage) {
+    uint32_t num_rects = sf_layer->surfaceDamage.numRects;
+    hwcomposer::HwcRegion hwc_region;
 
-  for (size_t rect = 0; rect < num_rects; ++rect) {
-    hwc_region.emplace_back(sf_layer->surfaceDamage.rects[rect].left,
-                            sf_layer->surfaceDamage.rects[rect].top,
-                            sf_layer->surfaceDamage.rects[rect].right,
-                            sf_layer->surfaceDamage.rects[rect].bottom);
+    for (size_t rect = 0; rect < num_rects; ++rect) {
+      hwc_region.emplace_back(sf_layer->surfaceDamage.rects[rect].left,
+                              sf_layer->surfaceDamage.rects[rect].top,
+                              sf_layer->surfaceDamage.rects[rect].right,
+                              sf_layer->surfaceDamage.rects[rect].bottom);
+    }
+
+    hwc_layer_->SetSurfaceDamage(hwc_region);
+  } else {
+    hwcomposer::HwcRegion hwc_region;
+    hwc_region.emplace_back(0, 0, 0, 0);
+    hwc_layer_->SetSurfaceDamage(hwc_region);
   }
 
-  num_rects = sf_layer->visibleRegionScreen.numRects;
+  uint32_t num_rects = sf_layer->visibleRegionScreen.numRects;
   hwcomposer::HwcRegion visible_region;
 
   for (size_t rect = 0; rect < num_rects; ++rect) {
@@ -231,7 +245,6 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
   }
 
   hwc_layer_->SetVisibleRegion(visible_region);
-  hwc_layer_->SetSurfaceDamage(hwc_region);
   return 0;
 }
 
