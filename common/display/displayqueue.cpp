@@ -393,12 +393,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     SetReleaseFenceToLayers(fence, source_layers);
   } else {
-    // This is the best we can do in this case, flush any 3D
-    // operations and release buffers of previous layers.
-    if (fence > 0) {
-      close(fence);
-    }
-
     if (render_layers)
       compositor_.InsertFence(0);
   }
