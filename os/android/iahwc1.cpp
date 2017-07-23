@@ -551,6 +551,12 @@ static int hwc_set_active_config(struct hwc_composer_device_1 *dev, int display,
   return 0;
 }
 
+static int hwc_set_cursor_position_async(struct hwc_composer_device_1 * /*dev*/,
+                                         int /*display*/, int /*x_pos*/,
+                                         int /*y_pos*/) {
+  return 0;
+}
+
 static int hwc_device_close(struct hw_device_t *dev) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
   delete ctx;
@@ -638,7 +644,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   ctx->device.getDisplayAttributes = hwc_get_display_attributes;
   ctx->device.getActiveConfig = hwc_get_active_config;
   ctx->device.setActiveConfig = hwc_set_active_config;
-  ctx->device.setCursorPositionAsync = NULL;
+  ctx->device.setCursorPositionAsync = hwc_set_cursor_position_async;
 
   *dev = &ctx->device.common;
   ctx.release();
