@@ -98,7 +98,6 @@ typedef struct HwcDisplay {
   int last_render_layers_size = -1;
   std::vector<IAHwc1Layer *> layers_;
   DisplayTimeLine timeline_;
-
 } hwc_drm_display_t;
 
 struct hwc_context_t {
@@ -240,10 +239,6 @@ static void hwc_dump(struct hwc_composer_device_1 * /*dev*/, char * /*buff*/,
                      int /*buff_len*/) {
 }
 
-static bool hwc_skip_layer(const std::pair<int, int> &indices, int i) {
-  return indices.first >= 0 && i >= indices.first && i <= indices.second;
-}
-
 static HwcDisplay *GetDisplay(struct hwc_context_t *ctx, int display) {
   if (display == 0) {
     return &ctx->primary_display_;
@@ -260,55 +255,37 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
                        hwc_display_contents_1_t **display_contents) {
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   int total_displays = (int)num_displays;
+  bool disable_overlays = ctx->disable_explicit_sync_;
+
   for (int i = 0; i < total_displays; ++i) {
     if (!display_contents[i])
       continue;
-    bool use_framebuffer_target = ctx->disable_explicit_sync_;
-#ifdef USE_DISABLE_OVERLAY_USAGE
-    use_framebuffer_target = true;
-#endif
+
     if (i == HWC_DISPLAY_VIRTUAL) {
-      use_framebuffer_target = true;
+      disable_overlays = true;
+    } else {
+      disable_overlays = ctx->disable_explicit_sync_;
     }
 
-    std::pair<int, int> skip_layer_indices(-1, -1);
     int num_layers = display_contents[i]->numHwLayers;
-    for (int j = 0; !use_framebuffer_target && j < num_layers; ++j) {
-      hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
-
-      if (!(layer->flags & HWC_SKIP_LAYER))
-        continue;
-
-      if (skip_layer_indices.first == -1)
-        skip_layer_indices.first = j;
-      skip_layer_indices.second = j;
-    }
 
     for (int j = 0; j < num_layers; ++j) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
 
-      if (!use_framebuffer_target && !hwc_skip_layer(skip_layer_indices, j)) {
-        HwcDisplay *native_display = GetDisplay(ctx, i);
-        hwcomposer::NativeDisplay *display = native_display->display_;
-
-        const hwc_rect_t *frame = &layer->displayFrame;
-        if ((frame->right - frame->left) <= 0 ||
-            (frame->bottom - frame->top) <= 0 || frame->right <= 0 ||
-            frame->bottom <= 0 || frame->left >= (int)display->Width() ||
-            frame->top >= (int)display->Height())
-          continue;
-
-        if (layer->compositionType == HWC_FRAMEBUFFER)
-          layer->compositionType = HWC_OVERLAY;
-      } else {
+      if (!disable_overlays) {
         switch (layer->compositionType) {
-          case HWC_OVERLAY:
           case HWC_BACKGROUND:
           case HWC_SIDEBAND:
-          case HWC_CURSOR_OVERLAY:
             layer->compositionType = HWC_FRAMEBUFFER;
             break;
+          case HWC_FRAMEBUFFER_TARGET:
+            break;
+          default:
+            layer->compositionType = HWC_OVERLAY;
+            break;
         }
+      } else {
+        layer->compositionType = HWC_FRAMEBUFFER;
       }
     }
   }
@@ -322,11 +299,12 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
   struct hwc_context_t *ctx = (struct hwc_context_t *)&dev->common;
   for (size_t i = 0; i < num_displays; ++i) {
     hwc_display_contents_1_t *dc = sf_display_contents[i];
-    if (!sf_display_contents[i] || i == HWC_DISPLAY_VIRTUAL)
+    if (!dc || i == HWC_DISPLAY_VIRTUAL)
       continue;
 
     size_t num_dc_layers = dc->numHwLayers;
     HwcDisplay *native_display = GetDisplay(ctx, i);
+    dc->retireFenceFd = native_display->timeline_.IncrementTimeLine();
     hwcomposer::NativeDisplay *display = native_display->display_;
     std::vector<IAHwc1Layer *> &old_layers = native_display->layers_;
     std::vector<IAHwc1Layer *> new_layers;
@@ -385,7 +363,6 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       sf_layer->releaseFenceFd = release_fence;
     }
 
-    dc->retireFenceFd = native_display->timeline_.IncrementTimeLine();
     std::vector<hwcomposer::HwcLayer *>().swap(source_layers);
   }
 
