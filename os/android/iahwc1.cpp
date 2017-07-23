@@ -98,6 +98,7 @@ typedef struct HwcDisplay {
   int last_render_layers_size = -1;
   std::vector<IAHwc1Layer *> layers_;
   DisplayTimeLine timeline_;
+  bool gl_composition_ = false;
 } hwc_drm_display_t;
 
 struct hwc_context_t {
@@ -281,6 +282,8 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
     }
 
     int num_layers = display_contents[i]->numHwLayers;
+    HwcDisplay *native_display = GetDisplay(ctx, i);
+    native_display->gl_composition_ = disable_overlays;
 
     for (int j = 0; j < num_layers; ++j) {
       hwc_layer_1_t *layer = &display_contents[i]->hwLayers[j];
@@ -290,6 +293,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev, size_t num_displays,
           case HWC_BACKGROUND:
           case HWC_SIDEBAND:
             layer->compositionType = HWC_FRAMEBUFFER;
+            native_display->gl_composition_ = true;
             break;
           case HWC_FRAMEBUFFER_TARGET:
             break;
@@ -328,6 +332,11 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       if (!sf_layer || !sf_layer->handle || (sf_layer->flags & HWC_SKIP_LAYER))
         continue;
 
+      if (!native_display->gl_composition_ &&
+          (sf_layer->compositionType == HWC_FRAMEBUFFER_TARGET)) {
+        continue;
+      }
+
       IAHwc1Layer *new_layer = new IAHwc1Layer();
       if (size > j) {
         IAHwc1Layer *old_layer = old_layers.at(j);
@@ -343,8 +352,9 @@ static int hwc_set(hwc_composer_device_1_t *dev, size_t num_displays,
       sf_layer->releaseFenceFd = -1;
     }
 
-    if (source_layers.empty())
+    if (source_layers.empty()) {
       return 0;
+    }
 
     int32_t retire_fence = -1;
     old_layers.swap(new_layers);
