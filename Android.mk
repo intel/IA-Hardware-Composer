@@ -75,7 +75,10 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmscopedtypes.cpp \
         os/android/multidisplaymanager.cpp
 
-ifeq ($(strip $(BOARD_USES_HWC1)), true)
+ifeq ($(strip $(TARGET_USES_HWC2)), true)
+LOCAL_SRC_FILES += os/android/iahwc2.cpp \
+                   os/android/hwcservice.cpp
+else
 LOCAL_SRC_FILES += os/android/iahwc1.cpp
 LOCAL_C_INCLUDES += \
         system/core/libsync \
@@ -85,9 +88,6 @@ LOCAL_SHARED_LIBRARIES += \
         libsync
 
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
-else
-LOCAL_SRC_FILES += os/android/iahwc2.cpp \
-                   os/android/hwcservice.cpp
 endif
 
 ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
@@ -145,7 +145,7 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
-ifneq ($(strip $(BOARD_USES_HWC1)), true)
+ifeq ($(strip $(TARGET_USES_HWC2)), true)
 # libhwcservice
 HWC_BUILD_DIRS := \
 $(LOCAL_PATH)/os/android/libhwcservice/Android.mk \
