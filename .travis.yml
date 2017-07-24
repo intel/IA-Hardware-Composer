@@ -45,7 +45,7 @@ script:
 #clone and build mesa : dependency
 - git clone https://github.com/intel/external-mesa /tmp/mesa
 - pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --enable-gles2 --disable-gallium-egl --with-egl-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --with-driver=dri --disable-glu --disable-glut --without-demos --disable-option-checking --disable-glx --enable-glx-tls --disable-nouveau --disable-gbm --with-gallium-drivers= --with-dri-drivers=i915,i965 --with-vulkan-drivers=intel
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --disable-glx --disable-glx-tls --disable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
 - popd
 
