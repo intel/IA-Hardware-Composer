@@ -195,8 +195,6 @@ class DisplayQueue {
 
   void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
 
-  void MarkBackBuffersForReUse();
-
   void ReleaseSurfaces();
 
   Compositor compositor_;
