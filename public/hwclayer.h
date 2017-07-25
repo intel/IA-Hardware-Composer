@@ -26,6 +26,10 @@ namespace hwcomposer {
 struct HwcLayer {
   ~HwcLayer();
 
+  HwcLayer() = default;
+
+  HwcLayer& operator=(const HwcLayer& rhs) = delete;
+
   void SetNativeHandle(HWCNativeHandle handle);
 
   HWCNativeHandle GetNativeHandle() const {

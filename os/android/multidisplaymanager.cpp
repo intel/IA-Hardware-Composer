@@ -18,9 +18,6 @@
 
 namespace hwcomposer {
 
-MultiDisplayManager::MultiDisplayManager() {
-}
-
 MultiDisplayManager::~MultiDisplayManager() {
 }
 

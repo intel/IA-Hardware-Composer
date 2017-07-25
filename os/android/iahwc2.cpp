@@ -317,7 +317,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
     return HWC2::Error::NotValidated;
   }
 
-  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_)
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_)
     l.second.accept_type_change();
 
   // reset the value to false
@@ -327,7 +327,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
-  layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), HwcLayer());
+  layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
   *layer = static_cast<hwc2_layer_t>(layer_idx_);
   ++layer_idx_;
   return HWC2::Error::None;
@@ -351,7 +351,7 @@ HWC2::Error IAHWC2::HwcDisplay::GetChangedCompositionTypes(
     uint32_t *num_elements, hwc2_layer_t *layers, int32_t *types) {
   supported(__func__);
   uint32_t num_changes = 0;
-  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     if (l.second.type_changed()) {
       if (layers && num_changes < *num_elements)
         layers[num_changes] = l.first;
@@ -498,7 +498,7 @@ HWC2::Error IAHWC2::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
   }
 
   uint32_t num_layers = 0;
-  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     ++num_layers;
     if (num_layers > *num_elements) {
       ALOGW("Overflow num_elements %d/%d", num_layers, *num_elements);
@@ -520,9 +520,9 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   uint32_t client_z_order = 0;
   bool use_cursor_layer = false;
   uint32_t cursor_z_order = 0;
-  IAHWC2::HwcLayer *cursor_layer;
+  IAHWC2::Hwc2Layer *cursor_layer;
   *retire_fence = -1;
-  std::map<uint32_t, IAHWC2::HwcLayer *> z_map;
+  std::map<uint32_t, IAHWC2::Hwc2Layer *> z_map;
 
   // if the power mode is doze suspend then its the hint that the drawing
   // into the display has suspended and remain in the low power state and
@@ -530,7 +530,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // update from the client
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
-  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
@@ -566,7 +566,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   std::vector<hwcomposer::HwcLayer *> layers;
   // now that they're ordered by z, add them to the composition
-  for (std::pair<const uint32_t, IAHWC2::HwcLayer *> &l : z_map) {
+  for (std::pair<const uint32_t, IAHWC2::Hwc2Layer *> &l : z_map) {
     layers.emplace_back(l.second->GetLayer());
   }
 
@@ -681,8 +681,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   supported(__func__);
   *num_types = 0;
   *num_requests = 0;
-  for (std::pair<const hwc2_layer_t, IAHWC2::HwcLayer> &l : layers_) {
-    IAHWC2::HwcLayer &layer = l.second;
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+    IAHWC2::Hwc2Layer &layer = l.second;
     switch (layer.sf_type()) {
       case HWC2::Composition::SolidColor:
       case HWC2::Composition::Sideband:
@@ -704,14 +704,14 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
+HWC2::Error IAHWC2::Hwc2Layer::SetCursorPosition(int32_t x, int32_t y) {
   supported(__func__);
   cursor_x_ = x;
   cursor_y_ = y;
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerBlendMode(int32_t mode) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerBlendMode(int32_t mode) {
   supported(__func__);
   switch (static_cast<HWC2::BlendMode>(mode)) {
     case HWC2::BlendMode::None:
@@ -731,8 +731,8 @@ HWC2::Error IAHWC2::HwcLayer::SetLayerBlendMode(int32_t mode) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
-                                             int32_t acquire_fence) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
+                                              int32_t acquire_fence) {
   supported(__func__);
 
   // The buffer and acquire_fence are handled elsewhere
@@ -748,52 +748,52 @@ HWC2::Error IAHWC2::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerColor(hwc_color_t /*color*/) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t /*color*/) {
   // Probably we should query for the plane capabilities here, before
   // always falling back for client composition ?
   sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerCompositionType(int32_t type) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
   sf_type_ = static_cast<HWC2::Composition>(type);
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerDataspace(int32_t dataspace) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerDataspace(int32_t dataspace) {
   supported(__func__);
   dataspace_ = static_cast<android_dataspace_t>(dataspace);
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerDisplayFrame(hwc_rect_t frame) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerDisplayFrame(hwc_rect_t frame) {
   supported(__func__);
   hwc_layer_.SetDisplayFrame(hwcomposer::HwcRect<int>(
       frame.left, frame.top, frame.right, frame.bottom));
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerPlaneAlpha(float alpha) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerPlaneAlpha(float alpha) {
   supported(__func__);
   hwc_layer_.SetAlpha(static_cast<uint8_t>(255.0f * alpha + 0.5f));
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerSidebandStream(
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerSidebandStream(
     const native_handle_t *stream) {
   supported(__func__);
   // TODO: We don't support sideband
   return unsupported(__func__, stream);
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerSourceCrop(hwc_frect_t crop) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerSourceCrop(hwc_frect_t crop) {
   supported(__func__);
   hwc_layer_.SetSourceCrop(
       hwcomposer::HwcRect<float>(crop.left, crop.top, crop.right, crop.bottom));
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerSurfaceDamage(hwc_region_t damage) {
   uint32_t num_rects = damage.numRects;
   hwcomposer::HwcRegion hwc_region;
 
@@ -808,7 +808,7 @@ HWC2::Error IAHWC2::HwcLayer::SetLayerSurfaceDamage(hwc_region_t damage) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerTransform(int32_t transform) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerTransform(int32_t transform) {
   supported(__func__);
   // 270* and 180* cannot be combined with flips. More specifically, they
   // already contain both horizontal and vertical flips, so those fields are
@@ -830,7 +830,7 @@ HWC2::Error IAHWC2::HwcLayer::SetLayerTransform(int32_t transform) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerVisibleRegion(hwc_region_t visible) {
   uint32_t num_rects = visible.numRects;
   hwcomposer::HwcRegion hwc_region;
 
@@ -844,7 +844,7 @@ HWC2::Error IAHWC2::HwcLayer::SetLayerVisibleRegion(hwc_region_t visible) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcLayer::SetLayerZOrder(uint32_t order) {
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerZOrder(uint32_t order) {
   supported(__func__);
 
   hwc_layer_.SetLayerZOrder(order);
@@ -1000,60 +1000,60 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
     // Layer functions
     case HWC2::FunctionDescriptor::SetCursorPosition:
       return ToHook<HWC2_PFN_SET_CURSOR_POSITION>(
-          LayerHook<decltype(&HwcLayer::SetCursorPosition),
-                    &HwcLayer::SetCursorPosition, int32_t, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetCursorPosition),
+                    &Hwc2Layer::SetCursorPosition, int32_t, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerBlendMode:
       return ToHook<HWC2_PFN_SET_LAYER_BLEND_MODE>(
-          LayerHook<decltype(&HwcLayer::SetLayerBlendMode),
-                    &HwcLayer::SetLayerBlendMode, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerBlendMode),
+                    &Hwc2Layer::SetLayerBlendMode, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerBuffer:
       return ToHook<HWC2_PFN_SET_LAYER_BUFFER>(
-          LayerHook<decltype(&HwcLayer::SetLayerBuffer),
-                    &HwcLayer::SetLayerBuffer, buffer_handle_t, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerBuffer),
+                    &Hwc2Layer::SetLayerBuffer, buffer_handle_t, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerColor:
       return ToHook<HWC2_PFN_SET_LAYER_COLOR>(
-          LayerHook<decltype(&HwcLayer::SetLayerColor),
-                    &HwcLayer::SetLayerColor, hwc_color_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerColor),
+                    &Hwc2Layer::SetLayerColor, hwc_color_t>);
     case HWC2::FunctionDescriptor::SetLayerCompositionType:
       return ToHook<HWC2_PFN_SET_LAYER_COMPOSITION_TYPE>(
-          LayerHook<decltype(&HwcLayer::SetLayerCompositionType),
-                    &HwcLayer::SetLayerCompositionType, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerCompositionType),
+                    &Hwc2Layer::SetLayerCompositionType, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerDataspace:
       return ToHook<HWC2_PFN_SET_LAYER_DATASPACE>(
-          LayerHook<decltype(&HwcLayer::SetLayerDataspace),
-                    &HwcLayer::SetLayerDataspace, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerDataspace),
+                    &Hwc2Layer::SetLayerDataspace, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerDisplayFrame:
       return ToHook<HWC2_PFN_SET_LAYER_DISPLAY_FRAME>(
-          LayerHook<decltype(&HwcLayer::SetLayerDisplayFrame),
-                    &HwcLayer::SetLayerDisplayFrame, hwc_rect_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerDisplayFrame),
+                    &Hwc2Layer::SetLayerDisplayFrame, hwc_rect_t>);
     case HWC2::FunctionDescriptor::SetLayerPlaneAlpha:
       return ToHook<HWC2_PFN_SET_LAYER_PLANE_ALPHA>(
-          LayerHook<decltype(&HwcLayer::SetLayerPlaneAlpha),
-                    &HwcLayer::SetLayerPlaneAlpha, float>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerPlaneAlpha),
+                    &Hwc2Layer::SetLayerPlaneAlpha, float>);
     case HWC2::FunctionDescriptor::SetLayerSidebandStream:
       return ToHook<HWC2_PFN_SET_LAYER_SIDEBAND_STREAM>(LayerHook<
-          decltype(&HwcLayer::SetLayerSidebandStream),
-          &HwcLayer::SetLayerSidebandStream, const native_handle_t *>);
+          decltype(&Hwc2Layer::SetLayerSidebandStream),
+          &Hwc2Layer::SetLayerSidebandStream, const native_handle_t *>);
     case HWC2::FunctionDescriptor::SetLayerSourceCrop:
       return ToHook<HWC2_PFN_SET_LAYER_SOURCE_CROP>(
-          LayerHook<decltype(&HwcLayer::SetLayerSourceCrop),
-                    &HwcLayer::SetLayerSourceCrop, hwc_frect_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerSourceCrop),
+                    &Hwc2Layer::SetLayerSourceCrop, hwc_frect_t>);
     case HWC2::FunctionDescriptor::SetLayerSurfaceDamage:
       return ToHook<HWC2_PFN_SET_LAYER_SURFACE_DAMAGE>(
-          LayerHook<decltype(&HwcLayer::SetLayerSurfaceDamage),
-                    &HwcLayer::SetLayerSurfaceDamage, hwc_region_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerSurfaceDamage),
+                    &Hwc2Layer::SetLayerSurfaceDamage, hwc_region_t>);
     case HWC2::FunctionDescriptor::SetLayerTransform:
       return ToHook<HWC2_PFN_SET_LAYER_TRANSFORM>(
-          LayerHook<decltype(&HwcLayer::SetLayerTransform),
-                    &HwcLayer::SetLayerTransform, int32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerTransform),
+                    &Hwc2Layer::SetLayerTransform, int32_t>);
     case HWC2::FunctionDescriptor::SetLayerVisibleRegion:
       return ToHook<HWC2_PFN_SET_LAYER_VISIBLE_REGION>(
-          LayerHook<decltype(&HwcLayer::SetLayerVisibleRegion),
-                    &HwcLayer::SetLayerVisibleRegion, hwc_region_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerVisibleRegion),
+                    &Hwc2Layer::SetLayerVisibleRegion, hwc_region_t>);
     case HWC2::FunctionDescriptor::SetLayerZOrder:
       return ToHook<HWC2_PFN_SET_LAYER_Z_ORDER>(
-          LayerHook<decltype(&HwcLayer::SetLayerZOrder),
-                    &HwcLayer::SetLayerZOrder, uint32_t>);
+          LayerHook<decltype(&Hwc2Layer::SetLayerZOrder),
+                    &Hwc2Layer::SetLayerZOrder, uint32_t>);
     case HWC2::FunctionDescriptor::Invalid:
     default:
       return NULL;

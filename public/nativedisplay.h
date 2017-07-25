@@ -59,6 +59,11 @@ class NativeDisplay {
   virtual ~NativeDisplay() {
   }
 
+  NativeDisplay() = default;
+
+  NativeDisplay(const NativeDisplay &rhs) = delete;
+  NativeDisplay &operator=(const NativeDisplay &rhs) = delete;
+
   virtual bool Initialize(NativeBufferHandler *buffer_handler) = 0;
 
   virtual DisplayType Type() const = 0;

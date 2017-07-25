@@ -31,6 +31,7 @@ class OverlayBuffer;
 class NativeBufferHandler;
 
 struct OverlayLayer {
+  OverlayLayer() = default;
   void SetAcquireFence(int32_t acquire_fence);
 
   int32_t GetAcquireFence() const;

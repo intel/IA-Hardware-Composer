@@ -32,7 +32,11 @@ class DisplayQueue;
 // than one monitor connected.
 class MultiDisplayManager {
  public:
-  MultiDisplayManager();
+  MultiDisplayManager() = default;
+
+  MultiDisplayManager(const MultiDisplayManager& rhs) = delete;
+  MultiDisplayManager& operator=(const MultiDisplayManager& rhs) = delete;
+
   ~MultiDisplayManager();
 
   void SetPrimaryDisplay(NativeDisplay* primary_display);

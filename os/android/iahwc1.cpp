@@ -83,6 +83,11 @@ struct IAHwc1Layer {
     hwc_layer_ = NULL;
   }
 
+  IAHwc1Layer() = default;
+
+  IAHwc1Layer(const IAHwc1Layer &rhs) = delete;
+  IAHwc1Layer &operator=(const IAHwc1Layer &rhs) = delete;
+
   struct gralloc_handle native_handle_;
   hwcomposer::HwcLayer *hwc_layer_ = NULL;
   uint32_t index_ = 0;

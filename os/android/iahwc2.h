@@ -48,7 +48,7 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::NativeDisplay *GetExtendedDisplay(uint32_t);
 
  private:
-  class HwcLayer {
+  class Hwc2Layer {
    public:
     HWC2::Composition sf_type() const {
       return sf_type_;
@@ -170,7 +170,7 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error SetPowerMode(int32_t mode);
     HWC2::Error SetVsyncEnabled(int32_t enabled);
     HWC2::Error ValidateDisplay(uint32_t *num_types, uint32_t *num_requests);
-    HwcLayer &get_layer(hwc2_layer_t layer) {
+    Hwc2Layer &get_layer(hwc2_layer_t layer) {
       return layers_.at(layer);
     }
     hwcomposer::NativeDisplay *GetDisplay();
@@ -180,8 +180,8 @@ class IAHWC2 : public hwc2_device_t {
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
     int layer_idx_ = 0;
-    std::map<hwc2_layer_t, HwcLayer> layers_;
-    HwcLayer client_layer_;
+    std::map<hwc2_layer_t, Hwc2Layer> layers_;
+    Hwc2Layer client_layer_;
     int32_t color_mode_;
 
     uint32_t frame_no_ = 0;
@@ -233,19 +233,19 @@ class IAHWC2 : public hwc2_device_t {
     IAHWC2 *hwc = toIAHWC2(dev);
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
-      HwcLayer &layer = display.get_layer(layer_handle);
+      Hwc2Layer &layer = display.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
 
     if (display_handle == HWC_DISPLAY_VIRTUAL) {
-      HwcLayer &layer = hwc->virtual_display_.get_layer(layer_handle);
+      Hwc2Layer &layer = hwc->virtual_display_.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
 
     // TODO(kalyank): How do we map extended display id in case of more than
     // one external display.
     HwcDisplay &display = hwc->extended_displays_.at(0);
-    HwcLayer &layer = display.get_layer(layer_handle);
+    Hwc2Layer &layer = display.get_layer(layer_handle);
     return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
   }
 

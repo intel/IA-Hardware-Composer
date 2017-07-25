@@ -21,6 +21,11 @@
 #include <unistd.h>
 
 struct HwcBuffer {
+  HwcBuffer() = default;
+
+  HwcBuffer(const HwcBuffer &rhs) = delete;
+  HwcBuffer &operator=(const HwcBuffer &rhs) = delete;
+
   uint32_t width;
   uint32_t height;
   uint32_t format;
