@@ -163,8 +163,8 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   *num_configs = size;
   if (!configs)
     return true;
-
-  for (uint32_t i = 0; i < size; i++)
+  
+  for (uint32_t i = 0; i < *num_configs; i++)
     configs[i] = i;
 
   return true;

@@ -226,7 +226,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
       // There is only one preferred mode per connector.
       if (mode[i].type & DRM_MODE_TYPE_PREFERRED) {
         preferred_mode = i;
-        break;
       }
     }
 
