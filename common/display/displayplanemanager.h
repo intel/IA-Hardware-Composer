@@ -58,6 +58,10 @@ class DisplayPlaneManager {
 
   void ReleaseAllOffScreenTargets();
 
+  bool HasSurfaces() const {
+    return !surfaces_.empty() || !cursor_surfaces_.empty();
+  }
+
  protected:
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;

@@ -30,6 +30,7 @@
 #include "nativesurface.h"
 
 #include "physicaldisplay.h"
+#include "renderer.h"
 #include "scopedrendererstate.h"
 
 namespace hwcomposer {
@@ -512,10 +513,6 @@ void DisplayQueue::HandleExit() {
   state_ |= kIgnoreIdleRefresh;
   power_mode_lock_.unlock();
   vblank_handler_->SetPowerMode(kOff);
-  display_->Disable(previous_plane_state_);
-  display_plane_manager_->ReleaseAllOffScreenTargets();
-
-  compositor_.Reset();
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
   idle_tracker_.state_ = 0;
@@ -543,6 +540,16 @@ void DisplayQueue::HandleExit() {
   if (cloned_mode) {
     state_ |= kClonedMode;
   }
+
+  if (display_plane_manager_->HasSurfaces()) {
+    compositor_.BeginFrame(true);
+    compositor_.GetRenderer()->MakeCurrent();
+    display_plane_manager_->ReleaseAllOffScreenTargets();
+    compositor_.GetRenderer()->RestoreState();
+  }
+
+  compositor_.Reset();
+  display_->Disable(previous_plane_state_);
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
