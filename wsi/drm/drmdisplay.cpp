@@ -531,6 +531,11 @@ void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
       plane->SetEnabled(false);
       plane->Disable(pset.get());
     }
+
+    ret = drmModeAtomicCommit(gpu_fd_, pset.get(),
+                              DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+    if (ret)
+      ETRACE("Failed to disable display:%s\n", PRINTERROR());
   } else {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
   }
