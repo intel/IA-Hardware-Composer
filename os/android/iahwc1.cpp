@@ -475,11 +475,7 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
     extended.at(i)
         .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
 
-    auto extended_hot_plug_callback =
-        std::make_shared<IAHotPlugEventCallback>(procs);
-    extended.at(i).display_->RegisterHotPlugCallback(
-        std::move(extended_hot_plug_callback), 1);
-
+	/* XXX/TODO Add hot plug registration for external displays */
     auto extended_refresh_callback = std::make_shared<IARefreshCallback>(procs);
     extended.at(i).display_->RegisterRefreshCallback(
         std::move(extended_refresh_callback), static_cast<int>(1));
