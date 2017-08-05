@@ -32,8 +32,6 @@
 
 namespace hwcomposer {
 
-static const int32_t kUmPerInch = 25400;
-
 PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
     : pipe_(pipe_id),
       width_(0),
