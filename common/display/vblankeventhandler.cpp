@@ -32,7 +32,6 @@ VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
       enabled_(false),
       refresh_(0.0),
       fd_(-1),
-      pipe_(-1),
       last_timestamp_(-1),
       queue_(queue) {
   memset(&type_, 0, sizeof(type_));

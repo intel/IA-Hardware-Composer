@@ -311,7 +311,6 @@ HWC2::Error IAHWC2::HwcDisplay::RegisterHotPlugCallback(
 
 HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
-  uint32_t num_changes = 0;
   if (!checkValidateDisplay) {
     ALOGV("AcceptChanges failed, not validated");
     return HWC2::Error::NotValidated;
