@@ -96,18 +96,21 @@ else
 LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
 endif
 
-LOCAL_CFLAGS += -DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\""
-LOCAL_CFLAGS += -DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\""
-LOCAL_CFLAGS += -Wno-date-time
 LOCAL_CPPFLAGS += \
-	-DHWC2_USE_CPP11 \
+	-DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\"" \
+	-DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\"" \
 	-DHWC2_INCLUDE_STRINGIFICATION \
-	-DUSE_ANDROID_SYNC \
+	-DHWC2_USE_CPP11 \
+	-Wno-date-time \
 	-DUSE_ANDROID_SHIM \
-	-O2 \
 	-D_FORTIFY_SOURCE=2 \
 	-fstack-protector-strong \
-	-Wformat -Wformat-security
+	-Wformat -Wformat-security \
+	-std=c++14 -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+	-Wall -Wsign-compare -Wpointer-arith \
+	-Wcast-qual -Wcast-align \
+	-D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+	-O3
 
 ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)),true)
 LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
