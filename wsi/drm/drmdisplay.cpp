@@ -408,7 +408,6 @@ void DrmDisplay::SetColorCorrection(struct gamma_colors gamma,
   float brightness[3];
   float contrast[3];
   uint8_t temp[3];
-  int32_t ret;
 
   /* reset lut when contrast and brightness are all 0 */
   if (contrast_c == 0 && brightness_c == 0) {
@@ -445,8 +444,6 @@ void DrmDisplay::SetColorCorrection(struct gamma_colors gamma,
   contrast[1] = (float)(temp[1]) / 128;
   contrast[2] = (float)(temp[2]) / 128;
 
-  uint32_t max_value = (1 << 16) - 1;
-  uint32_t mask = ((1 << 8) - 1) << 8;
   for (uint64_t i = 0; i < lut_size_; i++) {
     /* Set lut[0] as 0 always as the darkest color should has brightness 0 */
     if (i == 0) {

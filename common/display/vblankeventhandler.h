@@ -62,7 +62,6 @@ class VblankEventHandler : public HWCThread {
 
   float refresh_;
   int fd_;
-  int pipe_;
   int64_t last_timestamp_;
   drmVBlankSeqType type_;
   DisplayQueue* queue_;

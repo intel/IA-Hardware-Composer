@@ -51,7 +51,6 @@ class HWCThread {
   std::string name_;
   HWCEvent event_;
   bool exit_ = false;
-  bool suspended_ = false;
 
   std::unique_ptr<std::thread> thread_;
 };
