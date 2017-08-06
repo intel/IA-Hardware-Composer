@@ -138,11 +138,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
-        const HwcRect<int>& damage = layer.GetDisplayFrame();
-
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
           if (!region_changed) {
+            const HwcRect<int>& damage = layer.GetSurfaceDamage();
             surface_damage.left = std::min(surface_damage.left, damage.left);
             surface_damage.top = std::min(surface_damage.top, damage.top);
             surface_damage.right = std::max(surface_damage.right, damage.right);
@@ -152,7 +151,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         if (layer.HasDimensionsChanged()) {
-          last_plane.UpdateDisplayFrame(damage);
+          last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
           region_changed = true;
         }
       }
