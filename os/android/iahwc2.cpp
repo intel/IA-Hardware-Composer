@@ -579,8 +579,11 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   }
 
   ++frame_no_;
-  display_manager_->UpdatedDisplay(display_,
-                                   type_ == HWC2::DisplayType::Physical);
+  if (type_ != HWC2::DisplayType::Virtual) {
+    display_manager_->UpdatedDisplay(display_,
+                                     type_ == HWC2::DisplayType::Physical);
+  }
+
   return HWC2::Error::None;
 }
 
