@@ -101,13 +101,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       std::vector<size_t>().swap(dedicated_layers);
       if (comp_regions.empty())
         continue;
-      for (size_t texture_index : comp->source_layers()) {
-        OverlayLayer &layer = layers.at(texture_index);
-        int32_t fence = layer.ReleaseAcquireFence();
-        if (fence > 0) {
-          InsertFence(fence);
-        }
-      }
 
       if (!Render(layers, plane.GetOffScreenTarget(), comp_regions,
                   plane.ClearSurface())) {
@@ -156,14 +149,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     return false;
   }
 
-  for (size_t texture_index : source_layers) {
-    OverlayLayer &layer = layers.at(texture_index);
-    int32_t fence = layer.ReleaseAcquireFence();
-    if (fence > 0) {
-      InsertFence(fence);
-    }
-  }
-
   NativeSurface *surface = CreateBackBuffer(width, height);
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
 
@@ -204,6 +189,15 @@ bool Compositor::Render(std::vector<OverlayLayer> &layers,
                          surface->GetSurfaceDamage(), clear_surface);
     if (state.layer_state_.empty()) {
       continue;
+    }
+
+    const std::vector<size_t> &source = region.source_layers;
+    for (size_t texture_index : source) {
+      OverlayLayer &layer = layers.at(texture_index);
+      int32_t fence = layer.ReleaseAcquireFence();
+      if (fence > 0) {
+        InsertFence(fence);
+      }
     }
 
     states.emplace(states.begin(), state);

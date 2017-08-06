@@ -140,14 +140,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         const OverlayLayer& layer = layers.at(source_index);
         if (layer.HasLayerContentChanged()) {
           content_changed = true;
-          if (!region_changed) {
-            const HwcRect<int>& damage = layer.GetSurfaceDamage();
-            surface_damage.left = std::min(surface_damage.left, damage.left);
-            surface_damage.top = std::min(surface_damage.top, damage.top);
-            surface_damage.right = std::max(surface_damage.right, damage.right);
-            surface_damage.bottom =
-                std::max(surface_damage.bottom, damage.bottom);
-          }
+          const HwcRect<int>& damage = layer.GetSurfaceDamage();
+          surface_damage.left = std::min(surface_damage.left, damage.left);
+          surface_damage.top = std::min(surface_damage.top, damage.top);
+          surface_damage.right = std::max(surface_damage.right, damage.right);
+          surface_damage.bottom =
+              std::max(surface_damage.bottom, damage.bottom);
         }
 
         if (layer.HasDimensionsChanged()) {
@@ -157,10 +155,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       plane.TransferSurfaces(last_plane, content_changed || region_changed);
-      if (region_changed) {
-        surface_damage = last_plane.GetDisplayFrame();
-      }
-
       if (content_changed || region_changed) {
         if (last_plane.GetSurfaces().size() == 3) {
           NativeSurface* surface = last_plane.GetOffScreenTarget();
@@ -383,9 +377,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (fence > 0) {
     if (!(state_ & kClonedMode)) {
-      if (render_layers)
-        compositor_.InsertFence(dup(fence));
-
       *retire_fence = dup(fence);
     }
     kms_fence_ = fence;

@@ -116,7 +116,7 @@ void NativeSurface::UpdateSurfaceDamage(
       std::max(last_surface_damage.right, currentsurface_damage.right);
   surface_damage_.bottom =
       std::max(last_surface_damage.bottom, currentsurface_damage.bottom);
-  last_surface_damage_ = currentsurface_damage;
+  last_surface_damage_ = surface_damage_;
 }
 
 void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,

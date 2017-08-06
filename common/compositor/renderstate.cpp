@@ -57,7 +57,8 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     scissor_height_ = height_;
   }
 
-  for (size_t texture_index : region.source_layers) {
+  const std::vector<size_t> &source = region.source_layers;
+  for (size_t texture_index : source) {
     OverlayLayer &layer = layers.at(texture_index);
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
