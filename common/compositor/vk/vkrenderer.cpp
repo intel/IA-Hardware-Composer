@@ -681,7 +681,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   return true;
 }
 
-void VKRenderer::InsertFence(uint64_t kms_fence) {
+void VKRenderer::InsertFence(int32_t kms_fence) {
 }
 
 void VKRenderer::RestoreState() {

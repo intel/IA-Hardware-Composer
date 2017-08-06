@@ -62,7 +62,6 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.handle_ = resources->GetResourceHandle(texture_index);
-
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
     switch (layer.GetTransform()) {

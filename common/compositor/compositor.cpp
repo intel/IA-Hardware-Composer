@@ -29,6 +29,7 @@
 #include "renderer.h"
 #include "renderstate.h"
 #include "scopedrendererstate.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -100,6 +101,13 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       std::vector<size_t>().swap(dedicated_layers);
       if (comp_regions.empty())
         continue;
+      for (size_t texture_index : comp->source_layers()) {
+        OverlayLayer &layer = layers.at(texture_index);
+        int32_t fence = layer.ReleaseAcquireFence();
+        if (fence > 0) {
+          InsertFence(fence);
+        }
+      }
 
       if (!Render(layers, plane.GetOffScreenTarget(), comp_regions,
                   plane.ClearSurface())) {
@@ -148,6 +156,14 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     return false;
   }
 
+  for (size_t texture_index : source_layers) {
+    OverlayLayer &layer = layers.at(texture_index);
+    int32_t fence = layer.ReleaseAcquireFence();
+    if (fence > 0) {
+      InsertFence(fence);
+    }
+  }
+
   NativeSurface *surface = CreateBackBuffer(width, height);
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
 
@@ -164,7 +180,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::InsertFence(uint64_t fence) {
+void Compositor::InsertFence(int32_t fence) {
   renderer_->InsertFence(fence);
 }
 

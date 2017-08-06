@@ -142,7 +142,7 @@ bool GLRenderer::MakeCurrent() {
   return context_.MakeCurrent();
 }
 
-void GLRenderer::InsertFence(uint64_t kms_fence) {
+void GLRenderer::InsertFence(int32_t kms_fence) {
   if (kms_fence > 0) {
     EGLint attrib_list[] = {
         EGL_SYNC_NATIVE_FENCE_FD_ANDROID, static_cast<EGLint>(kms_fence),
