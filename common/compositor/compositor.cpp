@@ -184,14 +184,17 @@ bool Compositor::Render(std::vector<OverlayLayer> &layers,
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(layers, region, gpu_resource_handler_.get());
-    auto it = states.begin();
-    for (; it != states.end(); ++it) {
-      if (state.layer_state_.size() > it->layer_state_.size())
-        break;
+    state.ConstructState(layers, region, gpu_resource_handler_.get(),
+                         surface->GetSurfaceDamage(), clear_surface);
+    if (state.layer_state_.empty()) {
+      continue;
     }
 
-    states.emplace(it, state);
+    states.emplace(states.begin(), state);
+  }
+
+  if (states.empty()) {
+    return true;
   }
 
   if (!renderer_->Draw(states, surface, clear_surface))

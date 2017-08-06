@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include "compositordefs.h"
+#include "hwcdefs.h"
 
 namespace hwcomposer {
 
@@ -40,7 +41,8 @@ struct RenderState {
 
   void ConstructState(std::vector<OverlayLayer> &layers,
                       const CompositionRegion &region,
-                      const NativeGpuResource *resources);
+                      const NativeGpuResource *resources,
+                      const HwcRect<int> &damage, bool clear_surface);
 
   float x_;
   float y_;

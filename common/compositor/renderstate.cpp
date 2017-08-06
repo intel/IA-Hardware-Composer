@@ -25,13 +25,26 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 const NativeGpuResource *resources) {
+                                 const NativeGpuResource *resources,
+                                 const HwcRect<int> &damage,
+                                 bool clear_surface) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
   y_ = bounds[1];
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
+  if (!clear_surface) {
+    // If viewport and layer doesn't interact we can avoid re-rendering
+    // this state.
+    if ((damage.left >= (width_ + x_)) ||
+        (damage.left + (damage.right - damage.left) <= x_) ||
+        (damage.top >= height_ + y_) ||
+        (damage.top + (damage.bottom - damage.top) <= y_)) {
+      return;
+    }
+  }
+
   for (size_t texture_index : region.source_layers) {
     OverlayLayer &layer = layers.at(texture_index);
     layer_state_.emplace_back();

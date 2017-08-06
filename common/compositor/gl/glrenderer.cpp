@@ -107,20 +107,6 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   for (const RenderState &state : render_states) {
     unsigned size = state.layer_state_.size();
-    if (size == 0)
-      break;
-
-    if (!clear_surface) {
-      // If viewport and layer doesn't interact we can avoid re-rendering
-      // the layer.
-      if ((left >= (state.width_ + state.x_)) ||
-          (left + frame_width <= state.x_) ||
-          (top >= state.height_ + state.y_) ||
-          (top + frame_height <= state.y_)) {
-        continue;
-      }
-    }
-
     GLProgram *program = GetProgram(size);
     if (!program)
       continue;
