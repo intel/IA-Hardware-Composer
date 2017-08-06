@@ -112,7 +112,8 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
-    glScissor(state.x_, state.y_, state.width_, state.height_);
+    glScissor(state.scissor_x_, state.scissor_y_, state.scissor_width_,
+              state.scissor_height_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     for (unsigned src_index = 0; src_index < size; src_index++) {
@@ -122,6 +123,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   }
 
   glDisable(GL_SCISSOR_TEST);
+
   if (!disable_explicit_sync_)
     surface->SetNativeFence(context_.GetSyncFD());
 

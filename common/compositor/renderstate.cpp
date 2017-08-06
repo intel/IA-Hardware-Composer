@@ -37,12 +37,24 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   if (!clear_surface) {
     // If viewport and layer doesn't interact we can avoid re-rendering
     // this state.
-    if ((damage.left >= (width_ + x_)) ||
-        (damage.left + (damage.right - damage.left) <= x_) ||
-        (damage.top >= height_ + y_) ||
-        (damage.top + (damage.bottom - damage.top) <= y_)) {
+    uint32_t width = damage.right - damage.left;
+    uint32_t height = damage.bottom - damage.top;
+    uint32_t top = damage.top;
+    uint32_t left = damage.left;
+    if ((left >= (width_ + x_)) || ((left + width) <= x_) ||
+        (top >= height_ + y_) || ((top + height) <= y_)) {
       return;
     }
+
+    scissor_x_ = std::max(x_, left);
+    scissor_y_ = std::max(y_, top);
+    scissor_width_ = std::min(width_, width);
+    scissor_height_ = std::min(height_, height);
+  } else {
+    scissor_x_ = x_;
+    scissor_y_ = y_;
+    scissor_width_ = width_;
+    scissor_height_ = height_;
   }
 
   for (size_t texture_index : region.source_layers) {

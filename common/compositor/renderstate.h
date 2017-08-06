@@ -44,10 +44,14 @@ struct RenderState {
                       const NativeGpuResource *resources,
                       const HwcRect<int> &damage, bool clear_surface);
 
-  float x_;
-  float y_;
-  float width_;
-  float height_;
+  uint32_t x_;
+  uint32_t y_;
+  uint32_t width_;
+  uint32_t height_;
+  uint32_t scissor_x_;
+  uint32_t scissor_y_;
+  uint32_t scissor_width_;
+  uint32_t scissor_height_;
   std::vector<LayerState> layer_state_;
 };
 
