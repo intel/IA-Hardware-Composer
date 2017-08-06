@@ -359,14 +359,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   in_flight_layers_.swap(layers);
+  UpdateSurfaceInUse(false, previous_plane_state_);
+  previous_plane_state_.swap(current_composition_planes);
+  UpdateSurfaceInUse(true, previous_plane_state_);
   if (state_ & kReleaseSurfaces) {
     ReleaseSurfaces();
     state_ &= ~kReleaseSurfaces;
   }
 
-  UpdateSurfaceInUse(false, previous_plane_state_);
-  previous_plane_state_.swap(current_composition_planes);
-  UpdateSurfaceInUse(true, previous_plane_state_);
   if (validate_layers) {
     state_ |= kReleaseSurfaces;
   }
