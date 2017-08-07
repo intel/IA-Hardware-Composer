@@ -117,7 +117,9 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
 bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
                                      HWCDisplayAttribute attribute,
                                      int32_t *value) {
+  display_lock_.lock();
   float refresh;
+  bool status = true;
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
       *value = modes_[config].hdisplay;
@@ -152,19 +154,23 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
       break;
     default:
       *value = -1;
-      return false;
+      status = false;
   }
 
-  return true;
+  display_lock_.unlock();
+  return status;
 }
 
 bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
-  size_t size = modes_.size();
-  *num_configs = size;
-  if (!configs)
+  if (!configs) {
+    display_lock_.lock();
+    *num_configs = modes_.size();
+    display_lock_.unlock();
     return true;
+  }
 
-  for (uint32_t i = 0; i < *num_configs; i++)
+  uint32_t size = *num_configs;
+  for (uint32_t i = 0; i < size; i++)
     configs[i] = i;
 
   return true;
@@ -187,8 +193,10 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
 
 void DrmDisplay::UpdateDisplayConfig() {
   // update the activeConfig
+  display_lock_.lock();
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   SetDisplayAttribute(modes_[config_]);
+  display_lock_.unlock();
 }
 
 void DrmDisplay::PowerOn() {
@@ -306,8 +314,12 @@ bool DrmDisplay::CommitFrame(
 }
 
 void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
-  for (uint32_t i = 0; i < mode_info.size(); ++i)
+  display_lock_.lock();
+  uint32_t size = mode_info.size();
+  for (uint32_t i = 0; i < size; ++i)
     modes_.emplace_back(mode_info[i]);
+
+  display_lock_.unlock();
 }
 
 void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {

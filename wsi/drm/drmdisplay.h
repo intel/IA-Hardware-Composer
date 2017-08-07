@@ -113,6 +113,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
   drmModeModeInfo current_mode_;
   std::vector<drmModeModeInfo> modes_;
+  SpinLock display_lock_;
 };
 
 }  // namespace hwcomposer
