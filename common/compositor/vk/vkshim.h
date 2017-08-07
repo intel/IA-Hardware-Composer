@@ -16,6 +16,7 @@
 #define VKSHIM_H_
 
 #include <drm/drm_fourcc.h>
+#include <gbm.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_intel.h>
 #include <vector>
