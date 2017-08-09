@@ -165,7 +165,7 @@ class DisplayQueue {
         tracker_.state_ |= FrameStateTracker::kTrackingFrames;
         tracker_.continuous_frames_ = 0;
       } else if (tracker_.state_ & FrameStateTracker::kTrackingFrames) {
-        if (tracker_.continuous_frames_ > 10) {
+        if (tracker_.continuous_frames_ > 3) {
           tracker_.state_ &= ~FrameStateTracker::kTrackingFrames;
           tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
           tracker_.continuous_frames_ = 0;
