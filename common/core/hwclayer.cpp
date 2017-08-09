@@ -64,9 +64,7 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
   uint32_t old_src_crop_height = source_crop_.bottom - source_crop_.top;
 
   if ((new_src_crop_width != old_src_crop_width) ||
-      (new_src_crop_height != old_src_crop_height) ||
-      (source_crop_.left != source_crop.left) ||
-      (source_crop_.right != source_crop.right)) {
+      (new_src_crop_height != old_src_crop_height)) {
     layer_cache_ |= kDisplayFrameRectChanged;
   }
 
