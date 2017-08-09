@@ -691,6 +691,10 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
         break;
+      case HWC2::Composition::Cursor:
+        layer.set_validated_type(HWC2::Composition::Device);
+        ++*num_types;
+        break;
       default:
         if (disable_explicit_sync_ ||
             display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
