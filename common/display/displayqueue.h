@@ -162,7 +162,7 @@ class DisplayQueue {
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
         tracker_.state_ &= ~FrameStateTracker::kRenderIdleDisplay;
-	tracker_.state_ |= FrameStateTracker::kTrackingFrames;
+        tracker_.state_ |= FrameStateTracker::kTrackingFrames;
         tracker_.continuous_frames_ = 0;
       } else if (tracker_.state_ & FrameStateTracker::kTrackingFrames) {
         if (tracker_.continuous_frames_ > 10) {
