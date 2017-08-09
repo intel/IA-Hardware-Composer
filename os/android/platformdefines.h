@@ -32,6 +32,8 @@
 
 #include <ui/GraphicBuffer.h>
 
+#include "platformcommondefines.h"
+
 #ifdef _cplusplus
 extern "C" {
 #endif

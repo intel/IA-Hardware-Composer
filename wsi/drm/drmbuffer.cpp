@@ -148,7 +148,7 @@ GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
     return import;
   }
 
-  VkFormat vk_format = GbmToVkFormat(format_);
+  VkFormat vk_format = NativeToVkFormat(format_);
   if (vk_format == VK_FORMAT_UNDEFINED) {
     ETRACE("Failed DRM -> Vulkan format conversion\n");
     import.res = VK_ERROR_FORMAT_NOT_SUPPORTED;
