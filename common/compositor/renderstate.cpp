@@ -25,7 +25,6 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 const NativeGpuResource *resources,
                                  const HwcRect<int> &damage,
                                  bool clear_surface) {
   float bounds[4];
@@ -62,7 +61,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     OverlayLayer &layer = layers.at(texture_index);
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
-    src.handle_ = resources->GetResourceHandle(texture_index);
+    src.layer_index_ = texture_index;
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
     switch (layer.GetTransform()) {

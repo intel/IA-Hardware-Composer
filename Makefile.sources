@@ -1,5 +1,6 @@
 common_SOURCES =              \
     common/compositor/compositor.cpp \
+    common/compositor/compositorthread.cpp \
     common/compositor/factory.cpp \
     common/compositor/nativesurface.cpp \
     common/compositor/renderstate.cpp \
@@ -18,7 +19,6 @@ common_SOURCES =              \
     common/utils/hwcutils.cpp \
     common/utils/disjoint_layers.cpp \
     os/linux/gbmbufferhandler.cpp \
-    common/compositor/scopedrendererstate.cpp \
     wsi/physicaldisplay.cpp \
     wsi/drm/drmdisplay.cpp \
     wsi/drm/drmbuffer.cpp \

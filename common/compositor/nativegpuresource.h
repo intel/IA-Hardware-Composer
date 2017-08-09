@@ -23,7 +23,7 @@
 
 namespace hwcomposer {
 
-struct OverlayLayer;
+class OverlayBuffer;
 
 class NativeGpuResource {
  public:
@@ -38,7 +38,7 @@ class NativeGpuResource {
 
   NativeGpuResource& operator=(NativeGpuResource&& rhs) = delete;
 
-  virtual bool PrepareResources(const std::vector<OverlayLayer>& layers) = 0;
+  virtual bool PrepareResources(const std::vector<OverlayBuffer*>& buffers) = 0;
   virtual GpuResourceHandle GetResourceHandle(uint32_t layer_index) const = 0;
   virtual void ReleaseGPUResources() = 0;
 };

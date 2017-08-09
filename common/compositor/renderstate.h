@@ -29,6 +29,7 @@ namespace hwcomposer {
 struct OverlayLayer;
 struct CompositionRegion;
 class NativeGpuResource;
+class NativeSurface;
 
 struct RenderState {
   struct LayerState {
@@ -36,12 +37,12 @@ struct RenderState {
     float alpha_;
     float premult_;
     float texture_matrix_[4];
+    uint32_t layer_index_;
     GpuResourceHandle handle_;
   };
 
   void ConstructState(std::vector<OverlayLayer> &layers,
                       const CompositionRegion &region,
-                      const NativeGpuResource *resources,
                       const HwcRect<int> &damage, bool clear_surface);
 
   uint32_t x_;
@@ -53,6 +54,15 @@ struct RenderState {
   uint32_t scissor_width_;
   uint32_t scissor_height_;
   std::vector<LayerState> layer_state_;
+};
+
+struct DrawState {
+  std::vector<RenderState> states_;
+  NativeSurface *surface_;
+  bool clear_surface_;
+  bool destroy_surface_ = false;
+  int32_t retire_fence_ = -1;
+  std::vector<int32_t> acquire_fences_;
 };
 
 }  // namespace hwcomposer

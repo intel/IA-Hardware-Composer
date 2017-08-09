@@ -27,7 +27,7 @@ class NativeVKResource : public NativeGpuResource {
   NativeVKResource() = default;
   ~NativeVKResource() override;
 
-  bool PrepareResources(const std::vector<OverlayLayer>& layers) override;
+  bool PrepareResources(const std::vector<OverlayBuffer*>& buffers) override;
   GpuResourceHandle GetResourceHandle(uint32_t layer_index) const override;
   void ReleaseGPUResources() override {
   }

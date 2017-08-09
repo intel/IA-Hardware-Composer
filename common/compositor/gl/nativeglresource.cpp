@@ -23,13 +23,13 @@
 namespace hwcomposer {
 
 bool NativeGLResource::PrepareResources(
-    const std::vector<OverlayLayer>& layers) {
+    const std::vector<OverlayBuffer*>& buffers) {
   Reset();
   std::vector<GLuint>().swap(layer_textures_);
   EGLDisplay egl_display = eglGetCurrentDisplay();
-  for (auto& layer : layers) {
+  for (auto& buffer : buffers) {
     // Create EGLImage.
-    EGLImageKHR egl_image = layer.GetBuffer()->ImportImage(egl_display);
+    EGLImageKHR egl_image = buffer->ImportImage(egl_display);
 
     if (egl_image == EGL_NO_IMAGE_KHR) {
       ETRACE("Failed to make import image.");

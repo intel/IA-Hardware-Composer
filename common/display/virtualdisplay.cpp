@@ -54,7 +54,7 @@ VirtualDisplay::~VirtualDisplay() {
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
-  compositor_.Init();
+  compositor_.Init(nullptr);
   width_ = width;
   height_ = height;
 }
@@ -131,18 +131,15 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       return false;
     }
 
-    if (acquire_fence_ > 0) {
-      compositor_.InsertFence(acquire_fence_);
-      acquire_fence_ = 0;
-    }
-
     // Prepare for final composition.
     if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
                                    width_, height_, output_handle_,
-                                   retire_fence)) {
+                                   acquire_fence_, retire_fence)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
       return false;
     }
+
+    acquire_fence_ = 0;
 
     in_flight_layers_.swap(layers);
   }

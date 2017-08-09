@@ -220,6 +220,7 @@ class DisplayQueue {
   uint32_t state_ = kConfigurationChanged;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
+  bool synchronize_ = false;
 };
 
 }  // namespace hwcomposer

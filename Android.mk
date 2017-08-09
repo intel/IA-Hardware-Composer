@@ -50,6 +50,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_SRC_FILES := \
 	common/compositor/compositor.cpp \
+	common/compositor/compositorthread.cpp \
 	common/compositor/factory.cpp \
 	common/compositor/nativesurface.cpp \
 	common/compositor/renderstate.cpp \
@@ -126,8 +127,7 @@ LOCAL_SRC_FILES += \
 	common/compositor/gl/glsurface.cpp \
 	common/compositor/gl/egloffscreencontext.cpp \
 	common/compositor/gl/nativeglresource.cpp \
-	common/compositor/gl/shim.cpp \
-	common/compositor/scopedrendererstate.cpp
+	common/compositor/gl/shim.cpp
 endif
 
 ifeq ($(strip $(BOARD_USES_MINIGBM)),true)

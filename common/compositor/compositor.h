@@ -24,11 +24,14 @@
 
 #include "compositionregion.h"
 #include "displayplanestate.h"
+#include "renderstate.h"
+#include "compositorthread.h"
 #include "factory.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class DisplayPlaneManager;
 struct OverlayLayer;
 
 class Compositor {
@@ -36,11 +39,12 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init();
+  void Init(DisplayPlaneManager *plane_manager);
   void Reset();
 
   Compositor(const Compositor &) = delete;
 
+  void EnsureTasksAreDone();
   bool BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
@@ -49,25 +53,19 @@ class Compositor {
                      const std::vector<size_t> &source_layers,
                      NativeBufferHandler *buffer_handler, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
-                     int32_t *retire_fence);
-  void InsertFence(int32_t fence);
-
-  Renderer *GetRenderer() const {
-    return renderer_.get();
-  }
+                     int32_t acquire_fence, int32_t *retire_fence);
+  void FreeResources(bool all_resources);
 
  private:
-  void ReleaseGpuResources();
-  bool Render(std::vector<OverlayLayer> &layers, NativeSurface *surface,
-              const std::vector<CompositionRegion> &comp_regions,
-              bool clear_surface);
+  bool CalculateRenderState(std::vector<OverlayLayer> &layers,
+                            const std::vector<CompositionRegion> &comp_regions,
+                            DrawState &state);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,
                       const std::vector<size_t> &source_layers,
                       const std::vector<HwcRect<int>> &display_frame,
                       std::vector<CompositionRegion> &comp_regions);
 
-  std::unique_ptr<Renderer> renderer_;
-  std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
+  std::unique_ptr<CompositorThread> thread_;
 };
 
 }  // namespace hwcomposer

@@ -32,8 +32,6 @@ class VKRenderer : public Renderer {
   bool Draw(const std::vector<RenderState> &commands, NativeSurface *surface,
             bool clear_surface) override;
   void InsertFence(int32_t kms_fence) override;
-  void RestoreState() override;
-  bool MakeCurrent() override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
  private:

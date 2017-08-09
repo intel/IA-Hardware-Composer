@@ -21,7 +21,7 @@
 namespace hwcomposer {
 
 bool NativeVKResource::PrepareResources(
-    const std::vector<OverlayLayer>& layers) {
+    const std::vector<OverlayBuffer*>& buffers) {
   VkResult res;
 
   Reset();
@@ -31,8 +31,8 @@ bool NativeVKResource::PrepareResources(
   clear_range.levelCount = 1;
   clear_range.layerCount = 1;
 
-  for (auto& layer : layers) {
-    struct vk_import import = layer.GetBuffer()->ImportImage(dev_);
+  for (auto& buffer : buffers) {
+    struct vk_import import = buffer->ImportImage(dev_);
     if (import.res != VK_SUCCESS) {
       ETRACE("Failed to make import image (%d)\n", import.res);
       return false;

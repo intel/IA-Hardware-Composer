@@ -684,13 +684,6 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 void VKRenderer::InsertFence(int32_t kms_fence) {
 }
 
-void VKRenderer::RestoreState() {
-}
-
-bool VKRenderer::MakeCurrent() {
-  return true;
-}
-
 void VKRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 

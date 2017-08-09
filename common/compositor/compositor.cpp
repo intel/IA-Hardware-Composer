@@ -27,8 +27,6 @@
 #include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
-#include "renderstate.h"
-#include "scopedrendererstate.h"
 #include "hwcutils.h"
 
 namespace hwcomposer {
@@ -39,27 +37,24 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init() {
-  gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
+void Compositor::Init(DisplayPlaneManager *plane_manager) {
+  if (!thread_)
+    thread_.reset(new CompositorThread());
+
+  thread_->Initialize(plane_manager);
+}
+
+void Compositor::EnsureTasksAreDone() {
+  thread_->EnsureTasksAreDone();
 }
 
 bool Compositor::BeginFrame(bool disable_explicit_sync) {
-  if (!renderer_) {
-    renderer_.reset(CreateRenderer());
-    if (!renderer_->Init()) {
-      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
-      renderer_.reset(nullptr);
-      return false;
-    }
-  }
-
-  renderer_->SetExplicitSyncSupport(disable_explicit_sync);
-
+  thread_->SetExplicitSyncSupport(disable_explicit_sync);
   return true;
 }
 
 void Compositor::Reset() {
-  renderer_.reset(nullptr);
+  thread_->ExitThread();
 }
 
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
@@ -68,20 +63,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   CTRACE();
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
-  ScopedRendererState state(renderer_.get());
-  if (!state.IsValid()) {
-    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
-    return false;
-  }
-
-  if (!gpu_resource_handler_->PrepareResources(layers)) {
-    ETRACE(
-        "Failed to prepare GPU resources for compositing the frame, "
-        "error: %s",
-        PRINTERROR());
-    ReleaseGpuResources();
-    return false;
-  }
+  std::vector<DrawState> draw_state;
 
   for (DisplayPlaneState &plane : comp_planes) {
     if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
@@ -102,16 +84,22 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       if (comp_regions.empty())
         continue;
 
-      if (!Render(layers, plane.GetOffScreenTarget(), comp_regions,
-                  plane.ClearSurface())) {
+      draw_state.emplace_back();
+      DrawState &state = draw_state.back();
+      state.clear_surface_ = plane.ClearSurface();
+      state.surface_ = plane.GetOffScreenTarget();
+      size_t num_regions = comp_regions.size();
+      state.states_.reserve(num_regions);
+      if (!CalculateRenderState(layers, comp_regions, state)) {
         ETRACE("Failed to Render layer.");
-        ReleaseGpuResources();
         return false;
       }
     }
   }
+  if (draw_state.empty())
+    return true;
 
-  ReleaseGpuResources();
+  thread_->Draw(draw_state, layers);
   return true;
 }
 
@@ -121,22 +109,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                NativeBufferHandler *buffer_handler,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
-                               int32_t *retire_fence) {
-  ScopedRendererState state(renderer_.get());
-  if (!state.IsValid()) {
-    ETRACE("Failed to draw as Renderer doesnt have a valid context.");
-    return false;
-  }
-
-  if (!gpu_resource_handler_->PrepareResources(layers)) {
-    ETRACE(
-        "Failed to prepare GPU resources for compositing the frame, "
-        "error: %s",
-        PRINTERROR());
-    ReleaseGpuResources();
-    return false;
-  }
-
+                               int32_t acquire_fence, int32_t *retire_fence) {
   std::vector<CompositionRegion> comp_regions;
   SeparateLayers(std::vector<size_t>(), source_layers, display_frame,
                  comp_regions);
@@ -145,48 +118,54 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
         "Failed to prepare offscreen buffer. "
         "error: %s",
         PRINTERROR());
-    ReleaseGpuResources();
     return false;
   }
 
   NativeSurface *surface = CreateBackBuffer(width, height);
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
-
-  if (!Render(layers, surface, comp_regions, true)) {
-    ReleaseGpuResources();
+  std::vector<DrawState> draw;
+  draw.emplace_back();
+  DrawState &draw_state = draw.back();
+  draw_state.clear_surface_ = true;
+  draw_state.destroy_surface_ = true;
+  draw_state.surface_ = surface;
+  size_t num_regions = comp_regions.size();
+  draw_state.states_.reserve(num_regions);
+  if (!CalculateRenderState(layers, comp_regions, draw_state)) {
+    ETRACE("Failed to calculate render state.");
     return false;
   }
 
-  *retire_fence = surface->GetLayer()->ReleaseAcquireFence();
+  if (draw_state.states_.empty()) {
+    return true;
+  }
 
-  ReleaseGpuResources();
-  delete surface;
+  if (acquire_fence > 0) {
+    draw_state.acquire_fences_.emplace_back(acquire_fence);
+  }
+
+  thread_->Draw(draw, layers);
+  *retire_fence = draw_state.retire_fence_;
 
   return true;
 }
 
-void Compositor::InsertFence(int32_t fence) {
-  renderer_->InsertFence(fence);
+void Compositor::FreeResources(bool all_resources) {
+  thread_->FreeResources(all_resources);
 }
 
-void Compositor::ReleaseGpuResources() {
-  gpu_resource_handler_->ReleaseGPUResources();
-}
-
-bool Compositor::Render(std::vector<OverlayLayer> &layers,
-                        NativeSurface *surface,
-                        const std::vector<CompositionRegion> &comp_regions,
-                        bool clear_surface) {
+bool Compositor::CalculateRenderState(
+    std::vector<OverlayLayer> &layers,
+    const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state) {
   CTRACE();
-  std::vector<RenderState> states;
   size_t num_regions = comp_regions.size();
-  states.reserve(num_regions);
-
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
-    RenderState state;
-    state.ConstructState(layers, region, gpu_resource_handler_.get(),
-                         surface->GetSurfaceDamage(), clear_surface);
+    draw_state.states_.emplace(draw_state.states_.begin(), RenderState());
+    RenderState &state = draw_state.states_.at(0);
+    state.ConstructState(layers, region,
+                         draw_state.surface_->GetSurfaceDamage(),
+                         draw_state.clear_surface_);
     if (state.layer_state_.empty()) {
       continue;
     }
@@ -196,19 +175,10 @@ bool Compositor::Render(std::vector<OverlayLayer> &layers,
       OverlayLayer &layer = layers.at(texture_index);
       int32_t fence = layer.ReleaseAcquireFence();
       if (fence > 0) {
-        InsertFence(fence);
+        draw_state.acquire_fences_.emplace_back(fence);
       }
     }
-
-    states.emplace(states.begin(), state);
   }
-
-  if (states.empty()) {
-    return true;
-  }
-
-  if (!renderer_->Draw(states, surface, clear_surface))
-    return false;
 
   return true;
 }

@@ -31,7 +31,6 @@
 
 #include "physicaldisplay.h"
 #include "renderer.h"
-#include "scopedrendererstate.h"
 
 namespace hwcomposer {
 
@@ -42,7 +41,6 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
       gpu_fd_(gpu_fd),
       buffer_handler_(buffer_handler),
       display_(display) {
-  compositor_.Init();
   if (disable_overlay) {
     state_ |= kDisableOverlayUsage;
   } else {
@@ -105,6 +103,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
+      compositor_.Init(display_plane_manager_.get());
       power_mode_lock_.unlock();
       break;
     default:
@@ -206,6 +205,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   ScopedIdleStateTracker tracker(idle_tracker_);
   if (tracker.IgnoreUpdate())
     return true;
+
+  if (synchronize_) {
+    compositor_.EnsureTasksAreDone();
+    synchronize_ = false;
+  }
 
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
@@ -382,9 +386,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     kms_fence_ = fence;
 
     SetReleaseFenceToLayers(fence, source_layers);
-  } else {
-    if (render_layers)
-      compositor_.InsertFence(0);
   }
 
   if (hwc_lock_.get()) {
@@ -417,18 +418,8 @@ void DisplayQueue::SetCloneMode(bool cloned) {
 }
 
 void DisplayQueue::ReleaseSurfaces() {
-  if (!compositor_.BeginFrame(state_ & kDisableOverlayUsage)) {
-    ETRACE("Failed to initialize compositor.");
-    return;
-  }
-
-  ScopedRendererState state(compositor_.GetRenderer());
-  if (!state.IsValid()) {
-    ETRACE("Failed to make context current.");
-    return;
-  }
-
-  display_plane_manager_->ReleaseFreeOffScreenTargets();
+  compositor_.FreeResources(false);
+  synchronize_ = true;
 }
 
 void DisplayQueue::UpdateSurfaceInUse(
@@ -532,14 +523,8 @@ void DisplayQueue::HandleExit() {
     state_ |= kClonedMode;
   }
 
-  if (display_plane_manager_->HasSurfaces()) {
-    compositor_.BeginFrame(true);
-    compositor_.GetRenderer()->MakeCurrent();
-    display_plane_manager_->ReleaseAllOffScreenTargets();
-    compositor_.GetRenderer()->RestoreState();
-  }
-
   compositor_.Reset();
+  synchronize_ = true;
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
