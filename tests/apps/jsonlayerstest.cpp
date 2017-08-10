@@ -660,6 +660,8 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
+  init_frames(primary_width, primary_height);
+
   if (display_mode) {
     printf("\nSUPPORTED DISPLAY MODE\n");
     uint32_t numConfigs, configIndex;
@@ -703,7 +705,6 @@ int main(int argc, char *argv[]) {
                           test_parameters.contrast_b);
   }
 
-  init_frames(primary_width, primary_height);
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
