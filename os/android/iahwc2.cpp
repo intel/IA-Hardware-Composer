@@ -79,8 +79,9 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
   void Callback(uint32_t display, bool connected) {
     auto hook = reinterpret_cast<HWC2_PFN_HOTPLUG>(hook_);
     int32_t status = static_cast<int32_t>(HWC2::Connection::Connected);
-    if (!connected)
+    if (!connected) {
       status = static_cast<int32_t>(HWC2::Connection::Disconnected);
+    }
 
     hook(data_, display, status);
   }
@@ -114,13 +115,30 @@ HWC2::Error IAHWC2::Init() {
 
   std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
   size_t size = displays.size();
-  NativeDisplay *primary_display = displays.at(0);
+  NativeDisplay *primary_display = NULL;
+  for (size_t i = 0; i < size; i++) {
+    hwcomposer::NativeDisplay *display = displays.at(i);
+    if (display->IsConnected()) {
+      primary_display = display;
+      break;
+    }
+  }
+
+  if (!primary_display) {
+    primary_display = displays.at(0);
+  }
+
   display_manager_.SetPrimaryDisplay(primary_display);
-  primary_display_.Init(&display_manager_, primary_display, 0, disable_explicit_sync_);
+  primary_display_.Init(&display_manager_, primary_display, 0,
+                        disable_explicit_sync_);
+
   // For now we only support cloned mode.
-  for (size_t i = 1; i < size; i++) {
-    hwcomposer::NativeDisplay *cloned = displays.at(i);
-    cloned->CloneDisplay(primary_display);
+  for (size_t i = 0; i < size; i++) {
+    hwcomposer::NativeDisplay *display = displays.at(i);
+    if (primary_display == display)
+      continue;
+
+    display->CloneDisplay(primary_display);
   }
 
   for (size_t i = 1; i < size; ++i) {
@@ -130,13 +148,13 @@ HWC2::Error IAHWC2::Init() {
                                std::forward_as_tuple());
 
     extended_displays_.at(index)
-        .Init(&display_manager_, displays.at(index), index, disable_explicit_sync_);
+        .Init(&display_manager_, displays.at(index), i, disable_explicit_sync_);
   }
 
   // Start the hwc service
   // FIXME(IAHWC-76): On Android, with userdebug on Joule this is causing
   //        to hang in a loop while cold boot before going to home screen
-  //hwcService_.Start(*this);
+  // hwcService_.Start(*this);
 
   return HWC2::Error::None;
 }
@@ -192,13 +210,11 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
-     // FIXME: Registering more than one display is causing
-      // Tearing issues for some reason.
-     /* for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
+      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
            extended_displays_) {
         d.second.RegisterHotPlugCallback(data, function);
         break;
-      }*/
+      }
 
       primary_display_.RegisterHotPlugCallback(data, function);
       break;
