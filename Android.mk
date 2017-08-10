@@ -74,7 +74,6 @@ LOCAL_SRC_FILES := \
 	wsi/drm/drmplane.cpp \
 	wsi/drm/drmdisplaymanager.cpp \
 	wsi/drm/drmscopedtypes.cpp \
-        os/android/multidisplaymanager.cpp
 
 ifeq ($(strip $(TARGET_USES_HWC2)), true)
 LOCAL_SRC_FILES += os/android/iahwc2.cpp \

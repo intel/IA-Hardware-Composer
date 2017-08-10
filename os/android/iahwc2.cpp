@@ -128,8 +128,7 @@ HWC2::Error IAHWC2::Init() {
     primary_display = displays.at(0);
   }
 
-  primary_display_.Init(&display_manager_, primary_display, 0,
-                        disable_explicit_sync_);
+  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
 
   uint32_t external_display_id = 1;
   for (size_t i = 0; i < size; ++i) {
@@ -137,15 +136,9 @@ HWC2::Error IAHWC2::Init() {
     if (primary_display == display)
       continue;
 
-    display->CloneDisplay(primary_display);
-
-    extended_displays_.emplace(std::piecewise_construct,
-                               std::forward_as_tuple(i),
-                               std::forward_as_tuple());
-
-    extended_displays_.at(i).Init(&display_manager_, display,
-                                  external_display_id, disable_explicit_sync_);
-
+    std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
+    temp->Init(display, external_display_id, disable_explicit_sync_);
+    extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
   }
 
@@ -171,8 +164,7 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
   *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  virtual_display_.InitVirtualDisplay(&display_manager_,
-                                      device_.GetVirtualDisplay(), width,
+  virtual_display_.InitVirtualDisplay(device_.GetVirtualDisplay(), width,
                                       height, disable_explicit_sync_);
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
@@ -205,31 +197,35 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
                                      hwc2_function_pointer_t function) {
   supported(__func__);
   auto callback = static_cast<HWC2::Callback>(descriptor);
+  size_t size = extended_displays_.size();
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
       primary_display_.RegisterHotPlugCallback(data, function);
-      /*for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
-           extended_displays_) {
-        d.second.RegisterHotPlugCallback(data, function);
-      }*/
+      for (size_t i = 0; i < size; ++i) {
+        IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
+        display->RegisterHotPlugCallback(data, function);
+	// TODO: Remove this when we want to add support for more than 2
+	// Displays.
+        break;
+      }
 
       break;
     }
     case HWC2::Callback::Vsync: {
       primary_display_.RegisterVsyncCallback(data, function);
-      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
-           extended_displays_) {
-        d.second.RegisterVsyncCallback(data, function);
+      for (size_t i = 0; i < size; ++i) {
+        IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
+        display->RegisterVsyncCallback(data, function);
       }
 
       break;
     }
     case HWC2::Callback::Refresh: {
       primary_display_.RegisterRefreshCallback(data, function);
-      for (std::pair<const uint32_t, IAHWC2::HwcDisplay> &d :
-           extended_displays_) {
-        d.second.RegisterRefreshCallback(data, function);
+      for (size_t i = 0; i < size; ++i) {
+        IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
+        display->RegisterRefreshCallback(data, function);
       }
 
       break;
@@ -246,8 +242,8 @@ IAHWC2::HwcDisplay::HwcDisplay() {
 
 // This function will be called only for Virtual Display Init
 HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
-    MultiDisplayManager *display_manager, hwcomposer::NativeDisplay *display,
-    uint32_t width, uint32_t height, bool disable_explicit_sync) {
+    hwcomposer::NativeDisplay *display, uint32_t width, uint32_t height,
+    bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Virtual;
@@ -255,18 +251,15 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   display_->InitVirtualDisplay(width, height);
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
-  display_manager_ = display_manager;
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcDisplay::Init(MultiDisplayManager *display_manager,
-                                     hwcomposer::NativeDisplay *display,
+HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
                                      int display_index,
                                      bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Physical;
-  display_manager_ = display_manager;
   if (display_index == 0) {
     handle_ = HWC_DISPLAY_PRIMARY;
   } else {
@@ -591,10 +584,6 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (!success) {
     ALOGE("Failed to set layers in the composition");
     return HWC2::Error::BadLayer;
-  }
-
-  if (type_ != HWC2::DisplayType::Virtual) {
-    display_manager_->UpdatedDisplay(display_, handle_ == HWC_DISPLAY_PRIMARY);
   }
 
   ++frame_no_;
@@ -1109,7 +1098,7 @@ int IAHWC2::HookDevOpen(const struct hw_module_t *module, const char *name,
 }
 
 hwcomposer::NativeDisplay *IAHWC2::GetExtendedDisplay(uint32_t dispIndex) {
-  return extended_displays_.at(dispIndex).GetDisplay();
+  return extended_displays_.at(dispIndex)->GetDisplay();
 }
 
 hwcomposer::NativeDisplay *IAHWC2::GetPrimaryDisplay() {

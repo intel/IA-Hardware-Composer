@@ -27,7 +27,6 @@
 #include <utility>
 
 #include "hwcservice.h"
-#include "multidisplaymanager.h"
 
 namespace hwcomposer {
 class GpuDevice;
@@ -116,11 +115,9 @@ class IAHWC2 : public hwc2_device_t {
    public:
     HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
-    HWC2::Error Init(MultiDisplayManager *display_manager,
-                     hwcomposer::NativeDisplay *display, int display_index,
+    HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
                      bool disable_explicit_sync);
-    HWC2::Error InitVirtualDisplay(MultiDisplayManager *display_manager,
-                                   hwcomposer::NativeDisplay *display,
+    HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
                                    uint32_t width, uint32_t height,
                                    bool disable_explicit_sync);
 
@@ -188,7 +185,6 @@ class IAHWC2 : public hwc2_device_t {
     // True after validateDisplay
     bool checkValidateDisplay = false;
     bool disable_explicit_sync_ = false;
-    MultiDisplayManager *display_manager_;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
@@ -223,8 +219,8 @@ class IAHWC2 : public hwc2_device_t {
 
     // TODO(kalyank): How do we map extended display id in case of more than
     // one external display.
-    HwcDisplay &display = hwc->extended_displays_.at(0);
-    return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
+    HwcDisplay *display = hwc->extended_displays_.at(0).get();
+    return static_cast<int32_t>((display->*func)(std::forward<Args>(args)...));
   }
 
   template <typename HookType, HookType func, typename... Args>
@@ -244,8 +240,8 @@ class IAHWC2 : public hwc2_device_t {
 
     // TODO(kalyank): How do we map extended display id in case of more than
     // one external display.
-    HwcDisplay &display = hwc->extended_displays_.at(0);
-    Hwc2Layer &layer = display.get_layer(layer_handle);
+    HwcDisplay *display = hwc->extended_displays_.at(0).get();
+    Hwc2Layer &layer = display->get_layer(layer_handle);
     return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
   }
 
@@ -266,13 +262,12 @@ class IAHWC2 : public hwc2_device_t {
                                hwc2_function_pointer_t function);
 
   hwcomposer::GpuDevice device_;
-  std::map<uint32_t, HwcDisplay> extended_displays_;
+  std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
   HwcDisplay virtual_display_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;
-  MultiDisplayManager display_manager_;
 };
 }  // namespace android
 
