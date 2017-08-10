@@ -21,10 +21,6 @@ namespace hwcomposer {
 MultiDisplayManager::~MultiDisplayManager() {
 }
 
-void MultiDisplayManager::SetPrimaryDisplay(NativeDisplay* primary_display) {
-  primary_display_ = primary_display;
-}
-
 void MultiDisplayManager::UpdatedDisplay(NativeDisplay* display, bool primary) {
   lock_.lock();
   if (primary && state_.empty()) {
@@ -43,7 +39,7 @@ void MultiDisplayManager::UpdatedDisplay(NativeDisplay* display, bool primary) {
         temp.display_ = state.display_;
         temp.last_frame_updated_ = false;
       } else {
-        display->CloneDisplay(primary_display_);
+        state.display_->CloneDisplay(display);
       }
     }
 

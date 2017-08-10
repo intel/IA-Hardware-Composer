@@ -39,7 +39,6 @@ class MultiDisplayManager {
 
   ~MultiDisplayManager();
 
-  void SetPrimaryDisplay(NativeDisplay* primary_display);
   void UpdatedDisplay(NativeDisplay* display, bool primary);
 
  private:
@@ -49,7 +48,6 @@ class MultiDisplayManager {
   };
 
   std::vector<ExtendedDisplayState> state_;
-  NativeDisplay* primary_display_;
   SpinLock lock_;
 };
 
