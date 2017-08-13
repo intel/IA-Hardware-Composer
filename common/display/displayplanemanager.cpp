@@ -70,7 +70,8 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
     if (force_gpu || !prefer_seperate_plane) {
       DisplayPlaneState &last_plane = composition.back();
       for (auto i = layer_begin; i != layer_end; ++i) {
-        last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame());
+        last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
+                            i->IsCursorLayer());
         i->GPURendered();
       }
 
@@ -139,7 +140,8 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
           prefer_seperate_plane = layer->PreferSeparatePlane();
           break;
         } else {
-          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame());
+          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
+                              i->IsCursorLayer());
           commit_planes.pop_back();
         }
       }
@@ -152,7 +154,8 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
     // We dont have any additional planes. Pre composite remaining layers
     // to the last overlay plane.
     for (auto i = layer_begin; i != layer_end; ++i) {
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame());
+      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
+                          i->IsCursorLayer());
     }
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
@@ -162,6 +165,7 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
   if (cursor_plane) {
     composition.emplace_back(cursor_plane, cursor_layer,
                              cursor_layer->GetZorder());
+    composition.back().SetCursorPlane();
   }
 
   if (render_layers) {
@@ -180,6 +184,41 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
   }
 
   return render_layers;
+}
+
+void DisplayPlaneManager::ValidateCursorLayer(
+    OverlayLayer *cursor_layer, DisplayPlaneStateList &composition) {
+  CTRACE();
+  std::vector<OverlayPlane> commit_planes;
+  for (DisplayPlaneState &plane : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(plane.plane(), plane.GetOverlayLayer()));
+  }
+
+  DisplayPlane *cursor_plane = NULL;
+  // Handle Cursor layer. If we have dedicated cursor plane, try using it
+  // to composite cursor layer.
+  if (cursor_plane_) {
+    DisplayPlane *cursor_plane = cursor_plane_.get();
+    commit_planes.emplace_back(OverlayPlane(cursor_plane, cursor_layer));
+    // Lets ensure we fall back to GPU composition in case
+    // cursor layer cannot be scanned out directly.
+    if (FallbacktoGPU(cursor_plane, cursor_layer, commit_planes)) {
+      cursor_plane = NULL;
+      commit_planes.pop_back();
+    } else {
+      composition.emplace_back(cursor_plane, cursor_layer,
+                               cursor_layer->GetZorder());
+      composition.back().SetCursorPlane();
+    }
+  }
+
+  if (!cursor_plane) {
+    DisplayPlaneState &last_plane = composition.back();
+    last_plane.AddLayer(cursor_layer->GetZorder(),
+                        cursor_layer->GetDisplayFrame(),
+                        cursor_layer->IsCursorLayer());
+  }
 }
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
@@ -297,7 +336,8 @@ void DisplayPlaneManager::ValidateFinalLayers(
     ++layer_begin;
 
     for (auto i = layer_begin; i != layers.end(); ++i) {
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame());
+      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
+                          i->IsCursorLayer());
     }
 
     EnsureOffScreenTarget(last_plane);

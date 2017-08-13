@@ -161,7 +161,7 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
     content_changed = alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
                       layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged();
-    gpu_rendered_ = true;
+    gpu_rendered_ = rhs.gpu_rendered_;
   } else {
     if (alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
         layer->HasContentAttributesChanged() ||

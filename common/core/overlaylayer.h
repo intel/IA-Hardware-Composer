@@ -143,6 +143,10 @@ struct OverlayLayer {
     return cursor_layer_;
   }
 
+  bool IsGpuRendered() const {
+    return gpu_rendered_;
+  }
+
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in

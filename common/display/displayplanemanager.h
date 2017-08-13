@@ -47,6 +47,12 @@ class DisplayPlaneManager {
   bool ValidateLayers(std::vector<OverlayLayer> &layers, bool pending_modeset,
                       bool disable_overlay, DisplayPlaneStateList &composition);
 
+  // This should be called only in case of a new cursor layer
+  // being added and all other layers are same as previous
+  // frame.
+  void ValidateCursorLayer(OverlayLayer *cursor_layer,
+                           DisplayPlaneStateList &composition);
+
   bool CheckPlaneFormat(uint32_t format);
 
   void SetOffScreenPlaneTarget(DisplayPlaneState &plane);

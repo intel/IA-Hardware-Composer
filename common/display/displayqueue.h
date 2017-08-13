@@ -186,6 +186,7 @@ class DisplayQueue {
 
   void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
+                       bool ignore_cursor_layer,
                        DisplayPlaneStateList* composition, bool* render_layers,
                        bool* can_ignore_commit);
   void SetReleaseFenceToLayers(int32_t fence,
@@ -221,6 +222,8 @@ class DisplayQueue {
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
   bool synchronize_ = false;
+  bool frame_has_cursor_ = false;
+  bool cursor_gpu_rendered_ = false;
 };
 
 }  // namespace hwcomposer

@@ -56,7 +56,8 @@ class DisplayPlaneState {
     return display_frame_;
   }
 
-  void AddLayer(size_t index, const HwcRect<int> &display_frame) {
+  void AddLayer(size_t index, const HwcRect<int> &display_frame,
+                bool cursor_layer) {
     display_frame_.left = std::min(display_frame_.left, display_frame.left);
     display_frame_.top = std::min(display_frame_.top, display_frame.top);
     display_frame_.right = std::max(display_frame_.right, display_frame.right);
@@ -65,6 +66,11 @@ class DisplayPlaneState {
 
     source_layers_.emplace_back(index);
     state_ = State::kRender;
+
+    if (cursor_layer) {
+      cursor_plane_ = true;
+      cursor_layer_ = index;
+    }
   }
 
   void AddLayers(const std::vector<size_t> &source_layers,
@@ -72,11 +78,37 @@ class DisplayPlaneState {
     for (const int &index : source_layers) {
       source_layers_.emplace_back(index);
     }
+
     display_frame_.left = display_frame.left;
     display_frame_.top = display_frame.top;
     display_frame_.right = display_frame.right;
     display_frame_.bottom = display_frame.bottom;
     state_ = state;
+    cursor_plane_ = false;
+    cursor_layer_ = 0;
+  }
+
+  void AddLayersForCursor(const std::vector<size_t> &source_layers,
+                          const HwcRect<int> &display_frame, State state,
+                          int cursor_layer, bool ignore_cursor_layer) {
+    for (const int &index : source_layers) {
+      if (ignore_cursor_layer && cursor_layer == index) {
+        continue;
+      }
+
+      source_layers_.emplace_back(index);
+    }
+
+    display_frame_.left = display_frame.left;
+    display_frame_.top = display_frame.top;
+    display_frame_.right = display_frame.right;
+    display_frame_.bottom = display_frame.bottom;
+    state_ = state;
+
+    if (!ignore_cursor_layer) {
+      cursor_plane_ = true;
+      cursor_layer_ = cursor_layer;
+    }
   }
 
   void UpdateDisplayFrame(const HwcRect<int> &display_frame) {
@@ -168,6 +200,18 @@ class DisplayPlaneState {
     return clear_surface_;
   }
 
+  void SetCursorPlane() {
+    cursor_plane_ = true;
+  }
+
+  bool IsCursorPlane() const {
+    return cursor_plane_;
+  }
+
+  int GetCursorLayer() const {
+    return cursor_layer_;
+  }
+
  private:
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
@@ -177,6 +221,8 @@ class DisplayPlaneState {
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
+  bool cursor_plane_ = false;
+  int cursor_layer_ = 0;
   std::vector<NativeSurface *> surfaces_;
 };
 
