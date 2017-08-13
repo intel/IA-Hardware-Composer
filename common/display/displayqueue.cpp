@@ -650,13 +650,20 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  if (idle_tracker_.idle_frames_ < 50) {
-    idle_tracker_.idle_frames_++;
+  if (idle_tracker_.idle_reset_frames_counter > 0) {
+    idle_tracker_.idle_reset_frames_counter--;
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 50) {
+  // Wait approx 4 mins before going to idle state.
+  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 4000) {
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
+  if (idle_tracker_.idle_frames_ < 4000) {
+    idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
     return;
   }

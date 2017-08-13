@@ -123,27 +123,27 @@ class DisplayQueue {
       kPrepareComposition = 1 << 0,  // Preparing for current frame composition.
       kRenderIdleDisplay = 1 << 1,  // We are in idle mode, disable all overlays
                                     // and use only one plane.
-      kRevalidateLayers = 1 << 3,   // We disabled overlay usage for idle mode,
+      kRevalidateLayers = 1 << 2,   // We disabled overlay usage for idle mode,
                                     // if we are continously updating
       // frames, revalidate layers to use planes.
       kTrackingFrames =
-          1 << 4,              // Tracking frames to see when layers need to be
+          1 << 3,              // Tracking frames to see when layers need to be
                                // revalidated after
                                // disabling overlays for idle case scenario.
-      kIgnoreUpdates = 1 << 5  // Ignore present display calls.
+      kIgnoreUpdates = 1 << 4  // Ignore present display calls.
     };
 
     uint32_t idle_frames_ = 0;
     SpinLock idle_lock_;
-    uint32_t state_ = kIgnoreUpdates;
-    uint32_t continuous_frames_ = 0;
+    int state_ = kIgnoreUpdates;
+    uint32_t revalidate_frames_counter_ = 0;
+    uint32_t idle_reset_frames_counter = 0;
   };
 
   struct ScopedIdleStateTracker {
     ScopedIdleStateTracker(struct FrameStateTracker& tracker)
         : tracker_(tracker) {
       tracker_.idle_lock_.lock();
-      tracker_.idle_frames_ = 0;
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
       tracker_.idle_lock_.unlock();
     }
@@ -157,10 +157,8 @@ class DisplayQueue {
     }
 
     void ResetTrackerState() {
-      if (!(tracker_.state_ & FrameStateTracker::kRenderIdleDisplay)) {
-        tracker_.state_ = 0;
-	tracker_.continuous_frames_ = 0;
-      }
+      tracker_.state_ = 0;
+      tracker_.revalidate_frames_counter_ = 0;
     }
 
     bool IgnoreUpdate() const {
@@ -169,22 +167,28 @@ class DisplayQueue {
 
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
+      if (tracker_.idle_reset_frames_counter == 5) {
+        tracker_.idle_frames_ = 0;
+      } else {
+        tracker_.idle_reset_frames_counter++;
+      }
+
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
         tracker_.state_ &= ~FrameStateTracker::kRenderIdleDisplay;
         tracker_.state_ |= FrameStateTracker::kTrackingFrames;
-        tracker_.continuous_frames_ = 0;
+        tracker_.revalidate_frames_counter_ = 0;
       } else if (tracker_.state_ & FrameStateTracker::kTrackingFrames) {
-        if (tracker_.continuous_frames_ > 10) {
+        if (tracker_.revalidate_frames_counter_ > 3) {
           tracker_.state_ &= ~FrameStateTracker::kTrackingFrames;
           tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
-          tracker_.continuous_frames_ = 0;
+          tracker_.revalidate_frames_counter_ = 0;
         } else {
-          tracker_.continuous_frames_++;
+          tracker_.revalidate_frames_counter_++;
         }
       } else if (tracker_.state_ & FrameStateTracker::kRevalidateLayers) {
         tracker_.state_ &= ~FrameStateTracker::kRevalidateLayers;
-	tracker_.continuous_frames_ = 0;
+        tracker_.revalidate_frames_counter_ = 0;
       }
 
       tracker_.idle_lock_.unlock();
