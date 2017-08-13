@@ -26,31 +26,6 @@
 
 namespace hwcomposer {
 
-/* rotation property bits */
-#ifndef DRM_ROTATE_0
-#define DRM_ROTATE_0 0
-#endif
-
-#ifndef DRM_ROTATE_90
-#define DRM_ROTATE_90 1
-#endif
-
-#ifndef DRM_ROTATE_180
-#define DRM_ROTATE_180 2
-#endif
-
-#ifndef DRM_ROTATE_270
-#define DRM_ROTATE_270 3
-#endif
-
-#ifndef DRM_ROTATE_X
-#define DRM_REFLECT_X 4
-#endif
-
-#ifndef DRM_ROTATE_Y
-#define DRM_REFLECT_Y 5
-#endif
-
 OverlayLayer::ImportedBuffer::~ImportedBuffer() {
   if (acquire_fence_ > 0) {
     close(acquire_fence_);
@@ -98,35 +73,6 @@ void OverlayLayer::ResetBuffer() {
   imported_buffer_.reset(nullptr);
 }
 
-void OverlayLayer::SetZorder(uint32_t z_order) {
-  z_order_ = z_order;
-}
-
-void OverlayLayer::SetLayerIndex(uint32_t layer_index) {
-  layer_index_ = layer_index;
-}
-
-void OverlayLayer::SetTransform(int32_t transform) {
-  transform_ = transform;
-  rotation_ = 0;
-  if (transform & kReflectX)
-    rotation_ |= 1 << DRM_REFLECT_X;
-  if (transform & kReflectY)
-    rotation_ |= 1 << DRM_REFLECT_Y;
-  if (transform & kRotate90)
-    rotation_ |= 1 << DRM_ROTATE_90;
-  else if (transform & kRotate180)
-    rotation_ |= 1 << DRM_ROTATE_180;
-  else if (transform & kRotate270)
-    rotation_ |= 1 << DRM_ROTATE_270;
-  else
-    rotation_ |= 1 << DRM_ROTATE_0;
-}
-
-void OverlayLayer::SetAlpha(uint8_t alpha) {
-  alpha_ = alpha;
-}
-
 void OverlayLayer::SetBlending(HWCBlending blending) {
   blending_ = blending;
 }
@@ -143,6 +89,36 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_width_ = display_frame.right - display_frame.left;
   display_frame_height_ = display_frame.bottom - display_frame.top;
   display_frame_ = display_frame;
+}
+
+void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
+                                          NativeBufferHandler* buffer_handler,
+                                          uint32_t z_order,
+                                          uint32_t layer_index,
+                                          const HwcRect<int>& display_frame) {
+  transform_ = layer->GetTransform();
+  rotation_ = 0;
+  if (transform_ & kReflectX)
+    rotation_ |= 1 << DRM_REFLECT_X;
+  if (transform_ & kReflectY)
+    rotation_ |= 1 << DRM_REFLECT_Y;
+  if (transform_ & kRotate90)
+    rotation_ |= 1 << DRM_ROTATE_90;
+  else if (transform_ & kRotate180)
+    rotation_ |= 1 << DRM_ROTATE_180;
+  else if (transform_ & kRotate270)
+    rotation_ |= 1 << DRM_ROTATE_270;
+  else
+    rotation_ |= 1 << DRM_ROTATE_0;
+
+  alpha_ = layer->GetAlpha();
+  layer_index_ = layer_index;
+  z_order_ = z_order;
+  SetBlending(layer->GetBlending());
+  SetSourceCrop(layer->GetSourceCrop());
+  SetDisplayFrame(display_frame);
+  SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence());
+  ValidateForOverlayUsage();
 }
 
 void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,

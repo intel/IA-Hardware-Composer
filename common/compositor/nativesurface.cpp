@@ -122,7 +122,6 @@ void NativeSurface::UpdateSurfaceDamage(
 void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
                                     HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetTransform(0);
   layer_.SetBuffer(buffer_handler, native_handle, -1);
 }
 

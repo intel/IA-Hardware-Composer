@@ -93,15 +93,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
-    overlay_layer.SetTransform(layer->GetTransform());
-    overlay_layer.SetAlpha(layer->GetAlpha());
-    overlay_layer.SetBlending(layer->GetBlending());
-    overlay_layer.SetSourceCrop(layer->GetSourceCrop());
-    overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
-    overlay_layer.SetLayerIndex(layer_index);
-    overlay_layer.SetZorder(z_order);
-    overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
-                            layer->GetAcquireFence());
+    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, z_order,
+                                         layer_index, layer->GetDisplayFrame());
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;

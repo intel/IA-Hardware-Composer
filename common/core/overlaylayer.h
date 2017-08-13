@@ -30,6 +30,31 @@ struct HwcLayer;
 class OverlayBuffer;
 class NativeBufferHandler;
 
+/* rotation property bits */
+#ifndef DRM_ROTATE_0
+#define DRM_ROTATE_0 0
+#endif
+
+#ifndef DRM_ROTATE_90
+#define DRM_ROTATE_90 1
+#endif
+
+#ifndef DRM_ROTATE_180
+#define DRM_ROTATE_180 2
+#endif
+
+#ifndef DRM_ROTATE_270
+#define DRM_ROTATE_270 3
+#endif
+
+#ifndef DRM_ROTATE_X
+#define DRM_REFLECT_X 4
+#endif
+
+#ifndef DRM_ROTATE_Y
+#define DRM_REFLECT_Y 5
+#endif
+
 struct OverlayLayer {
   OverlayLayer() = default;
   void SetAcquireFence(int32_t acquire_fence);
@@ -38,17 +63,16 @@ struct OverlayLayer {
 
   int32_t ReleaseAcquireFence() const;
 
-  // Sets z order of this layer.
-  void SetZorder(uint32_t z_order);
+  // Initialize OverlayLayer from layer.
+  void InitializeFromHwcLayer(HwcLayer* layer,
+                              NativeBufferHandler* buffer_handler,
+                              uint32_t z_order, uint32_t layer_index,
+                              const HwcRect<int>& display_frame);
 
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
   }
-
-  // Set index of hwclayer which this layer
-  // represents.
-  void SetLayerIndex(uint32_t index);
 
   // Index of hwclayer which this layer
   // represents.
@@ -56,13 +80,9 @@ struct OverlayLayer {
     return layer_index_;
   }
 
-  void SetTransform(int32_t sf_transform);
-
   uint32_t GetTransform() const {
     return transform_;
   }
-
-  void SetAlpha(uint8_t alpha);
 
   uint8_t GetAlpha() const {
     return alpha_;
@@ -177,8 +197,8 @@ struct OverlayLayer {
     int32_t acquire_fence_ = -1;
   };
 
-  uint32_t transform_;
-  uint32_t rotation_;
+  uint32_t transform_ = 0;
+  uint32_t rotation_ = 1 << DRM_ROTATE_0;
   uint32_t z_order_;
   uint32_t layer_index_;
   uint32_t source_crop_width_;

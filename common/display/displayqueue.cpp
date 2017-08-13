@@ -253,10 +253,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
-    overlay_layer.SetTransform(layer->GetTransform());
-    overlay_layer.SetAlpha(layer->GetAlpha());
-    overlay_layer.SetBlending(layer->GetBlending());
-    overlay_layer.SetSourceCrop(layer->GetSourceCrop());
     if (scaling_tracker_.scaling_state_ == ScalingTracker::kNeedsScaling) {
       HwcRect<int> display_frame = layer->GetDisplayFrame();
       display_frame.left =
@@ -271,16 +267,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           display_frame.bottom +
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
-      overlay_layer.SetDisplayFrame(display_frame);
+      overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, index,
+                                           layer_index, display_frame);
     } else {
-      overlay_layer.SetDisplayFrame(layer->GetDisplayFrame());
+      overlay_layer.InitializeFromHwcLayer(
+          layer, buffer_handler_, index, layer_index, layer->GetDisplayFrame());
     }
 
-    overlay_layer.SetLayerIndex(layer_index);
-    overlay_layer.SetZorder(index);
-    overlay_layer.SetBuffer(buffer_handler_, layer->GetNativeHandle(),
-                            layer->GetAcquireFence());
-    overlay_layer.ValidateForOverlayUsage();
     index++;
 
     if (previous_size > layer_index) {
