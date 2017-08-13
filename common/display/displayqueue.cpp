@@ -125,6 +125,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     bool plane_state_render =
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
     if (ignore_cursor_layer && plane.IsCursorPlane() && !plane_state_render) {
+      ignore_commit = false;
       continue;
     }
 
@@ -169,8 +170,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      plane.TransferSurfaces(last_plane, content_changed || region_changed);
-      if (content_changed || region_changed) {
+      plane.TransferSurfaces(
+          last_plane, content_changed || region_changed || reset_regions);
+      if (content_changed || region_changed || reset_regions) {
         if (last_plane.GetSurfaces().size() == 3) {
           NativeSurface* surface = last_plane.GetOffScreenTarget();
           surface->RecycleSurface(last_plane);
@@ -222,28 +224,27 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (tracker.IgnoreUpdate())
     return true;
 
-  if (synchronize_) {
+  if (sync_) {
     compositor_.EnsureTasksAreDone();
-    synchronize_ = false;
+    sync_ = false;
   }
 
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   bool frame_changed = (size != previous_size);
-  bool previous_frame_had_cursor = frame_has_cursor_;
-  bool cursor_gpu_rendered = cursor_gpu_rendered_;
+  bool cursor_state_changed = false;
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
-  if ((state_ & kConfigurationChanged) || idle_frame) {
-    frame_changed = true;
-  }
+  uint32_t previous_frame_cursor_state = cursor_state_;
+  cursor_state_ = kNoCursorState;
 
   bool layers_changed = false;
   *retire_fence = -1;
   uint32_t index = 0;
   OverlayLayer* cursor_layer = NULL;
-  frame_has_cursor_ = false;
-  cursor_gpu_rendered_ = false;
+  if (previous_frame_cursor_state & kFrameHasCursor) {
+    cursor_state_changed = true;
+  }
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -281,7 +282,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (overlay_layer.IsCursorLayer()) {
       cursor_layer = &overlay_layer;
-      frame_has_cursor_ = true;
+      cursor_state_ |= kFrameHasCursor;
+      if (previous_frame_cursor_state & kFrameHasCursor) {
+        cursor_state_changed = false;
+      } else {
+        cursor_state_changed = true;
+      }
     } else if (overlay_layer.HasLayerAttributesChanged()) {
       layers_changed = true;
     }
@@ -289,17 +295,24 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     index++;
   }
 
-  bool cursor_state_changed = previous_frame_had_cursor != frame_has_cursor_;
-  bool ignore_cursor_layer = false;
   bool add_cursor_layer = false;
-
   // Optimize cursor visibility state change.
   if (!layers_changed && !tracker.RevalidateLayers()) {
-    // Let's invalidating the whole cache when cursor state has changed
+    if ((state_ & kConfigurationChanged) || idle_frame) {
+      frame_changed = true;
+    } else if (frame_changed) {
+      if ((layers.size() == previous_size) ||
+          ((previous_frame_cursor_state & kIgnoredCursorLayer) &&
+           (layers.size() == previous_size - 1))) {
+        frame_changed = false;
+      }
+    }
+
+    // Let's avoid invalidating the whole cache when cursor state has changed
     // from visible to invisible.
     if (frame_changed && cursor_state_changed) {
       if (previous_size - size == 1) {
-        ignore_cursor_layer = true;
+        cursor_state_ |= kIgnoredCursorLayer;
       } else if (size - previous_size == 1) {
         // Sometimes this is first frame and we only have cursor layer.
         if (!previous_plane_state_.empty() && cursor_layer) {
@@ -310,7 +323,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         }
       }
     } else if (frame_changed ||
-               (cursor_state_changed && !cursor_gpu_rendered)) {
+               (cursor_state_changed &&
+                !(previous_frame_cursor_state & kCursorIsGpuRendered))) {
       layers_changed = true;
     }
   }
@@ -326,8 +340,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     bool can_ignore_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
-    GetCachedLayers(layers, ignore_cursor_layer, &current_composition_planes,
-                    &render_layers, &can_ignore_commit);
+    GetCachedLayers(layers, cursor_state_ & kIgnoredCursorLayer,
+                    &current_composition_planes, &render_layers,
+                    &can_ignore_commit);
     if (add_cursor_layer) {
       bool render_cursor = display_plane_manager_->ValidateCursorLayer(
           cursor_layer, current_composition_planes);
@@ -337,22 +352,21 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       HandleCommitIgnored(current_composition_planes);
       return true;
     }
-
   } else {
-    tracker.ResetTrackerState();
+    if (!idle_frame)
+      tracker.ResetTrackerState();
+
     render_layers = display_plane_manager_->ValidateLayers(
         layers, state_ & kConfigurationChanged, idle_frame || disable_ovelays,
         current_composition_planes);
     state_ &= ~kConfigurationChanged;
-    if (cursor_layer) {
-      cursor_gpu_rendered_ = cursor_layer->IsGpuRendered();
-    } else {
-      cursor_gpu_rendered_ = false;
+    if (cursor_layer && cursor_layer->IsGpuRendered()) {
+      cursor_state_ |= kCursorIsGpuRendered;
     }
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
-
+  // Handle any 3D Composition.
   if (render_layers) {
     if (!compositor_.BeginFrame(disable_ovelays)) {
       ETRACE("Failed to initialize compositor.");
@@ -449,7 +463,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     kms_fence_ = 0;
   }
 #endif
-
   return true;
 }
 
@@ -468,7 +481,7 @@ void DisplayQueue::SetCloneMode(bool cloned) {
 
 void DisplayQueue::ReleaseSurfaces() {
   compositor_.FreeResources(false);
-  synchronize_ = true;
+  sync_ = true;
 }
 
 void DisplayQueue::UpdateSurfaceInUse(
@@ -573,7 +586,8 @@ void DisplayQueue::HandleExit() {
   }
 
   compositor_.Reset();
-  synchronize_ = true;
+  sync_ = true;
+  cursor_state_ = kNoCursorState;
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {

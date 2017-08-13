@@ -93,9 +93,19 @@ class DisplayQueue {
     kDisableOverlayUsage = 1 << 3,   // Disable Overlays.
     kReleaseSurfaces = 1 << 5,       // Release Native Surfaces.
     kIgnoreIdleRefresh =
-        1 << 6,                // Ignore refresh request during idle callback.
-    kClonedMode = 1 << 7,      // We are in cloned mode.
+        1 << 6,            // Ignore refresh request during idle callback.
+    kClonedMode = 1 << 7,  // We are in cloned mode.
     kLastFrameIdleUpdate = 1 << 8  // Last frame was a refresh for Idle state.
+  };
+
+  enum CursorState {
+    kNoCursorState = 1 << 0,        // No state
+    kFrameHasCursor = 1 << 1,       // Current Frame has Cursor.
+    kCursorIsGpuRendered = 1 << 2,  // Current Frame Cursor is Gpu Rendered
+    kIgnoredCursorLayer = 1 << 3,   // CursorLayer was ignored last frame.
+                                    // This is useful when we need to remove
+                                    // cursor layer from cache when previous
+                                    // frame commit was ignored.
   };
 
   struct ScalingTracker {
@@ -218,12 +228,11 @@ class DisplayQueue {
   // done
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
-  uint32_t state_ = kConfigurationChanged;
+  int state_ = kConfigurationChanged;
+  uint32_t cursor_state_ = kNoCursorState;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool synchronize_ = false;
-  bool frame_has_cursor_ = false;
-  bool cursor_gpu_rendered_ = false;
+  bool sync_ = false;  // Synchronize with compositor thread.
 };
 
 }  // namespace hwcomposer
