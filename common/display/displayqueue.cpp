@@ -321,6 +321,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         } else {
           layers_changed = true;
         }
+      } else {
+        layers_changed = true;
       }
     } else if (frame_changed ||
                (cursor_state_changed &&
