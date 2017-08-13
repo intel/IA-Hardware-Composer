@@ -690,7 +690,6 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     IAHWC2::Hwc2Layer &layer = l.second;
     switch (layer.sf_type()) {
-      case HWC2::Composition::SolidColor:
       case HWC2::Composition::Sideband:
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
@@ -747,8 +746,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 
   // The buffer and acquire_fence are handled elsewhere
   if (sf_type_ == HWC2::Composition::Client ||
-      sf_type_ == HWC2::Composition::Sideband ||
-      sf_type_ == HWC2::Composition::SolidColor)
+      sf_type_ == HWC2::Composition::Sideband)
     return HWC2::Error::None;
 
   native_handle_.handle_ = buffer;
@@ -758,9 +756,13 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t /*color*/) {
-  // Probably we should query for the plane capabilities here, before
-  // always falling back for client composition ?
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
+  // We only support Opaque colors so far.
+  if (color.r == 0 && color.g == 0 && color.b == 0 && color.a == 255) {
+    sf_type_ = HWC2::Composition::SolidColor;
+    return HWC2::Error::None;
+  }
+
   sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
