@@ -274,11 +274,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           layer, buffer_handler_, index, layer_index, layer->GetDisplayFrame());
     }
 
-    index++;
-
-    if (previous_size > layer_index) {
-      overlay_layer.ValidatePreviousFrameState(
-          in_flight_layers_.at(layer_index), layer);
+    if (previous_size > index) {
+      overlay_layer.ValidatePreviousFrameState(in_flight_layers_.at(index),
+                                               layer);
     }
 
     if (overlay_layer.IsCursorLayer()) {
@@ -287,10 +285,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     } else if (overlay_layer.HasLayerAttributesChanged()) {
       layers_changed = true;
     }
+
+    index++;
   }
 
   bool cursor_state_changed = previous_frame_had_cursor != frame_has_cursor_;
   bool ignore_cursor_layer = false;
+  bool add_cursor_layer = false;
 
   // Optimize cursor visibility state change.
   if (!layers_changed && !tracker.RevalidateLayers()) {
@@ -301,10 +302,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         ignore_cursor_layer = true;
       } else if (size - previous_size == 1) {
         // Sometimes this is first frame and we only have cursor layer.
-        if (!previous_plane_state_.empty() || !cursor_layer) {
+        if (!previous_plane_state_.empty() && cursor_layer) {
           // Let's add cursor plane as cursor layer has been added.
-          display_plane_manager_->ValidateCursorLayer(cursor_layer,
-                                                      previous_plane_state_);
+          add_cursor_layer = true;
         } else {
           layers_changed = true;
         }
@@ -328,8 +328,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // if not continue showing the current buffer.
     GetCachedLayers(layers, ignore_cursor_layer, &current_composition_planes,
                     &render_layers, &can_ignore_commit);
-
-    if (can_ignore_commit) {
+    if (add_cursor_layer) {
+      bool render_cursor = display_plane_manager_->ValidateCursorLayer(
+          cursor_layer, current_composition_planes);
+      if (!render_layers)
+        render_layers = render_cursor;
+    } else if (can_ignore_commit) {
       HandleCommitIgnored(current_composition_planes);
       return true;
     }

@@ -50,7 +50,7 @@ class DisplayPlaneManager {
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.
-  void ValidateCursorLayer(OverlayLayer *cursor_layer,
+  bool ValidateCursorLayer(OverlayLayer *cursor_layer,
                            DisplayPlaneStateList &composition);
 
   bool CheckPlaneFormat(uint32_t format);

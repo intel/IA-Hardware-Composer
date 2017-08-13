@@ -186,7 +186,7 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
   return render_layers;
 }
 
-void DisplayPlaneManager::ValidateCursorLayer(
+bool DisplayPlaneManager::ValidateCursorLayer(
     OverlayLayer *cursor_layer, DisplayPlaneStateList &composition) {
   CTRACE();
   std::vector<OverlayPlane> commit_planes;
@@ -210,6 +210,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
       composition.emplace_back(cursor_plane, cursor_layer,
                                cursor_layer->GetZorder());
       composition.back().SetCursorPlane();
+      return false;
     }
   }
 
@@ -218,7 +219,11 @@ void DisplayPlaneManager::ValidateCursorLayer(
     last_plane.AddLayer(cursor_layer->GetZorder(),
                         cursor_layer->GetDisplayFrame(),
                         cursor_layer->IsCursorLayer());
+    cursor_layer->GPURendered();
+    last_plane.GetOffScreenTarget()->SetPlaneTarget(last_plane, gpu_fd_);
   }
+
+  return true;
 }
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
