@@ -27,6 +27,8 @@
 
 #include <libsync.h>
 
+#include "platformcommondefines.h"
+
 struct gbm_handle {
 #ifdef USE_MINIGBM
   struct gbm_import_fd_planar_data import_data;
