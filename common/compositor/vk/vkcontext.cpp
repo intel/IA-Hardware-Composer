@@ -57,7 +57,7 @@ bool VKContext::Init() {
   app_info.apiVersion = VK_MAKE_VERSION(1, 0, 0);
 
   const char *enabled_layers[] = {};
-  const char *instance_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME};
+  const char *instance_extensions[] = {};
   const char *device_extensions[] = {};
 
   VkInstanceCreateInfo instance_create = {};
