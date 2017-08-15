@@ -183,6 +183,7 @@ bool VKContext::Init() {
   sampler_create.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
   sampler_create.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
   sampler_create.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_create.maxAnisotropy = 1.0f;
   sampler_create.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 
   res = vkCreateSampler(device_, &sampler_create, NULL, &sampler_);
