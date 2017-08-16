@@ -9,7 +9,6 @@
  *
  */
 
-#include "config.h"
 #undef realloc
 
 #include <stdarg.h>
@@ -20,40 +19,10 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif /* HAVE_SYS_TYPES_H */
-
-#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#endif /* HAVE_SYS_STAT_H */
-
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif /* HAVE_FCNTL_H */
-
-#ifdef HAVE_UNISTD_H
 # include <unistd.h>
-#endif /* HAVE_UNISTD_H */
-
-#ifdef WIN32
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
-# include <io.h>
-#endif /* defined(WIN32) */
-
-#if !defined(HAVE_OPEN) && defined(WIN32)
-# define open _open
-#endif
-
-#if !defined(HAVE_SNPRINTF) && defined(_MSC_VER)
-  /* MSC has the version as _snprintf */
-# define snprintf _snprintf
-#elif !defined(HAVE_SNPRINTF)
-# error You do not have snprintf on your system.
-#endif /* HAVE_SNPRINTF */
-
 #include "debug.h"
 #include "printbuf.h"
 #include "json_inttypes.h"

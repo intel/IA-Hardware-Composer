@@ -10,7 +10,6 @@
  */
 
 #include <stdio.h>
-#include "config.h"
 #include "random_seed.h"
 
 #define DEBUG_SEED(s)

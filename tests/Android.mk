@@ -6,7 +6,6 @@ TARGET_BOARD_PLATFORM := android_ia
 
 
 LOCAL_REQUIRED_MODULES := libjson-c \
-                          gralloc.$(TARGET_BOARD_PLATFORM) \
                           hwcomposer.$(TARGET_BOARD_PLATFORM)
 #LOCAL_LDLIBS   += -L$(PRODUCT_OUT)/vendor/lib/hw/ -l:gralloc.android_ia.so -l:hwcomposer.android_ia.so
 
@@ -39,16 +38,17 @@ LOCAL_SHARED_LIBRARIES := \
 	libui \
 	libutils \
 	libjson-c \
-	gralloc.$(TARGET_BOARD_PLATFORM) \
-	hwcomposer.$(TARGET_BOARD_PLATFORM)
+	libhwcomposer.$(TARGET_BOARD_PLATFORM)
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
 	system/core/libsync \
 	system/core/libsync/include \
-        $(LOCAL_PATH)/third_party/json-c \
-        $(LOCAL_PATH)/common \
+	$(LOCAL_PATH)/third_party/json-c \
+	$(LOCAL_PATH)/common \
 	$(LOCAL_PATH)/../os/android \
+	$(LOCAL_PATH)/../os    \
+	$(LOCAL_PATH)/../wsi   \
 	$(LOCAL_PATH)/../public \
 	$(LOCAL_PATH)/../common/core \
 	$(LOCAL_PATH)/../common/compositor \
@@ -64,6 +64,7 @@ LOCAL_SRC_FILES := \
     common/glcubelayerrenderer.cpp \
     common/videolayerrenderer.cpp \
     common/imagelayerrenderer.cpp \
+    common/cclayerrenderer.cpp \
     common/esTransform.cpp \
     common/jsonhandlers.cpp \
     apps/jsonlayerstest.cpp

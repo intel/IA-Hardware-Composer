@@ -312,7 +312,10 @@ char json_path[1024];
 TEST_PARAMETERS test_parameters;
 hwcomposer::NativeBufferHandler *buffer_handler;
 
-static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
+static uint32_t layerformat2gbmformat(LAYER_FORMAT format,
+                                      uint32_t *usage_format, uint32_t *usage) {
+  *usage = 0;
+
   switch (format) {
     case LAYER_FORMAT_C8:
       return DRM_FORMAT_C8;
@@ -434,6 +437,62 @@ static uint32_t layerformat2gbmformat(LAYER_FORMAT format) {
       return DRM_FORMAT_YUV444;
     case LAYER_FORMAT_YVU444:
       return DRM_FORMAT_YVU444;
+    case LAYER_HAL_PIXEL_FORMAT_YV12:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YV12;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_YVU420;
+    case LAYER_HAL_PIXEL_FORMAT_Y8:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_Y8;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R8;
+    case LAYER_HAL_PIXEL_FORMAT_Y16:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_Y16;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R16;
+    case LAYER_HAL_PIXEL_FORMAT_YCbCr_444_888:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_444_888;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_YUV444;
+    case LAYER_HAL_PIXEL_FORMAT_YCbCr_422_I:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_422_I;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_YUYV;
+    case LAYER_HAL_PIXEL_FORMAT_YCbCr_422_SP:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_422_SP;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_NV16;
+    case LAYER_HAL_PIXEL_FORMAT_YCbCr_420_888:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_420_888;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_NV12;
+    case LAYER_HAL_PIXEL_FORMAT_YCrCb_420_SP:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCrCb_420_SP;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_NV21;
+    case LAYER_HAL_PIXEL_FORMAT_RAW16:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_RAW16;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R16;
+    case LAYER_HAL_PIXEL_FORMAT_RAW_OPAQUE:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_RAW_OPAQUE;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R16;
+    case LAYER_HAL_PIXEL_FORMAT_BLOB:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_BLOB;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R8;
+    case LAYER_ANDROID_SCALER_AVAILABLE_FORMATS_RAW16:
+      *usage_format = LAYER_ANDROID_SCALER_AVAILABLE_FORMATS_RAW16;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_R16;
+    case LAYER_HAL_PIXEL_FORMAT_NV12_LINEAR_CAMERA_INTEL:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_NV12_LINEAR_CAMERA_INTEL;
+      *usage |= HW_BUFFER_USE_LINEAR;
+      return DRM_FORMAT_NV12;
+    case LAYER_HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
+      *usage |= HW_BUFFER_USE_Y_TILED;
+      return DRM_FORMAT_NV12;
     case LAYER_FORMAT_UNDEFINED:
       return (uint32_t)-1;
   }
@@ -505,7 +564,10 @@ static void init_frames(int32_t width, int32_t height) {
 
       LayerRenderer *renderer = NULL;
       hwcomposer::HwcLayer *hwc_layer = NULL;
-      uint32_t gbm_format = layerformat2gbmformat(layer_parameter.format);
+      uint32_t usage_format, usage;
+      uint64_t modificators[4];
+      uint32_t gbm_format =
+          layerformat2gbmformat(layer_parameter.format, &usage_format, &usage);
 
       switch (layer_parameter.type) {
         // todo: more GL layer categories intead of only one CubeLayer
@@ -532,7 +594,8 @@ static void init_frames(int32_t width, int32_t height) {
       }
 
       if (!renderer->Init(layer_parameter.source_width,
-                          layer_parameter.source_height, gbm_format, &gl,
+                          layer_parameter.source_height, gbm_format,
+                          usage_format, usage, &gl,
                           layer_parameter.resource_path.c_str())) {
         printf("\nrender init not successful\n");
         exit(-1);

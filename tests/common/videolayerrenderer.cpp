@@ -32,8 +32,10 @@ VideoLayerRenderer::~VideoLayerRenderer() {
 }
 
 bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
+                              uint32_t usage_format, uint32_t usage,
                               glContext* gl, const char* resource_path) {
-  if (!LayerRenderer::Init(width, height, format, gl, resource_path))
+  if (!LayerRenderer::Init(width, height, format, usage_format, usage, gl,
+                           resource_path))
     return false;
   if (!resource_path) {
     ETRACE("resource file no provided");
