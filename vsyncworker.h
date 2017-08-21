@@ -28,20 +28,13 @@
 
 namespace android {
 
-class VsyncCallback {
- public:
-  virtual ~VsyncCallback() {
-  }
-  virtual void Callback(int display, int64_t timestamp) = 0;
-};
-
 class VSyncWorker : public Worker {
  public:
   VSyncWorker();
   ~VSyncWorker() override;
 
   int Init(DrmResources *drm, int display);
-  void RegisterCallback(std::shared_ptr<VsyncCallback> callback);
+  void SetProcs(hwc_procs_t const *procs);
 
   void VSyncControl(bool enabled);
 
@@ -53,11 +46,7 @@ class VSyncWorker : public Worker {
   int SyntheticWaitVBlank(int64_t *timestamp);
 
   DrmResources *drm_;
-
-  // shared_ptr since we need to use this outside of the thread lock (to
-  // actually call the hook) and we don't want the memory freed until we're
-  // done
-  std::shared_ptr<VsyncCallback> callback_ = NULL;
+  hwc_procs_t const *procs_;
 
   int display_;
   bool enabled_;

@@ -71,11 +71,6 @@ int DrmResources::Init() {
     return -ENODEV;
   }
 
-  min_resolution_ =
-      std::pair<uint32_t, uint32_t>(res->min_width, res->min_height);
-  max_resolution_ =
-      std::pair<uint32_t, uint32_t>(res->max_width, res->max_height);
-
   bool found_primary = false;
   int display_num = 1;
 
