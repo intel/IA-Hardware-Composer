@@ -35,9 +35,13 @@
 #include <utils/Trace.h>
 
 #include "drmdisplaycomposition.h"
-#include "platform.h"
 
 #include "glworker.h"
+
+// TODO(zachr): use hwc_drm_bo to turn buffer handles into textures
+#ifndef EGL_NATIVE_HANDLE_ANDROID_NVX
+#define EGL_NATIVE_HANDLE_ANDROID_NVX 0x322A
+#endif
 
 #define MAX_OVERLAPPING_LAYERS 64
 
@@ -412,9 +416,10 @@ static int EGLFenceWait(EGLDisplay egl_display, int acquireFenceFd) {
 
 static int CreateTextureFromHandle(EGLDisplay egl_display,
                                    buffer_handle_t handle,
-                                   Importer *importer,
                                    AutoEGLImageAndGLTexture *out) {
-  EGLImageKHR image = importer->ImportImage(egl_display, handle);
+  EGLImageKHR image = eglCreateImageKHR(
+      egl_display, EGL_NO_CONTEXT, EGL_NATIVE_HANDLE_ANDROID_NVX,
+      (EGLClientBuffer)handle, NULL /* no attribs */);
 
   if (image == EGL_NO_IMAGE_KHR) {
     ALOGE("Failed to make image %s %p", GetEGLError(), handle);
@@ -547,8 +552,7 @@ GLWorkerCompositor::~GLWorkerCompositor() {
 int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
                                   DrmCompositionRegion *regions,
                                   size_t num_regions,
-                                  const sp<GraphicBuffer> &framebuffer,
-                                  Importer *importer) {
+                                  const sp<GraphicBuffer> &framebuffer) {
   ATRACE_CALL();
   int ret = 0;
   std::vector<AutoEGLImageAndGLTexture> layer_textures;
@@ -586,7 +590,7 @@ int GLWorkerCompositor::Composite(DrmHwcLayer *layers,
       continue;
 
     ret = CreateTextureFromHandle(egl_display_, layer->get_usable_handle(),
-                                  importer, &layer_textures.back());
+                                  &layer_textures.back());
 
     if (!ret) {
       ret = EGLFenceWait(egl_display_, layer->acquire_fence.Release());
