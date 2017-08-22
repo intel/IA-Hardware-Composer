@@ -147,7 +147,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (plane_state_render || plane.SurfaceRecycled()) {
       bool content_changed = false;
       bool region_changed = false;
-      const std::vector<size_t>& source_layers = plane.source_layers();
+      const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
 
