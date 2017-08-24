@@ -82,7 +82,7 @@ class PlanStageNvLimits : public Planner::PlanStage {
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes);
  protected:
-  bool CheckLayer(DrmHwcLayer *layer);
+  bool CheckLayer(size_t zorder, DrmHwcLayer *layer);
 };
 }
 
