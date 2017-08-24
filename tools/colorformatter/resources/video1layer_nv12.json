@@ -1,0 +1,26 @@
+{
+  "layers_parameters": [
+    {
+      "format": 47,
+      "frame": {
+        "height": 400,
+        "width": 600,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "./resources/resource.nv12.yuv",
+      "source": {
+        "crop": {
+          "height": 400,
+          "width": 600,
+          "x": 0,
+          "y": 0
+        },
+        "height": 400,
+        "width": 600
+      },
+      "transform": 0,
+      "type": 1
+    }
+  ]
+}
