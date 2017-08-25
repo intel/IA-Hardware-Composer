@@ -42,7 +42,8 @@ struct OverlayLayer {
   // Initialize OverlayLayer from layer.
   void InitializeFromHwcLayer(HwcLayer* layer,
                               NativeBufferHandler* buffer_handler,
-                              uint32_t z_order, uint32_t layer_index,
+                              OverlayLayer* previous_layer, uint32_t z_order,
+                              uint32_t layer_index,
                               const HwcRect<int>& display_frame, bool scaled);
 
   // Get z order of this layer.
@@ -110,14 +111,6 @@ struct OverlayLayer {
     return display_frame_height_;
   }
 
-  // Validates current state with previous frame state of
-  // layer at same z order.
-  void ValidatePreviousFrameState(const OverlayLayer& rhs, HwcLayer* layer);
-
-  // Check if we want to use a separate overlay for this
-  // layer.
-  void ValidateForOverlayUsage();
-
   // Returns true if any other attribute of layer
   // other than psotion has changed from previous
   // frame.
@@ -172,6 +165,16 @@ struct OverlayLayer {
     std::unique_ptr<OverlayBuffer> buffer_;
     int32_t acquire_fence_ = -1;
   };
+
+  // Validates current state with previous frame state of
+  // layer at same z order.
+  void ValidatePreviousFrameState(OverlayLayer* rhs, HwcLayer* layer);
+
+  // Check if we want to use a separate overlay for this
+  // layer.
+  void ValidateForOverlayUsage();
+
+  OverlayBuffer* ReleaseBuffer();
 
   uint32_t transform_ = 0;
   uint32_t rotation_ = 1 << DRM_ROTATE_0;

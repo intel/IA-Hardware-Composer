@@ -93,9 +93,14 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     layers.emplace_back();
     OverlayLayer& overlay_layer = layers.back();
-    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, z_order,
-                                         layer_index, layer->GetDisplayFrame(),
-                                         false);
+    OverlayLayer* previous_layer = NULL;
+    if (previous_size > z_order) {
+      previous_layer = &(in_flight_layers_.at(z_order));
+    }
+
+    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, previous_layer,
+                                         z_order, layer_index,
+                                         layer->GetDisplayFrame(), false);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -103,11 +108,6 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     if (frame_changed) {
       layer->Validate();
       continue;
-    }
-
-    if (previous_size > layer_index) {
-      overlay_layer.ValidatePreviousFrameState(
-          in_flight_layers_.at(layer_index), layer);
     }
 
     if (overlay_layer.HasLayerAttributesChanged() ||

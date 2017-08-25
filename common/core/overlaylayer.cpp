@@ -90,8 +90,9 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
-    HwcLayer* layer, NativeBufferHandler* buffer_handler, uint32_t z_order,
-    uint32_t layer_index, const HwcRect<int>& display_frame, bool scaled) {
+    HwcLayer* layer, NativeBufferHandler* buffer_handler,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    const HwcRect<int>& display_frame, bool scaled) {
   transform_ = layer->GetTransform();
   rotation_ = layer->GetRotation();
   alpha_ = layer->GetAlpha();
@@ -110,28 +111,31 @@ void OverlayLayer::InitializeFromHwcLayer(
   blending_ = layer->GetBlending();
   SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence());
   ValidateForOverlayUsage();
+  if (previous_layer) {
+    ValidatePreviousFrameState(previous_layer, layer);
+  }
 }
 
-void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
+void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   surface_damage_ = layer->GetSurfaceDamage();
-  gpu_rendered_ = rhs.gpu_rendered_;
+  gpu_rendered_ = rhs->gpu_rendered_;
   if (!prefer_separate_plane_)
-    prefer_separate_plane_ = rhs.prefer_separate_plane_;
+    prefer_separate_plane_ = rhs->prefer_separate_plane_;
 
-  if (buffer->GetFormat() != rhs.imported_buffer_->buffer_->GetFormat())
+  if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat())
     return;
 
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
   // We expect cursor plane to support alpha always.
-  if ((gpu_rendered_ && !rect_changed) || (buffer->GetUsage() & kLayerCursor)) {
-    content_changed = (alpha_ != rhs.alpha_) || rect_changed ||
+  if ((gpu_rendered_ && !rect_changed) || (cursor_layer_)) {
+    content_changed = (alpha_ != rhs->alpha_) || rect_changed ||
                       layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged();
   } else {
-    if (alpha_ != rhs.alpha_ || rect_changed ||
+    if (alpha_ != rhs->alpha_ || rect_changed ||
         layer->HasContentAttributesChanged() ||
         layer->HasLayerAttributesChanged())
       return;
