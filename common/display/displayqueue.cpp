@@ -358,6 +358,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (!idle_frame)
       tracker.ResetTrackerState();
 
+    RecyclePreviousPlaneSurfaces();
     render_layers = display_plane_manager_->ValidateLayers(
         layers, state_ & kConfigurationChanged, idle_frame || disable_ovelays,
         current_composition_planes);
@@ -492,6 +493,17 @@ void DisplayQueue::UpdateSurfaceInUse(
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     for (NativeSurface* surface : surfaces) {
       surface->SetInUse(in_use);
+    }
+  }
+}
+
+void DisplayQueue::RecyclePreviousPlaneSurfaces() {
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    size_t size = surfaces.size();
+    // Let's not mark the surface currently on screen as free.
+    for (size_t i = 1; i < size; i++) {
+      surfaces.at(i)->SetInUse(false);
     }
   }
 }

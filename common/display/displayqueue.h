@@ -207,6 +207,7 @@ class DisplayQueue {
                                std::vector<HwcLayer*>& source_layers) const;
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
+  void RecyclePreviousPlaneSurfaces();
 
   void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
 
