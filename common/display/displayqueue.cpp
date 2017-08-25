@@ -268,10 +268,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
       overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, index,
-                                           layer_index, display_frame);
+                                           layer_index, display_frame, true);
     } else {
-      overlay_layer.InitializeFromHwcLayer(
-          layer, buffer_handler_, index, layer_index, layer->GetDisplayFrame());
+      overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, index,
+                                           layer_index,
+                                           layer->GetDisplayFrame(), false);
     }
 
     if (previous_size > index) {

@@ -23,6 +23,31 @@
 
 namespace hwcomposer {
 
+/* rotation property bits */
+#ifndef DRM_ROTATE_0
+#define DRM_ROTATE_0 0
+#endif
+
+#ifndef DRM_ROTATE_90
+#define DRM_ROTATE_90 1
+#endif
+
+#ifndef DRM_ROTATE_180
+#define DRM_ROTATE_180 2
+#endif
+
+#ifndef DRM_ROTATE_270
+#define DRM_ROTATE_270 3
+#endif
+
+#ifndef DRM_ROTATE_X
+#define DRM_REFLECT_X 4
+#endif
+
+#ifndef DRM_ROTATE_Y
+#define DRM_REFLECT_Y 5
+#endif
+
 struct HwcLayer {
   ~HwcLayer();
 
@@ -40,6 +65,10 @@ struct HwcLayer {
 
   uint32_t GetTransform() const {
     return transform_;
+  }
+
+  uint32_t GetRotation() const {
+    return rotation_;
   }
 
   void SetAlpha(uint8_t alpha);
@@ -62,6 +91,22 @@ struct HwcLayer {
   void SetDisplayFrame(const HwcRect<int>& display_frame);
   const HwcRect<int>& GetDisplayFrame() const {
     return display_frame_;
+  }
+
+  uint32_t GetSourceCropWidth() const {
+    return source_crop_width_;
+  }
+
+  uint32_t GetSourceCropHeight() const {
+    return source_crop_height_;
+  }
+
+  uint32_t GetDisplayFrameWidth() const {
+    return display_frame_width_;
+  }
+
+  uint32_t GetDisplayFrameHeight() const {
+    return display_frame_height_;
   }
 
   /**
@@ -232,6 +277,11 @@ struct HwcLayer {
   };
 
   int32_t transform_ = 0;
+  uint32_t rotation_ = 1 << DRM_ROTATE_0;
+  uint32_t source_crop_width_ = 0;
+  uint32_t source_crop_height_ = 0;
+  uint32_t display_frame_width_ = 0;
+  uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;

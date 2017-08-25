@@ -21,6 +21,7 @@
 #include <platformdefines.h>
 
 #include <memory>
+#include <hwclayer.h>
 
 #include "overlaybuffer.h"
 
@@ -29,31 +30,6 @@ namespace hwcomposer {
 struct HwcLayer;
 class OverlayBuffer;
 class NativeBufferHandler;
-
-/* rotation property bits */
-#ifndef DRM_ROTATE_0
-#define DRM_ROTATE_0 0
-#endif
-
-#ifndef DRM_ROTATE_90
-#define DRM_ROTATE_90 1
-#endif
-
-#ifndef DRM_ROTATE_180
-#define DRM_ROTATE_180 2
-#endif
-
-#ifndef DRM_ROTATE_270
-#define DRM_ROTATE_270 3
-#endif
-
-#ifndef DRM_ROTATE_X
-#define DRM_REFLECT_X 4
-#endif
-
-#ifndef DRM_ROTATE_Y
-#define DRM_REFLECT_Y 5
-#endif
 
 struct OverlayLayer {
   OverlayLayer() = default;
@@ -67,7 +43,7 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer,
                               NativeBufferHandler* buffer_handler,
                               uint32_t z_order, uint32_t layer_index,
-                              const HwcRect<int>& display_frame);
+                              const HwcRect<int>& display_frame, bool scaled);
 
   // Get z order of this layer.
   uint32_t GetZorder() const {

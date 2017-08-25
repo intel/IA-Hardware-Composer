@@ -21,7 +21,6 @@
 
 #include "hwcutils.h"
 
-#include <hwclayer.h>
 #include <nativebufferhandler.h>
 
 namespace hwcomposer {
@@ -65,7 +64,6 @@ void OverlayLayer::SetBuffer(NativeBufferHandler* buffer_handler,
                              HWCNativeHandle handle, int32_t acquire_fence) {
   OverlayBuffer* buffer = OverlayBuffer::CreateOverlayBuffer();
   buffer->InitializeFromNativeHandle(handle, buffer_handler);
-  cursor_layer_ = buffer->GetUsage() & kLayerCursor;
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
 }
 
@@ -91,32 +89,25 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_ = display_frame;
 }
 
-void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
-                                          NativeBufferHandler* buffer_handler,
-                                          uint32_t z_order,
-                                          uint32_t layer_index,
-                                          const HwcRect<int>& display_frame) {
+void OverlayLayer::InitializeFromHwcLayer(
+    HwcLayer* layer, NativeBufferHandler* buffer_handler, uint32_t z_order,
+    uint32_t layer_index, const HwcRect<int>& display_frame, bool scaled) {
   transform_ = layer->GetTransform();
-  rotation_ = 0;
-  if (transform_ & kReflectX)
-    rotation_ |= 1 << DRM_REFLECT_X;
-  if (transform_ & kReflectY)
-    rotation_ |= 1 << DRM_REFLECT_Y;
-  if (transform_ & kRotate90)
-    rotation_ |= 1 << DRM_ROTATE_90;
-  else if (transform_ & kRotate180)
-    rotation_ |= 1 << DRM_ROTATE_180;
-  else if (transform_ & kRotate270)
-    rotation_ |= 1 << DRM_ROTATE_270;
-  else
-    rotation_ |= 1 << DRM_ROTATE_0;
-
+  rotation_ = layer->GetRotation();
   alpha_ = layer->GetAlpha();
   layer_index_ = layer_index;
   z_order_ = z_order;
-  SetBlending(layer->GetBlending());
-  SetSourceCrop(layer->GetSourceCrop());
-  SetDisplayFrame(display_frame);
+  source_crop_width_ = layer->GetSourceCropWidth();
+  source_crop_height_ = layer->GetSourceCropHeight();
+  source_crop_ = layer->GetSourceCrop();
+  if (scaled) {
+    SetDisplayFrame(display_frame);
+  } else {
+    display_frame_width_ = layer->GetDisplayFrameWidth();
+    display_frame_height_ = layer->GetDisplayFrameHeight();
+    display_frame_ = display_frame;
+  }
+  blending_ = layer->GetBlending();
   SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence());
   ValidateForOverlayUsage();
 }
@@ -160,7 +151,9 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
 }
 
 void OverlayLayer::ValidateForOverlayUsage() {
-  prefer_separate_plane_ = imported_buffer_->buffer_->IsVideoBuffer();
+  const std::unique_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
+  prefer_separate_plane_ = buffer->IsVideoBuffer();
+  cursor_layer_ = buffer->GetUsage() & kLayerCursor;
 }
 
 void OverlayLayer::Dump() {

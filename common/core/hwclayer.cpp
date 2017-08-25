@@ -35,37 +35,48 @@ void HwcLayer::SetNativeHandle(HWCNativeHandle handle) {
 void HwcLayer::SetTransform(int32_t transform) {
   if (transform != transform_) {
     layer_cache_ |= kLayerAttributesChanged;
-  }
+    transform_ = transform;
 
-  transform_ = transform;
+    if (transform_ & kReflectX)
+      rotation_ |= 1 << DRM_REFLECT_X;
+    if (transform_ & kReflectY)
+      rotation_ |= 1 << DRM_REFLECT_Y;
+    if (transform_ & kRotate90)
+      rotation_ |= 1 << DRM_ROTATE_90;
+    else if (transform_ & kRotate180)
+      rotation_ |= 1 << DRM_ROTATE_180;
+    else if (transform_ & kRotate270)
+      rotation_ |= 1 << DRM_ROTATE_270;
+    else
+      rotation_ |= 1 << DRM_ROTATE_0;
+  }
 }
 
 void HwcLayer::SetAlpha(uint8_t alpha) {
   if (alpha_ != alpha) {
     layer_cache_ |= kDIsplayContentAttributesChanged;
+    alpha_ = alpha;
   }
-
-  alpha_ = alpha;
 }
 
 void HwcLayer::SetBlending(HWCBlending blending) {
   if (blending != blending_) {
     layer_cache_ |= kDIsplayContentAttributesChanged;
+    blending_ = blending;
   }
-
-  blending_ = blending;
 }
 
 void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
-  uint32_t new_src_crop_width = source_crop.right - source_crop.left;
-  uint32_t new_src_crop_height = source_crop.bottom - source_crop.top;
+  uint32_t new_src_crop_width =
+      static_cast<int>(source_crop.right - source_crop.left);
+  uint32_t new_src_crop_height =
+      static_cast<int>(source_crop.bottom - source_crop.top);
 
-  uint32_t old_src_crop_width = source_crop_.right - source_crop_.left;
-  uint32_t old_src_crop_height = source_crop_.bottom - source_crop_.top;
-
-  if ((new_src_crop_width != old_src_crop_width) ||
-      (new_src_crop_height != old_src_crop_height)) {
+  if ((new_src_crop_width != source_crop_width_) ||
+      (new_src_crop_height != source_crop_height_)) {
     layer_cache_ |= kDisplayFrameRectChanged;
+    source_crop_width_ = new_src_crop_width;
+    source_crop_height_ = new_src_crop_height;
   }
 
   source_crop_ = source_crop;
@@ -75,18 +86,15 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   uint32_t new_display_frame_width = display_frame.right - display_frame.left;
   uint32_t new_display_frame_height = display_frame.bottom - display_frame.top;
 
-  uint32_t old_display_frame_width = display_frame_.right - display_frame_.left;
-  uint32_t old_display_frame_height =
-      display_frame_.bottom - display_frame_.top;
-
-  if ((new_display_frame_width != old_display_frame_width) ||
-      (new_display_frame_height != old_display_frame_height) ||
+  if ((new_display_frame_width != display_frame_width_) ||
+      (new_display_frame_height != display_frame_height_) ||
       (display_frame.left != display_frame_.left) ||
       (display_frame.right != display_frame_.right)) {
     layer_cache_ |= kDisplayFrameRectChanged;
+    display_frame_width_ = new_display_frame_width;
+    display_frame_height_ = new_display_frame_height;
+    display_frame_ = display_frame;
   }
-
-  display_frame_ = display_frame;
 
   if (!(state_ & kVisibleRegionSet)) {
     visible_rect_ = display_frame;

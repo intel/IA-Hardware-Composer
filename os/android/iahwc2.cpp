@@ -205,8 +205,8 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
-	// TODO: Remove this when we want to add support for more than 2
-	// Displays.
+        // TODO: Remove this when we want to add support for more than 2
+        // Displays.
         break;
       }
 
