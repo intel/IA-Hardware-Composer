@@ -289,15 +289,19 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
+  const HwcRect<int> &rect = plane.GetDisplayFrame();
+  int width = rect.right - rect.left;
+  int height = rect.bottom - rect.top;
   for (auto &fb : surfaces_) {
-    if (!fb->InUse()) {
+    if (!fb->InUse() && (width == fb->GetWidth()) &&
+        (height == fb->GetHeight())) {
       surface = fb.get();
       break;
     }
   }
 
   if (!surface) {
-    NativeSurface *new_surface = CreateBackBuffer(width_, height_);
+    NativeSurface *new_surface = CreateBackBuffer(width, height);
     new_surface->Init(buffer_handler_);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();

@@ -125,6 +125,7 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   surface_damage_ = layer->GetSurfaceDamage();
+  gpu_rendered_ = rhs.gpu_rendered_;
   if (!prefer_separate_plane_)
     prefer_separate_plane_ = rhs.prefer_separate_plane_;
 
@@ -132,14 +133,14 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
     return;
 
   bool content_changed = false;
+  bool rect_changed = layer->HasDisplayRectChanged();
   // We expect cursor plane to support alpha always.
-  if (rhs.gpu_rendered_ || (buffer->GetUsage() & kLayerCursor)) {
-    content_changed = alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
+  if ((gpu_rendered_ && !rect_changed) || (buffer->GetUsage() & kLayerCursor)) {
+    content_changed = (alpha_ != rhs.alpha_) || rect_changed ||
                       layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged();
-    gpu_rendered_ = rhs.gpu_rendered_;
   } else {
-    if (alpha_ != rhs.alpha_ || layer->HasDisplayRectChanged() ||
+    if (alpha_ != rhs.alpha_ || rect_changed ||
         layer->HasContentAttributesChanged() ||
         layer->HasLayerAttributesChanged())
       return;
@@ -147,7 +148,7 @@ void OverlayLayer::ValidatePreviousFrameState(const OverlayLayer& rhs,
 
   state_ &= ~kLayerAttributesChanged;
 
-  if (!layer->HasDisplayRectChanged()) {
+  if (!rect_changed) {
     state_ &= ~kDimensionsChanged;
   }
 

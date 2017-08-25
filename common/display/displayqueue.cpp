@@ -170,8 +170,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      plane.TransferSurfaces(
-          last_plane, content_changed || region_changed || reset_regions);
+      if (!region_changed && !reset_regions) {
+        plane.TransferSurfaces(last_plane, content_changed);
+        const std::vector<CompositionRegion>& comp_regions =
+            plane.GetCompositionRegion();
+        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                 comp_regions.end());
+      }
+
       if (content_changed || region_changed || reset_regions) {
         if (last_plane.GetSurfaces().size() == 3) {
           NativeSurface* surface = last_plane.GetOffScreenTarget();
@@ -191,13 +197,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         NativeSurface* surface = plane.GetOffScreenTarget();
         surface->RecycleSurface(last_plane);
         last_plane.ReUseOffScreenTarget();
-      }
-
-      if (!region_changed && !reset_regions) {
-        const std::vector<CompositionRegion>& comp_regions =
-            plane.GetCompositionRegion();
-        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
-                                                 comp_regions.end());
       }
     } else {
       const OverlayLayer* layer =

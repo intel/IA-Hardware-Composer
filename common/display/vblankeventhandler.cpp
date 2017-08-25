@@ -88,7 +88,7 @@ int VblankEventHandler::VSyncControl(bool enabled) {
 
 void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
                                              unsigned int usec) {
-  int64_t timestamp = (int64_t)sec * kOneSecondNs + (int64_t)usec * 1000;
+  int64_t timestamp = ((int64_t)sec * kOneSecondNs) + ((int64_t)usec * 1000);
   IPAGEFLIPEVENTTRACE("HandleVblankCallBack Frame Time %f",
                       static_cast<float>(timestamp - last_timestamp_) / (1000));
   last_timestamp_ = timestamp;
