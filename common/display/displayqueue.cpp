@@ -452,14 +452,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   UpdateSurfaceInUse(false, previous_plane_state_);
   previous_plane_state_.swap(current_composition_planes);
   UpdateSurfaceInUse(true, previous_plane_state_);
-  if (state_ & kReleaseSurfaces) {
-    ReleaseSurfaces();
-    state_ &= ~kReleaseSurfaces;
-  }
-
-  if (validate_layers) {
-    state_ |= kReleaseSurfaces;
-  }
 
   if (idle_frame) {
     ReleaseSurfaces();
@@ -469,6 +461,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   } else {
     state_ &= ~kLastFrameIdleUpdate;
+    ReleaseSurfacesAsNeeded(validate_layers);
   }
 
   if (fence > 0) {
@@ -511,6 +504,24 @@ void DisplayQueue::SetCloneMode(bool cloned) {
 void DisplayQueue::ReleaseSurfaces() {
   compositor_.FreeResources(false);
   sync_ = true;
+  state_ &= ~kMarkSurfacesForRelease;
+  state_ &= ~kReleaseSurfaces;
+}
+
+void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
+  if (state_ & kReleaseSurfaces) {
+    ReleaseSurfaces();
+  }
+
+  if (state_ & kMarkSurfacesForRelease) {
+    state_ |= kReleaseSurfaces;
+    state_ &= ~kMarkSurfacesForRelease;
+  }
+
+  if (layers_validated) {
+    state_ |= kMarkSurfacesForRelease;
+    state_ &= ~kReleaseSurfaces;
+  }
 }
 
 void DisplayQueue::UpdateSurfaceInUse(

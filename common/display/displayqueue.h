@@ -88,10 +88,11 @@ class DisplayQueue {
 
  private:
   enum QueueState {
-    kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
-    kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
-    kDisableOverlayUsage = 1 << 3,   // Disable Overlays.
-    kReleaseSurfaces = 1 << 5,       // Release Native Surfaces.
+    kNeedsColorCorrection = 1 << 0,    // Needs Color correction.
+    kConfigurationChanged = 1 << 1,    // Layers need to be re-validated.
+    kDisableOverlayUsage = 1 << 3,     // Disable Overlays.
+    kMarkSurfacesForRelease = 1 << 4,  // Mark surfaces to be released.
+    kReleaseSurfaces = 1 << 5,         // Release Native Surfaces.
     kIgnoreIdleRefresh =
         1 << 6,            // Ignore refresh request during idle callback.
     kClonedMode = 1 << 7,  // We are in cloned mode.
@@ -212,6 +213,7 @@ class DisplayQueue {
   void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
 
   void ReleaseSurfaces();
+  void ReleaseSurfacesAsNeeded(bool layers_validated);
 
   Compositor compositor_;
   uint32_t frame_;
