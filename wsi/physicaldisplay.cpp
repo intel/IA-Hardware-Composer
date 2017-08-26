@@ -39,8 +39,7 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
       dpix_(0),
       dpiy_(0),
       gpu_fd_(gpu_fd),
-      power_mode_(kOn),
-      refresh_(0.0) {
+      power_mode_(kOn) {
 }
 
 PhysicalDisplay::~PhysicalDisplay() {
@@ -69,7 +68,7 @@ void PhysicalDisplay::Connect() {
   display_state_ |= kConnected;
   display_state_ &= ~kInitialized;
 
-  if (!display_queue_->Initialize(refresh_, pipe_, width_, height_, this)) {
+  if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
   } else {
     display_state_ |= kInitialized;

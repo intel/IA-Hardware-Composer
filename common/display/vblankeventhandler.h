@@ -36,7 +36,7 @@ class VblankEventHandler : public HWCThread {
   VblankEventHandler(DisplayQueue* queue);
   ~VblankEventHandler() override;
 
-  void Init(float refresh, int fd, int pipe);
+  void Init(int fd, int pipe);
 
   bool SetPowerMode(uint32_t power_mode);
 
@@ -60,7 +60,6 @@ class VblankEventHandler : public HWCThread {
   uint32_t display_;
   bool enabled_ = false;
 
-  float refresh_;
   int fd_;
   int64_t last_timestamp_;
   drmVBlankSeqType type_;

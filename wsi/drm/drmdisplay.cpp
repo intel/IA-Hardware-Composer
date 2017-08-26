@@ -325,18 +325,6 @@ void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
 void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {
   width_ = mode_info.hdisplay;
   height_ = mode_info.vdisplay;
-  refresh_ =
-      (mode_info.clock * 1000.0f) / (mode_info.htotal * mode_info.vtotal);
-
-  if (mode_info.flags & DRM_MODE_FLAG_INTERLACE)
-    refresh_ *= 2;
-
-  if (mode_info.flags & DRM_MODE_FLAG_DBLSCAN)
-    refresh_ /= 2;
-
-  if (mode_info.vscan > 1)
-    refresh_ /= mode_info.vscan;
-
   dpix_ = mmWidth_ ? (width_ * kUmPerInch) / mmWidth_ : -1;
   dpiy_ = mmHeight_ ? (height_ * kUmPerInch) / mmHeight_ : -1;
   current_mode_ = mode_info;

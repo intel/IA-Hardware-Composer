@@ -51,7 +51,7 @@ class DisplayQueue {
                NativeBufferHandler* buffer_handler, PhysicalDisplay* display);
   ~DisplayQueue();
 
-  bool Initialize(float refresh, uint32_t pipe, uint32_t width, uint32_t height,
+  bool Initialize(uint32_t pipe, uint32_t width, uint32_t height,
                   DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,

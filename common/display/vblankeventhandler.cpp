@@ -30,7 +30,6 @@ VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
     : HWCThread(-8, "VblankEventHandler"),
       display_(0),
       enabled_(false),
-      refresh_(0.0),
       fd_(-1),
       last_timestamp_(-1),
       queue_(queue) {
@@ -40,14 +39,11 @@ VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
 VblankEventHandler::~VblankEventHandler() {
 }
 
-void VblankEventHandler::Init(float refresh, int fd, int pipe) {
-  spin_lock_.lock();
-  refresh_ = refresh;
+void VblankEventHandler::Init(int fd, int pipe) {
   fd_ = fd;
   uint32_t high_crtc = (pipe << DRM_VBLANK_HIGH_CRTC_SHIFT);
   type_ = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE |
                              (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
-  spin_lock_.unlock();
 }
 
 bool VblankEventHandler::SetPowerMode(uint32_t power_mode) {
@@ -112,10 +108,8 @@ void VblankEventHandler::HandleRoutine() {
   memset(&vblank, 0, sizeof(vblank));
   vblank.request.sequence = 1;
 
-  spin_lock_.lock();
   int fd = fd_;
   vblank.request.type = type_;
-  spin_lock_.unlock();
 
   int ret = drmWaitVBlank(fd, &vblank);
   if (!ret)

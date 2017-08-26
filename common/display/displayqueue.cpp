@@ -63,7 +63,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
 DisplayQueue::~DisplayQueue() {
 }
 
-bool DisplayQueue::Initialize(float refresh, uint32_t pipe, uint32_t width,
+bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width,
                               uint32_t height,
                               DisplayPlaneHandler* plane_handler) {
   frame_ = 0;
@@ -74,7 +74,8 @@ bool DisplayQueue::Initialize(float refresh, uint32_t pipe, uint32_t width,
     return false;
   }
 
-  vblank_handler_->Init(refresh, gpu_fd_, pipe);
+  vblank_handler_->SetPowerMode(kOff);
+  vblank_handler_->Init(gpu_fd_, pipe);
   if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
     hwc_lock_.reset(new HWCLock());
     if (!hwc_lock_->RegisterCallBack(this)) {

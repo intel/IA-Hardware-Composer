@@ -61,10 +61,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     return height_;
   }
 
-  int32_t GetRefreshRate() const override {
-    return refresh_;
-  }
-
   uint32_t PowerMode() const override;
 
   int GetDisplayPipe() override;
@@ -188,7 +184,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   int32_t dpiy_;
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
-  float refresh_;
   uint32_t display_state_ = 0;
   uint32_t hot_plug_display_id_ = 0;
   SpinLock modeset_lock_;

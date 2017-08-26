@@ -47,10 +47,6 @@ class Headless : public NativeDisplay {
     return 1;
   }
 
-  int32_t GetRefreshRate() const override {
-    return 0;
-  }
-
   uint32_t PowerMode() const override {
     return 0;
   }
