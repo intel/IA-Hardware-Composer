@@ -114,12 +114,25 @@ void OverlayLayer::InitializeFromHwcLayer(
   if (previous_layer) {
     ValidatePreviousFrameState(previous_layer, layer);
   }
+
+  if (transform_ == 0) {
+    surface_damage_ = layer->GetSurfaceDamage();
+  } else {
+    // TODO: FIXME: We should be able to use surfacedamage
+    // even when transform applied is not 0.
+    surface_damage_ = display_frame_;
+  }
+
+  if (layer->HasContentAttributesChanged() ||
+      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
+      layer->HasSourcePositionChanged()) {
+    state_ |= kClearSurface;
+  }
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
-  surface_damage_ = layer->GetSurfaceDamage();
   gpu_rendered_ = rhs->gpu_rendered_;
   if (!prefer_separate_plane_)
     prefer_separate_plane_ = rhs->prefer_separate_plane_;
@@ -131,13 +144,19 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   bool rect_changed = layer->HasDisplayRectChanged();
   // We expect cursor plane to support alpha always.
   if ((gpu_rendered_ && !rect_changed) || (cursor_layer_)) {
-    content_changed = (alpha_ != rhs->alpha_) || rect_changed ||
-                      layer->HasContentAttributesChanged() ||
+    content_changed = rect_changed || layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged();
   } else {
-    if (alpha_ != rhs->alpha_ || rect_changed ||
-        layer->HasContentAttributesChanged() ||
+    if (rect_changed || layer->HasContentAttributesChanged() ||
         layer->HasLayerAttributesChanged())
+      return;
+
+    // If previous layer was opaque and we have alpha now,
+    // let's mark this layer for re-validation. Plane
+    // supporting XRGB format might not necessarily support
+    // transparent planes. We assume plane supporting
+    // ARGB will support XRGB.
+    if ((rhs->alpha_ == 0xff) && alpha_ != rhs->alpha_)
       return;
   }
 

@@ -72,6 +72,11 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
   uint32_t new_src_crop_height =
       static_cast<int>(source_crop.bottom - source_crop.top);
 
+  if ((source_crop.left != source_crop_.left) ||
+      (source_crop.right != source_crop_.right)) {
+    layer_cache_ |= kSourcePositionChanged;
+  }
+
   if ((new_src_crop_width != source_crop_width_) ||
       (new_src_crop_height != source_crop_height_)) {
     layer_cache_ |= kDisplayFrameRectChanged;
@@ -138,6 +143,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   new_damage_rect.right = std::min(display_frame_.right, new_damage_rect.right);
   new_damage_rect.bottom =
       std::min(display_frame_.bottom, new_damage_rect.bottom);
+
   if ((surface_damage_.left == new_damage_rect.left) &&
       (surface_damage_.top == new_damage_rect.top) &&
       (surface_damage_.right == new_damage_rect.right) &&
@@ -219,6 +225,7 @@ void HwcLayer::Validate() {
   layer_cache_ &= ~kLayerAttributesChanged;
   layer_cache_ &= ~kDisplayFrameRectChanged;
   layer_cache_ &= ~kDIsplayContentAttributesChanged;
+  layer_cache_ &= ~kSourcePositionChanged;
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {

@@ -77,20 +77,10 @@ bool GLRenderer::Init() {
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
                       NativeSurface *surface, bool clear_surface) {
-  GLuint frame_width(0);
-  GLuint frame_height(0);
+  GLuint frame_width(surface->GetWidth());
+  GLuint frame_height(surface->GetHeight());
   GLuint left(0);
   GLuint top(0);
-  if (clear_surface) {
-    frame_width = surface->GetWidth();
-    frame_height = surface->GetHeight();
-  } else {
-    const HwcRect<int> &damage = surface->GetSurfaceDamage();
-    frame_width = damage.right - damage.left;
-    frame_height = damage.bottom - damage.top;
-    left = damage.left;
-    top = damage.top;
-  }
 
   if (!surface->MakeCurrent())
     return false;
@@ -111,6 +101,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
     program->UseProgram(state, frame_width, frame_height);
     glScissor(state.scissor_x_, state.scissor_y_, state.scissor_width_,
               state.scissor_height_);
+
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     for (unsigned src_index = 0; src_index < size; src_index++) {

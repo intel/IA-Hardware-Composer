@@ -145,27 +145,26 @@ class DisplayPlaneState {
   }
 
   NativeSurface *GetOffScreenTarget() const {
-    if (surfaces_.size() == 0)
+    if (surfaces_.size() == 0) {
       return NULL;
+    }
 
     return surfaces_.at(0);
   }
 
   void TransferSurfaces(DisplayPlaneState &plane_state,
                         bool swap_front_buffer) {
-    uint32_t starting_index = 1;
-    if (surfaces_.size() < 3 || !swap_front_buffer) {
-      starting_index = 0;
-    }
-
     size_t size = surfaces_.size();
-    // Lets make sure front buffer is now back in the list.
-    for (uint32_t i = starting_index; i < size; i++) {
-      plane_state.surfaces_.emplace_back(surfaces_.at(i));
-    }
-
-    if (starting_index == 1)
+    if (size < 3 || !swap_front_buffer) {
+      // Lets make sure front buffer is now back in the list.
+      for (uint32_t i = 0; i < size; i++) {
+        plane_state.surfaces_.emplace_back(surfaces_.at(i));
+      }
+    } else {
+      plane_state.surfaces_.emplace_back(surfaces_.at(2));
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
+      plane_state.surfaces_.emplace_back(surfaces_.at(1));
+    }
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {

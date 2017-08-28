@@ -176,6 +176,14 @@ struct HwcLayer {
   }
 
   /**
+   * API for querying if Layer source position has
+   * changed from last Present call to NativeDisplay.
+   */
+  bool HasSourcePositionChanged() const {
+    return layer_cache_ & kSourcePositionChanged;
+  }
+
+  /**
    * API for querying if layer is visible.
    */
   bool IsVisible() const {
@@ -273,7 +281,8 @@ struct HwcLayer {
   enum LayerCache {
     kLayerAttributesChanged = 1 << 0,
     kDisplayFrameRectChanged = 1 << 1,
-    kDIsplayContentAttributesChanged = 1 << 2
+    kDIsplayContentAttributesChanged = 1 << 2,
+    kSourcePositionChanged = 1 << 3
   };
 
   int32_t transform_ = 0;

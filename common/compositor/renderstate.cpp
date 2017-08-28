@@ -33,13 +33,13 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   y_ = bounds[1];
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
+  uint32_t width = damage.right - damage.left;
+  uint32_t height = damage.bottom - damage.top;
+  uint32_t top = damage.top;
+  uint32_t left = damage.left;
   if (!clear_surface) {
     // If viewport and layer doesn't interact we can avoid re-rendering
     // this state.
-    uint32_t width = damage.right - damage.left;
-    uint32_t height = damage.bottom - damage.top;
-    uint32_t top = damage.top;
-    uint32_t left = damage.left;
     if ((left >= (width_ + x_)) || ((left + width) <= x_) ||
         (top >= height_ + y_) || ((top + height) <= y_)) {
       return;
@@ -59,6 +59,22 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   const std::vector<size_t> &source = region.source_layers;
   for (size_t texture_index : source) {
     OverlayLayer &layer = layers.at(texture_index);
+    if (!clear_surface) {
+      // If viewport and layer doesn't interact we can avoid re-rendering
+      // this state.
+      const HwcRect<int> &layer_damage = layer.GetDisplayFrame();
+      uint32_t layer_width = layer_damage.right - layer_damage.left;
+      uint32_t layer_height = layer_damage.bottom - layer_damage.top;
+      uint32_t layer_top = layer_damage.top;
+      uint32_t layer_left = layer_damage.left;
+      if ((left >= (layer_width + layer_left)) ||
+          ((left + width) <= layer_left) ||
+          (top >= (layer_height + layer_top)) ||
+          ((top + height) <= layer_top)) {
+        continue;
+      }
+    }
+
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.layer_index_ = texture_index;

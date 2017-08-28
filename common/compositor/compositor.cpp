@@ -91,11 +91,16 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
       if (!CalculateRenderState(layers, comp_regions, state)) {
-        ETRACE("Failed to Render layer.");
+        ETRACE("Failed to calculate Render state.");
         return false;
+      }
+
+      if (state.states_.empty()) {
+        draw_state.pop_back();
       }
     }
   }
+
   if (draw_state.empty())
     return true;
 
@@ -161,8 +166,7 @@ bool Compositor::CalculateRenderState(
   size_t num_regions = comp_regions.size();
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
-    draw_state.states_.emplace(draw_state.states_.begin(), RenderState());
-    RenderState &state = draw_state.states_.at(0);
+    RenderState state;
     state.ConstructState(layers, region,
                          draw_state.surface_->GetSurfaceDamage(),
                          draw_state.clear_surface_);
@@ -170,6 +174,7 @@ bool Compositor::CalculateRenderState(
       continue;
     }
 
+    draw_state.states_.emplace(draw_state.states_.begin(), state);
     const std::vector<size_t> &source = region.source_layers;
     for (size_t texture_index : source) {
       OverlayLayer &layer = layers.at(texture_index);

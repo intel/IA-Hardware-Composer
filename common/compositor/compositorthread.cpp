@@ -170,9 +170,6 @@ void CompositorThread::HandleDrawRequest() {
     for (RenderState &render_state : draw_state.states_) {
       std::vector<RenderState::LayerState> &layer_state =
           render_state.layer_state_;
-      if (layer_state.empty()) {
-        continue;
-      }
 
       for (RenderState::LayerState &temp : layer_state) {
         temp.handle_ =

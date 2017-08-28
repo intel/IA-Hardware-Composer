@@ -111,7 +111,7 @@ void NativeSurface::UpdateSurfaceDamage(
       std::max(last_surface_damage.right, currentsurface_damage.right);
   surface_damage_.bottom =
       std::max(last_surface_damage.bottom, currentsurface_damage.bottom);
-  last_surface_damage_ = surface_damage_;
+  last_surface_damage_ = currentsurface_damage;
 }
 
 void NativeSurface::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
