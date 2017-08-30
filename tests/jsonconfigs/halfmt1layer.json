@@ -1,0 +1,26 @@
+{
+  "layers_parameters": [
+    {
+      "format": 68,
+      "frame": {
+        "height": 360,
+        "width": 640,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "./resources/raw4m.bin",
+      "source": {
+        "crop": {
+          "height": 360,
+          "width": 640,
+          "x": 0,
+          "y": 0
+        },
+        "height": 360,
+        "width": 640
+      },
+      "transform": 0,
+      "type": 1
+    }
+  ]
+}
