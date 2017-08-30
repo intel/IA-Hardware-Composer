@@ -13,7 +13,6 @@
  * (http://www.opensource.org/licenses/mit-license.php)
  */
 
-#include "config.h"
 
 #include <math.h>
 #include "math_compat.h"
@@ -41,13 +40,6 @@
 #endif
 
 #define jt_hexdigit(x) (((x) <= '9') ? (x) - '0' : ((x) & 7) + 9)
-
-#if !HAVE_STRNCASECMP && defined(_MSC_VER)
-  /* MSC has the version as _strnicmp */
-# define strncasecmp _strnicmp
-#elif !HAVE_STRNCASECMP
-# error You do not have strncasecmp on your system.
-#endif /* HAVE_STRNCASECMP */
 
 /* Use C99 NAN by default; if not available, nan("") should work too. */
 #ifndef NAN

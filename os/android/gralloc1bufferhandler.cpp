@@ -82,8 +82,8 @@ bool Gralloc1BufferHandler::Init() {
 
 bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
-                                         bool cursor_usage) {
-  return CreateGraphicsBuffer(w, h, format, handle, cursor_usage);
+                                         uint32_t usage) {
+  return CreateGraphicsBuffer(w, h, format, handle, usage);
 }
 
 bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
@@ -92,7 +92,7 @@ bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
 
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
-  release_(gralloc1_dvc, handle->imported_handle_);
+  release_(gralloc1_dvc, handle->handle_);
 
   return true;
 }
@@ -103,19 +103,19 @@ void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) {
 
 bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle,
                                          HwcBuffer *bo) {
-  if (!handle->imported_handle_) {
+  if (!handle->handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
   }
 
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
-  register_(gralloc1_dvc, handle->imported_handle_);
+  register_(gralloc1_dvc, handle->handle_);
   return ImportGraphicsBuffer(handle, bo, fd_);
 }
 
 uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
-  auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
+  auto gr_handle = (struct cros_gralloc_handle *)handle->handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
     return false;

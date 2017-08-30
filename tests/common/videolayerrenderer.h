@@ -27,11 +27,14 @@ class VideoLayerRenderer : public LayerRenderer {
   ~VideoLayerRenderer() override;
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,
+            uint32_t usage_format = -1, uint32_t usage = 0,
             glContext* gl = NULL, const char* resource_path = NULL) override;
   void Draw(int64_t* pfence) override;
 
  private:
   FILE* resource_fd_ = NULL;
+  uint32_t source_width_ = 0;
+  uint32_t source_height_ = 0;
 };
 
 #endif

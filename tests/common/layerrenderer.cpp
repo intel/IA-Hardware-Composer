@@ -30,8 +30,12 @@ LayerRenderer::~LayerRenderer() {
 }
 
 bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
-                         glContext* gl, const char* resource_path) {
-  if (!buffer_handler_->CreateBuffer(width, height, format, &handle_)) {
+                         uint32_t usage_format, uint32_t usage, glContext* gl,
+                         const char* resource_path) {
+  usage_format_ = usage_format_;
+  bufferusage_ = usage;
+
+  if (!buffer_handler_->CreateBuffer(width, height, format, &handle_, usage)) {
     ETRACE("LayerRenderer: CreateBuffer failed");
     return false;
   }
@@ -47,6 +51,10 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   fd_ = bo_.prime_fd;
   planes_ = buffer_handler_->GetTotalPlanes(handle_);
   format_ = format;
+  
+
+  
+  	
 
   return true;
 }

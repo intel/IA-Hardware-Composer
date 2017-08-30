@@ -36,4 +36,19 @@ struct HwcBuffer {
   uint32_t usage;
 };
 
+// Buffer usage is defined similar with GBM usage
+// To avoid directly include gbm.h 
+
+#define HW_BUFFER_USE_SCANOUT		(1 << 0)
+#define HW_BUFFER_USE_CURSOR		(1 << 1)
+#define HW_BUFFER_USE_RENDERING	    (1 << 2)
+#define HW_BUFFER_USE_WRITE	        (1 << 3)
+#define HW_BUFFER_USE_LINEAR	    (1 << 4)
+#define HW_BUFFER_USE_TEXTURING	    (1 << 5)
+#define HW_BUFFER_USE_CAMERA_WRITE  (1 << 6)
+#define HW_BUFFER_USE_CAMERA_READ   (1 << 7)
+#define HW_BUFFER_USE_X_TILED       (1 << 8)
+#define HW_BUFFER_USE_Y_TILED          (1 << 9)
+
+
 #endif  // PUBLIC_HWCBUFFER_H_

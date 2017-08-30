@@ -50,6 +50,7 @@ class LayerRenderer {
   virtual ~LayerRenderer();
 
   virtual bool Init(uint32_t width, uint32_t height, uint32_t format,
+                    uint32_t usage_format = -1, uint32_t usage = 0,
                     glContext* gl = NULL, const char* resourePath = NULL) = 0;
   virtual void Draw(int64_t* pfence) = 0;
   HWCNativeHandle GetNativeBoHandle() {
@@ -66,6 +67,15 @@ class LayerRenderer {
   uint32_t height_ = 0;
   uint32_t stride_ = 0;
   uint32_t fd_ = 0;
+
+#define MAX_MODIFICATORS 4
+  uint32_t bufferusage_ = 0;
+
+// This format fines the format befind format_
+// format_ is for buffer allocation purpose
+// this usage_format is here for
+  #define INVALID_USAGE_FORMAT -1
+  uint32_t usage_format_ = INVALID_USAGE_FORMAT; 
 };
 
 #endif

@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#include <fcntl.h>
+
 #define JSON_FILE_BUF_SIZE 4096
 
 /* utility functions */
