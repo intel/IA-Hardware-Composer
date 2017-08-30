@@ -288,7 +288,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
-  bool frame_changed = (size != previous_size);
   bool cursor_state_changed = false;
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
   uint32_t previous_frame_cursor_state = cursor_state_;
@@ -352,16 +351,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     z_order++;
   }
-
+  // We may have skipped layers which are not visible.
+  size = layers.size();
+  bool frame_changed = (size != previous_size);
   bool add_cursor_layer = false;
   // Optimize cursor visibility state change.
   if (!layers_changed && !tracker.RevalidateLayers()) {
     if ((state_ & kConfigurationChanged) || idle_frame) {
       frame_changed = true;
     } else if (frame_changed) {
-      if ((layers.size() == previous_size) ||
+      if ((size == previous_size) ||
           ((previous_frame_cursor_state & kIgnoredCursorLayer) &&
-           (layers.size() == previous_size - 1))) {
+           (size == previous_size - 1))) {
         frame_changed = false;
       }
     }
