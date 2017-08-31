@@ -21,6 +21,7 @@
 
 #include <hwcbuffer.h>
 #include <platformdefines.h>
+#include <hwcdefs.h>
 
 namespace hwcomposer {
 
@@ -32,8 +33,8 @@ class NativeBufferHandler {
   }
 
   virtual bool CreateBuffer(uint32_t w, uint32_t h, int format,
-                            HWCNativeHandle *handle,
-                            bool cursor_usage = false) = 0;
+                            HWCNativeHandle *handle = NULL,
+                            uint32_t layer_type = kLayerNormal) = 0;
 
   virtual bool ReleaseBuffer(HWCNativeHandle handle) = 0;
 

@@ -47,6 +47,9 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   }
 
   format_ = bo.format;
+  if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL)
+    format_ = DRM_FORMAT_NV12;
+
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
   if (usage_ & hwcomposer::kLayerCursor) {

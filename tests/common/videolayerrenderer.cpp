@@ -32,8 +32,10 @@ VideoLayerRenderer::~VideoLayerRenderer() {
 }
 
 bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
+                              uint32_t usage_format, uint32_t usage,
                               glContext* gl, const char* resource_path) {
-  if (!LayerRenderer::Init(width, height, format, gl, resource_path))
+  if (!LayerRenderer::Init(width, height, format, usage_format, usage, gl,
+                           resource_path))
     return false;
   if (!resource_path) {
     ETRACE("resource file no provided");
@@ -61,6 +63,7 @@ static int get_bpp_from_format(uint32_t format, size_t plane) {
     case DRM_FORMAT_YVU420:
       return 8;
     case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return (plane == 0) ? 8 : 16;
 
     case DRM_FORMAT_ABGR1555:
@@ -129,6 +132,7 @@ static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width,
   if (plane != 0) {
     switch (format) {
       case DRM_FORMAT_NV12:
+      case DRM_FORMAT_NV12_Y_TILED_INTEL:
       case DRM_FORMAT_YVU420:
         stride = stride / 2;
         break;
@@ -191,6 +195,7 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
       return height;
     case DRM_FORMAT_YVU420:
     case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return (plane == 0) ? height : height / 2;
   }
   ETRACE("UNKNOWN FORMAT %d", format);
@@ -231,6 +236,9 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
       pReadLoc += bo_.pitches[i];
       readHeight++;
     }
+
+    if (readHeight < planeHeight)
+      break;
   }
 
   buffer_handler_->UnMap(handle_, pOpaque);

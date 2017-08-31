@@ -25,6 +25,7 @@ ImageLayerRenderer::~ImageLayerRenderer() {
 }
 
 bool ImageLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
+                              uint32_t usage_format, uint32_t usage,
                               glContext* gl, const char* resource_path) {
   return true;
 }

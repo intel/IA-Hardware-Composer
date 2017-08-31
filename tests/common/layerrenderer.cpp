@@ -30,11 +30,17 @@ LayerRenderer::~LayerRenderer() {
 }
 
 bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
-                         glContext* gl, const char* resource_path) {
-  if (!buffer_handler_->CreateBuffer(width, height, format, &handle_)) {
+                         uint32_t usage_format, uint32_t usage, glContext* gl,
+                         const char* resource_path) {
+  usage_format_ = usage_format_;
+  bufferusage_ = usage;
+
+  if (!buffer_handler_->CreateBuffer(width, height, format, &handle_, usage)) {
     ETRACE("LayerRenderer: CreateBuffer failed");
     return false;
   }
+
+  buffer_handler_->CopyHandle(handle_, &handle_);
 
   if (!buffer_handler_->ImportBuffer(handle_, &bo_)) {
     ETRACE("LayerRenderer: ImportBuffer failed");

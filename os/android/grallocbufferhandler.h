@@ -33,7 +33,7 @@ class GrallocBufferHandler : public NativeBufferHandler {
   bool Init();
 
   bool CreateBuffer(uint32_t w, uint32_t h, int format, HWCNativeHandle *handle,
-                    bool cursor_usage = false) override;
+                    bool cursor_usage = false, uint32_t layer_type) override;
   bool ReleaseBuffer(HWCNativeHandle handle) override;
   void DestroyHandle(HWCNativeHandle handle) override;
   bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) override;

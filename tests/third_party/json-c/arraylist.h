@@ -17,11 +17,12 @@ extern "C" {
 #endif
 
 #define ARRAY_LIST_DEFAULT_SIZE 32
+#include <stdlib.h>
+#include <stddef.h>
 
-typedef void (array_list_free_fn) (void *data);
+typedef void(array_list_free_fn)(void *data);
 
-struct array_list
-{
+struct array_list {
   void **array;
   size_t length;
   size_t size;
