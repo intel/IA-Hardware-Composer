@@ -32,6 +32,8 @@ class VideoLayerRenderer : public LayerRenderer {
 
  private:
   FILE* resource_fd_ = NULL;
+  uint32_t source_width_ = 0;
+  uint32_t source_height_ = 0;
 };
 
 #endif

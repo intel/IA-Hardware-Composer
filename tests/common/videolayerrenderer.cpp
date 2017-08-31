@@ -45,6 +45,8 @@ bool VideoLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
     ETRACE("Could not open the resource file");
     return false;
   }
+  source_width_ = width;
+  source_height_ = height;
 
   return true;
 }
@@ -213,9 +215,9 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
   for (int i = 0; i < planes_; i++) {
     pReadLoc = (char*)pBo + bo_.offsets[i];
 
-    uint32_t lineBytes = get_linewidth_from_format(format_, width_, i);
+    uint32_t lineBytes = get_linewidth_from_format(format_, source_width_, i);
     uint32_t readHeight = 0;
-    uint32_t planeHeight = get_height_from_format(format_, height_, i);
+    uint32_t planeHeight = get_height_from_format(format_, source_height_, i);
 
     while (readHeight < planeHeight) {
       uint32_t lineReadCount = fread(pReadLoc, 1, lineBytes, resource_fd_);
