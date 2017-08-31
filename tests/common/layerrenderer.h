@@ -50,6 +50,7 @@ class LayerRenderer {
   virtual ~LayerRenderer();
 
   virtual bool Init(uint32_t width, uint32_t height, uint32_t format,
+                    uint32_t usage_format = -1, uint32_t usage = 0,
                     glContext* gl = NULL, const char* resourePath = NULL) = 0;
   virtual void Draw(int64_t* pfence) = 0;
   HWCNativeHandle GetNativeBoHandle() {

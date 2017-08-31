@@ -9,11 +9,10 @@
  *
  *
  * Copyright (c) 2008-2009 Yahoo! Inc.  All rights reserved.
- * The copyrights to the contents of this file are licensed under the MIT License
+ * The copyrights to the contents of this file are licensed under the MIT
+ *License
  * (http://www.opensource.org/licenses/mit-license.php)
  */
-
-#include "config.h"
 
 #include <math.h>
 #include "math_compat.h"
@@ -40,14 +39,7 @@
 #include <xlocale.h>
 #endif
 
-#define jt_hexdigit(x) (((x) <= '9') ? (x) - '0' : ((x) & 7) + 9)
-
-#if !HAVE_STRNCASECMP && defined(_MSC_VER)
-  /* MSC has the version as _strnicmp */
-# define strncasecmp _strnicmp
-#elif !HAVE_STRNCASECMP
-# error You do not have strncasecmp on your system.
-#endif /* HAVE_STRNCASECMP */
+#define jt_hexdigit(x) (((x) <= '9') ? (x) - '0' : ((x)&7) + 9)
 
 /* Use C99 NAN by default; if not available, nan("") should work too. */
 #ifndef NAN

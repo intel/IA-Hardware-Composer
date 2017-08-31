@@ -32,6 +32,7 @@ class GLCubeLayerRenderer : public GLLayerRenderer {
   ~GLCubeLayerRenderer() override;
 
   bool Init(uint32_t width, uint32_t height, uint32_t format,
+            uint32_t usage_format = -1, uint32_t usage = 0,
             glContext *gl = NULL, const char *resource_path = NULL) override;
   void glDrawFrame() override;
   void UpdateStreamTexture(unsigned long usec);

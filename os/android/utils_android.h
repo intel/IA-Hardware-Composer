@@ -28,8 +28,10 @@
 #include "platformdefines.h"
 
 #ifdef USE_MINIGBM
+#define DRV_I915 1
 #include <cros_gralloc_handle.h>
 #include <cros_gralloc_helpers.h>
+#include <i915_private_android_types.h>
 #endif
 
 #include <hwcdefs.h>
@@ -41,11 +43,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define DRM_FORMAT_NONE fourcc_code('0', '0', '0', '0')
-
-// minigbm specific DRM_FORMAT_YVU420_ANDROID enum
-#define DRM_FORMAT_YVU420_ANDROID fourcc_code('9', '9', '9', '7')
 
 #define DRV_MAX_PLANES 4
 
@@ -65,6 +62,110 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
     case HAL_PIXEL_FORMAT_YV12:
       return DRM_FORMAT_YVU420;
     default:
+      break;
+  }
+
+  return DRM_FORMAT_NONE;
+}
+
+static uint32_t DrmFormatToHALFormat(int format) {
+  switch (format) {
+    case DRM_FORMAT_BGRA8888:
+      return HAL_PIXEL_FORMAT_RGBA_8888;
+    case DRM_FORMAT_BGRX8888:
+      return HAL_PIXEL_FORMAT_RGBX_8888;
+    case DRM_FORMAT_BGR888:
+      return HAL_PIXEL_FORMAT_RGB_888;
+    case DRM_FORMAT_BGR565:
+      return HAL_PIXEL_FORMAT_RGB_565;
+    case DRM_FORMAT_ARGB8888:
+      return HAL_PIXEL_FORMAT_BGRA_8888;
+    case DRM_FORMAT_YVU420:
+      return HAL_PIXEL_FORMAT_YV12;
+    case DRM_FORMAT_R8:
+      return HAL_PIXEL_FORMAT_Y8;
+    case DRM_FORMAT_GR88:
+    case DRM_FORMAT_R16:
+      return HAL_PIXEL_FORMAT_Y16;
+    case DRM_FORMAT_RGB332:  //('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
+      return 0;
+    case DRM_FORMAT_BGR233:  //('B', 'G', 'R', '8') /* [7:0] B:G:R 2:3:3 */
+      return 0;
+
+    case DRM_FORMAT_XRGB4444:
+    case DRM_FORMAT_XBGR4444:
+    case DRM_FORMAT_RGBX4444:
+    case DRM_FORMAT_BGRX4444:
+    case DRM_FORMAT_ARGB4444:
+    case DRM_FORMAT_ABGR4444:
+    case DRM_FORMAT_RGBA4444:
+    case DRM_FORMAT_BGRA4444:
+      return 0;
+    case DRM_FORMAT_XRGB1555:
+    case DRM_FORMAT_XBGR1555:
+    case DRM_FORMAT_RGBX5551:
+    case DRM_FORMAT_BGRX5551:
+    case DRM_FORMAT_ARGB1555:
+    case DRM_FORMAT_ABGR1555:
+    case DRM_FORMAT_RGBA5551:
+    case DRM_FORMAT_BGRA5551:
+      return 0;
+    case DRM_FORMAT_RGB565:
+      return HAL_PIXEL_FORMAT_RGB_565;
+    case DRM_FORMAT_RGB888:
+      return HAL_PIXEL_FORMAT_RGB_888;
+    case DRM_FORMAT_XRGB8888:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_RGBX8888:
+    case DRM_FORMAT_ABGR8888:
+    case DRM_FORMAT_RGBA8888:
+      return 0;
+    case DRM_FORMAT_XRGB2101010:
+    case DRM_FORMAT_XBGR2101010:
+    case DRM_FORMAT_RGBX1010102:
+    case DRM_FORMAT_BGRX1010102:
+    case DRM_FORMAT_ARGB2101010:
+    case DRM_FORMAT_ABGR2101010:
+    case DRM_FORMAT_RGBA1010102:
+    case DRM_FORMAT_BGRA1010102:
+      return 0;
+    case DRM_FORMAT_YUYV:
+      return HAL_PIXEL_FORMAT_YCbCr_422_I;
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+      return 0;
+#ifdef USE_MINIGBM
+    case DRM_FORMAT_NV12:
+      return HAL_PIXEL_FORMAT_NV12;
+#endif
+    case DRM_FORMAT_NV21:
+      return HAL_PIXEL_FORMAT_YCrCb_420_SP;
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_NV61:
+    case DRM_FORMAT_YUV410:
+    case DRM_FORMAT_YVU410:
+    case DRM_FORMAT_YUV411:
+    case DRM_FORMAT_YVU411:
+      return 0;
+    case DRM_FORMAT_YUV420:
+      return HAL_PIXEL_FORMAT_YCbCr_420_888;
+    case DRM_FORMAT_YVU420_ANDROID:
+      return HAL_PIXEL_FORMAT_YV12;
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YVU422:
+      return 0;
+    case DRM_FORMAT_YUV444:
+      return HAL_PIXEL_FORMAT_YCbCr_444_888;
+    case DRM_FORMAT_YVU444:
+      return 0;
+#ifdef USE_MINIGBM
+    case DRM_FORMAT_NV12_Y_TILED_INTEL:
+      return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
+#endif
+    default:
+      return 0;
       break;
   }
 
@@ -115,17 +216,34 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 #ifdef USE_MINIGBM
-static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int /*format*/,
-                                 HWCNativeHandle *handle, bool cursor_usage) {
+static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
+                                 HWCNativeHandle *handle, uint32_t layer_type) {
   struct gralloc_handle *temp = new struct gralloc_handle();
-  uint32_t usage =
-      GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
-  if (cursor_usage) {
+  uint32_t usage = 0;
+  uint32_t pixel_format = 0;
+  if (format != 0) {
+    pixel_format = DrmFormatToHALFormat(format);
+  }
+
+  if (pixel_format == 0) {
+    pixel_format = android::PIXEL_FORMAT_RGBA_8888;
+  }
+
+  if (layer_type == hwcomposer::kLayerNormal) {
+    usage |= GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
+             GRALLOC_USAGE_HW_COMPOSER;
+  } else if (layer_type == hwcomposer::kLayerVideo) {
+    if (pixel_format == DRM_FORMAT_YUYV) {
+      usage |= GRALLOC_USAGE_HW_TEXTURE;
+    } else {
+      usage |= GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_HW_CAMERA_READ |
+               GRALLOC_USAGE_HW_TEXTURE;
+    }
+  } else if (layer_type == hwcomposer::kLayerCursor) {
     usage |= GRALLOC_USAGE_CURSOR;
   }
 
-  temp->buffer_ =
-      new android::GraphicBuffer(w, h, android::PIXEL_FORMAT_RGBA_8888, usage);
+  temp->buffer_ = new android::GraphicBuffer(w, h, pixel_format, usage);
   temp->handle_ = temp->buffer_->handle;
   temp->hwc_buffer_ = true;
   *handle = temp;

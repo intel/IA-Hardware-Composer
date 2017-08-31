@@ -82,8 +82,8 @@ bool Gralloc1BufferHandler::Init() {
 
 bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
-                                         bool cursor_usage) {
-  return CreateGraphicsBuffer(w, h, format, handle, cursor_usage);
+                                         uint32_t layer_type) {
+  return CreateGraphicsBuffer(w, h, format, handle, layer_type);
 }
 
 bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {

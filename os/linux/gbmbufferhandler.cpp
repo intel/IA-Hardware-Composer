@@ -64,20 +64,30 @@ bool GbmBufferHandler::Init() {
 
 bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                     HWCNativeHandle *handle,
-                                    bool cursor_usage) {
+                                    uint32_t layer_type) {
   uint32_t gbm_format = format;
   if (gbm_format == 0)
     gbm_format = GBM_FORMAT_XRGB8888;
 
-  struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format,
-                                    GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  uint32_t flags = 0;
+
+  if (layer_type == kLayerNormal) {
+    flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  } else if (layer_type == kLayerVideo) {
+    flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING |
+              GBM_BO_USE_CAMERA_WRITE | GBM_BO_USE_CAMERA_READ);
+  }
+
+  struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format, flags);
 
   if (!bo) {
-    bo = gbm_bo_create(device_, w, h, gbm_format, GBM_BO_USE_RENDERING);
-    if (!bo) {
-      ETRACE("GbmBufferHandler: failed to create gbm_bo");
-      return false;
-    }
+    flags &= ~GBM_BO_USE_SCANOUT;
+    bo = gbm_bo_create(device_, w, h, gbm_format, flags);
+  }
+
+  if (!bo) {
+    ETRACE("GbmBufferHandler: failed to create gbm_bo");
+    return false;
   }
 
   struct gbm_handle *temp = new struct gbm_handle();

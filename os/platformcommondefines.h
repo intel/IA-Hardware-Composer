@@ -23,4 +23,10 @@
 VkFormat NativeToVkFormat(int native_format);
 #endif
 
+#define DRM_FORMAT_NONE fourcc_code('0', '0', '0', '0')
+
+#define DRM_FORMAT_NV12_Y_TILED_INTEL fourcc_code('9', '9', '9', '6')
+// minigbm specific DRM_FORMAT_YVU420_ANDROID enum
+#define DRM_FORMAT_YVU420_ANDROID fourcc_code('9', '9', '9', '7')
+
 #endif  // OS_LINUX_PLATFORMCOMMONDEFINES_H_

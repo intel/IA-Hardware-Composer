@@ -9,21 +9,15 @@
  *
  *
  * Copyright (c) 2008-2009 Yahoo! Inc.  All rights reserved.
- * The copyrights to the contents of this file are licensed under the MIT License
+ * The copyrights to the contents of this file are licensed under the MIT
+ *License
  * (http://www.opensource.org/licenses/mit-license.php)
  */
-
-#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef HAVE_STDARG_H
-# include <stdarg.h>
-#else /* !HAVE_STDARG_H */
-# error Not enough var arg support!
-#endif /* HAVE_STDARG_H */
+#include <stdarg.h>
 
 #include "debug.h"
 #include "printbuf.h"

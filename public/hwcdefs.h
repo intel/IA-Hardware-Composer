@@ -46,10 +46,10 @@ enum HWCTransform {
 };
 
 enum HWCLayerType {
-  kLayerNormal = 1 << 0,
-  kLayerCursor = 1 << 1,
-  kLayerProtected = 1 << 2,
-  kLayerVideo = 1 << 3
+  kLayerNormal = 0,
+  kLayerCursor = 1,
+  kLayerProtected = 2,
+  kLayerVideo = 3
 };
 
 enum class HWCDisplayAttribute : int32_t {
