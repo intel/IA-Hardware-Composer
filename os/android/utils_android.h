@@ -83,7 +83,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YVU420:
       return HAL_PIXEL_FORMAT_YV12;
     case DRM_FORMAT_R8:
-      return HAL_PIXEL_FORMAT_Y8;
+      return HAL_PIXEL_FORMAT_BLOB;
     case DRM_FORMAT_GR88:
     case DRM_FORMAT_R16:
       return HAL_PIXEL_FORMAT_Y16;
@@ -143,6 +143,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_NV21:
       return HAL_PIXEL_FORMAT_YCrCb_420_SP;
     case DRM_FORMAT_NV16:
+      return HAL_PIXEL_FORMAT_YCbCr_422_SP;
     case DRM_FORMAT_NV61:
     case DRM_FORMAT_YUV410:
     case DRM_FORMAT_YVU410:
@@ -233,11 +234,14 @@ static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
     usage |= GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
              GRALLOC_USAGE_HW_COMPOSER;
   } else if (layer_type == hwcomposer::kLayerVideo) {
-    if (pixel_format == DRM_FORMAT_YUYV) {
-      usage |= GRALLOC_USAGE_HW_TEXTURE;
-    } else {
-      usage |= GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_HW_CAMERA_READ |
-               GRALLOC_USAGE_HW_TEXTURE;
+    switch (pixel_format) {
+      case HAL_PIXEL_FORMAT_YCbCr_422_I:
+      case HAL_PIXEL_FORMAT_Y8:
+        usage |= GRALLOC_USAGE_HW_TEXTURE;
+        break;
+      default:
+        usage |= GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_HW_CAMERA_READ |
+                 GRALLOC_USAGE_HW_TEXTURE;
     }
   } else if (layer_type == hwcomposer::kLayerCursor) {
     usage |= GRALLOC_USAGE_CURSOR;

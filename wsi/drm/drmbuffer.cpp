@@ -47,7 +47,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   }
 
   format_ = bo.format;
-  if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL)
+  if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL || format_ == DRM_FORMAT_NV21)
     format_ = DRM_FORMAT_NV12;
 
   prime_fd_ = bo.prime_fd;
@@ -60,14 +60,30 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   }
 
   switch (format_) {
-    case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_UYVY:
     case DRM_FORMAT_NV12:
-    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_NV16:
+      total_planes_ = 2;
       is_yuv_ = true;
+      break;
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
+    case DRM_FORMAT_YVU420_ANDROID:
+      is_yuv_ = true;
+      total_planes_ = 3;
+      break;
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+      is_yuv_ = true;
+      total_planes_ = 1;
       break;
     default:
       is_yuv_ = false;
+      total_planes_ = 1;
   }
 }
 
@@ -89,8 +105,8 @@ GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
   EGLImageKHR image = EGL_NO_IMAGE_KHR;
   // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
   // target, the EGL will take a reference to the dma_buf.
-  if (is_yuv_) {
-    if (format_ == DRM_FORMAT_NV12) {
+  if (is_yuv_ && total_planes_ > 1) {
+    if (total_planes_ == 2) {
       const EGLint attr_list_nv12[] = {
           EGL_WIDTH,                     static_cast<EGLint>(width_),
           EGL_HEIGHT,                    static_cast<EGLint>(height_),

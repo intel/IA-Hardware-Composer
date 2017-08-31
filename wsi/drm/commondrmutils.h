@@ -67,11 +67,16 @@ static size_t drm_bo_get_num_planes(uint32_t format) {
     case DRM_FORMAT_XRGB8888:
     case DRM_FORMAT_YUYV:
     case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_R16:
       return 1;
     case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV21:
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
+    case DRM_FORMAT_NV16:
       return 2;
     case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YVU420_ANDROID:
+    case DRM_FORMAT_YUV444:
       return 3;
   }
 

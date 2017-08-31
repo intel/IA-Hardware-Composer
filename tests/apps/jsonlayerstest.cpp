@@ -462,6 +462,10 @@ static uint32_t layerformat2gbmformat(LAYER_FORMAT format,
       *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_422_SP;
       *usage = hwcomposer::kLayerVideo;
       return DRM_FORMAT_NV16;
+    case LAYER_HAL_PIXEL_FORMAT_YCbCr_422_888:
+      *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_422_888;
+      *usage |= hwcomposer::kLayerVideo;
+      return DRM_FORMAT_YUV422;
     case LAYER_HAL_PIXEL_FORMAT_YCbCr_420_888:
       *usage_format = LAYER_HAL_PIXEL_FORMAT_YCbCr_420_888;
       *usage = hwcomposer::kLayerVideo;

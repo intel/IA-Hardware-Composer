@@ -86,6 +86,11 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   if (!bo) {
+    flags &= ~GBM_BO_USE_RENDERING;
+    bo = gbm_bo_create(device_, w, h, gbm_format, flags);
+  }
+
+  if (!bo) {
     ETRACE("GbmBufferHandler: failed to create gbm_bo");
     return false;
   }

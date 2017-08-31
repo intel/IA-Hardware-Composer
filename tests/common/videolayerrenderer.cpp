@@ -61,8 +61,12 @@ static int get_bpp_from_format(uint32_t format, size_t plane) {
     case DRM_FORMAT_R8:
     case DRM_FORMAT_RGB332:
     case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_YUV444:
+    case DRM_FORMAT_YUV422:
       return 8;
     case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV21:
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return (plane == 0) ? 8 : 16;
 
@@ -132,8 +136,11 @@ static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width,
   if (plane != 0) {
     switch (format) {
       case DRM_FORMAT_NV12:
+      case DRM_FORMAT_NV16:
       case DRM_FORMAT_NV12_Y_TILED_INTEL:
       case DRM_FORMAT_YVU420:
+      case DRM_FORMAT_YUV420:
+      case DRM_FORMAT_YUV422:
         stride = stride / 2;
         break;
     }
@@ -192,9 +199,13 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_YUYV:
     case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_YUV422:
       return height;
     case DRM_FORMAT_YVU420:
     case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV21:
+    case DRM_FORMAT_YUV420:
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return (plane == 0) ? height : height / 2;
   }
@@ -228,17 +239,16 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
       uint32_t lineReadCount = fread(pReadLoc, 1, lineBytes, resource_fd_);
       if (lineReadCount <= 0) {
         fseek(resource_fd_, 0, SEEK_SET);
+        i = -1;
         break;
       } else if (lineReadCount != lineBytes) {
         ETRACE("Maybe not aligned video source file with line width!");
+        i = -1;
         break;
       }
       pReadLoc += bo_.pitches[i];
       readHeight++;
     }
-
-    if (readHeight < planeHeight)
-      break;
   }
 
   buffer_handler_->UnMap(handle_, pOpaque);
