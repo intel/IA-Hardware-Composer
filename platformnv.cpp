@@ -287,6 +287,7 @@ bool PlanStageNvLimits::CheckLayer(size_t zorder, DrmHwcLayer *layer) {
       case DRM_FORMAT_ARGB8888:
       case DRM_FORMAT_ABGR8888:
       case DRM_FORMAT_XBGR8888:
+      case DRM_FORMAT_XRGB8888:
         // tegra driver assumes any layer with alpha channel has premult
         // blending, avoid handling it this is not the case. This is not an
         // issue for bottom-most layer since there's nothing to blend with
@@ -296,6 +297,13 @@ bool PlanStageNvLimits::CheckLayer(size_t zorder, DrmHwcLayer *layer) {
         v_limit = 2;
         break;
       case DRM_FORMAT_YVU420:
+      case DRM_FORMAT_YUV420;
+      case DRM_FORMAT_YUV422:
+      case DRM_FORMAT_UYVY:
+      case DRM_FORMAT_YUYV:
+      case DRM_FORMAT_NV12;
+      case DRM_FORMAT_NV21:
+      case DRM_FORMAT_RGB565:
       case DRM_FORMAT_BGR565:
         v_limit = 4;
         break;
