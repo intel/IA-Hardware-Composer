@@ -137,6 +137,7 @@ static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width,
   if (plane != 0) {
     switch (format) {
       case DRM_FORMAT_NV12:
+      case DRM_FORMAT_NV21:
       case DRM_FORMAT_NV16:
       case DRM_FORMAT_NV12_Y_TILED_INTEL:
       case DRM_FORMAT_YVU420:
@@ -202,6 +203,7 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
     case DRM_FORMAT_YVYU:
     case DRM_FORMAT_NV16:
     case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
     case DRM_FORMAT_R16:
       return height;
     case DRM_FORMAT_YVU420:
