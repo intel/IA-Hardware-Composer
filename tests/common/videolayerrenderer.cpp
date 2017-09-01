@@ -61,10 +61,10 @@ static int get_bpp_from_format(uint32_t format, size_t plane) {
     case DRM_FORMAT_R8:
     case DRM_FORMAT_RGB332:
     case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_NV16:
     case DRM_FORMAT_YUV444:
     case DRM_FORMAT_YUV422:
       return 8;
+    case DRM_FORMAT_NV16:
     case DRM_FORMAT_NV12:
     case DRM_FORMAT_NV21:
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
@@ -81,6 +81,7 @@ static int get_bpp_from_format(uint32_t format, size_t plane) {
     case DRM_FORMAT_BGRX5551:
     case DRM_FORMAT_GR88:
     case DRM_FORMAT_RG88:
+    case DRM_FORMAT_R16:
     case DRM_FORMAT_RGB565:
     case DRM_FORMAT_RGBA4444:
     case DRM_FORMAT_RGBA5551:
@@ -167,6 +168,7 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
     case DRM_FORMAT_BGRX5551:
     case DRM_FORMAT_GR88:
     case DRM_FORMAT_RG88:
+    case DRM_FORMAT_R16:
     case DRM_FORMAT_RGB565:
     case DRM_FORMAT_RGBA4444:
     case DRM_FORMAT_RGBA5551:
@@ -201,6 +203,7 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
     case DRM_FORMAT_YVYU:
     case DRM_FORMAT_NV16:
     case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
       return height;
     case DRM_FORMAT_YVU420:
     case DRM_FORMAT_NV12:

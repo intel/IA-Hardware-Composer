@@ -115,6 +115,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   temp->bo = bo;
   temp->hwc_buffer_ = true;
+  temp->gbm_flags = flags;
   *handle = temp;
 
   return true;
@@ -164,6 +165,7 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
 #endif
   temp->bo = source->bo;
   temp->total_planes = source->total_planes;
+  temp->gbm_flags  = source->gbm_flags;
   *target = temp;
 }
 
@@ -175,25 +177,15 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
 #if USE_MINIGBM
     handle->imported_bo =
         gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR, &handle->import_data,
-                      GBM_BO_USE_SCANOUT);
-    if (!handle->imported_bo) {
-      handle->imported_bo =
-          gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR, &handle->import_data,
-                        GBM_BO_USE_RENDERING);
-      if (!handle->imported_bo) {
+                      handle->gbm_flags);
+     if (!handle->imported_bo) {
         ETRACE("can't import bo");
       }
-    }
 #else
     handle->imported_bo = gbm_bo_import(
-        device_, GBM_BO_IMPORT_FD, &handle->import_data, GBM_BO_USE_SCANOUT);
+        device_, GBM_BO_IMPORT_FD, &handle->import_data, handle->gbm_flags);
     if (!handle->imported_bo) {
-      handle->imported_bo =
-          gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data,
-                        GBM_BO_USE_RENDERING);
-      if (!handle->imported_bo) {
         ETRACE("can't import bo");
-      }
     }
 #endif
   }

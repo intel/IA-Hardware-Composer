@@ -39,6 +39,7 @@ struct gbm_handle {
   struct gbm_bo* imported_bo = NULL;
   uint32_t total_planes = 0;
   bool hwc_buffer_ = false;
+  uint32_t gbm_flags = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;

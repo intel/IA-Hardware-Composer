@@ -441,7 +441,7 @@ static uint32_t layerformat2gbmformat(LAYER_FORMAT format,
     case LAYER_HAL_PIXEL_FORMAT_YV12:
       *usage_format = LAYER_HAL_PIXEL_FORMAT_YV12;
       *usage = hwcomposer::kLayerVideo;
-      return DRM_FORMAT_YVU420;
+      return DRM_FORMAT_YVU420_ANDROID;
     case LAYER_HAL_PIXEL_FORMAT_Y8:
       *usage_format = LAYER_HAL_PIXEL_FORMAT_Y8;
       *usage = hwcomposer::kLayerVideo;

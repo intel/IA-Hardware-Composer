@@ -1,14 +1,14 @@
 {
   "layers_parameters": [
     {
-      "format": 47,
+      "format": 48,
       "frame": {
         "height": 400,
         "width": 600,
         "x": 0,
         "y": 0
       },
-      "resource_path": "resource.nv12.yuv",
+      "resource_path": "resource.nv21.yuv",
       "source": {
         "crop": {
           "height": 400,

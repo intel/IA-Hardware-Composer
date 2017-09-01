@@ -8,7 +8,7 @@
         "x": 0,
         "y": 0
       },
-      "resource_path": "./resources/resource.nv12.yuv",
+      "resource_path": "resource.nv12.yuv",
       "source": {
         "crop": {
           "height": 400,
