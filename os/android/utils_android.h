@@ -155,6 +155,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YVU420_ANDROID:
       return HAL_PIXEL_FORMAT_YV12;
     case DRM_FORMAT_YUV422:
+      return HAL_PIXEL_FORMAT_YCbCr_422_888;
     case DRM_FORMAT_YVU422:
       return 0;
     case DRM_FORMAT_YUV444:
