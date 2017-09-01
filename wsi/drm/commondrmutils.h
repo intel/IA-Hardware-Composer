@@ -77,6 +77,7 @@ static size_t drm_bo_get_num_planes(uint32_t format) {
     case DRM_FORMAT_YVU420:
     case DRM_FORMAT_YVU420_ANDROID:
     case DRM_FORMAT_YUV444:
+    case DRM_FORMAT_YUV422:
       return 3;
   }
 
