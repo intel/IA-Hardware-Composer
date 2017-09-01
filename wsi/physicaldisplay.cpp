@@ -43,7 +43,6 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
 }
 
 PhysicalDisplay::~PhysicalDisplay() {
-  display_queue_->SetPowerMode(kOff);
 }
 
 bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {

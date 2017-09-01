@@ -45,6 +45,8 @@ DrmDisplay::~DrmDisplay() {
 
   if (old_blob_id_)
     drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
+
+  display_queue_->SetPowerMode(kOff);
 }
 
 bool DrmDisplay::InitializeDisplay() {

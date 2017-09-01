@@ -43,6 +43,7 @@ DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
 
 DrmDisplayManager::~DrmDisplayManager() {
   CTRACE();
+  std::vector<std::unique_ptr<DrmDisplay>>().swap(displays_);
   close(hotplug_fd_);
   close(fd_);
 }
