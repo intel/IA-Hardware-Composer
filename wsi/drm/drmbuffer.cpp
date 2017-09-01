@@ -49,6 +49,8 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   format_ = bo.format;
   if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL || format_ == DRM_FORMAT_NV21)
     format_ = DRM_FORMAT_NV12;
+  else if (format_ == DRM_FORMAT_YVU420_ANDROID)
+    format_ = DRM_FORMAT_YUV420;
 
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
@@ -69,7 +71,6 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
     case DRM_FORMAT_YUV420:
     case DRM_FORMAT_YUV422:
     case DRM_FORMAT_YUV444:
-    case DRM_FORMAT_YVU420_ANDROID:
       is_yuv_ = true;
       total_planes_ = 3;
       break;

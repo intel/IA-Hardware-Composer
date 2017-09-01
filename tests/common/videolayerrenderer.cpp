@@ -61,6 +61,7 @@ static int get_bpp_from_format(uint32_t format, size_t plane) {
     case DRM_FORMAT_R8:
     case DRM_FORMAT_RGB332:
     case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YVU420_ANDROID:
     case DRM_FORMAT_YUV444:
     case DRM_FORMAT_YUV422:
       return 8;
@@ -137,9 +138,11 @@ static uint32_t get_linewidth_from_format(uint32_t format, uint32_t width,
   if (plane != 0) {
     switch (format) {
       case DRM_FORMAT_NV12:
+      case DRM_FORMAT_NV21:
       case DRM_FORMAT_NV16:
       case DRM_FORMAT_NV12_Y_TILED_INTEL:
       case DRM_FORMAT_YVU420:
+      case DRM_FORMAT_YVU420_ANDROID:
       case DRM_FORMAT_YUV420:
       case DRM_FORMAT_YUV422:
         stride = stride / 2;
@@ -206,6 +209,7 @@ static uint32_t get_height_from_format(uint32_t format, uint32_t height,
     case DRM_FORMAT_YUV444:
       return height;
     case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YVU420_ANDROID:
     case DRM_FORMAT_NV12:
     case DRM_FORMAT_NV21:
     case DRM_FORMAT_YUV420:
