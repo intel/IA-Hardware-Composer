@@ -1,14 +1,14 @@
 {
   "layers_parameters": [
     {
-      "format": 100,
+      "format": 65,
       "frame": {
         "height": 400,
         "width": 600,
         "x": 0,
         "y": 0
       },
-      "resource_path": "resource.yuyv422.yuv",
+      "resource_path": "resource.yuyv422",
       "source": {
         "crop": {
           "height": 400,
