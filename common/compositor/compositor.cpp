@@ -54,7 +54,8 @@ bool Compositor::BeginFrame(bool disable_explicit_sync) {
 }
 
 void Compositor::Reset() {
-  thread_->ExitThread();
+  if (thread_)
+    thread_->ExitThread();
 }
 
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,

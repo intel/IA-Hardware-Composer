@@ -92,9 +92,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   void Connect() override;
 
-  bool IsConnected() const override {
-    return !(display_state_ & kDisconnectionInProgress);
-  }
+  bool IsConnected() const override;
 
   bool TestCommit(
       const std::vector<OverlayPlane> &commit_planes) const override;
@@ -160,6 +158,24 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   */
   virtual bool InitializeDisplay() = 0;
 
+  /**
+  * API for informing the display that it might be disconnected in near
+  * future.
+  */
+  void MarkForDisconnect();
+
+  /**
+  * API for informing the clients resgistered via RegisterHotPlugCallback
+  * that this display had been disconnected.
+  */
+  void NotifyClientOfConnectedState();
+
+  /**
+  * API for informing the clients resgistered via RegisterHotPlugCallback
+  * that this display had been connected.
+  */
+  void NotifyClientOfDisConnectedState();
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
@@ -167,13 +183,14 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
  protected:
   enum DisplayState {
-    kConnected = 1 << 0,
-    kNeedsModeset = 1 << 1,
-    kPendingPowerMode = 1 << 2,
-    kUpdateDisplay = 1 << 3,
-    kDisconnectionInProgress = 1 << 4,
-    kInitialized = 1 << 5,  // Display Queue is initialized.
-    kRefreshClonedDisplays = 1 << 6
+    kNone = 1 << 0,
+    kConnected = 1 << 1,
+    kNeedsModeset = 1 << 2,
+    kPendingPowerMode = 1 << 3,
+    kUpdateDisplay = 1 << 4,
+    kDisconnectionInProgress = 1 << 5,
+    kInitialized = 1 << 6,  // Display Queue is initialized.
+    kRefreshClonedDisplays = 1 << 7
   };
 
   uint32_t pipe_;
@@ -184,7 +201,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   int32_t dpiy_;
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
-  uint32_t display_state_ = 0;
+  int display_state_ = kNone;
   uint32_t hot_plug_display_id_ = 0;
   SpinLock modeset_lock_;
   SpinLock cloned_displays_lock_;

@@ -66,6 +66,12 @@ DisplayQueue::~DisplayQueue() {
 bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
                               DisplayPlaneHandler* plane_handler) {
   frame_ = 0;
+  std::vector<OverlayLayer>().swap(in_flight_layers_);
+  DisplayPlaneStateList().swap(previous_plane_state_);
+  idle_tracker_.state_ = 0;
+  idle_tracker_.idle_frames_ = 0;
+  compositor_.Reset();
+
   display_plane_manager_.reset(
       new DisplayPlaneManager(gpu_fd_, buffer_handler_, plane_handler));
   if (!display_plane_manager_->Initialize(width, height)) {

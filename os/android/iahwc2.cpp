@@ -83,6 +83,9 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
       status = static_cast<int32_t>(HWC2::Connection::Disconnected);
     }
 
+    IHOTPLUGEVENTTRACE(
+        "IAHotPlugEventCallback called displayid: %d status: %d \n", display,
+        status);
     hook(data_, display, status);
   }
 
@@ -133,8 +136,9 @@ HWC2::Error IAHWC2::Init() {
   uint32_t external_display_id = 1;
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
-    if (primary_display == display)
+    if (primary_display == display) {
       continue;
+    }
 
     std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
     temp->Init(display, external_display_id, disable_explicit_sync_);

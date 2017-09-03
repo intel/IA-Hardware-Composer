@@ -202,7 +202,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
   spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
-    display->DisConnect();
+    display->MarkForDisconnect();
   }
 
   std::vector<NativeDisplay *>().swap(connected_displays_);
@@ -236,13 +236,19 @@ bool DrmDisplayManager::UpdateDisplayState() {
           drmModeGetEncoder(fd_, connector->encoder_id));
       if (encoder && encoder->crtc_id) {
         for (auto &display : displays_) {
-          // Set the modes supported for each display
-          display->SetDrmModeInfo(mode);
+          IHOTPLUGEVENTTRACE(
+              "Trying to connect %d with crtc: %d is display connected: %d \n",
+              encoder->crtc_id, display->CrtcId(), display->IsConnected());
           // At initilaization  preferred mode is set!
-          if (encoder->crtc_id == display->CrtcId() &&
+          if (!display->IsConnected() &&
+              encoder->crtc_id == display->CrtcId() &&
               display->ConnectDisplay(mode.at(preferred_mode),
                                       connector.get())) {
-            connected_displays_.emplace_back(display.get());
+            IHOTPLUGEVENTTRACE("Connected %d with crtc: %d \n",
+                               encoder->crtc_id, display->CrtcId());
+            // Set the modes supported for each display
+            display->SetDrmModeInfo(mode);
+            display->NotifyClientOfConnectedState();
             break;
           }
         }
@@ -262,7 +268,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             // Set the modes supported for each display
             display->SetDrmModeInfo(mode);
-            connected_displays_.emplace_back(display.get());
+            display->NotifyClientOfConnectedState();
             break;
           }
         }
@@ -272,7 +278,10 @@ bool DrmDisplayManager::UpdateDisplayState() {
 
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
-      display->SetPowerMode(kOff);
+      display->DisConnect();
+      display->NotifyClientOfDisConnectedState();
+    } else {
+      connected_displays_.emplace_back(display.get());
     }
   }
 

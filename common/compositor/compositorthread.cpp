@@ -37,8 +37,12 @@ CompositorThread::~CompositorThread() {
 }
 
 void CompositorThread::Initialize(DisplayPlaneManager *plane_manager) {
-  gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
+  tasks_lock_.lock();
+  if (!gpu_resource_handler_)
+    gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
+
   plane_manager_ = plane_manager;
+  tasks_lock_.unlock();
   if (!InitWorker()) {
     ETRACE("Failed to initalize CompositorThread. %s", PRINTERROR());
   }
@@ -134,6 +138,7 @@ void CompositorThread::HandleReleaseRequest() {
 
   if (release_all_resources_) {
     plane_manager_->ReleaseAllOffScreenTargets();
+    gpu_resource_handler_.reset(nullptr);
   } else {
     plane_manager_->ReleaseFreeOffScreenTargets();
   }

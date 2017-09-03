@@ -66,12 +66,16 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   IHOTPLUGEVENTTRACE("DrmDisplay::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector_ && connector->connector_id == connector_) {
-    IHOTPLUGEVENTTRACE("Display is already connected to this connector.");
+    IHOTPLUGEVENTTRACE(
+        "Display is already connected to this connector. %d %d %p \n",
+        connector->connector_id, connector_, this);
     PhysicalDisplay::Connect();
     return true;
   }
 
-  IHOTPLUGEVENTTRACE("Display is being connected to a new connector.");
+  IHOTPLUGEVENTTRACE(
+      "Display is being connected to a new connector.%d %d %p \n",
+      connector->connector_id, connector_, this);
   connector_ = connector->connector_id;
   mmWidth_ = connector->mmWidth;
   mmHeight_ = connector->mmHeight;
@@ -318,8 +322,10 @@ bool DrmDisplay::CommitFrame(
 void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
   display_lock_.lock();
   uint32_t size = mode_info.size();
-  for (uint32_t i = 0; i < size; ++i)
+  std::vector<drmModeModeInfo>().swap(modes_);
+  for (uint32_t i = 0; i < size; ++i) {
     modes_.emplace_back(mode_info[i]);
+  }
 
   display_lock_.unlock();
 }

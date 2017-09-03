@@ -50,20 +50,19 @@ bool HWCThread::InitWorker() {
 }
 
 void HWCThread::Resume() {
-  if (exit_)
+  if (exit_ || !initialized_)
     return;
 
   event_.Signal();
 }
 
 void HWCThread::Exit() {
-  IHOTPLUGEVENTTRACE("HWCThread::Exit recieved.");
   if (!initialized_)
     return;
 
   initialized_ = false;
   exit_ = true;
-
+  IHOTPLUGEVENTTRACE("HWCThread::Exit recieved.");
   event_.Signal();
   thread_->join();
 }
