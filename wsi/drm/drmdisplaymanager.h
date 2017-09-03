@@ -58,6 +58,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback) override;
 
+  void NotifyClientsOfDisplayChangeStatus();
+
  protected:
   void HandleWait() override;
   void HandleRoutine() override;

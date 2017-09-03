@@ -27,6 +27,7 @@
 #include "physicaldisplay.h"
 
 namespace hwcomposer {
+class DrmDisplayManager;
 class DisplayPlaneState;
 class DisplayQueue;
 class NativeBufferHandler;
@@ -35,7 +36,8 @@ struct HwcLayer;
 
 class DrmDisplay : public PhysicalDisplay {
  public:
-  DrmDisplay(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id);
+  DrmDisplay(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id,
+             DrmDisplayManager *manager);
   ~DrmDisplay() override;
 
   bool GetDisplayAttribute(uint32_t config, HWCDisplayAttribute attribute,
@@ -61,7 +63,7 @@ class DrmDisplay : public PhysicalDisplay {
   }
 
   bool ConnectDisplay(const drmModeModeInfo &mode_info,
-                      const drmModeConnector *connector);
+                      const drmModeConnector *connector, uint32_t config);
 
   void SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info);
   void SetDisplayAttribute(const drmModeModeInfo &mode_info);
@@ -73,6 +75,8 @@ class DrmDisplay : public PhysicalDisplay {
       std::unique_ptr<DisplayPlane> &primary_plane,
       std::unique_ptr<DisplayPlane> &cursor_plane,
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
+
+  void NotifyClientsOfDisplayChangeStatus() override;
 
  private:
   void ShutDownPipe();
@@ -114,6 +118,7 @@ class DrmDisplay : public PhysicalDisplay {
   drmModeModeInfo current_mode_;
   std::vector<drmModeModeInfo> modes_;
   SpinLock display_lock_;
+  DrmDisplayManager *manager_;
 };
 
 }  // namespace hwcomposer

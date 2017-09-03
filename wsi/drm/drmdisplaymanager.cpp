@@ -85,7 +85,8 @@ bool DrmDisplayManager::Initialize() {
       return false;
     }
 
-    std::unique_ptr<DrmDisplay> display(new DrmDisplay(fd_, i, c->crtc_id));
+    std::unique_ptr<DrmDisplay> display(
+        new DrmDisplay(fd_, i, c->crtc_id, this));
     if (!display->Initialize(buffer_handler_.get())) {
       ETRACE("Failed to Initialize Display %d", c->crtc_id);
       return false;
@@ -242,13 +243,12 @@ bool DrmDisplayManager::UpdateDisplayState() {
           // At initilaization  preferred mode is set!
           if (!display->IsConnected() &&
               encoder->crtc_id == display->CrtcId() &&
-              display->ConnectDisplay(mode.at(preferred_mode),
-                                      connector.get())) {
+              display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
+                                      preferred_mode)) {
             IHOTPLUGEVENTTRACE("Connected %d with crtc: %d \n",
                                encoder->crtc_id, display->CrtcId());
             // Set the modes supported for each display
             display->SetDrmModeInfo(mode);
-            display->NotifyClientOfConnectedState();
             break;
           }
         }
@@ -263,12 +263,11 @@ bool DrmDisplayManager::UpdateDisplayState() {
         for (auto &display : displays_) {
           if (!display->IsConnected() &&
               (encoder->possible_crtcs & (1 << display->Pipe())) &&
-              display->ConnectDisplay(mode.at(preferred_mode),
-                                      connector.get())) {
+              display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
+                                      preferred_mode)) {
             IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
             // Set the modes supported for each display
             display->SetDrmModeInfo(mode);
-            display->NotifyClientOfConnectedState();
             break;
           }
         }
@@ -279,7 +278,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->DisConnect();
-      display->NotifyClientOfDisConnectedState();
     } else {
       connected_displays_.emplace_back(display.get());
     }
@@ -297,7 +295,22 @@ bool DrmDisplayManager::UpdateDisplayState() {
   }
 
   spin_lock_.unlock();
+
+  NotifyClientsOfDisplayChangeStatus();
   return true;
+}
+
+void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
+  spin_lock_.lock();
+  for (auto &display : displays_) {
+    if (!display->IsConnected()) {
+      display->NotifyClientOfDisConnectedState();
+    } else {
+      display->NotifyClientOfConnectedState();
+    }
+  }
+
+  spin_lock_.unlock();
 }
 
 NativeDisplay *DrmDisplayManager::GetDisplay(uint32_t display_id) {

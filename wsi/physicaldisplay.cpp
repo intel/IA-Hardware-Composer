@@ -56,6 +56,9 @@ void PhysicalDisplay::MarkForDisconnect() {
   IHOTPLUGEVENTTRACE("PhysicalDisplay::MarkForDisconnect recieved.");
   display_state_ |= kDisconnectionInProgress;
   display_state_ |= kRefreshClonedDisplays;
+  if (pipe_ == 0 && !(display_state_ & kInitialized))
+    display_state_ |= kHandlePendingHotPlugNotifications;
+
   modeset_lock_.unlock();
 }
 
@@ -138,6 +141,9 @@ int PhysicalDisplay::GetDisplayPipe() {
 
 bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
   // update the activeConfig
+  IHOTPLUGEVENTTRACE(
+      "SetActiveConfig: New config to be used %d pipe: %p display: %p", config,
+      pipe_, this);
   config_ = config;
   display_queue_->DisplayConfigurationChanged();
   display_state_ |= kNeedsModeset;
@@ -148,7 +154,10 @@ bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
 bool PhysicalDisplay::GetActiveConfig(uint32_t *config) {
   if (!config)
     return false;
-
+  IHOTPLUGEVENTTRACE(
+      "GetActiveConfig: Current config being used Config: %d pipe: %d display: "
+      "%p",
+      config_, pipe_, this);
   *config = config_;
   return true;
 }
@@ -222,7 +231,17 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   if (display_state_ & kRefreshClonedDisplays) {
     RefreshClones();
   }
+
+  bool handle_hoplug_notifications = false;
+  if (display_state_ & kHandlePendingHotPlugNotifications) {
+    display_state_ &= ~kHandlePendingHotPlugNotifications;
+    handle_hoplug_notifications = true;
+  }
   modeset_lock_.unlock();
+
+  if (handle_hoplug_notifications) {
+    NotifyClientsOfDisplayChangeStatus();
+  }
 
   bool cloned = !clones_.empty();
   bool success =
@@ -287,8 +306,7 @@ void PhysicalDisplay::RegisterHotPlugCallback(
   hotplug_callback_ = callback;
   bool connected = display_state_ & kConnected;
   modeset_lock_.unlock();
-
-  if (hotplug_callback_) {
+  if (hotplug_callback_ && pipe_ == 0) {
     if (connected) {
       hotplug_callback_->Callback(hot_plug_display_id_, true);
     } else {

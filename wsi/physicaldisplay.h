@@ -158,6 +158,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   */
   virtual bool InitializeDisplay() = 0;
 
+  virtual void NotifyClientsOfDisplayChangeStatus() = 0;
+
   /**
   * API for informing the display that it might be disconnected in near
   * future.
@@ -190,7 +192,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     kUpdateDisplay = 1 << 4,
     kDisconnectionInProgress = 1 << 5,
     kInitialized = 1 << 6,  // Display Queue is initialized.
-    kRefreshClonedDisplays = 1 << 7
+    kRefreshClonedDisplays = 1 << 7,
+    kHandlePendingHotPlugNotifications = 1 << 8
   };
 
   uint32_t pipe_;

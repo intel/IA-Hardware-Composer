@@ -29,13 +29,18 @@
 
 #include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "drmdisplaymanager.h"
 
 namespace hwcomposer {
 
 static const int32_t kUmPerInch = 25400;
 
-DrmDisplay::DrmDisplay(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id)
-    : PhysicalDisplay(gpu_fd, pipe_id), crtc_id_(crtc_id), connector_(0) {
+DrmDisplay::DrmDisplay(uint32_t gpu_fd, uint32_t pipe_id, uint32_t crtc_id,
+                       DrmDisplayManager *manager)
+    : PhysicalDisplay(gpu_fd, pipe_id),
+      crtc_id_(crtc_id),
+      connector_(0),
+      manager_(manager) {
   memset(&current_mode_, 0, sizeof(current_mode_));
 }
 
@@ -62,7 +67,8 @@ bool DrmDisplay::InitializeDisplay() {
 }
 
 bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
-                                const drmModeConnector *connector) {
+                                const drmModeConnector *connector,
+                                uint32_t config) {
   IHOTPLUGEVENTTRACE("DrmDisplay::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector_ && connector->connector_id == connector_) {
@@ -80,6 +86,7 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   mmWidth_ = connector->mmWidth;
   mmHeight_ = connector->mmHeight;
   SetDisplayAttribute(mode_info);
+  config_ = config;
 
   ScopedDrmObjectPropertyPtr connector_props(drmModeObjectGetProperties(
       gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
@@ -171,10 +178,16 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   if (!configs) {
     display_lock_.lock();
     *num_configs = modes_.size();
+    IHOTPLUGEVENTTRACE(
+        "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
+        *num_configs, pipe_, this);
     display_lock_.unlock();
     return true;
   }
 
+  IHOTPLUGEVENTTRACE(
+      "GetDisplayConfigs: Populating Configs: %d pipe: %d display: %p",
+      *num_configs, pipe_, this);
   uint32_t size = *num_configs;
   for (uint32_t i = 0; i < size; i++)
     configs[i] = i;
@@ -605,6 +618,10 @@ bool DrmDisplay::PopulatePlanes(
          const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
 
   return true;
+}
+
+void DrmDisplay::NotifyClientsOfDisplayChangeStatus() {
+  manager_->NotifyClientsOfDisplayChangeStatus();
 }
 
 bool DrmDisplay::TestCommit(
