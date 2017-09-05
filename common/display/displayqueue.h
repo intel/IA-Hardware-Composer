@@ -201,7 +201,7 @@ class DisplayQueue {
 
   void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       bool ignore_cursor_layer,
+                       bool cursor_layer_removed, bool cursor_layer_added,
                        DisplayPlaneStateList* composition, bool* render_layers,
                        bool* can_ignore_commit);
   void SetReleaseFenceToLayers(int32_t fence,

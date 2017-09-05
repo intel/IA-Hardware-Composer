@@ -120,7 +120,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 }
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                                   bool ignore_cursor_layer,
+                                   bool cursor_layer_removed,
+                                   bool cursor_layer_added,
                                    DisplayPlaneStateList* composition,
                                    bool* render_layers,
                                    bool* can_ignore_commit) {
@@ -130,21 +131,18 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   for (DisplayPlaneState& plane : previous_plane_state_) {
     bool plane_state_render =
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
-    if (ignore_cursor_layer && plane.IsCursorPlane() && !plane_state_render) {
+    if (cursor_layer_removed && plane.IsCursorPlane() && !plane_state_render) {
       ignore_commit = false;
       continue;
     }
 
     composition->emplace_back(plane.plane());
-    bool reset_regions = false;
     DisplayPlaneState& last_plane = composition->back();
     if (plane.IsCursorPlane()) {
       last_plane.AddLayersForCursor(
           plane.source_layers(), plane.GetDisplayFrame(),
           plane.GetCompositionState(), plane.GetCursorLayer(),
-          ignore_cursor_layer);
-
-      reset_regions = ignore_cursor_layer;
+          cursor_layer_removed);
     } else {
       last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                            plane.GetCompositionState());
@@ -153,8 +151,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (plane_state_render || plane.SurfaceRecycled()) {
       bool content_changed = false;
       bool region_changed = false;
-      bool clear_surface = reset_regions;
+      bool clear_surface = false;
       bool alpha_damaged = false;
+      bool reset_regions = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -193,6 +192,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
+      }
+
+      if ((cursor_layer_added || cursor_layer_removed) && !content_changed &&
+          previous_plane_state_.size() == composition->size()) {
+        content_changed = true;
+        clear_surface = true;
+        reset_regions = true;
       }
 
       if (region_changed) {
@@ -414,8 +420,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
     GetCachedLayers(layers, cursor_state_ & kIgnoredCursorLayer,
-                    &current_composition_planes, &render_layers,
-                    &can_ignore_commit);
+                    add_cursor_layer, &current_composition_planes,
+                    &render_layers, &can_ignore_commit);
     if (add_cursor_layer) {
       bool render_cursor = display_plane_manager_->ValidateCursorLayer(
           cursor_layer, current_composition_planes);
