@@ -204,7 +204,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         int previous_frame_height = previous_rect.bottom - previous_rect.top;
         if ((current_frame_width == previous_frame_width) &&
             (previous_frame_height == current_frame_height)) {
-          plane.TransferSurfaces(last_plane, content_changed);
+          plane.TransferSurfaces(last_plane, true);
           std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
           size_t size = surfaces.size();
           for (size_t i = 0; i < size; i++) {
@@ -221,6 +221,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       } else {
         plane.TransferSurfaces(last_plane, content_changed);
+        if (!reset_regions) {
+          const std::vector<CompositionRegion>& comp_regions =
+              plane.GetCompositionRegion();
+          last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                   comp_regions.end());
+        }
       }
 
       if (content_changed || region_changed || reset_regions) {
