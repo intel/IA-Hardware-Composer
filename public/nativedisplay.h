@@ -189,16 +189,6 @@ class NativeDisplay {
   }
 
   /**
-  * API to disconnect the display. Note that this doesn't necessarily
-  * mean display is turned off. Implementation is free to reset any display
-  * state which they seem appropriate for this state. Any subsequent calls
-  * to Present after this call will not show any content on screen till
-  * Connect() is called.
-  */
-  virtual void DisConnect() {
-  }
-
-  /**
   * API to connect the display. Note that this doesn't necessarily
   * mean display is turned on. Implementation is free to reset any display
   * state which they seem appropriate for this state. Any subsequent calls

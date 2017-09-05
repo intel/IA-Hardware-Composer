@@ -88,8 +88,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
-  void DisConnect() override;
-
   void Connect() override;
 
   bool IsConnected() const override;
@@ -177,6 +175,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   * that this display had been connected.
   */
   void NotifyClientOfDisConnectedState();
+
+  /**
+  * API to disconnect the display. This is called when this display
+  * is physically disconnected.
+  */
+  virtual void DisConnect();
 
  private:
   bool UpdatePowerMode();

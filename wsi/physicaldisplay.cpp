@@ -96,6 +96,7 @@ void PhysicalDisplay::DisConnect() {
 
   modeset_lock_.unlock();
   SetPowerMode(kOff);
+  display_state_ &= ~kConnected;
 }
 
 void PhysicalDisplay::Connect() {
@@ -182,9 +183,6 @@ bool PhysicalDisplay::SetPowerMode(uint32_t power_mode) {
     // progress.
     display_state_ |= kPendingPowerMode;
     return true;
-  } else if (power_mode_ == kOff) {
-    IHOTPLUGEVENTTRACE("PhysicalDisplay Powering off the Display. %p", this);
-    display_state_ &= ~kConnected;
   }
 
   return UpdatePowerMode();
