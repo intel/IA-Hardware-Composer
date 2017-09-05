@@ -295,8 +295,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool idle_update) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
-  if (tracker.IgnoreUpdate())
+  if (tracker.IgnoreUpdate()) {
     return true;
+  }
 
   if (sync_) {
     compositor_.EnsureTasksAreDone();
@@ -310,7 +311,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
   uint32_t previous_frame_cursor_state = cursor_state_;
   cursor_state_ = kNoCursorState;
-
   bool layers_changed = false;
   *retire_fence = -1;
   uint32_t z_order = 0;
@@ -750,25 +750,32 @@ void DisplayQueue::VSyncControl(bool enabled) {
 
 void DisplayQueue::HandleIdleCase() {
   idle_tracker_.idle_lock_.lock();
-
   if (idle_tracker_.state_ & FrameStateTracker::kPrepareComposition) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (idle_tracker_.idle_reset_frames_counter > 0) {
-    idle_tracker_.idle_reset_frames_counter--;
+  size_t size = previous_plane_state_.size();
+  if (idle_tracker_.idle_reset_frames_counter == 5) {
+    // If we are using more than one plane and have had
+    // 5 continuous idle frames, lets reset our counter
+    // to fallback to single plane composition when possible.
+    if ((idle_tracker_.idle_frames_ > kidleframes) && size > 1)
+      idle_tracker_.idle_frames_ = 0;
+  } else {
+    idle_tracker_.idle_reset_frames_counter++;
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  // Wait approx 4 mins before going to idle state.
-  if (previous_plane_state_.size() <= 1 || idle_tracker_.idle_frames_ > 4000) {
+  idle_tracker_.revalidate_frames_counter_ = 0;
+
+  if (size <= 1 || idle_tracker_.idle_frames_ > kidleframes) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  if (idle_tracker_.idle_frames_ < 4000) {
+  if (idle_tracker_.idle_frames_ < kidleframes) {
     idle_tracker_.idle_frames_++;
     idle_tracker_.idle_lock_.unlock();
     return;
@@ -778,12 +785,11 @@ void DisplayQueue::HandleIdleCase() {
   power_mode_lock_.lock();
   if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
-    idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
+    idle_tracker_.state_ |= FrameStateTracker::kPrepareIdleComposition;
   }
   power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
 }
-
 void DisplayQueue::ForceRefresh() {
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;

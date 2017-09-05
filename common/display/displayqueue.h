@@ -45,6 +45,7 @@ class DisplayPlaneHandler;
 struct HwcLayer;
 class NativeBufferHandler;
 
+static uint32_t kidleframes = 250;
 class DisplayQueue {
  public:
   DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
@@ -122,16 +123,18 @@ class DisplayQueue {
   struct FrameStateTracker {
     enum FrameState {
       kPrepareComposition = 1 << 0,  // Preparing for current frame composition.
-      kRenderIdleDisplay = 1 << 1,  // We are in idle mode, disable all overlays
+      kPrepareIdleComposition =
+          1 << 1,  // Next frame should be composited using Single plane.
+      kRenderIdleDisplay = 1 << 2,  // We are in idle mode, disable all overlays
                                     // and use only one plane.
-      kRevalidateLayers = 1 << 2,   // We disabled overlay usage for idle mode,
+      kRevalidateLayers = 1 << 3,   // We disabled overlay usage for idle mode,
                                     // if we are continously updating
       // frames, revalidate layers to use planes.
       kTrackingFrames =
-          1 << 3,              // Tracking frames to see when layers need to be
+          1 << 4,              // Tracking frames to see when layers need to be
                                // revalidated after
                                // disabling overlays for idle case scenario.
-      kIgnoreUpdates = 1 << 4  // Ignore present display calls.
+      kIgnoreUpdates = 1 << 5  // Ignore present display calls.
     };
 
     uint32_t idle_frames_ = 0;
@@ -146,6 +149,11 @@ class DisplayQueue {
         : tracker_(tracker) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
+      if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
+        tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
+        tracker_.state_ &= ~FrameStateTracker::kPrepareIdleComposition;
+      }
+
       tracker_.idle_lock_.unlock();
     }
 
@@ -168,11 +176,12 @@ class DisplayQueue {
 
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
-      if (tracker_.idle_reset_frames_counter == 5) {
+      tracker_.idle_reset_frames_counter = 0;
+      // Reset idle frame count if it's less than
+      // kidleframes. We want that idle frames
+      // are continuous to detect idle mode scenario.
+      if (tracker_.idle_frames_ < kidleframes)
         tracker_.idle_frames_ = 0;
-      } else {
-        tracker_.idle_reset_frames_counter++;
-      }
 
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
