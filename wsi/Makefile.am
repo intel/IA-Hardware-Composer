@@ -19,16 +19,11 @@ ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
 
 AM_MAKEFLAGS = -s
 
-SUBDIRS = \
-	common \
-	wsi \
-	. \
-	tests/third_party/json-c \
-	tests
+SUBDIRS = .
 
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
-AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Ios -Ios/linux -Icommon/display/ -Icommon/core/ -Icommon/utils/ -Icommon/compositor/ -Iwsi -Iwsi/drm/
+AM_CPP_INCLUDES = -Idrm -I../os/ -I../os/linux/ -I../public/ -I../common/display/ -I../common/core/ -I../common/utils/ -I../common/compositor/
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
@@ -36,38 +31,26 @@ if !ENABLE_GBM
 AM_CPPFLAGS += -DUSE_MINIGBM
 endif
 
-libhwcomposer_la_LIBADD = \
+libhwcomposer_wsi_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	-lm
 
-libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
-libhwcomposer_la_SOURCES = $(hwc_SOURCES)
-libhwcomposer_ladir = $(libdir)
-libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared -Wl,-whole-archive,common/.libs/libhwcomposer_common.a,wsi/.libs/libhwcomposer_wsi.a,-no-whole-archive
+libhwcomposer_wsi_la_LTLIBRARIES = libhwcomposer_wsi.la
+libhwcomposer_wsi_la_SOURCES = $(wsi_SOURCES)
+libhwcomposer_wsi_ladir = $(libdir)
+libhwcomposer_wsi_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static
 
 if ENABLE_VULKAN
-AM_CPP_INCLUDES += -Icommon/compositor/vk
-AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
-libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lvulkan,--as-needed
+AM_CPP_INCLUDES += -I../common/compositor/vk
+AM_CPPFLAGS += -I../common/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
+libhwcomposer_wsi_la_LIBADD += -lvulkan
 else
-AM_CPP_INCLUDES += -Icommon/compositor/gl
+AM_CPP_INCLUDES += -I../common/compositor/gl
 AM_CPPFLAGS += -DUSE_GL
-libhwcomposer_la_LIBADD += $(GLES2_LIBS)
+libhwcomposer_wsi_la_LIBADD += $(GLES2_LIBS)
 endif
-
-
-libhwcincdir = $(includedir)/libhwc
-libhwcinc_HEADERS =	\
-	$(top_srcdir)/public/gpudevice.h	\
-	$(top_srcdir)/public/hwcbuffer.h	\
-	$(top_srcdir)/public/hwcdefs.h	\
-	$(top_srcdir)/public/hwclayer.h	\
-	$(top_srcdir)/public/hwcrect.h	\
-	$(top_srcdir)/public/nativebufferhandler.h	\
-	$(top_srcdir)/public/nativedisplay.h	\
-	$(top_srcdir)/public/spinlock.h
 
 .PHONY: ChangeLog INSTALL
 

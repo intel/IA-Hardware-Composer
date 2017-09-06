@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
+ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)), true)
 # Obtain root HWC source path
 HWC_PATH := $(call my-dir)
 
@@ -22,6 +22,10 @@ HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+
+LOCAL_WHOLE_STATIC_LIBRARIES := \
+        libhwcomposer_common \
+        libhwcomposer_wsi
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
@@ -49,31 +53,6 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/wsi/drm
 
 LOCAL_SRC_FILES := \
-	common/compositor/compositor.cpp \
-	common/compositor/compositorthread.cpp \
-	common/compositor/factory.cpp \
-	common/compositor/nativesurface.cpp \
-	common/compositor/renderstate.cpp \
-	common/core/gpudevice.cpp \
-	common/core/hwclayer.cpp \
-        common/core/hwclock.cpp \
-	common/core/overlaylayer.cpp \
-	common/display/displayplanemanager.cpp \
-	common/display/displayqueue.cpp \
-	common/display/headless.cpp \
-	common/display/vblankeventhandler.cpp \
-	common/display/virtualdisplay.cpp \
-	common/utils/fdhandler.cpp \
-	common/utils/hwcevent.cpp \
-	common/utils/hwcthread.cpp \
-	common/utils/hwcutils.cpp \
-	common/utils/disjoint_layers.cpp \
-	wsi/physicaldisplay.cpp \
-	wsi/drm/drmdisplay.cpp \
-	wsi/drm/drmbuffer.cpp \
-	wsi/drm/drmplane.cpp \
-	wsi/drm/drmdisplaymanager.cpp \
-	wsi/drm/drmscopedtypes.cpp \
 	os/android/platformdefines.cpp
 
 ifeq ($(strip $(TARGET_USES_HWC2)), true)
@@ -113,42 +92,27 @@ LOCAL_CPPFLAGS += \
 	-D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
 	-O3
 
-ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)),true)
+ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)), true)
 LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
 endif
 
-ifeq ($(strip $(BOARD_USES_VULKAN)),true)
+ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
-	libvulkan
+        libvulkan
 
 LOCAL_CPPFLAGS += \
-	-DUSE_VK \
-	-DDISABLE_EXPLICIT_SYNC
+        -DUSE_VK \
+        -DDISABLE_EXPLICIT_SYNC
 
 LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/common/compositor/vk \
-	$(LOCAL_PATH)/../mesa/include
-
-LOCAL_SRC_FILES += \
-	common/compositor/vk/vkprogram.cpp \
-	common/compositor/vk/vkrenderer.cpp \
-	common/compositor/vk/vksurface.cpp \
-	common/compositor/vk/nativevkresource.cpp \
-	common/compositor/vk/vkshim.cpp
+        $(LOCAL_PATH)/common/compositor/vk \
+        $(LOCAL_PATH)/../mesa/include
 else
 LOCAL_CPPFLAGS += \
-	-DUSE_GL
-
-LOCAL_SRC_FILES += \
-	common/compositor/gl/glprogram.cpp \
-	common/compositor/gl/glrenderer.cpp \
-	common/compositor/gl/glsurface.cpp \
-	common/compositor/gl/egloffscreencontext.cpp \
-	common/compositor/gl/nativeglresource.cpp \
-	common/compositor/gl/shim.cpp
+        -DUSE_GL
 endif
 
-ifeq ($(strip $(BOARD_USES_MINIGBM)),true)
+ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
@@ -159,29 +123,33 @@ endif
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
-#Preffered paths for all vendor hals /vendor/lib/hw
+# Preffered paths for all vendor hals /vendor/lib/hw
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_SUFFIX := $(TARGET_SHLIB_SUFFIX)
 include $(BUILD_SHARED_LIBRARY)
 
+# Static lib: libhwcomposer_common and libhwcomposer_wsi
+include $(HWC_PATH)/common/Android.mk
+include $(HWC_PATH)/wsi/Android.mk
+
 ifeq ($(strip $(TARGET_USES_HWC2)), true)
 # libhwcservice
 HWC_BUILD_DIRS := \
-$(LOCAL_PATH)/os/android/libhwcservice/Android.mk \
-$(LOCAL_PATH)/os/android/libhwcservice/utils/Android.mk
+$(HWC_PATH)/os/android/libhwcservice/Android.mk \
+$(HWC_PATH)/os/android/libhwcservice/utils/Android.mk
 
 include $(HWC_BUILD_DIRS)
 
-#Include tests only if eng build
+# Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
 #include $(HWC_PATH)/tests/hwc-val/tests/hwc/Android.mk
 endif
 
 endif
 
-#Include tests only if eng build
+# Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
 # Commenting for now include when ld issue is resolved
 #include $(HWC_PATH)/tests/third_party/json-c/Android.mk

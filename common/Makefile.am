@@ -19,16 +19,11 @@ ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
 
 AM_MAKEFLAGS = -s
 
-SUBDIRS = \
-	common \
-	wsi \
-	. \
-	tests/third_party/json-c \
-	tests
+SUBDIRS = .
 
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
-AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Ios -Ios/linux -Icommon/display/ -Icommon/core/ -Icommon/utils/ -Icommon/compositor/ -Iwsi -Iwsi/drm/
+AM_CPP_INCLUDES = -Icore -Iutils -Icompositor -Idisplay -I../os/ -I../os/linux/ -I../public/ -I../wsi/
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
@@ -36,38 +31,28 @@ if !ENABLE_GBM
 AM_CPPFLAGS += -DUSE_MINIGBM
 endif
 
-libhwcomposer_la_LIBADD = \
+libhwcomposer_common_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	-lm
 
-libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
-libhwcomposer_la_SOURCES = $(hwc_SOURCES)
-libhwcomposer_ladir = $(libdir)
-libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared -Wl,-whole-archive,common/.libs/libhwcomposer_common.a,wsi/.libs/libhwcomposer_wsi.a,-no-whole-archive
-
+libhwcomposer_common_la_LTLIBRARIES = libhwcomposer_common.la
+libhwcomposer_common_la_SOURCES = $(common_SOURCES)
 if ENABLE_VULKAN
-AM_CPP_INCLUDES += -Icommon/compositor/vk
-AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
-libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lvulkan,--as-needed
+libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
+AM_CPP_INCLUDES += -Icompositor/vk
+AM_CPPFLAGS += -Icompositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
+libhwcomposer_common_la_LIBADD += -lvulkan
 else
-AM_CPP_INCLUDES += -Icommon/compositor/gl
+libhwcomposer_common_la_SOURCES += $(gl_SOURCES)
+AM_CPP_INCLUDES += -Icompositor/gl
 AM_CPPFLAGS += -DUSE_GL
-libhwcomposer_la_LIBADD += $(GLES2_LIBS)
+libhwcomposer_common_la_LIBADD += $(GLES2_LIBS)
 endif
 
-
-libhwcincdir = $(includedir)/libhwc
-libhwcinc_HEADERS =	\
-	$(top_srcdir)/public/gpudevice.h	\
-	$(top_srcdir)/public/hwcbuffer.h	\
-	$(top_srcdir)/public/hwcdefs.h	\
-	$(top_srcdir)/public/hwclayer.h	\
-	$(top_srcdir)/public/hwcrect.h	\
-	$(top_srcdir)/public/nativebufferhandler.h	\
-	$(top_srcdir)/public/nativedisplay.h	\
-	$(top_srcdir)/public/spinlock.h
+libhwcomposer_common_ladir = $(libdir)
+libhwcomposer_common_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static
 
 .PHONY: ChangeLog INSTALL
 
