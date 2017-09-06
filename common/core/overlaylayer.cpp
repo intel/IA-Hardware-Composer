@@ -139,9 +139,10 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
   // We expect cursor plane to support alpha always.
-  if ((gpu_rendered_ && !rect_changed) || (cursor_layer_)) {
+  if (rhs->gpu_rendered_ || (cursor_layer_)) {
     content_changed = rect_changed || layer->HasContentAttributesChanged() ||
-                      layer->HasLayerAttributesChanged();
+                      layer->HasLayerAttributesChanged() ||
+                      layer->HasSourcePositionChanged();
   } else {
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
