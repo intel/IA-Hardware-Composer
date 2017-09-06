@@ -1,0 +1,38 @@
+common_SOURCES =              \
+    compositor/compositor.cpp \
+    compositor/compositorthread.cpp \
+    compositor/factory.cpp \
+    compositor/nativesurface.cpp \
+    compositor/renderstate.cpp \
+    core/hwclayer.cpp \
+    core/hwclock.cpp \
+    core/overlaylayer.cpp \
+    core/gpudevice.cpp \
+    display/displayqueue.cpp \
+    display/displayplanemanager.cpp \
+    display/headless.cpp \
+    display/vblankeventhandler.cpp \
+    display/virtualdisplay.cpp \
+    utils/fdhandler.cpp \
+    utils/hwcevent.cpp \
+    utils/hwcthread.cpp \
+    utils/hwcutils.cpp \
+    utils/disjoint_layers.cpp \
+	$(NULL)
+
+gl_SOURCES =              \
+    compositor/gl/egloffscreencontext.cpp \
+    compositor/gl/glprogram.cpp \
+    compositor/gl/glrenderer.cpp \
+    compositor/gl/glsurface.cpp \
+    compositor/gl/nativeglresource.cpp \
+    compositor/gl/shim.cpp \
+	$(NULL)
+
+vk_SOURCES =\
+    compositor/vk/vkprogram.cpp \
+    compositor/vk/vkrenderer.cpp \
+    compositor/vk/vksurface.cpp \
+    compositor/vk/nativevkresource.cpp \
+    compositor/vk/vkshim.cpp \
+        $(NULL)
