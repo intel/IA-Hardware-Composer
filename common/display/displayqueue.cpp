@@ -194,7 +194,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if ((cursor_layer_added || cursor_layer_removed) && !content_changed &&
+      if ((cursor_layer_added || cursor_layer_removed) &&
           previous_plane_state_.size() == composition->size()) {
         content_changed = true;
         clear_surface = true;

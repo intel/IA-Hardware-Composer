@@ -133,10 +133,6 @@ void OverlayLayer::InitializeFromHwcLayer(
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
-  gpu_rendered_ = rhs->gpu_rendered_;
-  if (!prefer_separate_plane_)
-    prefer_separate_plane_ = rhs->prefer_separate_plane_;
-
   if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat())
     return;
 
@@ -147,20 +143,23 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     content_changed = rect_changed || layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged();
   } else {
-    if (rect_changed || layer->HasContentAttributesChanged() ||
-        layer->HasLayerAttributesChanged())
-      return;
-
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
     // supporting XRGB format might not necessarily support
     // transparent planes. We assume plane supporting
     // ARGB will support XRGB.
-    if ((rhs->alpha_ == 0xff) && alpha_ != rhs->alpha_)
+    if ((rhs->alpha_ == 0xff) && (alpha_ != rhs->alpha_))
+      return;
+
+    if (blending_ != rhs->blending_)
+      return;
+
+    if (rect_changed || layer->HasLayerAttributesChanged())
       return;
   }
 
   state_ &= ~kLayerAttributesChanged;
+  gpu_rendered_ = rhs->gpu_rendered_;
 
   if (!rect_changed) {
     state_ &= ~kDimensionsChanged;

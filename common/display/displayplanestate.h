@@ -125,6 +125,7 @@ class DisplayPlaneState {
 
   void SetOverlayLayer(const OverlayLayer *layer) {
     layer_ = layer;
+    display_frame_ = layer->GetDisplayFrame();
   }
 
   void ReUseOffScreenTarget() {
@@ -161,9 +162,9 @@ class DisplayPlaneState {
         plane_state.surfaces_.emplace_back(surfaces_.at(i));
       }
     } else {
+      plane_state.surfaces_.emplace_back(surfaces_.at(1));
       plane_state.surfaces_.emplace_back(surfaces_.at(2));
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
-      plane_state.surfaces_.emplace_back(surfaces_.at(1));
     }
   }
 

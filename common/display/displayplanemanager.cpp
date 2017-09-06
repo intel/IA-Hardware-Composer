@@ -290,8 +290,8 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   const HwcRect<int> &rect = plane.GetDisplayFrame();
-  int width = rect.right - rect.left;
-  int height = rect.bottom - rect.top;
+  int width = std::min((rect.right - rect.left), static_cast<int>(width_));
+  int height = std::min((rect.bottom - rect.top), static_cast<int>(height_));
   for (auto &fb : surfaces_) {
     if (!fb->InUse() && (width == fb->GetWidth()) &&
         (height == fb->GetHeight())) {
