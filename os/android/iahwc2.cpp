@@ -86,7 +86,8 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
     IHOTPLUGEVENTTRACE(
         "IAHotPlugEventCallback called displayid: %d status: %d \n", display,
         status);
-    hook(data_, display, status);
+    if (hook)
+      hook(data_, display, status);
   }
 
  private:
