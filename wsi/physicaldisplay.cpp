@@ -59,24 +59,28 @@ void PhysicalDisplay::MarkForDisconnect() {
   if (pipe_ == 0 && !(display_state_ & kInitialized))
     display_state_ |= kHandlePendingHotPlugNotifications;
 
+  display_state_ &= ~kNotifyClient;
   modeset_lock_.unlock();
 }
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
   modeset_lock_.lock();
-  if (hotplug_callback_ && (display_state_ & kConnected)) {
+  if (hotplug_callback_ && (display_state_ & kConnected) &&
+      (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay Sent Hotplug even call back with connected value set "
         "to true. %p hotplugdisplayid: %d \n",
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, true);
   }
+  display_state_ &= ~kNotifyClient;
   modeset_lock_.unlock();
 }
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
   modeset_lock_.lock();
-  if (hotplug_callback_ && !(display_state_ & kConnected)) {
+  if (hotplug_callback_ && !(display_state_ & kConnected) &&
+      (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay Sent Hotplug even call back with connected value set "
         "to false. %p hotplugdisplayid: %d \n",
@@ -89,11 +93,13 @@ void PhysicalDisplay::NotifyClientOfDisConnectedState() {
 void PhysicalDisplay::DisConnect() {
   modeset_lock_.lock();
   display_state_ &= ~kDisconnectionInProgress;
+
   if (!(display_state_ & kConnected)) {
     modeset_lock_.unlock();
     return;
   }
 
+  display_state_ |= kNotifyClient;
   modeset_lock_.unlock();
   SetPowerMode(kOff);
   display_state_ &= ~kConnected;
@@ -110,6 +116,7 @@ void PhysicalDisplay::Connect() {
 
   display_state_ |= kConnected;
   display_state_ &= ~kInitialized;
+  display_state_ |= kNotifyClient;
 
   if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
@@ -303,6 +310,7 @@ void PhysicalDisplay::RegisterHotPlugCallback(
   hot_plug_display_id_ = display_id;
   hotplug_callback_ = callback;
   bool connected = display_state_ & kConnected;
+  display_state_ &= ~kNotifyClient;
   modeset_lock_.unlock();
   if (hotplug_callback_ && pipe_ == 0) {
     if (connected) {

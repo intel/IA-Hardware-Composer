@@ -197,7 +197,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     kDisconnectionInProgress = 1 << 5,
     kInitialized = 1 << 6,  // Display Queue is initialized.
     kRefreshClonedDisplays = 1 << 7,
-    kHandlePendingHotPlugNotifications = 1 << 8
+    kHandlePendingHotPlugNotifications = 1 << 8,
+    kNotifyClient = 1 << 9  // Notify client as display connection physical
+                            // status has changed.
   };
 
   uint32_t pipe_;
