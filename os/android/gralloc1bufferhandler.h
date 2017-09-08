@@ -42,7 +42,7 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y, uint32_t width,
             uint32_t height, uint32_t *stride, void **map_data,
             size_t plane) override;
-  void UnMap(HWCNativeHandle handle, void *map_data) override;
+  int32_t UnMap(HWCNativeHandle handle, void *map_data) override;
 
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
@@ -52,6 +52,8 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   GRALLOC1_PFN_RETAIN register_;
   GRALLOC1_PFN_RELEASE release_;
   GRALLOC1_PFN_GET_DIMENSIONS dimensions_;
+  GRALLOC1_PFN_LOCK lock_;
+  GRALLOC1_PFN_UNLOCK unlock_;
 };
 
 }  // namespace hwcomposer

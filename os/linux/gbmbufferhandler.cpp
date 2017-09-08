@@ -239,11 +239,12 @@ void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
 #endif
 }
 
-void GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
+int32_t GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
   if (!handle->bo)
-    return;
+    return -1;
 
-  return gbm_bo_unmap(handle->bo, map_data);
+  gbm_bo_unmap(handle->bo, map_data);
+  return 0;
 }
 
 }  // namespace hwcomposer
