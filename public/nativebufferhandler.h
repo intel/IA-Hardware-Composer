@@ -50,7 +50,7 @@ class NativeBufferHandler {
                     uint32_t width, uint32_t height, uint32_t *stride,
                     void **map_data, size_t plane) = 0;
 
-  virtual void UnMap(HWCNativeHandle handle, void *map_data) = 0;
+  virtual int32_t UnMap(HWCNativeHandle handle, void *map_data) = 0;
 };
 
 }  // namespace hwcomposer

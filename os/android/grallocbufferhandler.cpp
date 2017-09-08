@@ -158,7 +158,7 @@ void *GrallocBufferHandler::Map(HWCNativeHandle /*handle*/, uint32_t /*x*/,
   return NULL;
 }
 
-void GrallocBufferHandler::UnMap(HWCNativeHandle /*handle*/,
+int32_t GrallocBufferHandler::UnMap(HWCNativeHandle /*handle*/,
                                  void * /*map_data*/) {
 }
 
