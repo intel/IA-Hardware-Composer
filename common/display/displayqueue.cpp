@@ -201,41 +201,25 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         reset_regions = true;
       }
 
+      plane.TransferSurfaces(last_plane, content_changed || clear_surface);
       if (region_changed) {
-        const HwcRect<int>& previous_rect = plane.GetDisplayFrame();
+        std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
+        size_t size = surfaces.size();
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-        int current_frame_width = current_rect.right - current_rect.left;
-        int current_frame_height = current_rect.bottom - current_rect.top;
-        int previous_frame_width = previous_rect.right - previous_rect.left;
-        int previous_frame_height = previous_rect.bottom - previous_rect.top;
-        if ((current_frame_width == previous_frame_width) &&
-            (previous_frame_height == current_frame_height)) {
-          plane.TransferSurfaces(last_plane, true);
-          std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-          size_t size = surfaces.size();
-          for (size_t i = 0; i < size; i++) {
-            surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-            surfaces.at(i)->UpdateDisplayFrame(current_rect);
-          }
-        } else {
-          std::vector<NativeSurface*>& surfaces = plane.GetSurfaces();
-          size_t size = surfaces.size();
-          // Let's not mark the surface currently on screen as free.
-          for (size_t i = 1; i < size; i++) {
-            surfaces.at(i)->SetInUse(false);
-          }
+        for (size_t i = 0; i < size; i++) {
+          surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
+          surfaces.at(i)->UpdateDisplayFrame(current_rect);
         }
-      } else {
-        plane.TransferSurfaces(last_plane, content_changed);
-        if (!reset_regions) {
-          const std::vector<CompositionRegion>& comp_regions =
-              plane.GetCompositionRegion();
-          last_plane.GetCompositionRegion().assign(comp_regions.begin(),
-                                                   comp_regions.end());
-        }
+
+        content_changed = true;
+      } else if (!reset_regions) {
+        const std::vector<CompositionRegion>& comp_regions =
+            plane.GetCompositionRegion();
+        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                 comp_regions.end());
       }
 
-      if (content_changed || region_changed || reset_regions) {
+      if (content_changed || reset_regions) {
         if (last_plane.GetSurfaces().size() == 3) {
           NativeSurface* surface = last_plane.GetOffScreenTarget();
           surface->RecycleSurface(last_plane);

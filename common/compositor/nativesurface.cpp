@@ -84,7 +84,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
   layer_.SetDisplayFrame(HwcRect<int>(display_rect));
-  layer_.SetSourceCrop(HwcRect<float>(0, 0, layer_.GetDisplayFrameWidth(), layer_.GetDisplayFrameHeight()));
+  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
 
@@ -101,7 +101,7 @@ void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
   SetInUse(true);
   layer_.SetAcquireFence(-1);
   layer_.SetDisplayFrame(HwcRect<int>(plane.GetDisplayFrame()));
-  layer_.SetSourceCrop(HwcRect<float>(0, 0, layer_.GetDisplayFrameWidth(), layer_.GetDisplayFrameHeight()));
+  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
 }
 
 void NativeSurface::UpdateSurfaceDamage(
@@ -120,8 +120,7 @@ void NativeSurface::UpdateSurfaceDamage(
 
 void NativeSurface::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   layer_.SetDisplayFrame(display_frame);
-  layer_.SetSourceCrop(HwcRect<float>(0, 0, layer_.GetDisplayFrameWidth(),
-                                      layer_.GetDisplayFrameHeight()));
+  layer_.SetSourceCrop(HwcRect<float>(display_frame));
 }
 
 void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
