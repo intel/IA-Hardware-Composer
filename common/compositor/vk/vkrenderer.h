@@ -40,14 +40,14 @@ class VKRenderer : public Renderer {
   VkBuffer UploadBuffer(size_t data_size, const uint8_t *data,
                         VkBufferUsageFlags usage);
 
-  VkPhysicalDeviceProperties device_props_;
-  VkPhysicalDeviceMemoryProperties device_mem_props_;
-  VkDeviceMemory uniform_buffer_mem_;
   VkDescriptorPool desc_pool_;
   VkCommandPool cmd_pool_;
   VkQueue queue_;
   VkBuffer vert_buffer_;
+  bool initialized_ = false;
 
+  VKContext context_;
+  VKContext *saved_context_;
   std::vector<std::unique_ptr<VKProgram>> programs_;
 };
 

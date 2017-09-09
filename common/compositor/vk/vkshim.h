@@ -23,6 +23,8 @@
 
 namespace hwcomposer {
 
+bool vk_is_supported();
+
 // Generic ring buffer that always allocates contiguous regions. Chunks can be
 // freed in any order, but the in flight pointer (read_offset_) only advances
 // when the oldest in flight chunk is free. It's optimized. for the case where
@@ -124,22 +126,6 @@ class RingBuffer {
   bool IsSpanInUse(size_t first, size_t size);
   void Free(uint8_t *ptr);
 };
-
-extern VkDevice dev_;
-extern VkInstance inst_;
-extern VkRenderPass render_pass_;
-extern VkPipelineCache pipeline_cache_;
-extern VkBuffer uniform_buffer_;
-extern VkSampler sampler_;
-extern std::vector<VkImage> src_images_;
-extern std::vector<VkImageView> src_image_views_;
-extern std::vector<VkDescriptorImageInfo> src_image_infos_;
-extern RingBuffer ring_buffer_;
-extern std::vector<RingBuffer::Allocation> ub_allocs_;
-extern size_t ub_offset_align_;
-extern std::vector<VkImageMemoryBarrier> src_barrier_before_clear_;
-extern VkImageMemoryBarrier dst_barrier_before_clear_;
-extern VkFramebuffer framebuffer_;
 
 }  // namespace hwcomposer
 

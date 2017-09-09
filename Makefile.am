@@ -26,7 +26,7 @@ SUBDIRS = \
 
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
-AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Icommon/core -Icommon/utils -Icommon/compositor -Icommon/display -Ios -Ios/linux -Icommon/compositor/gl -Itests/common -Iwsi/drm -Iwsi
+AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Icommon/core -Icommon/utils -Icommon/compositor -Icommon/display -Ios -Ios/linux -Icommon/compositor/gl -Icommon/compositor/vk -Itests/common -Iwsi/drm -Iwsi
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
@@ -39,16 +39,14 @@ libhwcomposer_la_LIBADD = \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
 	$(GLES2_LIBS) \
+	-lvulkan \
 	-lm
 
 libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
-libhwcomposer_la_SOURCES = $(common_SOURCES)
+libhwcomposer_la_SOURCES = $(common_SOURCES) $(gl_SOURCES) $(vk_SOURCES)
 if ENABLE_VULKAN
-libhwcomposer_la_SOURCES += $(vk_SOURCES)
-AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
-libhwcomposer_la_LIBADD += -lvulkan
+AM_CPPFLAGS += -DUSE_VK -DDISABLE_EXPLICIT_SYNC
 else
-libhwcomposer_la_SOURCES += $(gl_SOURCES)
 AM_CPPFLAGS += -DUSE_GL
 endif
 libhwcomposer_ladir = $(libdir)

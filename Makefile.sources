@@ -38,6 +38,7 @@ gl_SOURCES =              \
 	$(NULL)
 
 vk_SOURCES =\
+    common/compositor/vk/vkcontext.cpp \
     common/compositor/vk/vkprogram.cpp \
     common/compositor/vk/vkrenderer.cpp \
     common/compositor/vk/vksurface.cpp \

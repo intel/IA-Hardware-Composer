@@ -16,6 +16,7 @@
 #define VK_SURFACE_H_
 
 #include "nativesurface.h"
+#include "vkcontext.h"
 #include "vkshim.h"
 
 namespace hwcomposer {
@@ -32,10 +33,9 @@ class VKSurface : public NativeSurface {
 
  private:
   bool InitializeGPUResources();
-  VkDeviceMemory image_memory_;
-  VkImage image_;
-  VkImageView image_view_;
+  struct vk_resource surface_resource_;
   VkFramebuffer surface_fb_;
+  VKContext *context_;
 };
 
 }  // namespace hwcomposer

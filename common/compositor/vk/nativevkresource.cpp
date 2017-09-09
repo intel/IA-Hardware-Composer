@@ -25,32 +25,15 @@ bool NativeVKResource::PrepareResources(
   VkResult res;
 
   Reset();
-
-  VkImageSubresourceRange clear_range = {};
-  clear_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  clear_range.levelCount = 1;
-  clear_range.layerCount = 1;
+  context_ = global_context_;
+  VkDevice dev = context_->getDevice();
 
   for (auto& buffer : buffers) {
-    struct vk_import import = buffer->ImportImage(dev_);
+    struct vk_import import = buffer->ImportImage(dev);
     if (import.res != VK_SUCCESS) {
       ETRACE("Failed to make import image (%d)\n", import.res);
       return false;
     }
-    src_images_.emplace_back(import.image);
-    src_image_memory_.emplace_back(import.memory);
-
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = import.image;
-    barrier.subresourceRange = clear_range;
-    src_barrier_before_clear_.emplace_back(barrier);
 
     VkImageViewCreateInfo view_create = {};
     view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -68,16 +51,16 @@ bool NativeVKResource::PrepareResources(
     view_create.subresourceRange.layerCount = 1;
 
     VkImageView image_view;
-    res = vkCreateImageView(dev_, &view_create, NULL, &image_view);
+    res = vkCreateImageView(dev, &view_create, NULL, &image_view);
     if (res != VK_SUCCESS) {
       ETRACE("vkCreateImageView failed (%d)\n", res);
       return false;
     }
-    src_image_views_.emplace_back(image_view);
 
-    struct vk_resource resource;
-    resource.image = import.image;
-    resource.image_view = image_view;
+    GpuResourceHandle resource;
+    resource.vk.image = import.image;
+    resource.vk.image_view = image_view;
+    resource.vk.image_memory = import.memory;
     layer_textures_.emplace_back(resource);
   }
   return true;
@@ -88,29 +71,25 @@ NativeVKResource::~NativeVKResource() {
 }
 
 void NativeVKResource::Reset() {
-  for (auto& image_view : src_image_views_) {
-    vkDestroyImageView(dev_, image_view, NULL);
-  }
-  src_image_views_.clear();
+  if (!context_)
+    return;
 
-  for (auto& image : src_images_) {
-    vkDestroyImage(dev_, image, NULL);
-  }
-  src_images_.clear();
+  VkDevice dev = context_->getDevice();
 
-  for (auto& memory : src_image_memory_) {
-    vkFreeMemory(dev_, memory, NULL);
+  for (auto& layer : layer_textures_) {
+    vkDestroyImage(dev, layer.vk.image, NULL);
+    vkDestroyImageView(dev, layer.vk.image_view, NULL);
+    vkFreeMemory(dev, layer.vk.image_memory, NULL);
   }
-  src_image_memory_.clear();
-
-  src_barrier_before_clear_.clear();
   layer_textures_.clear();
+
+  context_ = NULL;
 }
 
 GpuResourceHandle NativeVKResource::GetResourceHandle(
     uint32_t layer_index) const {
   if (layer_textures_.size() < layer_index) {
-    struct vk_resource res = {};
+    GpuResourceHandle res = {};
     return res;
   }
 
