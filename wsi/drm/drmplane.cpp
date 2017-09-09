@@ -16,6 +16,7 @@
 
 #include "drmplane.h"
 
+#include <cmath>
 #include <drm_fourcc.h>
 
 #include <gpudevice.h>
@@ -180,12 +181,12 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                         layer->GetDisplayFrameWidth()) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
                                         layer->GetDisplayFrameHeight()) < 0;
-    success |=
-        drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id,
-                                 static_cast<int>(source_crop.left) << 16) < 0;
-    success |=
-        drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id,
-                                 static_cast<int>(source_crop.top) << 16) < 0;
+    success |= drmModeAtomicAddProperty(
+                   property_set, id_, src_x_prop_.id,
+                   static_cast<int>(ceilf(source_crop.left)) << 16) < 0;
+    success |= drmModeAtomicAddProperty(
+                   property_set, id_, src_y_prop_.id,
+                   static_cast<int>(ceilf((source_crop.top))) << 16) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
                                         layer->GetSourceCropWidth() << 16) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,

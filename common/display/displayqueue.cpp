@@ -754,7 +754,7 @@ void DisplayQueue::HandleIdleCase() {
 
   idle_tracker_.revalidate_frames_counter_ = 0;
 
-  if (size <= 1 || idle_tracker_.idle_frames_ > kidleframes) {
+  if (size <= 1 || (idle_tracker_.idle_frames_ > kidleframes)) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }

@@ -16,6 +16,8 @@
 
 #include <hwclayer.h>
 
+#include <cmath>
+
 namespace hwcomposer {
 
 HwcLayer::~HwcLayer() {
@@ -68,9 +70,9 @@ void HwcLayer::SetBlending(HWCBlending blending) {
 
 void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
   uint32_t new_src_crop_width =
-      static_cast<int>(source_crop.right - source_crop.left);
+      static_cast<int>(ceilf(source_crop.right - source_crop.left));
   uint32_t new_src_crop_height =
-      static_cast<int>(source_crop.bottom - source_crop.top);
+      static_cast<int>(ceilf(source_crop.bottom - source_crop.top));
 
   if ((source_crop.left != source_crop_.left) ||
       (source_crop.right != source_crop_.right)) {

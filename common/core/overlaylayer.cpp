@@ -16,6 +16,8 @@
 
 #include "overlaylayer.h"
 
+#include <cmath>
+
 #include <drm_mode.h>
 #include <hwctrace.h>
 
@@ -76,10 +78,10 @@ void OverlayLayer::SetBlending(HWCBlending blending) {
 }
 
 void OverlayLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
-  source_crop_width_ =
-      static_cast<int>(source_crop.right) - static_cast<int>(source_crop.left);
-  source_crop_height_ =
-      static_cast<int>(source_crop.bottom) - static_cast<int>(source_crop.top);
+  source_crop_width_ = static_cast<int>(ceilf(source_crop.right) -
+                                        static_cast<int>(source_crop.left));
+  source_crop_height_ = static_cast<int>(ceilf(source_crop.bottom) -
+                                         static_cast<int>(source_crop.top));
   source_crop_ = source_crop;
 }
 
