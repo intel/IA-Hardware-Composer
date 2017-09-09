@@ -159,7 +159,8 @@ AX_COMPILE_CHECK_SIZEOF(int)
 AX_COMPILE_CHECK_SIZEOF(long)
 AX_COMPILE_CHECK_SIZEOF(long long)
 AX_COMPILE_CHECK_SIZEOF(size_t, [#include <stdint.h>])
-###############################################################################
+# End of json-c
+#######################################################################
 
 PKG_CHECK_MODULES(DRM, [libdrm])
 PKG_CHECK_MODULES(GBM, [gbm])
@@ -173,6 +174,8 @@ AC_ARG_ENABLE(git-hash,
 AC_SUBST(GIT_HASH, [$git_hash])
 
 AC_CONFIG_FILES([
+		common/Makefile
+		wsi/Makefile
 		Makefile
 		tests/third_party/json-c/Makefile
 		tests/Makefile
