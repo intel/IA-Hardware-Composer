@@ -187,12 +187,12 @@ struct OverlayLayer {
 
   uint32_t transform_ = 0;
   uint32_t rotation_ = 1 << DRM_ROTATE_0;
-  uint32_t z_order_;
-  uint32_t layer_index_;
-  uint32_t source_crop_width_;
-  uint32_t source_crop_height_;
-  uint32_t display_frame_width_;
-  uint32_t display_frame_height_;
+  uint32_t z_order_ = 0;
+  uint32_t layer_index_ = 0;
+  uint32_t source_crop_width_ = 0;
+  uint32_t source_crop_height_ = 0;
+  uint32_t display_frame_width_ = 0;
+  uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;

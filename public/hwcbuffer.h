@@ -26,14 +26,14 @@ struct HwcBuffer {
   HwcBuffer(const HwcBuffer &rhs) = delete;
   HwcBuffer &operator=(const HwcBuffer &rhs) = delete;
 
-  uint32_t width;
-  uint32_t height;
-  uint32_t format;
+  uint32_t width = 0;
+  uint32_t height = 0;
+  uint32_t format = 0;
   uint32_t pitches[4];
   uint32_t offsets[4];
   uint32_t gem_handles[4];
   uint32_t prime_fd = 0;
-  uint32_t usage;
+  uint32_t usage = 0;
 };
 
 #endif  // PUBLIC_HWCBUFFER_H_
