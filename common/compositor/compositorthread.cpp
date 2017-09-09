@@ -100,6 +100,7 @@ void CompositorThread::ExitThread() {
   renderer_.reset(nullptr);
   std::vector<DrawState>().swap(states_);
   std::vector<OverlayBuffer *>().swap(buffers_);
+  release_all_resources_ = false;
 }
 
 void CompositorThread::ReleaseGpuResources() {
