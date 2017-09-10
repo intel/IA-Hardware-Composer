@@ -543,14 +543,16 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+    if (l.second.IsCursorLayer()) {
+      use_cursor_layer = true;
+      cursor_layer = &l.second;
+      cursor_z_order = l.second.z_order();
+      continue;
+    }
+
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
-        break;
-      case HWC2::Composition::Cursor:
-        use_cursor_layer = true;
-        cursor_layer = &l.second;
-        cursor_z_order = l.second.z_order();
         break;
       case HWC2::Composition::Client:
         // Place it at the z_order of the highest client layer
@@ -718,10 +720,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::Hwc2Layer::SetCursorPosition(int32_t x, int32_t y) {
+HWC2::Error IAHWC2::Hwc2Layer::SetCursorPosition(int32_t /*x*/, int32_t /*y*/) {
   supported(__func__);
-  cursor_x_ = x;
-  cursor_y_ = y;
   return HWC2::Error::None;
 }
 
@@ -774,6 +774,10 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
   sf_type_ = static_cast<HWC2::Composition>(type);
+  if (sf_type_ == HWC2::Composition::Cursor) {
+    is_cursor_layer_ = true;
+  }
+
   return HWC2::Error::None;
 }
 

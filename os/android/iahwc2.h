@@ -83,6 +83,10 @@ class IAHWC2 : public hwc2_device_t {
       return &hwc_layer_;
     }
 
+    bool IsCursorLayer() const {
+      return is_cursor_layer_;
+    }
+
     // Layer hooks
     HWC2::Error SetCursorPosition(int32_t x, int32_t y);
     HWC2::Error SetLayerBlendMode(int32_t mode);
@@ -104,8 +108,7 @@ class IAHWC2 : public hwc2_device_t {
     // validated_type_ stores the type after running ValidateDisplay
     HWC2::Composition sf_type_ = HWC2::Composition::Invalid;
     HWC2::Composition validated_type_ = HWC2::Composition::Invalid;
-    int32_t cursor_x_;
-    int32_t cursor_y_;
+    bool is_cursor_layer_ = false;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
     hwcomposer::HwcLayer hwc_layer_;
     struct gralloc_handle native_handle_;
