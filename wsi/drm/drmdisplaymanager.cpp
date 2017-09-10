@@ -44,7 +44,9 @@ DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
 DrmDisplayManager::~DrmDisplayManager() {
   CTRACE();
   std::vector<std::unique_ptr<DrmDisplay>>().swap(displays_);
+#ifndef DISABLE_HOTPLUG_NOTIFICATION
   close(hotplug_fd_);
+#endif
   close(fd_);
 }
 
@@ -101,6 +103,7 @@ bool DrmDisplayManager::Initialize() {
     ETRACE("Failed to connect display.");
     return false;
   }
+#ifndef DISABLE_HOTPLUG_NOTIFICATION
   hotplug_fd_ = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
   if (hotplug_fd_ < 0) {
     ETRACE("Failed to create socket for hot plug monitor. %s", PRINTERROR());
@@ -126,7 +129,7 @@ bool DrmDisplayManager::Initialize() {
     ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
            PRINTERROR());
   }
-
+#endif
   IHOTPLUGEVENTTRACE("DisplayManager Initialization succeeded.");
 
   return true;

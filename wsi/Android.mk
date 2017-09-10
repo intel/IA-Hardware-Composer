@@ -103,6 +103,11 @@ LOCAL_C_INCLUDES += \
         $(INTEL_DRM_GRALLOC)
 endif
 
+ifeq ($(strip $(DISABLE_HOTPLUG_SUPPORT)), true)
+LOCAL_CPPFLAGS += \
+	-DDISABLE_HOTPLUG_NOTIFICATION
+endif
+
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined

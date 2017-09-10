@@ -53,6 +53,23 @@ fi])
 
 AM_CONDITIONAL([ENABLE_VULKAN], [test "x$enable_vulkan" = "xyes"])
 
+# For hotplug
+AC_ARG_ENABLE(hotplug-support,
+  AS_HELP_STRING([--disable-hotplug-support],
+    [Disable Hot Plug Support.]),
+[if test x$enableval = xyes; then
+  disable_hotplug_support=yes
+  AC_DEFINE(DISABLE_HOTPLUG_SUPPORT, 1, [Disable Hot Plug Support])
+fi])
+
+AM_CONDITIONAL(DISABLE_HOTPLUG_SUPPORT, test "x$disable_hotplug_support" = "xyes")
+
+if test "x$disable_hotplug_support" = "xyes"; then
+    AC_MSG_RESULT([Hot Plug support is disabled.])
+  else
+    AC_MSG_RESULT([Hot Plug support is enabled.])
+fi
+
 # For json-c
 AC_CONFIG_HEADER(tests/third_party/json-c/json_config.h)
 AC_ARG_ENABLE(rdrand,
@@ -69,6 +86,7 @@ else
   AC_MSG_RESULT([RDRAND Hardware RNG Hash Seed disabled. Use --enable-rdrand to enable])
 fi
 
+# For gbm
 AC_ARG_ENABLE(gbm,
   AS_HELP_STRING([--enable-gbm],
     [Enable GBM buffer manager.]),
@@ -84,6 +102,7 @@ if test "x$enable_gbm" = "xyes"; then
 else
   AC_MSG_RESULT([Mini GBM buffer manager is enabled. Use --enable-gbm to disable])
 fi
+
 
 AM_PROG_CC_C_O
 AC_PROG_CC_C99
