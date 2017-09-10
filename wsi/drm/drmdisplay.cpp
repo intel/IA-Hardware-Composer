@@ -30,6 +30,7 @@
 #include "displayqueue.h"
 #include "displayplanemanager.h"
 #include "drmdisplaymanager.h"
+#include "wsi_utils.h"
 
 namespace hwcomposer {
 
@@ -130,7 +131,7 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
 bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
                                      HWCDisplayAttribute attribute,
                                      int32_t *value) {
-  display_lock_.lock();
+  SPIN_LOCK(display_lock_);
   float refresh;
   bool status = true;
   switch (attribute) {
@@ -170,18 +171,19 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
       status = false;
   }
 
-  display_lock_.unlock();
+  SPIN_UNLOCK(display_lock_);
   return status;
 }
 
 bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   if (!configs) {
-    display_lock_.lock();
+    SPIN_LOCK(display_lock_);
     *num_configs = modes_.size();
     IHOTPLUGEVENTTRACE(
         "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
         *num_configs, pipe_, this);
-    display_lock_.unlock();
+    SPIN_UNLOCK(display_lock_);
+
     return true;
   }
 
@@ -212,10 +214,10 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
 
 void DrmDisplay::UpdateDisplayConfig() {
   // update the activeConfig
-  display_lock_.lock();
+  SPIN_LOCK(display_lock_);
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   SetDisplayAttribute(modes_[config_]);
-  display_lock_.unlock();
+  SPIN_UNLOCK(display_lock_);
 }
 
 void DrmDisplay::PowerOn() {
@@ -333,14 +335,14 @@ bool DrmDisplay::CommitFrame(
 }
 
 void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
-  display_lock_.lock();
+  SPIN_LOCK(display_lock_);
   uint32_t size = mode_info.size();
   std::vector<drmModeModeInfo>().swap(modes_);
   for (uint32_t i = 0; i < size; ++i) {
     modes_.emplace_back(mode_info[i]);
   }
 
-  display_lock_.unlock();
+  SPIN_UNLOCK(display_lock_);
 }
 
 void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {

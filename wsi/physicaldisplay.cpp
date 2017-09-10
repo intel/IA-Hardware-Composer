@@ -29,6 +29,7 @@
 #include "displayqueue.h"
 #include "displayplanemanager.h"
 #include "hwcutils.h"
+#include "wsi_utils.h"
 
 namespace hwcomposer {
 
@@ -52,7 +53,8 @@ bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
 }
 
 void PhysicalDisplay::MarkForDisconnect() {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   IHOTPLUGEVENTTRACE("PhysicalDisplay::MarkForDisconnect recieved.");
   display_state_ |= kDisconnectionInProgress;
   display_state_ |= kRefreshClonedDisplays;
@@ -60,11 +62,12 @@ void PhysicalDisplay::MarkForDisconnect() {
     display_state_ |= kHandlePendingHotPlugNotifications;
 
   display_state_ &= ~kNotifyClient;
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 }
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   if (hotplug_callback_ && (display_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -74,11 +77,12 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
     hotplug_callback_->Callback(hot_plug_display_id_, true);
   }
   display_state_ &= ~kNotifyClient;
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 }
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   if (hotplug_callback_ && !(display_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -87,30 +91,35 @@ void PhysicalDisplay::NotifyClientOfDisConnectedState() {
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, false);
   }
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 }
 
 void PhysicalDisplay::DisConnect() {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   display_state_ &= ~kDisconnectionInProgress;
 
   if (!(display_state_ & kConnected)) {
-    modeset_lock_.unlock();
+    SPIN_UNLOCK(modeset_lock_);
+
     return;
   }
 
   display_state_ |= kNotifyClient;
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
+
   SetPowerMode(kOff);
   display_state_ &= ~kConnected;
 }
 
 void PhysicalDisplay::Connect() {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   display_state_ &= ~kDisconnectionInProgress;
   IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
   if (display_state_ & kConnected) {
-    modeset_lock_.unlock();
+    SPIN_UNLOCK(modeset_lock_);
+
     return;
   }
 
@@ -126,7 +135,7 @@ void PhysicalDisplay::Connect() {
 
   UpdatePowerMode();
 
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 }
 
 bool PhysicalDisplay::IsConnected() const {
@@ -171,7 +180,10 @@ bool PhysicalDisplay::GetActiveConfig(uint32_t *config) {
 }
 
 bool PhysicalDisplay::SetPowerMode(uint32_t power_mode) {
+#ifndef DISABLE_HOTPLUG_NOTIFICATION
   ScopedSpinLock lock(modeset_lock_);
+#endif
+
   if (power_mode_ == power_mode) {
     return true;
   }
@@ -215,7 +227,7 @@ bool PhysicalDisplay::UpdatePowerMode() {
 bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                               int32_t *retire_fence) {
   CTRACE();
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
 
   if (source_display_) {
     ETRACE("Trying to update display independently when in cloned mode.%p \n",
@@ -229,7 +241,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
       success = false;
     }
 
-    modeset_lock_.unlock();
+    SPIN_UNLOCK(modeset_lock_);
     return success;
   }
 
@@ -242,7 +254,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     display_state_ &= ~kHandlePendingHotPlugNotifications;
     handle_hoplug_notifications = true;
   }
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 
   if (handle_hoplug_notifications) {
     NotifyClientsOfDisplayChangeStatus();
@@ -270,11 +282,12 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
 bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
                                    int32_t *retire_fence, bool idle_frame) {
   CTRACE();
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
+
   if (display_state_ & kRefreshClonedDisplays) {
     RefreshClones();
   }
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
 
   bool success =
       display_queue_->QueueUpdate(source_layers, retire_fence, idle_frame);
@@ -306,12 +319,13 @@ void PhysicalDisplay::RegisterRefreshCallback(
 
 void PhysicalDisplay::RegisterHotPlugCallback(
     std::shared_ptr<HotPlugCallback> callback, uint32_t display_id) {
-  modeset_lock_.lock();
+  SPIN_LOCK(modeset_lock_);
   hot_plug_display_id_ = display_id;
   hotplug_callback_ = callback;
   bool connected = display_state_ & kConnected;
   display_state_ &= ~kNotifyClient;
-  modeset_lock_.unlock();
+  SPIN_UNLOCK(modeset_lock_);
+
   if (hotplug_callback_ && pipe_ == 0) {
     if (connected) {
       hotplug_callback_->Callback(hot_plug_display_id_, true);

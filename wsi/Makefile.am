@@ -27,6 +27,10 @@ AM_CPP_INCLUDES = -Idrm -I../os/ -I../os/linux/ -I../public/ -I../common/display
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
+if DISABLE_HOTPLUG_SUPPORT
+AM_CPPFLAGS += -DISABLE_HOTPLUG_NOTIFICATION
+endif
+
 if !ENABLE_GBM
 AM_CPPFLAGS += -DUSE_MINIGBM
 endif
