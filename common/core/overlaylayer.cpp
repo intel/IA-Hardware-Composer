@@ -91,10 +91,10 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_ = display_frame;
 }
 
-void OverlayLayer::InitializeFromHwcLayer(
-    HwcLayer* layer, NativeBufferHandler* buffer_handler,
-    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, bool scaled) {
+void OverlayLayer::InitializeState(HwcLayer* layer,
+                                   NativeBufferHandler* buffer_handler,
+                                   OverlayLayer* previous_layer,
+                                   uint32_t z_order, uint32_t layer_index) {
   transform_ = layer->GetTransform();
   rotation_ = layer->GetRotation();
   alpha_ = layer->GetAlpha();
@@ -103,13 +103,6 @@ void OverlayLayer::InitializeFromHwcLayer(
   source_crop_width_ = layer->GetSourceCropWidth();
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
-  if (scaled) {
-    SetDisplayFrame(display_frame);
-  } else {
-    display_frame_width_ = layer->GetDisplayFrameWidth();
-    display_frame_height_ = layer->GetDisplayFrameHeight();
-    display_frame_ = display_frame;
-  }
   blending_ = layer->GetBlending();
   SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence());
   ValidateForOverlayUsage();
@@ -131,6 +124,27 @@ void OverlayLayer::InitializeFromHwcLayer(
     state_ |= kClearSurface;
   }
 }
+
+void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
+                                          NativeBufferHandler* buffer_handler,
+                                          OverlayLayer* previous_layer,
+                                          uint32_t z_order,
+                                          uint32_t layer_index) {
+  display_frame_width_ = layer->GetDisplayFrameWidth();
+  display_frame_height_ = layer->GetDisplayFrameHeight();
+  display_frame_ = layer->GetDisplayFrame();
+  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index);
+}
+
+#ifdef ENABLE_IMPLICIT_CLONE_MODE
+void OverlayLayer::InitializeFromScaledHwcLayer(
+    HwcLayer* layer, NativeBufferHandler* buffer_handler,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    const HwcRect<int>& display_frame) {
+  SetDisplayFrame(display_frame);
+  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index);
+}
+#endif
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {

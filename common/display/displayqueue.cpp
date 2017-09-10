@@ -315,7 +315,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
     }
-
+#ifdef ENABLE_IMPLICIT_CLONE_MODE
     if (scaling_tracker_.scaling_state_ == ScalingTracker::kNeedsScaling) {
       HwcRect<int> display_frame = layer->GetDisplayFrame();
       display_frame.left =
@@ -330,15 +330,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           display_frame.bottom +
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
-      overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_,
-                                           previous_layer, z_order, layer_index,
-                                           display_frame, true);
+      overlay_layer.InitializeFromScaledHwcLayer(layer, buffer_handler_,
+                                                 previous_layer, z_order,
+                                                 layer_index, display_frame);
     } else {
-      overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_,
-                                           previous_layer, z_order, layer_index,
-                                           layer->GetDisplayFrame(), false);
+      overlay_layer.InitializeFromHwcLayer(
+          layer, buffer_handler_, previous_layer, z_order, layer_index);
     }
-
+#else
+    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, previous_layer,
+                                         z_order, layer_index);
+#endif
     if (overlay_layer.IsCursorLayer()) {
       cursor_layer = &overlay_layer;
       cursor_state_ |= kFrameHasCursor;
@@ -495,18 +497,24 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (idle_frame) {
     ReleaseSurfaces();
     state_ |= kLastFrameIdleUpdate;
+#ifdef ENABLE_IMPLICIT_CLONE_MODE
     if (state_ & kClonedMode) {
       idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
     }
+#endif
   } else {
     state_ &= ~kLastFrameIdleUpdate;
     ReleaseSurfacesAsNeeded(validate_layers);
   }
 
   if (fence > 0) {
+#ifdef ENABLE_IMPLICIT_CLONE_MODE
     if (!(state_ & kClonedMode)) {
       *retire_fence = dup(fence);
     }
+#else
+    *retire_fence = dup(fence);
+#endif
     kms_fence_ = fence;
 
     SetReleaseFenceToLayers(fence, source_layers);

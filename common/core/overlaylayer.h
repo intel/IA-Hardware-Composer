@@ -43,9 +43,15 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer,
                               NativeBufferHandler* buffer_handler,
                               OverlayLayer* previous_layer, uint32_t z_order,
-                              uint32_t layer_index,
-                              const HwcRect<int>& display_frame, bool scaled);
+                              uint32_t layer_index);
 
+#ifdef ENABLE_IMPLICIT_CLONE_MODE
+  void InitializeFromScaledHwcLayer(HwcLayer* layer,
+                                    NativeBufferHandler* buffer_handler,
+                                    OverlayLayer* previous_layer,
+                                    uint32_t z_order, uint32_t layer_index,
+                                    const HwcRect<int>& display_frame);
+#endif
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
@@ -184,6 +190,10 @@ struct OverlayLayer {
   void ValidateForOverlayUsage();
 
   OverlayBuffer* ReleaseBuffer();
+
+  void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
+                       OverlayLayer* previous_layer, uint32_t z_order,
+                       uint32_t layer_index);
 
   uint32_t transform_ = 0;
   uint32_t rotation_ = 1 << DRM_ROTATE_0;
