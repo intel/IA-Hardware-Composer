@@ -60,6 +60,9 @@ script:
 #finally, build the hardware composer itself
 - ./autogen.sh --prefix=$WLD
 - make -j5
+- make clean
+- ./autogen.sh --prefix=$WLD --disable-hotplug-support
+- make -j5
 branches:
   only:
   - master
