@@ -40,6 +40,8 @@ libhwcomposer_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
+        $(top_builddir)/common/libhwcomposer_common.la \
+        $(top_builddir)/wsi/libhwcomposer_wsi.la \
 	-lm
 
 libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
