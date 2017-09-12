@@ -75,8 +75,8 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
         "to true. %p hotplugdisplayid: %d \n",
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, true);
+    display_state_ &= ~kNotifyClient;
   }
-  display_state_ &= ~kNotifyClient;
   SPIN_UNLOCK(modeset_lock_);
 }
 
@@ -90,6 +90,7 @@ void PhysicalDisplay::NotifyClientOfDisConnectedState() {
         "to false. %p hotplugdisplayid: %d \n",
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, false);
+    display_state_ &= ~kNotifyClient;
   }
   SPIN_UNLOCK(modeset_lock_);
 }
