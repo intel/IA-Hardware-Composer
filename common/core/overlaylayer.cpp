@@ -110,13 +110,9 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  if (transform_ == 0) {
-    surface_damage_ = layer->GetSurfaceDamage();
-  } else {
-    // TODO: FIXME: We should be able to use surfacedamage
-    // even when transform applied is not 0.
-    surface_damage_ = display_frame_;
-  }
+  // TODO: FIXME: We should be able to use surfacedamage
+  // from HWCLayer here.
+  surface_damage_ = display_frame_;
 
   if (layer->HasContentAttributesChanged() ||
       layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
