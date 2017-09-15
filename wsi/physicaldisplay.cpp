@@ -328,10 +328,10 @@ void PhysicalDisplay::RegisterHotPlugCallback(
   hot_plug_display_id_ = display_id;
   hotplug_callback_ = callback;
   bool connected = display_state_ & kConnected;
-  display_state_ &= ~kNotifyClient;
   SPIN_UNLOCK(modeset_lock_);
 
   if (hotplug_callback_ && pipe_ == 0) {
+    display_state_ &= ~kNotifyClient;
     if (connected) {
       hotplug_callback_->Callback(hot_plug_display_id_, true);
     } else {
