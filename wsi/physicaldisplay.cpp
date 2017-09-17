@@ -110,13 +110,14 @@ void PhysicalDisplay::DisConnect() {
       "\n",
       this, hot_plug_display_id_);
   display_state_ |= kNotifyClient;
-  SPIN_UNLOCK(modeset_lock_);
 
   if (power_mode_ != kOff) {
     display_queue_->SetPowerMode(kOff);
   }
 
   display_state_ &= ~kConnected;
+  display_state_ &= ~kUpdateDisplay;
+  SPIN_UNLOCK(modeset_lock_);
 }
 
 void PhysicalDisplay::Connect() {
@@ -248,7 +249,6 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     bool success = true;
     if (power_mode_ != kDozeSuspend) {
       ETRACE("Trying to update an Disconnected Display.%p \n", this);
-      success = false;
     }
 
     SPIN_UNLOCK(modeset_lock_);

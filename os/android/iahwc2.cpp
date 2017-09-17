@@ -72,8 +72,9 @@ class IARefreshCallback : public hwcomposer::RefreshCallback {
 class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
  public:
   IAHotPlugEventCallback(hwc2_callback_data_t data,
-                         hwc2_function_pointer_t hook)
-      : data_(data), hook_(hook) {
+                         hwc2_function_pointer_t hook,
+                         IAHWC2::HwcDisplay *display)
+      : data_(data), hook_(hook), display_(display) {
   }
 
   void Callback(uint32_t display, bool connected) {
@@ -88,11 +89,19 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
         status);
     if (hook)
       hook(data_, display, status);
+
+    // FIXME: SurfaceFlinger doesn't seem to reset layers correctly
+    // when display is connected/disconnected. We force it here.
+    // Remove this workaround once fixed correctly in SurfaceFlinger.
+    if (!connected && display > 0) {
+      display_->FreeAllLayers();
+    }
   }
 
  private:
   hwc2_callback_data_t data_;
   hwc2_function_pointer_t hook_;
+  IAHWC2::HwcDisplay *display_;
 };
 
 IAHWC2::IAHWC2() {
@@ -317,7 +326,7 @@ HWC2::Error IAHWC2::HwcDisplay::RegisterRefreshCallback(
 HWC2::Error IAHWC2::HwcDisplay::RegisterHotPlugCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
   supported(__func__);
-  auto callback = std::make_shared<IAHotPlugEventCallback>(data, func);
+  auto callback = std::make_shared<IAHotPlugEventCallback>(data, func, this);
   display_->RegisterHotPlugCallback(std::move(callback),
                                     static_cast<int>(handle_));
   return HWC2::Error::None;
@@ -348,12 +357,25 @@ HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
 
 HWC2::Error IAHWC2::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
   supported(__func__);
+  if (layers_.empty())
+    return HWC2::Error::None;
+
   layers_.erase(layer);
   return HWC2::Error::None;
 }
 
+void IAHWC2::HwcDisplay::FreeAllLayers() {
+  if (layers_.empty())
+    return;
+
+  std::map<hwc2_layer_t, Hwc2Layer>().swap(layers_);
+  layer_idx_ = 0;
+}
+
 HWC2::Error IAHWC2::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
   supported(__func__);
+  IHOTPLUGEVENTTRACE("GetActiveConfig called for Display: %p \n", display_);
+
   if (!display_->GetActiveConfig(config))
     return HWC2::Error::BadConfig;
 
@@ -586,6 +608,8 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   if (layers.empty())
     return HWC2::Error::None;
+
+  IHOTPLUGEVENTTRACE("PhysicalDisplay called for Display: %p \n", display_);
 
   bool success = display_->Present(layers, retire_fence);
   if (!success) {

@@ -46,7 +46,7 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::NativeDisplay *GetPrimaryDisplay();
   hwcomposer::NativeDisplay *GetExtendedDisplay(uint32_t);
 
- private:
+ public:
   class Hwc2Layer {
    public:
     HWC2::Composition sf_type() const {
@@ -134,6 +134,7 @@ class IAHWC2 : public hwc2_device_t {
                                         hwc2_function_pointer_t func);
 
     // HWC Hooks
+    void FreeAllLayers();
     HWC2::Error AcceptDisplayChanges();
     HWC2::Error CreateLayer(hwc2_layer_t *layer);
     HWC2::Error DestroyLayer(hwc2_layer_t layer);

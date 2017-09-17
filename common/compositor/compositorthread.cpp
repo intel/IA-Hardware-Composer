@@ -140,6 +140,7 @@ void CompositorThread::HandleReleaseRequest() {
   }
 
   if (release_all_resources_) {
+    gpu_resource_handler_->ReleaseGPUResources();
     plane_manager_->ReleaseAllOffScreenTargets();
     gpu_resource_handler_.reset(nullptr);
   } else {
