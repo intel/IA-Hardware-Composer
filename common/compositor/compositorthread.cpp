@@ -94,10 +94,8 @@ void CompositorThread::Draw(std::vector<DrawState> &states,
 }
 
 void CompositorThread::ExitThread() {
-  release_all_resources_ = true;
   FreeResources(true);
   HWCThread::Exit();
-  renderer_.reset(nullptr);
   std::vector<DrawState>().swap(states_);
   std::vector<OverlayBuffer *>().swap(buffers_);
   release_all_resources_ = false;
@@ -105,6 +103,10 @@ void CompositorThread::ExitThread() {
 
 void CompositorThread::ReleaseGpuResources() {
   gpu_resource_handler_->ReleaseGPUResources();
+}
+
+void CompositorThread::HandleExit() {
+  renderer_.reset(nullptr);
 }
 
 void CompositorThread::HandleRoutine() {

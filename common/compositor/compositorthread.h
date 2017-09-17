@@ -50,6 +50,7 @@ class CompositorThread : public HWCThread {
   void EnsureTasksAreDone();
 
   void HandleRoutine() override;
+  void HandleExit() override;
   void ExitThread();
 
  private:
