@@ -651,11 +651,15 @@ void DisplayQueue::SetReleaseFenceToLayers(
 }
 
 void DisplayQueue::HandleExit() {
+  IHOTPLUGEVENTTRACE("HandleExit Called: %p \n", this);
   power_mode_lock_.lock();
   state_ |= kIgnoreIdleRefresh;
   power_mode_lock_.unlock();
   vblank_handler_->SetPowerMode(kOff);
-  display_->Disable(previous_plane_state_);
+  if (!previous_plane_state_.empty()) {
+    display_->Disable(previous_plane_state_);
+  }
+
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
   idle_tracker_.state_ = 0;

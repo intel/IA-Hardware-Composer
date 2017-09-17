@@ -225,6 +225,7 @@ void DrmDisplay::PowerOn() {
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_ON);
+  IHOTPLUGEVENTTRACE("PowerOn: Powered on Pipe: %d display: %p", pipe_, this);
 }
 
 bool DrmDisplay::SetBroadcastRGB(const char *range_property) {
@@ -537,6 +538,8 @@ bool DrmDisplay::GetFence(drmModeAtomicReqPtr property_set,
 }
 
 void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
+  IHOTPLUGEVENTTRACE("Disable: Disabling Display: %p", this);
+
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   if (pset) {
     bool active = false;

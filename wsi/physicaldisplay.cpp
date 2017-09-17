@@ -105,11 +105,17 @@ void PhysicalDisplay::DisConnect() {
 
     return;
   }
-
+  IHOTPLUGEVENTTRACE(
+      "PhysicalDisplay DisConnect called for Display: %p hotplugdisplayid: %d "
+      "\n",
+      this, hot_plug_display_id_);
   display_state_ |= kNotifyClient;
   SPIN_UNLOCK(modeset_lock_);
 
-  SetPowerMode(kOff);
+  if (power_mode_ != kOff) {
+    display_queue_->SetPowerMode(kOff);
+  }
+
   display_state_ &= ~kConnected;
 }
 
@@ -214,8 +220,16 @@ bool PhysicalDisplay::UpdatePowerMode() {
   if (power_mode_ == kOn) {
     display_state_ |= kNeedsModeset;
     display_state_ |= kUpdateDisplay;
+    IHOTPLUGEVENTTRACE(
+        "UpdatePowerMode: Powering on Display: pipe: %d display: "
+        "%p",
+        pipe_, this);
     PowerOn();
   } else {
+    IHOTPLUGEVENTTRACE(
+        "UpdatePowerMode: Power mode is not kOn: pipe: %d display: "
+        "%p",
+        pipe_, this);
     display_state_ &= ~kUpdateDisplay;
   }
 
