@@ -540,27 +540,10 @@ bool DrmDisplay::GetFence(drmModeAtomicReqPtr property_set,
 void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
   IHOTPLUGEVENTTRACE("Disable: Disabling Display: %p", this);
 
-  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-  if (pset) {
-    bool active = false;
-    int ret = drmModeAtomicAddProperty(pset.get(), crtc_id_, active_prop_,
-                                       active) < 0;
-    if (ret) {
-      ETRACE("Failed to set display to inactive");
-    }
-
-    for (const DisplayPlaneState &comp_plane : composition_planes) {
-      DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
-      plane->SetEnabled(false);
-      plane->Disable(pset.get());
-    }
-
-    ret = drmModeAtomicCommit(gpu_fd_, pset.get(),
-                              DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-    if (ret)
-      ETRACE("Failed to disable display:%s\n", PRINTERROR());
-  } else {
-    ETRACE("Failed to allocate property set %d", -ENOMEM);
+  for (const DisplayPlaneState &comp_plane : composition_planes) {
+    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
+    plane->SetEnabled(false);
+    plane->SetNativeFence(-1);
   }
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
