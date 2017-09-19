@@ -76,5 +76,10 @@ enum DisplayPowerMode {
                     // updates from the client
 };
 
+enum HWCColorTransform {
+  kIdentical = 0,       // Applies no transform to the output color
+  kArbitraryMatrix = 1  // Applies an arbitrary transform defined by a 4x4 affine matrix
+};
+
 }  // namespace hwcomposer
 #endif  // PUBLIC_HWCDEFS_H_

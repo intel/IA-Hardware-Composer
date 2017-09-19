@@ -60,6 +60,7 @@ class DisplayQueue {
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
+  void SetColorTransform(const float *matrix, HWCColorTransform hint);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
@@ -228,6 +229,8 @@ class DisplayQueue {
   uint32_t frame_;
   uint32_t gpu_fd_;
   uint32_t brightness_;
+  float color_transform_matrix_[16];
+  HWCColorTransform color_transform_hint_;
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;

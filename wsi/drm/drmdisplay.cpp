@@ -60,6 +60,7 @@ bool DrmDisplay::InitializeDisplay() {
       drmModeObjectGetProperties(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC));
   GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
   GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
+  GetDrmObjectProperty("CTM", crtc_props, &ctm_id_prop_);
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
@@ -401,6 +402,32 @@ void DrmDisplay::GetDrmObjectPropertyValue(
     ETRACE("Could not find property value %s", name);
 }
 
+int64_t DrmDisplay::FloatToFixedPoint(float value) const {
+  uint32_t *pointer = (uint32_t *)&value;
+  uint32_t negative = (*pointer & (1u << 31)) >> 31;
+  *pointer &= 0x7fffffff; /* abs of value*/
+  return (negative ? (1ll << 63) : 0) |
+          (__s64)((*(float *)pointer) * (double)(1ll << 32));
+}
+
+void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm) const {
+  if (ctm_id_prop_ == 0) {
+    ETRACE("ctm_id_prop_ == 0");
+    return;
+  }
+
+  uint32_t ctm_id = 0;
+  drmModeCreatePropertyBlob(gpu_fd_, ctm, sizeof(drm_color_ctm), &ctm_id);
+  if (ctm_id == 0) {
+    ETRACE("ctm_id == 0");
+    return;
+  }
+
+  drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
+                           ctm_id_prop_, ctm_id);
+  drmModeDestroyPropertyBlob(gpu_fd_, ctm_id);
+}
+
 void DrmDisplay::ApplyPendingLUT(struct drm_color_lut *lut) const {
   if (lut_id_prop_ == 0)
     return;
@@ -442,13 +469,60 @@ float DrmDisplay::TransformGamma(float value, float gamma) const {
   return result;
 }
 
+void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
+                                         HWCColorTransform color_transform_hint) const {
+  struct drm_color_ctm *ctm = (struct drm_color_ctm *)malloc(sizeof(struct drm_color_ctm));
+  if (!ctm) {
+    ETRACE("Cannot allocate CTM memory");
+    return;
+  }
+
+  switch (color_transform_hint) {
+    case HWCColorTransform::kIdentical: {
+      memset(ctm->matrix, 0, sizeof(ctm->matrix));
+      for (int i = 0; i < 3; i++) {
+        ctm->matrix[i * 3 + i] = (1ll << 32);
+      }
+      ApplyPendingCTM(ctm);
+      break;
+    }
+    case HWCColorTransform::kArbitraryMatrix: {
+      // Extract the coefficients from 4x4 CTM to the DRM 3x3 CTM. |Tr Tg Tb| row
+      // will lost, so Color Inversion won't work with current implementation.
+      //
+      // TODO: Add drm interface to set CSC post offset (Tr Tg Tb) from HWC CTM .
+      if (*(uint32_t*)(color_transform_matrix + 12) != 0 ||
+          *(uint32_t*)(color_transform_matrix + 13) != 0 ||
+          *(uint32_t*)(color_transform_matrix + 14) != 0) {
+        // Bypass CTM conversion if |Tr Tg Tb| is not |0 0 0|.
+        memset(ctm->matrix, 0, sizeof(ctm->matrix));
+        for (int i = 0; i < 3; i++) {
+          ctm->matrix[i * 3 + i] = (1ll << 32);
+        }
+      } else {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            ctm->matrix[i * 3 + j] = FloatToFixedPoint(color_transform_matrix[j * 4 + i]);
+          }
+        }
+      }
+      ApplyPendingCTM(ctm);
+      break;
+    }
+  }
+  free(ctm);
+}
 void DrmDisplay::SetColorCorrection(struct gamma_colors gamma,
                                     uint32_t contrast_c,
-                                    uint32_t brightness_c) const {
+                                    uint32_t brightness_c,
+                                    const float *color_transform_matrix,
+                                    HWCColorTransform color_transform_hint) const {
   struct drm_color_lut *lut;
   float brightness[3];
   float contrast[3];
   uint8_t temp[3];
+
+  SetColorTransformMatrix(color_transform_matrix, color_transform_hint);
 
   /* reset lut when contrast and brightness are all 0 */
   if (contrast_c == 0 && brightness_c == 0) {
