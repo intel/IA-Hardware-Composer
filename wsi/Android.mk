@@ -108,6 +108,8 @@ LOCAL_CPPFLAGS += \
 	-DDISABLE_HOTPLUG_NOTIFICATION
 endif
 
+LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
+
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
