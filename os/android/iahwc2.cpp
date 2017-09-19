@@ -78,6 +78,18 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
   }
 
   void Callback(uint32_t display, bool connected) {
+    if (display == 0) {
+      // SF expects primary display to be always
+      // connected. Let's notify it first time and ignore
+      // any followup status changes.
+      if (notified_) {
+        return;
+      }
+
+      if (connected)
+        notified_ = true;
+    }
+
     auto hook = reinterpret_cast<HWC2_PFN_HOTPLUG>(hook_);
     int32_t status = static_cast<int32_t>(HWC2::Connection::Connected);
     if (!connected) {
@@ -102,6 +114,7 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
   hwc2_callback_data_t data_;
   hwc2_function_pointer_t hook_;
   IAHWC2::HwcDisplay *display_;
+  bool notified_ = false;
 };
 
 IAHWC2::IAHWC2() {
