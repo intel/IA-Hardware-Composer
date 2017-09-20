@@ -121,6 +121,8 @@ LOCAL_C_INCLUDES += \
 	$(INTEL_DRM_GRALLOC)
 endif
 
+LOCAL_SHARED_LIBRARIES += libnativewindow
+
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
 # Preffered paths for all vendor hals /vendor/lib/hw
