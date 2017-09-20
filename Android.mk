@@ -20,6 +20,9 @@ HWC_PATH := $(call my-dir)
 HWC_VERSION_GIT_BRANCH := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
 HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
 
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -119,6 +122,10 @@ LOCAL_C_INCLUDES += \
 else
 LOCAL_C_INCLUDES += \
 	$(INTEL_DRM_GRALLOC)
+endif
+
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+LOCAL_SHARED_LIBRARIES += libnativewindow
 endif
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
