@@ -92,6 +92,16 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
   return true;
 }
 
+bool DisplayQueue::Exit(uint32_t power_mode) {
+  if (power_mode != kOff) {
+    HandleExit();
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
 bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   switch (power_mode) {
     case kOff:
@@ -656,9 +666,7 @@ void DisplayQueue::HandleExit() {
   state_ |= kIgnoreIdleRefresh;
   power_mode_lock_.unlock();
   vblank_handler_->SetPowerMode(kOff);
-  if (!previous_plane_state_.empty()) {
-    display_->Disable(previous_plane_state_);
-  }
+  display_->Disable();
 
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);

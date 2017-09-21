@@ -54,6 +54,7 @@ class DisplayQueue {
 
   bool Initialize(uint32_t pipe, uint32_t width, uint32_t height,
                   DisplayPlaneHandler* plane_manager);
+  bool Exit(uint32_t power_mode);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
                    bool idle_update);

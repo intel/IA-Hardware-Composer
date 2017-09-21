@@ -110,21 +110,16 @@ void PhysicalDisplay::DisConnect() {
 
   display_state_ &= ~kDisconnectionInProgress;
 
-  if (!(display_state_ & kConnected)) {
+  if (!display_queue_->Exit(power_mode_)) {
     SPIN_UNLOCK(modeset_lock_);
-
     return;
   }
+
   IHOTPLUGEVENTTRACE(
       "PhysicalDisplay DisConnect called for Display: %p hotplugdisplayid: %d "
       "\n",
       this, hot_plug_display_id_);
   display_state_ |= kNotifyClient;
-
-  if (power_mode_ != kOff) {
-    display_queue_->SetPowerMode(kOff);
-  }
-
   display_state_ &= ~kConnected;
   display_state_ &= ~kUpdateDisplay;
   SPIN_UNLOCK(modeset_lock_);

@@ -124,7 +124,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   * @param composition_planes contains list of planes enabled last
   * frame.
   */
-  virtual void Disable(const DisplayPlaneStateList &composition_planes) = 0;
+  virtual void Disable() = 0;
 
   /**
   * API for showing content on display
