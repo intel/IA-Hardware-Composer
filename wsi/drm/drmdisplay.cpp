@@ -132,6 +132,11 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
                                      HWCDisplayAttribute attribute,
                                      int32_t *value) {
   SPIN_LOCK(display_lock_);
+  if (modes_.empty()) {
+    SPIN_UNLOCK(display_lock_);
+    return PhysicalDisplay::GetDisplayAttribute(config, attribute, value);
+  }
+
   float refresh;
   bool status = true;
   switch (attribute) {
@@ -176,20 +181,26 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
 }
 
 bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
+  SPIN_LOCK(display_lock_);
+  size_t modes_size = modes_.size();
+  SPIN_UNLOCK(display_lock_);
+
+  if (modes_size == 0) {
+    return PhysicalDisplay::GetDisplayConfigs(num_configs, configs);
+  }
+
   if (!configs) {
-    SPIN_LOCK(display_lock_);
-    *num_configs = modes_.size();
+    *num_configs = modes_size;
     IHOTPLUGEVENTTRACE(
         "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
         *num_configs, pipe_, this);
-    SPIN_UNLOCK(display_lock_);
-
     return true;
   }
 
   IHOTPLUGEVENTTRACE(
       "GetDisplayConfigs: Populating Configs: %d pipe: %d display: %p",
       *num_configs, pipe_, this);
+
   uint32_t size = *num_configs;
   for (uint32_t i = 0; i < size; i++)
     configs[i] = i;
@@ -198,6 +209,12 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
 }
 
 bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
+  SPIN_LOCK(display_lock_);
+  if (modes_.empty()) {
+    SPIN_UNLOCK(display_lock_);
+    return PhysicalDisplay::GetDisplayName(size, name);
+  }
+
   std::ostringstream stream;
   stream << "Display-" << connector_;
   std::string string = stream.str();

@@ -151,6 +151,12 @@ void PhysicalDisplay::Connect() {
     display_state_ |= kInitialized;
   }
 
+  if (display_state_ & kUpdateConfig) {
+    display_state_ &= ~kUpdateConfig;
+    display_queue_->DisplayConfigurationChanged();
+    UpdateDisplayConfig();
+  }
+
   UpdatePowerMode();
 
   SPIN_UNLOCK(modeset_lock_);
@@ -180,9 +186,14 @@ bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
       "SetActiveConfig: New config to be used %d pipe: %p display: %p", config,
       pipe_, this);
   config_ = config;
-  display_queue_->DisplayConfigurationChanged();
   display_state_ |= kNeedsModeset;
-  UpdateDisplayConfig();
+  if (display_state_ & kConnected) {
+    display_queue_->DisplayConfigurationChanged();
+    UpdateDisplayConfig();
+  } else {
+    display_state_ |= kUpdateConfig;
+  }
+
   return true;
 }
 
@@ -356,11 +367,17 @@ void PhysicalDisplay::RegisterHotPlugCallback(
 
   if (hotplug_callback_ && pipe_ == 0) {
     display_state_ &= ~kNotifyClient;
+    IHOTPLUGEVENTTRACE("RegisterHotPlugCallback: pipe: %d display: %p", pipe_,
+                       this);
+#ifdef ENABLE_ANDROID_WA
+    hotplug_callback_->Callback(hot_plug_display_id_, true);
+#else
     if (connected) {
       hotplug_callback_->Callback(hot_plug_display_id_, true);
     } else {
       hotplug_callback_->Callback(hot_plug_display_id_, false);
     }
+#endif
   }
 }
 
@@ -474,6 +491,64 @@ void PhysicalDisplay::RefreshClones() {
     display->UpdateScalingRatio(primary_width, primary_height, display_width,
                                 display_height);
   }
+}
+
+bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
+                                          HWCDisplayAttribute attribute,
+                                          int32_t *value) {
+  // We always get the values from preferred mode config.
+  switch (attribute) {
+    case HWCDisplayAttribute::kWidth:
+      *value = 1;
+      break;
+    case HWCDisplayAttribute::kHeight:
+      *value = 1;
+      break;
+    case HWCDisplayAttribute::kRefreshRate:
+      // in nanoseconds
+      *value = 60;
+      break;
+    case HWCDisplayAttribute::kDpiX:
+      // Dots per 1000 inches
+      *value = 1;
+      break;
+    case HWCDisplayAttribute::kDpiY:
+      // Dots per 1000 inches
+      *value = 1;
+      break;
+    default:
+      *value = -1;
+      return false;
+  }
+
+  return true;
+}
+
+bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
+                                        uint32_t *configs) {
+  ETRACE("PhysicalDisplay1 \n");
+  *num_configs = 1;
+  ETRACE("PhysicalDisplay2 \n");
+  if (configs) {
+    configs[0] = 1;
+    ETRACE("PhysicalDisplay3 \n");
+  }
+  return true;
+}
+
+bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
+  std::ostringstream stream;
+  stream << "Headless";
+  std::string string = stream.str();
+  size_t length = string.length();
+  if (!name) {
+    *size = length;
+    return true;
+  }
+
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  strncpy(name, string.c_str(), *size);
+  return true;
 }
 
 }  // namespace hwcomposer

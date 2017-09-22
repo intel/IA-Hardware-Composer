@@ -109,6 +109,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool PresentClone(std::vector<HwcLayer *> &source_layers,
                     int32_t *retire_fence, bool idle_frame) override;
 
+  bool GetDisplayAttribute(uint32_t /*config*/, HWCDisplayAttribute attribute,
+                           int32_t *value) override;
+
+  bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
+  bool GetDisplayName(uint32_t *size, char *name) override;
+
   void OwnPresentation(NativeDisplay *clone);
 
   void DisOwnPresentation(NativeDisplay *clone);
@@ -198,12 +204,17 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     kInitialized = 1 << 6,  // Display Queue is initialized.
     kRefreshClonedDisplays = 1 << 7,
     kHandlePendingHotPlugNotifications = 1 << 8,
-    kNotifyClient = 1 << 9  // Notify client as display connection physical
-                            // status has changed.
+    kNotifyClient = 1 << 9,  // Notify client as display connection physical
+                             // status has changed.
+    kUpdateConfig = 1 << 10
   };
 
   uint32_t pipe_;
+#ifdef ENABLE_ANDROID_WA
+  uint32_t config_ = 1;
+#else
   uint32_t config_ = 0;
+#endif
   int32_t width_;
   int32_t height_;
   int32_t dpix_;
