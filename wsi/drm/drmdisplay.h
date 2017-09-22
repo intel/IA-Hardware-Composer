@@ -53,7 +53,7 @@ class DrmDisplay : public PhysicalDisplay {
   void UpdateDisplayConfig() override;
   void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                           uint32_t brightness) const override;
-  void Disable(const DisplayPlaneStateList &composition_planes) override;
+  void Disable() override;
   bool Commit(const DisplayPlaneStateList &composition_planes,
               const DisplayPlaneStateList &previous_composition_planes,
               bool disable_explicit_fence, int32_t *commit_fence) override;

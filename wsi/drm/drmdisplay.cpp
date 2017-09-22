@@ -554,14 +554,8 @@ bool DrmDisplay::GetFence(drmModeAtomicReqPtr property_set,
   return true;
 }
 
-void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
+void DrmDisplay::Disable() {
   IHOTPLUGEVENTTRACE("Disable: Disabling Display: %p", this);
-
-  for (const DisplayPlaneState &comp_plane : composition_planes) {
-    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
-    plane->SetEnabled(false);
-    plane->SetNativeFence(-1);
-  }
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, dpms_prop_,
                               DRM_MODE_DPMS_OFF);
