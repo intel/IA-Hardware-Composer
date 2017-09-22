@@ -75,6 +75,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   std::unique_ptr<NativeBufferHandler> buffer_handler_;
   int fd_ = -1;
   int hotplug_fd_ = -1;
+  bool notify_client_ = false;
   SpinLock spin_lock_;
 };
 

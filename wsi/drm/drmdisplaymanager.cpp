@@ -298,8 +298,15 @@ bool DrmDisplayManager::UpdateDisplayState() {
   }
 
   spin_lock_.unlock();
+#ifndef ENABLE_ANDROID_WA
+  notify_client_ = true;
+#endif
+  if (headless_)
+    return true;
 
-  NotifyClientsOfDisplayChangeStatus();
+  if (notify_client_ || (!displays_.at(0)->IsConnected()))
+    NotifyClientsOfDisplayChangeStatus();
+
   return true;
 }
 
@@ -313,6 +320,9 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
     }
   }
 
+#ifdef ENABLE_ANDROID_WA
+  notify_client_ = true;
+#endif
   spin_lock_.unlock();
 }
 

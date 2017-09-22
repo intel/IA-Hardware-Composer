@@ -194,19 +194,23 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
 
  protected:
+  enum DisplayConnectionStatus {
+    kDisconnected = 1 << 0,
+    kConnected = 1 << 1,
+    kDisconnectionInProgress = 1 << 2
+  };
+
   enum DisplayState {
     kNone = 1 << 0,
-    kConnected = 1 << 1,
-    kNeedsModeset = 1 << 2,
-    kPendingPowerMode = 1 << 3,
-    kUpdateDisplay = 1 << 4,
-    kDisconnectionInProgress = 1 << 5,
-    kInitialized = 1 << 6,  // Display Queue is initialized.
-    kRefreshClonedDisplays = 1 << 7,
-    kHandlePendingHotPlugNotifications = 1 << 8,
-    kNotifyClient = 1 << 9,  // Notify client as display connection physical
+    kNeedsModeset = 1 << 1,
+    kPendingPowerMode = 1 << 2,
+    kUpdateDisplay = 1 << 3,
+    kInitialized = 1 << 4,  // Display Queue is initialized.
+    kRefreshClonedDisplays = 1 << 5,
+    kHandlePendingHotPlugNotifications = 1 << 6,
+    kNotifyClient = 1 << 7,  // Notify client as display connection physical
                              // status has changed.
-    kUpdateConfig = 1 << 10
+    kUpdateConfig = 1 << 8
   };
 
   uint32_t pipe_;
@@ -222,6 +226,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
   int display_state_ = kNone;
+  int connection_state_ = kDisconnected;
   uint32_t hot_plug_display_id_ = 0;
   SpinLock modeset_lock_;
   SpinLock cloned_displays_lock_;

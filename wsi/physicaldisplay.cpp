@@ -56,20 +56,15 @@ void PhysicalDisplay::MarkForDisconnect() {
   SPIN_LOCK(modeset_lock_);
 
   IHOTPLUGEVENTTRACE("PhysicalDisplay::MarkForDisconnect recieved.");
-  display_state_ |= kDisconnectionInProgress;
+  connection_state_ |= kDisconnectionInProgress;
   display_state_ |= kRefreshClonedDisplays;
-  if (pipe_ == 0 && !(display_state_ & kInitialized))
-    display_state_ |= kHandlePendingHotPlugNotifications;
-
-  display_state_ &= ~kNotifyClient;
   SPIN_UNLOCK(modeset_lock_);
 }
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
   SPIN_LOCK(modeset_lock_);
   bool refresh_needed = false;
-
-  if (hotplug_callback_ && (display_state_ & kConnected) &&
+  if (hotplug_callback_ && (connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay Sent Hotplug even call back with connected value set "
@@ -93,7 +88,7 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
   SPIN_LOCK(modeset_lock_);
 
-  if (hotplug_callback_ && !(display_state_ & kConnected) &&
+  if (hotplug_callback_ && !(connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay Sent Hotplug even call back with connected value set "
@@ -108,9 +103,9 @@ void PhysicalDisplay::NotifyClientOfDisConnectedState() {
 void PhysicalDisplay::DisConnect() {
   SPIN_LOCK(modeset_lock_);
 
-  display_state_ &= ~kDisconnectionInProgress;
+  connection_state_ &= ~kDisconnectionInProgress;
 
-  if (!(display_state_ & kConnected)) {
+  if (!(connection_state_ & kConnected)) {
     SPIN_UNLOCK(modeset_lock_);
 
     return;
@@ -125,7 +120,7 @@ void PhysicalDisplay::DisConnect() {
     display_queue_->SetPowerMode(kOff);
   }
 
-  display_state_ &= ~kConnected;
+  connection_state_ &= ~kConnected;
   display_state_ &= ~kUpdateDisplay;
   SPIN_UNLOCK(modeset_lock_);
 }
@@ -133,17 +128,16 @@ void PhysicalDisplay::DisConnect() {
 void PhysicalDisplay::Connect() {
   SPIN_LOCK(modeset_lock_);
 
-  display_state_ &= ~kDisconnectionInProgress;
-  IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
-  if (display_state_ & kConnected) {
+  connection_state_ &= ~kDisconnectionInProgress;
+  if (connection_state_ & kConnected) {
     SPIN_UNLOCK(modeset_lock_);
-
     return;
   }
 
-  display_state_ |= kConnected;
+  connection_state_ |= kConnected;
   display_state_ &= ~kInitialized;
   display_state_ |= kNotifyClient;
+  IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
 
   if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
@@ -163,10 +157,10 @@ void PhysicalDisplay::Connect() {
 }
 
 bool PhysicalDisplay::IsConnected() const {
-  if (display_state_ & kDisconnectionInProgress)
+  if (connection_state_ & kDisconnectionInProgress)
     return false;
 
-  return display_state_ & kConnected;
+  return connection_state_ & kConnected;
 }
 
 uint32_t PhysicalDisplay::PowerMode() const {
@@ -174,7 +168,7 @@ uint32_t PhysicalDisplay::PowerMode() const {
 }
 
 int PhysicalDisplay::GetDisplayPipe() {
-  if (!(display_state_ & kConnected))
+  if (!(connection_state_ & kConnected))
     return -1;
 
   return pipe_;
@@ -187,7 +181,7 @@ bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
       pipe_, this);
   config_ = config;
   display_state_ |= kNeedsModeset;
-  if (display_state_ & kConnected) {
+  if (connection_state_ & kConnected) {
     display_queue_->DisplayConfigurationChanged();
     UpdateDisplayConfig();
   } else {
@@ -218,12 +212,12 @@ bool PhysicalDisplay::SetPowerMode(uint32_t power_mode) {
   }
 
   power_mode_ = power_mode;
-  if (!(display_state_ & kConnected)) {
+  if (!(connection_state_ & kConnected)) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay is not connected, postponing power mode update.");
     display_state_ |= kPendingPowerMode;
     return true;
-  } else if (display_state_ & kDisconnectionInProgress) {
+  } else if (connection_state_ & kDisconnectionInProgress) {
     IHOTPLUGEVENTTRACE(
         "PhysicalDisplay diconnection in progress, postponing power mode "
         "update.");
@@ -296,6 +290,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
   if (handle_hoplug_notifications) {
     NotifyClientsOfDisplayChangeStatus();
+    IHOTPLUGEVENTTRACE("Handle_hoplug_notifications done. %p \n", this);
   }
 
   bool success =
@@ -362,23 +357,25 @@ void PhysicalDisplay::RegisterHotPlugCallback(
   SPIN_LOCK(modeset_lock_);
   hot_plug_display_id_ = display_id;
   hotplug_callback_ = callback;
-  bool connected = display_state_ & kConnected;
+  bool connected = connection_state_ & kConnected;
   SPIN_UNLOCK(modeset_lock_);
-
+#ifdef ENABLE_ANDROID_WA
   if (hotplug_callback_ && pipe_ == 0) {
     display_state_ &= ~kNotifyClient;
+    display_state_ |= kHandlePendingHotPlugNotifications;
     IHOTPLUGEVENTTRACE("RegisterHotPlugCallback: pipe: %d display: %p", pipe_,
                        this);
-#ifdef ENABLE_ANDROID_WA
     hotplug_callback_->Callback(hot_plug_display_id_, true);
+  }
 #else
+  if (hotplug_callback_) {
     if (connected) {
       hotplug_callback_->Callback(hot_plug_display_id_, true);
     } else {
       hotplug_callback_->Callback(hot_plug_display_id_, false);
     }
-#endif
   }
+#endif
 }
 
 void PhysicalDisplay::VSyncControl(bool enabled) {
