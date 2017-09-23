@@ -357,7 +357,9 @@ void PhysicalDisplay::RegisterHotPlugCallback(
   SPIN_LOCK(modeset_lock_);
   hot_plug_display_id_ = display_id;
   hotplug_callback_ = callback;
+#ifndef ENABLE_ANDROID_WA
   bool connected = connection_state_ & kConnected;
+#endif
   SPIN_UNLOCK(modeset_lock_);
 #ifdef ENABLE_ANDROID_WA
   if (hotplug_callback_ && pipe_ == 0) {

@@ -22,6 +22,7 @@
 #include <nativebufferhandler.h>
 
 #include <vector>
+#include <sstream>
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
@@ -30,11 +31,10 @@
 
 namespace hwcomposer {
 
-VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
+VirtualDisplay::VirtualDisplay(uint32_t /*gpu_fd*/,
                                NativeBufferHandler *buffer_handler,
-                               uint32_t pipe_id, uint32_t crtc_id)
-    : Headless(gpu_fd, pipe_id, crtc_id),
-      output_handle_(0),
+                               uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
+    : output_handle_(0),
       acquire_fence_(-1),
       buffer_handler_(buffer_handler),
       width_(0),
@@ -180,6 +180,86 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   if (acquire_fence > 0) {
     acquire_fence_ = dup(acquire_fence);
   }
+}
+
+bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/) {
+  return true;
+}
+
+bool VirtualDisplay::GetDisplayAttribute(uint32_t /*config*/,
+                                         HWCDisplayAttribute attribute,
+                                         int32_t *value) {
+  // We always get the values from preferred mode config.
+  switch (attribute) {
+    case HWCDisplayAttribute::kWidth:
+      *value = width_;
+      break;
+    case HWCDisplayAttribute::kHeight:
+      *value = height_;
+      break;
+    case HWCDisplayAttribute::kRefreshRate:
+      // in nanoseconds
+      *value = 60;
+      break;
+    case HWCDisplayAttribute::kDpiX:
+      // Dots per 1000 inches
+      *value = 1;
+      break;
+    case HWCDisplayAttribute::kDpiY:
+      // Dots per 1000 inches
+      *value = 1;
+      break;
+    default:
+      *value = -1;
+      return false;
+  }
+
+  return true;
+}
+
+bool VirtualDisplay::GetDisplayConfigs(uint32_t *num_configs,
+                                       uint32_t *configs) {
+  *num_configs = 1;
+  if (configs)
+    configs[0] = 0;
+
+  return true;
+}
+
+bool VirtualDisplay::GetDisplayName(uint32_t *size, char *name) {
+  std::ostringstream stream;
+  stream << "Virtual";
+  std::string string = stream.str();
+  size_t length = string.length();
+  if (!name) {
+    *size = length;
+    return true;
+  }
+
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  strncpy(name, string.c_str(), *size);
+  return true;
+}
+
+int VirtualDisplay::GetDisplayPipe() {
+  return -1;
+}
+
+bool VirtualDisplay::SetPowerMode(uint32_t /*power_mode*/) {
+  return true;
+}
+
+int VirtualDisplay::RegisterVsyncCallback(
+    std::shared_ptr<VsyncCallback> /*callback*/, uint32_t /*display_id*/) {
+  return 0;
+}
+
+void VirtualDisplay::VSyncControl(bool /*enabled*/) {
+}
+
+bool VirtualDisplay::CheckPlaneFormat(uint32_t /*format*/) {
+  // assuming that virtual display supports the format
+  return true;
 }
 
 }  // namespace hwcomposer

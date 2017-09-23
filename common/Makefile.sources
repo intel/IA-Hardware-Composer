@@ -10,7 +10,6 @@ common_SOURCES =              \
     core/gpudevice.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
-    display/headless.cpp \
     display/vblankeventhandler.cpp \
     display/virtualdisplay.cpp \
     utils/fdhandler.cpp \

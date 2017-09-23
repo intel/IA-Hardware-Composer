@@ -286,13 +286,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
     }
   }
 
-  if (connected_displays_.empty()) {
-    if (!headless_)
-      headless_.reset(new Headless(fd_, 0, 0));
-  } else if (headless_) {
-    headless_.reset(nullptr);
-  }
-
   if (callback_) {
     callback_->Callback(connected_displays_);
   }
@@ -301,7 +294,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
 #ifndef ENABLE_ANDROID_WA
   notify_client_ = true;
 #endif
-  if (headless_)
+  if (connected_displays_.empty())
     return true;
 
   if (notify_client_ || (!displays_.at(0)->IsConnected()))
@@ -331,12 +324,8 @@ NativeDisplay *DrmDisplayManager::GetDisplay(uint32_t display_id) {
   spin_lock_.lock();
 
   NativeDisplay *display = NULL;
-  if (headless_.get()) {
-    display = headless_.get();
-  } else {
-    if (connected_displays_.size() > display_id)
-      display = connected_displays_.at(display_id);
-  }
+  if (connected_displays_.size() > display_id)
+    display = connected_displays_.at(display_id);
 
   spin_lock_.unlock();
   return display;

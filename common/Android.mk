@@ -53,7 +53,6 @@ LOCAL_SRC_FILES := \
         core/overlaylayer.cpp \
         display/displayplanemanager.cpp \
         display/displayqueue.cpp \
-        display/headless.cpp \
         display/vblankeventhandler.cpp \
         display/virtualdisplay.cpp \
         utils/fdhandler.cpp \

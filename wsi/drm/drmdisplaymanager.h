@@ -29,7 +29,6 @@
 #include "displaymanager.h"
 #include "drmdisplay.h"
 #include "drmscopedtypes.h"
-#include "headless.h"
 #include "hwcthread.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
@@ -67,7 +66,6 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
  private:
   void HotPlugEventHandler();
   bool UpdateDisplayState();
-  std::unique_ptr<NativeDisplay> headless_;
   std::unique_ptr<NativeDisplay> virtual_display_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
