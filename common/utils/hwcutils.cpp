@@ -22,15 +22,17 @@
 
 namespace hwcomposer {
 
-void HWCPoll(int fd, int timeout) {
+int HWCPoll(int fd, int timeout) {
   CTRACE();
+  int ret;
   struct pollfd fds[1];
   fds[0].fd = fd;
   fds[0].events = POLLIN;
 
-  if (poll(fds, 1, timeout) <= 0) {
+  if ((ret = poll(fds, 1, timeout)) <= 0) {
     ETRACE("Poll Failed in HWCPoll %s", PRINTERROR());
   }
+ return ret;
 }
 
 }  // namespace hwcomposer

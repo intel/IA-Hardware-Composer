@@ -24,7 +24,7 @@ namespace hwcomposer {
 // Call poll() on fd.
 //  - timeout: time in miliseconds to stay blocked before returning if fd
 //  is not ready.
-void HWCPoll(int fd, int timeout);
+int HWCPoll(int fd, int timeout);
 
 }  // namespace hwcomposer
 
