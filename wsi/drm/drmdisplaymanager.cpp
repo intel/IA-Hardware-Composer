@@ -210,7 +210,9 @@ bool DrmDisplayManager::UpdateDisplayState() {
   }
 
   std::vector<NativeDisplay *>().swap(connected_displays_);
-  for (int32_t i = 0; i < res->count_connectors; ++i) {
+  std::vector<uint32_t> no_encoder;
+  uint32_t total_connectors = res->count_connectors;
+  for (uint32_t i = 0; i < total_connectors; ++i) {
     ScopedDrmConnectorPtr connector(
         drmModeGetConnector(fd_, res->connectors[i]));
     if (!connector) {
@@ -224,10 +226,18 @@ bool DrmDisplayManager::UpdateDisplayState() {
     // Ensure we have atleast one valid mode.
     if (connector->count_modes == 0)
       continue;
+
+    if (connector->encoder_id == 0) {
+      no_encoder.emplace_back(i);
+      continue;
+    }
+
     std::vector<drmModeModeInfo> mode;
     uint32_t preferred_mode = 0;
-    for (int32_t i = 0; i < connector->count_modes; ++i) {
-      mode.emplace_back(connector->modes[i]);
+    uint32_t size = connector->count_modes;
+    mode.resize(size);
+    for (uint32_t i = 0; i < size; ++i) {
+      mode[i] = connector->modes[i];
       // There is only one preferred mode per connector.
       if (mode[i].type & DRM_MODE_TYPE_PREFERRED) {
         preferred_mode = i;
@@ -235,44 +245,67 @@ bool DrmDisplayManager::UpdateDisplayState() {
     }
 
     // Lets try to find crts for any connected encoder.
-    if (connector->encoder_id) {
-      ScopedDrmEncoderPtr encoder(
-          drmModeGetEncoder(fd_, connector->encoder_id));
-      if (encoder && encoder->crtc_id) {
-        for (auto &display : displays_) {
-          IHOTPLUGEVENTTRACE(
-              "Trying to connect %d with crtc: %d is display connected: %d \n",
-              encoder->crtc_id, display->CrtcId(), display->IsConnected());
-          // At initilaization  preferred mode is set!
-          if (!display->IsConnected() &&
-              encoder->crtc_id == display->CrtcId() &&
-              display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
-                                      preferred_mode)) {
-            IHOTPLUGEVENTTRACE("Connected %d with crtc: %d \n",
-                               encoder->crtc_id, display->CrtcId());
-            // Set the modes supported for each display
-            display->SetDrmModeInfo(mode);
-            break;
-          }
+    ScopedDrmEncoderPtr encoder(drmModeGetEncoder(fd_, connector->encoder_id));
+    if (encoder && encoder->crtc_id) {
+      for (auto &display : displays_) {
+        IHOTPLUGEVENTTRACE(
+            "Trying to connect %d with crtc: %d is display connected: %d \n",
+            encoder->crtc_id, display->CrtcId(), display->IsConnected());
+        // At initilaization  preferred mode is set!
+        if (!display->IsConnected() && encoder->crtc_id == display->CrtcId() &&
+            display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
+                                    preferred_mode)) {
+          IHOTPLUGEVENTTRACE("Connected %d with crtc: %d pipe:%d \n",
+                             encoder->crtc_id, display->CrtcId(),
+                             display->Pipe());
+          // Set the modes supported for each display
+          display->SetDrmModeInfo(mode);
+          break;
         }
       }
-    } else {
-      // Try to find an encoder for the connector.
-      for (int32_t j = 0; j < connector->count_encoders; ++j) {
-        ScopedDrmEncoderPtr encoder(
-            drmModeGetEncoder(fd_, connector->encoders[j]));
-        if (!encoder)
-          continue;
-        for (auto &display : displays_) {
-          if (!display->IsConnected() &&
-              (encoder->possible_crtcs & (1 << display->Pipe())) &&
-              display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
-                                      preferred_mode)) {
-            IHOTPLUGEVENTTRACE("connected pipe:%d \n", display->Pipe());
-            // Set the modes supported for each display
-            display->SetDrmModeInfo(mode);
-            break;
-          }
+    }
+  }
+
+  // Deal with connectors with encoder_id == 0.
+  uint32_t size = no_encoder.size();
+  for (uint32_t i = 0; i < size; ++i) {
+    ScopedDrmConnectorPtr connector(
+        drmModeGetConnector(fd_, res->connectors[no_encoder.at(i)]));
+    if (!connector) {
+      ETRACE("Failed to get connector %d", res->connectors[i]);
+      break;
+    }
+
+    std::vector<drmModeModeInfo> mode;
+    uint32_t preferred_mode = 0;
+    uint32_t size = connector->count_modes;
+    mode.resize(size);
+    for (uint32_t i = 0; i < size; ++i) {
+      mode[i] = connector->modes[i];
+      // There is only one preferred mode per connector.
+      if (mode[i].type & DRM_MODE_TYPE_PREFERRED) {
+        preferred_mode = i;
+      }
+    }
+
+    // Try to find an encoder for the connector.
+    size = connector->count_encoders;
+    for (uint32_t j = 0; j < size; ++j) {
+      ScopedDrmEncoderPtr encoder(
+          drmModeGetEncoder(fd_, connector->encoders[j]));
+      if (!encoder)
+        continue;
+
+      for (auto &display : displays_) {
+        if (!display->IsConnected() &&
+            (encoder->possible_crtcs & (1 << display->Pipe())) &&
+            display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
+                                    preferred_mode)) {
+          IHOTPLUGEVENTTRACE("Connected with crtc: %d pipe:%d \n",
+                             display->CrtcId(), display->Pipe());
+          // Set the modes supported for each display
+          display->SetDrmModeInfo(mode);
+          break;
         }
       }
     }
@@ -294,11 +327,12 @@ bool DrmDisplayManager::UpdateDisplayState() {
 #ifndef ENABLE_ANDROID_WA
   notify_client_ = true;
 #endif
-  if (connected_displays_.empty())
-    return true;
 
-  if (notify_client_ || (!displays_.at(0)->IsConnected()))
+  if (notify_client_ || (!(displays_.at(0)->IsConnected()))) {
+    IHOTPLUGEVENTTRACE("NotifyClientsOfDisplayChangeStatus Called %d %d \n",
+                       notify_client_, displays_.at(0)->IsConnected());
     NotifyClientsOfDisplayChangeStatus();
+  }
 
   return true;
 }
