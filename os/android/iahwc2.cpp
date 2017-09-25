@@ -44,8 +44,10 @@ class IAVsyncCallback : public hwcomposer::VsyncCallback {
   }
 
   void Callback(uint32_t display, int64_t timestamp) {
-    auto hook = reinterpret_cast<HWC2_PFN_VSYNC>(hook_);
-    hook(data_, display, timestamp);
+    if (hook_ != NULL) {
+      auto hook = reinterpret_cast<HWC2_PFN_VSYNC>(hook_);
+      hook(data_, display, timestamp);
+    }
   }
 
  private:
@@ -60,8 +62,10 @@ class IARefreshCallback : public hwcomposer::RefreshCallback {
   }
 
   void Callback(uint32_t display) {
-    auto hook = reinterpret_cast<HWC2_PFN_REFRESH>(hook_);
-    hook(data_, display);
+    if (hook_ != NULL) {
+      auto hook = reinterpret_cast<HWC2_PFN_REFRESH>(hook_);
+      hook(data_, display);
+    }
   }
 
  private:
