@@ -58,7 +58,6 @@ LOCAL_SRC_FILES := \
         compositor/renderstate.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
-        core/hwclock.cpp \
         core/overlaylayer.cpp \
         display/displayplanemanager.cpp \
         display/displayqueue.cpp \

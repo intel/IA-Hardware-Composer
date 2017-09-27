@@ -78,6 +78,8 @@ class DrmDisplay : public PhysicalDisplay {
 
   void NotifyClientsOfDisplayChangeStatus() override;
 
+  void ForceRefresh();
+
  private:
   void ShutDownPipe();
   void GetDrmObjectPropertyValue(const char *name,

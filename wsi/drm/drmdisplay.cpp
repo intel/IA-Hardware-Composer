@@ -625,6 +625,10 @@ bool DrmDisplay::PopulatePlanes(
   return true;
 }
 
+void DrmDisplay::ForceRefresh() {
+  display_queue_->ForceRefresh();
+}
+
 void DrmDisplay::NotifyClientsOfDisplayChangeStatus() {
   manager_->NotifyClientsOfDisplayChangeStatus();
 }

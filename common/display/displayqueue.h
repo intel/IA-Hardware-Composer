@@ -29,7 +29,6 @@
 #include "compositor.h"
 #include "displayplanemanager.h"
 #include "hwcthread.h"
-#include "hwclock.h"
 #include "vblankeventhandler.h"
 #include "platformdefines.h"
 
@@ -166,7 +165,12 @@ class DisplayQueue {
     }
 
     void ResetTrackerState() {
-      tracker_.state_ = 0;
+      if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
+	tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+      } else {
+	tracker_.state_ = 0;
+      }
+
       tracker_.revalidate_frames_counter_ = 0;
     }
 
@@ -231,7 +235,6 @@ class DisplayQueue {
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
-  std::unique_ptr<HWCLock> hwc_lock_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::vector<OverlayLayer> in_flight_layers_;

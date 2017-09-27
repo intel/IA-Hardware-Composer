@@ -23,7 +23,7 @@
 
 namespace hwcomposer {
 
-class DisplayQueue;
+class DrmDisplayManager;
 
 // An utility class to block HWC updates if any other
 // application what to control display during system
@@ -36,7 +36,7 @@ class HWCLock : public HWCThread {
   // The function will return true if DisplayQueue
   // needs to ignore updates till ForceRefresh is
   // called.
-  bool RegisterCallBack(DisplayQueue* queue);
+  bool RegisterCallBack(DrmDisplayManager* display_manager);
 
   void DisableWatch();
 
@@ -45,7 +45,7 @@ class HWCLock : public HWCThread {
   void HandleWait() override;
 
  private:
-  DisplayQueue* queue_ = NULL;
+  DrmDisplayManager* display_manager_ = NULL;
   int lock_fd_ = -1;
 };
 
