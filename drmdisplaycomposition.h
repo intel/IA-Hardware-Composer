@@ -179,6 +179,14 @@ class DrmDisplayComposition {
     return planner_;
   }
 
+  int take_out_fence() {
+    return out_fence_.Release();
+  }
+
+  void set_out_fence(int out_fence) {
+    out_fence_.Set(out_fence);
+  }
+
   void Dump(std::ostringstream *out) const;
 
  private:
@@ -205,6 +213,7 @@ class DrmDisplayComposition {
   int timeline_current_ = 0;
   int timeline_squash_done_ = 0;
   int timeline_pre_comp_done_ = 0;
+  UniqueFd out_fence_ = -1;
 
   bool geometry_changed_;
   std::vector<DrmHwcLayer> layers_;

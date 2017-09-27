@@ -602,6 +602,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       display_comp->composition_planes();
   std::vector<DrmCompositionRegion> &pre_comp_regions =
       display_comp->pre_comp_regions();
+  uint64_t out_fences[drm_->crtcs().size()];
 
   DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
   if (!connector) {
@@ -618,6 +619,16 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   if (!pset) {
     ALOGE("Failed to allocate property set");
     return -ENOMEM;
+  }
+
+  if (crtc->out_fence_ptr_property().id() != 0) {
+    ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->out_fence_ptr_property().id(),
+                                   (uint64_t) &out_fences[crtc->pipe()]);
+    if (ret < 0) {
+      ALOGE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
+      drmModeAtomicFree(pset);
+      return ret;
+    }
   }
 
   if (mode_.needs_modeset) {
@@ -816,6 +827,10 @@ out:
     mode_.old_blob_id = mode_.blob_id;
     mode_.blob_id = 0;
     mode_.needs_modeset = false;
+  }
+
+  if (crtc->out_fence_ptr_property().id()) {
+    display_comp->set_out_fence((int) out_fences[crtc->pipe()]);
   }
 
   return ret;
