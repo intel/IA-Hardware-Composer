@@ -99,10 +99,17 @@ bool DrmDisplayManager::Initialize() {
 
   virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
 
+  hwc_lock_.reset(new HWCLock());
+  if (!hwc_lock_->RegisterCallBack(this)) {
+    hwc_lock_.reset(nullptr);
+    ForceRefresh();
+  }
+
   if (!UpdateDisplayState()) {
     ETRACE("Failed to connect display.");
     return false;
   }
+
 #ifndef DISABLE_HOTPLUG_NOTIFICATION
   hotplug_fd_ = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
   if (hotplug_fd_ < 0) {
@@ -192,6 +199,17 @@ void DrmDisplayManager::HandleRoutine() {
   if (fd_handler_.IsReady(hotplug_fd_)) {
     IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
     HotPlugEventHandler();
+  }
+
+  if (lock_reset_) {
+    spin_lock_.lock();
+    if (release_lock_ && hwc_lock_.get()) {
+      hwc_lock_->DisableWatch();
+      hwc_lock_.reset(nullptr);
+      release_lock_ = false;
+      lock_reset_ = false;
+    }
+    spin_lock_.unlock();
   }
 }
 
@@ -398,6 +416,17 @@ void DrmDisplayManager::RegisterHotPlugEventCallback(
     std::shared_ptr<DisplayHotPlugEventCallback> callback) {
   spin_lock_.lock();
   callback_ = callback;
+  spin_lock_.unlock();
+}
+
+void DrmDisplayManager::ForceRefresh() {
+  spin_lock_.lock();
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; ++i) {
+    displays_.at(i)->ForceRefresh();
+  }
+
+  release_lock_ = true;
   spin_lock_.unlock();
 }
 
