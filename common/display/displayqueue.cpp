@@ -81,14 +81,6 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
 
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
-  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-    hwc_lock_.reset(new HWCLock());
-    if (!hwc_lock_->RegisterCallBack(this)) {
-      idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
-      hwc_lock_.reset(nullptr);
-    }
-  }
-
   return true;
 }
 
@@ -523,11 +515,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     SetReleaseFenceToLayers(fence, source_layers);
   }
 
-  if (hwc_lock_.get()) {
-    hwc_lock_->DisableWatch();
-    hwc_lock_.reset(nullptr);
-  }
-
 #ifdef ENABLE_DOUBLE_BUFFERING
   if (kms_fence_ > 0) {
     HWCPoll(kms_fence_, -1);
@@ -792,12 +779,12 @@ void DisplayQueue::HandleIdleCase() {
 void DisplayQueue::ForceRefresh() {
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
+  idle_tracker_.idle_lock_.unlock();
   power_mode_lock_.lock();
   if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
     refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
-  idle_tracker_.idle_lock_.unlock();
 }
 
 void DisplayQueue::DisplayConfigurationChanged() {

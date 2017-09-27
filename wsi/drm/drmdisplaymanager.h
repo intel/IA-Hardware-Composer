@@ -30,6 +30,7 @@
 #include "drmdisplay.h"
 #include "drmscopedtypes.h"
 #include "hwcthread.h"
+#include "hwclock.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
 
@@ -57,6 +58,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback) override;
 
+  void ForceRefresh();
+
   void NotifyClientsOfDisplayChangeStatus();
 
  protected:
@@ -67,6 +70,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void HotPlugEventHandler();
   bool UpdateDisplayState();
   std::unique_ptr<NativeDisplay> virtual_display_;
+  std::unique_ptr<HWCLock> hwc_lock_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::vector<NativeDisplay *> connected_displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
@@ -74,6 +78,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   int fd_ = -1;
   int hotplug_fd_ = -1;
   bool notify_client_ = false;
+  bool release_lock_ = false;
+  bool lock_reset_ = true;
   SpinLock spin_lock_;
 };
 

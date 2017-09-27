@@ -5,7 +5,6 @@ common_SOURCES =              \
     compositor/nativesurface.cpp \
     compositor/renderstate.cpp \
     core/hwclayer.cpp \
-    core/hwclock.cpp \
     core/overlaylayer.cpp \
     core/gpudevice.cpp \
     display/displayqueue.cpp \

@@ -18,7 +18,7 @@
 
 #include <sys/file.h>
 
-#include "displayqueue.h"
+#include "drmdisplaymanager.h"
 #include "hwctrace.h"
 
 namespace hwcomposer {
@@ -29,8 +29,8 @@ HWCLock::HWCLock() : HWCThread(-8, "HWCLock") {
 HWCLock::~HWCLock() {
 }
 
-bool HWCLock::RegisterCallBack(DisplayQueue* queue) {
-  queue_ = queue;
+bool HWCLock::RegisterCallBack(DrmDisplayManager* display_manager) {
+  display_manager_ = display_manager;
   lock_fd_ = open("/hwc.lock", O_RDONLY);
   if (lock_fd_ == -1)
     return false;
@@ -61,7 +61,7 @@ void HWCLock::HandleRoutine() {
   close(lock_fd_);
   lock_fd_ = -1;
 
-  queue_->ForceRefresh();
+  display_manager_->ForceRefresh();
 }
 
 }  // namespace hwcomposer
