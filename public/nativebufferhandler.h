@@ -19,9 +19,9 @@
 
 #include <stdint.h>
 
-#include <hwcbuffer.h>
-#include <platformdefines.h>
-#include <hwcdefs.h>
+#include "hwcbuffer.h"
+#include "platformdefines.h"
+#include "hwcdefs.h"
 
 namespace hwcomposer {
 
