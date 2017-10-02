@@ -135,14 +135,11 @@ struct OverlayLayer {
   }
 
   bool IsCursorLayer() const {
-    return cursor_layer_;
+    return type_ == kLayerCursor;
   }
 
   bool IsVideoLayer() const {
-    // We set this to true only in case
-    // of Media buffer. If this changes
-    // in future, use appropriate checks.
-    return prefer_separate_plane_;
+    return type_ == kLayerVideo;
   }
 
   bool IsGpuRendered() const {
@@ -154,7 +151,10 @@ struct OverlayLayer {
   // when validating layers in
   // DisplayPlaneManager.
   bool PreferSeparatePlane() const {
-    return prefer_separate_plane_;
+    // We set this to true only in case
+    // of Media buffer. If this changes
+    // in future, use appropriate checks.
+    return type_ == kLayerVideo;
   }
 
   bool HasDimensionsChanged() const {
@@ -219,8 +219,7 @@ struct OverlayLayer {
       kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_ = false;
-  bool prefer_separate_plane_ = false;
-  bool cursor_layer_ = false;
+  HWCLayerType type_ = kLayerNormal;
 };
 
 }  // namespace hwcomposer
