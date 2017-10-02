@@ -25,6 +25,7 @@ namespace hwcomposer {
 
 class NativeSurface;
 struct RenderState;
+struct OverlayLayer;
 
 class Renderer {
  public:
@@ -34,9 +35,22 @@ class Renderer {
   Renderer(const Renderer& rhs) = delete;
   Renderer& operator=(const Renderer& rhs) = delete;
 
-  virtual bool Init() = 0;
-  virtual bool Draw(const std::vector<RenderState>& commands,
-                    NativeSurface* surface, bool clear_surface) = 0;
+  // Needs to be implemented for 3D Renderer's only.
+  virtual bool Init() {
+    return false;
+  }
+  virtual bool Draw(const std::vector<RenderState>& /*commands*/,
+                    NativeSurface* /*surface*/, bool /*clear_surface*/) {
+    return false;
+  }
+
+  // Needs to be implemented for Media Renderer's only.
+  virtual bool Init(int /*gpu_fd*/) {
+    return false;
+  }
+  virtual bool Draw(OverlayLayer* /*layer*/, NativeSurface* /*surface*/) {
+    return false;
+  }
 
   virtual void InsertFence(int32_t kms_fence) = 0;
 

@@ -48,6 +48,7 @@ libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
 libhwcomposer_la_SOURCES = $(hwc_SOURCES)
 libhwcomposer_ladir = $(libdir)
 libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared -Wl,-whole-archive,common/.libs/libhwcomposer_common.a,wsi/.libs/libhwcomposer_wsi.a,-no-whole-archive
+libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
 
 if ENABLE_VULKAN
 AM_CPP_INCLUDES += -Icommon/compositor/vk
