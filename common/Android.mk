@@ -67,7 +67,7 @@ LOCAL_C_INCLUDES += \
         system/core/libsync/include
 
 LOCAL_SHARED_LIBRARIES += \
-        libsync
+	libsync
 
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
@@ -121,8 +121,15 @@ LOCAL_SRC_FILES += \
         compositor/gl/shim.cpp
 endif
 
+ifeq ($(strip $(BOARD_USES_LIBVA)), true)
+LOCAL_SHARED_LIBRARIES += \
+	libva \
+	libva-android
+
 LOCAL_SRC_FILES += \
-	compositor/va/vasurface.cpp
+	compositor/va/vasurface.cpp \
+	compositor/va/varenderer.cpp
+endif
 
 ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM

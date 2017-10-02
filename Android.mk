@@ -112,6 +112,15 @@ LOCAL_CPPFLAGS += \
         -DUSE_GL
 endif
 
+ifeq ($(strip $(BOARD_USES_LIBVA)), true)
+LOCAL_C_INCLUDES += \
+	$(LOCAL_PATH)/common/compositor/va
+
+LOCAL_SHARED_LIBRARIES += \
+	libva \
+	libva-android
+endif
+
 ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
