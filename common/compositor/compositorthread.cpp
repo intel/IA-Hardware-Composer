@@ -106,7 +106,7 @@ void CompositorThread::ReleaseGpuResources() {
 }
 
 void CompositorThread::HandleExit() {
-  renderer_.reset(nullptr);
+  gl_renderer_.reset(nullptr);
 }
 
 void CompositorThread::HandleRoutine() {
@@ -130,14 +130,7 @@ void CompositorThread::HandleReleaseRequest() {
   if (!plane_manager_->HasSurfaces())
     return;
 
-  if (!renderer_) {
-    renderer_.reset(CreateRenderer());
-    if (!renderer_->Init()) {
-      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
-      renderer_.reset(nullptr);
-      return;
-    }
-  }
+  Ensure3DRenderer();
 
   if (release_all_resources_) {
     gpu_resource_handler_->ReleaseGPUResources();
@@ -153,16 +146,9 @@ void CompositorThread::HandleDrawRequest() {
   tasks_ &= ~kRender;
   tasks_lock_.unlock();
 
-  if (!renderer_) {
-    renderer_.reset(CreateRenderer());
-    if (!renderer_->Init()) {
-      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
-      renderer_.reset(nullptr);
-      return;
-    }
-  }
+  Ensure3DRenderer();
 
-  renderer_->SetExplicitSyncSupport(disable_explicit_sync_);
+  gl_renderer_->SetExplicitSyncSupport(disable_explicit_sync_);
 
   if (!gpu_resource_handler_->PrepareResources(buffers_)) {
     ETRACE(
@@ -188,11 +174,11 @@ void CompositorThread::HandleDrawRequest() {
 
     const std::vector<int32_t> &fences = draw_state.acquire_fences_;
     for (int32_t fence : fences) {
-      renderer_->InsertFence(fence);
+      gl_renderer_->InsertFence(fence);
     }
 
-    if (!renderer_->Draw(draw_state.states_, draw_state.surface_,
-                         draw_state.clear_surface_)) {
+    if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_,
+                            draw_state.clear_surface_)) {
       ETRACE(
           "Failed to prepare GPU resources for compositing the frame, "
           "error: %s",
@@ -208,7 +194,30 @@ void CompositorThread::HandleDrawRequest() {
   }
 
   if (disable_explicit_sync_)
-    renderer_->InsertFence(-1);
+    gl_renderer_->InsertFence(-1);
+}
+
+void CompositorThread::Ensure3DRenderer() {
+  if (!gl_renderer_) {
+    gl_renderer_.reset(Create3DRenderer());
+    if (!gl_renderer_->Init()) {
+      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
+      gl_renderer_.reset(nullptr);
+      return;
+    }
+  }
+}
+
+void CompositorThread::EnsureMediaRenderer() {
+  if (!media_renderer_) {
+    media_renderer_.reset(Create3DRenderer());
+    if (!media_renderer_->Init()) {
+      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
+      media_renderer_.reset(nullptr);
+      Ensure3DRenderer();
+      return;
+    }
+  }
 }
 
 }  // namespace hwcomposer

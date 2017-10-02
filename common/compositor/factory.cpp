@@ -39,7 +39,7 @@ NativeSurface* CreateBackBuffer(uint32_t width, uint32_t height) {
 #endif
 }
 
-Renderer* CreateRenderer() {
+Renderer* Create3DRenderer() {
 #ifdef USE_GL
   return new GLRenderer();
 #elif USE_VK
@@ -47,6 +47,10 @@ Renderer* CreateRenderer() {
 #else
   return NULL;
 #endif
+}
+
+Renderer* CreateMediaRenderer() {
+  return NULL;
 }
 
 NativeGpuResource* CreateNativeGpuResourceHandler() {
