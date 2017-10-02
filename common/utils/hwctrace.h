@@ -158,52 +158,52 @@ class TraceFunc {
   }
 
 #ifdef ENABLE_DISPLAY_DUMP
-#define DUMP_CURRENT_COMPOSITION_PLANES()                                  \
-  frame_++;                                                                \
-  DUMPTRACE(                                                               \
-      "Dumping DisplayPlaneState of Current Composition planes "           \
-      "-----------------------------");                                    \
-  DUMPTRACE("Frame: %d", frame_);                                          \
-  DUMPTRACE("Total Layers for this Frame: %d", layers.size()); \
-  DUMPTRACE("Total Planes in use for this Frame: %d",                      \
-            current_composition_planes.size());                            \
-  int plane_index = 1;                                                     \
-  for (DisplayPlaneState & comp_plane : current_composition_planes) {      \
-    DUMPTRACE("Composition Plane State for Index: %d", plane_index);       \
-    const std::vector<size_t> &source_layers = comp_plane.source_layers(); \
-    switch (comp_plane.GetCompositionState()) {                            \
-      case DisplayPlaneState::State::kRender:                              \
-        DUMPTRACE("DisplayPlane state: kRender. Total layers: %lu",        \
-                  source_layers.size());                                   \
-        DUMPTRACE("Layers Index:");                                        \
-        for (size_t primary_index : source_layers) {                       \
-          DUMPTRACE("index: %d", primary_index);                           \
-          layers.at(primary_index).Dump();                     \
-        }                                                                  \
-        break;                                                             \
-      case DisplayPlaneState::State::kScanout:                             \
-        if (source_layers.size() > 1)                                      \
-          DUMPTRACE(                                                       \
-              "Plane has more than one layer associated when its type is " \
-              "kScanout. This needs to be fixed.");                        \
-        DUMPTRACE("DisplayPlane State: kScanout. Total layers: %lu",       \
-                  source_layers.size());                                   \
-        DUMPTRACE("Layers Index:");                                        \
-        for (size_t overlay_index : source_layers) {                       \
-          DUMPTRACE("index: %d", overlay_index);                           \
-          layers.at(overlay_index).Dump();                     \
-        }                                                                  \
-        break;                                                             \
-      default:                                                             \
-        break;                                                             \
-    }                                                                      \
-    comp_plane.plane()->Dump();                                            \
-    DUMPTRACE("Composition Plane State ends for Index: %d", plane_index);  \
-    plane_index++;                                                         \
-  }                                                                        \
-  DUMPTRACE(                                                               \
-      "Dumping DisplayPlaneState of Current Composition planes ends. "     \
-      "-----------------------------");
+#define DUMP_CURRENT_COMPOSITION_PLANES()                                   \
+  frame_++;                                                                 \
+  DUMPTRACE(                                                                \
+      "Dumping DisplayPlaneState of Current Composition planes "            \
+      "-----------------------------");                                     \
+  DUMPTRACE("Frame: %d", frame_);                                           \
+  DUMPTRACE("Total Layers for this Frame: %d", layers.size());              \
+  DUMPTRACE("Total Planes in use for this Frame: %d",                       \
+            current_composition_planes.size());                             \
+  int plane_index = 1;                                                      \
+  for (DisplayPlaneState & comp_plane : current_composition_planes) {       \
+    DUMPTRACE("Composition Plane State for Index: %d", plane_index);        \
+    const std::vector<size_t> &source_layers = comp_plane.source_layers();  \
+    switch (comp_plane.GetCompositionState()) {                             \
+      case DisplayPlaneState::State::kRender:                               \
+        DUMPTRACE("DisplayPlane state: kRender. Total layers: %lu",         \
+                  source_layers.size());                                    \
+        DUMPTRACE("Layers Index:");                                         \
+        for (size_t primary_index : source_layers) {                        \
+          DUMPTRACE("index: %d", primary_index);                            \
+          layers.at(primary_index).Dump();                                  \
+        }                                                                   \
+        break;                                                              \
+      case DisplayPlaneState::State::kScanout:                              \
+        if (source_layers.size() > 1)                                       \
+          DUMPTRACE(                                                        \
+              "Plane has more than one layer associated when its type is "  \
+              "kScanout. This needs to be fixed.");                         \
+        DUMPTRACE("DisplayPlane State: kScanout. Total layers: %lu",        \
+                  source_layers.size());                                    \
+        DUMPTRACE("Layers Index:");                                         \
+        for (size_t overlay_index : source_layers) {                        \
+          DUMPTRACE("index: %d", overlay_index);                            \
+          layers.at(overlay_index).Dump();                                  \
+        }                                                                   \
+        break;                                                              \
+      default:                                                              \
+        break;                                                              \
+    }                                                                       \
+    comp_plane.plane()->Dump();                                             \
+    DUMPTRACE("Composition Plane State ends for Index: %d\n", plane_index); \
+    plane_index++;                                                          \
+  }                                                                         \
+  DUMPTRACE(                                                                \
+      "Dumping DisplayPlaneState of Current Composition planes ends. "      \
+      "-----------------------------\n");
 #else
 #define DUMP_CURRENT_COMPOSITION_PLANES() ((void)0)
 #endif
