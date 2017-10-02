@@ -138,6 +138,13 @@ struct OverlayLayer {
     return cursor_layer_;
   }
 
+  bool IsVideoLayer() const {
+    // We set this to true only in case
+    // of Media buffer. If this changes
+    // in future, use appropriate checks.
+    return prefer_separate_plane_;
+  }
+
   bool IsGpuRendered() const {
     return gpu_rendered_;
   }
