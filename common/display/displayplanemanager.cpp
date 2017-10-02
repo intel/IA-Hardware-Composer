@@ -302,7 +302,14 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
-  uint32_t preferred_format = plane.plane()->GetPreferredFormat();
+  bool video_separate = plane.IsVideoPlane();
+  uint32_t preferred_format = 0;
+  if (video_separate) {
+    preferred_format = plane.plane()->GetPreferredVideoFormat();
+  } else {
+    preferred_format = plane.plane()->GetPreferredFormat();
+  }
+
   for (auto &fb : surfaces_) {
     if (!fb->InUse()) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
@@ -314,7 +321,13 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   if (!surface) {
-    NativeSurface *new_surface = Create3DBuffer(width_, height_);
+    NativeSurface *new_surface = NULL;
+    if (video_separate) {
+      new_surface = CreateVideoBuffer(width_, height_);
+    } else {
+      new_surface = Create3DBuffer(width_, height_);
+    }
+
     new_surface->Init(buffer_handler_, preferred_format);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();

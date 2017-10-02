@@ -25,7 +25,7 @@ namespace hwcomposer {
 
 class NativeSurface;
 struct RenderState;
-struct OverlayLayer;
+struct MediaState;
 
 class Renderer {
  public:
@@ -48,7 +48,8 @@ class Renderer {
   virtual bool Init(int /*gpu_fd*/) {
     return false;
   }
-  virtual bool Draw(OverlayLayer* /*layer*/, NativeSurface* /*surface*/) {
+
+  virtual bool Draw(const MediaState& /*state*/, NativeSurface* /*surface*/) {
     return false;
   }
 

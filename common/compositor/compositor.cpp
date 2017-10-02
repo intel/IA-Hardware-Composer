@@ -65,12 +65,27 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
   std::vector<DrawState> draw_state;
+  std::vector<DrawState> media_state;
 
   for (DisplayPlaneState &plane : comp_planes) {
     if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
       dedicated_layers.insert(dedicated_layers.end(),
                               plane.source_layers().begin(),
                               plane.source_layers().end());
+    } else if (plane.IsVideoPlane()) {
+      dedicated_layers.insert(dedicated_layers.end(),
+                              plane.source_layers().begin(),
+                              plane.source_layers().end());
+      media_state.emplace_back();
+      DrawState &state = media_state.back();
+      state.surface_ = plane.GetOffScreenTarget();
+      MediaState &media_state = state.media_state_;
+      const OverlayLayer &layer = layers[plane.source_layers().at(0)];
+      media_state.source_buffer_ = layer.GetBuffer();
+      media_state.frame_width_ = layer.GetDisplayFrameWidth();
+      media_state.frame_height_ = layer.GetDisplayFrameHeight();
+      media_state.out_width_ = layer.GetSourceCropWidth();
+      media_state.out_height_ = layer.GetSourceCropHeight();
     } else if (plane.GetCompositionState() ==
                DisplayPlaneState::State::kRender) {
       comp = &plane;
@@ -102,10 +117,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
     }
   }
 
-  if (draw_state.empty())
-    return true;
+  if (!draw_state.empty() || !media_state.empty())
+    thread_->Draw(draw_state, media_state, layers);
 
-  thread_->Draw(draw_state, layers);
   return true;
 }
 
@@ -130,6 +144,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   NativeSurface *surface = Create3DBuffer(width, height);
   surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
   std::vector<DrawState> draw;
+  std::vector<DrawState> media;
   draw.emplace_back();
   DrawState &draw_state = draw.back();
   draw_state.clear_surface_ = true;
@@ -150,7 +165,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     draw_state.acquire_fences_.emplace_back(acquire_fence);
   }
 
-  thread_->Draw(draw, layers);
+  thread_->Draw(draw, media, layers);
   *retire_fence = draw_state.retire_fence_;
 
   return true;

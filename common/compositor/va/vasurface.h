@@ -28,7 +28,6 @@ class VASurface : public NativeSurface {
   VASurface(uint32_t width, uint32_t height);
 
   bool MakeCurrent() override;
-  bool IsVideoSurface() override;
 };
 
 }  // namespace hwcomposer

@@ -68,6 +68,10 @@ class DisplayPlaneManager {
     return !surfaces_.empty() || !cursor_surfaces_.empty();
   }
 
+  uint32_t GetGpuFd() {
+    return gpu_fd_;
+  }
+
  protected:
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;

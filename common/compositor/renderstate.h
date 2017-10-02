@@ -30,6 +30,7 @@ struct OverlayLayer;
 struct CompositionRegion;
 class NativeGpuResource;
 class NativeSurface;
+class OverlayBuffer;
 
 struct RenderState {
   struct LayerState {
@@ -56,8 +57,17 @@ struct RenderState {
   std::vector<LayerState> layer_state_;
 };
 
+struct MediaState {
+  const OverlayBuffer *source_buffer_;
+  uint32_t frame_width_;
+  uint32_t frame_height_;
+  uint32_t out_width_;
+  uint32_t out_height_;
+};
+
 struct DrawState {
   std::vector<RenderState> states_;
+  MediaState media_state_;
   NativeSurface *surface_;
   bool clear_surface_;
   bool destroy_surface_ = false;

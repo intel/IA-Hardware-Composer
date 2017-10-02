@@ -43,6 +43,7 @@ class CompositorThread : public HWCThread {
   void Initialize(DisplayPlaneManager* plane_manager);
 
   void Draw(std::vector<DrawState>& states,
+            std::vector<DrawState>& media_states,
             const std::vector<OverlayLayer>& layers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
@@ -55,13 +56,15 @@ class CompositorThread : public HWCThread {
 
  private:
   enum Tasks {
-    kNone = 0,                   // No tasks
-    kRender = 1 << 1,            // Render content.
-    kReleaseResources = 1 << 2,  // Release surfaces from plane manager.
+    kNone = 0,           // No tasks
+    kRender3D = 1 << 1,  // Render content.
+    kRenderMedia = 1 << 2,
+    kReleaseResources = 1 << 3,  // Release surfaces from plane manager.
   };
 
   void ReleaseGpuResources();
-  void HandleDrawRequest();
+  void Handle3DDrawRequest();
+  void HandleMediaDrawRequest();
   void HandleReleaseRequest();
   void Wait();
   void Ensure3DRenderer();
@@ -73,6 +76,7 @@ class CompositorThread : public HWCThread {
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
   std::vector<OverlayBuffer*> buffers_;
   std::vector<DrawState> states_;
+  std::vector<DrawState> media_states_;
   bool disable_explicit_sync_;
   bool release_all_resources_;
   DisplayPlaneManager* plane_manager_ = NULL;

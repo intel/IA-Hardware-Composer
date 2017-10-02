@@ -66,6 +66,7 @@ bool NativeSurface::InitializeForOffScreenRendering(
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
 
+
   return true;
 }
 
@@ -84,8 +85,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
-  layer_.SetDisplayFrame(HwcRect<int>(display_rect));
-  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
+  UpdateDisplayFrame(plane.GetDisplayFrame());
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
 
@@ -101,8 +101,7 @@ void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
   layer_.SetAcquireFence(-1);
-  layer_.SetDisplayFrame(HwcRect<int>(plane.GetDisplayFrame()));
-  layer_.SetSourceCrop(HwcRect<float>(plane.GetDisplayFrame()));
+  UpdateDisplayFrame(plane.GetDisplayFrame());
 }
 
 void NativeSurface::UpdateSurfaceDamage(
