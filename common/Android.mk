@@ -126,6 +126,9 @@ LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
 
+LOCAL_CPPFLAGS += \
+	-DUSE_LIBVA
+
 LOCAL_SRC_FILES += \
 	compositor/va/vasurface.cpp \
 	compositor/va/varenderer.cpp

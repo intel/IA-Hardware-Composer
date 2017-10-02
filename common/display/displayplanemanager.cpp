@@ -251,7 +251,7 @@ void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
   }
 
   if (!surface) {
-    NativeSurface *new_surface = CreateBackBuffer(width, height);
+    NativeSurface *new_surface = Create3DBuffer(width, height);
     new_surface->Init(buffer_handler_, true);
     cursor_surfaces_.emplace_back(std::move(new_surface));
     surface = cursor_surfaces_.back().get();
@@ -297,7 +297,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   if (!surface) {
-    NativeSurface *new_surface = CreateBackBuffer(width_, height_);
+    NativeSurface *new_surface = Create3DBuffer(width_, height_);
     new_surface->Init(buffer_handler_);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
