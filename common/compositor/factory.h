@@ -27,7 +27,12 @@ class Renderer;
 
 NativeSurface* CreateBackBuffer(uint32_t width, uint32_t height);
 
-Renderer* CreateRenderer();
+// Return 3D renderer implementation to be used on this platform.
+Renderer* Create3DRenderer();
+
+// Return Media renderer implementation to be used to composite Media
+// content. This can be Null and 3DRenderer will be used
+Renderer* CreateMediaRenderer();
 
 NativeGpuResource* CreateNativeGpuResourceHandler();
 

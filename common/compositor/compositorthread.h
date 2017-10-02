@@ -64,9 +64,12 @@ class CompositorThread : public HWCThread {
   void HandleDrawRequest();
   void HandleReleaseRequest();
   void Wait();
+  void Ensure3DRenderer();
+  void EnsureMediaRenderer();
 
   SpinLock tasks_lock_;
-  std::unique_ptr<Renderer> renderer_;
+  std::unique_ptr<Renderer> gl_renderer_;
+  std::unique_ptr<Renderer> media_renderer_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
   std::vector<OverlayBuffer*> buffers_;
   std::vector<DrawState> states_;
