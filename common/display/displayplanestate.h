@@ -68,8 +68,13 @@ class DisplayPlaneState {
     state_ = State::kRender;
 
     if (cursor_layer) {
-      cursor_plane_ = true;
       cursor_layer_ = index;
+    }
+
+    if (source_layers_.size() == 1 && cursor_layer) {
+      type_ = PlaneType::kCursor;
+    } else {
+      type_ = PlaneType::kNormal;
     }
   }
 
@@ -84,7 +89,7 @@ class DisplayPlaneState {
     display_frame_.right = display_frame.right;
     display_frame_.bottom = display_frame.bottom;
     state_ = state;
-    cursor_plane_ = false;
+    type_ = PlaneType::kNormal;
     cursor_layer_ = 0;
   }
 
@@ -106,8 +111,13 @@ class DisplayPlaneState {
     state_ = state;
 
     if (!ignore_cursor_layer) {
-      cursor_plane_ = true;
       cursor_layer_ = cursor_layer;
+    }
+
+    if (source_layers_.size() == 1 && !ignore_cursor_layer) {
+      type_ = PlaneType::kCursor;
+    } else {
+      type_ = PlaneType::kNormal;
     }
   }
 
@@ -201,18 +211,31 @@ class DisplayPlaneState {
   }
 
   void SetCursorPlane() {
-    cursor_plane_ = true;
+    type_ = PlaneType::kCursor;
   }
 
   bool IsCursorPlane() const {
-    return cursor_plane_;
+    return type_ == PlaneType::kCursor;
   }
 
   int GetCursorLayer() const {
     return cursor_layer_;
   }
 
+  bool IsVideoPlane() const {
+    return type_ == PlaneType::kVideo;
+  }
+
+  void SetVideoPlane() {
+    type_ = PlaneType::kVideo;
+  }
+
  private:
+  enum class PlaneType : int32_t {
+    kCursor,  // Plane is compositing only Cursor.
+    kVideo,   // Plane is compositing only Media content.
+    kNormal   // Plane is compositing different types of content.
+  };
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
   const OverlayLayer *layer_ = NULL;
@@ -221,8 +244,8 @@ class DisplayPlaneState {
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
-  bool cursor_plane_ = false;
-  int cursor_layer_ = 0;
+  int cursor_layer_ = -1;
+  PlaneType type_ = PlaneType::kNormal;
   std::vector<NativeSurface *> surfaces_;
 };
 

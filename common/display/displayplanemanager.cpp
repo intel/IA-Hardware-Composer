@@ -80,7 +80,11 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
       // all layers in this case.
       return render_layers;
     } else {
-      ResetPlaneTarget(composition.back(), commit_planes.back());
+      DisplayPlaneState &last_plane = composition.back();
+      if (primary_layer->IsVideoLayer())
+        last_plane.SetVideoPlane();
+
+      ResetPlaneTarget(last_plane, commit_planes.back());
     }
   }
 
@@ -133,7 +137,12 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
             layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
           if (fall_back) {
-            ResetPlaneTarget(composition.back(), commit_planes.back());
+            DisplayPlaneState &last_plane = composition.back();
+            if (layer->IsVideoLayer()) {
+              last_plane.SetVideoPlane();
+            }
+
+            ResetPlaneTarget(last_plane, commit_planes.back());
             render_layers = true;
           }
 
