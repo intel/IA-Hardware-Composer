@@ -151,7 +151,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
   // We expect cursor plane to support alpha always.
-  if (rhs->gpu_rendered_ || (cursor_layer_)) {
+  if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
     content_changed = rect_changed || layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged() ||
                       layer->HasSourcePositionChanged();
@@ -187,8 +187,11 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
 void OverlayLayer::ValidateForOverlayUsage() {
   const std::unique_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
-  prefer_separate_plane_ = buffer->IsVideoBuffer();
-  cursor_layer_ = buffer->GetUsage() & kLayerCursor;
+  if (buffer->GetUsage() & kLayerCursor) {
+    type_ = kLayerCursor;
+  } else if (buffer->IsVideoBuffer()) {
+    type_ = kLayerVideo;
+  }
 }
 
 void OverlayLayer::Dump() {
