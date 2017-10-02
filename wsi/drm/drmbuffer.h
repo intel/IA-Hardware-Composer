@@ -60,6 +60,22 @@ class DrmBuffer : public OverlayBuffer {
     return fb_id_;
   }
 
+  uint32_t GetPrimeFD() const override {
+    return prime_fd_;
+  }
+
+  uint32_t GetTotalPlanes() const override {
+    return total_planes_;
+  }
+
+  const uint32_t* GetPitches() const override {
+    return pitches_;
+  }
+
+  const uint32_t* GetOffsets() const override {
+    return offsets_;
+  }
+
   GpuImage ImportImage(GpuDisplay egl_display) override;
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
