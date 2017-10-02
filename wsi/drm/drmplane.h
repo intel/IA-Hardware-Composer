@@ -65,6 +65,7 @@ class DrmPlane : public DisplayPlane {
   bool IsSupportedFormat(uint32_t format) override;
 
   uint32_t GetFormatForFrameBuffer(uint32_t format) override;
+  uint32_t GetPreferredVideoFormat() const override;
 
   void Dump() const override;
 
@@ -102,6 +103,7 @@ class DrmPlane : public DisplayPlane {
 
   std::vector<uint32_t> supported_formats_;
   int32_t kms_fence_ = 0;
+  uint32_t prefered_video_format_ = 0;
 };
 
 }  // namespace hwcomposer
