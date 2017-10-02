@@ -136,6 +136,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
+    bool reset_regions = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     if (plane.IsVideoPlane()) {
@@ -147,6 +148,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           plane.source_layers(), plane.GetDisplayFrame(),
           plane.GetCompositionState(), plane.GetCursorLayer(),
           cursor_layer_removed);
+
+      if (cursor_layer_added || cursor_layer_removed) {
+        reset_regions = true;
+      }
     } else {
       last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                            plane.GetCompositionState());
@@ -157,7 +162,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       bool region_changed = false;
       bool clear_surface = false;
       bool alpha_damaged = false;
-      bool reset_regions = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -196,12 +200,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
-      }
-
-      if ((cursor_layer_added || cursor_layer_removed) &&
-          previous_plane_state_.size() == composition->size()) {
-        clear_surface = true;
-        reset_regions = true;
       }
 
       if (clear_surface || region_changed || reset_regions) {
