@@ -50,6 +50,14 @@ class OverlayBuffer {
 
   virtual uint32_t GetFb() const = 0;
 
+  virtual uint32_t GetPrimeFD() const = 0;
+
+  virtual uint32_t GetTotalPlanes() const = 0;
+
+  virtual const uint32_t* GetPitches() const = 0;
+
+  virtual const uint32_t* GetOffsets() const = 0;
+
   virtual GpuImage ImportImage(GpuDisplay egl_display) = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
