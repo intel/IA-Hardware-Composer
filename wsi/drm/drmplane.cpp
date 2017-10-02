@@ -78,20 +78,23 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     }
   }
 
-  if (prefered_video_format_ == 0) {
-    for (uint32_t j = 0; j < total_size; j++) {
-      uint32_t format = supported_formats_.at(j);
-      switch (format) {
-        case DRM_FORMAT_RGB888:
-        case DRM_FORMAT_XRGB8888:
-        case DRM_FORMAT_XBGR8888:
-        case DRM_FORMAT_RGBX8888:
-        case DRM_FORMAT_ABGR8888:
-        case DRM_FORMAT_RGBA8888:
-          prefered_video_format_ = format;
-          break;
-      }
+  for (uint32_t j = 0; j < total_size; j++) {
+    uint32_t format = supported_formats_.at(j);
+    switch (format) {
+      case DRM_FORMAT_RGB888:
+      case DRM_FORMAT_XRGB8888:
+      case DRM_FORMAT_XBGR8888:
+      case DRM_FORMAT_RGBX8888:
+      case DRM_FORMAT_ABGR8888:
+      case DRM_FORMAT_RGBA8888:
+      case DRM_FORMAT_BGRA8888:
+        prefered_format_ = format;
+        break;
     }
+  }
+
+  if (prefered_video_format_ == 0) {
+    prefered_video_format_ = prefered_format_;
   }
 
   ScopedDrmObjectPropertyPtr plane_props(
@@ -366,6 +369,10 @@ uint32_t DrmPlane::GetPreferredVideoFormat() const {
   return prefered_video_format_;
 }
 
+uint32_t DrmPlane::GetPreferredFormat() const {
+  return prefered_format_;
+}
+
 void DrmPlane::Dump() const {
   DUMPTRACE("Plane Information Starts. -------------");
   DUMPTRACE("Plane ID: %d", id_);
@@ -427,7 +434,8 @@ void DrmPlane::Dump() const {
   if (in_fence_fd_prop_.id != 0)
     DUMPTRACE("IN_FENCE_FD is supported.");
 
-  DUMPTRACE("Preferred Video Formar: %4.4s", (char*)&(prefered_video_format_));
+  DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_video_format_));
+  DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_format_));
 
   DUMPTRACE("Plane Information Ends. -------------");
 }

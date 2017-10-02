@@ -243,16 +243,20 @@ void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
 void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
     DisplayPlaneState &plane, uint32_t width, uint32_t height) {
   NativeSurface *surface = NULL;
+  uint32_t preferred_format = plane.plane()->GetPreferredFormat();
   for (auto &fb : cursor_surfaces_) {
     if (!fb->InUse()) {
-      surface = fb.get();
-      break;
+      uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
+      if (preferred_format == surface_format) {
+        surface = fb.get();
+        break;
+      }
     }
   }
 
   if (!surface) {
     NativeSurface *new_surface = Create3DBuffer(width, height);
-    new_surface->Init(buffer_handler_, true);
+    new_surface->Init(buffer_handler_, preferred_format, true);
     cursor_surfaces_.emplace_back(std::move(new_surface));
     surface = cursor_surfaces_.back().get();
   }
@@ -289,16 +293,20 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
+  uint32_t preferred_format = plane.plane()->GetPreferredFormat();
   for (auto &fb : surfaces_) {
     if (!fb->InUse()) {
-      surface = fb.get();
-      break;
+      uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
+      if (preferred_format == surface_format) {
+        surface = fb.get();
+        break;
+      }
     }
   }
 
   if (!surface) {
     NativeSurface *new_surface = Create3DBuffer(width_, height_);
-    new_surface->Init(buffer_handler_);
+    new_surface->Init(buffer_handler_, preferred_format);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

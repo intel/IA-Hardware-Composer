@@ -41,7 +41,7 @@ NativeSurface::~NativeSurface() {
   }
 }
 
-bool NativeSurface::Init(NativeBufferHandler *buffer_handler,
+bool NativeSurface::Init(NativeBufferHandler *buffer_handler, uint32_t format,
                          bool cursor_layer) {
   buffer_handler_ = buffer_handler;
   uint32_t usage = hwcomposer::kLayerNormal;
@@ -49,7 +49,8 @@ bool NativeSurface::Init(NativeBufferHandler *buffer_handler,
     usage = hwcomposer::kLayerCursor;
   }
 
-  buffer_handler_->CreateBuffer(width_, height_, 0, &native_handle_, usage);
+  buffer_handler_->CreateBuffer(width_, height_, format, &native_handle_,
+                                usage);
   if (!native_handle_) {
     ETRACE("NativeSurface: Failed to create buffer.");
     return false;

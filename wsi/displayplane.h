@@ -46,6 +46,12 @@ class DisplayPlane {
    */
   virtual uint32_t GetPreferredVideoFormat() const = 0;
 
+  /**
+   * API for querying preferred format supported by this
+   * plane for non-media content.
+   */
+  virtual uint32_t GetPreferredFormat() const = 0;
+
   virtual void Dump() const = 0;
 };
 
