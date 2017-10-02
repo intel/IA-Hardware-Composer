@@ -30,7 +30,8 @@
 
 #include "hwctrace.h"
 #include "nativesurface.h"
-#include "overlaylayer.h"
+#include "overlaybuffer.h"
+#include "renderstate.h"
 
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
 #define UNUSED(x) (void*)(&x)
@@ -198,10 +199,10 @@ bool VARenderer::Init(int gpu_fd) {
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
-bool VARenderer::Draw(OverlayLayer* layer, NativeSurface* surface) {
+bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
-  OverlayBuffer* buffer_in = layer->GetBuffer();
+  const OverlayBuffer* buffer_in = state.source_buffer_;
   unsigned long prime_fd_in = buffer_in->GetPrimeFD();
   int rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
   external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
@@ -226,8 +227,8 @@ bool VARenderer::Draw(OverlayLayer* layer, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_out;
   memset(&external_out, 0, sizeof(external_out));
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
-  int dest_width = buffer_out->GetWidth();
-  int dest_height = buffer_out->GetHeight();
+  int dest_width = state.out_width_;
+  int dest_height = state.out_height_;
   unsigned long prime_fd_out = buffer_out->GetPrimeFD();
   rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   external_out.pixel_format = DrmFormatToVAFormat(buffer_out->GetFormat());
@@ -266,8 +267,8 @@ bool VARenderer::Draw(OverlayLayer* layer, NativeSurface* surface) {
   VARectangle surface_region, output_region;
   surface_region.x = 0;
   surface_region.y = 0;
-  surface_region.width = layer->GetSourceCropWidth();
-  surface_region.height = layer->GetSourceCropHeight();
+  surface_region.width = state.frame_width_;
+  surface_region.height = state.frame_height_;
   param.surface_region = &surface_region;
 
   output_region.x = 0;

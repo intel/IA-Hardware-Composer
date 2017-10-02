@@ -41,6 +41,15 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../wsi \
         $(LOCAL_PATH)/../wsi/drm
 
+ifeq ($(strip $(BOARD_USES_LIBVA)), true)
+LOCAL_SHARED_LIBRARIES += \
+	libva \
+	libva-android
+
+LOCAL_CPPFLAGS += \
+	-DUSE_LIBVA
+endif
+
 LOCAL_SRC_FILES := \
         compositor/compositor.cpp \
         compositor/compositorthread.cpp \
@@ -122,13 +131,6 @@ LOCAL_SRC_FILES += \
 endif
 
 ifeq ($(strip $(BOARD_USES_LIBVA)), true)
-LOCAL_SHARED_LIBRARIES += \
-	libva \
-	libva-android
-
-LOCAL_CPPFLAGS += \
-	-DUSE_LIBVA
-
 LOCAL_SRC_FILES += \
 	compositor/va/vasurface.cpp \
 	compositor/va/varenderer.cpp

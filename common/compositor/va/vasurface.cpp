@@ -32,8 +32,4 @@ bool VASurface::MakeCurrent() {
   return true;
 }
 
-bool VASurface::IsVideoSurface() {
-  return true;
-}
-
 }  // namespace hwcomposer

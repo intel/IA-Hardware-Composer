@@ -79,15 +79,25 @@ void CompositorThread::Wait() {
 }
 
 void CompositorThread::Draw(std::vector<DrawState> &states,
+                            std::vector<DrawState> &media_states,
                             const std::vector<OverlayLayer> &layers) {
   states_.swap(states);
-  std::vector<OverlayBuffer *>().swap(buffers_);
-  for (auto &layer : layers) {
-    buffers_.emplace_back(layer.GetBuffer());
+  tasks_lock_.lock();
+
+  if (!states_.empty()) {
+    std::vector<OverlayBuffer *>().swap(buffers_);
+    for (auto &layer : layers) {
+      buffers_.emplace_back(layer.GetBuffer());
+    }
+
+    tasks_ |= kRender3D;
   }
 
-  tasks_lock_.lock();
-  tasks_ |= kRender;
+  if (!media_states.empty()) {
+    media_states_.swap(media_states);
+    tasks_ |= kRenderMedia;
+  }
+
   tasks_lock_.unlock();
   Resume();
   Wait();
@@ -110,13 +120,23 @@ void CompositorThread::HandleExit() {
 }
 
 void CompositorThread::HandleRoutine() {
-  if (tasks_ & kRender) {
-    HandleDrawRequest();
-    cevent_.Signal();
+  bool signal = false;
+  if (tasks_ & kRender3D) {
+    Handle3DDrawRequest();
+    signal = true;
+  }
+
+  if (tasks_ & kRenderMedia) {
+    HandleMediaDrawRequest();
+    signal = true;
   }
 
   if (tasks_ & kReleaseResources) {
     HandleReleaseRequest();
+  }
+
+  if (signal) {
+    cevent_.Signal();
   }
 }
 
@@ -141,12 +161,15 @@ void CompositorThread::HandleReleaseRequest() {
   }
 }
 
-void CompositorThread::HandleDrawRequest() {
+void CompositorThread::Handle3DDrawRequest() {
   tasks_lock_.lock();
-  tasks_ &= ~kRender;
+  tasks_ &= ~kRender3D;
   tasks_lock_.unlock();
 
   Ensure3DRenderer();
+  if (!gl_renderer_) {
+    return;
+  }
 
   gl_renderer_->SetExplicitSyncSupport(disable_explicit_sync_);
 
@@ -197,25 +220,45 @@ void CompositorThread::HandleDrawRequest() {
     gl_renderer_->InsertFence(-1);
 }
 
+void CompositorThread::HandleMediaDrawRequest() {
+  tasks_lock_.lock();
+  tasks_ &= ~kRenderMedia;
+  tasks_lock_.unlock();
+
+  EnsureMediaRenderer();
+  if (!media_renderer_) {
+    return;
+  }
+
+  size_t size = media_states_.size();
+  for (size_t i = 0; i < size; i++) {
+    DrawState &draw_state = media_states_[i];
+    if (!media_renderer_->Draw(draw_state.media_state_, draw_state.surface_)) {
+      ETRACE(
+          "Failed to render the frame by VA, "
+          "error: %s\n",
+          PRINTERROR());
+      break;
+    }
+  }
+}
+
 void CompositorThread::Ensure3DRenderer() {
   if (!gl_renderer_) {
     gl_renderer_.reset(Create3DRenderer());
     if (!gl_renderer_->Init()) {
       ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
       gl_renderer_.reset(nullptr);
-      return;
     }
   }
 }
 
 void CompositorThread::EnsureMediaRenderer() {
   if (!media_renderer_) {
-    media_renderer_.reset(Create3DRenderer());
-    if (!media_renderer_->Init()) {
-      ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
+    media_renderer_.reset(CreateMediaRenderer());
+    if (!media_renderer_->Init(plane_manager_->GetGpuFd())) {
+      ETRACE("Failed to initialize Media Renderer %s", PRINTERROR());
       media_renderer_.reset(nullptr);
-      Ensure3DRenderer();
-      return;
     }
   }
 }
