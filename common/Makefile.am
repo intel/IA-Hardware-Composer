@@ -39,6 +39,8 @@ libhwcomposer_common_la_LIBADD = \
 
 libhwcomposer_common_la_LTLIBRARIES = libhwcomposer_common.la
 libhwcomposer_common_la_SOURCES = $(common_SOURCES)
+libhwcomposer_common_la_SOURCES += $(va_SOURCES)
+AM_CPP_INCLUDES += -Icompositor/va
 if ENABLE_VULKAN
 libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/vk

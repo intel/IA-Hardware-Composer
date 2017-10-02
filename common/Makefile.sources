@@ -35,3 +35,7 @@ vk_SOURCES =\
     compositor/vk/nativevkresource.cpp \
     compositor/vk/vkshim.cpp \
         $(NULL)
+
+va_SOURCES =\
+    compositor/va/vasurface.cpp \
+	$(NULL)

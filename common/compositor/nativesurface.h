@@ -43,6 +43,10 @@ class NativeSurface {
 
   virtual bool MakeCurrent() = 0;
 
+  virtual bool IsVideoSurface() {
+    return false;
+  }
+
   int GetWidth() const {
     return width_;
   }

@@ -121,6 +121,9 @@ LOCAL_SRC_FILES += \
         compositor/gl/shim.cpp
 endif
 
+LOCAL_SRC_FILES += \
+	compositor/va/vasurface.cpp
+
 ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
 LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
