@@ -57,11 +57,27 @@ script:
 - make install DESTDIR=$WLD LIBDIR=lib/
 - popd
 
+#clone and build libva : dependency
+- git clone https://github.com/android-ia/libva.git /tmp/libva
+- pushd /tmp/libva
+- ./autogen.sh --prefix=$WLD
+- make -j5 && make install
+- popd
+
+#clone and build vaapi : dependency
+- git clone https://github.com/android-ia/vaapi.git /tmp/vaapi
+- pushd /tmp/vaapi
+- ./autogen.sh --prefix=$WLD
+- make -j5 && make install
+- popd
+
 #finally, build the hardware composer itself
 - ./autogen.sh --prefix=$WLD
 - make -j5
 - make clean
 - ./autogen.sh --prefix=$WLD --disable-hotplug-support
+- make -j5
+- ./autogen.sh --prefix=$WLD --enable-libva
 - make -j5
 branches:
   only:
