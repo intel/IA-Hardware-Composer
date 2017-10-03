@@ -88,8 +88,9 @@ class DisplayQueue {
 
  private:
   enum QueueState {
-    kNeedsColorCorrection = 1 << 0,    // Needs Color correction.
-    kConfigurationChanged = 1 << 1,    // Layers need to be re-validated.
+    kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
+    kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
+    kPoweredOn = 1 << 2,
     kDisableOverlayUsage = 1 << 3,     // Disable Overlays.
     kMarkSurfacesForRelease = 1 << 4,  // Mark surfaces to be released.
     kReleaseSurfaces = 1 << 5,         // Release Native Surfaces.
