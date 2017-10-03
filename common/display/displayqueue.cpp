@@ -94,10 +94,10 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       break;
     case kDozeSuspend:
       vblank_handler_->SetPowerMode(kDozeSuspend);
+      state_ |= kPoweredOn;
       break;
     case kOn:
-      state_ |= kConfigurationChanged;
-      state_ |= kNeedsColorCorrection;
+      state_ |= kPoweredOn | kConfigurationChanged | kNeedsColorCorrection;
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
@@ -781,7 +781,8 @@ void DisplayQueue::ForceRefresh() {
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.idle_lock_.unlock();
   power_mode_lock_.lock();
-  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
+  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_ &&
+      (state_ & kPoweredOn)) {
     refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
