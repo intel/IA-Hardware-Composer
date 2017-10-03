@@ -43,6 +43,10 @@ class DisplayPlaneState {
       : plane_(plane), layer_(layer) {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
+    if (layer->IsCursorLayer()) {
+      cursor_layer_ = index;
+      type_ = PlaneType::kCursor;
+    }
   }
 
   explicit DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
@@ -71,7 +75,7 @@ class DisplayPlaneState {
       cursor_layer_ = index;
     }
 
-    if (source_layers_.size() == 1 && cursor_layer) {
+    if (source_layers_.size() == 1 && (cursor_layer_ >= 0)) {
       type_ = PlaneType::kCursor;
     } else {
       type_ = PlaneType::kNormal;
@@ -90,18 +94,38 @@ class DisplayPlaneState {
     display_frame_.bottom = display_frame.bottom;
     state_ = state;
     type_ = PlaneType::kNormal;
-    cursor_layer_ = 0;
+    cursor_layer_ = -1;
   }
 
+  // This API should be called only when Cursor layer is being
+  // added, is part of layers displayed by plane or is being
+  // removed in this frame. AddLayers should be used in all
+  // other cases.
   void AddLayersForCursor(const std::vector<size_t> &source_layers,
                           const HwcRect<int> &display_frame, State state,
                           int cursor_layer, bool ignore_cursor_layer) {
-    for (const int &index : source_layers) {
-      if (ignore_cursor_layer && cursor_layer == index) {
-        continue;
+    if (ignore_cursor_layer) {
+      for (const int &index : source_layers) {
+        if (cursor_layer == index) {
+          continue;
+        }
+
+        source_layers_.emplace_back(index);
       }
 
-      source_layers_.emplace_back(index);
+      type_ = PlaneType::kNormal;
+      cursor_layer_ = -1;
+    } else {
+      for (const int &index : source_layers) {
+        source_layers_.emplace_back(index);
+      }
+
+      cursor_layer_ = cursor_layer;
+      if (source_layers_.size() == 1 && cursor_layer_ >= 0) {
+        type_ = PlaneType::kCursor;
+      } else {
+        type_ = PlaneType::kNormal;
+      }
     }
 
     display_frame_.left = display_frame.left;
@@ -109,16 +133,6 @@ class DisplayPlaneState {
     display_frame_.right = display_frame.right;
     display_frame_.bottom = display_frame.bottom;
     state_ = state;
-
-    if (!ignore_cursor_layer) {
-      cursor_layer_ = cursor_layer;
-    }
-
-    if (source_layers_.size() == 1 && !ignore_cursor_layer) {
-      type_ = PlaneType::kCursor;
-    } else {
-      type_ = PlaneType::kNormal;
-    }
   }
 
   void UpdateDisplayFrame(const HwcRect<int> &display_frame) {
@@ -208,10 +222,6 @@ class DisplayPlaneState {
 
   bool ClearSurface() const {
     return clear_surface_;
-  }
-
-  void SetCursorPlane() {
-    type_ = PlaneType::kCursor;
   }
 
   bool IsCursorPlane() const {
