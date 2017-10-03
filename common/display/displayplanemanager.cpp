@@ -174,7 +174,6 @@ bool DisplayPlaneManager::ValidateLayers(std::vector<OverlayLayer> &layers,
   if (cursor_plane) {
     composition.emplace_back(cursor_plane, cursor_layer,
                              cursor_layer->GetZorder());
-    composition.back().SetCursorPlane();
   }
 
   if (render_layers) {
@@ -218,7 +217,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     } else {
       composition.emplace_back(cursor_plane, cursor_layer,
                                cursor_layer->GetZorder());
-      composition.back().SetCursorPlane();
       return false;
     }
   }
