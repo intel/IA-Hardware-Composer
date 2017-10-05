@@ -525,12 +525,9 @@ bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
 
 bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                         uint32_t *configs) {
-  ETRACE("PhysicalDisplay1 \n");
   *num_configs = 1;
-  ETRACE("PhysicalDisplay2 \n");
   if (configs) {
     configs[0] = 1;
-    ETRACE("PhysicalDisplay3 \n");
   }
   return true;
 }
