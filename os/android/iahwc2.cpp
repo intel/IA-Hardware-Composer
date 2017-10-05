@@ -158,19 +158,50 @@ HWC2::Error IAHWC2::Init() {
     primary_display = displays.at(0);
   }
 
-  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
-
+  // TODO: How do we determine when to use Logical Manager ?
+  bool use_logical = false;
   uint32_t external_display_id = 1;
+
+  if (use_logical) {
+    std::unique_ptr<LogicalDisplayManager> manager(
+        new LogicalDisplayManager(primary_display));
+    logical_display_manager_.emplace_back(std::move(manager));
+    // We Assume Primary is logically split for now. We should have a way to
+    // determine the physical display and no of logical displays to split.
+    std::vector<LogicalDisplay *> l_displays;
+    logical_display_manager_.back()->InitializeLogicalDisplays(2, l_displays);
+
+    primary_display_.Init(l_displays.at(0), 0, disable_explicit_sync_);
+    std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
+    temp->Init(l_displays.at(1), external_display_id, disable_explicit_sync_);
+    extended_displays_.emplace_back(std::move(temp));
+    external_display_id = 3;
+  } else {
+    primary_display_.Init(primary_display, 0, disable_explicit_sync_);
+  }
+
+  uint32_t ldmsize = logical_display_manager_.size();
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
     if (primary_display == display) {
       continue;
     }
 
+    if (ldmsize > 0) {
+      for (size_t i = 0; i < ldmsize; ++i) {
+        if (logical_display_manager_.at(i)->GetPhysicalDisplay() == display) {
+          continue;
+        }
+      }
+    }
+
     std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
     temp->Init(display, external_display_id, disable_explicit_sync_);
     extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
+    // Let's not confuse things with Virtual.
+    if (external_display_id == 2)
+      external_display_id = 3;
   }
 
   // Start the hwc service
@@ -236,9 +267,11 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
-        // TODO: Remove this when we want to add support for more than 2
-        // Displays.
-        break;
+      }
+
+      uint32_t lsize = logical_display_manager_.size();
+      for (size_t i = 0; i < lsize; ++i) {
+        logical_display_manager_.at(i)->RegisterHotPlugNotification();
       }
 
       break;
@@ -291,11 +324,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Physical;
-  if (display_index == 0) {
-    handle_ = HWC_DISPLAY_PRIMARY;
-  } else {
-    handle_ = HWC_DISPLAY_EXTERNAL;
-  }
+  handle_ = display_index;
 
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
@@ -367,6 +396,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
   layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
+  layers_.at(layer_idx_).XTranslateCoordinates(display_->GetXTranslation());
   *layer = static_cast<hwc2_layer_t>(layer_idx_);
   ++layer_idx_;
   return HWC2::Error::None;
@@ -830,8 +860,10 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerDataspace(int32_t dataspace) {
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerDisplayFrame(hwc_rect_t frame) {
   supported(__func__);
-  hwc_layer_.SetDisplayFrame(hwcomposer::HwcRect<int>(
-      frame.left, frame.top, frame.right, frame.bottom));
+  hwc_layer_.SetDisplayFrame(
+      hwcomposer::HwcRect<int>(frame.left, frame.top, frame.right,
+                               frame.bottom),
+      x_translation_);
   return HWC2::Error::None;
 }
 

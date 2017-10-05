@@ -790,7 +790,8 @@ void DisplayQueue::HandleIdleCase() {
 
   idle_tracker_.idle_frames_++;
   power_mode_lock_.lock();
-  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_) {
+  if (!(state_ & kIgnoreIdleRefresh) && refresh_callback_ &&
+      (state_ & kPoweredOn)) {
     refresh_callback_->Callback(refrsh_display_id_);
     idle_tracker_.state_ |= FrameStateTracker::kPrepareIdleComposition;
   }

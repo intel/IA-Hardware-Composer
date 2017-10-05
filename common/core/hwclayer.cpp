@@ -89,19 +89,24 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
   source_crop_ = source_crop;
 }
 
-void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
-  if ((display_frame.left != display_frame_.left) ||
-      (display_frame.right != display_frame_.right) ||
-      (display_frame.top != display_frame_.top) ||
-      (display_frame.bottom != display_frame_.bottom)) {
+void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
+                               uint32_t translate_x_pos) {
+  HwcRect<int> frame = display_frame;
+  frame.left += translate_x_pos;
+  frame.right += translate_x_pos;
+
+  if ((frame.left != display_frame_.left) ||
+      (frame.right != display_frame_.right) ||
+      (frame.top != display_frame_.top) ||
+      (frame.bottom != display_frame_.bottom)) {
     layer_cache_ |= kDisplayFrameRectChanged;
-    display_frame_width_ = display_frame.right - display_frame.left;
-    display_frame_height_ = display_frame.bottom - display_frame.top;
-    display_frame_ = display_frame;
+    display_frame_ = frame;
+    display_frame_width_ = display_frame_.right - display_frame_.left;
+    display_frame_height_ = display_frame_.bottom - display_frame_.top;
   }
 
   if (!(state_ & kVisibleRegionSet)) {
-    visible_rect_ = display_frame;
+    visible_rect_ = display_frame_;
   }
 }
 
