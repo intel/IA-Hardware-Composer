@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#include <hwcrect.h>
+#include "hwcrect.h"
 
 #include <vector>
 
