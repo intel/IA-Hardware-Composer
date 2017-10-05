@@ -225,7 +225,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       gpu_rendered = true;
     }
 
-    last_plane.GetOffScreenTarget()->SetPlaneTarget(last_plane, gpu_fd_);
+    if (gpu_rendered)
+      last_plane.GetOffScreenTarget()->SetPlaneTarget(last_plane, gpu_fd_);
   }
 
   if (cursor_plane) {

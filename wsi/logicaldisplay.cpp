@@ -1,0 +1,177 @@
+/*
+// Copyright (c) 2017 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
+
+#include "logicaldisplay.h"
+
+#include "logicaldisplaymanager.h"
+
+namespace hwcomposer {
+
+LogicalDisplay::LogicalDisplay(LogicalDisplayManager *display_manager,
+                               NativeDisplay *physical_display,
+                               uint32_t total_divisions, uint32_t index)
+    : logical_display_manager_(display_manager),
+      physical_display_(physical_display),
+      index_(index),
+      total_divisions_(total_divisions) {
+}
+
+LogicalDisplay::~LogicalDisplay() {
+}
+
+bool LogicalDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+  return true;
+}
+
+bool LogicalDisplay::IsConnected() const {
+  return physical_display_->IsConnected();
+}
+
+uint32_t LogicalDisplay::PowerMode() const {
+  return power_mode_;
+}
+
+int LogicalDisplay::GetDisplayPipe() {
+  return physical_display_->GetDisplayPipe();
+}
+
+bool LogicalDisplay::SetActiveConfig(uint32_t config) {
+  bool success = physical_display_->SetActiveConfig(config);
+    width_ = (physical_display_->Width()) / total_divisions_;
+    return success;
+}
+
+bool LogicalDisplay::GetActiveConfig(uint32_t *config) {
+  return physical_display_->GetActiveConfig(config);
+}
+
+bool LogicalDisplay::SetPowerMode(uint32_t power_mode) {
+  power_mode_ = power_mode;
+  logical_display_manager_->UpdatePowerMode();
+  return true;
+}
+
+bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
+                             int32_t *retire_fence) {
+  if (power_mode_ != kOn)
+    return true;
+
+  return logical_display_manager_->Present(source_layers, retire_fence);
+}
+
+bool LogicalDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
+                                  int32_t * /*retire_fence*/,
+                                  bool /*idle_frame*/) {
+  return false;
+}
+
+int LogicalDisplay::RegisterVsyncCallback(
+    std::shared_ptr<VsyncCallback> callback, uint32_t display_id) {
+  display_id_ = display_id;
+  vsync_callback_ = callback;
+  return 0;
+}
+
+void LogicalDisplay::RegisterRefreshCallback(
+    std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
+  display_id_ = display_id;
+  refresh_callback_ = callback;
+}
+
+void LogicalDisplay::RegisterHotPlugCallback(
+    std::shared_ptr<HotPlugCallback> callback, uint32_t display_id) {
+  display_id_ = display_id;
+  hotplug_callback_ = callback;
+}
+
+void LogicalDisplay::VSyncControl(bool enabled) {
+  enable_vsync_ = enabled;
+  logical_display_manager_->UpdateVSyncControl();
+}
+
+void LogicalDisplay::VSyncUpdate(int64_t timestamp) {
+  if (vsync_callback_ && enable_vsync_) {
+    vsync_callback_->Callback(display_id_, timestamp);
+  }
+}
+
+void LogicalDisplay::RefreshUpdate() {
+  if (refresh_callback_ && power_mode_ == kOn) {
+    refresh_callback_->Callback(display_id_);
+  }
+}
+
+void LogicalDisplay::HotPlugUpdate(bool connected) {
+  if (hotplug_callback_) {
+    hotplug_callback_->Callback(display_id_, connected);
+  }
+}
+
+bool LogicalDisplay::CheckPlaneFormat(uint32_t format) {
+  return physical_display_->CheckPlaneFormat(format);
+}
+
+void LogicalDisplay::SetGamma(float red, float green, float blue) {
+  physical_display_->SetGamma(red, green, blue);
+}
+
+void LogicalDisplay::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+  physical_display_->SetContrast(red, green, blue);
+}
+
+void LogicalDisplay::SetBrightness(uint32_t red, uint32_t green,
+                                   uint32_t blue) {
+  physical_display_->SetBrightness(red, green, blue);
+}
+
+void LogicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
+  physical_display_->SetExplicitSyncSupport(disable_explicit_sync);
+}
+
+void LogicalDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
+                                        uint32_t /*primary_height*/,
+                                        uint32_t /*display_width*/,
+                                        uint32_t /*display_height*/) {
+}
+
+void LogicalDisplay::CloneDisplay(NativeDisplay * /*source_display*/) {
+}
+
+bool LogicalDisplay::GetDisplayAttribute(uint32_t config /*config*/,
+                                         HWCDisplayAttribute attribute,
+                                         int32_t *value) {
+  switch (attribute) {
+    case HWCDisplayAttribute::kWidth:
+      physical_display_->GetDisplayAttribute(config, attribute, value);
+      *value = *value / total_divisions_;
+      return true;
+    default:
+      break;
+  }
+
+  return physical_display_->GetDisplayAttribute(config, attribute, value);
+}
+
+bool LogicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
+                                       uint32_t *configs) {
+  return physical_display_->GetDisplayConfigs(num_configs, configs);
+}
+
+bool LogicalDisplay::GetDisplayName(uint32_t *size, char *name) {
+  return physical_display_->GetDisplayName(size, name);
+}
+
+}  // namespace hwcomposer

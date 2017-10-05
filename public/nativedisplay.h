@@ -224,6 +224,10 @@ class NativeDisplay {
   virtual void CloneDisplay(NativeDisplay * /*source_display*/) {
   }
 
+  virtual uint32_t GetXTranslation() {
+    return 0;
+  }
+
  protected:
   friend class PhysicalDisplay;
   virtual void OwnPresentation(NativeDisplay * /*clone*/) {
