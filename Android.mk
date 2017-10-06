@@ -71,7 +71,6 @@ LOCAL_SRC_FILES := \
 	hwcutils.cpp \
 	platform.cpp \
 	platformdrmgeneric.cpp \
-	platformnv.cpp \
 	separate_rects.cpp \
 	virtualcompositorworker.cpp \
 	vsyncworker.cpp
@@ -80,11 +79,7 @@ LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \
 	-DHWC2_INCLUDE_STRINGIFICATION
 
-ifeq ($(strip $(BOARD_DRM_HWCOMPOSER_BUFFER_IMPORTER)),nvidia-gralloc)
-LOCAL_CPPFLAGS += -DUSE_NVIDIA_IMPORTER
-else
 LOCAL_CPPFLAGS += -DUSE_DRM_GENERIC_IMPORTER
-endif
 
 LOCAL_MODULE := hwcomposer.drm
 LOCAL_MODULE_TAGS := optional

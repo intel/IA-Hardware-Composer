@@ -19,39 +19,6 @@
 
 #include <stdint.h>
 
-enum {
-  /* perform(const struct gralloc_module_t *mod,
-   *	   int op,
-   *	   int drm_fd,
-   *	   buffer_handle_t buffer,
-   *	   struct hwc_drm_bo *bo);
-   */
-  GRALLOC_MODULE_PERFORM_DRM_IMPORT = 0xffeeff00,
-
-  /* perform(const struct gralloc_module_t *mod,
-   *	   int op,
-   *	   buffer_handle_t buffer,
-   *	   void (*free_callback)(void *),
-   *	   void *priv);
-   */
-  GRALLOC_MODULE_PERFORM_SET_IMPORTER_PRIVATE = 0xffeeff01,
-
-  /* perform(const struct gralloc_module_t *mod,
-   *	   int op,
-   *	   buffer_handle_t buffer,
-   *	   void (*free_callback)(void *),
-   *	   void **priv);
-   */
-  GRALLOC_MODULE_PERFORM_GET_IMPORTER_PRIVATE = 0xffeeff02,
-
-  /* perform(const struct gralloc_module_t *mod,
-   *     int op,
-   *     buffer_handle_t buffer,
-   *     int *usage);
-   */
-  GRALLOC_MODULE_PERFORM_GET_USAGE = 0xffeeff03,
-};
-
 typedef struct hwc_drm_bo {
   uint32_t width;
   uint32_t height;
