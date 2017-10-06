@@ -986,10 +986,13 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       goto move_layers_back;
     }
 
-    if (comp_plane.type() == DrmCompositionPlane::Type::kDisable) {
+    if (comp_plane.plane()->type() == DRM_PLANE_TYPE_PRIMARY)
+      squashed_comp.set_plane(comp_plane.plane());
+    else
       dst->AddPlaneDisable(comp_plane.plane());
+
+    if (comp_plane.type() == DrmCompositionPlane::Type::kDisable)
       continue;
-    }
 
     for (auto i : comp_plane.source_layers()) {
       DrmHwcLayer &layer = src_layers[i];
@@ -1008,11 +1011,12 @@ int DrmDisplayCompositor::SquashFrame(DrmDisplayComposition *src,
       squashed_comp.source_layers().push_back(
           squashed_comp.source_layers().size());
     }
+  }
 
-    if (comp_plane.plane()->type() == DRM_PLANE_TYPE_PRIMARY)
-      squashed_comp.set_plane(comp_plane.plane());
-    else
-      dst->AddPlaneDisable(comp_plane.plane());
+  if (squashed_comp.plane() == NULL) {
+    ALOGE("Primary plane not found for squash");
+    ret = -ENOTSUP;
+    goto move_layers_back;
   }
 
   ret = dst->SetLayers(dst_layers.data(), dst_layers.size(), false);
