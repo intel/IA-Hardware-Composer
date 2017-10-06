@@ -572,15 +572,15 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
 
       rotation = 0;
       if (layer.transform & DrmHwcTransform::kFlipH)
-        rotation |= 1 << DRM_REFLECT_X;
+        rotation |= DRM_MODE_REFLECT_X;
       if (layer.transform & DrmHwcTransform::kFlipV)
-        rotation |= 1 << DRM_REFLECT_Y;
+        rotation |= DRM_MODE_REFLECT_Y;
       if (layer.transform & DrmHwcTransform::kRotate90)
-        rotation |= 1 << DRM_ROTATE_90;
+        rotation |= DRM_MODE_ROTATE_90;
       else if (layer.transform & DrmHwcTransform::kRotate180)
-        rotation |= 1 << DRM_ROTATE_180;
+        rotation |= DRM_MODE_ROTATE_180;
       else if (layer.transform & DrmHwcTransform::kRotate270)
-        rotation |= 1 << DRM_ROTATE_270;
+        rotation |= DRM_MODE_ROTATE_270;
 
       if (fence_fd < 0) {
         int prop_id = plane->in_fence_fd_property().id();
