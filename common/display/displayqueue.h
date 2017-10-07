@@ -215,7 +215,7 @@ class DisplayQueue {
 
   void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       bool cursor_layer_removed, bool cursor_layer_added,
+                       bool cursor_layer_removed,
                        DisplayPlaneStateList* composition, bool* render_layers,
                        bool* can_ignore_commit);
   void SetReleaseFenceToLayers(int32_t fence,
@@ -234,6 +234,7 @@ class DisplayQueue {
   uint32_t gpu_fd_;
   uint32_t brightness_;
   uint32_t contrast_;
+  uint32_t total_cursor_layers_ = 0;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;

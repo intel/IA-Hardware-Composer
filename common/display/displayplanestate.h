@@ -44,7 +44,7 @@ class DisplayPlaneState {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
     if (layer->IsCursorLayer()) {
-      cursor_layer_ = index;
+      cursor_layers_.emplace_back(index);
       type_ = PlaneType::kCursor;
     }
   }
@@ -72,10 +72,10 @@ class DisplayPlaneState {
     state_ = State::kRender;
 
     if (cursor_layer) {
-      cursor_layer_ = index;
+      cursor_layers_.emplace_back(index);
     }
 
-    if (source_layers_.size() == 1 && (cursor_layer_ >= 0)) {
+    if (source_layers_.size() == cursor_layers_.size()) {
       type_ = PlaneType::kCursor;
     } else {
       type_ = PlaneType::kNormal;
@@ -94,7 +94,7 @@ class DisplayPlaneState {
     display_frame_.bottom = display_frame.bottom;
     state_ = state;
     type_ = PlaneType::kNormal;
-    cursor_layer_ = -1;
+    std::vector<size_t>().swap(cursor_layers_);
   }
 
   // This API should be called only when Cursor layer is being
@@ -102,11 +102,20 @@ class DisplayPlaneState {
   // removed in this frame. AddLayers should be used in all
   // other cases.
   void AddLayersForCursor(const std::vector<size_t> &source_layers,
+                          const std::vector<size_t> &cursor_layers,
                           const HwcRect<int> &display_frame, State state,
-                          int cursor_layer, bool ignore_cursor_layer) {
+                          bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
       for (const int &index : source_layers) {
-        if (cursor_layer == index) {
+        bool ignore_layer = false;
+        for (const int &cindex : cursor_layers) {
+          if (cindex == index) {
+            ignore_layer = true;
+            break;
+          }
+        }
+
+        if (ignore_layer) {
           continue;
         }
 
@@ -114,14 +123,16 @@ class DisplayPlaneState {
       }
 
       type_ = PlaneType::kNormal;
-      cursor_layer_ = -1;
     } else {
       for (const int &index : source_layers) {
         source_layers_.emplace_back(index);
       }
 
-      cursor_layer_ = cursor_layer;
-      if (source_layers_.size() == 1 && cursor_layer_ >= 0) {
+      for (const int &cindex : cursor_layers) {
+        cursor_layers_.emplace_back(cindex);
+      }
+
+      if (source_layers_.size() == cursor_layers_.size()) {
         type_ = PlaneType::kCursor;
       } else {
         type_ = PlaneType::kNormal;
@@ -228,8 +239,8 @@ class DisplayPlaneState {
     return type_ == PlaneType::kCursor;
   }
 
-  int GetCursorLayer() const {
-    return cursor_layer_;
+  const std::vector<size_t> &GetCursorLayers() const {
+    return cursor_layers_;
   }
 
   bool IsVideoPlane() const {
@@ -253,12 +264,12 @@ class DisplayPlaneState {
   const OverlayLayer *layer_ = NULL;
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
+  std::vector<size_t> cursor_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
-  int cursor_layer_ = -1;
-  PlaneType type_ = PlaneType::kNormal;
   std::vector<NativeSurface *> surfaces_;
+  PlaneType type_ = PlaneType::kNormal;
 };
 
 }  // namespace hwcomposer
