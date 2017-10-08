@@ -186,7 +186,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     // We only support cloned mode for now.
     hwcomposer::NativeDisplay *primary = connected_displays_.at(0);
     int32_t retire_fence = -1;
-    primary->Present(layers, &retire_fence);
+    primary->Present(layers, &retire_fence, -1, -1);
     fences.emplace_back(retire_fence);
     // store fences for each display for each layer
     unsigned int fence_index = 0;
@@ -293,7 +293,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
   void PopulateConnectedDisplays() {
     if (connected_displays_.empty()) {
-      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+      device_->GetConnectedPhysicalDisplays(connected_displays_);
 
       for (auto &display : connected_displays_) {
         auto callback = std::make_shared<DisplayVSyncCallback>();

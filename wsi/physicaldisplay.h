@@ -69,8 +69,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   bool SetPowerMode(uint32_t power_mode) override;
 
-  bool Present(std::vector<HwcLayer *> &source_layers,
-               int32_t *retire_fence) override;
+  bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
@@ -221,8 +221,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 #endif
   int32_t width_;
   int32_t height_;
-  int32_t dpix_;
-  int32_t dpiy_;
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
   int display_state_ = kNone;

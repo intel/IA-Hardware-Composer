@@ -29,6 +29,7 @@
 #include <gpudevice.h>
 #include <hwcdefs.h>
 #include <nativedisplay.h>
+#include "mosiacdisplay.h"
 
 #include <string>
 #include <memory>
@@ -158,42 +159,13 @@ HWC2::Error IAHWC2::Init() {
     primary_display = displays.at(0);
   }
 
-  // TODO: How do we determine when to use Logical Manager ?
-  bool use_logical = false;
   uint32_t external_display_id = 1;
+  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
 
-  if (use_logical) {
-    std::unique_ptr<LogicalDisplayManager> manager(
-        new LogicalDisplayManager(primary_display));
-    logical_display_manager_.emplace_back(std::move(manager));
-    // We Assume Primary is logically split for now. We should have a way to
-    // determine the physical display and no of logical displays to split.
-    std::vector<LogicalDisplay *> l_displays;
-    logical_display_manager_.back()->InitializeLogicalDisplays(2, l_displays);
-
-    primary_display_.Init(l_displays.at(0), 0, disable_explicit_sync_);
-    std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
-    temp->Init(l_displays.at(1), external_display_id, disable_explicit_sync_);
-    extended_displays_.emplace_back(std::move(temp));
-    external_display_id = 3;
-  } else {
-    primary_display_.Init(primary_display, 0, disable_explicit_sync_);
-  }
-
-  uint32_t ldmsize = logical_display_manager_.size();
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
-    if (primary_display == display) {
+    if (display == primary_display)
       continue;
-    }
-
-    if (ldmsize > 0) {
-      for (size_t i = 0; i < ldmsize; ++i) {
-        if (logical_display_manager_.at(i)->GetPhysicalDisplay() == display) {
-          continue;
-        }
-      }
-    }
 
     std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
     temp->Init(display, external_display_id, disable_explicit_sync_);
@@ -267,11 +239,6 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
-      }
-
-      uint32_t lsize = logical_display_manager_.size();
-      for (size_t i = 0; i < lsize; ++i) {
-        logical_display_manager_.at(i)->RegisterHotPlugNotification();
       }
 
       break;

@@ -61,8 +61,8 @@ class LogicalDisplay : public NativeDisplay {
 
   bool SetPowerMode(uint32_t power_mode) override;
 
-  bool Present(std::vector<HwcLayer *> &source_layers,
-               int32_t *retire_fence) override;
+  bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
@@ -99,6 +99,10 @@ class LogicalDisplay : public NativeDisplay {
 
   uint32_t GetXTranslation() override {
     return (((physical_display_->Width()) / total_divisions_) * index_);
+  }
+
+  uint32_t GetLogicalIndex() const override {
+    return index_;
   }
 
   bool EnableVSync() const {

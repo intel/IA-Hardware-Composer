@@ -265,6 +265,18 @@ struct HwcLayer {
     return z_order_;
   }
 
+  void SetLeftConstraint(int32_t left_constraint);
+  int32_t GetLeftConstraint();
+
+  void SetRightConstraint(int32_t right_constraint);
+  int32_t GetRightConstraint();
+
+  void SetLeftSourceConstraint(int32_t left_constraint);
+  int32_t GetLeftSourceConstraint();
+
+  void SetRightSourceConstraint(int32_t right_constraint);
+  int32_t GetRightSourceConstraint();
+
  private:
   void Validate();
   friend class VirtualDisplay;
@@ -301,6 +313,10 @@ struct HwcLayer {
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
   int32_t acquire_fence_ = -1;
+  std::vector<int32_t> left_constraint_;
+  std::vector<int32_t> right_constraint_;
+  std::vector<int32_t> left_source_constraint_;
+  std::vector<int32_t> right_source_constraint_;
   uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged |

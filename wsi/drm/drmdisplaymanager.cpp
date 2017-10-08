@@ -227,7 +227,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
     display->MarkForDisconnect();
   }
 
-  std::vector<NativeDisplay *>().swap(connected_displays_);
+  std::vector<NativeDisplay *> connected_displays;
   std::vector<uint32_t> no_encoder;
   uint32_t total_connectors = res->count_connectors;
   for (uint32_t i = 0; i < total_connectors; ++i) {
@@ -332,13 +332,13 @@ bool DrmDisplayManager::UpdateDisplayState() {
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->DisConnect();
-    } else {
-      connected_displays_.emplace_back(display.get());
+    } else if (callback_) {
+      connected_displays.emplace_back(display.get());
     }
   }
 
   if (callback_) {
-    callback_->Callback(connected_displays_);
+    callback_->Callback(connected_displays);
   }
 
   spin_lock_.unlock();
@@ -371,34 +371,11 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
   spin_lock_.unlock();
 }
 
-NativeDisplay *DrmDisplayManager::GetDisplay(uint32_t display_id) {
-  CTRACE();
-  spin_lock_.lock();
-
-  NativeDisplay *display = NULL;
-  if (connected_displays_.size() > display_id)
-    display = connected_displays_.at(display_id);
-
-  spin_lock_.unlock();
-  return display;
-}
-
 NativeDisplay *DrmDisplayManager::GetVirtualDisplay() {
   spin_lock_.lock();
   NativeDisplay *display = virtual_display_.get();
   spin_lock_.unlock();
   return display;
-}
-
-std::vector<NativeDisplay *> DrmDisplayManager::GetConnectedPhysicalDisplays() {
-  spin_lock_.lock();
-  std::vector<NativeDisplay *> all_displays;
-  size_t size = connected_displays_.size();
-  for (size_t i = 0; i < size; ++i) {
-    all_displays.emplace_back(connected_displays_.at(i));
-  }
-  spin_lock_.unlock();
-  return all_displays;
 }
 
 std::vector<NativeDisplay *> DrmDisplayManager::GetAllDisplays() {
