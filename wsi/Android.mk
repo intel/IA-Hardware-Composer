@@ -42,8 +42,6 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../wsi/drm
 
 LOCAL_SRC_FILES := \
-	logicaldisplay.cpp \
-        logicaldisplaymanager.cpp \
         physicaldisplay.cpp \
         drm/drmdisplay.cpp \
         drm/drmbuffer.cpp \

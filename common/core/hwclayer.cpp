@@ -230,6 +230,24 @@ void HwcLayer::Validate() {
   layer_cache_ &= ~kDisplayFrameRectChanged;
   layer_cache_ &= ~kDIsplayContentAttributesChanged;
   layer_cache_ &= ~kSourcePositionChanged;
+  if (left_constraint_.empty() && left_source_constraint_.empty())
+    return;
+
+  if (!left_constraint_.empty()) {
+    std::vector<int32_t>().swap(left_constraint_);
+  }
+
+  if (!right_constraint_.empty()) {
+    std::vector<int32_t>().swap(right_constraint_);
+  }
+
+  if (!left_source_constraint_.empty()) {
+    std::vector<int32_t>().swap(left_source_constraint_);
+  }
+
+  if (!right_source_constraint_.empty()) {
+    std::vector<int32_t>().swap(right_source_constraint_);
+  }
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
@@ -238,4 +256,93 @@ void HwcLayer::SetLayerZOrder(uint32_t order) {
     z_order_ = order;
   }
 }
+
+void HwcLayer::SetLeftConstraint(int32_t left_constraint) {
+  left_constraint_.emplace_back(left_constraint);
+}
+
+void HwcLayer::SetRightConstraint(int32_t right_constraint) {
+  right_constraint_.emplace_back(right_constraint);
+}
+
+int32_t HwcLayer::GetLeftConstraint() {
+  size_t total = left_constraint_.size();
+  if (total == 0)
+    return -1;
+
+  if (total == 1)
+    return left_constraint_.at(0);
+
+    std::vector<int32_t> temp;
+  for (size_t i = 1; i < total; i++) {
+    temp.emplace_back(left_constraint_.at(i));
+  }
+
+  uint32_t value = left_constraint_.at(0);
+  left_constraint_.swap(temp);
+  return value;
+}
+
+int32_t HwcLayer::GetRightConstraint() {
+    size_t total = right_constraint_.size();
+    if (total == 0)
+      return -1;
+
+    if (total == 1)
+      return right_constraint_.at(0);
+
+      std::vector<int32_t> temp;
+    for (size_t i = 1; i < total; i++) {
+      temp.emplace_back(right_constraint_.at(i));
+    }
+
+    uint32_t value = right_constraint_.at(0);
+    right_constraint_.swap(temp);
+    return value;
+}
+
+void HwcLayer::SetLeftSourceConstraint(int32_t left_constraint) {
+  left_source_constraint_.emplace_back(left_constraint);
+}
+
+void HwcLayer::SetRightSourceConstraint(int32_t right_constraint) {
+  right_source_constraint_.emplace_back(right_constraint);
+}
+
+int32_t HwcLayer::GetLeftSourceConstraint() {
+  size_t total = left_source_constraint_.size();
+  if (total == 0)
+    return -1;
+
+  if (total == 1)
+    return left_source_constraint_.at(0);
+
+  std::vector<int32_t> temp;
+  for (size_t i = 1; i < total; i++) {
+    temp.emplace_back(left_source_constraint_.at(i));
+  }
+
+  uint32_t value = left_source_constraint_.at(0);
+  left_source_constraint_.swap(temp);
+  return value;
+}
+
+int32_t HwcLayer::GetRightSourceConstraint() {
+  size_t total = right_source_constraint_.size();
+  if (total == 0)
+    return -1;
+
+  if (total == 1)
+    return right_source_constraint_.at(0);
+
+  std::vector<int32_t> temp;
+  for (size_t i = 1; i < total; i++) {
+    temp.emplace_back(right_source_constraint_.at(i));
+  }
+
+  uint32_t value = right_source_constraint_.at(0);
+  right_source_constraint_.swap(temp);
+  return value;
+}
+
 }  // namespace hwcomposer

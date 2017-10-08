@@ -101,7 +101,8 @@ class NativeDisplay {
    *        frame composition results can be invalidated.
    */
   virtual bool Present(std::vector<HwcLayer *> &source_layers,
-                       int32_t *retire_fence) = 0;
+                       int32_t *retire_fence,
+                       bool handle_constraints = false) = 0;
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
@@ -225,6 +226,10 @@ class NativeDisplay {
   }
 
   virtual uint32_t GetXTranslation() {
+    return 0;
+  }
+
+  virtual uint32_t GetLogicalIndex() const {
     return 0;
   }
 

@@ -270,7 +270,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence, bool idle_update) {
+                               int32_t* retire_fence, bool idle_update,
+                               bool handle_constraints) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_);
   if (tracker.IgnoreUpdate()) {
@@ -326,16 +327,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           display_frame.bottom +
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
-      overlay_layer->InitializeFromScaledHwcLayer(layer, buffer_handler_,
-                                                  previous_layer, z_order,
-                                                  layer_index, display_frame);
+      overlay_layer->InitializeFromScaledHwcLayer(
+          layer, buffer_handler_, previous_layer, z_order, layer_index,
+          display_frame, handle_constraints);
     } else {
-      overlay_layer->InitializeFromHwcLayer(
-          layer, buffer_handler_, previous_layer, z_order, layer_index);
+      overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
+                                            previous_layer, z_order,
+                                            layer_index, handle_constraints);
     }
 #else
     overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                          previous_layer, z_order, layer_index);
+                                          previous_layer, z_order, layer_index,
+                                          handle_constraints);
 #endif
     if (overlay_layer->IsCursorLayer()) {
       cursor_state_ |= kFrameHasCursor;
@@ -352,6 +355,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     z_order++;
   }
+
   // We may have skipped layers which are not visible.
   size = layers.size();
   total_cursor_layers_ = cursor_layers.size();

@@ -89,12 +89,30 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_width_ = display_frame.right - display_frame.left;
   display_frame_height_ = display_frame.bottom - display_frame.top;
   display_frame_ = display_frame;
+  int width = display_frame_width_ + display_frame_.left;
+  int t_width = surface_damage_.left + display_frame_width_;
+  int top = display_frame_height_ + display_frame_.top;
+  int t_top = surface_damage_.top + display_frame_height_;
+  // If surface Damage is not part of display frame, reset it to empty.
+    if ((surface_damage_.left >= (width)) || (t_width <= display_frame_.left) ||
+	(surface_damage_.top >= top) || (t_top <= display_frame_.top)) {
+      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+      return;
+    }
+
+
+  surface_damage_.left = std::max(surface_damage_.left, display_frame_.left);
+  surface_damage_.right = std::min(surface_damage_.right, display_frame_.right);
+  surface_damage_.top = std::min(surface_damage_.top, display_frame_.top);
+  surface_damage_.bottom =
+      std::min(surface_damage_.bottom, display_frame_.bottom);
 }
 
 void OverlayLayer::InitializeState(HwcLayer* layer,
                                    NativeBufferHandler* buffer_handler,
                                    OverlayLayer* previous_layer,
-                                   uint32_t z_order, uint32_t layer_index) {
+                                   uint32_t z_order, uint32_t layer_index,
+                                   bool handle_constraints) {
   transform_ = layer->GetTransform();
   rotation_ = layer->GetRotation();
   alpha_ = layer->GetAlpha();
@@ -119,26 +137,99 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       layer->HasSourcePositionChanged()) {
     state_ |= kClearSurface;
   }
+
+  if (!handle_constraints)
+    return;
+
+  int32_t left_constraint = layer->GetLeftConstraint();
+  int32_t right_constraint = layer->GetRightConstraint();
+  if (left_constraint >= 0 && right_constraint >= 0) {
+    if (display_frame_.right > right_constraint) {
+      display_frame_.right = right_constraint;
+    }
+
+    if (display_frame_.left < left_constraint) {
+      display_frame_.left = left_constraint;
+    }
+
+    if (display_frame_.right < right_constraint) {
+      display_frame_.right =
+          std::max(display_frame_.left, display_frame_.right);
+    }
+
+    if (display_frame_.left > left_constraint) {
+      display_frame_.left = std::min(display_frame_.left, display_frame_.right);
+    }
+
+    int width = display_frame_width_ + display_frame_.left;
+    int t_width = surface_damage_.left + display_frame_width_;
+    int top = display_frame_height_ + display_frame_.top;
+    int t_top = surface_damage_.top + display_frame_height_;
+    // If surface Damage is not part of display frame, reset it to empty.
+    if ((surface_damage_.left >= (width)) || (t_width <= display_frame_.left) ||
+        (surface_damage_.top >= top) || (t_top <= display_frame_.top)) {
+      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+      return;
+    }
+
+    surface_damage_.left = std::max(surface_damage_.left, display_frame_.left);
+    surface_damage_.right =
+        std::min(surface_damage_.right, display_frame_.right);
+    surface_damage_.top = std::min(surface_damage_.top, display_frame_.top);
+    surface_damage_.bottom =
+        std::min(surface_damage_.bottom, display_frame_.bottom);
+
+    display_frame_width_ = display_frame_.right - display_frame_.left;
+    display_frame_height_ = display_frame_.bottom - display_frame_.top;
+  }
+
+  float lconstraint = (float)layer->GetLeftSourceConstraint();
+  float rconstraint = (float)layer->GetRightSourceConstraint();
+  if (lconstraint >= 0 && rconstraint >= 0) {
+    if (source_crop_.right > rconstraint) {
+      source_crop_.right = rconstraint;
+    }
+
+    if (source_crop_.left < lconstraint) {
+      source_crop_.left = lconstraint;
+    }
+
+    if (source_crop_.right < rconstraint) {
+      source_crop_.right = std::max(source_crop_.left, source_crop_.right);
+    }
+
+    if (source_crop_.left > lconstraint) {
+      source_crop_.left = std::min(source_crop_.left, source_crop_.right);
+    }
+
+    source_crop_width_ = static_cast<int>(ceilf(source_crop_.right) -
+                                          static_cast<int>(source_crop_.left));
+    source_crop_height_ = static_cast<int>(ceilf(source_crop_.bottom) -
+                                           static_cast<int>(source_crop_.top));
+  }
 }
 
 void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
                                           NativeBufferHandler* buffer_handler,
                                           OverlayLayer* previous_layer,
                                           uint32_t z_order,
-                                          uint32_t layer_index) {
+                                          uint32_t layer_index,
+                                          bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
-  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index);
+  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
+                  handle_constraints);
 }
 
 #ifdef ENABLE_IMPLICIT_CLONE_MODE
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame) {
+    const HwcRect<int>& display_frame, bool handle_constraints) {
   SetDisplayFrame(display_frame);
-  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index);
+  InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
+                  handle_constraints);
 }
 #endif
 

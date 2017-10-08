@@ -293,7 +293,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
   void PopulateConnectedDisplays() {
     if (connected_displays_.empty()) {
-      connected_displays_ = device_->GetConnectedPhysicalDisplays();
+      device_->GetConnectedPhysicalDisplays(connected_displays_);
 
       for (auto &display : connected_displays_) {
         auto callback = std::make_shared<DisplayVSyncCallback>();
@@ -514,7 +514,7 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
       pParameter->source_crop_width, pParameter->source_crop_height));
   pHwcLayer->SetDisplayFrame(hwcomposer::HwcRect<int>(
       pParameter->frame_x, pParameter->frame_y, pParameter->frame_width,
-      pParameter->frame_height));
+      pParameter->frame_height), 0);
   pHwcLayer->SetNativeHandle(pRenderer->GetNativeBoHandle());
 }
 
