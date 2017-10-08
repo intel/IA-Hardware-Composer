@@ -37,8 +37,6 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
     : pipe_(pipe_id),
       width_(0),
       height_(0),
-      dpix_(0),
-      dpiy_(0),
       gpu_fd_(gpu_fd),
       power_mode_(kOn) {
 }
@@ -256,7 +254,7 @@ bool PhysicalDisplay::UpdatePowerMode() {
 }
 
 bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                              int32_t *retire_fence) {
+                              int32_t *retire_fence, bool handle_constraints) {
   CTRACE();
   SPIN_LOCK(modeset_lock_);
 
@@ -293,8 +291,8 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     IHOTPLUGEVENTTRACE("Handle_hoplug_notifications done. %p \n", this);
   }
 
-  bool success =
-      display_queue_->QueueUpdate(source_layers, retire_fence, false);
+  bool success = display_queue_->QueueUpdate(source_layers, retire_fence, false,
+                                             handle_constraints);
 
 #ifdef ENABLE_IMPLICIT_CLONE_MODE
   if (success && !clones_.empty()) {
@@ -324,8 +322,8 @@ bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
   }
   SPIN_UNLOCK(modeset_lock_);
 
-  bool success =
-      display_queue_->QueueUpdate(source_layers, retire_fence, idle_frame);
+  bool success = display_queue_->QueueUpdate(source_layers, retire_fence,
+                                             idle_frame, false);
   HandleClonedDisplays(source_layers);
   return success;
 }

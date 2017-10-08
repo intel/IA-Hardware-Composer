@@ -16,6 +16,9 @@
 
 #include "logicaldisplay.h"
 
+#include <string>
+#include <sstream>
+
 #include "logicaldisplaymanager.h"
 
 namespace hwcomposer {
@@ -65,11 +68,12 @@ bool LogicalDisplay::SetPowerMode(uint32_t power_mode) {
 }
 
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                             int32_t *retire_fence) {
+                             int32_t *retire_fence, bool handle_constraints) {
   if (power_mode_ != kOn)
     return true;
 
-  return logical_display_manager_->Present(source_layers, retire_fence);
+  return logical_display_manager_->Present(source_layers, retire_fence,
+                                           handle_constraints);
 }
 
 bool LogicalDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
@@ -95,6 +99,7 @@ void LogicalDisplay::RegisterHotPlugCallback(
     std::shared_ptr<HotPlugCallback> callback, uint32_t display_id) {
   display_id_ = display_id;
   hotplug_callback_ = callback;
+  logical_display_manager_->RegisterHotPlugNotification();
 }
 
 void LogicalDisplay::VSyncControl(bool enabled) {
@@ -171,7 +176,18 @@ bool LogicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
 }
 
 bool LogicalDisplay::GetDisplayName(uint32_t *size, char *name) {
-  return physical_display_->GetDisplayName(size, name);
+  std::ostringstream stream;
+  stream << "Logical";
+  std::string string = stream.str();
+  size_t length = string.length();
+  if (!name) {
+    *size = length;
+    return true;
+  }
+
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  strncpy(name, string.c_str(), *size);
+  return true;
 }
 
 }  // namespace hwcomposer

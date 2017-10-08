@@ -7,6 +7,9 @@ common_SOURCES =              \
     core/hwclayer.cpp \
     core/overlaylayer.cpp \
     core/gpudevice.cpp \
+    core/logicaldisplay.cpp \
+    core/logicaldisplaymanager.cpp \
+    core/mosiacdisplay.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
     display/vblankeventhandler.cpp \

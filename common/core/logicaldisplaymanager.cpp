@@ -69,14 +69,18 @@ LogicalDisplayManager::~LogicalDisplayManager() {
   physical_display_->RegisterHotPlugCallback(nullptr, 0);
 }
 
-void LogicalDisplayManager::InitializeLogicalDisplays(
-    uint32_t total, std::vector<LogicalDisplay*>& displays) {
+void LogicalDisplayManager::InitializeLogicalDisplays(uint32_t total) {
   for (uint32_t i = 0; i < total; i++) {
     std::unique_ptr<LogicalDisplay> display(
         new LogicalDisplay(this, physical_display_, total, i));
     displays_.emplace_back(std::move(display));
-    displays.emplace_back(displays_.back().get());
   }
+
+  auto r_callback = std::make_shared<LDMRefreshCallback>(this);
+  physical_display_->RegisterRefreshCallback(r_callback, physical_display_->GetDisplayPipe());
+
+  auto v_callback = std::make_shared<LDMVsyncCallback>(this);
+  physical_display_->RegisterVsyncCallback(v_callback, physical_display_->GetDisplayPipe());
 }
 
 void LogicalDisplayManager::UpdatePowerMode() {
@@ -126,7 +130,8 @@ void LogicalDisplayManager::RegisterHotPlugNotification() {
 }
 
 bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
-                                    int32_t* retire_fence) {
+                                    int32_t* retire_fence,
+                                    bool handle_constraints) {
   uint32_t total_size = displays_.size();
   if (handle_hoplug_notifications_) {
     uint32_t size = displays_.size();
@@ -134,7 +139,10 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
       displays_.at(i)->HotPlugUpdate(true);
     }
     handle_hoplug_notifications_ = false;
-    total_size = 1;
+    // In Mosiac case, we expect Present calls for all
+    // logical displays.
+    if (!handle_constraints)
+      total_size = 1;
   } else {
     uint32_t size = displays_.size();
     for (uint32_t i = 0; i < size; i++) {
@@ -147,6 +155,7 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
   if (total_size == 0) {
       std::vector<std::vector<HwcLayer*>>().swap(layers_);
       maximum_size_ = 0;
+      ETRACE("logical dpm total_size == 0 \n");
       return true;
   }
 
@@ -159,8 +168,9 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     }
 
     maximum_size_ = std::max(maximum_size_, size);
-    if (layers_.size() < total_size)
+    if (layers_.size() < total_size) {
       return true;
+    }
   }
 
   std::vector<HwcLayer*> total_layers;
@@ -175,7 +185,8 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  bool success = physical_display_->Present(total_layers, retire_fence);
+  bool success = physical_display_->Present(total_layers, retire_fence,
+                                            handle_constraints);
   std::vector<std::vector<HwcLayer*>>().swap(layers_);
   maximum_size_ = 0;
   return success;
@@ -200,6 +211,13 @@ void LogicalDisplayManager::HotPlugCallback(bool connected) {
   for (uint32_t i = 0; i < size; i++) {
     displays_.at(i)->HotPlugUpdate(connected);
   }
+}
+
+void LogicalDisplayManager::GetLogicalDisplays(std::vector<LogicalDisplay*>& displays) {
+    uint32_t size = displays_.size();
+    for (uint32_t i = 0; i < size; i++) {
+      displays.emplace_back(displays_.at(i).get());
+    }
 }
 
 }  // namespace hwcomposer

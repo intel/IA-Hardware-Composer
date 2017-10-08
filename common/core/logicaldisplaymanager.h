@@ -32,13 +32,13 @@ class LogicalDisplayManager {
   LogicalDisplayManager(NativeDisplay* physical_display);
   ~LogicalDisplayManager();
 
-  void InitializeLogicalDisplays(uint32_t total,
-                                 std::vector<LogicalDisplay*>& displays);
+  void InitializeLogicalDisplays(uint32_t total);
   void UpdatePowerMode();
   void UpdateVSyncControl();
   void RegisterHotPlugNotification();
 
-  bool Present(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence);
+  bool Present(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
+               bool handle_constraints);
 
   void VSyncCallback(int64_t timestamp);
 
@@ -49,6 +49,8 @@ class LogicalDisplayManager {
   NativeDisplay* GetPhysicalDisplay() const {
     return physical_display_;
   }
+
+  void GetLogicalDisplays(std::vector<LogicalDisplay*>& displays);
 
  private:
   NativeDisplay* physical_display_;

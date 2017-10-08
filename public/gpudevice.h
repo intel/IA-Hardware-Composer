@@ -20,6 +20,8 @@
 #include <stdint.h>
 
 #include "displaymanager.h"
+#include "logicaldisplaymanager.h"
+#include "nativedisplay.h"
 
 namespace hwcomposer {
 
@@ -38,7 +40,7 @@ class GpuDevice {
 
   NativeDisplay* GetVirtualDisplay();
 
-  std::vector<NativeDisplay*> GetConnectedPhysicalDisplays();
+  void GetConnectedPhysicalDisplays(std::vector<NativeDisplay*>& displays);
 
   std::vector<NativeDisplay*> GetAllDisplays();
 
@@ -47,6 +49,9 @@ class GpuDevice {
 
  private:
   std::unique_ptr<DisplayManager> display_manager_;
+  std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
+  std::vector<std::unique_ptr<NativeDisplay>> mosiac_displays_;
+  std::vector<NativeDisplay*> total_displays_;
   bool initialized_;
 };
 

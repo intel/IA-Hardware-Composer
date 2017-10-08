@@ -27,7 +27,6 @@
 #include <utility>
 
 #include "hwcservice.h"
-#include "logicaldisplaymanager.h"
 
 namespace hwcomposer {
 class GpuDevice;
@@ -281,7 +280,6 @@ class IAHWC2 : public hwc2_device_t {
 
   hwcomposer::GpuDevice device_;
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
-  std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   HwcDisplay primary_display_;
   HwcDisplay virtual_display_;
 
