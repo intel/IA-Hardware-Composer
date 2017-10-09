@@ -55,8 +55,8 @@ bool GpuDevice::Initialize() {
   }
 
   // TODO: How do we determine when to use Logical Manager ?
-  bool use_logical = true;
-  bool use_mosiac = true;
+  bool use_logical = false;
+  bool use_mosiac = false;
   std::vector<NativeDisplay *> physical_displays;
   std::vector<std::vector<NativeDisplay *>> mdisplays;
 
