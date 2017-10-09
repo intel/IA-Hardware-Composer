@@ -81,11 +81,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       state.surface_ = plane.GetOffScreenTarget();
       MediaState &media_state = state.media_state_;
       const OverlayLayer &layer = layers[plane.source_layers().at(0)];
-      media_state.source_buffer_ = layer.GetBuffer();
-      media_state.frame_width_ = layer.GetDisplayFrameWidth();
-      media_state.frame_height_ = layer.GetDisplayFrameHeight();
-      media_state.out_width_ = layer.GetSourceCropWidth();
-      media_state.out_height_ = layer.GetSourceCropHeight();
+      media_state.layer_ = &layer;
     } else if (plane.GetCompositionState() ==
                DisplayPlaneState::State::kRender) {
       comp = &plane;
