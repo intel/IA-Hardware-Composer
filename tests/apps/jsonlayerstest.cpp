@@ -186,7 +186,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     // We only support cloned mode for now.
     hwcomposer::NativeDisplay *primary = connected_displays_.at(0);
     int32_t retire_fence = -1;
-    primary->Present(layers, &retire_fence, -1, -1);
+    primary->Present(layers, &retire_fence);
     fences.emplace_back(retire_fence);
     // store fences for each display for each layer
     unsigned int fence_index = 0;
@@ -514,7 +514,7 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
       pParameter->source_crop_width, pParameter->source_crop_height));
   pHwcLayer->SetDisplayFrame(hwcomposer::HwcRect<int>(
       pParameter->frame_x, pParameter->frame_y, pParameter->frame_width,
-      pParameter->frame_height));
+      pParameter->frame_height), 0);
   pHwcLayer->SetNativeHandle(pRenderer->GetNativeBoHandle());
 }
 
