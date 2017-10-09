@@ -126,8 +126,7 @@ bool DisplayPlaneManager::ValidateLayers(
           prefer_seperate_plane = layer->PreferSeparatePlane();
           break;
         } else {
-          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                              i->IsCursorLayer());
+          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
           commit_planes.pop_back();
         }
       }
@@ -143,8 +142,8 @@ bool DisplayPlaneManager::ValidateLayers(
       if (i->IsCursorLayer()) {
         continue;
       }
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                          i->IsCursorLayer());
+
+      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
     }
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
