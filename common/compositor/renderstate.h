@@ -58,11 +58,7 @@ struct RenderState {
 };
 
 struct MediaState {
-  const OverlayBuffer *source_buffer_;
-  uint32_t frame_width_;
-  uint32_t frame_height_;
-  uint32_t out_width_;
-  uint32_t out_height_;
+  const OverlayLayer *layer_;
 };
 
 struct DrawState {
