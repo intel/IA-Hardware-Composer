@@ -202,7 +202,7 @@ bool VARenderer::Init(int gpu_fd) {
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
-  const OverlayBuffer* buffer_in = state.source_buffer_;
+  const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
   unsigned long prime_fd_in = buffer_in->GetPrimeFD();
   int rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
   external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
@@ -227,8 +227,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_out;
   memset(&external_out, 0, sizeof(external_out));
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
-  int dest_width = state.out_width_;
-  int dest_height = state.out_height_;
+  int dest_width = buffer_out->GetWidth();
+  int dest_height = buffer_out->GetHeight();
   unsigned long prime_fd_out = buffer_out->GetPrimeFD();
   rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   external_out.pixel_format = DrmFormatToVAFormat(buffer_out->GetFormat());
@@ -246,7 +246,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   ScopedVASurfaceID surface_out(va_display_);
   if (!surface_out.CreateSurface(rt_format, external_out)) {
-    DTRACE("Create Output surface failed\n");
+    DTRACE("Create Output surface failed, pixel_format:%4.4s w/h: %dx%d\n",
+           (char*)&external_out.pixel_format, dest_width, dest_height);
     return false;
   }
 
@@ -265,17 +266,26 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
 
   VARectangle surface_region, output_region;
-  surface_region.x = 0;
-  surface_region.y = 0;
-  surface_region.width = state.frame_width_;
-  surface_region.height = state.frame_height_;
+  HwcRect<float> source_crop = state.layer_->GetSourceCrop();
+  surface_region.x = source_crop.left;
+  surface_region.y = source_crop.top;
+  surface_region.width = source_crop.right;
+  surface_region.height = source_crop.bottom;
   param.surface_region = &surface_region;
 
-  output_region.x = 0;
-  output_region.y = 0;
-  output_region.width = dest_width;
-  output_region.height = dest_height;
+  HwcRect<int> display_frame = state.layer_->GetDisplayFrame();
+  output_region.x = display_frame.left;
+  output_region.y = display_frame.top;
+  output_region.width = display_frame.right;
+  output_region.height = display_frame.bottom;
   param.output_region = &output_region;
+
+  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n",
+             surface_region.x, surface_region.y,
+             surface_region.width, surface_region.height);
+  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n",
+             display_frame.left, display_frame.top,
+             display_frame.right, display_frame.bottom);
 
   param.surface = surface_in;
   param.surface_color_standard = VAProcColorStandardBT601;
