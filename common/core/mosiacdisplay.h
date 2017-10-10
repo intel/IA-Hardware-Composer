@@ -122,7 +122,7 @@ class MosiacDisplay : public NativeDisplay {
   bool enable_vsync_ = false;
   bool connected_ = false;
   bool pending_vsync_ = false;
-  bool update_connected_displays_ = false;
+  bool update_connected_displays_ = true;
   SpinLock lock_;
 };
 
