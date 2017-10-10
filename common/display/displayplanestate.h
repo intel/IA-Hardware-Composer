@@ -88,10 +88,7 @@ class DisplayPlaneState {
       source_layers_.emplace_back(index);
     }
 
-    display_frame_.left = display_frame.left;
-    display_frame_.top = display_frame.top;
-    display_frame_.right = display_frame.right;
-    display_frame_.bottom = display_frame.bottom;
+    display_frame_ = display_frame;
     state_ = state;
     type_ = PlaneType::kNormal;
     std::vector<size_t>().swap(cursor_layers_);
@@ -139,10 +136,7 @@ class DisplayPlaneState {
       }
     }
 
-    display_frame_.left = display_frame.left;
-    display_frame_.top = display_frame.top;
-    display_frame_.right = display_frame.right;
-    display_frame_.bottom = display_frame.bottom;
+    display_frame_ = display_frame;
     state_ = state;
   }
 

@@ -101,7 +101,6 @@ void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
   layer_.SetAcquireFence(-1);
-  UpdateDisplayFrame(plane.GetDisplayFrame());
 }
 
 void NativeSurface::UpdateSurfaceDamage(
