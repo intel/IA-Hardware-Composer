@@ -702,6 +702,8 @@ int main(int argc, char *argv[]) {
     return 0;
 
   hwcomposer::NativeDisplay *primary = displays.at(0);
+  primary->SetActiveConfig(0);
+  primary->SetPowerMode(hwcomposer::kOn);
   for (size_t i = 1; i < displays.size(); i++) {
     hwcomposer::NativeDisplay *cloned = displays.at(i);
     cloned->CloneDisplay(primary);
