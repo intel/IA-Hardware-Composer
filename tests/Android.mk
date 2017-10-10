@@ -6,7 +6,7 @@ TARGET_BOARD_PLATFORM := android_ia
 
 
 LOCAL_REQUIRED_MODULES := libjson-c \
-                          hwcomposer.$(TARGET_BOARD_PLATFORM)
+                          libhwcomposer.$(TARGET_BOARD_PLATFORM)
 #LOCAL_LDLIBS   += -L$(PRODUCT_OUT)/vendor/lib/hw/ -l:gralloc.android_ia.so -l:hwcomposer.android_ia.so
 
 
@@ -27,6 +27,9 @@ LOCAL_CPPFLAGS += \
 	-fstack-protector-strong \
 	-fPIE -Wformat -Wformat-security
 
+LOCAL_WHOLE_STATIC_LIBRARIES := \
+  libhwcomposer.$(TARGET_BOARD_PLATFORM)
+
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libdrm \
@@ -37,8 +40,15 @@ LOCAL_SHARED_LIBRARIES := \
 	libsync \
 	libui \
 	libutils \
-	libjson-c \
-	libhwcomposer.$(TARGET_BOARD_PLATFORM)
+	libjson-c
+
+ifeq ($(strip $(BOARD_USES_LIBVA)), true)
+
+LOCAL_SHARED_LIBRARIES += \
+  libva \
+  libva-android
+
+endif
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
@@ -102,5 +112,5 @@ json_list := jsonconfigs/colorcorrection.json jsonconfigs/kmscube1layer.json \
 
 $(foreach script,$(json_list),$(eval $(call script_to_copy,$(script))))
 
-#include $(LOCAL_PATH)/third_party/json-c/Android.mk
+include $(LOCAL_PATH)/../Android.static.mk
 endif
