@@ -44,8 +44,8 @@ class DisplayPlaneState {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
     if (layer->IsCursorLayer()) {
-      cursor_layers_.emplace_back(index);
       type_ = PlaneType::kCursor;
+      has_cursor_layer_ = true;
     }
   }
 
@@ -72,10 +72,10 @@ class DisplayPlaneState {
     state_ = State::kRender;
 
     if (cursor_layer) {
-      cursor_layers_.emplace_back(index);
+      has_cursor_layer_ = true;
     }
 
-    if (source_layers_.size() == cursor_layers_.size()) {
+    if (source_layers_.size() == 1 && has_cursor_layer_) {
       type_ = PlaneType::kCursor;
     } else {
       type_ = PlaneType::kNormal;
@@ -91,7 +91,7 @@ class DisplayPlaneState {
     display_frame_ = display_frame;
     state_ = state;
     type_ = PlaneType::kNormal;
-    std::vector<size_t>().swap(cursor_layers_);
+    has_cursor_layer_ = false;
   }
 
   // This API should be called only when Cursor layer is being
@@ -99,27 +99,24 @@ class DisplayPlaneState {
   // removed in this frame. AddLayers should be used in all
   // other cases.
   void AddLayersForCursor(const std::vector<size_t> &source_layers,
-                          const std::vector<size_t> &cursor_layers,
                           const std::vector<OverlayLayer> &layers,
                           const HwcRect<int> &display_frame, State state,
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
-      size_t size = layers.size();
+      size_t lsize = layers.size();
+      has_cursor_layer_ = false;
       display_frame_ = HwcRect<int>(0, 0, 0, 0);
       bool initialized = false;
       for (const size_t &index : source_layers) {
-        if (index >= size) {
-          break;
-        }
-
-        const OverlayLayer &layer = layers.at(index);
-        if (layer.IsCursorLayer()) {
+        if (index >= lsize) {
           continue;
         }
 
+        const OverlayLayer &layer = layers.at(index);
         const HwcRect<int> &df = layer.GetDisplayFrame();
         if (!initialized) {
           display_frame_ = df;
+          initialized = true;
         } else {
           display_frame_.left = std::min(display_frame_.left, df.left);
           display_frame_.top = std::min(display_frame_.top, df.top);
@@ -132,22 +129,19 @@ class DisplayPlaneState {
 
       type_ = PlaneType::kNormal;
     } else {
+      display_frame_ = display_frame;
       for (const int &index : source_layers) {
         source_layers_.emplace_back(index);
       }
 
-      for (const int &cindex : cursor_layers) {
-        cursor_layers_.emplace_back(cindex);
-      }
-
-      if (source_layers_.size() == cursor_layers_.size()) {
+      has_cursor_layer_ = true;
+      if (source_layers_.size() == 1) {
         type_ = PlaneType::kCursor;
       } else {
         type_ = PlaneType::kNormal;
       }
     }
 
-    display_frame_ = display_frame;
     state_ = state;
   }
 
@@ -244,8 +238,8 @@ class DisplayPlaneState {
     return type_ == PlaneType::kCursor;
   }
 
-  const std::vector<size_t> &GetCursorLayers() const {
-    return cursor_layers_;
+  bool HasCursorLayer() const {
+    return has_cursor_layer_;
   }
 
   bool IsVideoPlane() const {
@@ -269,10 +263,10 @@ class DisplayPlaneState {
   const OverlayLayer *layer_ = NULL;
   HwcRect<int> display_frame_;
   std::vector<size_t> source_layers_;
-  std::vector<size_t> cursor_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
+  bool has_cursor_layer_ = false;
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };

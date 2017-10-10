@@ -122,7 +122,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   for (DisplayPlaneState& plane : previous_plane_state_) {
     bool plane_state_render =
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
-    if (cursor_layer_removed && plane.IsCursorPlane() && !plane_state_render) {
+    if (cursor_layer_removed && plane.IsCursorPlane()) {
       ignore_commit = false;
       continue;
     }
@@ -130,16 +130,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     bool region_changed = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
-    const std::vector<size_t>& total_cursor_layers = plane.GetCursorLayers();
-    if (plane.IsCursorPlane() || total_cursor_layers.size() > 0) {
-      last_plane.AddLayersForCursor(plane.source_layers(), total_cursor_layers,
-                                    layers, plane.GetDisplayFrame(),
-                                    plane.GetCompositionState(),
-                                    cursor_layer_removed);
+    bool has_cursor_layer = plane.HasCursorLayer();
+    if (has_cursor_layer) {
+      last_plane.AddLayersForCursor(
+          plane.source_layers(), layers, plane.GetDisplayFrame(),
+          plane.GetCompositionState(), cursor_layer_removed);
 
-      if (cursor_layer_removed) {
-        region_changed = true;
-      }
+      region_changed = cursor_layer_removed;
     } else {
       last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                            plane.GetCompositionState());
