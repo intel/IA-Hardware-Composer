@@ -100,20 +100,31 @@ class DisplayPlaneState {
   // other cases.
   void AddLayersForCursor(const std::vector<size_t> &source_layers,
                           const std::vector<size_t> &cursor_layers,
+                          const std::vector<OverlayLayer> &layers,
                           const HwcRect<int> &display_frame, State state,
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
-      for (const int &index : source_layers) {
-        bool ignore_layer = false;
-        for (const int &cindex : cursor_layers) {
-          if (cindex == index) {
-            ignore_layer = true;
-            break;
-          }
+      size_t size = layers.size();
+      display_frame_ = HwcRect<int>(0, 0, 0, 0);
+      bool initialized = false;
+      for (const size_t &index : source_layers) {
+        if (index >= size) {
+          break;
         }
 
-        if (ignore_layer) {
+        const OverlayLayer &layer = layers.at(index);
+        if (layer.IsCursorLayer()) {
           continue;
+        }
+
+        const HwcRect<int> &df = layer.GetDisplayFrame();
+        if (!initialized) {
+          display_frame_ = df;
+        } else {
+          display_frame_.left = std::min(display_frame_.left, df.left);
+          display_frame_.top = std::min(display_frame_.top, df.top);
+          display_frame_.right = std::max(display_frame_.right, df.right);
+          display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
         }
 
         source_layers_.emplace_back(index);

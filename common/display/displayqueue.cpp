@@ -127,17 +127,18 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
-    bool reset_regions = false;
+    bool region_changed = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     const std::vector<size_t>& total_cursor_layers = plane.GetCursorLayers();
     if (plane.IsCursorPlane() || total_cursor_layers.size() > 0) {
-      last_plane.AddLayersForCursor(
-          plane.source_layers(), total_cursor_layers, plane.GetDisplayFrame(),
-          plane.GetCompositionState(), cursor_layer_removed);
+      last_plane.AddLayersForCursor(plane.source_layers(), total_cursor_layers,
+                                    layers, plane.GetDisplayFrame(),
+                                    plane.GetCompositionState(),
+                                    cursor_layer_removed);
 
       if (cursor_layer_removed) {
-        reset_regions = true;
+        region_changed = true;
       }
     } else {
       last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
@@ -149,10 +150,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     }
 
     if (plane_state_render || plane.SurfaceRecycled()) {
-      bool content_changed = false;
-      bool region_changed = false;
       bool clear_surface = false;
       bool alpha_damaged = false;
+      bool content_changed = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -193,7 +193,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (clear_surface || region_changed || reset_regions) {
+      if (clear_surface || region_changed) {
         content_changed = true;
       }
 
@@ -206,7 +206,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
           surfaces.at(i)->UpdateDisplayFrame(current_rect);
         }
-      } else if (!reset_regions) {
+      } else {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
