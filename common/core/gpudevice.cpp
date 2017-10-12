@@ -41,126 +41,179 @@ bool GpuDevice::Initialize() {
 
   std::vector<NativeDisplay *> displays = display_manager_->GetAllDisplays();
   size_t size = displays.size();
-  NativeDisplay *primary_display = NULL;
-  for (size_t i = 0; i < size; i++) {
-    hwcomposer::NativeDisplay *display = displays.at(i);
-    if (display->IsConnected()) {
-      primary_display = display;
-      break;
-    }
+
+  // Handle config file reading
+  const char *hwc_dp_cfg_path = std::getenv("HWC_DISPLAY_CONFIG");
+  if (!hwc_dp_cfg_path) {
+    hwc_dp_cfg_path = "/etc/hwc_display.ini";
   }
 
-  if (!primary_display) {
-    primary_display = displays.at(0);
-  }
-
-  // TODO: How do we determine when to use Logical Manager ?
   bool use_logical = false;
   bool use_mosiac = false;
-  std::vector<NativeDisplay *> physical_displays;
-  std::vector<std::vector<NativeDisplay *>> mdisplays;
+  std::vector<uint32_t> logical_displays;
+  std::vector<std::vector<uint32_t>> mosiac_displays;
+  std::ifstream fin(hwc_dp_cfg_path);
+  std::string cfg_line;
+  std::string key_logical("LOGICAL");
+  std::string key_mosiac("MOSIAC");
+  std::string key_logical_display("LOGICAL_DISPLAY");
+  std::string key_mosiac_display("MOSIAC_DISPLAY");
+  std::vector<uint32_t> mosiac_duplicate_check;
+  while (std::getline(fin, cfg_line)) {
+    std::istringstream i_line(cfg_line);
+    std::string key;
+    // Skip comments
+    if (cfg_line[0] != '#' && std::getline(i_line, key, '=')) {
+      std::string content;
+      std::string value;
+      std::getline(i_line, content, '=');
+      std::istringstream i_content(content);
+      while (std::getline(i_content, value, '"')) {
+        if (value.empty())
+          continue;
 
-  if (use_logical) {
-    // TODO: Map required physical display here instead of primary.
-    std::unique_ptr<LogicalDisplayManager> manager(
-        new LogicalDisplayManager(primary_display));
-    logical_display_manager_.emplace_back(std::move(manager));
-    // We Assume Primary is logically split for now. We should have a way to
-    // determine the physical display and no of logical displays to split.
-    logical_display_manager_.back()->InitializeLogicalDisplays(2);
-  }
+        std::string enable_str("true");
+        // Got logical switch
+        if (!key.compare(key_logical)) {
+          if (!value.compare(enable_str)) {
+            use_logical = true;
+          }
+          // Got mosiac switch
+        } else if (!key.compare(key_mosiac)) {
+          if (!value.compare(enable_str)) {
+            use_mosiac = true;
+          }
+          // Got logical config
+        } else if (!key.compare(key_logical_display)) {
+          std::string physical_index_str;
+          std::istringstream i_value(value);
+          // Got physical display index
+          std::getline(i_value, physical_index_str, ':');
+          if (physical_index_str.empty() ||
+              physical_index_str.find_first_not_of("0123456789") !=
+                  std::string::npos)
+            continue;
+          std::string logical_split_str;
+          // Got split num
+          std::getline(i_value, logical_split_str, ':');
+          if (logical_split_str.empty() ||
+              logical_split_str.find_first_not_of("0123456789") !=
+                  std::string::npos)
+            continue;
+          uint32_t physical_index = atoi(physical_index_str.c_str());
+          uint32_t logical_split_num = atoi(logical_split_str.c_str());
+          if (logical_split_num <= 1)
+            continue;
+          // Set logical num 1 for physical display which is not in config
+          while (physical_index > logical_displays.size()) {
+            logical_displays.emplace_back(1);
+          }
+          // Save logical split num for the physical display (don't care if the
+          // physical display is disconnected/connected here)
+          logical_displays.emplace_back(logical_split_num);
+          // Got mosiac config
+        } else if (!key.compare(key_mosiac_display)) {
+          std::istringstream i_value(value);
+          std::string i_mosiac_split_str;
+          // Got mosiac sub display num
+          std::vector<uint32_t> mosiac_display;
+          while (std::getline(i_value, i_mosiac_split_str, '+')) {
+            if (i_mosiac_split_str.empty() ||
+                i_mosiac_split_str.find_first_not_of("0123456789") !=
+                    std::string::npos)
+              continue;
+            size_t i_mosiac_split_num = atoi(i_mosiac_split_str.c_str());
+            // Check and skip if the display already been used in other mosiac
+            bool skip_duplicate_display = false;
+            for (size_t i = 0; i < mosiac_duplicate_check.size(); i++) {
+              if (mosiac_duplicate_check.at(i) == i_mosiac_split_num) {
+                skip_duplicate_display = true;
+              };
+            };
+            if (!skip_duplicate_display) {
+              // save the sub display num for the mosiac display (don't care if
+              // the physical/logical display is existing/connected here)
+              mosiac_display.emplace_back(i_mosiac_split_num);
+              mosiac_duplicate_check.push_back(i_mosiac_split_num);
+            };
+          };
+          mosiac_displays.emplace_back(mosiac_display);
+        }
+      }
+    }
+  };
 
-  // We have logical displays setup, let's find the
-  // physical displays which are still not mapped to
-  // Logical Displays.
-  uint32_t ldmsize = logical_display_manager_.size();
+  std::vector<NativeDisplay *> temp_displays;
   for (size_t i = 0; i < size; i++) {
     hwcomposer::NativeDisplay *display = displays.at(i);
-    bool skip_display = false;
-    for (size_t i = 0; i < ldmsize; ++i) {
-      if (logical_display_manager_.at(i)->GetPhysicalDisplay() == display) {
-        skip_display = true;
-        std::vector<LogicalDisplay *> displays;
-        logical_display_manager_.at(i)->GetLogicalDisplays(displays);
-        size_t total_size = displays.size();
-        for (size_t i = 0; i < total_size; i++) {
-          physical_displays.emplace_back(displays.at(i));
-        }
-        break;
+    // Save logical displays to temp_displays, skip the physical display
+    if (use_logical && (logical_displays.size() >= i + 1) &&
+        logical_displays[i] > 1) {
+      std::unique_ptr<LogicalDisplayManager> manager(
+          new LogicalDisplayManager(display));
+      logical_display_manager_.emplace_back(std::move(manager));
+      // don't care if the displays is connected/disconnected here
+      logical_display_manager_.back()->InitializeLogicalDisplays(
+          logical_displays[i]);
+      std::vector<LogicalDisplay *> temp_logical_displays;
+      logical_display_manager_.back()->GetLogicalDisplays(
+          temp_logical_displays);
+      size_t logical_display_total_size = temp_logical_displays.size();
+      for (size_t j = 0; j < logical_display_total_size; j++) {
+        temp_displays.emplace_back(temp_logical_displays.at(j));
       }
+      // Save no split physical displays to temp_displays
+    } else {
+      temp_displays.emplace_back(display);
     }
-
-    if (skip_display) {
-      continue;
-    }
-
-    physical_displays.emplace_back(display);
   }
 
-  int32_t least_mosiac_index = -1;
-
+  std::vector<bool> available_displays(temp_displays.size(), true);
   if (use_mosiac) {
-    int32_t l_size = physical_displays.size();
-    mdisplays.emplace_back();
-    std::vector<NativeDisplay *> &temp = mdisplays.back();
-    for (int32_t i = 0; i < l_size; i++) {
-      hwcomposer::NativeDisplay *display = physical_displays.at(i);
-      temp.emplace_back(display);
-
-      if (least_mosiac_index == -1) {
-        least_mosiac_index = i;
-      } else {
-        least_mosiac_index = std::min(least_mosiac_index, i);
-      }
-    }
-
-    std::unique_ptr<MosiacDisplay> mosiac(new MosiacDisplay(temp));
-    mosiac_displays_.emplace_back(std::move(mosiac));
-  }
-
-  if (least_mosiac_index == 0) {
-    total_displays_.emplace_back(mosiac_displays_.at(0).get());
-  } else {
-    if (least_mosiac_index == -1) {
-      least_mosiac_index = physical_displays.size();
-    }
-
-    for (int32_t i = 0; i < least_mosiac_index; i++) {
-      total_displays_.emplace_back(physical_displays.at(i));
-    }
-  }
-
-  if (least_mosiac_index == static_cast<int32_t>(physical_displays.size())) {
-    return true;
-  }
-
-  uint32_t m_size = mdisplays.size();
-  uint32_t mosiac_index_added = least_mosiac_index;
-  least_mosiac_index++;
-  for (size_t i = least_mosiac_index; i < size; i++) {
-    hwcomposer::NativeDisplay *display = physical_displays.at(i);
-    bool skip_display = false;
-    for (size_t i = 0; i < m_size; ++i) {
-      std::vector<NativeDisplay *> &temp_display = mdisplays.at(i);
-      size_t temp = temp_display.size();
-      for (size_t i = 0; i < temp; ++i) {
-        if (temp_display.at(i) == display) {
-          skip_display = true;
-          if (mosiac_index_added < i) {
-            total_displays_.emplace_back(mosiac_displays_.at(0).get());
-            mosiac_index_added = i;
+    for (size_t t = 0; t < temp_displays.size(); t++) {
+      // Skip the displays which already be marked in other mosiac
+      if (!available_displays.at(t))
+        continue;
+      bool skip_display = false;
+      for (size_t m = 0; m < mosiac_displays.size(); m++) {
+        std::vector<NativeDisplay *> i_available_mosiac_displays;
+        for (size_t l = 0; l < mosiac_displays.at(m).size(); l++) {
+          // Check if the logical display is in mosiac, keep the order of
+          // logical displays list
+          // Get the smallest logical num of the mosiac for order keeping
+          if (t == mosiac_displays.at(m).at(l)) {
+            // Loop to get logical displays of mosiac, keep the order of config
+            for (size_t i = 0; i < mosiac_displays.at(m).size(); i++) {
+              // Verify the logical display num
+              if (mosiac_displays.at(m).at(i) < temp_displays.size()) {
+                // Skip the disconnected display here
+                i_available_mosiac_displays.emplace_back(
+                    temp_displays.at(mosiac_displays.at(m).at(i)));
+                // Add tag for mosiac-ed displays
+                available_displays.at(mosiac_displays.at(m).at(i)) = false;
+              }
+            }
+            // Create mosiac for those logical displays
+            if (i_available_mosiac_displays.size() > 0) {
+              std::unique_ptr<MosiacDisplay> mosiac(
+                  new MosiacDisplay(i_available_mosiac_displays));
+              mosiac_displays_.emplace_back(std::move(mosiac));
+              // Save the mosiac to the final displays list
+              total_displays_.emplace_back(mosiac_displays_.back().get());
+            }
+            skip_display = true;
+            break;
           }
-
-          break;
         }
+        if (skip_display)
+          break;
+      }
+      if (!skip_display) {
+        total_displays_.emplace_back(temp_displays.at(t));
       }
     }
-
-    if (skip_display) {
-      continue;
-    }
-
-    total_displays_.emplace_back(display);
+  } else {
+    total_displays_.swap(temp_displays);
   }
 
   return true;
