@@ -18,6 +18,9 @@
 #define PUBLIC_GPUDEVICE_H_
 
 #include <stdint.h>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 #include "displaymanager.h"
 #include "logicaldisplaymanager.h"
