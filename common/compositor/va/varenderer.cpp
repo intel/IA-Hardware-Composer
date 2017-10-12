@@ -305,7 +305,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   ret = vaBeginPicture(va_display_, va_context, surface_out);
   ret |= vaRenderPicture(va_display_, va_context, &pipeline_buffer.buffer(), 1);
   ret |= vaEndPicture(va_display_, va_context);
-  ret |= vaSyncSurface(va_display_, surface_out);
 
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
