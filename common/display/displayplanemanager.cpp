@@ -193,6 +193,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   uint32_t cursor_index = 0;
   uint32_t total_size = cursor_layers.size();
   bool gpu_rendered = false;
+
+#ifndef DISABLE_CURSOR_PLANE
   // Handle Cursor layer. If we have dedicated cursor plane, try using it
   // to composite cursor layer.
   if (cursor_plane_) {
@@ -208,6 +210,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       cursor_index = 1;
     }
   }
+#endif
 
   if (!cursor_plane || (cursor_index < total_size)) {
     for (uint32_t i = cursor_index; i < total_size; i++) {

@@ -51,6 +51,11 @@ LOCAL_CPPFLAGS += \
 	-DUSE_LIBVA
 endif
 
+ifeq ($(strip $(BOARD_APL_WA)), true)
+LOCAL_CPPFLAGS += \
+	-DDISABLE_CURSOR_PLANE
+endif
+
 LOCAL_SRC_FILES := \
         compositor/compositor.cpp \
         compositor/compositorthread.cpp \
