@@ -39,7 +39,8 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../os \
         $(LOCAL_PATH)/../os/android \
         $(LOCAL_PATH)/../wsi \
-        $(LOCAL_PATH)/../wsi/drm
+        $(LOCAL_PATH)/../wsi/drm \
+        $(TARGET_OUT_HEADERS)/libva
 
 ifeq ($(strip $(BOARD_USES_LIBVA)), true)
 LOCAL_SHARED_LIBRARIES += \
