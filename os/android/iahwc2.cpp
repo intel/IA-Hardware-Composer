@@ -223,7 +223,7 @@ void IAHWC2::Dump(uint32_t *size, char *buffer) {
 }
 
 uint32_t IAHWC2::GetMaxVirtualDisplayCount() {
-  return 1;
+  return 2;
 }
 
 HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
