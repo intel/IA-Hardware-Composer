@@ -64,6 +64,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   switch (format_) {
     case DRM_FORMAT_NV12:
     case DRM_FORMAT_NV16:
+    case DRM_FORMAT_P010:
       total_planes_ = 2;
       is_yuv_ = true;
       break;
