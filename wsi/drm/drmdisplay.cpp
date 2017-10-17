@@ -214,7 +214,7 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
     SPIN_UNLOCK(display_lock_);
     return PhysicalDisplay::GetDisplayName(size, name);
   }
-
+  SPIN_UNLOCK(display_lock_)
   std::ostringstream stream;
   stream << "Display-" << connector_;
   std::string string = stream.str();
