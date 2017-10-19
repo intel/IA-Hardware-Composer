@@ -687,6 +687,10 @@ void VKRenderer::InsertFence(int32_t kms_fence) {
 void VKRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
+void VKRenderer::SetColorTransformMatrix(const float *matrix) {
+  // TODO: Set color transform matrix with vulkan.
+}
+
 VKProgram *VKRenderer::GetProgram(unsigned texture_count) {
   if (programs_.size() >= texture_count) {
     VKProgram *program = programs_[texture_count - 1].get();

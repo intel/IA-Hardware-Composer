@@ -55,6 +55,7 @@ class Compositor {
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t acquire_fence, int32_t *retire_fence);
   void FreeResources(bool all_resources);
+  void SetColorTransformMatrix(const float *matrix);
 
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,

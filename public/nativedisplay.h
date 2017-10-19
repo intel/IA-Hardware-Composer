@@ -143,6 +143,33 @@ class NativeDisplay {
   */
   virtual void SetGamma(float /*red*/, float /*green*/, float /*blue*/) {
   }
+
+  /**
+  * API for setting a color transform which will be applied after composition.
+  *
+  * The matrix provided is an affine color transformation of the following form:
+  *
+  * |r.r r.g r.b 0|
+  * |g.r g.g g.b 0|
+  * |b.r b.g b.b 0|
+  * |Tr  Tg  Tb  1|
+  *
+  * This matrix will be provided in row-major form: {r.r, r.g, r.b, 0, g.r, ...}.
+  *
+  * Given a matrix of this form and an input color [R_in, G_in, B_in], the output
+  * color [R_out, G_out, B_out] will be:
+  *
+  * R_out = R_in * r.r + G_in * g.r + B_in * b.r + Tr
+  * G_out = R_in * r.g + G_in * g.g + B_in * b.g + Tg
+  * B_out = R_in * r.b + G_in * g.b + B_in * b.b + Tb
+  *
+  * @param matrix a 4x4 transform matrix (16 floats) as described above
+  * @param hint a hint value to specify the transform type, applying no transform
+  *        or applying transform defined by given matrix
+  */
+  virtual void SetColorTransform(const float * /*matrix*/, HWCColorTransform /*hint*/) {
+  }
+
   /**
   * API for setting display color contrast in HWC
   * @param red valid value is 0 ~ 255, bigger value with stronger contrast

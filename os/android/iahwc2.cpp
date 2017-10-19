@@ -25,6 +25,7 @@
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
+#include <system/graphics.h>
 
 #include <gpudevice.h>
 #include <hwcdefs.h>
@@ -681,7 +682,19 @@ HWC2::Error IAHWC2::HwcDisplay::SetColorTransform(const float *matrix,
                                                   int32_t hint) {
   supported(__func__);
   // TODO: Force client composition if we get this
-  return unsupported(__func__, matrix, hint);
+
+  if (hint != HAL_COLOR_TRANSFORM_IDENTITY &&
+      hint != HAL_COLOR_TRANSFORM_ARBITRARY_MATRIX &&
+      hint != HAL_COLOR_TRANSFORM_VALUE_INVERSE &&
+      hint != HAL_COLOR_TRANSFORM_GRAYSCALE &&
+      hint != HAL_COLOR_TRANSFORM_CORRECT_PROTANOPIA &&
+      hint != HAL_COLOR_TRANSFORM_CORRECT_DEUTERANOPIA &&
+      hint != HAL_COLOR_TRANSFORM_CORRECT_TRITANOPIA)
+    return HWC2::Error::BadParameter;
+
+  display_->SetColorTransform(matrix, (HWCColorTransform)hint);
+
+  return HWC2::Error::None;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,

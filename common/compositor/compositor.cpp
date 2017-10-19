@@ -171,6 +171,10 @@ void Compositor::FreeResources(bool all_resources) {
   thread_->FreeResources(all_resources);
 }
 
+void Compositor::SetColorTransformMatrix(const float *matrix) {
+  thread_->SetColorTransformMatrix(matrix);
+}
+
 bool Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state) {

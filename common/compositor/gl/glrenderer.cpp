@@ -59,6 +59,7 @@ bool GLRenderer::Init() {
   std::unique_ptr<GLProgram> program(new GLProgram());
   if (program->Init(1)) {
     programs_.emplace_back(std::move(program));
+    ctm_consumed_.emplace_back(true);
   }
 
   glEnableVertexAttribArray(0);
@@ -99,6 +100,11 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
+    if (!ctm_consumed_[size - 1]) {
+      program->SetColorTransformMatrix(ctm_);
+      ctm_consumed_[size - 1] = true;
+    }
+
     glScissor(state.scissor_x_, state.scissor_y_, state.scissor_width_,
               state.scissor_height_);
 
@@ -137,6 +143,15 @@ void GLRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
+void GLRenderer::SetColorTransformMatrix(const float *matrix) {
+  ctm_ = matrix;
+  // Reset the consume status of each program to false
+  for (std::vector<bool>::iterator itr =  ctm_consumed_.begin();
+       itr != ctm_consumed_.end(); itr++) {
+    *itr = false;
+  }
+}
+
 GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
   if (programs_.size() >= texture_count) {
     GLProgram *program = programs_[texture_count - 1].get();
@@ -146,9 +161,12 @@ GLProgram *GLRenderer::GetProgram(unsigned texture_count) {
 
   std::unique_ptr<GLProgram> program(new GLProgram());
   if (program->Init(texture_count)) {
-    if (programs_.size() < texture_count)
+    if (programs_.size() < texture_count) {
       programs_.resize(texture_count);
+      ctm_consumed_.resize(texture_count);
+    }
 
+    ctm_consumed_[texture_count - 1] = (ctm_ == NULL);
     programs_[texture_count - 1] = std::move(program);
     return programs_[texture_count - 1].get();
   }

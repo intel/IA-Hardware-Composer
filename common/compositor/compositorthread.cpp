@@ -52,6 +52,12 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
+void CompositorThread::SetColorTransformMatrix(const float *matrix) {
+  ctm_ = matrix;
+  if(gl_renderer_)
+    gl_renderer_->SetColorTransformMatrix(matrix);
+}
+
 void CompositorThread::EnsureTasksAreDone() {
   tasks_lock_.lock();
   tasks_lock_.unlock();
@@ -249,7 +255,9 @@ void CompositorThread::Ensure3DRenderer() {
     if (!gl_renderer_->Init()) {
       ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
       gl_renderer_.reset(nullptr);
+      return;
     }
+    gl_renderer_->SetColorTransformMatrix(ctm_);
   }
 }
 

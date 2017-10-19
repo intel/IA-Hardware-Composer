@@ -33,6 +33,7 @@ class VKRenderer : public Renderer {
             bool clear_surface) override;
   void InsertFence(int32_t kms_fence) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetColorTransformMatrix(const float *matrix) override;
 
  private:
   VKProgram *GetProgram(unsigned texture_count);
