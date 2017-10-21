@@ -39,8 +39,9 @@ bool GpuDevice::Initialize() {
     return false;
   }
 
-  std::vector<NativeDisplay *> displays = display_manager_->GetAllDisplays();
-  size_t size = displays.size();
+  std::vector<NativeDisplay *> unordered_displays =
+      display_manager_->GetAllDisplays();
+  size_t size = unordered_displays.size();
 
   // Handle config file reading
   const char *hwc_dp_cfg_path = std::getenv("HWC_DISPLAY_CONFIG");
@@ -51,6 +52,7 @@ bool GpuDevice::Initialize() {
   bool use_logical = false;
   bool use_mosiac = false;
   std::vector<uint32_t> logical_displays;
+  std::vector<uint32_t> physical_displays;
   std::vector<std::vector<uint32_t>> mosiac_displays;
   std::ifstream fin(hwc_dp_cfg_path);
   std::string cfg_line;
@@ -58,6 +60,7 @@ bool GpuDevice::Initialize() {
   std::string key_mosiac("MOSIAC");
   std::string key_logical_display("LOGICAL_DISPLAY");
   std::string key_mosiac_display("MOSIAC_DISPLAY");
+  std::string key_physical_display("PHYSICAL_DISPLAY");
   std::vector<uint32_t> mosiac_duplicate_check;
   while (std::getline(fin, cfg_line)) {
     std::istringstream i_line(cfg_line);
@@ -128,21 +131,77 @@ bool GpuDevice::Initialize() {
             for (size_t i = 0; i < mosiac_duplicate_check.size(); i++) {
               if (mosiac_duplicate_check.at(i) == i_mosiac_split_num) {
                 skip_duplicate_display = true;
-              };
-            };
+              }
+            }
             if (!skip_duplicate_display) {
               // save the sub display num for the mosiac display (don't care if
               // the physical/logical display is existing/connected here)
               mosiac_display.emplace_back(i_mosiac_split_num);
-              mosiac_duplicate_check.push_back(i_mosiac_split_num);
-            };
-          };
+              mosiac_duplicate_check.emplace_back(i_mosiac_split_num);
+            }
+          }
           mosiac_displays.emplace_back(mosiac_display);
+        } else if (!key.compare(key_physical_display)) {
+          std::istringstream i_value(value);
+          std::string physical_split_str;
+          std::vector<uint32_t> physical_duplicate_check;
+          // Got physical display num
+          while (std::getline(i_value, physical_split_str, ':')) {
+            if (physical_split_str.empty() ||
+                physical_split_str.find_first_not_of("0123456789") !=
+                    std::string::npos)
+              continue;
+            size_t physical_split_num = atoi(physical_split_str.c_str());
+            // Check and skip if the display already been used in other mosiac
+            bool skip_duplicate_display = false;
+            for (size_t i = 0; i < physical_duplicate_check.size(); i++) {
+              if (physical_duplicate_check.at(i) == physical_split_num) {
+                skip_duplicate_display = true;
+              }
+            }
+
+            if (!skip_duplicate_display) {
+              if (physical_split_num < size) {
+                physical_displays.emplace_back(physical_split_num);
+              }
+              physical_duplicate_check.emplace_back(physical_split_num);
+            }
+          }
         }
       }
     }
   };
 
+  std::vector<NativeDisplay *> displays;
+  if (physical_displays.empty()) {
+    displays.swap(unordered_displays);
+  } else {
+    size = physical_displays.size();
+    for (size_t i = 0; i < size; i++) {
+      displays.emplace_back(unordered_displays.at(physical_displays.at(i)));
+    }
+
+    if (displays.size() != unordered_displays.size()) {
+      size = unordered_displays.size();
+      for (size_t i = 0; i < size; i++) {
+        NativeDisplay *display = unordered_displays.at(i);
+        uint32_t temp = displays.size();
+        for (size_t i = 0; i < temp; i++) {
+          if (displays.at(i) == display) {
+            display = NULL;
+            break;
+          }
+        }
+
+        if (display) {
+          displays.emplace_back(display);
+        }
+      }
+    }
+  }
+
+  // Now, we should have all physical displays ordered as required.
+  // Let's handle any Logical Display combinations or Mosiac.
   std::vector<NativeDisplay *> temp_displays;
   for (size_t i = 0; i < size; i++) {
     hwcomposer::NativeDisplay *display = displays.at(i);
