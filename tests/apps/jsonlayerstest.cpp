@@ -25,7 +25,7 @@
 /* Based on a egl cube test app originally written by Arvin Schnell */
 
 #include <assert.h>
-#include <sys/types.h>
+#include <sys/sysmacros.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
@@ -34,6 +34,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <linux/kd.h>
+#include <linux/vt.h>
+#include <linux/major.h>
+#include <signal.h>
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -62,6 +66,86 @@
 #include "platformcommondefines.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+int tty;
+
+static void
+reset_vt()
+{
+  struct vt_mode mode = { 0 };
+
+  if (ioctl(tty, KDSETMODE, KD_TEXT))
+    fprintf(stderr, "failed to set KD_TEXT mode on tty: %m\n");
+
+  mode.mode = VT_AUTO;
+  if (ioctl(tty, VT_SETMODE, &mode) < 0)
+    fprintf(stderr, "could not reset vt handling\n");
+
+  exit(0);
+}
+
+
+static void
+handle_signal(int sig)
+{
+  reset_vt();
+}
+
+static int setup_tty() {
+  struct vt_mode mode = {0};
+  struct stat buf;
+  int ret, kd_mode;
+
+  tty = dup(STDIN_FILENO);
+
+  if (fstat(tty, &buf) == -1 || major(buf.st_rdev) != TTY_MAJOR) {
+    fprintf(stderr, "Please run the program in a vt \n");
+    goto err_close;
+  }
+
+  ret = ioctl(tty, KDGETMODE, &kd_mode);
+  if (ret) {
+    fprintf(stderr, "failed to get VT mode: %m\n");
+    return -1;
+  }
+
+  if (kd_mode != KD_TEXT) {
+    fprintf(stderr,
+            "Already in graphics mode, "
+            "is a display server running?\n");
+    goto err_close;
+  }
+
+  ioctl(tty, VT_ACTIVATE, minor(buf.st_rdev));
+  ioctl(tty, VT_WAITACTIVE, minor(buf.st_rdev));
+
+  ret = ioctl(tty, KDSETMODE, KD_GRAPHICS);
+  if (ret) {
+    fprintf(stderr, "failed to set KD_GRAPHICS mode on tty: %m\n");
+    goto err_close;
+  }
+
+  mode.mode = VT_PROCESS;
+  mode.relsig = 0;
+  mode.acqsig = 0;
+  if (ioctl(tty, VT_SETMODE, &mode) < 0) {
+    fprintf(stderr, "failed to take control of vt handling\n");
+    goto err_close;
+  }
+
+  struct sigaction act;
+  act.sa_handler = handle_signal;
+  act.sa_flags = SA_RESETHAND;
+  sigaction(SIGINT, &act, NULL);
+  sigaction(SIGSEGV, &act, NULL);
+  sigaction(SIGABRT, &act, NULL);
+
+  return 0;
+
+err_close:
+  close(tty);
+  exit(0);
+}
 
 /* Exit after rendering the given number of frames. If 0, then continue
  * rendering forever.
@@ -692,6 +776,7 @@ static void parse_args(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   int ret, fd, primary_width, primary_height;
+  setup_tty();
   hwcomposer::GpuDevice device;
   device.Initialize();
   auto callback = std::make_shared<HotPlugEventCallback>(&device);
