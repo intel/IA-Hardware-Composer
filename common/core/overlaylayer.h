@@ -64,10 +64,6 @@ struct OverlayLayer {
     return layer_index_;
   }
 
-  uint32_t GetTransform() const {
-    return transform_;
-  }
-
   uint8_t GetAlpha() const {
     return alpha_;
   }
@@ -78,8 +74,8 @@ struct OverlayLayer {
     return blending_;
   }
 
-  uint32_t GetRotation() const {
-    return rotation_;
+  uint32_t GetTransform() const {
+    return transform_;
   }
 
   OverlayBuffer* GetBuffer() const;
@@ -204,7 +200,6 @@ struct OverlayLayer {
                        uint32_t layer_index, bool handle_constraints);
 
   uint32_t transform_ = 0;
-  uint32_t rotation_ = 1 << DRM_ROTATE_0;
   uint32_t z_order_ = 0;
   uint32_t layer_index_ = 0;
   uint32_t source_crop_width_ = 0;

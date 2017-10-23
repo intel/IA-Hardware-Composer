@@ -38,19 +38,6 @@ void HwcLayer::SetTransform(int32_t transform) {
   if (transform != transform_) {
     layer_cache_ |= kLayerAttributesChanged;
     transform_ = transform;
-
-    if (transform_ & kReflectX)
-      rotation_ |= 1 << DRM_REFLECT_X;
-    if (transform_ & kReflectY)
-      rotation_ |= 1 << DRM_REFLECT_Y;
-    if (transform_ & kRotate90)
-      rotation_ |= 1 << DRM_ROTATE_90;
-    else if (transform_ & kRotate180)
-      rotation_ |= 1 << DRM_ROTATE_180;
-    else if (transform_ & kRotate270)
-      rotation_ |= 1 << DRM_ROTATE_270;
-    else
-      rotation_ |= 1 << DRM_ROTATE_0;
   }
 }
 

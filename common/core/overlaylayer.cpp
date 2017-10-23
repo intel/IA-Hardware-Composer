@@ -114,7 +114,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    bool handle_constraints) {
   transform_ = layer->GetTransform();
-  rotation_ = layer->GetRotation();
   alpha_ = layer->GetAlpha();
   layer_index_ = layer_index;
   z_order_ = z_order;
