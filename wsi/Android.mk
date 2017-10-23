@@ -114,4 +114,5 @@ LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_STATIC_LIBRARY)

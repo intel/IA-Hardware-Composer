@@ -19,4 +19,5 @@ LOCAL_MODULE:= hwcmode
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../
 LOCAL_SRC_FILES:= mode.cpp
 LOCAL_SHARED_LIBRARIES := libutils libbinder liblog libhwcservice
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)

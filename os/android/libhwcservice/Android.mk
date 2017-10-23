@@ -26,4 +26,5 @@ LOCAL_CFLAGS += -fvisibility=default
 LOCAL_SHARED_LIBRARIES := libutils libbinder liblog
 LOCAL_MULTILIB := both
 LOCAL_EXPORT_C_INCLUDE_DIRS += $(LOCAL_PATH)
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
