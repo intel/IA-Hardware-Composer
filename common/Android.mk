@@ -152,4 +152,5 @@ endif
 LOCAL_MODULE := libhwcomposer_common
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_STATIC_LIBRARY)
