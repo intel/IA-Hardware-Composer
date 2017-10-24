@@ -159,7 +159,6 @@ bool GpuDevice::Initialize() {
                 skip_duplicate_display = true;
               }
             }
-
             if (!skip_duplicate_display) {
               if (physical_split_num < size) {
                 physical_displays.emplace_back(physical_split_num);
@@ -198,6 +197,11 @@ bool GpuDevice::Initialize() {
         }
       }
     }
+  }
+
+  size = displays.size();
+  for (size_t i = 0; i < size; i++) {
+    displays.at(i)->SetDisplayOrder(i);
   }
 
   // Now, we should have all physical displays ordered as required.
