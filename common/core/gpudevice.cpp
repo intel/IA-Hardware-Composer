@@ -46,7 +46,7 @@ bool GpuDevice::Initialize() {
   // Handle config file reading
   const char *hwc_dp_cfg_path = std::getenv("HWC_DISPLAY_CONFIG");
   if (!hwc_dp_cfg_path) {
-    hwc_dp_cfg_path = "/etc/hwc_display.ini";
+    hwc_dp_cfg_path = "/vendor/etc/hwc_display.ini";
   }
 
   bool use_logical = false;
