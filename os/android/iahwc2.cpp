@@ -171,9 +171,9 @@ HWC2::Error IAHWC2::Init() {
     temp->Init(display, external_display_id, disable_explicit_sync_);
     extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
-    // Let's not confuse things with Virtual.
-    if (external_display_id == 2)
-      external_display_id = 3;
+// Let's not confuse things with Virtual Display.
+    if (external_display_id == HWC_DISPLAY_VIRTUAL)
+      external_display_id = HWC_DISPLAY_VIRTUAL + 1;
   }
 
   // Start the hwc service
