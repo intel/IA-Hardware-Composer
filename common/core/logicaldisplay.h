@@ -41,10 +41,6 @@ class LogicalDisplay : public NativeDisplay {
     return DisplayType::kLogical;
   }
 
-  uint32_t Pipe() const override {
-    return physical_display_->Pipe();
-  }
-
   uint32_t Width() const override {
     return width_;
   }

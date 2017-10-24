@@ -51,10 +51,6 @@ class VirtualDisplay : public NativeDisplay {
     return DisplayType::kVirtual;
   }
 
-  uint32_t Pipe() const override {
-    return 0;
-  }
-
   uint32_t Width() const override {
     return width_;
   }

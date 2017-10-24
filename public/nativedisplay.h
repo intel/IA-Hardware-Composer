@@ -68,8 +68,6 @@ class NativeDisplay {
 
   virtual DisplayType Type() const = 0;
 
-  virtual uint32_t Pipe() const = 0;
-
   virtual uint32_t Width() const = 0;
 
   virtual uint32_t Height() const = 0;

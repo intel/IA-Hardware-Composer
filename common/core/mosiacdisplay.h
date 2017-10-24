@@ -38,8 +38,6 @@ class MosiacDisplay : public NativeDisplay {
     return DisplayType::kMosiac;
   }
 
-  uint32_t Pipe() const override;
-
   uint32_t Width() const override;
 
   uint32_t Height() const override;

@@ -90,10 +90,6 @@ bool MosiacDisplay::IsConnected() const {
   return connected;
 }
 
-uint32_t MosiacDisplay::Pipe() const {
-  return physical_displays_.at(0)->Pipe();
-}
-
 uint32_t MosiacDisplay::Width() const {
   return width_;
 }

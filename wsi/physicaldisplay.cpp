@@ -166,9 +166,6 @@ uint32_t PhysicalDisplay::PowerMode() const {
 }
 
 int PhysicalDisplay::GetDisplayPipe() {
-  if (!(connection_state_ & kConnected))
-    return -1;
-
   return pipe_;
 }
 
