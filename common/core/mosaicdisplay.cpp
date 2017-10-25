@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "mosiacdisplay.h"
+#include "mosaicdisplay.h"
 
 #include <string>
 #include <sstream>
@@ -25,7 +25,7 @@ namespace hwcomposer {
 
 class MDVsyncCallback : public hwcomposer::VsyncCallback {
  public:
-  MDVsyncCallback(MosiacDisplay *display) : display_(display) {
+  MDVsyncCallback(MosaicDisplay *display) : display_(display) {
   }
 
   void Callback(uint32_t /*display*/, int64_t timestamp) {
@@ -33,12 +33,12 @@ class MDVsyncCallback : public hwcomposer::VsyncCallback {
   }
 
  private:
-  MosiacDisplay *display_;
+  MosaicDisplay *display_;
 };
 
 class MDRefreshCallback : public hwcomposer::RefreshCallback {
  public:
-  MDRefreshCallback(MosiacDisplay *display) : display_(display) {
+  MDRefreshCallback(MosaicDisplay *display) : display_(display) {
   }
 
   void Callback(uint32_t /*display*/) {
@@ -46,12 +46,12 @@ class MDRefreshCallback : public hwcomposer::RefreshCallback {
   }
 
  private:
-  MosiacDisplay *display_;
+  MosaicDisplay *display_;
 };
 
 class MDHotPlugCallback : public hwcomposer::HotPlugCallback {
  public:
-  MDHotPlugCallback(MosiacDisplay *display) : display_(display) {
+  MDHotPlugCallback(MosaicDisplay *display) : display_(display) {
   }
 
   void Callback(uint32_t /*display*/, bool connected) {
@@ -59,10 +59,10 @@ class MDHotPlugCallback : public hwcomposer::HotPlugCallback {
   }
 
  private:
-  MosiacDisplay *display_;
+  MosaicDisplay *display_;
 };
 
-MosiacDisplay::MosiacDisplay(const std::vector<NativeDisplay *> displays)
+MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> displays)
     : dpix_(0), dpiy_(0) {
   uint32_t size = displays.size();
   for (uint32_t i = 0; i < size; i++) {
@@ -70,14 +70,14 @@ MosiacDisplay::MosiacDisplay(const std::vector<NativeDisplay *> displays)
   }
 }
 
-MosiacDisplay::~MosiacDisplay() {
+MosaicDisplay::~MosaicDisplay() {
 }
 
-bool MosiacDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
   return true;
 }
 
-bool MosiacDisplay::IsConnected() const {
+bool MosaicDisplay::IsConnected() const {
   uint32_t size = physical_displays_.size();
   bool connected = false;
   for (uint32_t i = 0; i < size; i++) {
@@ -90,23 +90,23 @@ bool MosiacDisplay::IsConnected() const {
   return connected;
 }
 
-uint32_t MosiacDisplay::Width() const {
+uint32_t MosaicDisplay::Width() const {
   return width_;
 }
 
-uint32_t MosiacDisplay::Height() const {
+uint32_t MosaicDisplay::Height() const {
   return height_;
 }
 
-uint32_t MosiacDisplay::PowerMode() const {
+uint32_t MosaicDisplay::PowerMode() const {
   return power_mode_;
 }
 
-int MosiacDisplay::GetDisplayPipe() {
+int MosaicDisplay::GetDisplayPipe() {
   return physical_displays_.at(0)->GetDisplayPipe();
 }
 
-bool MosiacDisplay::SetActiveConfig(uint32_t config) {
+bool MosaicDisplay::SetActiveConfig(uint32_t config) {
   config_ = config;
   width_ = 0;
   height_ = 0;
@@ -143,7 +143,7 @@ bool MosiacDisplay::SetActiveConfig(uint32_t config) {
   return true;
 }
 
-bool MosiacDisplay::GetActiveConfig(uint32_t *config) {
+bool MosaicDisplay::GetActiveConfig(uint32_t *config) {
   if (!config)
     return false;
 
@@ -151,7 +151,7 @@ bool MosiacDisplay::GetActiveConfig(uint32_t *config) {
   return true;
 }
 
-bool MosiacDisplay::SetPowerMode(uint32_t power_mode) {
+bool MosaicDisplay::SetPowerMode(uint32_t power_mode) {
   power_mode_ = power_mode;
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
@@ -161,7 +161,7 @@ bool MosiacDisplay::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
-bool MosiacDisplay::Present(std::vector<HwcLayer *> &source_layers,
+bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t *retire_fence,
                             bool /*handle_constraints*/) {
   if (power_mode_ != kOn)
@@ -218,13 +218,13 @@ bool MosiacDisplay::Present(std::vector<HwcLayer *> &source_layers,
   return true;
 }
 
-bool MosiacDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
+bool MosaicDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
                                  int32_t * /*retire_fence*/,
                                  bool /*idle_frame*/) {
   return false;
 }
 
-int MosiacDisplay::RegisterVsyncCallback(
+int MosaicDisplay::RegisterVsyncCallback(
     std::shared_ptr<VsyncCallback> callback, uint32_t display_id) {
   display_id_ = display_id;
   vsync_callback_ = callback;
@@ -239,7 +239,7 @@ int MosiacDisplay::RegisterVsyncCallback(
   return 0;
 }
 
-void MosiacDisplay::RegisterRefreshCallback(
+void MosaicDisplay::RegisterRefreshCallback(
     std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
   display_id_ = display_id;
   refresh_callback_ = callback;
@@ -252,7 +252,7 @@ void MosiacDisplay::RegisterRefreshCallback(
   }
 }
 
-void MosiacDisplay::RegisterHotPlugCallback(
+void MosaicDisplay::RegisterHotPlugCallback(
     std::shared_ptr<HotPlugCallback> callback, uint32_t display_id) {
   lock_.lock();
   display_id_ = display_id;
@@ -267,7 +267,7 @@ void MosiacDisplay::RegisterHotPlugCallback(
   }
 }
 
-void MosiacDisplay::VSyncControl(bool enabled) {
+void MosaicDisplay::VSyncControl(bool enabled) {
   if (enable_vsync_ == enabled)
     return;
 
@@ -279,7 +279,7 @@ void MosiacDisplay::VSyncControl(bool enabled) {
   }
 }
 
-void MosiacDisplay::VSyncUpdate(int64_t timestamp) {
+void MosaicDisplay::VSyncUpdate(int64_t timestamp) {
   lock_.lock();
   if (vsync_callback_ && enable_vsync_ && vsync_divisor_ > 0) {
     vsync_counter_--;
@@ -298,13 +298,13 @@ void MosiacDisplay::VSyncUpdate(int64_t timestamp) {
   lock_.unlock();
 }
 
-void MosiacDisplay::RefreshUpdate() {
+void MosaicDisplay::RefreshUpdate() {
   if (connected_ && refresh_callback_ && power_mode_ == kOn) {
     refresh_callback_->Callback(display_id_);
   }
 }
 
-void MosiacDisplay::HotPlugUpdate(bool connected) {
+void MosaicDisplay::HotPlugUpdate(bool connected) {
   lock_.lock();
   update_connected_displays_ = true;
   uint32_t total_connected_displays = 0;
@@ -344,48 +344,48 @@ void MosiacDisplay::HotPlugUpdate(bool connected) {
   lock_.unlock();
 }
 
-bool MosiacDisplay::CheckPlaneFormat(uint32_t format) {
+bool MosaicDisplay::CheckPlaneFormat(uint32_t format) {
   return physical_displays_.at(0)->CheckPlaneFormat(format);
 }
 
-void MosiacDisplay::SetGamma(float red, float green, float blue) {
+void MosaicDisplay::SetGamma(float red, float green, float blue) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->SetGamma(red, green, blue);
   }
 }
 
-void MosiacDisplay::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
+void MosaicDisplay::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->SetContrast(red, green, blue);
   }
 }
 
-void MosiacDisplay::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
+void MosaicDisplay::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->SetBrightness(red, green, blue);
   }
 }
 
-void MosiacDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->SetExplicitSyncSupport(disable_explicit_sync);
   }
 }
 
-void MosiacDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
+void MosaicDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                        uint32_t /*primary_height*/,
                                        uint32_t /*display_width*/,
                                        uint32_t /*display_height*/) {
 }
 
-void MosiacDisplay::CloneDisplay(NativeDisplay * /*source_display*/) {
+void MosaicDisplay::CloneDisplay(NativeDisplay * /*source_display*/) {
 }
 
-bool MosiacDisplay::GetDisplayAttribute(uint32_t /*config*/,
+bool MosaicDisplay::GetDisplayAttribute(uint32_t /*config*/,
                                         HWCDisplayAttribute attribute,
                                         int32_t *value) {
   bool status = true;
@@ -413,7 +413,7 @@ bool MosiacDisplay::GetDisplayAttribute(uint32_t /*config*/,
   return status;
 }
 
-bool MosiacDisplay::GetDisplayConfigs(uint32_t *num_configs,
+bool MosaicDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                       uint32_t *configs) {
   *num_configs = 1;
   if (configs) {
@@ -422,9 +422,9 @@ bool MosiacDisplay::GetDisplayConfigs(uint32_t *num_configs,
   return true;
 }
 
-bool MosiacDisplay::GetDisplayName(uint32_t *size, char *name) {
+bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
-  stream << "Mosiac";
+  stream << "Mosaic";
   std::string string = stream.str();
   size_t length = string.length();
   if (!name) {

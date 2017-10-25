@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef WSI_MOSIACDISPLAY_H_
-#define WSI_MOSIACDISPLAY_H_
+#ifndef WSI_MOSAICDISPLAY_H_
+#define WSI_MOSAICDISPLAY_H_
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,15 +27,15 @@
 
 namespace hwcomposer {
 
-class MosiacDisplay : public NativeDisplay {
+class MosaicDisplay : public NativeDisplay {
  public:
-  MosiacDisplay(const std::vector<NativeDisplay *> displays);
-  ~MosiacDisplay() override;
+  MosaicDisplay(const std::vector<NativeDisplay *> displays);
+  ~MosaicDisplay() override;
 
   bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
-    return DisplayType::kMosiac;
+    return DisplayType::kMosaic;
   }
 
   uint32_t Width() const override;
@@ -125,4 +125,4 @@ class MosiacDisplay : public NativeDisplay {
 };
 
 }  // namespace hwcomposer
-#endif  // WSI_MosiacDisplay_H_
+#endif  // WSI_MosaicDisplay_H_

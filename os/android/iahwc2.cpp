@@ -29,7 +29,7 @@
 #include <gpudevice.h>
 #include <hwcdefs.h>
 #include <nativedisplay.h>
-#include "mosiacdisplay.h"
+#include "mosaicdisplay.h"
 
 #include <string>
 #include <memory>

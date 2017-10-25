@@ -16,7 +16,7 @@
 
 #include <gpudevice.h>
 
-#include "mosiacdisplay.h"
+#include "mosaicdisplay.h"
 
 namespace hwcomposer {
 
@@ -50,18 +50,18 @@ bool GpuDevice::Initialize() {
   }
 
   bool use_logical = false;
-  bool use_mosiac = false;
+  bool use_mosaic = false;
   std::vector<uint32_t> logical_displays;
   std::vector<uint32_t> physical_displays;
-  std::vector<std::vector<uint32_t>> mosiac_displays;
+  std::vector<std::vector<uint32_t>> mosaic_displays;
   std::ifstream fin(hwc_dp_cfg_path);
   std::string cfg_line;
   std::string key_logical("LOGICAL");
-  std::string key_mosiac("MOSIAC");
+  std::string key_mosaic("MOSAIC");
   std::string key_logical_display("LOGICAL_DISPLAY");
-  std::string key_mosiac_display("MOSIAC_DISPLAY");
+  std::string key_mosaic_display("MOSAIC_DISPLAY");
   std::string key_physical_display("PHYSICAL_DISPLAY");
-  std::vector<uint32_t> mosiac_duplicate_check;
+  std::vector<uint32_t> mosaic_duplicate_check;
   while (std::getline(fin, cfg_line)) {
     std::istringstream i_line(cfg_line);
     std::string key;
@@ -81,10 +81,10 @@ bool GpuDevice::Initialize() {
           if (!value.compare(enable_str)) {
             use_logical = true;
           }
-          // Got mosiac switch
-        } else if (!key.compare(key_mosiac)) {
+          // Got mosaic switch
+        } else if (!key.compare(key_mosaic)) {
           if (!value.compare(enable_str)) {
-            use_mosiac = true;
+            use_mosaic = true;
           }
           // Got logical config
         } else if (!key.compare(key_logical_display)) {
@@ -114,33 +114,33 @@ bool GpuDevice::Initialize() {
           // Save logical split num for the physical display (don't care if the
           // physical display is disconnected/connected here)
           logical_displays.emplace_back(logical_split_num);
-          // Got mosiac config
-        } else if (!key.compare(key_mosiac_display)) {
+          // Got mosaic config
+        } else if (!key.compare(key_mosaic_display)) {
           std::istringstream i_value(value);
-          std::string i_mosiac_split_str;
-          // Got mosiac sub display num
-          std::vector<uint32_t> mosiac_display;
-          while (std::getline(i_value, i_mosiac_split_str, '+')) {
-            if (i_mosiac_split_str.empty() ||
-                i_mosiac_split_str.find_first_not_of("0123456789") !=
+          std::string i_mosaic_split_str;
+          // Got mosaic sub display num
+          std::vector<uint32_t> mosaic_display;
+          while (std::getline(i_value, i_mosaic_split_str, '+')) {
+            if (i_mosaic_split_str.empty() ||
+                i_mosaic_split_str.find_first_not_of("0123456789") !=
                     std::string::npos)
               continue;
-            size_t i_mosiac_split_num = atoi(i_mosiac_split_str.c_str());
-            // Check and skip if the display already been used in other mosiac
+            size_t i_mosaic_split_num = atoi(i_mosaic_split_str.c_str());
+            // Check and skip if the display already been used in other mosaic
             bool skip_duplicate_display = false;
-            for (size_t i = 0; i < mosiac_duplicate_check.size(); i++) {
-              if (mosiac_duplicate_check.at(i) == i_mosiac_split_num) {
+            for (size_t i = 0; i < mosaic_duplicate_check.size(); i++) {
+              if (mosaic_duplicate_check.at(i) == i_mosaic_split_num) {
                 skip_duplicate_display = true;
               }
             }
             if (!skip_duplicate_display) {
-              // save the sub display num for the mosiac display (don't care if
+              // save the sub display num for the mosaic display (don't care if
               // the physical/logical display is existing/connected here)
-              mosiac_display.emplace_back(i_mosiac_split_num);
-              mosiac_duplicate_check.emplace_back(i_mosiac_split_num);
+              mosaic_display.emplace_back(i_mosaic_split_num);
+              mosaic_duplicate_check.emplace_back(i_mosaic_split_num);
             }
           }
-          mosiac_displays.emplace_back(mosiac_display);
+          mosaic_displays.emplace_back(mosaic_display);
         } else if (!key.compare(key_physical_display)) {
           std::istringstream i_value(value);
           std::string physical_split_str;
@@ -152,7 +152,7 @@ bool GpuDevice::Initialize() {
                     std::string::npos)
               continue;
             size_t physical_split_num = atoi(physical_split_str.c_str());
-            // Check and skip if the display already been used in other mosiac
+            // Check and skip if the display already been used in other mosaic
             bool skip_duplicate_display = false;
             for (size_t i = 0; i < physical_duplicate_check.size(); i++) {
               if (physical_duplicate_check.at(i) == physical_split_num) {
@@ -205,7 +205,7 @@ bool GpuDevice::Initialize() {
   }
 
   // Now, we should have all physical displays ordered as required.
-  // Let's handle any Logical Display combinations or Mosiac.
+  // Let's handle any Logical Display combinations or Mosaic.
   std::vector<NativeDisplay *> temp_displays;
   for (size_t i = 0; i < size; i++) {
     hwcomposer::NativeDisplay *display = displays.at(i);
@@ -232,37 +232,37 @@ bool GpuDevice::Initialize() {
   }
 
   std::vector<bool> available_displays(temp_displays.size(), true);
-  if (use_mosiac) {
+  if (use_mosaic) {
     for (size_t t = 0; t < temp_displays.size(); t++) {
-      // Skip the displays which already be marked in other mosiac
+      // Skip the displays which already be marked in other mosaic
       if (!available_displays.at(t))
         continue;
       bool skip_display = false;
-      for (size_t m = 0; m < mosiac_displays.size(); m++) {
-        std::vector<NativeDisplay *> i_available_mosiac_displays;
-        for (size_t l = 0; l < mosiac_displays.at(m).size(); l++) {
-          // Check if the logical display is in mosiac, keep the order of
+      for (size_t m = 0; m < mosaic_displays.size(); m++) {
+        std::vector<NativeDisplay *> i_available_mosaic_displays;
+        for (size_t l = 0; l < mosaic_displays.at(m).size(); l++) {
+          // Check if the logical display is in mosaic, keep the order of
           // logical displays list
-          // Get the smallest logical num of the mosiac for order keeping
-          if (t == mosiac_displays.at(m).at(l)) {
-            // Loop to get logical displays of mosiac, keep the order of config
-            for (size_t i = 0; i < mosiac_displays.at(m).size(); i++) {
+          // Get the smallest logical num of the mosaic for order keeping
+          if (t == mosaic_displays.at(m).at(l)) {
+            // Loop to get logical displays of mosaic, keep the order of config
+            for (size_t i = 0; i < mosaic_displays.at(m).size(); i++) {
               // Verify the logical display num
-              if (mosiac_displays.at(m).at(i) < temp_displays.size()) {
+              if (mosaic_displays.at(m).at(i) < temp_displays.size()) {
                 // Skip the disconnected display here
-                i_available_mosiac_displays.emplace_back(
-                    temp_displays.at(mosiac_displays.at(m).at(i)));
-                // Add tag for mosiac-ed displays
-                available_displays.at(mosiac_displays.at(m).at(i)) = false;
+                i_available_mosaic_displays.emplace_back(
+                    temp_displays.at(mosaic_displays.at(m).at(i)));
+                // Add tag for mosaic-ed displays
+                available_displays.at(mosaic_displays.at(m).at(i)) = false;
               }
             }
-            // Create mosiac for those logical displays
-            if (i_available_mosiac_displays.size() > 0) {
-              std::unique_ptr<MosiacDisplay> mosiac(
-                  new MosiacDisplay(i_available_mosiac_displays));
-              mosiac_displays_.emplace_back(std::move(mosiac));
-              // Save the mosiac to the final displays list
-              total_displays_.emplace_back(mosiac_displays_.back().get());
+            // Create mosaic for those logical displays
+            if (i_available_mosaic_displays.size() > 0) {
+              std::unique_ptr<MosaicDisplay> mosaic(
+                  new MosaicDisplay(i_available_mosaic_displays));
+              mosaic_displays_.emplace_back(std::move(mosaic));
+              // Save the mosaic to the final displays list
+              total_displays_.emplace_back(mosaic_displays_.back().get());
             }
             skip_display = true;
             break;
