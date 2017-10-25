@@ -71,7 +71,7 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
     hotplug_callback_->Callback(hot_plug_display_id_, true);
     display_state_ &= ~kNotifyClient;
 #ifdef ENABLE_ANDROID_WA
-    if (pipe_ == 0) {
+    if (ordered_display_id_ == 0) {
       refresh_needed = true;
     }
 #endif
@@ -166,9 +166,6 @@ uint32_t PhysicalDisplay::PowerMode() const {
 }
 
 int PhysicalDisplay::GetDisplayPipe() {
-  if (!(connection_state_ & kConnected))
-    return -1;
-
   return pipe_;
 }
 
@@ -360,7 +357,7 @@ void PhysicalDisplay::RegisterHotPlugCallback(
 #endif
   SPIN_UNLOCK(modeset_lock_);
 #ifdef ENABLE_ANDROID_WA
-  if (hotplug_callback_ && pipe_ == 0) {
+  if (hotplug_callback_ && ordered_display_id_ == 0) {
     display_state_ &= ~kNotifyClient;
     display_state_ |= kHandlePendingHotPlugNotifications;
     IHOTPLUGEVENTTRACE("RegisterHotPlugCallback: pipe: %d display: %p", pipe_,
@@ -460,6 +457,10 @@ void PhysicalDisplay::DisOwnPresentation(NativeDisplay *clone) {
 
   cloned_displays_.swap(displays);
   display_state_ |= kRefreshClonedDisplays;
+}
+
+void PhysicalDisplay::SetDisplayOrder(uint32_t display_order) {
+  ordered_display_id_ = display_order;
 }
 
 void PhysicalDisplay::RefreshClones() {

@@ -39,8 +39,6 @@ libhwcomposer_common_la_LIBADD = \
 
 libhwcomposer_common_la_LTLIBRARIES = libhwcomposer_common.la
 libhwcomposer_common_la_SOURCES = $(common_SOURCES)
-libhwcomposer_common_la_SOURCES += $(va_SOURCES)
-AM_CPP_INCLUDES += -Icompositor/va
 if ENABLE_VULKAN
 libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/vk
@@ -51,6 +49,12 @@ libhwcomposer_common_la_SOURCES += $(gl_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/gl
 AM_CPPFLAGS += -DUSE_GL
 libhwcomposer_common_la_LIBADD += $(GLES2_LIBS)
+endif
+
+if ENABLE_LIBVA
+libhwcomposer_common_la_SOURCES += $(va_SOURCES)
+AM_CPP_INCLUDES += -Icompositor/va
+AM_CPPFLAGS += -DUSE_LIBVA
 endif
 
 libhwcomposer_common_ladir = $(libdir)

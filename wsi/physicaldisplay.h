@@ -49,10 +49,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     return DisplayType::kInternal;
   }
 
-  uint32_t Pipe() const override {
-    return pipe_;
-  }
-
   uint32_t Width() const override {
     return width_;
   }
@@ -115,9 +111,11 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
-  void OwnPresentation(NativeDisplay *clone);
+  void OwnPresentation(NativeDisplay *clone) override;
 
-  void DisOwnPresentation(NativeDisplay *clone);
+  void DisOwnPresentation(NativeDisplay *clone) override;
+
+  void SetDisplayOrder(uint32_t display_order) override;
 
   /**
   * API for setting color correction for display.
@@ -226,6 +224,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   int display_state_ = kNone;
   int connection_state_ = kDisconnected;
   uint32_t hot_plug_display_id_ = 0;
+  // This differs from pipe_ as upper layers can
+  // change order of physical display from setting
+  // file. This may or may not be same as pipe_.
+  uint32_t ordered_display_id_ = 0;
   SpinLock modeset_lock_;
   SpinLock cloned_displays_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;

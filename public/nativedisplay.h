@@ -68,8 +68,6 @@ class NativeDisplay {
 
   virtual DisplayType Type() const = 0;
 
-  virtual uint32_t Pipe() const = 0;
-
   virtual uint32_t Width() const = 0;
 
   virtual uint32_t Height() const = 0;
@@ -235,6 +233,7 @@ class NativeDisplay {
 
  protected:
   friend class PhysicalDisplay;
+  friend class GpuDevice;
   virtual void OwnPresentation(NativeDisplay * /*clone*/) {
   }
 
@@ -244,6 +243,13 @@ class NativeDisplay {
   virtual bool PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
                             int32_t * /*retire_fence*/, bool /*idle_frame*/) {
     return false;
+  }
+
+  // Physical pipe order might be different to the display order
+  // configured in hwcdisplay.ini. We need to always use any values
+  // overridden by SetDisplayOrder to determine if a display is
+  // primary or not.
+  virtual void SetDisplayOrder(uint32_t /*display_order*/) {
   }
 };
 

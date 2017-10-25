@@ -171,9 +171,9 @@ HWC2::Error IAHWC2::Init() {
     temp->Init(display, external_display_id, disable_explicit_sync_);
     extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
-    // Let's not confuse things with Virtual.
-    if (external_display_id == 2)
-      external_display_id = 3;
+// Let's not confuse things with Virtual Display.
+    if (external_display_id == HWC_DISPLAY_VIRTUAL)
+      external_display_id = HWC_DISPLAY_VIRTUAL + 1;
   }
 
   // Start the hwc service
@@ -443,10 +443,9 @@ HWC2::Error IAHWC2::HwcDisplay::GetColorModes(uint32_t *num_modes,
   supported(__func__);
   if (!modes)
     *num_modes = 1;
-#ifndef DISABLE_NATIVE_COLOR_MODES
+
   if (modes)
     *modes = HAL_COLOR_MODE_NATIVE;
-#endif
 
   return HWC2::Error::None;
 }
@@ -875,19 +874,20 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerTransform(int32_t transform) {
   // already contain both horizontal and vertical flips, so those fields are
   // redundant in this case. 90* rotation can be combined with either horizontal
   // flip or vertical flip, so treat it differently
+  int32_t temp = 0;
   if (transform == HWC_TRANSFORM_ROT_270) {
-    transform = hwcomposer::HWCTransform::kRotate270;
+    temp = hwcomposer::HWCTransform::kRotate270;
   } else if (transform == HWC_TRANSFORM_ROT_180) {
-    transform = hwcomposer::HWCTransform::kRotate180;
+    temp = hwcomposer::HWCTransform::kRotate180;
   } else {
     if (transform & HWC_TRANSFORM_FLIP_H)
-      transform |= hwcomposer::HWCTransform::kReflectX;
+      temp |= hwcomposer::HWCTransform::kReflectX;
     if (transform & HWC_TRANSFORM_FLIP_V)
-      transform |= hwcomposer::HWCTransform::kReflectY;
+      temp |= hwcomposer::HWCTransform::kReflectY;
     if (transform & HWC_TRANSFORM_ROT_90)
-      transform |= hwcomposer::HWCTransform::kRotate90;
+      temp |= hwcomposer::HWCTransform::kRotate90;
   }
-  hwc_layer_.SetTransform(transform);
+  hwc_layer_.SetTransform(temp);
   return HWC2::Error::None;
 }
 

@@ -75,10 +75,6 @@ LOCAL_CPPFLAGS += \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -O3
 
-ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)), true)
-LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
-endif
-
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
         libvulkan
