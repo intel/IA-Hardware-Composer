@@ -48,11 +48,7 @@ LOCAL_STATIC_LIBRARIES := libdrmhwc_utils
 
 LOCAL_C_INCLUDES := \
 	external/drm_gralloc \
-	external/libdrm \
-	external/libdrm/include/drm \
-	system/core/include/utils \
-	system/core/libsync \
-	system/core/libsync/include \
+	system/core/libsync
 
 LOCAL_SRC_FILES := \
 	autolock.cpp \
