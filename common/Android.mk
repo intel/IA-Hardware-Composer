@@ -66,7 +66,7 @@ LOCAL_SRC_FILES := \
         core/hwclayer.cpp \
 	core/logicaldisplay.cpp \
 	core/logicaldisplaymanager.cpp \
-	core/mosiacdisplay.cpp \
+	core/mosaicdisplay.cpp \
         core/overlaylayer.cpp \
         display/displayplanemanager.cpp \
         display/displayqueue.cpp \

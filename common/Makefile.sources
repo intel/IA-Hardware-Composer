@@ -9,7 +9,7 @@ common_SOURCES =              \
     core/gpudevice.cpp \
     core/logicaldisplay.cpp \
     core/logicaldisplaymanager.cpp \
-    core/mosiacdisplay.cpp \
+    core/mosaicdisplay.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
     display/vblankeventhandler.cpp \
