@@ -60,7 +60,7 @@ enum class HWCDisplayAttribute : int32_t {
   kDpiY = 5
 };
 
-enum class DisplayType : int32_t { kInternal = 0, kExternal = 1, kVirtual = 2, kLogical = 3, kMosiac = 4 };
+enum class DisplayType : int32_t { kInternal = 0, kExternal = 1, kVirtual = 2, kLogical = 3, kMosaic = 4 };
 
 enum DisplayPowerMode {
   kOff = 0,         // Display is off

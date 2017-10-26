@@ -66,7 +66,7 @@ LOCAL_SRC_FILES := \
         core/hwclayer.cpp \
 	core/logicaldisplay.cpp \
 	core/logicaldisplaymanager.cpp \
-	core/mosiacdisplay.cpp \
+	core/mosaicdisplay.cpp \
         core/overlaylayer.cpp \
         display/displayplanemanager.cpp \
         display/displayqueue.cpp \
@@ -152,4 +152,5 @@ endif
 LOCAL_MODULE := libhwcomposer_common
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_STATIC_LIBRARY)

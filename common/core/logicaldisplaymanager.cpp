@@ -139,7 +139,7 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
       displays_.at(i)->HotPlugUpdate(true);
     }
     handle_hoplug_notifications_ = false;
-    // In Mosiac case, we expect Present calls for all
+    // In Mosaic case, we expect Present calls for all
     // logical displays.
     if (!handle_constraints)
       total_size = 1;

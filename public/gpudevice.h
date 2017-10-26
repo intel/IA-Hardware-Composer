@@ -53,7 +53,7 @@ class GpuDevice {
  private:
   std::unique_ptr<DisplayManager> display_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
-  std::vector<std::unique_ptr<NativeDisplay>> mosiac_displays_;
+  std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
   std::vector<NativeDisplay*> total_displays_;
   bool initialized_;
 };
