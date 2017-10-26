@@ -81,6 +81,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool CheckPlaneFormat(uint32_t format) override;
   void SetGamma(float red, float green, float blue) override;
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
+  void SetColorTransform(const float *matrix, HWCColorTransform hint) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
@@ -120,8 +121,11 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   /**
   * API for setting color correction for display.
   */
-  virtual void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
-                                  uint32_t brightness) const = 0;
+  virtual void SetColorCorrection(struct gamma_colors gamma,
+                                  uint32_t contrast,
+                                  uint32_t brightness,
+                                  const float *color_transform_matrix,
+                                  HWCColorTransform color_transform_hint) const = 0;
 
   /**
   * API is called when display needs to be disabled.

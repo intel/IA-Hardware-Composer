@@ -51,6 +51,8 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
 
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
+  /* use HWCColorTransform::kIdentical as default color transform hint */
+  color_transform_hint_ = HWCColorTransform::kIdentical;
   /* use 0x80 as default brightness for all colors */
   contrast_ = 0x808080;
   /* use 1 as default gamma value */
@@ -438,6 +440,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
         idle_frame || disable_ovelays, current_composition_planes);
+
     state_ &= ~kConfigurationChanged;
     bool gpu_rendered = true;
     for (uint32_t i = 0; i < total_cursor_layers_; i++) {
@@ -491,7 +494,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 #endif
   if (state_ & kNeedsColorCorrection) {
-    display_->SetColorCorrection(gamma_, contrast_, brightness_);
+    display_->SetColorCorrection(gamma_, contrast_, brightness_,
+                                 color_transform_matrix_, color_transform_hint_);
     state_ &= ~kNeedsColorCorrection;
   }
 
@@ -712,6 +716,16 @@ void DisplayQueue::SetGamma(float red, float green, float blue) {
   gamma_.red = red;
   gamma_.green = green;
   gamma_.blue = blue;
+  state_ |= kNeedsColorCorrection;
+}
+
+void DisplayQueue::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+  color_transform_hint_ = hint;
+
+  if (hint == HWCColorTransform::kArbitraryMatrix) {
+    memcpy(color_transform_matrix_, matrix, sizeof(color_transform_matrix_));
+  }
+
   state_ |= kNeedsColorCorrection;
 }
 
