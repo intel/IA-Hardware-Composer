@@ -53,6 +53,8 @@ class DrmDisplay : public PhysicalDisplay {
   void UpdateDisplayConfig() override;
   void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                           uint32_t brightness) const override;
+  void SetColorTransformMatrix(const float *color_transform_matrix,
+                               HWCColorTransform color_transform_hint) const override;
   void Disable(const DisplayPlaneStateList &composition_planes) override;
   bool Commit(const DisplayPlaneStateList &composition_planes,
               const DisplayPlaneStateList &previous_composition_planes,
@@ -91,6 +93,9 @@ class DrmDisplay : public PhysicalDisplay {
   float TransformGamma(float value, float gamma) const;
   float TransformContrastBrightness(float value, float brightness,
                                     float contrast) const;
+  int64_t FloatToFixedPoint(float value) const;
+  void ApplyPendingCTM(struct drm_color_ctm *ctm,
+                       struct drm_color_ctm_post_offset *ctm_post_offset) const;
   void ApplyPendingLUT(struct drm_color_lut *lut) const;
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
   bool GetFence(drmModeAtomicReqPtr property_set, int32_t *out_fence);
@@ -105,6 +110,8 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t mmHeight_ = 0;
   uint32_t out_fence_ptr_prop_ = 0;
   uint32_t dpms_prop_ = 0;
+  uint32_t ctm_id_prop_ = 0;
+  uint32_t ctm_post_offset_id_prop_ = 0;
   uint32_t lut_id_prop_ = 0;
   uint32_t crtc_prop_ = 0;
   uint32_t broadcastrgb_id_ = 0;
