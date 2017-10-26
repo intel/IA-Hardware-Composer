@@ -387,6 +387,10 @@ void PhysicalDisplay::SetGamma(float red, float green, float blue) {
   display_queue_->SetGamma(red, green, blue);
 }
 
+void PhysicalDisplay::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+  display_queue_->SetColorTransform(matrix, hint);
+}
+
 void PhysicalDisplay::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {
   display_queue_->SetContrast(red, green, blue);
 }
