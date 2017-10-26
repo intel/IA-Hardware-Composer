@@ -47,6 +47,7 @@ class CompositorThread : public HWCThread {
             const std::vector<OverlayLayer>& layers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetColorTransformMatrix(const float *matrix);
   void FreeResources(bool all_resources);
   void EnsureTasksAreDone();
 
@@ -83,6 +84,7 @@ class CompositorThread : public HWCThread {
   uint32_t tasks_ = kNone;
   FDHandler fd_chandler_;
   HWCEvent cevent_;
+  const float *ctm_ = nullptr;
 };
 
 }  // namespace hwcomposer

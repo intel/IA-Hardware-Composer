@@ -95,6 +95,8 @@ static std::string GenerateFragmentShader(int layer_count) {
   }
   fragment_shader_stream << "uniform float uLayerAlpha[LAYER_COUNT];\n"
                          << "uniform float uLayerPremult[LAYER_COUNT];\n"
+                         << "uniform mat4 uCTM;\n"
+                         << "uniform vec4 uCTMOffset;\n"
                          << "in vec2 fTexCoords[LAYER_COUNT];\n"
                          << "out vec4 oFragColor;\n"
                          << "void main() {\n"
@@ -121,7 +123,7 @@ static std::string GenerateFragmentShader(int layer_count) {
   }
   for (int i = 0; i < layer_count - 1; ++i)
     fragment_shader_stream << "  }\n";
-  fragment_shader_stream << "  oFragColor = vec4(color, 1.0 - alphaCover);\n"
+  fragment_shader_stream << "  oFragColor = uCTMOffset + uCTM * vec4(color, 1.0 - alphaCover);\n"
                          << "}\n";
   return fragment_shader_stream.str();
 }
@@ -186,6 +188,8 @@ GLProgram::GLProgram()
       alpha_loc_(0),
       premult_loc_(0),
       tex_matrix_loc_(0),
+      ctm_loc_(0),
+      ctm_offset_loc_(0),
       initialized_(false) {
 }
 
@@ -215,6 +219,8 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
     alpha_loc_ = glGetUniformLocation(program_, "uLayerAlpha");
     premult_loc_ = glGetUniformLocation(program_, "uLayerPremult");
     tex_matrix_loc_ = glGetUniformLocation(program_, "uTexMatrix");
+    ctm_loc_ = glGetUniformLocation(program_, "uCTM");
+    ctm_offset_loc_ = glGetUniformLocation(program_, "uCTMOffset");
     for (unsigned src_index = 0; src_index < size; src_index++) {
       std::ostringstream texture_name_formatter;
       texture_name_formatter << "uLayerTexture" << src_index;
@@ -222,6 +228,15 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
           glGetUniformLocation(program_, texture_name_formatter.str().c_str());
       glUniform1i(tex_loc, src_index);
     }
+
+    // Initialize ctm with identity matrix.
+    GLfloat ctm[16];
+    GLfloat ctm_offset[4];
+    memset(ctm, 0, sizeof(float) * 16);
+    ctm[0] = ctm[5] = ctm[10] = ctm[15] = 1.0f;
+    memset(ctm_offset, 0, sizeof(float) * 4);
+    glUniformMatrix4fv(ctm_loc_, 1, GL_FALSE, ctm);
+    glUniform4fv(ctm_offset_loc_, 1, ctm_offset);
 
     initialized_ = true;
   }
@@ -243,6 +258,26 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
     glActiveTexture(GL_TEXTURE0 + src_index);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, src.handle_);
   }
+}
+
+void GLProgram::SetColorTransformMatrix(const float *matrix) {
+  GLfloat ctm[16];
+  GLfloat ctm_offset[4];
+
+  if (matrix) {
+    memcpy(ctm, matrix, sizeof(float) * 12);
+    ctm[12] = ctm[13] = ctm[14] = 0.0f;
+    ctm[15] = 1.0f;
+    memcpy(ctm_offset, matrix + 12, sizeof(float) * 4);
+    ctm_offset[3] = 0.0f;
+  } else {
+    memset(ctm, 0, sizeof(float) * 16);
+    ctm[0] = ctm[5] = ctm[10] = ctm[15] = 1.0f;
+    memset(ctm_offset, 0, sizeof(float) * 4);
+  }
+
+  glUniformMatrix4fv(ctm_loc_, 1, GL_FALSE, ctm);
+  glUniform4fv(ctm_offset_loc_, 1, ctm_offset);
 }
 
 }  // namespace hwcomposer

@@ -36,6 +36,7 @@ class GLProgram {
   bool Init(unsigned texture_count);
   void UseProgram(const RenderState& cmd, GLuint viewport_width,
                   GLuint viewport_height);
+  void SetColorTransformMatrix(const float *matrix);
 
  private:
   GLint program_;
@@ -44,6 +45,8 @@ class GLProgram {
   GLint alpha_loc_;
   GLint premult_loc_;
   GLint tex_matrix_loc_;
+  GLuint ctm_loc_;
+  GLuint ctm_offset_loc_;
   bool initialized_;
 };
 

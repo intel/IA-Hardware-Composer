@@ -51,6 +51,8 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
 
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
+  /* use HWCColorTransform::kIdentical as default color transform hint */
+  color_transform_hint_ = HWCColorTransform::kIdentical;
   /* use 0x80 as default brightness for all colors */
   contrast_ = 0x808080;
   /* use 1 as default gamma value */
@@ -399,6 +401,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
 
+  //FIXME? disalbe overlay when need apply CTM but is not supported in
+  // display so need to fallback to GPU
+  disable_ovelays = disable_ovelays | ( state_ & kApplyGPUColorMatrix);
+
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
     bool can_ignore_commit = false;
@@ -435,9 +441,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       tracker.ResetTrackerState();
 
     RecyclePreviousPlaneSurfaces();
+
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
         idle_frame || disable_ovelays, current_composition_planes);
+
     state_ &= ~kConfigurationChanged;
     bool gpu_rendered = true;
     for (uint32_t i = 0; i < total_cursor_layers_; i++) {
@@ -493,6 +501,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (state_ & kNeedsColorCorrection) {
     display_->SetColorCorrection(gamma_, contrast_, brightness_);
     state_ &= ~kNeedsColorCorrection;
+  }
+
+  if(state_ & kApplyColorMatrix) {
+	  display_->DoSetColorTransformMatrix(color_transform_matrix_, color_transform_hint_);
+	  state_ &= ~kApplyColorMatrix;
   }
 
   composition_passed =
@@ -619,7 +632,6 @@ void DisplayQueue::HandleCommitIgnored(
       surface->SetInUse(true);
     }
   }
-
   ReleaseSurfaces();
 }
 
@@ -690,7 +702,7 @@ void DisplayQueue::HandleExit() {
     cloned_mode = true;
   }
 
-  state_ = kConfigurationChanged;
+  state_ = kConfigurationChanged | (state_ & (kApplyColorMatrix | kApplyGPUColorMatrix));
   if (disable_overlay) {
     state_ |= kDisableOverlayUsage;
   }
@@ -713,6 +725,41 @@ void DisplayQueue::SetGamma(float red, float green, float blue) {
   gamma_.green = green;
   gamma_.blue = blue;
   state_ |= kNeedsColorCorrection;
+}
+
+void DisplayQueue::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+  color_transform_hint_ = hint;
+  int old_state = state_;
+
+  if (hint == HWCColorTransform::kArbitraryMatrix) {
+    memcpy(color_transform_matrix_, matrix, sizeof(color_transform_matrix_));
+    if(display_->IsCTMSupported()) {
+      if (*(uint32_t*)(matrix + 12) != 0 ||
+        *(uint32_t*)(matrix + 13) != 0 ||
+        *(uint32_t*)(matrix + 14) != 0) {
+        compositor_.SetColorTransformMatrix(color_transform_matrix_);
+        state_ |= kApplyGPUColorMatrix;
+      } else {
+        compositor_.SetColorTransformMatrix(NULL);
+        state_ |= kApplyColorMatrix;
+      }
+    } else {
+       compositor_.SetColorTransformMatrix(color_transform_matrix_);
+       state_ |= kApplyGPUColorMatrix;
+    }
+  } else {
+    compositor_.SetColorTransformMatrix(NULL);
+    if(display_->IsCTMSupported()) {
+      state_ |= kApplyColorMatrix;
+    } else {
+      state_ &= ~kApplyGPUColorMatrix;
+    }
+  }
+
+  if ((!(old_state & (kApplyColorMatrix | kApplyGPUColorMatrix)) && (state_ & (kApplyColorMatrix | kApplyGPUColorMatrix))) ||
+      ((old_state & (kApplyColorMatrix | kApplyGPUColorMatrix)) && !(state_ & (kApplyColorMatrix | kApplyGPUColorMatrix)))) {
+    idle_tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
+  }
 }
 
 void DisplayQueue::SetContrast(uint32_t red, uint32_t green, uint32_t blue) {

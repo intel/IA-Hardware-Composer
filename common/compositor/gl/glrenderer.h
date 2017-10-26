@@ -40,6 +40,8 @@ class GLRenderer : public Renderer {
 
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
+  void SetColorTransformMatrix(const float *matrix) override;
+
  private:
   GLProgram *GetProgram(unsigned texture_count);
 
@@ -48,6 +50,8 @@ class GLRenderer : public Renderer {
   std::vector<std::unique_ptr<GLProgram>> programs_;
   GLuint vertex_array_ = 0;
   bool disable_explicit_sync_ = false;
+  const float *ctm_ = nullptr;
+  std::vector<bool> ctm_consumed_; // CTM consume status of each program
 };
 
 }  // namespace hwcomposer
