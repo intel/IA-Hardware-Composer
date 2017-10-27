@@ -93,7 +93,11 @@ LOCAL_CPPFLAGS += \
 	-Wall -Wsign-compare -Wpointer-arith \
 	-Wcast-qual -Wcast-align \
 	-D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
-	-O3
+	-O3 \
+	-Wno-unused-private-field \
+	-Wno-unused-function \
+	-Wno-unused-parameter \
+	-Wno-unused-variable
 
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
