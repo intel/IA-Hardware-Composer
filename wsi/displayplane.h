@@ -30,9 +30,6 @@ class DisplayPlane {
   }
 
   virtual uint32_t id() const = 0;
-  virtual void SetEnabled(bool enabled) = 0;
-
-  virtual bool IsEnabled() const = 0;
 
   virtual bool ValidateLayer(const OverlayLayer* layer) = 0;
 
@@ -51,6 +48,18 @@ class DisplayPlane {
    * plane for non-media content.
    */
   virtual uint32_t GetPreferredFormat() const = 0;
+
+  virtual void SetInUse(bool in_use) = 0;
+
+  virtual bool InUse() const = 0;
+
+  /**
+   * API for querying if this plane can support
+   * content other than cursor or can be used only
+   * for cursor. Should return false if this plane
+   * cannot be used for anything else than cursor.
+   */
+  virtual bool IsUniversal() = 0;
 
   virtual void Dump() const = 0;
 };

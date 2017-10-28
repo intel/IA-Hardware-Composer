@@ -126,12 +126,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
     if (cursor_layer_removed && plane.IsCursorPlane()) {
       ignore_commit = false;
+      plane.plane()->SetInUse(false);
       continue;
     }
 
     bool region_changed = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
+    last_plane.plane()->SetInUse(true);
     bool has_cursor_layer = plane.HasCursorLayer();
     if (has_cursor_layer) {
       last_plane.AddLayersForCursor(

@@ -53,7 +53,7 @@ DrmPlane::DrmPlane(uint32_t plane_id, uint32_t possible_crtcs)
       possible_crtc_mask_(possible_crtcs),
       type_(0),
       last_valid_format_(0),
-      enabled_(false) {
+      in_use_(false) {
 }
 
 DrmPlane::~DrmPlane() {
@@ -275,7 +275,7 @@ void DrmPlane::SetNativeFence(int32_t fd) {
 }
 
 bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
-  enabled_ = false;
+  in_use_ = false;
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, 0) < 0;
   success |= drmModeAtomicAddProperty(property_set, id_, fb_prop_.id, 0) < 0;
@@ -308,10 +308,6 @@ uint32_t DrmPlane::id() const {
 
 bool DrmPlane::GetCrtcSupported(uint32_t pipe_id) const {
   return !!((1 << pipe_id) & possible_crtc_mask_);
-}
-
-void DrmPlane::SetEnabled(bool enabled) {
-  enabled_ = enabled;
 }
 
 uint32_t DrmPlane::type() const {
@@ -392,6 +388,10 @@ uint32_t DrmPlane::GetPreferredVideoFormat() const {
 
 uint32_t DrmPlane::GetPreferredFormat() const {
   return prefered_format_;
+}
+
+void DrmPlane::SetInUse(bool in_use) {
+  in_use_ = in_use;
 }
 
 void DrmPlane::Dump() const {

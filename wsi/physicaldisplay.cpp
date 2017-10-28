@@ -411,8 +411,6 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
 bool PhysicalDisplay::PopulatePlanes(
-    std::unique_ptr<DisplayPlane> & /*primary_plane*/,
-    std::unique_ptr<DisplayPlane> & /*cursor_plane*/,
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");
   return false;
