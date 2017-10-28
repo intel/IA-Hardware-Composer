@@ -134,13 +134,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     DisplayPlaneState& last_plane = composition->back();
     bool has_cursor_layer = plane.HasCursorLayer();
     if (has_cursor_layer) {
-      last_plane.AddLayersForCursor(
-          plane.source_layers(), layers, plane.GetDisplayFrame(),
-          plane.GetCompositionState(), cursor_layer_removed);
+      last_plane.AddLayersForCursor(plane.source_layers(), layers,
+                                    plane.GetCompositionState(),
+                                    cursor_layer_removed);
 
       region_changed = cursor_layer_removed;
     } else {
-      last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
+      last_plane.AddLayers(plane.source_layers(), layers,
                            plane.GetCompositionState());
     }
 
@@ -160,9 +160,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
         if (layer.HasDimensionsChanged()) {
-          last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
           region_changed = true;
-          clear_surface = true;
         } else if (layer.NeedsToClearSurface()) {
           clear_surface = true;
         }
@@ -190,6 +188,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
+      }
+
+      if (!region_changed) {
+        const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
+        const HwcRect<int>& old_rect = plane.GetDisplayFrame();
+        if (current_rect.left != old_rect.left ||
+            current_rect.right != old_rect.right ||
+            current_rect.top != old_rect.top ||
+            current_rect.bottom != old_rect.bottom) {
+          region_changed = true;
+        }
+      }
+
+      if (region_changed) {
+        clear_surface = true;
       }
 
       if (clear_surface || region_changed) {

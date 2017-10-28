@@ -83,12 +83,22 @@ class DisplayPlaneState {
   }
 
   void AddLayers(const std::vector<size_t> &source_layers,
-                 const HwcRect<int> &display_frame, State state) {
-    for (const int &index : source_layers) {
+                 const std::vector<OverlayLayer> &layers, State state) {
+    size_t temp_index = source_layers.at(0);
+    display_frame_ = layers.at(temp_index).GetDisplayFrame();
+    source_layers_.emplace_back(temp_index);
+    size_t size = source_layers.size();
+    for (size_t index = 1; index < size; index++) {
+      const OverlayLayer &layer = layers.at(index);
+      const HwcRect<int> &df = layer.GetDisplayFrame();
+      display_frame_.left = std::min(display_frame_.left, df.left);
+      display_frame_.top = std::min(display_frame_.top, df.top);
+      display_frame_.right = std::max(display_frame_.right, df.right);
+      display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
+
       source_layers_.emplace_back(index);
     }
 
-    display_frame_ = display_frame;
     state_ = state;
     type_ = PlaneType::kNormal;
     has_cursor_layer_ = false;
@@ -99,41 +109,34 @@ class DisplayPlaneState {
   // removed in this frame. AddLayers should be used in all
   // other cases.
   void AddLayersForCursor(const std::vector<size_t> &source_layers,
-                          const std::vector<OverlayLayer> &layers,
-                          const HwcRect<int> &display_frame, State state,
+                          const std::vector<OverlayLayer> &layers, State state,
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
       size_t lsize = layers.size();
       has_cursor_layer_ = false;
-      display_frame_ = HwcRect<int>(0, 0, 0, 0);
-      bool initialized = false;
-      for (const size_t &index : source_layers) {
+      size_t temp_index = source_layers.at(0);
+      display_frame_ = layers.at(temp_index).GetDisplayFrame();
+      source_layers_.emplace_back(temp_index);
+      size_t size = source_layers.size();
+      for (size_t index = 1; index < size; index++) {
         if (index >= lsize) {
           continue;
         }
 
         const OverlayLayer &layer = layers.at(index);
         const HwcRect<int> &df = layer.GetDisplayFrame();
-        if (!initialized) {
-          display_frame_ = df;
-          initialized = true;
-        } else {
-          display_frame_.left = std::min(display_frame_.left, df.left);
-          display_frame_.top = std::min(display_frame_.top, df.top);
-          display_frame_.right = std::max(display_frame_.right, df.right);
-          display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
-        }
+        display_frame_.left = std::min(display_frame_.left, df.left);
+        display_frame_.top = std::min(display_frame_.top, df.top);
+        display_frame_.right = std::max(display_frame_.right, df.right);
+        display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
 
         source_layers_.emplace_back(index);
       }
 
       type_ = PlaneType::kNormal;
+      state_ = state;
     } else {
-      display_frame_ = display_frame;
-      for (const int &index : source_layers) {
-        source_layers_.emplace_back(index);
-      }
-
+      AddLayers(source_layers, layers, state);
       has_cursor_layer_ = true;
       if (source_layers_.size() == 1) {
         type_ = PlaneType::kCursor;
@@ -141,16 +144,6 @@ class DisplayPlaneState {
         type_ = PlaneType::kNormal;
       }
     }
-
-    state_ = state;
-  }
-
-  void UpdateDisplayFrame(const HwcRect<int> &display_frame) {
-    display_frame_.left = std::min(display_frame_.left, display_frame.left);
-    display_frame_.top = std::min(display_frame_.top, display_frame.top);
-    display_frame_.right = std::max(display_frame_.right, display_frame.right);
-    display_frame_.bottom =
-        std::max(display_frame_.bottom, display_frame.bottom);
   }
 
   void ForceGPURendering() {
