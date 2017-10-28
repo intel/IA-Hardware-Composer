@@ -195,36 +195,20 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   success |= drmModeAtomicAddProperty(property_set, id_, crtc_y_prop_.id,
                                       display_frame.top) < 0;
 
-  if (type_ == DRM_PLANE_TYPE_CURSOR) {
-    success |= drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id,
-                                        buffer->GetWidth()) < 0;
-    success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
-                                        buffer->GetHeight()) < 0;
-    success |=
-        drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id, 0) < 0;
-    success |=
-        drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id, 0) < 0;
-
-    success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
-                                        buffer->GetWidth() << 16) < 0;
-    success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,
-                                        buffer->GetHeight() << 16) < 0;
-  } else {
-    success |= drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id,
-                                        layer->GetDisplayFrameWidth()) < 0;
-    success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
-                                        layer->GetDisplayFrameHeight()) < 0;
-    success |= drmModeAtomicAddProperty(
-                   property_set, id_, src_x_prop_.id,
-                   static_cast<int>(ceilf(source_crop.left)) << 16) < 0;
-    success |= drmModeAtomicAddProperty(
-                   property_set, id_, src_y_prop_.id,
-                   static_cast<int>(ceilf((source_crop.top))) << 16) < 0;
-    success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
-                                        layer->GetSourceCropWidth() << 16) < 0;
-    success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,
-                                        layer->GetSourceCropHeight() << 16) < 0;
-  }
+  success |= drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id,
+                                      layer->GetDisplayFrameWidth()) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
+                                      layer->GetDisplayFrameHeight()) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_x_prop_.id,
+                                      static_cast<int>(ceilf(source_crop.left))
+                                          << 16) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_y_prop_.id,
+                                      static_cast<int>(ceilf((source_crop.top)))
+                                          << 16) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_w_prop_.id,
+                                      layer->GetSourceCropWidth() << 16) < 0;
+  success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,
+                                      layer->GetSourceCropHeight() << 16) < 0;
 
   if (rotation_prop_.id) {
     uint32_t rotation = 0;

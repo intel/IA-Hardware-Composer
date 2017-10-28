@@ -279,6 +279,16 @@ void OverlayLayer::ValidateForOverlayUsage() {
   const std::unique_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
   if (buffer->GetUsage() & kLayerCursor) {
     type_ = kLayerCursor;
+    display_frame_width_ = buffer->GetWidth();
+    display_frame_height_ = buffer->GetHeight();
+    display_frame_.right = display_frame_.left + display_frame_width_;
+    display_frame_.bottom = display_frame_.top + display_frame_height_;
+    source_crop_width_ = display_frame_width_;
+    source_crop_height_ = display_frame_height_;
+    source_crop_.left = 0.0;
+    source_crop_.top = 0.0;
+    source_crop_.right = static_cast<float>(display_frame_width_);
+    source_crop_.bottom = static_cast<float>(display_frame_height_);
   } else if (buffer->IsVideoBuffer()) {
     type_ = kLayerVideo;
   }
