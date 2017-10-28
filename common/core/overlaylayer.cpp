@@ -168,15 +168,15 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     if ((surface_damage_.left >= (width)) || (t_width <= display_frame_.left) ||
         (surface_damage_.top >= top) || (t_top <= display_frame_.top)) {
       surface_damage_ = HwcRect<int>(0, 0, 0, 0);
-      return;
+    } else {
+      surface_damage_.left =
+          std::max(surface_damage_.left, display_frame_.left);
+      surface_damage_.right =
+          std::min(surface_damage_.right, display_frame_.right);
+      surface_damage_.top = std::min(surface_damage_.top, display_frame_.top);
+      surface_damage_.bottom =
+          std::min(surface_damage_.bottom, display_frame_.bottom);
     }
-
-    surface_damage_.left = std::max(surface_damage_.left, display_frame_.left);
-    surface_damage_.right =
-        std::min(surface_damage_.right, display_frame_.right);
-    surface_damage_.top = std::min(surface_damage_.top, display_frame_.top);
-    surface_damage_.bottom =
-        std::min(surface_damage_.bottom, display_frame_.bottom);
 
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
@@ -219,6 +219,17 @@ void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
                   handle_constraints);
+
+  // Let's make sure display frame is constrained to Display Resolution.
+  int32_t height_c = layer->GetHeightConstraint();
+  int32_t width_c = layer->GetWidthConstraint();
+  if (height_c >= 0) {
+    display_frame_.bottom = std::min(display_frame_.bottom, height_c);
+  }
+
+  if (width_c >= 0) {
+    display_frame_.right = std::min(display_frame_.right, width_c);
+  }
 }
 
 #ifdef ENABLE_IMPLICIT_CLONE_MODE

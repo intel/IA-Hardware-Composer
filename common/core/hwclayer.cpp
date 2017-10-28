@@ -332,4 +332,12 @@ int32_t HwcLayer::GetRightSourceConstraint() {
   return value;
 }
 
+void HwcLayer::SetHeightConstraint(uint32_t height) {
+  max_height_ = height;
+}
+
+void HwcLayer::SetWidthConstraint(uint32_t width) {
+  max_width_ = width;
+}
+
 }  // namespace hwcomposer
