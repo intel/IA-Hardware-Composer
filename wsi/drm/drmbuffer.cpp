@@ -54,6 +54,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 
   prime_fd_ = bo.prime_fd;
   usage_ = bo.usage;
+
   if (usage_ & hwcomposer::kLayerCursor) {
     // We support DRM_FORMAT_ARGB8888 for cursor.
     frame_buffer_format_ = DRM_FORMAT_ARGB8888;
@@ -230,13 +231,13 @@ void DrmBuffer::ReleaseFrameBuffer() {
 
 void DrmBuffer::Dump() {
   DUMPTRACE("DrmBuffer Information Starts. -------------");
-  if (usage_ & kLayerNormal)
+  if (usage_ == kLayerNormal)
     DUMPTRACE("BufferUsage: kLayerNormal.");
-  if (usage_ & kLayerCursor)
+  if (usage_ == kLayerCursor)
     DUMPTRACE("BufferUsage: kLayerCursor.");
-  if (usage_ & kLayerProtected)
+  if (usage_ == kLayerProtected)
     DUMPTRACE("BufferUsage: kLayerProtected.");
-  if (usage_ & kLayerVideo)
+  if (usage_ == kLayerVideo)
     DUMPTRACE("BufferUsage: kLayerVideo.");
   DUMPTRACE("Width: %d", width_);
   DUMPTRACE("Height: %d", height_);
