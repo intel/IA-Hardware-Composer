@@ -154,7 +154,6 @@ class DisplayPlaneState {
 
   void SetOverlayLayer(const OverlayLayer *layer) {
     layer_ = layer;
-    display_frame_ = layer->GetDisplayFrame();
   }
 
   void ReUseOffScreenTarget() {
