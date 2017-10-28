@@ -215,7 +215,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         size_t size = surfaces.size();
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
         for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
           surfaces.at(i)->UpdateDisplayFrame(current_rect);
         }
       } else {
