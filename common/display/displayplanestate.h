@@ -84,6 +84,8 @@ class DisplayPlaneState {
 
   void AddLayers(const std::vector<size_t> &source_layers,
                  const HwcRect<int> &display_frame, State state) {
+    size_t size = source_layers.size();
+    source_layers_.reserve(size);
     for (const int &index : source_layers) {
       source_layers_.emplace_back(index);
     }
@@ -104,6 +106,8 @@ class DisplayPlaneState {
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
       size_t lsize = layers.size();
+      size_t size = source_layers.size();
+      source_layers_.reserve(size);
       has_cursor_layer_ = false;
       display_frame_ = HwcRect<int>(0, 0, 0, 0);
       bool initialized = false;
@@ -190,6 +194,7 @@ class DisplayPlaneState {
   void TransferSurfaces(DisplayPlaneState &plane_state,
                         bool swap_front_buffer) {
     size_t size = surfaces_.size();
+    plane_state.source_layers_.reserve(size);
     if (size < 3 || !swap_front_buffer) {
       // Lets make sure front buffer is now back in the list.
       for (uint32_t i = 0; i < size; i++) {

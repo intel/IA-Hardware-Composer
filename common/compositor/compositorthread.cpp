@@ -86,6 +86,7 @@ void CompositorThread::Draw(std::vector<DrawState> &states,
 
   if (!states_.empty()) {
     std::vector<OverlayBuffer *>().swap(buffers_);
+    buffers_.reserve(layers.size());
     for (auto &layer : layers) {
       buffers_.emplace_back(layer.GetBuffer());
     }
