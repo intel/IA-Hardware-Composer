@@ -192,22 +192,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-      const HwcRect<int>& old_rect = plane.GetDisplayFrame();
-      bool update_surface_rect = false;
-      if (current_rect.left != old_rect.left ||
-          current_rect.right != old_rect.right ||
-          current_rect.top != old_rect.top ||
-          current_rect.bottom != old_rect.bottom) {
-        update_surface_rect = true;
-      } else if (!region_changed) {
+      if (!region_changed) {
         const std::vector<CompositionRegion>& comp_regions =
             plane.GetCompositionRegion();
         last_plane.GetCompositionRegion().assign(comp_regions.begin(),
                                                  comp_regions.end());
-      }
-
-      if (region_changed || update_surface_rect) {
+      } else {
         clear_surface = true;
       }
 
@@ -216,15 +206,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       plane.TransferSurfaces(last_plane, content_changed);
-
-      if (update_surface_rect) {
-        std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-        size_t size = surfaces.size();
-        const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-        for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->UpdateDisplayFrame(current_rect);
-        }
-      }
 
       if (content_changed) {
         if (last_plane.GetSurfaces().size() == 3) {

@@ -23,6 +23,7 @@
 #include "overlaylayer.h"
 #include "compositionregion.h"
 #include "displayplane.h"
+#include "nativesurface.h"
 
 namespace hwcomposer {
 
@@ -81,6 +82,11 @@ class DisplayPlaneState {
     } else {
       type_ = PlaneType::kNormal;
     }
+
+    size_t size = surfaces_.size();
+    for (size_t i = 0; i < size; i++) {
+      surfaces_.at(i)->UpdateDisplayFrame(display_frame_);
+    }
   }
 
   void AddLayers(const std::vector<size_t> &source_layers,
@@ -115,27 +121,30 @@ class DisplayPlaneState {
                           const std::vector<OverlayLayer> &layers, State state,
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
-      size_t lsize = layers.size();
+      size_t max_index = layers.size() - 1;
       size_t size = source_layers.size();
       source_layers_.reserve(size);
       has_cursor_layer_ = false;
-      size_t temp_index = source_layers.at(0);
-      display_frame_ = layers.at(temp_index).GetDisplayFrame();
-      source_layers_.emplace_back(temp_index);
-      for (size_t index = 1; index < size; index++) {
+      bool initialized = false;
+      for (size_t index = 0; index < size; index++) {
         uint32_t layer_index = source_layers.at(index);
-        if (layer_index >= lsize) {
+        if (layer_index > max_index) {
           continue;
         }
 
         const OverlayLayer &layer = layers.at(layer_index);
         const HwcRect<int> &df = layer.GetDisplayFrame();
-        display_frame_.left = std::min(display_frame_.left, df.left);
-        display_frame_.top = std::min(display_frame_.top, df.top);
-        display_frame_.right = std::max(display_frame_.right, df.right);
-        display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
+        if (!initialized) {
+          display_frame_ = df;
+          initialized = true;
+        } else {
+          display_frame_.left = std::min(display_frame_.left, df.left);
+          display_frame_.top = std::min(display_frame_.top, df.top);
+          display_frame_.right = std::max(display_frame_.right, df.right);
+          display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
+        }
 
-        source_layers_.emplace_back(index);
+        source_layers_.emplace_back(layer_index);
       }
 
       type_ = PlaneType::kNormal;
@@ -174,6 +183,7 @@ class DisplayPlaneState {
 
   void SetOffScreenTarget(NativeSurface *target) {
     surfaces_.emplace(surfaces_.begin(), target);
+    target->UpdateDisplayFrame(display_frame_);
   }
 
   NativeSurface *GetOffScreenTarget() const {
@@ -197,6 +207,10 @@ class DisplayPlaneState {
       plane_state.surfaces_.emplace_back(surfaces_.at(1));
       plane_state.surfaces_.emplace_back(surfaces_.at(2));
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
+    }
+
+    for (size_t i = 0; i < size; i++) {
+      surfaces_.at(i)->UpdateDisplayFrame(display_frame_);
     }
   }
 

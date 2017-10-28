@@ -19,13 +19,14 @@
 
 #include <memory>
 
-#include "displayplanestate.h"
 #include "overlaybuffer.h"
+#include "overlaylayer.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class DisplayPlaneState;
 
 class NativeSurface {
  public:

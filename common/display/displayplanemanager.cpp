@@ -261,13 +261,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         std::vector<CompositionRegion> &comp_regions =
             last_plane->GetCompositionRegion();
         std::vector<CompositionRegion>().swap(comp_regions);
-        std::vector<NativeSurface *> &surfaces = last_plane->GetSurfaces();
-        size_t size = surfaces.size();
-        const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
-        for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-          surfaces.at(i)->UpdateDisplayFrame(current_rect);
-        }
         gpu_rendered = false;
       }
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
@@ -297,13 +290,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     std::vector<CompositionRegion> &comp_regions =
         last_plane->GetCompositionRegion();
     std::vector<CompositionRegion>().swap(comp_regions);
-    std::vector<NativeSurface *> &surfaces = last_plane->GetSurfaces();
-    size_t size = surfaces.size();
-    const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
-    for (size_t i = 0; i < size; i++) {
-      surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-      surfaces.at(i)->UpdateDisplayFrame(current_rect);
-    }
   }
 
   return status;
