@@ -40,9 +40,11 @@ DisplayPlaneManager::~DisplayPlaneManager() {
 bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
   width_ = width;
   height_ = height;
-  bool status = plane_handler_->PopulatePlanes(primary_plane_, overlay_planes_);
-  if (!overlay_planes_.empty())
+  bool status = plane_handler_->PopulatePlanes(overlay_planes_);
+  if (!overlay_planes_.empty()) {
     cursor_plane_ = overlay_planes_.back().get();
+    primary_plane_ = overlay_planes_.at(0).get();
+  }
 
   return status;
 }
@@ -62,7 +64,7 @@ bool DisplayPlaneManager::ValidateLayers(
   auto layer_end = layers.end();
   bool render_layers = false;
   // We start off with Primary plane.
-  DisplayPlane *current_plane = primary_plane_.get();
+  DisplayPlane *current_plane = primary_plane_;
   OverlayLayer *primary_layer = &(*(layers.begin()));
   commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
   composition.emplace_back(current_plane, primary_layer,
@@ -105,12 +107,14 @@ bool DisplayPlaneManager::ValidateLayers(
   if (layer_begin != layer_end) {
     // Handle layers for overlay
     uint32_t index = 0;
-    for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
+    for (auto j = overlay_planes_.begin() + 1; j != overlay_planes_.end();
+         ++j) {
       DisplayPlaneState &last_plane = composition.back();
 #ifdef DISABLE_CURSOR_PLANE
       if (cursor_plane_ == last_plane.plane())
         continue;
 #endif
+
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
@@ -423,7 +427,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
   // If this combination fails just fall back to 3D for all layers.
   if (!plane_handler_->TestCommit(commit_planes)) {
     // We start off with Primary plane.
-    DisplayPlane *current_plane = primary_plane_.get();
+    DisplayPlane *current_plane = primary_plane_;
     for (DisplayPlaneState &plane : composition) {
       if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
         plane.GetOffScreenTarget()->SetInUse(false);

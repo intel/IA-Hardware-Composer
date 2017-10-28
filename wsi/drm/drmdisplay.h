@@ -74,7 +74,6 @@ class DrmDisplay : public PhysicalDisplay {
       const std::vector<OverlayPlane> &commit_planes) const override;
 
   bool PopulatePlanes(
-      std::unique_ptr<DisplayPlane> &primary_plane,
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
 
   void NotifyClientsOfDisplayChangeStatus() override;

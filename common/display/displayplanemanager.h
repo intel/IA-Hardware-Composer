@@ -89,8 +89,8 @@ class DisplayPlaneManager {
   NativeBufferHandler *buffer_handler_;
   DisplayPlaneHandler *plane_handler_;
   DisplayPlane *cursor_plane_;
+  DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
-  std::unique_ptr<DisplayPlane> primary_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
 

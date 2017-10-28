@@ -654,7 +654,6 @@ void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
 }
 
 bool DrmDisplay::PopulatePlanes(
-    std::unique_ptr<DisplayPlane> &primary_plane,
     std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) {
   ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));
   if (!plane_resources) {
@@ -688,17 +687,17 @@ bool DrmDisplay::PopulatePlanes(
     if (plane->Initialize(gpu_fd_, supported_formats)) {
       if (plane->type() == DRM_PLANE_TYPE_CURSOR) {
         cursor_plane.reset(plane.release());
-      } else if (plane->type() == DRM_PLANE_TYPE_PRIMARY) {
-        plane->SetEnabled(true);
-        primary_plane.reset(plane.release());
-      } else if (plane->type() == DRM_PLANE_TYPE_OVERLAY) {
+      } else {
+        if (plane->type() == DRM_PLANE_TYPE_PRIMARY)
+          plane->SetEnabled(true);
+
         overlay_planes.emplace_back(plane.release());
       }
     }
   }
 
-  if (!primary_plane) {
-    ETRACE("Failed to get primary plane for display %d", crtc_id_);
+  if (overlay_planes.empty()) {
+    ETRACE("Failed to get planes for display %d", crtc_id_);
     return false;
   }
 
