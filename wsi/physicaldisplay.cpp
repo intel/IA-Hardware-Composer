@@ -255,6 +255,12 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   CTRACE();
   SPIN_LOCK(modeset_lock_);
 
+  bool handle_hotplug_notifications = false;
+  if (display_state_ & kHandlePendingHotPlugNotifications) {
+    display_state_ &= ~kHandlePendingHotPlugNotifications;
+    handle_hotplug_notifications = true;
+  }
+
   if (!(display_state_ & kUpdateDisplay)) {
     bool success = true;
     if (power_mode_ != kDozeSuspend) {
@@ -262,6 +268,11 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
 
     SPIN_UNLOCK(modeset_lock_);
+
+    if (handle_hotplug_notifications) {
+      NotifyClientsOfDisplayChangeStatus();
+    }
+
     return success;
   }
 
@@ -276,14 +287,9 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 #endif
 
-  bool handle_hoplug_notifications = false;
-  if (display_state_ & kHandlePendingHotPlugNotifications) {
-    display_state_ &= ~kHandlePendingHotPlugNotifications;
-    handle_hoplug_notifications = true;
-  }
   SPIN_UNLOCK(modeset_lock_);
 
-  if (handle_hoplug_notifications) {
+  if (handle_hotplug_notifications) {
     NotifyClientsOfDisplayChangeStatus();
     IHOTPLUGEVENTTRACE("Handle_hoplug_notifications done. %p \n", this);
   }
