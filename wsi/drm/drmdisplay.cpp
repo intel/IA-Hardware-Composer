@@ -655,7 +655,6 @@ void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
 
 bool DrmDisplay::PopulatePlanes(
     std::unique_ptr<DisplayPlane> &primary_plane,
-    std::unique_ptr<DisplayPlane> &cursor_plane,
     std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) {
   ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));
   if (!plane_resources) {
@@ -666,6 +665,7 @@ bool DrmDisplay::PopulatePlanes(
   uint32_t num_planes = plane_resources->count_planes;
   uint32_t pipe_bit = 1 << pipe_;
   std::set<uint32_t> plane_ids;
+  std::unique_ptr<DisplayPlane> cursor_plane;
   for (uint32_t i = 0; i < num_planes; ++i) {
     ScopedDrmPlanePtr drm_plane(
         drmModeGetPlane(gpu_fd_, plane_resources->planes[i]));
@@ -707,6 +707,10 @@ bool DrmDisplay::PopulatePlanes(
       overlay_planes.begin(), overlay_planes.end(),
       [](const std::unique_ptr<DisplayPlane> &l,
          const std::unique_ptr<DisplayPlane> &r) { return l->id() < r->id(); });
+
+  if (cursor_plane) {
+    overlay_planes.emplace_back(cursor_plane.release());
+  }
 
   return true;
 }

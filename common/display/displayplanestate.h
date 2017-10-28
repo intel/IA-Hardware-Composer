@@ -22,6 +22,7 @@
 
 #include "overlaylayer.h"
 #include "compositionregion.h"
+#include "displayplane.h"
 
 namespace hwcomposer {
 
@@ -90,14 +91,15 @@ class DisplayPlaneState {
     display_frame_ = layers.at(temp_index).GetDisplayFrame();
     source_layers_.emplace_back(temp_index);
     for (size_t index = 1; index < size; index++) {
-      const OverlayLayer &layer = layers.at(index);
+      uint32_t layer_index = source_layers.at(index);
+      const OverlayLayer &layer = layers.at(layer_index);
       const HwcRect<int> &df = layer.GetDisplayFrame();
       display_frame_.left = std::min(display_frame_.left, df.left);
       display_frame_.top = std::min(display_frame_.top, df.top);
       display_frame_.right = std::max(display_frame_.right, df.right);
       display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
 
-      source_layers_.emplace_back(index);
+      source_layers_.emplace_back(layer_index);
     }
 
     state_ = state;
@@ -121,11 +123,12 @@ class DisplayPlaneState {
       display_frame_ = layers.at(temp_index).GetDisplayFrame();
       source_layers_.emplace_back(temp_index);
       for (size_t index = 1; index < size; index++) {
-        if (index >= lsize) {
+        uint32_t layer_index = source_layers.at(index);
+        if (layer_index >= lsize) {
           continue;
         }
 
-        const OverlayLayer &layer = layers.at(index);
+        const OverlayLayer &layer = layers.at(layer_index);
         const HwcRect<int> &df = layer.GetDisplayFrame();
         display_frame_.left = std::min(display_frame_.left, df.left);
         display_frame_.top = std::min(display_frame_.top, df.top);

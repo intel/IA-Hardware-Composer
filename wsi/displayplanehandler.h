@@ -38,7 +38,6 @@ class DisplayPlaneHandler {
 
   virtual bool PopulatePlanes(
       std::unique_ptr<DisplayPlane>& primary_plane,
-      std::unique_ptr<DisplayPlane>& cursor_plane,
       std::vector<std::unique_ptr<DisplayPlane>>& overlay_planes) = 0;
 
   virtual bool TestCommit(

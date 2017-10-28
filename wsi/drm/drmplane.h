@@ -70,6 +70,11 @@ class DrmPlane : public DisplayPlane {
 
   void Dump() const override;
 
+  void SetInUse(bool in_use) override;
+  bool IsAvailable() override {
+    return !in_use_;
+  }
+
  private:
   struct Property {
     Property();
@@ -101,6 +106,7 @@ class DrmPlane : public DisplayPlane {
   uint32_t last_valid_format_;
 
   bool enabled_;
+  bool in_use_;
 
   std::vector<uint32_t> supported_formats_;
   int32_t kms_fence_ = 0;

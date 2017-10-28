@@ -53,7 +53,8 @@ DrmPlane::DrmPlane(uint32_t plane_id, uint32_t possible_crtcs)
       possible_crtc_mask_(possible_crtcs),
       type_(0),
       last_valid_format_(0),
-      enabled_(false) {
+      enabled_(false),
+      in_use_(false) {
 }
 
 DrmPlane::~DrmPlane() {
@@ -376,6 +377,10 @@ uint32_t DrmPlane::GetPreferredVideoFormat() const {
 
 uint32_t DrmPlane::GetPreferredFormat() const {
   return prefered_format_;
+}
+
+void DrmPlane::SetInUse(bool in_use) {
+  in_use_ = in_use;
 }
 
 void DrmPlane::Dump() const {

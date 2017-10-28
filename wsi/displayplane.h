@@ -52,6 +52,10 @@ class DisplayPlane {
    */
   virtual uint32_t GetPreferredFormat() const = 0;
 
+  virtual void SetInUse(bool in_use) = 0;
+
+  virtual bool IsAvailable() = 0;
+
   virtual void Dump() const = 0;
 };
 

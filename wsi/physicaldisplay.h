@@ -94,7 +94,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   bool PopulatePlanes(
       std::unique_ptr<DisplayPlane> &primary_plane,
-      std::unique_ptr<DisplayPlane> &cursor_plane,
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
 
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
