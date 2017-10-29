@@ -204,6 +204,7 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
       continue;
 
     last_plane = &plane;
+    break;
   }
 
   return last_plane;
