@@ -115,32 +115,26 @@ void NativeSurface::UpdateSurfaceDamage(
 }
 
 void NativeSurface::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
-    const HwcRect<int>& current_rect = layer_.GetDisplayFrame();
-    if (current_rect.left == display_frame.left &&
-	current_rect.right == display_frame.right &&
-	current_rect.top == display_frame.top &&
-	current_rect.bottom == display_frame.bottom) {
-      return;
-    }
+  const HwcRect<int> &current_rect = layer_.GetDisplayFrame();
+  if (current_rect.left == display_frame.left &&
+      current_rect.right == display_frame.right &&
+      current_rect.top == display_frame.top &&
+      current_rect.bottom == display_frame.bottom) {
+    return;
+  }
 
-    surface_damage_.left =
-	std::min(surface_damage_.left, current_rect.left);
-    surface_damage_.top =
-	std::min(surface_damage_.top, current_rect.top);
-    surface_damage_.right =
-	std::max(surface_damage_.right, current_rect.right);
-    surface_damage_.bottom =
-	std::max(surface_damage_.bottom, current_rect.bottom);
+  surface_damage_.left = std::min(surface_damage_.left, current_rect.left);
+  surface_damage_.top = std::min(surface_damage_.top, current_rect.top);
+  surface_damage_.right = std::max(surface_damage_.right, current_rect.right);
+  surface_damage_.bottom =
+      std::max(surface_damage_.bottom, current_rect.bottom);
 
-    surface_damage_.left =
-	std::min(surface_damage_.left, display_frame.left);
-    surface_damage_.top =
-	std::min(surface_damage_.top, display_frame.top);
-    surface_damage_.right =
-	std::max(surface_damage_.right, display_frame.right);
-    surface_damage_.bottom =
-	std::max(surface_damage_.bottom, display_frame.bottom);
-    last_surface_damage_ = surface_damage_;
+  surface_damage_.left = std::min(surface_damage_.left, display_frame.left);
+  surface_damage_.top = std::min(surface_damage_.top, display_frame.top);
+  surface_damage_.right = std::max(surface_damage_.right, display_frame.right);
+  surface_damage_.bottom =
+      std::max(surface_damage_.bottom, display_frame.bottom);
+  last_surface_damage_ = surface_damage_;
 
   layer_.SetDisplayFrame(display_frame);
   layer_.SetSourceCrop(HwcRect<float>(display_frame));
