@@ -189,6 +189,12 @@ class DisplayPlaneState {
       surface->Prepare();
     }
 
+    // If we have surfaces less than 3, than we can skip
+    // swapping surfaces in SwapSurfaceIfNeeded.
+    if (surfaces_.size() < 3) {
+      surface_swapped_ = true;
+    }
+
     target->UpdateDisplayFrame(display_frame_);
   }
 
@@ -203,7 +209,14 @@ class DisplayPlaneState {
   void TransferSurfaces(DisplayPlaneState &plane_state,
                         bool swap_front_buffer) {
     size_t size = surfaces_.size();
-    plane_state.source_layers_.reserve(surfaces_.size());
+    surface_swapped_ = false;
+    // If we have surfaces less than 3, than we can skip
+    // swapping surfaces in SwapSurfaceIfNeeded.
+    if ((size < 3) || swap_front_buffer) {
+      surface_swapped_ = true;
+    }
+
+    plane_state.surfaces_.reserve(surfaces_.size());
     if (size < 3 || !swap_front_buffer) {
       // Lets make sure front buffer is now back in the list.
       for (uint32_t i = 0; i < size; i++) {
@@ -222,6 +235,24 @@ class DisplayPlaneState {
       surface->Prepare();
       surface->UpdateDisplayFrame(display_frame_);
     }
+  }
+
+  // This will be called by DisplayPlaneManager when adding
+  // cursor layer to any existing overlay.
+  void SwapSurfaceIfNeeded() {
+    if (surface_swapped_) {
+      return;
+    }
+
+    std::vector<NativeSurface *> temp;
+    temp.reserve(surfaces_.size());
+    temp.emplace_back(surfaces_.at(1));
+    temp.emplace_back(surfaces_.at(2));
+    temp.emplace_back(surfaces_.at(0));
+    temp.swap(surfaces_);
+    NativeSurface *surface = surfaces_.at(0);
+    layer_ = surface->GetLayer();
+    surface->Prepare();
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {
@@ -289,6 +320,7 @@ class DisplayPlaneState {
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
   bool has_cursor_layer_ = false;
+  bool surface_swapped_ = false;
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };

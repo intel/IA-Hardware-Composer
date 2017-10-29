@@ -262,6 +262,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         std::vector<CompositionRegion> &comp_regions =
             last_plane->GetCompositionRegion();
         std::vector<CompositionRegion>().swap(comp_regions);
+        last_plane->SwapSurfaceIfNeeded();
         gpu_rendered = false;
       }
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
@@ -288,6 +289,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       SetOffScreenPlaneTarget(*last_plane);
     }
 
+    last_plane->SwapSurfaceIfNeeded();
     std::vector<CompositionRegion> &comp_regions =
         last_plane->GetCompositionRegion();
     std::vector<CompositionRegion>().swap(comp_regions);
