@@ -210,10 +210,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (content_changed) {
         if (last_plane.GetSurfaces().size() == 3) {
           NativeSurface* surface = last_plane.GetOffScreenTarget();
-          surface->RecycleSurface(last_plane);
           HwcRect<int> last_damage;
           std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-
           if (!clear_surface) {
             last_plane.DisableClearSurface();
             // Calculate Surface damage for the current surface. This should
@@ -241,8 +239,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
-        NativeSurface* surface = plane.GetOffScreenTarget();
-        surface->RecycleSurface(last_plane);
         last_plane.ReUseOffScreenTarget();
       }
     } else {

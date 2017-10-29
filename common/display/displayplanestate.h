@@ -183,6 +183,12 @@ class DisplayPlaneState {
 
   void SetOffScreenTarget(NativeSurface *target) {
     surfaces_.emplace(surfaces_.begin(), target);
+    if (!layer_) {
+      NativeSurface *surface = surfaces_.at(0);
+      layer_ = surface->GetLayer();
+      surface->Prepare();
+    }
+
     target->UpdateDisplayFrame(display_frame_);
   }
 
@@ -209,8 +215,12 @@ class DisplayPlaneState {
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
     }
 
+    plane_state.layer_ = plane_state.surfaces_.at(0)->GetLayer();
+
     for (size_t i = 0; i < size; i++) {
-      surfaces_.at(i)->UpdateDisplayFrame(display_frame_);
+      NativeSurface *surface = plane_state.surfaces_.at(i);
+      surface->Prepare();
+      surface->UpdateDisplayFrame(display_frame_);
     }
   }
 

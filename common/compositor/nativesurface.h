@@ -67,7 +67,7 @@ class NativeSurface {
 
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
-  void RecycleSurface(DisplayPlaneState& plane);
+  void Prepare();
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
                            const HwcRect<int>& last_surface_damage);
   void UpdateDisplayFrame(const HwcRect<int>& display_frame);

@@ -94,8 +94,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
 }
 
-void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
-  plane.SetOverlayLayer(&layer_);
+void NativeSurface::Prepare() {
   SetInUse(true);
   layer_.SetAcquireFence(-1);
 }
