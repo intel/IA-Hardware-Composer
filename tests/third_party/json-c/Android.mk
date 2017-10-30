@@ -54,4 +54,3 @@ LOCAL_ARM_MODE:=arm
 
 include $(BUILD_SHARED_LIBRARY)
 
-include $(LOCAL_PATH)/../../Android.mk
