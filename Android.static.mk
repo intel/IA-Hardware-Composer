@@ -17,118 +17,13 @@ ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)), true)
 # Obtain root HWC source path
 HWC_PATH := $(call my-dir)
 
-HWC_VERSION_GIT_BRANCH := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
-HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+include $(HWC_PATH)/Android.common.mk
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
         libhwcomposer_common \
         libhwcomposer_wsi
-
-LOCAL_SHARED_LIBRARIES := \
-	libcutils \
-	libdrm \
-	libEGL \
-	libGLESv2 \
-	libhardware \
-	liblog \
-	libui \
-	libutils \
-        libhwcservice \
-	libbinder
-
-LOCAL_C_INCLUDES := \
-	system/core/include/utils \
-	$(LOCAL_PATH)/public \
-	$(LOCAL_PATH)/common/core \
-	$(LOCAL_PATH)/common/compositor \
-	$(LOCAL_PATH)/common/compositor/gl \
-	$(LOCAL_PATH)/common/display \
-	$(LOCAL_PATH)/common/utils \
-	$(LOCAL_PATH)/os \
-	$(LOCAL_PATH)/os/android \
-	$(LOCAL_PATH)/wsi \
-	$(LOCAL_PATH)/wsi/drm
-
-LOCAL_SRC_FILES := \
-	os/android/platformdefines.cpp
-
-ifeq ($(strip $(TARGET_USES_HWC2)), true)
-LOCAL_SRC_FILES += os/android/iahwc2.cpp \
-                   os/android/hwcservice.cpp
-else
-LOCAL_SRC_FILES += os/android/iahwc1.cpp
-LOCAL_C_INCLUDES += \
-        system/core/libsync \
-        system/core/libsync/include
-
-LOCAL_SHARED_LIBRARIES += \
-        libsync
-
-LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
-endif
-
-ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
-LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
-else
-LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
-endif
-
-LOCAL_CPPFLAGS += \
-	-DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\"" \
-	-DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\"" \
-	-DHWC2_INCLUDE_STRINGIFICATION \
-	-DHWC2_USE_CPP11 \
-	-Wno-date-time \
-	-DUSE_ANDROID_SHIM \
-	-D_FORTIFY_SOURCE=2 \
-	-fstack-protector-strong \
-	-Wformat -Wformat-security \
-	-std=c++14 -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
-	-Wall -Wsign-compare -Wpointer-arith \
-	-Wcast-qual -Wcast-align \
-	-D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
-	-O3
-
-ifeq ($(strip $(BOARD_DISABLE_NATIVE_COLOR_MODES)), true)
-LOCAL_CPPFLAGS += -DDISABLE_NATIVE_COLOR_MODES
-endif
-
-ifeq ($(strip $(BOARD_USES_VULKAN)), true)
-LOCAL_SHARED_LIBRARIES += \
-        libvulkan
-
-LOCAL_CPPFLAGS += \
-        -DUSE_VK \
-        -DDISABLE_EXPLICIT_SYNC
-
-LOCAL_C_INCLUDES += \
-        $(LOCAL_PATH)/common/compositor/vk \
-        $(LOCAL_PATH)/../mesa/include
-else
-LOCAL_CPPFLAGS += \
-        -DUSE_GL
-endif
-
-ifeq ($(strip $(BOARD_USES_LIBVA)), true)
-LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/common/compositor/va
-
-LOCAL_SHARED_LIBRARIES += \
-	libva \
-	libva-android
-endif
-
-ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
-LOCAL_CPPFLAGS += -DUSE_MINIGBM
-LOCAL_C_INCLUDES += \
-	$(INTEL_MINIGBM)/cros_gralloc/
-else
-LOCAL_C_INCLUDES += \
-	$(INTEL_DRM_GRALLOC)
-endif
 
 LOCAL_MODULE := libhwcomposer.$(TARGET_BOARD_PLATFORM)
 include $(BUILD_STATIC_LIBRARY)
