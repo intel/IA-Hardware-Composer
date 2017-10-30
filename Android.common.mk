@@ -12,77 +12,130 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)), true)
 # Obtain root HWC source path
 HWC_PATH := $(call my-dir)
-
-# Add validation directory to the include path
-LOCAL_C_INCLUDES += $(HWC_PATH)/val
-
-# define IA_HWC_ANDROID_VERSION (e.g., 4.3.2 would be 432)
-ifeq ($(PLATFORM_VERSION),O)
-IA_HWC_ANDROID_VERSION := 800
-else
-major := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
-minor := $(word 2, $(subst ., , $(PLATFORM_VERSION).0))
-rev   := $(word 3, $(subst ., , $(PLATFORM_VERSION).0.0))
-# cope with 5.1.51
-rev   := $(subst 51,5,$(rev))
-IA_HWC_ANDROID_VERSION := $(major)$(minor)$(rev)
-endif
 
 HWC_VERSION_GIT_BRANCH := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
 HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
 
-# Build in advanced debugging features if not a pure user build or not simulating one
-ifeq ($(strip $(IA_HWC_SIMULATE_USER_BUILD)),true)
-    IA_HWC_INTERNAL_BUILD = false
-    IA_HWC_LOGVIEWER_BUILD = false
-    IA_HWC_DEV_ASSERTS_BUILD = false
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
+LOCAL_PATH := $(call my-dir)
+include $(CLEAR_VARS)
+
+LOCAL_SHARED_LIBRARIES := \
+	libcutils \
+	libdrm \
+	libEGL \
+	libGLESv2 \
+	libhardware \
+	liblog \
+	libui \
+	libutils \
+	libhwcservice \
+	libbinder
+
+LOCAL_C_INCLUDES := \
+	system/core/include/utils \
+	$(LOCAL_PATH)/public \
+	$(LOCAL_PATH)/common/core \
+	$(LOCAL_PATH)/common/compositor \
+	$(LOCAL_PATH)/common/compositor/gl \
+	$(LOCAL_PATH)/common/display \
+	$(LOCAL_PATH)/common/utils \
+	$(LOCAL_PATH)/os \
+	$(LOCAL_PATH)/os/android \
+	$(LOCAL_PATH)/wsi \
+	$(LOCAL_PATH)/wsi/drm
+
+LOCAL_SRC_FILES := \
+	os/android/platformdefines.cpp
+
+ifeq ($(strip $(TARGET_USES_HWC2)), true)
+LOCAL_SRC_FILES += os/android/iahwc2.cpp \
+		   os/android/hwcservice.cpp
 else
-    ifeq ($(strip $(TARGET_BUILD_VARIANT)),userdebug)
-        IA_HWC_INTERNAL_BUILD = false
-        IA_HWC_LOGVIEWER_BUILD = true
-        IA_HWC_DEV_ASSERTS_BUILD = false
-    endif
-endif
+LOCAL_SRC_FILES += os/android/iahwc1.cpp
+LOCAL_C_INCLUDES += \
+	system/core/libsync \
+	system/core/libsync/include
 
-LOCAL_MODULE_TAGS := optional
-LOCAL_CLANG := true
-LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
-LOCAL_CFLAGS += -DANDROID_VERSION=$(IA_HWC_ANDROID_VERSION)
-LOCAL_CFLAGS += -DTARGET_PRODUCT_$(shell echo $(TARGET_PRODUCT) | tr '[:lower:]' '[:upper:]')
-LOCAL_CFLAGS += -DTARGET_BOARD_PLATFORM_$(shell echo $(TARGET_BOARD_PLATFORM) | tr '[:lower:]' '[:upper:]')
-LOCAL_CFLAGS += -Werror -Wall -Werror=unused-parameter -fvisibility-inlines-hidden -fvisibility=hidden -std=gnu++11
-LOCAL_CFLAGS += -Wno-date-time
-LOCAL_CFLAGS += -DLOG_TAG=\"hwc\"
-LOCAL_CFLAGS += -DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\""
-LOCAL_CFLAGS += -DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\""
-LOCAL_CFLAGS += -std=c++14
-LOCAL_MULTILIB := first
-LOCAL_CPPFLAGS := -std=c++14
 LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libcutils \
-    libdrm \
-    libhardware \
-    libhwcservice \
-    liblog \
-    libsync \
-    libui \
-    libutils
+	libsync
 
-# Compile in debug support if this is an engineering build
-ifeq ($(strip $(IA_HWC_LOGVIEWER_BUILD)),true)
-    LOCAL_CFLAGS += -DIA_HWC_LOGVIEWER_BUILD=1
+LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
 
-# Compile in developer asserts
-ifeq ($(strip $(IA_HWC_DEV_ASSERTS_BUILD)),true)
-    LOCAL_CFLAGS += -DIA_HWC_DEV_ASSERTS_BUILD=1
+ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
+LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
+else
+LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
 endif
 
-# Enable building all binaries to the appropriate vendor subdirectory if required
-LOCAL_PROPRIETARY_MODULE := true
+LOCAL_CPPFLAGS += \
+	-DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\"" \
+	-DHWC_VERSION_GIT_SHA="\"$(HWC_VERSION_GIT_SHA)\"" \
+	-DHWC2_INCLUDE_STRINGIFICATION \
+	-DHWC2_USE_CPP11 \
+	-Wno-date-time \
+	-DUSE_ANDROID_SHIM \
+	-D_FORTIFY_SOURCE=2 \
+	-fstack-protector-strong \
+	-Wformat -Wformat-security \
+	-std=c++14 -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+	-Wall -Wsign-compare -Wpointer-arith \
+	-Wcast-qual -Wcast-align \
+	-D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+	-O3 \
+	-Wno-unused-private-field \
+	-Wno-unused-function \
+	-Wno-unused-parameter \
+	-Wno-unused-variable
 
-# Uncomment for GDB debugging
-#LOCAL_CFLAGS += -O0 -ggdb
+ifeq ($(strip $(BOARD_USES_VULKAN)), true)
+LOCAL_SHARED_LIBRARIES += \
+	libvulkan
+
+LOCAL_CPPFLAGS += \
+	-DUSE_VK \
+	-DDISABLE_EXPLICIT_SYNC
+
+LOCAL_C_INCLUDES += \
+	$(LOCAL_PATH)/common/compositor/vk \
+	$(LOCAL_PATH)/../mesa/include
+else
+LOCAL_CPPFLAGS += \
+	-DUSE_GL
+endif
+
+ifeq ($(strip $(BOARD_USES_LIBVA)), true)
+LOCAL_C_INCLUDES += \
+	$(LOCAL_PATH)/common/compositor/va
+
+LOCAL_SHARED_LIBRARIES += \
+	libva \
+	libva-android
+endif
+
+ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
+LOCAL_CPPFLAGS += -DUSE_MINIGBM
+LOCAL_C_INCLUDES += \
+	$(INTEL_MINIGBM)/cros_gralloc/
+else
+LOCAL_C_INCLUDES += \
+	$(INTEL_DRM_GRALLOC)
+endif
+
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+LOCAL_SHARED_LIBRARIES += libnativewindow
+endif
+
+ifeq ($(strip $(BOARD_CURSOR_WA)), true)
+LOCAL_CPPFLAGS += \
+	-DDISABLE_CURSOR_PLANE
+endif
+
+endif
