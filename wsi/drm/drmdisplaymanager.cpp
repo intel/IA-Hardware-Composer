@@ -130,6 +130,9 @@ bool DrmDisplayManager::Initialize() {
     return true;
   }
 
+  int flags = fcntl(hotplug_fd_, F_GETFL, 0);
+  fcntl(hotplug_fd_, F_SETFL, flags | O_NONBLOCK);
+
   fd_handler_.AddFd(hotplug_fd_);
 
   if (!InitWorker()) {
