@@ -199,6 +199,80 @@ bool VARenderer::Init(int gpu_fd) {
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
+bool VARenderer::QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
+  void* caps, uint32_t* num) {
+  VAStatus ret =
+	  vaQueryVideoProcFilterCaps(va_display_, context, type, caps, num);
+  if(ret != VA_STATUS_SUCCESS)
+  ETRACE("Query Filter Caps failed\n");
+  return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
+bool VARenderer::SetVAProcFilterDefaultValue(VAProcFilterCapColorBalance* caps) {
+  for(int i=0; i<VAProcColorBalanceCount; i++) {
+    if(caps[i].type == VAProcColorBalanceHue) {
+      hue_value=caps[i].range.default_value;
+    }
+    else if(caps[i].type == VAProcColorBalanceSaturation) {
+       saturation_value=caps[i].range.default_value;
+    }
+    else if(caps[i].type == VAProcColorBalanceBrightness) {
+       brightness_value=caps[i].range.default_value;
+    }
+    else if(caps[i].type == VAProcColorBalanceContrast) {
+       contrast_value=caps[i].range.default_value;
+    }
+  }
+  return true;
+}
+
+float VARenderer::GetVAProcFilterDefaultValue(VAProcColorBalanceType type, VAProcFilterCapColorBalance* caps) {
+  for(int i=0; i<VAProcColorBalanceCount; i++) {
+    if(caps[i].type == type) {
+      return caps[i].range.default_value;
+    }
+  }
+}
+bool VARenderer::MapVAProFilterValuetoDriver(VAProcColorBalanceType type,
+  float value) {
+
+  float min,max,va_value;
+
+  for(int i=0; i<VAProcColorBalanceCount; i++) {
+    if(caps[i].type == type) {
+      min=caps[i].range.min_value;
+      max=caps[i].range.max_value;
+      break;
+     }
+  }
+  va_value = min + (max - min) / 100 * value;
+  if(type == VAProcColorBalanceHue)
+    hue_value = va_value;
+  else if(type == VAProcColorBalanceSaturation)
+    saturation_value = va_value;
+  else if(type == VAProcColorBalanceBrightness)
+    brightness_value = va_value;
+  else if(type == VAProcColorBalanceContrast)
+    contrast_value = va_value;
+  else {
+    ETRACE("VA Filter value map error\n");
+    return false;
+  }
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterValue(VAProcColorBalanceType type,
+  float value) {
+
+  if(value > 100 || value < 0) {
+    ETRACE("VAlue Filter value out of range\n");
+    return false;
+  }
+  VAStatus ret =
+    MapVAProFilterValuetoDriver(type, value);
+  return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
@@ -264,7 +338,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   VAProcPipelineParameterBuffer param;
   memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
-
   VARectangle surface_region, output_region;
   HwcRect<float> source_crop = state.layer_->GetSourceCrop();
   surface_region.x = source_crop.left;
@@ -293,6 +366,67 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   param.num_filters = 0;
   param.filters = nullptr;
   param.filter_flags = VA_FRAME_PICTURE;
+
+  if(caps[0].type == VAProcColorBalanceNone) {
+      if (!QueryVAProcFilterCaps(
+          va_context, VAProcFilterColorBalance,
+	 caps, &cap_num) || !SetVAProcFilterDefaultValue(&caps[0]) ) {
+              return false;
+      }
+  }
+
+  ScopedVABufferID filter_hue(va_display_);
+  ScopedVABufferID filter_sturation(va_display_);
+  ScopedVABufferID filter_brightness(va_display_);
+  ScopedVABufferID filter_contrast(va_display_);
+  std::vector<VABufferID> filters;
+  VAProcFilterParameterBufferColorBalance cbparam;
+
+ SetVAProcFilterValue(VAProcColorBalanceBrightness, 100);
+
+  cbparam.type = VAProcFilterColorBalance;
+
+  if(hue_value != GetVAProcFilterDefaultValue(VAProcColorBalanceHue, &caps[0]) ) {
+    cbparam.attrib = VAProcColorBalanceHue;
+    cbparam.value = hue_value;
+    if(!filter_hue.CreateBuffer(va_context,VAProcFilterParameterBufferType,
+      sizeof(VAProcFilterParameterBufferColorBalance), 1,&cbparam)) {
+      return false;
+    }
+    filters.push_back(filter_hue.buffer());
+  }
+  if(saturation_value != GetVAProcFilterDefaultValue(VAProcColorBalanceSaturation, &caps[0])) {
+    cbparam.attrib = VAProcColorBalanceSaturation;
+    cbparam.value = saturation_value;
+    if(!filter_sturation.CreateBuffer(va_context,VAProcFilterParameterBufferType,
+      sizeof(VAProcFilterParameterBufferColorBalance), 1,&cbparam)) {
+      return false;
+    }
+    filters.push_back(filter_sturation.buffer());
+  }
+  if(brightness_value != GetVAProcFilterDefaultValue(VAProcColorBalanceBrightness, &caps[0])) {
+    cbparam.attrib = VAProcColorBalanceBrightness;
+    cbparam.value = brightness_value;
+    if(!filter_brightness.CreateBuffer(va_context,VAProcFilterParameterBufferType,
+      sizeof(VAProcFilterParameterBufferColorBalance), 1,&cbparam)) {
+      return false;
+    }
+    filters.push_back(filter_brightness.buffer());
+  }
+  if(contrast_value != GetVAProcFilterDefaultValue(VAProcColorBalanceContrast, &caps[0])) {
+    cbparam.attrib = VAProcColorBalanceContrast;
+    cbparam.value = contrast_value;
+    if(!filter_contrast.CreateBuffer(va_context,VAProcFilterParameterBufferType,
+      sizeof(VAProcFilterParameterBufferColorBalance), 1,&cbparam)) {
+      return false;
+    }
+      filters.push_back(filter_contrast.buffer());
+  }
+
+  if(filters.size()) {
+    param.filters = &filters[0];
+    param.num_filters= (unsigned int)filters.size();
+  }
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
