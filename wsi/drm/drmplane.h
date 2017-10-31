@@ -75,6 +75,10 @@ class DrmPlane : public DisplayPlane {
     return !in_use_;
   }
 
+  bool IsUniversal() override {
+    return !(type_ == DRM_PLANE_TYPE_CURSOR);
+  }
+
  private:
   struct Property {
     Property();

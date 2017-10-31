@@ -42,7 +42,19 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
   height_ = height;
   bool status = plane_handler_->PopulatePlanes(overlay_planes_);
   if (!overlay_planes_.empty()) {
-    cursor_plane_ = overlay_planes_.back().get();
+    if (overlay_planes_.size() > 1) {
+      cursor_plane_ = overlay_planes_.back().get();
+      bool needs_cursor_wa = false;
+#ifdef DISABLE_CURSOR_PLANE
+      needs_cursor_wa = overlay_planes_.size() > 3;
+#endif
+      // If this is a universal plane, let's not restrict it to
+      // cursor usage only.
+      if (!needs_cursor_wa && cursor_plane_->IsUniversal()) {
+        cursor_plane_ = NULL;
+      }
+    }
+
     primary_plane_ = overlay_planes_.at(0).get();
   }
 

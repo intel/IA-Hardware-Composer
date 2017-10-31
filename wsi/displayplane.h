@@ -56,6 +56,14 @@ class DisplayPlane {
 
   virtual bool IsAvailable() = 0;
 
+  /**
+   * API for querying if this plane can support
+   * content other than cursor or can be used only
+   * for cursor. Should return false if this plane
+   * cannot be used for anything else than cursor.
+   */
+  virtual bool IsUniversal() = 0;
+
   virtual void Dump() const = 0;
 };
 
