@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include <unistd.h>
 #include <stdint.h>
 
 #include "compositordefs.h"
@@ -62,6 +63,12 @@ struct MediaState {
 };
 
 struct DrawState {
+  ~DrawState() {
+    for (int32_t fence : acquire_fences_) {
+      close(fence);
+    }
+  }
+
   std::vector<RenderState> states_;
   MediaState media_state_;
   NativeSurface *surface_;
