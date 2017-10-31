@@ -111,7 +111,7 @@ bool DisplayPlaneManager::ValidateLayers(
          ++j) {
       DisplayPlaneState &last_plane = composition.back();
 #ifdef DISABLE_CURSOR_PLANE
-      if (cursor_plane_ == last_plane.plane())
+      if (cursor_plane_ == j->get())
         continue;
 #endif
 
