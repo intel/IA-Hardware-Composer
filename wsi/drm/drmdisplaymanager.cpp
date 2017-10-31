@@ -130,9 +130,6 @@ bool DrmDisplayManager::Initialize() {
     return true;
   }
 
-  int flags = fcntl(hotplug_fd_, F_GETFL, 0);
-  fcntl(hotplug_fd_, F_SETFL, flags | O_NONBLOCK);
-
   fd_handler_.AddFd(hotplug_fd_);
 
   if (!InitWorker()) {
@@ -157,7 +154,7 @@ void DrmDisplayManager::HotPlugEventHandler() {
     size_t srclen = DRM_HOTPLUG_EVENT_SIZE - 1;
     ret = read(fd, &buffer, srclen);
     if (ret <= 0) {
-      if (ret < 0 && ret != EAGAIN)
+      if (ret < 0)
         ETRACE("Failed to read uevent. %s", PRINTERROR());
 
       return;
@@ -202,17 +199,6 @@ void DrmDisplayManager::HandleRoutine() {
   if (fd_handler_.IsReady(hotplug_fd_)) {
     IHOTPLUGEVENTTRACE("Recieved Hot plug notification.");
     HotPlugEventHandler();
-  }
-
-  if (lock_reset_) {
-    spin_lock_.lock();
-    if (release_lock_ && hwc_lock_.get()) {
-      hwc_lock_->DisableWatch();
-      hwc_lock_.reset(nullptr);
-      release_lock_ = false;
-      lock_reset_ = false;
-    }
-    spin_lock_.unlock();
   }
 }
 
@@ -407,6 +393,16 @@ void DrmDisplayManager::ForceRefresh() {
   }
 
   release_lock_ = true;
+  spin_lock_.unlock();
+}
+
+void DrmDisplayManager::HandleLazyInitialization() {
+  spin_lock_.lock();
+  if (release_lock_ && hwc_lock_.get()) {
+    hwc_lock_->DisableWatch();
+    hwc_lock_.reset(nullptr);
+    release_lock_ = false;
+  }
   spin_lock_.unlock();
 }
 
