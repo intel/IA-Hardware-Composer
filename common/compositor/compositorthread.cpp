@@ -201,6 +201,8 @@ void CompositorThread::Handle3DDrawRequest() {
       gl_renderer_->InsertFence(fence);
     }
 
+    std::vector<int32_t>().swap(draw_state.acquire_fences_);
+
     if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_,
                             draw_state.clear_surface_)) {
       ETRACE(
