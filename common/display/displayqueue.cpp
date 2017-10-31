@@ -539,6 +539,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     kms_fence_ = 0;
   }
 #endif
+
+  // Let Display handle any lazy initalizations.
+  if (handle_display_initializations_) {
+    handle_display_initializations_ = false;
+    display_->HandleLazyInitialization();
+  }
+
   return true;
 }
 

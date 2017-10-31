@@ -190,6 +190,13 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   */
   virtual void DisConnect();
 
+  /**
+  * API to handle any lazy initializations which need to be handled
+  * during first present call.
+  */
+  virtual void HandleLazyInitialization() {
+  }
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();

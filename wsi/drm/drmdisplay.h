@@ -80,6 +80,8 @@ class DrmDisplay : public PhysicalDisplay {
 
   void ForceRefresh();
 
+  void HandleLazyInitialization() override;
+
  private:
   void ShutDownPipe();
   void GetDrmObjectPropertyValue(const char *name,
