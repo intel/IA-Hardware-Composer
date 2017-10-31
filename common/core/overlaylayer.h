@@ -193,13 +193,14 @@ struct OverlayLayer {
 
   // Check if we want to use a separate overlay for this
   // layer.
-  void ValidateForOverlayUsage();
+  void ValidateForOverlayUsage(int32_t max_width, int32_t max_height);
 
   OverlayBuffer* ReleaseBuffer();
 
   void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
                        OverlayLayer* previous_layer, uint32_t z_order,
-                       uint32_t layer_index, bool handle_constraints);
+                       uint32_t layer_index, uint32_t max_width,
+                       uint32_t max_height, bool handle_constraints);
 
   uint32_t transform_ = 0;
   uint32_t z_order_ = 0;
