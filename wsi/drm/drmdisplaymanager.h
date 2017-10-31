@@ -58,6 +58,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void NotifyClientsOfDisplayChangeStatus();
 
+  void HandleLazyInitialization();
+
  protected:
   void HandleWait() override;
   void HandleRoutine() override;
@@ -74,7 +76,6 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   int hotplug_fd_ = -1;
   bool notify_client_ = false;
   bool release_lock_ = false;
-  bool lock_reset_ = true;
   SpinLock spin_lock_;
 };
 

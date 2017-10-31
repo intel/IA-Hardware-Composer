@@ -257,6 +257,7 @@ class DisplayQueue {
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
   bool sync_ = false;  // Synchronize with compositor thread.
+  bool handle_display_initializations_ = true;  // to disable hwclock thread.
 };
 
 }  // namespace hwcomposer
