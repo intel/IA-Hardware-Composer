@@ -73,32 +73,6 @@ struct HwcLayer {
     return source_crop_height_;
   }
 
-  uint32_t GetDisplayFrameWidth() const {
-    return display_frame_width_;
-  }
-
-  uint32_t GetDisplayFrameHeight() const {
-    return display_frame_height_;
-  }
-
-  // Display frame bottom co-ordiantes will
-  // be bound to this constraint.
-  void SetHeightConstraint(uint32_t height);
-  // Returns -1 if no height constraint is
-  // set.
-  int32_t GetHeightConstraint() const {
-    return max_height_;
-  }
-
-  // Display frame right co-ordiantes will
-  // be bound to this constraint.
-  void SetWidthConstraint(uint32_t width);
-  // Returns -1 if no width constraint is
-  // set.
-  int32_t GetWidthConstraint() const {
-    return max_width_;
-  }
-
   /**
    * API for setting surface damage for this layer.
    * @param surface_damage should contain exactly 1
@@ -290,8 +264,6 @@ struct HwcLayer {
   int32_t transform_ = 0;
   uint32_t source_crop_width_ = 0;
   uint32_t source_crop_height_ = 0;
-  uint32_t display_frame_width_ = 0;
-  uint32_t display_frame_height_ = 0;
   int32_t max_width_ = -1;
   int32_t max_height_ = -1;
   uint8_t alpha_ = 0xff;

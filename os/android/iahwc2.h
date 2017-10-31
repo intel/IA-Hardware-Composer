@@ -78,14 +78,6 @@ class IAHWC2 : public hwc2_device_t {
       x_translation_ = x_translation;
     }
 
-    void SetMaxWidth(uint32_t width) {
-      hwc_layer_.SetWidthConstraint(width);
-    }
-
-    void SetMaxHeight(uint32_t height) {
-      hwc_layer_.SetHeightConstraint(height);
-    }
-
     void set_acquire_fence(int acquire_fence) {
       if (acquire_fence > 0)
         hwc_layer_.SetAcquireFence(acquire_fence);

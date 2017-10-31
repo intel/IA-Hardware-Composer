@@ -366,8 +366,6 @@ HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
   Hwc2Layer &temp = layers_.at(layer_idx_);
   temp.XTranslateCoordinates(display_->GetXTranslation());
-  temp.SetMaxWidth(display_->Width());
-  temp.SetMaxHeight(display_->Height());
   *layer = static_cast<hwc2_layer_t>(layer_idx_);
   ++layer_idx_;
   return HWC2::Error::None;

@@ -88,8 +88,6 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
       (frame.bottom != display_frame_.bottom)) {
     layer_cache_ |= kDisplayFrameRectChanged;
     display_frame_ = frame;
-    display_frame_width_ = display_frame_.right - display_frame_.left;
-    display_frame_height_ = display_frame_.bottom - display_frame_.top;
   }
 
   if (!(state_ & kVisibleRegionSet)) {
@@ -330,14 +328,6 @@ int32_t HwcLayer::GetRightSourceConstraint() {
   uint32_t value = right_source_constraint_.at(0);
   right_source_constraint_.swap(temp);
   return value;
-}
-
-void HwcLayer::SetHeightConstraint(uint32_t height) {
-  max_height_ = height;
-}
-
-void HwcLayer::SetWidthConstraint(uint32_t width) {
-  max_width_ = width;
 }
 
 }  // namespace hwcomposer

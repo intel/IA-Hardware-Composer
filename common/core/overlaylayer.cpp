@@ -208,38 +208,36 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 }
 
-void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
-                                          NativeBufferHandler* buffer_handler,
-                                          OverlayLayer* previous_layer,
-                                          uint32_t z_order,
-                                          uint32_t layer_index,
-                                          bool handle_constraints) {
-  display_frame_width_ = layer->GetDisplayFrameWidth();
-  display_frame_height_ = layer->GetDisplayFrameHeight();
+void OverlayLayer::InitializeFromHwcLayer(
+    HwcLayer* layer, NativeBufferHandler* buffer_handler,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    uint32_t max_width, uint32_t max_height, bool handle_constraints) {
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
                   handle_constraints);
-
-  // Let's make sure display frame is constrained to Display Resolution.
-  int32_t height_c = layer->GetHeightConstraint();
-  int32_t width_c = layer->GetWidthConstraint();
-  if (height_c >= 0) {
-    display_frame_.bottom = std::min(display_frame_.bottom, height_c);
+  // Let's bind layer to display resolution.
+  if (!handle_constraints) {
+    display_frame_.bottom =
+        std::min(static_cast<uint32_t>(display_frame_.bottom), max_height);
+    display_frame_.right =
+        std::min(static_cast<uint32_t>(display_frame_.right), max_width);
   }
 
-  if (width_c >= 0) {
-    display_frame_.right = std::min(display_frame_.right, width_c);
-  }
+  display_frame_width_ = display_frame_.right - display_frame_.left;
+  display_frame_height_ = display_frame_.bottom - display_frame_.top;
 }
 
 #ifdef ENABLE_IMPLICIT_CLONE_MODE
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, bool handle_constraints) {
+    const HwcRect<int>& display_frame, uint32_t max_width, uint32_t max_height,
+    bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
                   handle_constraints);
+  display_frame_.bottom = std::min(display_frame_.bottom, max_height);
+  display_frame_.right = std::min(display_frame_.right, max_width);
 }
 #endif
 

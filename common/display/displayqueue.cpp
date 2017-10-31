@@ -319,16 +319,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_frame, handle_constraints);
+          display_frame, display_->Width(), display_->Height(),
+          handle_constraints);
     } else {
-      overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                            previous_layer, z_order,
-                                            layer_index, handle_constraints);
+      overlay_layer->InitializeFromHwcLayer(
+          layer, buffer_handler_, previous_layer, z_order, display_->Width(),
+          display_->Height(), layer_index, handle_constraints);
     }
 #else
-    overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                          previous_layer, z_order, layer_index,
-                                          handle_constraints);
+    overlay_layer->InitializeFromHwcLayer(
+        layer, buffer_handler_, previous_layer, z_order, layer_index,
+        display_->Width(), display_->Height(), handle_constraints);
 #endif
     if (overlay_layer->IsCursorLayer()) {
       cursor_state_ |= kFrameHasCursor;
