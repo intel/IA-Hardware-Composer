@@ -157,7 +157,7 @@ void DrmDisplayManager::HotPlugEventHandler() {
     size_t srclen = DRM_HOTPLUG_EVENT_SIZE - 1;
     ret = read(fd, &buffer, srclen);
     if (ret <= 0) {
-      if (ret < 0)
+      if (ret < 0 && ret != EAGAIN)
         ETRACE("Failed to read uevent. %s", PRINTERROR());
 
       return;
