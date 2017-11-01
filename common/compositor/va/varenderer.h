@@ -18,6 +18,8 @@
 #define COMMON_COMPOSITOR_VA_VARENDERER_H_
 
 #include "renderer.h"
+#include "va/va.h"
+#include "va/va_vpp.h"
 
 namespace hwcomposer {
 
@@ -35,12 +37,25 @@ class VARenderer : public Renderer {
   }
   void SetExplicitSyncSupport(bool /*disable_explicit_sync*/) override {
   }
+  bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
+	void* caps, uint32_t* num);
+  bool SetVAProcFilterValue(VAProcColorBalanceType type, float value);
+  bool SetVAProcFilterDefaultValue(VAProcFilterCapColorBalance* caps);
+  float GetVAProcFilterDefaultValue(VAProcColorBalanceType type, VAProcFilterCapColorBalance* caps);
+  bool MapVAProFilterValuetoDriver(VAProcColorBalanceType type, float value);
 
  private:
   int DrmFormatToVAFormat(int format);
   int DrmFormatToRTFormat(int format);
 
   void *va_display_ = nullptr;
+  VAProcFilterCapColorBalance caps[VAProcColorBalanceCount];
+  uint32_t cap_num = VAProcColorBalanceCount;
+
+  float hue_value=0;
+  float saturation_value=0;
+  float brightness_value=0;
+  float contrast_value=0;
 };
 
 }  // namespace hwcomposer
