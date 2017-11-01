@@ -124,6 +124,20 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
   SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence());
+  ValidateForOverlayUsage(max_width, max_height, handle_constraints);
+  if (previous_layer) {
+    ValidatePreviousFrameState(previous_layer, layer);
+  }
+
+  // TODO: FIXME: We should be able to use surfacedamage
+  // from HWCLayer here.
+  surface_damage_ = display_frame_;
+
+  if (layer->HasContentAttributesChanged() ||
+      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
+      layer->HasSourcePositionChanged()) {
+    state_ |= kClearSurface;
+  }
 
   if (handle_constraints) {
     int32_t left_constraint = layer->GetLeftConstraint();
@@ -195,21 +209,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
           ceilf(source_crop_.bottom) - static_cast<int>(source_crop_.top));
     }
   }
-
-  ValidateForOverlayUsage(max_width, max_height);
-  if (previous_layer) {
-    ValidatePreviousFrameState(previous_layer, layer);
-  }
-
-  // TODO: FIXME: We should be able to use surfacedamage
-  // from HWCLayer here.
-  surface_damage_ = display_frame_;
-
-  if (layer->HasContentAttributesChanged() ||
-      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
-      layer->HasSourcePositionChanged()) {
-    state_ |= kClearSurface;
-  }
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
@@ -277,13 +276,17 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 }
 
 void OverlayLayer::ValidateForOverlayUsage(int32_t max_width,
-                                           int32_t max_height) {
+                                           int32_t max_height,
+                                           bool handle_constraints) {
   const std::unique_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
   if (buffer->GetUsage() & kLayerCursor) {
     type_ = kLayerCursor;
   } else if (buffer->IsVideoBuffer()) {
     type_ = kLayerVideo;
   }
+
+  if (handle_constraints)
+    return;
 
   if (type_ == kLayerCursor) {
     display_frame_width_ = buffer->GetWidth();

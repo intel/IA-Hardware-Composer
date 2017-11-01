@@ -193,7 +193,8 @@ struct OverlayLayer {
 
   // Check if we want to use a separate overlay for this
   // layer.
-  void ValidateForOverlayUsage(int32_t max_width, int32_t max_height);
+  void ValidateForOverlayUsage(int32_t max_width, int32_t max_height,
+                               bool handle_constraints);
 
   OverlayBuffer* ReleaseBuffer();
 
