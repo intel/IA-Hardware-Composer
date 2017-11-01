@@ -83,10 +83,7 @@ class DisplayPlaneState {
       type_ = PlaneType::kNormal;
     }
 
-    size_t size = surfaces_.size();
-    for (size_t i = 0; i < size; i++) {
-      surfaces_.at(i)->UpdateDisplayFrame(display_frame_);
-    }
+    UpdateRect();
   }
 
   void AddLayers(const std::vector<size_t> &source_layers,
@@ -189,12 +186,6 @@ class DisplayPlaneState {
       surface->Prepare();
     }
 
-    // If we have surfaces less than 3, than we can skip
-    // swapping surfaces in SwapSurfaceIfNeeded.
-    if (surfaces_.size() < 3) {
-      surface_swapped_ = true;
-    }
-
     target->UpdateDisplayFrame(display_frame_);
   }
 
@@ -209,13 +200,7 @@ class DisplayPlaneState {
   void TransferSurfaces(DisplayPlaneState &plane_state,
                         bool swap_front_buffer) {
     size_t size = surfaces_.size();
-    surface_swapped_ = false;
-    // If we have surfaces less than 3, than we can skip
-    // swapping surfaces in SwapSurfaceIfNeeded.
-    if ((size < 3) || swap_front_buffer) {
-      surface_swapped_ = true;
-    }
-
+    surface_swapped_ = swap_front_buffer;
     plane_state.surfaces_.reserve(surfaces_.size());
     if (size < 3 || !swap_front_buffer) {
       // Lets make sure front buffer is now back in the list.
@@ -229,18 +214,15 @@ class DisplayPlaneState {
     }
 
     plane_state.layer_ = plane_state.surfaces_.at(0)->GetLayer();
-
-    for (size_t i = 0; i < size; i++) {
-      NativeSurface *surface = plane_state.surfaces_.at(i);
-      surface->Prepare();
-      surface->UpdateDisplayFrame(display_frame_);
-    }
+    plane_state.UpdateRect();
   }
 
   // This will be called by DisplayPlaneManager when adding
   // cursor layer to any existing overlay.
   void SwapSurfaceIfNeeded() {
-    if (surface_swapped_) {
+    // If we have surfaces less than 3, than we can skip
+    // swapping surfaces in SwapSurfaceIfNeeded.
+    if (surface_swapped_ || surfaces_.size() != 3) {
       return;
     }
 
@@ -252,7 +234,7 @@ class DisplayPlaneState {
     temp.swap(surfaces_);
     NativeSurface *surface = surfaces_.at(0);
     layer_ = surface->GetLayer();
-    surface->Prepare();
+    UpdateRect();
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {
@@ -311,6 +293,15 @@ class DisplayPlaneState {
     kVideo,   // Plane is compositing only Media content.
     kNormal   // Plane is compositing different types of content.
   };
+  void UpdateRect() {
+    size_t size = surfaces_.size();
+    for (size_t i = 0; i < size; i++) {
+      NativeSurface *surface = surfaces_.at(i);
+      surface->UpdateDisplayFrame(display_frame_);
+      surface->Prepare();
+    }
+  }
+
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
   const OverlayLayer *layer_ = NULL;
