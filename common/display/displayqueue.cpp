@@ -323,8 +323,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
-          layer, buffer_handler_, previous_layer, z_order, display_->Width(),
-          display_->Height(), layer_index, handle_constraints);
+          layer, buffer_handler_, previous_layer, z_order, layer_index, display_->Width(),
+          display_->Height(), handle_constraints);
     }
 #else
     overlay_layer->InitializeFromHwcLayer(
