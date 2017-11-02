@@ -609,7 +609,9 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (use_cursor_layer) {
     if (z_map.size()) {
       if (z_map.rbegin()->second->z_order() > cursor_z_order)
-        cursor_z_order = (z_map.rbegin()->second->z_order()) + 1;
+        cursor_z_order = z_map.rbegin()->second->z_order() + 1;
+      else if (client_z_order > cursor_z_order)
+        cursor_z_order = client_z_order + 1;
     }
     z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
   }
