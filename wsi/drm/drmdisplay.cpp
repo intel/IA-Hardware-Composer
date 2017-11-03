@@ -226,7 +226,7 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
     return true;
   }
 
-  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length + 1), *size);
   strncpy(name, string.c_str(), *size);
   return true;
 }
