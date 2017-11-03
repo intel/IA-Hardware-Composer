@@ -27,10 +27,8 @@
 #include "vksurface.h"
 #endif
 
-#ifdef USE_LIBVA
 #include "va/varenderer.h"
 #include "va/vasurface.h"
-#endif
 
 namespace hwcomposer {
 
@@ -45,13 +43,7 @@ NativeSurface* Create3DBuffer(uint32_t width, uint32_t height) {
 }
 
 NativeSurface* CreateVideoBuffer(uint32_t width, uint32_t height) {
-#ifdef USE_LIBVA
   return new VASurface(width, height);
-#else
-  (void)width;
-  (void)height;
-  return NULL;
-#endif
 }
 
 Renderer* Create3DRenderer() {
@@ -65,11 +57,7 @@ Renderer* Create3DRenderer() {
 }
 
 Renderer* CreateMediaRenderer() {
-#ifdef USE_LIBVA
   return new VARenderer();
-#else
-  return NULL;
-#endif
 }
 
 NativeGpuResource* CreateNativeGpuResourceHandler() {
