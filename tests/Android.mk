@@ -1,5 +1,6 @@
 ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
 LOCAL_PATH := $(call my-dir)
+BOARD_USES_LIBVA := true
 include $(CLEAR_VARS)
 
 TARGET_BOARD_PLATFORM := android_ia

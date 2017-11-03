@@ -13,6 +13,7 @@
 # limitations under the License.
 
 LOCAL_PATH:= $(call my-dir)
+BOARD_USES_LIBVA := true
 
 include $(CLEAR_VARS)
 
