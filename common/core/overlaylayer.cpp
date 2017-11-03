@@ -160,26 +160,10 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       display_frame_.left = std::min(display_frame_.left, display_frame_.right);
     }
 
-    int width = display_frame_width_ + display_frame_.left;
-    int t_width = surface_damage_.left + display_frame_width_;
-    int top = display_frame_height_ + display_frame_.top;
-    int t_top = surface_damage_.top + display_frame_height_;
-    // If surface Damage is not part of display frame, reset it to empty.
-    if ((surface_damage_.left >= (width)) || (t_width <= display_frame_.left) ||
-        (surface_damage_.top >= top) || (t_top <= display_frame_.top)) {
-      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
-      return;
+    if (left_constraint > 0) {
+      display_frame_.left -= left_constraint;
+      display_frame_.right = right_constraint - display_frame_.right;
     }
-
-    surface_damage_.left = std::max(surface_damage_.left, display_frame_.left);
-    surface_damage_.right =
-        std::min(surface_damage_.right, display_frame_.right);
-    surface_damage_.top = std::min(surface_damage_.top, display_frame_.top);
-    surface_damage_.bottom =
-        std::min(surface_damage_.bottom, display_frame_.bottom);
-
-    display_frame_width_ = display_frame_.right - display_frame_.left;
-    display_frame_height_ = display_frame_.bottom - display_frame_.top;
   }
 
   float lconstraint = (float)layer->GetLeftSourceConstraint();
