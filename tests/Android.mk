@@ -42,13 +42,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	libjson-c
 
-ifeq ($(strip $(BOARD_USES_LIBVA)), true)
-
 LOCAL_SHARED_LIBRARIES += \
   libva \
   libva-android
-
-endif
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \

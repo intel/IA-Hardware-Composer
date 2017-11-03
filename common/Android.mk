@@ -42,14 +42,12 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../wsi/drm \
         $(TARGET_OUT_HEADERS)/libva
 
-ifeq ($(strip $(BOARD_USES_LIBVA)), true)
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
 
 LOCAL_CPPFLAGS += \
 	-DUSE_LIBVA
-endif
 
 ifeq ($(strip $(BOARD_CURSOR_WA)), true)
 LOCAL_CPPFLAGS += \
@@ -62,6 +60,8 @@ LOCAL_SRC_FILES := \
         compositor/factory.cpp \
         compositor/nativesurface.cpp \
         compositor/renderstate.cpp \
+	compositor/va/vasurface.cpp \
+	compositor/va/varenderer.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
 	core/logicaldisplay.cpp \
@@ -132,12 +132,6 @@ LOCAL_SRC_FILES += \
         compositor/gl/egloffscreencontext.cpp \
         compositor/gl/nativeglresource.cpp \
         compositor/gl/shim.cpp
-endif
-
-ifeq ($(strip $(BOARD_USES_LIBVA)), true)
-LOCAL_SRC_FILES += \
-	compositor/va/vasurface.cpp \
-	compositor/va/varenderer.cpp
 endif
 
 ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
