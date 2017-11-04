@@ -28,10 +28,8 @@
 #include "platformdefines.h"
 
 #ifdef USE_MINIGBM
-#define DRV_I915 1
 #include <cros_gralloc_handle.h>
 #include <cros_gralloc_helpers.h>
-#include <i915_private_android_types.h>
 #endif
 
 #include <hwcdefs.h>
