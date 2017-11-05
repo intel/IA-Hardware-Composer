@@ -40,9 +40,20 @@ enum HWCTransform {
   kIdentity = 0,
   kReflectX = 1 << 0,
   kReflectY = 1 << 1,
-  kRotate90 = 1 << 2,
-  kRotate180 = 1 << 3,
-  kRotate270 = 1 << 4
+  kTransform90 = 1 << 2,
+  kTransform180 = 1 << 3,
+  kTransform270 = 1 << 4,
+  kTransform45 = kTransform90 | kReflectY,
+  kTransform135 = kTransform90 | kReflectX,
+  kMaxTransform = 8
+};
+
+enum HWCRotation {
+  kRotateNone = 0,
+  kRotate90,
+  kRotate180,
+  kRotate270,
+  kMaxRotate
 };
 
 enum HWCLayerType {

@@ -233,11 +233,11 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
       rotation |= DRM_MODE_REFLECT_X;
     if (transform & kReflectY)
       rotation |= DRM_MODE_REFLECT_Y;
-    if (transform & kRotate90)
+    if (transform & kTransform90)
       rotation |= DRM_MODE_ROTATE_90;
-    else if (transform & kRotate180)
+    else if (transform & kTransform180)
       rotation |= DRM_MODE_ROTATE_180;
-    else if (transform & kRotate270)
+    else if (transform & kTransform270)
       rotation |= DRM_MODE_ROTATE_270;
     else
       rotation |= DRM_MODE_ROTATE_0;
