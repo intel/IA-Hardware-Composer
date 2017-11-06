@@ -164,6 +164,9 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       display_frame_.left -= left_constraint;
       display_frame_.right = right_constraint - display_frame_.right;
     }
+
+    display_frame_width_ = display_frame_.right - display_frame_.left;
+    display_frame_height_ = display_frame_.bottom - display_frame_.top;
   }
 
   float lconstraint = (float)layer->GetLeftSourceConstraint();
