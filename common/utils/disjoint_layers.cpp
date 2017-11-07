@@ -210,9 +210,10 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
         // cur_reg.rect_ids and also top_y and bot_y from cur_reg.y_points.
         // Also, if it is end event, check cur_reg.rect_ids is non empty,
         // if it is empty remove region from active_regions.
-        // If it is end event, check next poi.x and see if it is same and
-        // those y coordinates fall in this region, if yes 1) remove
-        // that rect_id and y coordinates as well
+        // If it is start or end event, check next poi.x and see if it is same
+        // and
+        // those y coordinates fall in this region and it is END event, if yes
+        // 1) remove that rect_id and y coordinates as well
         // 2)contine to check next poi.x until you find mismatch x.
         if (poi.x == cur_reg.sx) {
           if (poi.type == START) {
@@ -228,6 +229,21 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
           cur_reg.sx = poi.x;
           cur_reg.rect_ids.add(poi.rect_id);
           imp_reg.push_back(&cur_reg);
+          std::set<POI>::iterator next_poi_it = it;
+          next_poi_it++;
+          for (; next_poi_it != pois.end(); next_poi_it++) {
+            const POI &next_poi = *next_poi_it;
+            if (next_poi.x != poi.x) {
+              break;
+            } else {
+              if (next_poi.bot_y <= min_y || next_poi.top_y >= max_y ||
+                  next_poi.type == START) {
+                continue;
+              }
+              cur_reg.rect_ids.subtract(next_poi.rect_id);
+              RemoveYpois(&cur_reg, next_poi.rect_id);
+            }
+          }
           it_reg++;
         } else {
           GenerateOutLayers(&cur_reg, poi.x, out);
