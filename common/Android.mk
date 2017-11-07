@@ -16,6 +16,9 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
 LOCAL_SHARED_LIBRARIES := \
         libcutils \
         libdrm \
@@ -45,6 +48,17 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
+
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+LOCAL_SHARED_LIBRARIES += \
+	libnativewindow
+LOCAL_STATIC_LIBRARIES += \
+	libarect
+LOCAL_HEADER_LIBRARIES += \
+	libnativebase_headers
+LOCAL_CFLAGS += \
+	-DUSE_VNDK
+endif
 
 ifeq ($(strip $(BOARD_CURSOR_WA)), true)
 LOCAL_CPPFLAGS += \
