@@ -16,9 +16,6 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-# Obtain Android Version
-ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
-
 LOCAL_SHARED_LIBRARIES := \
         libcutils \
         libdrm \
@@ -49,7 +46,7 @@ LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
 
-ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += \
 	libnativewindow
 LOCAL_STATIC_LIBRARIES += \
