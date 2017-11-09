@@ -21,6 +21,7 @@ LOCAL_CPPFLAGS += \
 	-DUSE_ANDROID_SHIM \
 	-fPIC -O2 \
 	-D_FORTIFY_SOURCE=2 \
+	-DDISABLE_TTY \
 	-fstack-protector-strong \
 	-fPIE -Wformat -Wformat-security
 

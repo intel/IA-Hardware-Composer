@@ -776,7 +776,9 @@ static void parse_args(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   int ret, fd, primary_width, primary_height;
+#ifndef DISABLE_TTY
   setup_tty();
+#endif
   hwcomposer::GpuDevice device;
   device.Initialize();
   auto callback = std::make_shared<HotPlugEventCallback>(&device);
