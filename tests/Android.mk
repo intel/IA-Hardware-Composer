@@ -2,9 +2,6 @@ ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-TARGET_BOARD_PLATFORM := android_ia
-
-
 LOCAL_REQUIRED_MODULES := libjson-c \
                           libhwcomposer.$(TARGET_BOARD_PLATFORM)
 #LOCAL_LDLIBS   += -L$(PRODUCT_OUT)/vendor/lib/hw/ -l:gralloc.android_ia.so -l:hwcomposer.android_ia.so
@@ -62,7 +59,7 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/../common/display \
 	$(LOCAL_PATH)/../common/utils \
 	$(LOCAL_PATH)/../common/watchers \
-	external/minigbm
+	$(INTEL_MINIGBM)/cros_gralloc/
 
 LOCAL_SRC_FILES := \
     common/layerrenderer.cpp \
