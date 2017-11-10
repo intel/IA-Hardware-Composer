@@ -80,7 +80,7 @@ class DrmDisplay : public PhysicalDisplay {
 
   void ForceRefresh();
 
-  void HandleLazyInitialization() override;
+  bool HandleLazyInitialization() override;
 
  private:
   void ShutDownPipe();

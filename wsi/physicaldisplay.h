@@ -194,7 +194,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   * API to handle any lazy initializations which need to be handled
   * during first present call.
   */
-  virtual void HandleLazyInitialization() {
+  virtual bool HandleLazyInitialization() {
+    return false;
   }
 
  private:

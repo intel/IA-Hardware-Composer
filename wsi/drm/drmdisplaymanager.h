@@ -58,7 +58,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void NotifyClientsOfDisplayChangeStatus();
 
-  void HandleLazyInitialization();
+  bool HandleLazyInitialization();
 
  protected:
   void HandleWait() override;
