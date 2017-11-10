@@ -80,6 +80,8 @@ class DrmDisplay : public PhysicalDisplay {
 
   void ForceRefresh();
 
+  void IgnoreUpdates();
+
   void HandleLazyInitialization() override;
 
  private:

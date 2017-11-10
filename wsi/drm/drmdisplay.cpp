@@ -708,6 +708,10 @@ void DrmDisplay::ForceRefresh() {
   display_queue_->ForceRefresh();
 }
 
+void DrmDisplay::IgnoreUpdates() {
+  display_queue_->IgnoreUpdates();
+}
+
 void DrmDisplay::HandleLazyInitialization() {
   manager_->HandleLazyInitialization();
 }
