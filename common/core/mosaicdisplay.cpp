@@ -21,6 +21,8 @@
 
 #include <hwclayer.h>
 
+#include "hwctrace.h"
+
 namespace hwcomposer {
 
 class MDVsyncCallback : public hwcomposer::VsyncCallback {
@@ -189,6 +191,11 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
     std::vector<HwcLayer *> layers;
     uint32_t dlconstraint = display->GetLogicalIndex() * display->Width();
     uint32_t drconstraint = dlconstraint + display->Width();
+    IMOSAICDISPLAYTRACE("Display index %d \n", i);
+    IMOSAICDISPLAYTRACE("dlconstraint %d \n", dlconstraint);
+    IMOSAICDISPLAYTRACE("drconstraint %d \n", drconstraint);
+    IMOSAICDISPLAYTRACE("right_constraint %d \n", right_constraint);
+    IMOSAICDISPLAYTRACE("left_constraint %d \n", left_constraint);
     for (size_t i = 0; i < total_layers; i++) {
       HwcLayer *layer = source_layers.at(i);
       const HwcRect<int> &frame_Rect = layer->GetDisplayFrame();
@@ -209,6 +216,7 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
 
     display->Present(layers, retire_fence, true);
+    IMOSAICDISPLAYTRACE("Present called for Display index %d \n", i);
     if (*retire_fence > 0 && (i < (size - 1))) {
       close(*retire_fence);
     }
@@ -418,7 +426,7 @@ bool MosaicDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                       uint32_t *configs) {
   *num_configs = 1;
   if (configs) {
-    configs[0] = 1;
+    configs[0] = 0;
   }
   return true;
 }
