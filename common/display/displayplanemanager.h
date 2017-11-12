@@ -70,8 +70,12 @@ class DisplayPlaneManager {
     return !surfaces_.empty() || !cursor_surfaces_.empty();
   }
 
-  uint32_t GetGpuFd() {
+  uint32_t GetGpuFd() const {
     return gpu_fd_;
+  }
+
+  uint32_t GetHeight() const {
+    return height_;
   }
 
  protected:

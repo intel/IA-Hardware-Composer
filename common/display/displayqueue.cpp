@@ -330,11 +330,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_frame, handle_constraints);
+          display_frame, display_plane_manager_->GetHeight(),
+          handle_constraints);
     } else {
-      overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                            previous_layer, z_order,
-                                            layer_index, handle_constraints);
+      overlay_layer->InitializeFromHwcLayer(
+          layer, buffer_handler_, previous_layer, z_order, layer_index,
+          display_plane_manager_->GetHeight(), handle_constraints);
     }
 
     if (overlay_layer->IsCursorLayer()) {

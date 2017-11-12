@@ -112,6 +112,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    NativeBufferHandler* buffer_handler,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
+                                   uint32_t max_height,
                                    bool handle_constraints) {
   transform_ = layer->GetTransform();
   alpha_ = layer->GetAlpha();
@@ -165,8 +166,11 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       display_frame_.right = right_constraint - display_frame_.right;
     }
 
+    display_frame_.bottom =
+        std::min(max_height, static_cast<uint32_t>(display_frame_.bottom));
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
+    surface_damage_ = display_frame_;
   }
 
   float lconstraint = (float)layer->GetLeftSourceConstraint();
@@ -195,26 +199,25 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 }
 
-void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
-                                          NativeBufferHandler* buffer_handler,
-                                          OverlayLayer* previous_layer,
-                                          uint32_t z_order,
-                                          uint32_t layer_index,
-                                          bool handle_constraints) {
+void OverlayLayer::InitializeFromHwcLayer(
+    HwcLayer* layer, NativeBufferHandler* buffer_handler,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    uint32_t max_height, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
-                  handle_constraints);
+                  max_height, handle_constraints);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, bool handle_constraints) {
+    const HwcRect<int>& display_frame, uint32_t max_height,
+    bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
-                  handle_constraints);
+                  max_height, handle_constraints);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
