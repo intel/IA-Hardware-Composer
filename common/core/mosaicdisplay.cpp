@@ -176,8 +176,8 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
       if (physical_displays_.at(i)->IsConnected()) {
         connected_displays_.emplace_back(physical_displays_.at(i));
       }
-      update_connected_displays_ = false;
     }
+    update_connected_displays_ = false;
   }
   lock_.unlock();
   uint32_t size = connected_displays_.size();
