@@ -278,6 +278,12 @@ class NativeDisplay {
   // primary or not.
   virtual void SetDisplayOrder(uint32_t /*display_order*/) {
   }
+
+  // Rotates content shown by this diplay as specified by
+  // rotation. This is on top of any transformations applied
+  // to individual layers shown by this display.
+  virtual void RotateDisplay(HWCRotation /*rotation*/) {
+  }
 };
 
 /**

@@ -116,6 +116,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   void SetDisplayOrder(uint32_t display_order) override;
 
+  void RotateDisplay(HWCRotation rotation) override;
+
   /**
   * API for setting color correction for display.
   */

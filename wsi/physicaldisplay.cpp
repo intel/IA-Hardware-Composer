@@ -466,6 +466,10 @@ void PhysicalDisplay::SetDisplayOrder(uint32_t display_order) {
   ordered_display_id_ = display_order;
 }
 
+void PhysicalDisplay::RotateDisplay(HWCRotation rotation) {
+  display_queue_->RotateDisplay(rotation);
+}
+
 void PhysicalDisplay::RefreshClones() {
   display_state_ &= ~kRefreshClonedDisplays;
   std::vector<NativeDisplay *>().swap(clones_);

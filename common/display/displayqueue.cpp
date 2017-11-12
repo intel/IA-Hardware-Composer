@@ -113,6 +113,10 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
+void DisplayQueue::RotateDisplay(HWCRotation rotation) {
+  rotation_ = rotation;
+}
+
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool cursor_layer_removed,
                                    DisplayPlaneStateList* composition,
@@ -330,12 +334,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_frame, display_plane_manager_->GetHeight(),
+          display_frame, display_plane_manager_->GetHeight(), rotation_,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_plane_manager_->GetHeight(), handle_constraints);
+          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     }
 
     if (overlay_layer->IsCursorLayer()) {

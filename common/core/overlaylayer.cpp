@@ -190,10 +190,17 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    NativeBufferHandler* buffer_handler,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
-                                   uint32_t max_height,
+                                   uint32_t max_height, HWCRotation rotation,
                                    bool handle_constraints) {
-  ValidateTransform(layer->GetTransform(), kRotateNone);
   transform_ = layer->GetTransform();
+  if (rotation != kRotateNone) {
+    ValidateTransform(layer->GetTransform(), rotation);
+    // Remove this in case we enable support in future
+    // to apply display rotation at pipe level.
+    transform_ = plane_transform_;
+  } else {
+    plane_transform_ = transform_;
+  }
 
   alpha_ = layer->GetAlpha();
   layer_index_ = layer_index;
@@ -282,22 +289,22 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, bool handle_constraints) {
+    uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
-                  max_height, handle_constraints);
+                  max_height, rotation, handle_constraints);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     const HwcRect<int>& display_frame, uint32_t max_height,
-    bool handle_constraints) {
+    HWCRotation rotation, bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
-                  max_height, handle_constraints);
+                  max_height, rotation, handle_constraints);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
