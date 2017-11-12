@@ -228,7 +228,7 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
 
   if (rotation_prop_.id) {
     uint32_t rotation = 0;
-    uint32_t transform = layer->GetTransform();
+    uint32_t transform = layer->GetPlaneTransform();
     if (transform & kReflectX)
       rotation |= DRM_MODE_REFLECT_X;
     if (transform & kReflectY)
@@ -328,7 +328,7 @@ bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
   }
 
   bool zero_rotation = false;
-  uint32_t transform = layer->GetTransform();
+  uint32_t transform = layer->GetPlaneTransform();
   if (transform == kIdentity) {
     zero_rotation = true;
   }

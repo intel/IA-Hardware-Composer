@@ -108,13 +108,93 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
       std::min(surface_damage_.bottom, display_frame_.bottom);
 }
 
+void OverlayLayer::ValidateTransform(uint32_t transform,
+                                     uint32_t display_transform) {
+  if (transform & kTransform90) {
+    if (transform & kReflectX) {
+      plane_transform_ |= kReflectX;
+    }
+
+    if (transform & kReflectY) {
+      plane_transform_ |= kReflectY;
+    }
+
+    switch (display_transform) {
+      case kRotate90:
+	plane_transform_ |= kTransform180;
+        break;
+      case kRotate180:
+	plane_transform_ |= kTransform270;
+        break;
+      case kRotateNone:
+	plane_transform_ |= kTransform90;
+        break;
+      default:
+        break;
+    }
+  } else if (transform & kTransform180) {
+    switch (display_transform) {
+      case kRotate90:
+	plane_transform_ |= kTransform270;
+        break;
+      case kRotate270:
+	plane_transform_ |= kTransform90;
+        break;
+      case kRotateNone:
+	plane_transform_ |= kTransform180;
+        break;
+      default:
+        break;
+    }
+  } else if (transform & kTransform270) {
+    switch (display_transform) {
+      case kRotate270:
+	plane_transform_ |= kTransform180;
+        break;
+      case kRotate180:
+	plane_transform_ |= kTransform90;
+        break;
+      case kRotateNone:
+	plane_transform_ |= kTransform270;
+        break;
+      default:
+        break;
+    }
+  } else {
+    if (display_transform == kRotate90) {
+      if (transform & kReflectX) {
+	plane_transform_ |= kReflectX;
+      }
+
+      if (transform & kReflectY) {
+	plane_transform_ |= kReflectY;
+      }
+
+      plane_transform_ |= kTransform90;
+    } else {
+      switch (display_transform) {
+        case kRotate270:
+	  plane_transform_ |= kTransform270;
+          break;
+        case kRotate180:
+	  plane_transform_ |= kReflectY;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
+
 void OverlayLayer::InitializeState(HwcLayer* layer,
                                    NativeBufferHandler* buffer_handler,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height,
                                    bool handle_constraints) {
+  ValidateTransform(layer->GetTransform(), kRotateNone);
   transform_ = layer->GetTransform();
+
   alpha_ = layer->GetAlpha();
   layer_index_ = layer_index;
   z_order_ = z_order;

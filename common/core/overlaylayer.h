@@ -78,6 +78,14 @@ struct OverlayLayer {
     return transform_;
   }
 
+  // This represents any transform applied
+  // to this layer(i.e. GetTransform()) + overall
+  // rotation applied to the display on which this
+  // layer is being shown.
+  uint32_t GetPlaneTransform() const {
+    return plane_transform_;
+  }
+
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(NativeBufferHandler* buffer_handler, HWCNativeHandle handle,
@@ -195,12 +203,15 @@ struct OverlayLayer {
 
   OverlayBuffer* ReleaseBuffer();
 
+  void ValidateTransform(uint32_t transform, uint32_t display_transform);
+
   void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
                        bool handle_constraints);
 
   uint32_t transform_ = 0;
+  uint32_t plane_transform_ = 0;
   uint32_t z_order_ = 0;
   uint32_t layer_index_ = 0;
   uint32_t source_crop_width_ = 0;
