@@ -414,7 +414,7 @@ void DrmPlane::Dump() const {
   for (uint32_t j = 0; j < supported_formats_.size(); j++)
     DUMPTRACE("Format: %4.4s", (char*)&supported_formats_[j]);
 
-  DUMPTRACE("Enabled: %d", enabled_);
+  DUMPTRACE("Enabled: %d", in_use_);
 
   if (alpha_prop_.id != 0)
     DUMPTRACE("Alpha property is supported.");
