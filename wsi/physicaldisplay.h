@@ -240,7 +240,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   // file. This may or may not be same as pipe_.
   uint32_t ordered_display_id_ = 0;
   SpinLock modeset_lock_;
-  SpinLock cloned_displays_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
   NativeDisplay *source_display_ = NULL;

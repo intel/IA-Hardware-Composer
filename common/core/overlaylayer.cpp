@@ -208,7 +208,6 @@ void OverlayLayer::InitializeFromHwcLayer(HwcLayer* layer,
                   handle_constraints);
 }
 
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, NativeBufferHandler* buffer_handler,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
@@ -217,7 +216,6 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
   InitializeState(layer, buffer_handler, previous_layer, z_order, layer_index,
                   handle_constraints);
 }
-#endif
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {

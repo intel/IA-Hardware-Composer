@@ -276,7 +276,6 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     return success;
   }
 
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
   if (source_display_) {
     ETRACE("Trying to update display independently when in cloned mode.%p \n",
            this);
@@ -285,7 +284,6 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   if (display_state_ & kRefreshClonedDisplays) {
     RefreshClones();
   }
-#endif
 
   SPIN_UNLOCK(modeset_lock_);
 
@@ -296,12 +294,9 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
   bool success = display_queue_->QueueUpdate(source_layers, retire_fence, false,
                                              handle_constraints);
-
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
   if (success && !clones_.empty()) {
     HandleClonedDisplays(source_layers);
   }
-#endif
 
   size_t size = source_layers.size();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
