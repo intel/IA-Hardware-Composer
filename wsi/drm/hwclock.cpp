@@ -49,6 +49,9 @@ void HWCLock::DisableWatch() {
 }
 
 void HWCLock::HandleWait() {
+  if (lock_fd_ == -1) {
+    HWCThread::HandleWait();
+  }
 }
 
 void HWCLock::HandleRoutine() {
