@@ -53,7 +53,7 @@ DrmPlane::DrmPlane(uint32_t plane_id, uint32_t possible_crtcs)
       possible_crtc_mask_(possible_crtcs),
       type_(0),
       last_valid_format_(0),
-      enabled_(false) {
+      in_use_(false) {
 }
 
 DrmPlane::~DrmPlane() {
@@ -228,16 +228,16 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
 
   if (rotation_prop_.id) {
     uint32_t rotation = 0;
-    uint32_t transform = layer->GetTransform();
+    uint32_t transform = layer->GetPlaneTransform();
     if (transform & kReflectX)
       rotation |= DRM_MODE_REFLECT_X;
     if (transform & kReflectY)
       rotation |= DRM_MODE_REFLECT_Y;
-    if (transform & kRotate90)
+    if (transform & kTransform90)
       rotation |= DRM_MODE_ROTATE_90;
-    else if (transform & kRotate180)
+    else if (transform & kTransform180)
       rotation |= DRM_MODE_ROTATE_180;
-    else if (transform & kRotate270)
+    else if (transform & kTransform270)
       rotation |= DRM_MODE_ROTATE_270;
     else
       rotation |= DRM_MODE_ROTATE_0;
@@ -275,7 +275,7 @@ void DrmPlane::SetNativeFence(int32_t fd) {
 }
 
 bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
-  enabled_ = false;
+  in_use_ = false;
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, 0) < 0;
   success |= drmModeAtomicAddProperty(property_set, id_, fb_prop_.id, 0) < 0;
@@ -310,10 +310,6 @@ bool DrmPlane::GetCrtcSupported(uint32_t pipe_id) const {
   return !!((1 << pipe_id) & possible_crtc_mask_);
 }
 
-void DrmPlane::SetEnabled(bool enabled) {
-  enabled_ = enabled;
-}
-
 uint32_t DrmPlane::type() const {
   return type_;
 }
@@ -332,7 +328,7 @@ bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
   }
 
   bool zero_rotation = false;
-  uint32_t transform = layer->GetTransform();
+  uint32_t transform = layer->GetPlaneTransform();
   if (transform == kIdentity) {
     zero_rotation = true;
   }
@@ -394,6 +390,10 @@ uint32_t DrmPlane::GetPreferredFormat() const {
   return prefered_format_;
 }
 
+void DrmPlane::SetInUse(bool in_use) {
+  in_use_ = in_use;
+}
+
 void DrmPlane::Dump() const {
   DUMPTRACE("Plane Information Starts. -------------");
   DUMPTRACE("Plane ID: %d", id_);
@@ -414,7 +414,7 @@ void DrmPlane::Dump() const {
   for (uint32_t j = 0; j < supported_formats_.size(); j++)
     DUMPTRACE("Format: %4.4s", (char*)&supported_formats_[j]);
 
-  DUMPTRACE("Enabled: %d", enabled_);
+  DUMPTRACE("Enabled: %d", in_use_);
 
   if (alpha_prop_.id != 0)
     DUMPTRACE("Alpha property is supported.");

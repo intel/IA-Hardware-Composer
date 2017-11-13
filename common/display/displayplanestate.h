@@ -84,6 +84,8 @@ class DisplayPlaneState {
 
   void AddLayers(const std::vector<size_t> &source_layers,
                  const HwcRect<int> &display_frame, State state) {
+    size_t size = source_layers.size();
+    source_layers_.reserve(size);
     for (const int &index : source_layers) {
       source_layers_.emplace_back(index);
     }
@@ -104,6 +106,8 @@ class DisplayPlaneState {
                           bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
       size_t lsize = layers.size();
+      size_t size = source_layers.size();
+      source_layers_.reserve(size);
       has_cursor_layer_ = false;
       display_frame_ = HwcRect<int>(0, 0, 0, 0);
       bool initialized = false;
@@ -190,6 +194,8 @@ class DisplayPlaneState {
   void TransferSurfaces(DisplayPlaneState &plane_state,
                         bool swap_front_buffer) {
     size_t size = surfaces_.size();
+    plane_state.source_layers_.reserve(size);
+    surface_swapped_ = swap_front_buffer;
     if (size < 3 || !swap_front_buffer) {
       // Lets make sure front buffer is now back in the list.
       for (uint32_t i = 0; i < size; i++) {
@@ -200,6 +206,23 @@ class DisplayPlaneState {
       plane_state.surfaces_.emplace_back(surfaces_.at(2));
       plane_state.surfaces_.emplace_back(surfaces_.at(0));
     }
+  }
+
+  // This will be called by DisplayPlaneManager when adding
+  // cursor layer to any existing overlay.
+  void SwapSurfaceIfNeeded() {
+    if (surface_swapped_ || surfaces_.size() < 3) {
+      return;
+    }
+
+    std::vector<NativeSurface *> temp;
+    temp.reserve(surfaces_.size());
+    temp.emplace_back(surfaces_.at(1));
+    temp.emplace_back(surfaces_.at(2));
+    temp.emplace_back(surfaces_.at(0));
+    temp.swap(surfaces_);
+    surface_swapped_ = true;
+    clear_surface_ = true;
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {
@@ -247,9 +270,7 @@ class DisplayPlaneState {
   }
 
   void SetVideoPlane() {
-#ifdef USE_LIBVA
     type_ = PlaneType::kVideo;
-#endif
   }
 
  private:
@@ -267,6 +288,7 @@ class DisplayPlaneState {
   bool recycled_surface_ = false;
   bool clear_surface_ = true;
   bool has_cursor_layer_ = false;
+  bool surface_swapped_ = false;
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };

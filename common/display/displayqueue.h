@@ -87,6 +87,8 @@ class DisplayQueue {
     return state_ & kLastFrameIdleUpdate;
   }
 
+  void RotateDisplay(HWCRotation rotation);
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
@@ -258,6 +260,7 @@ class DisplayQueue {
   SpinLock power_mode_lock_;
   bool sync_ = false;  // Synchronize with compositor thread.
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
+  HWCRotation rotation_ = kRotateNone;
 };
 
 }  // namespace hwcomposer

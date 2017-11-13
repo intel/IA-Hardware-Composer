@@ -81,19 +81,19 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
     switch (layer.GetTransform()) {
-      case HWCTransform::kRotate180: {
+      case HWCTransform::kTransform180: {
         swap_xy = false;
         flip_xy[0] = true;
         flip_xy[1] = true;
         break;
       }
-      case HWCTransform::kRotate270: {
+      case HWCTransform::kTransform270: {
         swap_xy = true;
         flip_xy[0] = true;
         flip_xy[1] = false;
         break;
       }
-      case HWCTransform::kRotate90: {
+      case HWCTransform::kTransform90: {
         swap_xy = true;
         if (layer.GetTransform() & HWCTransform::kReflectX) {
           flip_xy[0] = true;

@@ -29,7 +29,7 @@ SUBDIRS = \
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Ios -Ios/linux -Icommon/display/ -Icommon/core/ -Icommon/utils/ -Icommon/compositor/ -Iwsi -Iwsi/drm/
-AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING -DENABLE_IMPLICIT_CLONE_MODE
+AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
 if !ENABLE_GBM
@@ -48,11 +48,7 @@ libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
 libhwcomposer_la_SOURCES = $(hwc_SOURCES)
 libhwcomposer_ladir = $(libdir)
 libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared -Wl,-whole-archive,common/.libs/libhwcomposer_common.a,wsi/.libs/libhwcomposer_wsi.a,-no-whole-archive
-
-if ENABLE_LIBVA
 libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
-AM_CPPFLAGS += -DUSE_LIBVA
-endif
 
 if ENABLE_VULKAN
 AM_CPP_INCLUDES += -Icommon/compositor/vk

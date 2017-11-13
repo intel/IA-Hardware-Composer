@@ -419,7 +419,7 @@ class BpControls : public BpInterface<IControls> {
   }
 };
 
-IMPLEMENT_META_INTERFACE(Controls, "intel.ufo.hwc.controls");
+IMPLEMENT_META_INTERFACE(Controls, "iahwc.controls");
 
 status_t BnControls::onTransact(uint32_t code, const Parcel &data,
                                 Parcel *reply, uint32_t flags) {

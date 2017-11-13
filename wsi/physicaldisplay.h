@@ -93,8 +93,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
       const std::vector<OverlayPlane> &commit_planes) const override;
 
   bool PopulatePlanes(
-      std::unique_ptr<DisplayPlane> &primary_plane,
-      std::unique_ptr<DisplayPlane> &cursor_plane,
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
 
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
@@ -117,6 +115,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void DisOwnPresentation(NativeDisplay *clone) override;
 
   void SetDisplayOrder(uint32_t display_order) override;
+
+  void RotateDisplay(HWCRotation rotation) override;
 
   /**
   * API for setting color correction for display.
@@ -242,7 +242,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   // file. This may or may not be same as pipe_.
   uint32_t ordered_display_id_ = 0;
   SpinLock modeset_lock_;
-  SpinLock cloned_displays_lock_;
   std::unique_ptr<DisplayQueue> display_queue_;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
   NativeDisplay *source_display_ = NULL;

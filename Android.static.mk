@@ -47,10 +47,4 @@ endif
 
 endif
 
-# Include tests only if eng build
-ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
-# Commenting for now include when ld issue is resolved
-#include $(HWC_PATH)/tests/third_party/json-c/Android.mk
-endif
-
 endif

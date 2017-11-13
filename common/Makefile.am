@@ -24,7 +24,7 @@ SUBDIRS = .
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 AM_CPP_INCLUDES = -Icore -Iutils -Icompositor -Idisplay -I../os/ -I../os/linux/ -I../public/ -I../wsi/
-AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING -DENABLE_IMPLICIT_CLONE_MODE
+AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
 if !ENABLE_GBM
@@ -51,11 +51,8 @@ AM_CPPFLAGS += -DUSE_GL
 libhwcomposer_common_la_LIBADD += $(GLES2_LIBS)
 endif
 
-if ENABLE_LIBVA
 libhwcomposer_common_la_SOURCES += $(va_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/va
-AM_CPPFLAGS += -DUSE_LIBVA
-endif
 
 libhwcomposer_common_ladir = $(libdir)
 libhwcomposer_common_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static

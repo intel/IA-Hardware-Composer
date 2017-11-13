@@ -54,11 +54,6 @@ class DrmPlane : public DisplayPlane {
   uint32_t type() const;
 
   uint32_t id() const override;
-  void SetEnabled(bool enabled) override;
-
-  bool IsEnabled() const override {
-    return enabled_;
-  }
 
   bool ValidateLayer(const OverlayLayer* layer) override;
 
@@ -69,6 +64,16 @@ class DrmPlane : public DisplayPlane {
   uint32_t GetPreferredFormat() const override;
 
   void Dump() const override;
+
+  void SetInUse(bool in_use) override;
+
+  bool InUse() const override {
+    return in_use_;
+  }
+
+  bool IsUniversal() override {
+    return !(type_ == DRM_PLANE_TYPE_CURSOR);
+  }
 
  private:
   struct Property {
@@ -99,8 +104,7 @@ class DrmPlane : public DisplayPlane {
   uint32_t type_;
 
   uint32_t last_valid_format_;
-
-  bool enabled_;
+  bool in_use_;
 
   std::vector<uint32_t> supported_formats_;
   int32_t kms_fence_ = 0;

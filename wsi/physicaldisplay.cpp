@@ -276,7 +276,6 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     return success;
   }
 
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
   if (source_display_) {
     ETRACE("Trying to update display independently when in cloned mode.%p \n",
            this);
@@ -285,7 +284,6 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   if (display_state_ & kRefreshClonedDisplays) {
     RefreshClones();
   }
-#endif
 
   SPIN_UNLOCK(modeset_lock_);
 
@@ -296,12 +294,9 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
   bool success = display_queue_->QueueUpdate(source_layers, retire_fence, false,
                                              handle_constraints);
-
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
   if (success && !clones_.empty()) {
     HandleClonedDisplays(source_layers);
   }
-#endif
 
   size_t size = source_layers.size();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -411,8 +406,6 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
 bool PhysicalDisplay::PopulatePlanes(
-    std::unique_ptr<DisplayPlane> & /*primary_plane*/,
-    std::unique_ptr<DisplayPlane> & /*cursor_plane*/,
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");
   return false;
@@ -471,6 +464,10 @@ void PhysicalDisplay::DisOwnPresentation(NativeDisplay *clone) {
 
 void PhysicalDisplay::SetDisplayOrder(uint32_t display_order) {
   ordered_display_id_ = display_order;
+}
+
+void PhysicalDisplay::RotateDisplay(HWCRotation rotation) {
+  display_queue_->RotateDisplay(rotation);
 }
 
 void PhysicalDisplay::RefreshClones() {
@@ -551,7 +548,7 @@ bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
     return true;
   }
 
-  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length + 1), *size);
   strncpy(name, string.c_str(), *size);
   return true;
 }

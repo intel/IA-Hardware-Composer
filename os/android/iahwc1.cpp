@@ -191,16 +191,16 @@ int IAHwc1Layer::InitFromHwcLayer(hwc_layer_1_t *sf_layer) {
 
   uint32_t transform = 0;
   if (sf_layer->transform == HWC_TRANSFORM_ROT_270) {
-    transform = hwcomposer::HWCTransform::kRotate270;
+    transform = hwcomposer::HWCTransform::kTransform270;
   } else if (sf_layer->transform == HWC_TRANSFORM_ROT_180) {
-    transform = hwcomposer::HWCTransform::kRotate180;
+    transform = hwcomposer::HWCTransform::kTransform180;
   } else {
     if (sf_layer->transform & HWC_TRANSFORM_FLIP_H)
       transform |= hwcomposer::HWCTransform::kReflectX;
     if (sf_layer->transform & HWC_TRANSFORM_FLIP_V)
       transform |= hwcomposer::HWCTransform::kReflectY;
     if (sf_layer->transform & HWC_TRANSFORM_ROT_90)
-      transform |= hwcomposer::HWCTransform::kRotate90;
+      transform |= hwcomposer::HWCTransform::kTransform90;
   }
 
   hwc_layer_->SetTransform(transform);

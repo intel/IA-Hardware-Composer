@@ -47,7 +47,7 @@ DrmDisplayManager::~DrmDisplayManager() {
 #ifndef DISABLE_HOTPLUG_NOTIFICATION
   close(hotplug_fd_);
 #endif
-  close(fd_);
+  drmClose(fd_);
 }
 
 bool DrmDisplayManager::Initialize() {

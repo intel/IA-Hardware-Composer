@@ -113,6 +113,10 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
+void DisplayQueue::RotateDisplay(HWCRotation rotation) {
+  rotation_ = rotation;
+}
+
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool cursor_layer_removed,
                                    DisplayPlaneStateList* composition,
@@ -126,12 +130,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
     if (cursor_layer_removed && plane.IsCursorPlane()) {
       ignore_commit = false;
+      plane.plane()->SetInUse(false);
       continue;
     }
 
     bool region_changed = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
+    last_plane.plane()->SetInUse(true);
     bool has_cursor_layer = plane.HasCursorLayer();
     if (has_cursor_layer) {
       last_plane.AddLayersForCursor(
@@ -311,7 +317,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
     }
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
+
     if (scaling_tracker_.scaling_state_ == ScalingTracker::kNeedsScaling) {
       HwcRect<int> display_frame = layer->GetDisplayFrame();
       display_frame.left =
@@ -328,17 +334,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_frame, handle_constraints);
+          display_frame, display_plane_manager_->GetHeight(), rotation_,
+          handle_constraints);
     } else {
-      overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                            previous_layer, z_order,
-                                            layer_index, handle_constraints);
+      overlay_layer->InitializeFromHwcLayer(
+          layer, buffer_handler_, previous_layer, z_order, layer_index,
+          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     }
-#else
-    overlay_layer->InitializeFromHwcLayer(layer, buffer_handler_,
-                                          previous_layer, z_order, layer_index,
-                                          handle_constraints);
-#endif
+
     if (overlay_layer->IsCursorLayer()) {
       cursor_state_ |= kFrameHasCursor;
       if (previous_frame_cursor_state & kFrameHasCursor) {
@@ -517,24 +520,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (idle_frame) {
     ReleaseSurfaces();
     state_ |= kLastFrameIdleUpdate;
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
     if (state_ & kClonedMode) {
       idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
     }
-#endif
   } else {
     state_ &= ~kLastFrameIdleUpdate;
     ReleaseSurfacesAsNeeded(validate_layers);
   }
 
   if (fence > 0) {
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
     if (!(state_ & kClonedMode)) {
       *retire_fence = dup(fence);
     }
-#else
-    *retire_fence = dup(fence);
-#endif
+
     kms_fence_ = fence;
 
     SetReleaseFenceToLayers(fence, source_layers);

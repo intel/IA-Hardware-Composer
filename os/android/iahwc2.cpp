@@ -891,16 +891,16 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerTransform(int32_t transform) {
   // flip or vertical flip, so treat it differently
   int32_t temp = 0;
   if (transform == HWC_TRANSFORM_ROT_270) {
-    temp = hwcomposer::HWCTransform::kRotate270;
+    temp = hwcomposer::HWCTransform::kTransform270;
   } else if (transform == HWC_TRANSFORM_ROT_180) {
-    temp = hwcomposer::HWCTransform::kRotate180;
+    temp = hwcomposer::HWCTransform::kTransform180;
   } else {
     if (transform & HWC_TRANSFORM_FLIP_H)
       temp |= hwcomposer::HWCTransform::kReflectX;
     if (transform & HWC_TRANSFORM_FLIP_V)
       temp |= hwcomposer::HWCTransform::kReflectY;
     if (transform & HWC_TRANSFORM_ROT_90)
-      temp |= hwcomposer::HWCTransform::kRotate90;
+      temp |= hwcomposer::HWCTransform::kTransform90;
   }
   hwc_layer_.SetTransform(temp);
   return HWC2::Error::None;

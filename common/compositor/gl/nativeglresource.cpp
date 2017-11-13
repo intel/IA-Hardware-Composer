@@ -26,6 +26,7 @@ bool NativeGLResource::PrepareResources(
     const std::vector<OverlayBuffer*>& buffers) {
   Reset();
   std::vector<GLuint>().swap(layer_textures_);
+  layer_textures_.reserve(buffers.size());
   EGLDisplay egl_display = eglGetCurrentDisplay();
   for (auto& buffer : buffers) {
     // Create EGLImage.

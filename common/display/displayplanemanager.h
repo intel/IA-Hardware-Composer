@@ -70,11 +70,16 @@ class DisplayPlaneManager {
     return !surfaces_.empty() || !cursor_surfaces_.empty();
   }
 
-  uint32_t GetGpuFd() {
+  uint32_t GetGpuFd() const {
     return gpu_fd_;
   }
 
+  uint32_t GetHeight() const {
+    return height_;
+  }
+
  protected:
+  DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
@@ -87,9 +92,9 @@ class DisplayPlaneManager {
 
   NativeBufferHandler *buffer_handler_;
   DisplayPlaneHandler *plane_handler_;
+  DisplayPlane *cursor_plane_;
+  DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
-  std::unique_ptr<DisplayPlane> primary_plane_;
-  std::unique_ptr<DisplayPlane> cursor_plane_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
   std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
 

@@ -43,16 +43,16 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer,
                               NativeBufferHandler* buffer_handler,
                               OverlayLayer* previous_layer, uint32_t z_order,
-                              uint32_t layer_index, bool handle_constraints);
+                              uint32_t layer_index, uint32_t max_height,
+                              HWCRotation rotation, bool handle_constraints);
 
-#ifdef ENABLE_IMPLICIT_CLONE_MODE
   void InitializeFromScaledHwcLayer(HwcLayer* layer,
                                     NativeBufferHandler* buffer_handler,
                                     OverlayLayer* previous_layer,
                                     uint32_t z_order, uint32_t layer_index,
                                     const HwcRect<int>& display_frame,
+                                    uint32_t max_height, HWCRotation rotation,
                                     bool handle_constraints);
-#endif
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
@@ -76,6 +76,14 @@ struct OverlayLayer {
 
   uint32_t GetTransform() const {
     return transform_;
+  }
+
+  // This represents any transform applied
+  // to this layer(i.e. GetTransform()) + overall
+  // rotation applied to the display on which this
+  // layer is being shown.
+  uint32_t GetPlaneTransform() const {
+    return plane_transform_;
   }
 
   OverlayBuffer* GetBuffer() const;
@@ -195,11 +203,15 @@ struct OverlayLayer {
 
   OverlayBuffer* ReleaseBuffer();
 
+  void ValidateTransform(uint32_t transform, uint32_t display_transform);
+
   void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
                        OverlayLayer* previous_layer, uint32_t z_order,
-                       uint32_t layer_index, bool handle_constraints);
+                       uint32_t layer_index, uint32_t max_height,
+                       HWCRotation rotation, bool handle_constraints);
 
   uint32_t transform_ = 0;
+  uint32_t plane_transform_ = 0;
   uint32_t z_order_ = 0;
   uint32_t layer_index_ = 0;
   uint32_t source_crop_width_ = 0;

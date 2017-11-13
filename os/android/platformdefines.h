@@ -34,6 +34,9 @@
 
 #include "platformcommondefines.h"
 
+#define DRV_I915 1
+#include <i915_private_android_types.h>
+
 #ifdef _cplusplus
 extern "C" {
 #endif

@@ -2,9 +2,6 @@ ifeq ($(strip $(BOARD_USES_IA_HWCOMPOSER)),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-TARGET_BOARD_PLATFORM := android_ia
-
-
 LOCAL_REQUIRED_MODULES := libjson-c \
                           libhwcomposer.$(TARGET_BOARD_PLATFORM)
 #LOCAL_LDLIBS   += -L$(PRODUCT_OUT)/vendor/lib/hw/ -l:gralloc.android_ia.so -l:hwcomposer.android_ia.so
@@ -24,6 +21,7 @@ LOCAL_CPPFLAGS += \
 	-DUSE_ANDROID_SHIM \
 	-fPIC -O2 \
 	-D_FORTIFY_SOURCE=2 \
+	-DDISABLE_TTY \
 	-fstack-protector-strong \
 	-fPIE -Wformat -Wformat-security
 
@@ -42,13 +40,9 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	libjson-c
 
-ifeq ($(strip $(BOARD_USES_LIBVA)), true)
-
 LOCAL_SHARED_LIBRARIES += \
   libva \
   libva-android
-
-endif
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
@@ -66,7 +60,7 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/../common/display \
 	$(LOCAL_PATH)/../common/utils \
 	$(LOCAL_PATH)/../common/watchers \
-	external/minigbm
+	$(INTEL_MINIGBM)/cros_gralloc/
 
 LOCAL_SRC_FILES := \
     common/layerrenderer.cpp \
