@@ -70,8 +70,16 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
   frame_ = 0;
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
+  bool ignore_updates = false;
+  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
+    ignore_updates = true;
+  }
   idle_tracker_.state_ = 0;
   idle_tracker_.idle_frames_ = 0;
+  if (ignore_updates) {
+    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
+  }
+
   compositor_.Reset();
 
   display_plane_manager_.reset(
@@ -688,8 +696,16 @@ void DisplayQueue::HandleExit() {
 
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
+  bool ignore_updates = false;
+  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
+    ignore_updates = true;
+  }
   idle_tracker_.state_ = 0;
   idle_tracker_.idle_frames_ = 0;
+  if (ignore_updates) {
+    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
+  }
+
   if (kms_fence_ > 0) {
     close(kms_fence_);
     kms_fence_ = 0;
