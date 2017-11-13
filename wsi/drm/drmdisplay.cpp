@@ -708,8 +708,8 @@ void DrmDisplay::ForceRefresh() {
   display_queue_->ForceRefresh();
 }
 
-void DrmDisplay::HandleLazyInitialization() {
-  manager_->HandleLazyInitialization();
+bool DrmDisplay::HandleLazyInitialization() {
+  return manager_->HandleLazyInitialization();
 }
 
 void DrmDisplay::NotifyClientsOfDisplayChangeStatus() {

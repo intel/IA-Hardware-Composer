@@ -396,14 +396,17 @@ void DrmDisplayManager::ForceRefresh() {
   spin_lock_.unlock();
 }
 
-void DrmDisplayManager::HandleLazyInitialization() {
+bool DrmDisplayManager::HandleLazyInitialization() {
+  bool dispatched = false;
   spin_lock_.lock();
   if (release_lock_ && hwc_lock_.get()) {
     hwc_lock_->DisableWatch();
     hwc_lock_.reset(nullptr);
     release_lock_ = false;
+    dispatched = true;
   }
   spin_lock_.unlock();
+  return dispatched;
 }
 
 DisplayManager *DisplayManager::CreateDisplayManager() {

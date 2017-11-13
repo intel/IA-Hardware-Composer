@@ -548,8 +548,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   // Let Display handle any lazy initalizations.
   if (handle_display_initializations_) {
-    handle_display_initializations_ = false;
-    display_->HandleLazyInitialization();
+    if (display_->HandleLazyInitialization())
+      handle_display_initializations_ = false;
   }
 
   return true;
