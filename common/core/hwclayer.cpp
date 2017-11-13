@@ -56,24 +56,17 @@ void HwcLayer::SetBlending(HWCBlending blending) {
 }
 
 void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
-  uint32_t new_src_crop_width =
-      static_cast<int>(ceilf(source_crop.right - source_crop.left));
-  uint32_t new_src_crop_height =
-      static_cast<int>(ceilf(source_crop.bottom - source_crop.top));
-
   if ((source_crop.left != source_crop_.left) ||
-      (source_crop.right != source_crop_.right)) {
-    layer_cache_ |= kSourcePositionChanged;
+      (source_crop.right != source_crop_.right) ||
+      (source_crop.top != source_crop_.top) ||
+      (source_crop.bottom != source_crop_.bottom)) {
+    layer_cache_ |= kSourceRectChanged;
+    source_crop_ = source_crop;
+    source_crop_width_ =
+        static_cast<int>(ceilf(source_crop.right - source_crop.left));
+    source_crop_height_ =
+        static_cast<int>(ceilf(source_crop.bottom - source_crop.top));
   }
-
-  if ((new_src_crop_width != source_crop_width_) ||
-      (new_src_crop_height != source_crop_height_)) {
-    layer_cache_ |= kDisplayFrameRectChanged;
-    source_crop_width_ = new_src_crop_width;
-    source_crop_height_ = new_src_crop_height;
-  }
-
-  source_crop_ = source_crop;
 }
 
 void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
@@ -216,7 +209,7 @@ void HwcLayer::Validate() {
   layer_cache_ &= ~kLayerAttributesChanged;
   layer_cache_ &= ~kDisplayFrameRectChanged;
   layer_cache_ &= ~kDIsplayContentAttributesChanged;
-  layer_cache_ &= ~kSourcePositionChanged;
+  layer_cache_ &= ~kSourceRectChanged;
   if (left_constraint_.empty() && left_source_constraint_.empty())
     return;
 
