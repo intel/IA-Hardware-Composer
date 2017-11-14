@@ -504,10 +504,10 @@ bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
   // We always get the values from preferred mode config.
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = 1;
+      *value = 1920;
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = 1;
+      *value = 1080;
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
