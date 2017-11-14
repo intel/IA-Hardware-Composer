@@ -574,10 +574,6 @@ static uint32_t layerformat2gbmformat(LAYER_FORMAT format,
       *usage_format = LAYER_ANDROID_SCALER_AVAILABLE_FORMATS_RAW16;
       *usage = hwcomposer::kLayerVideo;
       return DRM_FORMAT_R16;
-    case LAYER_HAL_PIXEL_FORMAT_NV12_LINEAR_CAMERA_INTEL:
-      *usage_format = LAYER_HAL_PIXEL_FORMAT_NV12_LINEAR_CAMERA_INTEL;
-      *usage = hwcomposer::kLayerVideo;
-      return DRM_FORMAT_NV12;
     case LAYER_HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL:
       *usage_format = LAYER_HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
       *usage = hwcomposer::kLayerVideo;
