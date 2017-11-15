@@ -148,11 +148,11 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if Layer source position has
+   * API for querying if Layer source rect has
    * changed from last Present call to NativeDisplay.
    */
-  bool HasSourcePositionChanged() const {
-    return layer_cache_ & kSourcePositionChanged;
+  bool HasSourceRectChanged() const {
+    return layer_cache_ & kSourceRectChanged;
   }
 
   /**
@@ -266,7 +266,7 @@ struct HwcLayer {
     kLayerAttributesChanged = 1 << 0,
     kDisplayFrameRectChanged = 1 << 1,
     kDIsplayContentAttributesChanged = 1 << 2,
-    kSourcePositionChanged = 1 << 3
+    kSourceRectChanged = 1 << 3
   };
 
   int32_t transform_ = 0;

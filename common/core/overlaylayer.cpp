@@ -220,8 +220,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   surface_damage_ = display_frame_;
 
   if (layer->HasContentAttributesChanged() ||
-      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
-      layer->HasSourcePositionChanged()) {
+      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged()) {
     state_ |= kClearSurface;
   }
 
@@ -319,7 +318,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
     content_changed = rect_changed || layer->HasContentAttributesChanged() ||
                       layer->HasLayerAttributesChanged() ||
-                      layer->HasSourcePositionChanged();
+                      layer->HasSourceRectChanged();
   } else {
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
@@ -334,6 +333,15 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
     if (rect_changed || layer->HasLayerAttributesChanged())
       return;
+
+    if (layer->HasSourceRectChanged()) {
+      // If the overall width and height hasn't changed, it
+      // shouldn't impact the plane composition results.
+      if ((source_crop_width_ != rhs->source_crop_width_) ||
+          (source_crop_height_ != rhs->source_crop_height_)) {
+        return;
+      }
+    }
   }
 
   state_ &= ~kLayerAttributesChanged;

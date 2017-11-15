@@ -102,7 +102,11 @@ bool DrmDisplayManager::Initialize() {
   hwc_lock_.reset(new HWCLock());
   if (!hwc_lock_->RegisterCallBack(this)) {
     hwc_lock_.reset(nullptr);
-    ForceRefresh();
+  } else {
+    size_t size = displays_.size();
+    for (size_t i = 0; i < size; ++i) {
+      displays_.at(i)->IgnoreUpdates();
+    }
   }
 
   if (!UpdateDisplayState()) {
