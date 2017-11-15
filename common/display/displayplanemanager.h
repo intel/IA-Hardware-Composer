@@ -45,7 +45,8 @@ class DisplayPlaneManager {
   bool ValidateLayers(std::vector<OverlayLayer> &layers,
                       std::vector<OverlayLayer *> &cursor_layers,
                       bool pending_modeset, bool disable_overlay,
-                      DisplayPlaneStateList &composition);
+                      DisplayPlaneStateList &composition,
+                      bool request_video_effect);
 
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous

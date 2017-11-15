@@ -405,6 +405,19 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
+  display_queue_->SetVideoColor(color, value);
+}
+
+void PhysicalDisplay::GetVideoColor(HWCColorControl color,
+                                    float* value, float* start, float* end) {
+  display_queue_->GetVideoColor(color, value, start, end);
+}
+
+void PhysicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
+  display_queue_->RestoreVideoDefaultColor(color);
+}
+
 bool PhysicalDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");
