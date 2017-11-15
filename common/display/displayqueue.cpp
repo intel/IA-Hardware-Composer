@@ -401,6 +401,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
   bool validate_layers = layers_changed || tracker.RevalidateLayers();
+
+  video_lock_.lock();
+  if ((requested_video_effect_ && !validated_for_video_effect_) ||
+      (!requested_video_effect_ && validated_for_video_effect_)) {
+    // We need to validate the layers immediately to ensure
+    // the video effect is applied in the next frame.
+    validate_layers = true;
+    validated_for_video_effect_ = requested_video_effect_;
+  }
+  video_lock_.unlock();
+
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
 
@@ -442,7 +453,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     RecyclePreviousPlaneSurfaces();
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
-        idle_frame || disable_ovelays, current_composition_planes);
+        idle_frame || disable_ovelays, current_composition_planes,
+        requested_video_effect_);
     state_ &= ~kConfigurationChanged;
     bool gpu_rendered = true;
     for (uint32_t i = 0; i < total_cursor_layers_; i++) {
@@ -770,6 +782,25 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   } else {
     state_ &= ~kDisableOverlayUsage;
   }
+}
+
+void DisplayQueue::SetVideoColor(HWCColorControl color, float value) {
+  video_lock_.lock();
+  requested_video_effect_ = true;
+  compositor_.SetVideoColor(color, value);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::GetVideoColor(HWCColorControl color, float* value,
+                                 float* start, float* end) {
+  compositor_.GetVideoColor(color, value, start, end);
+}
+
+void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
+  video_lock_.lock();
+  requested_video_effect_ = false;
+  compositor_.RestoreVideoDefaultColor(color);
+  video_lock_.unlock();
 }
 
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

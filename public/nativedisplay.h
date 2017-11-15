@@ -186,6 +186,26 @@ class NativeDisplay {
   virtual void SetBrightness(uint32_t /*red*/, uint32_t /*green*/,
                              uint32_t /*blue*/) {
   }
+
+ /**
+  * API for setting video color in HWC
+  */
+  virtual void SetVideoColor(HWCColorControl /*color*/, float /*value*/) {
+  }
+
+  /**
+   * API for getting video color in HWC
+   */
+  virtual void GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
+                             float * /*start*/, float * /*end*/) {
+  }
+
+  /**
+   * API for restoring video default color in HWC
+   */
+   virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
+   }
+
   /**
   * API for setting display Broadcast RGB range property
   * @param range_property supported property string, e.g. "Full", "Automatic"

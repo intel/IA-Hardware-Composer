@@ -22,6 +22,7 @@
 #include <hwcrect.h>
 
 #include <vector>
+#include <unordered_map>
 
 namespace hwcomposer {
 
@@ -86,6 +87,22 @@ enum HWCColorTransform {
   kIdentical = 0,       // Applies no transform to the output color
   kArbitraryMatrix = 1  // Applies an arbitrary transform defined by a 4x4 affine matrix
 };
+
+enum class HWCColorControl : int32_t {
+  kColorHue = 0,
+  kColorSaturation = 1,
+  kColorBrightness = 2,
+  kColorContrast = 3
+};
+
+struct EnumClassHash {
+  template <typename T>
+  std::size_t operator()(T t) const {
+    return static_cast<std::size_t>(t);
+  }
+};
+
+using HWCColorMap = std::unordered_map<HWCColorControl, float, EnumClassHash>;
 
 }  // namespace hwcomposer
 #endif  // PUBLIC_HWCDEFS_H_
