@@ -18,8 +18,9 @@
 #include <binder/IInterface.h>
 #include <binder/IServiceManager.h>
 #include <binder/Parcel.h>
-#include "iahwc2.h"
 #include <binder/ProcessState.h>
+#include "iahwc2.h"
+#include "hwcdefs.h"
 
 #define HWC_VERSION_STRING                                             \
   "VERSION:HWC 2.0 GIT Branch & Latest Commit:" HWC_VERSION_GIT_BRANCH \
@@ -27,6 +28,21 @@
 
 namespace android {
 using namespace hwcomposer;
+
+static HWCColorControl HWCS2HWC(EHwcsColorControl color) {
+  switch (color) {
+    case HWCS_COLOR_BRIGHTNESS:
+      return HWCColorControl::kColorBrightness;
+    case HWCS_COLOR_CONTRAST:
+      return HWCColorControl::kColorContrast;
+    case HWCS_COLOR_SATURATION:
+      return HWCColorControl::kColorSaturation;
+    case HWCS_COLOR_HUE:
+    default:
+      return HWCColorControl::kColorHue;
+  }
+  return HWCColorControl::kColorHue;
+}
 
 HwcService::HwcService() : mpHwc(NULL), initialized_(false) {
 }
@@ -193,28 +209,53 @@ status_t HwcService::Controls::DisplayEnableBlank(uint32_t display,
 
 status_t HwcService::Controls::DisplayRestoreDefaultColorParam(
     uint32_t display, EHwcsColorControl color) {
-  // TO DO
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->RestoreVideoDefaultColor(HWCS2HWC(color));
   return OK;
 }
 
 status_t HwcService::Controls::DisplayGetColorParam(uint32_t display,
                                                     EHwcsColorControl color,
-                                                    float *, float *, float *) {
-  // TO DO
+                                                    float *value,
+                                                    float *startvalue,
+                                                    float *endvalue) {
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->GetVideoColor(HWCS2HWC(color), value, startvalue, endvalue);
   return OK;
 }
 
 status_t HwcService::Controls::DisplaySetColorParam(uint32_t display,
                                                     EHwcsColorControl color,
                                                     float value) {
-  // TO DO
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->SetVideoColor(HWCS2HWC(color), value);
   return OK;
 }
 
 std::vector<HwcsDisplayModeInfo>
 HwcService::Controls::DisplayModeGetAvailableModes(uint32_t display) {
   std::vector<HwcsDisplayModeInfo> modes;
-  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
   uint32_t numConfigs, configIndex;
   int32_t tempValue;
   phyDisplay->GetDisplayConfigs(&numConfigs, NULL);
@@ -242,7 +283,12 @@ HwcService::Controls::DisplayModeGetAvailableModes(uint32_t display) {
 
 status_t HwcService::Controls::DisplayModeGetMode(uint32_t display,
                                                   HwcsDisplayModeInfo *pMode) {
-  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
   uint32_t config;
   int32_t tempValue;
   phyDisplay->GetActiveConfig(&config);
@@ -266,7 +312,12 @@ status_t HwcService::Controls::DisplayModeGetMode(uint32_t display,
 
 status_t HwcService::Controls::DisplayModeSetMode(uint32_t display,
                                                   const uint32_t config) {
-  hwcomposer::NativeDisplay *phyDisplay = mHwc.GetPrimaryDisplay();
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
   phyDisplay->SetActiveConfig(config);
   return OK;
 }

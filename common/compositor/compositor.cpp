@@ -80,6 +80,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       DrawState &state = media_state.back();
       state.surface_ = plane.GetOffScreenTarget();
       MediaState &media_state = state.media_state_;
+      lock_.lock();
+      media_state.colors_ = colors_;
+      lock_.unlock();
       const OverlayLayer &layer = layers[plane.source_layers().at(0)];
       media_state.layer_ = &layer;
     } else if (plane.GetCompositionState() ==
@@ -196,6 +199,21 @@ bool Compositor::CalculateRenderState(
   }
 
   return true;
+}
+
+void Compositor::SetVideoColor(HWCColorControl color, float value) {
+  lock_.lock();
+  colors_[color] = value;
+  lock_.unlock();
+}
+
+void Compositor::GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
+                               float * /*start*/, float * /*end*/) {
+  // TODO
+}
+
+void Compositor::RestoreVideoDefaultColor(HWCColorControl /*color*/) {
+  // TODO
 }
 
 // Below code is taken from drm_hwcomposer adopted to our needs.
