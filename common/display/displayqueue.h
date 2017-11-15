@@ -63,6 +63,10 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetVideoColor(HWCColorControl color, float value);
+  void GetVideoColor(HWCColorControl color,
+                     float* value, float* start, float* end);
+  void RestoreVideoDefaultColor(HWCColorControl color);
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
@@ -262,6 +266,9 @@ class DisplayQueue {
   bool sync_ = false;  // Synchronize with compositor thread.
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
   HWCRotation rotation_ = kRotateNone;
+  SpinLock video_lock_;
+  bool requested_video_effect_ = false;
+  bool validated_for_video_effect_ = false;
 };
 
 }  // namespace hwcomposer

@@ -56,6 +56,11 @@ class Compositor {
                      int32_t acquire_fence, int32_t *retire_fence);
   void FreeResources(bool all_resources);
 
+ void SetVideoColor(HWCColorControl color, float value);
+ void GetVideoColor(HWCColorControl color,
+                    float* value, float* start, float* end);
+ void RestoreVideoDefaultColor(HWCColorControl color);
+
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
@@ -66,6 +71,8 @@ class Compositor {
                       std::vector<CompositionRegion> &comp_regions);
 
   std::unique_ptr<CompositorThread> thread_;
+  SpinLock lock_;
+  HWCColorMap colors_;
 };
 
 }  // namespace hwcomposer

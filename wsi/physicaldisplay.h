@@ -84,6 +84,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetColorTransform(const float *matrix, HWCColorTransform hint) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetVideoColor(HWCColorControl color, float value) override;
+  void GetVideoColor(HWCColorControl color,
+                     float* value, float* start, float* end) override;
+  void RestoreVideoDefaultColor(HWCColorControl color)override;
 
   void Connect() override;
 
