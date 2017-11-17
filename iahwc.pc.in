@@ -8,4 +8,4 @@ includedir=@includedir@
 Name: IA Hardware Composer
 Description: Hardware composer for Intel Architecture
 Version: 0.1.1
-Cflags: -I${includedir}
+Cflags: -I${includedir}/libiahwc
