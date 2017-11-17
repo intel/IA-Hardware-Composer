@@ -53,6 +53,15 @@ fi])
 
 AM_CONDITIONAL([ENABLE_VULKAN], [test "x$enable_vulkan" = "xyes"])
 
+# For linux
+AC_ARG_ENABLE(linux-frontend,
+AS_HELP_STRING([--enable-linux-frontend],
+[Compile linux frontend (EXPERIMENTAL) @<:@default=no@:>@]),
+[enable_linux_frontend="$enableval"],
+[enable_linux_frontend=no])
+
+AM_CONDITIONAL([ENABLE_LINUX_FRONTEND], [test "x$enable_linux_frontend" = "xyes"])
+
 # For hotplug
 AC_ARG_ENABLE(hotplug-support,
   AS_HELP_STRING([--disable-hotplug-support],
@@ -203,3 +212,12 @@ AC_CONFIG_FILES([
 		iahwc.pc
 		])
 AC_OUTPUT
+
+echo -e """\nEnabled options """
+
+AC_MSG_RESULT([
+     Vulkan                   $enable_vulkan
+     Linux frontend           $enable_linux_frontend
+     GBM                      $enable_gbm
+     Hotplug Support          $disable_hotplug_support
+])
