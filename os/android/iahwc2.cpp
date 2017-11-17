@@ -146,22 +146,10 @@ HWC2::Error IAHWC2::Init() {
   }
 
   std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
-  size_t size = displays.size();
-  NativeDisplay *primary_display = NULL;
-  for (size_t i = 0; i < size; i++) {
-    hwcomposer::NativeDisplay *display = displays.at(i);
-    if (display->IsConnected()) {
-      primary_display = display;
-      break;
-    }
-  }
-
-  if (!primary_display) {
-    primary_display = displays.at(0);
-  }
-
+  NativeDisplay *primary_display = displays.at(0);
   uint32_t external_display_id = 1;
   primary_display_.Init(primary_display, 0, disable_explicit_sync_);
+  size_t size = displays.size();
 
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
