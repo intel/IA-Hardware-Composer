@@ -21,7 +21,8 @@
 #  SOFTWARE.
 #
 
-bin_PROGRAMS = testlayers
+bin_PROGRAMS = testlayers \
+	       linux_test
 
 testlayers_LDFLAGS = \
 	-no-undefined
@@ -65,3 +66,31 @@ testlayers_SOURCES +=   \
     ./common/cclayerrenderer.cpp
 
 endif
+
+linux_test_LDFLAGS = \
+	-no-undefined
+
+linux_test_LDADD = \
+	$(DRM_LIBS) \
+	$(GBM_LIBS) \
+	$(EGL_LIBS) \
+	$(GLES2_LIBS) \
+	-ldl	\
+	$(top_builddir)/tests/third_party/json-c/libjson-c.la \
+	$(top_builddir)/libhwcomposer.la
+
+linux_test_CFLAGS = \
+	-O0 -g -lm \
+	$(DRM_CFLAGS) \
+	$(GBM_CFLAGS) \
+	$(EGL_CFLAGS) \
+	$(GLES2_CFLAGS) \
+        $(AM_CPPFLAGS)
+
+linux_test_SOURCES = \
+    ./common/layerrenderer.cpp \
+    ./common/gllayerrenderer.cpp \
+    ./common/glcubelayerrenderer.cpp \
+    ./common/esTransform.cpp \
+    ./common/jsonhandlers.cpp \
+    ./apps/linux_frontend_test.cpp

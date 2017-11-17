@@ -17,9 +17,10 @@
 #ifndef OS_LINUX_PLATFORMDEFINES_H_
 #define OS_LINUX_PLATFORMDEFINES_H_
 
-#include <stdio.h>
-#include <stddef.h>
 #include <gbm.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <cmath>
 
 #include <va/va_drm.h>
 

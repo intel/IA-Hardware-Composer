@@ -58,9 +58,15 @@ AM_CPPFLAGS += -DUSE_GL
 libhwcomposer_la_LIBADD += $(GLES2_LIBS)
 endif
 
+if ENABLE_LINUX_FRONTEND
+libhwcomposer_la_SOURCES += \
+	os/linux/iahwc.h \
+	os/linux/linux_frontend.h \
+	os/linux/linux_frontend.cpp
+endif
 
-libhwcincdir = $(includedir)/libhwc
-libhwcinc_HEADERS =	\
+libiahwcincdir = $(includedir)/libiahwc
+libiahwcinc_HEADERS =	\
 	$(top_srcdir)/public/gpudevice.h	\
 	$(top_srcdir)/public/hwcbuffer.h	\
 	$(top_srcdir)/public/hwcdefs.h	\
@@ -68,7 +74,8 @@ libhwcinc_HEADERS =	\
 	$(top_srcdir)/public/hwcrect.h	\
 	$(top_srcdir)/public/nativebufferhandler.h	\
 	$(top_srcdir)/public/nativedisplay.h	\
-	$(top_srcdir)/public/spinlock.h
+	$(top_srcdir)/public/spinlock.h \
+	$(top_srcdir)/os/linux/iahwc.h
 
 
 pkgconfigdir = $(libdir)/pkgconfig
