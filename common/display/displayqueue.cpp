@@ -163,7 +163,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     }
 
     if (plane_state_render || plane.SurfaceRecycled()) {
-      bool alpha_damaged = false;
       bool content_changed = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
@@ -191,16 +190,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             surface_damage = damage;
           }
           content_changed = true;
-          // This is a work around for damage corruption when we have more than
-          // one layer having alpha = 255 and damaged.
-          if (layer.GetBlending() == HWCBlending::kBlendingPremult &&
-              layer.GetAlpha() == 255) {
-            if (alpha_damaged) {
-              clear_surface = true;
-            } else {
-              alpha_damaged = true;
-            }
-          }
         }
       }
 
