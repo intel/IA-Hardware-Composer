@@ -17,6 +17,7 @@
 #include "nativesurface.h"
 
 #include "displayplane.h"
+#include "displayplanestate.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
 
@@ -28,6 +29,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       width_(width),
       height_(height),
       in_use_(false),
+      clear_surface_(true),
       framebuffer_format_(0) {
 }
 
@@ -78,6 +80,10 @@ void NativeSurface::SetInUse(bool inuse) {
   in_use_ = inuse;
 }
 
+void NativeSurface::SetClearSurface(bool clear_surface) {
+  clear_surface_ = clear_surface;
+}
+
 void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   uint32_t format =
       plane.plane()->GetFormatForFrameBuffer(layer_.GetBuffer()->GetFormat());
@@ -97,10 +103,12 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
 }
 
-void NativeSurface::RecycleSurface(DisplayPlaneState &plane) {
-  plane.SetOverlayLayer(&layer_);
-  SetInUse(true);
-  layer_.SetAcquireFence(-1);
+void NativeSurface::ResetDisplayFrame(const HwcRect<int> &display_frame) {
+  surface_damage_ = display_frame;
+  last_surface_damage_ = surface_damage_;
+  layer_.SetDisplayFrame(display_frame);
+  layer_.SetSourceCrop(HwcRect<float>(display_frame));
+  clear_surface_ = true;
 }
 
 void NativeSurface::UpdateSurfaceDamage(

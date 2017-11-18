@@ -142,7 +142,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
-    bool region_changed = false;
+    bool clear_surface = false;
     composition->emplace_back(plane.plane());
     DisplayPlaneState& last_plane = composition->back();
     last_plane.plane()->SetInUse(true);
@@ -152,7 +152,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           plane.source_layers(), layers, plane.GetDisplayFrame(),
           plane.GetCompositionState(), cursor_layer_removed);
 
-      region_changed = cursor_layer_removed;
+      clear_surface = cursor_layer_removed;
     } else {
       last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
                            plane.GetCompositionState());
@@ -163,7 +163,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     }
 
     if (plane_state_render || plane.SurfaceRecycled()) {
-      bool clear_surface = false;
       bool alpha_damaged = false;
       bool content_changed = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
@@ -175,7 +174,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         const OverlayLayer& layer = layers.at(source_index);
         if (layer.HasDimensionsChanged()) {
           last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
-          region_changed = true;
           clear_surface = true;
         } else if (layer.NeedsToClearSurface()) {
           clear_surface = true;
@@ -206,35 +204,41 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (clear_surface || region_changed) {
-        content_changed = true;
-      }
+      // Let's make sure we swap the surface if content has changed or
+      // we need to clear the surface.
+      last_plane.TransferSurfaces(plane.GetSurfaces(),
+                                  content_changed || clear_surface);
 
-      plane.TransferSurfaces(last_plane, content_changed);
-      if (region_changed) {
+      if (clear_surface) {
+        content_changed = true;
         std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-        size_t size = surfaces.size();
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
+        size_t size = surfaces.size();
         for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-          surfaces.at(i)->UpdateDisplayFrame(current_rect);
+          surfaces.at(i)->ResetDisplayFrame(current_rect);
         }
       } else {
-        const std::vector<CompositionRegion>& comp_regions =
-            plane.GetCompositionRegion();
-        last_plane.GetCompositionRegion().assign(comp_regions.begin(),
-                                                 comp_regions.end());
+        clear_surface = true;
+        NativeSurface* surface = last_plane.GetOffScreenTarget();
+        if (surface) {
+          clear_surface = surface->ClearSurface();
+        }
+
+        if (!clear_surface) {
+          const std::vector<CompositionRegion>& comp_regions =
+              plane.GetCompositionRegion();
+          last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                   comp_regions.end());
+        } else {
+          content_changed = true;
+        }
       }
 
       if (content_changed) {
         if (last_plane.GetSurfaces().size() == 3) {
-          NativeSurface* surface = last_plane.GetOffScreenTarget();
-          surface->RecycleSurface(last_plane);
-          HwcRect<int> last_damage;
-          std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-
           if (!clear_surface) {
-            last_plane.DisableClearSurface();
+            HwcRect<int> last_damage;
+            std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
             // Calculate Surface damage for the current surface. This should
             // be always equal to current surface damage + damage of last
             // two surfaces.(We use tripple buffering for our internal surfaces)
@@ -247,12 +251,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                 std::max(previous_damage.right, last_damage.right);
             last_damage.bottom =
                 std::max(previous_damage.bottom, last_damage.bottom);
-          } else {
-            surface_damage = last_plane.GetDisplayFrame();
-            last_damage = surface_damage;
+            surfaces.at(0)->UpdateSurfaceDamage(surface_damage, last_damage);
           }
-
-          surface->UpdateSurfaceDamage(surface_damage, last_damage);
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         }
@@ -260,8 +260,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
-        NativeSurface* surface = plane.GetOffScreenTarget();
-        surface->RecycleSurface(last_plane);
         last_plane.ReUseOffScreenTarget();
       }
     } else {

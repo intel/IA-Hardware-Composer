@@ -19,13 +19,14 @@
 
 #include <memory>
 
-#include "displayplanestate.h"
 #include "overlaybuffer.h"
+#include "overlaylayer.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class DisplayPlaneState;
 
 class NativeSurface {
  public:
@@ -59,14 +60,20 @@ class NativeSurface {
   void SetNativeFence(int32_t fd);
 
   void SetInUse(bool inuse);
+  void SetClearSurface(bool clear_surface);
 
   bool InUse() const {
     return in_use_;
   }
 
+  bool ClearSurface() const {
+    return clear_surface_;
+  }
+
   void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
 
-  void RecycleSurface(DisplayPlaneState& plane);
+  // Resets DisplayFrame, SurfaceDamage to display_frame.
+  void ResetDisplayFrame(const HwcRect<int>& display_frame);
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
                            const HwcRect<int>& last_surface_damage);
   void UpdateDisplayFrame(const HwcRect<int>& display_frame);
@@ -89,6 +96,7 @@ class NativeSurface {
   int width_;
   int height_;
   bool in_use_;
+  bool clear_surface_;
   uint32_t framebuffer_format_;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;
