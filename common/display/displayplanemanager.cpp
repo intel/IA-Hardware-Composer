@@ -278,14 +278,14 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         size_t size = surfaces.size();
         const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
         for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-          surfaces.at(i)->UpdateDisplayFrame(current_rect);
+          surfaces.at(i)->ResetDisplayFrame(current_rect);
         }
+
+        last_plane->SwapSurfaceIfNeeded();
         gpu_rendered = false;
       }
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
       plane->SetInUse(true);
-      last_plane->SwapSurfaceIfNeeded();
       last_plane = GetLastUsedOverlay(composition);
     }
 
@@ -298,7 +298,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     OverlayLayer *cursor_layer = cursor_layers.at(i);
     last_plane->AddLayer(cursor_layer->GetZorder(),
                          cursor_layer->GetDisplayFrame(), true);
-    last_plane->SwapSurfaceIfNeeded();
     cursor_layer->GPURendered();
     gpu_rendered = true;
     status = true;
@@ -317,8 +316,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     size_t size = surfaces.size();
     const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
     for (size_t i = 0; i < size; i++) {
-      surfaces.at(i)->UpdateSurfaceDamage(current_rect, current_rect);
-      surfaces.at(i)->UpdateDisplayFrame(current_rect);
+      surfaces.at(i)->ResetDisplayFrame(current_rect);
     }
   }
 

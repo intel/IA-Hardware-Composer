@@ -72,7 +72,6 @@ struct DrawState {
   std::vector<RenderState> states_;
   MediaState media_state_;
   NativeSurface *surface_;
-  bool clear_surface_;
   bool destroy_surface_ = false;
   int32_t retire_fence_ = -1;
   std::vector<int32_t> acquire_fences_;
