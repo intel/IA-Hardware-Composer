@@ -39,15 +39,15 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   buffer_handler_->CopyHandle(handle_, &handle_);
 
-  if (!buffer_handler_->ImportBuffer(handle_, &bo_)) {
+  if (!buffer_handler_->ImportBuffer(handle_)) {
     ETRACE("LayerRenderer: ImportBuffer failed");
     return false;
   }
 
-  width_ = bo_.width;
-  height_ = bo_.height;
-  stride_ = bo_.pitches[0];
-  fd_ = bo_.prime_fd;
+  width_ = handle_->meta_data_.width_;
+  height_ = handle_->meta_data_.height_;
+  stride_ = handle_->meta_data_.pitches_[0];
+  fd_ = handle_->meta_data_.prime_fd_;
   planes_ = buffer_handler_->GetTotalPlanes(handle_);
   format_ = format;
 

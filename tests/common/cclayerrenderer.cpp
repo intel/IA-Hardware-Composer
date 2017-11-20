@@ -42,7 +42,7 @@ bool CCLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
 void CCLayerRenderer::Draw(int64_t* pfence) {
   void* pOpaque = NULL;
-  uint32_t stride = bo_.pitches[0];
+  uint32_t stride = handle_->meta_data_.pitches_[0];
   uint32_t mapStride;
   void* pBo = buffer_handler_->Map(handle_, 0, 0, width_, height_, &mapStride,
                                    &pOpaque, 0);

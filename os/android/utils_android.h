@@ -31,7 +31,6 @@
 #include <cros_gralloc_helpers.h>
 
 #include <hwcdefs.h>
-#include "hwcbuffer.h"
 #include "hwctrace.h"
 
 #define HWC_UNUSED(x) ((void)&(x))
@@ -272,42 +271,42 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   return true;
 }
 
-static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
-                                 int fd) {
+static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
-  memset(bo, 0, sizeof(struct HwcBuffer));
-  bo->format = gr_handle->format;
-  bo->width = gr_handle->width;
-  bo->height = gr_handle->height;
-  bo->prime_fd = gr_handle->fds[0];
+  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
+  handle->meta_data_.format_ = gr_handle->format;
+  handle->meta_data_.width_ = gr_handle->width;
+  handle->meta_data_.height_ = gr_handle->height;
+  handle->meta_data_.prime_fd_ = gr_handle->fds[0];
+  handle->meta_data_.native_format_ = gr_handle->droid_format;
 
   uint32_t id = 0;
-  if (drmPrimeFDToHandle(fd, bo->prime_fd, &id)) {
+  if (drmPrimeFDToHandle(fd, handle->meta_data_.prime_fd_, &id)) {
     ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
     return false;
   }
 
   for (size_t p = 0; p < DRV_MAX_PLANES; p++) {
-    bo->offsets[p] = gr_handle->offsets[p];
-    bo->pitches[p] = gr_handle->strides[p];
-    bo->gem_handles[p] = id;
+    handle->meta_data_.offsets_[p] = gr_handle->offsets[p];
+    handle->meta_data_.pitches_[p] = gr_handle->strides[p];
+    handle->meta_data_.gem_handles_[p] = id;
   }
 
   if (gr_handle->usage & GRALLOC_USAGE_PROTECTED) {
-    bo->usage |= hwcomposer::kLayerProtected;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerProtected;
   } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
-    bo->usage |= hwcomposer::kLayerCursor;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerCursor;
     // We support DRM_FORMAT_ARGB8888 for cursor.
-    bo->format = DRM_FORMAT_ARGB8888;
+    handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
   } else {
-    bo->usage |= hwcomposer::kLayerNormal;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
   }
 
   handle->gem_handle_ = id;
 
   // switch minigbm specific enum to a standard one
-  if (bo->format == DRM_FORMAT_YVU420_ANDROID)
-    bo->format = DRM_FORMAT_YVU420;
+  if (handle->meta_data_.format_ == DRM_FORMAT_YVU420_ANDROID)
+    handle->meta_data_.format_ = DRM_FORMAT_YVU420;
 
   return true;
 }

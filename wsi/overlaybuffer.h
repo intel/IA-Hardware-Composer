@@ -18,8 +18,6 @@
 
 #include <platformdefines.h>
 
-#include <hwcbuffer.h>
-
 #include "compositordefs.h"
 
 namespace hwcomposer {

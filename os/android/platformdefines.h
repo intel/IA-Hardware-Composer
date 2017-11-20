@@ -46,6 +46,7 @@ struct gralloc_handle {
   android::sp<android::GraphicBuffer> buffer_ = NULL;
   native_handle_t* imported_handle_ = NULL;
   uint32_t gem_handle_ = 0;
+  HwcBuffer meta_data_;
   bool hwc_buffer_ = false;
 };
 

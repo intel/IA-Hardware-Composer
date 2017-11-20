@@ -21,7 +21,6 @@
 #include <xf86drm.h>
 #include <drm_fourcc.h>
 
-#include <hwcbuffer.h>
 #include <hwcdefs.h>
 #include <hwctrace.h>
 #include <platformdefines.h>
@@ -169,10 +168,11 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
   *target = temp;
 }
 
-bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
-  memset(bo, 0, sizeof(struct HwcBuffer));
+bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) {
+  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   uint32_t gem_handle = 0;
-  bo->format = handle->import_data.format;
+  handle->meta_data_.format_ = handle->import_data.format;
+  handle->meta_data_.native_format_ = handle->import_data.format;
   if (!handle->imported_bo) {
 #if USE_MINIGBM
     handle->imported_bo =
@@ -197,24 +197,24 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) {
     return false;
   }
 
-  bo->width = handle->import_data.width;
-  bo->height = handle->import_data.height;
+  handle->meta_data_.width_ = handle->import_data.width;
+  handle->meta_data_.height_ = handle->import_data.height;
   // FIXME: Set right flag here.
-  bo->usage |= hwcomposer::kLayerNormal;
+  handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
 
 #if USE_MINIGBM
-  bo->prime_fd = handle->import_data.fds[0];
+  handle->meta_data_.prime_fd_ = handle->import_data.fds[0];
   size_t total_planes = gbm_bo_get_num_planes(handle->bo);
   for (size_t i = 0; i < total_planes; i++) {
-    bo->gem_handles[i] = gem_handle;
-    bo->offsets[i] = gbm_bo_get_plane_offset(handle->bo, i);
-    bo->pitches[i] = gbm_bo_get_plane_stride(handle->bo, i);
+    handle->meta_data_.gem_handles_[i] = gem_handle;
+    handle->meta_data_.offsets_[i] = gbm_bo_get_plane_offset(handle->bo, i);
+    handle->meta_data_.pitches_[i] = gbm_bo_get_plane_stride(handle->bo, i);
   }
 #else
-  bo->prime_fd = handle->import_data.fd;
-  bo->gem_handles[0] = gem_handle;
-  bo->offsets[0] = 0;
-  bo->pitches[0] = gbm_bo_get_stride(handle->bo);
+  handle->meta_data_.prime_fd_ = handle->import_data.fd;
+  handle->meta_data_.gem_handles_[0] = gem_handle;
+  handle->meta_data_.offsets_[0] = 0;
+  handle->meta_data_.pitches_[0] = gbm_bo_get_stride(handle->bo);
 #endif
 
   return true;

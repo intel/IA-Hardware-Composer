@@ -105,8 +105,7 @@ void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) {
   DestroyBufferHandle(handle);
 }
 
-bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle,
-                                         HwcBuffer *bo) {
+bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) {
   if (!handle->imported_handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
@@ -115,7 +114,7 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle,
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
   register_(gralloc1_dvc, handle->imported_handle_);
-  return ImportGraphicsBuffer(handle, bo, fd_);
+  return ImportGraphicsBuffer(handle, fd_);
 }
 
 uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {

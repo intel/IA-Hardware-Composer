@@ -76,13 +76,13 @@ class StreamTextureImpl {
       return false;
     }
 
-    if (!buffer_handler_->ImportBuffer(handle_, &bo_)) {
+    if (!buffer_handler_->ImportBuffer(handle_)) {
       ETRACE("StreamTextureImpl: ImportBuffer failed");
       return false;
     }
 
-    dimension_.stride = bo_.pitches[0];
-    fd_ = bo_.prime_fd;
+    dimension_.stride = handle_->meta_data_.pitches_[0];
+    fd_ = handle_->meta_data_.prime_fd_;
     EGLint offset = 0;
     const EGLint khr_image_attrs[] = {
         EGL_DMA_BUF_PLANE0_FD_EXT,     fd_,
@@ -120,7 +120,6 @@ class StreamTextureImpl {
  private:
   glContext *gl_;
   HWCNativeHandle handle_;
-  HwcBuffer bo_;
   hwcomposer::NativeBufferHandler *buffer_handler_ = nullptr;
   int fd_ = -1;
   EGLImageKHR image_ = nullptr;
