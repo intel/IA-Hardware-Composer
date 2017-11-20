@@ -72,9 +72,11 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   if (layer_type == kLayerNormal) {
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+#ifdef USE_MINIGBM
   } else if (layer_type == kLayerVideo) {
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING |
               GBM_BO_USE_CAMERA_WRITE | GBM_BO_USE_CAMERA_READ);
+#endif
   }
 
   struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format, flags);
