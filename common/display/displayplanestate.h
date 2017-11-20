@@ -22,6 +22,7 @@
 
 #include "overlaylayer.h"
 #include "compositionregion.h"
+#include "nativesurface.h"
 
 namespace hwcomposer {
 
@@ -191,27 +192,38 @@ class DisplayPlaneState {
     return surfaces_.at(0);
   }
 
-  void TransferSurfaces(DisplayPlaneState &plane_state,
+  void TransferSurfaces(const std::vector<NativeSurface *> &surfaces,
                         bool swap_front_buffer) {
-    size_t size = surfaces_.size();
-    plane_state.source_layers_.reserve(size);
-    surface_swapped_ = swap_front_buffer;
+    size_t size = surfaces.size();
+    source_layers_.reserve(size);
     if (size < 3 || !swap_front_buffer) {
-      // Lets make sure front buffer is now back in the list.
       for (uint32_t i = 0; i < size; i++) {
-        plane_state.surfaces_.emplace_back(surfaces_.at(i));
+        surfaces_.emplace_back(surfaces.at(i));
       }
     } else {
-      plane_state.surfaces_.emplace_back(surfaces_.at(1));
-      plane_state.surfaces_.emplace_back(surfaces_.at(2));
-      plane_state.surfaces_.emplace_back(surfaces_.at(0));
+      // Lets make sure front buffer is now back in the list.
+      surfaces_.emplace_back(surfaces.at(1));
+      surfaces_.emplace_back(surfaces.at(2));
+      surfaces_.emplace_back(surfaces.at(0));
+    }
+
+    NativeSurface *surface = surfaces_.at(0);
+    surface->SetInUse(true);
+    SetOverlayLayer(surface->GetLayer());
+
+    if (surfaces_.size() == 3) {
+      surface_swapped_ = swap_front_buffer;
+    } else {
+      // We will be using an empty buffer, no need to
+      // swap buffer in this case.
+      surface_swapped_ = true;
     }
   }
 
   // This will be called by DisplayPlaneManager when adding
   // cursor layer to any existing overlay.
   void SwapSurfaceIfNeeded() {
-    if (surface_swapped_ || surfaces_.size() < 3) {
+    if (surface_swapped_) {
       return;
     }
 
@@ -222,7 +234,9 @@ class DisplayPlaneState {
     temp.emplace_back(surfaces_.at(0));
     temp.swap(surfaces_);
     surface_swapped_ = true;
-    clear_surface_ = true;
+    NativeSurface *surface = surfaces_.at(0);
+    surface->SetInUse(true);
+    SetOverlayLayer(surface->GetLayer());
   }
 
   const std::vector<NativeSurface *> &GetSurfaces() const {
@@ -247,14 +261,6 @@ class DisplayPlaneState {
 
   const std::vector<CompositionRegion> &GetCompositionRegion() const {
     return composition_region_;
-  }
-
-  void DisableClearSurface() {
-    clear_surface_ = false;
-  }
-
-  bool ClearSurface() const {
-    return clear_surface_;
   }
 
   bool IsCursorPlane() const {
@@ -286,9 +292,8 @@ class DisplayPlaneState {
   std::vector<size_t> source_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
-  bool clear_surface_ = true;
   bool has_cursor_layer_ = false;
-  bool surface_swapped_ = false;
+  bool surface_swapped_ = true;
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };

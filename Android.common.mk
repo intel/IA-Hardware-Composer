@@ -69,11 +69,7 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
 
-ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
-else
-LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
-endif
 
 LOCAL_CPPFLAGS += \
 	-DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\"" \
@@ -118,14 +114,8 @@ LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
 
-ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
-LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
-else
-LOCAL_C_INCLUDES += \
-	$(INTEL_DRM_GRALLOC)
-endif
 
 ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow

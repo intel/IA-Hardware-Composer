@@ -204,7 +204,7 @@ void CompositorThread::Handle3DDrawRequest() {
     std::vector<int32_t>().swap(draw_state.acquire_fences_);
 
     if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_,
-                            draw_state.clear_surface_)) {
+                            draw_state.surface_->ClearSurface())) {
       ETRACE(
           "Failed to prepare GPU resources for compositing the frame, "
           "error: %s",

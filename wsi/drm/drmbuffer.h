@@ -18,8 +18,6 @@
 
 #include <platformdefines.h>
 
-#include <hwcbuffer.h>
-
 #include "overlaybuffer.h"
 
 namespace hwcomposer {

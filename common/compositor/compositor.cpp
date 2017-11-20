@@ -98,7 +98,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
       draw_state.emplace_back();
       DrawState &state = draw_state.back();
-      state.clear_surface_ = plane.ClearSurface();
       state.surface_ = plane.GetOffScreenTarget();
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
@@ -143,7 +142,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   std::vector<DrawState> media;
   draw.emplace_back();
   DrawState &draw_state = draw.back();
-  draw_state.clear_surface_ = true;
   draw_state.destroy_surface_ = true;
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
@@ -181,7 +179,7 @@ bool Compositor::CalculateRenderState(
     RenderState state;
     state.ConstructState(layers, region,
                          draw_state.surface_->GetSurfaceDamage(),
-                         draw_state.clear_surface_);
+                         draw_state.surface_->ClearSurface());
     if (state.layer_state_.empty()) {
       continue;
     }

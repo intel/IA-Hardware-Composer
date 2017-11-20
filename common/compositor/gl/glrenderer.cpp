@@ -85,6 +85,8 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   if (!surface->MakeCurrent())
     return false;
 
+  surface->SetClearSurface(false);
+
   glViewport(left, top, frame_width, frame_height);
 
   if (clear_surface)

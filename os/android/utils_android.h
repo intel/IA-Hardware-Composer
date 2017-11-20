@@ -27,13 +27,10 @@
 
 #include "platformdefines.h"
 
-#ifdef USE_MINIGBM
 #include <cros_gralloc_handle.h>
 #include <cros_gralloc_helpers.h>
-#endif
 
 #include <hwcdefs.h>
-#include "hwcbuffer.h"
 #include "hwctrace.h"
 
 #define HWC_UNUSED(x) ((void)&(x))
@@ -134,10 +131,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_AYUV:
       return 0;
-#ifdef USE_MINIGBM
     case DRM_FORMAT_NV12:
       return HAL_PIXEL_FORMAT_NV12;
-#endif
     case DRM_FORMAT_NV21:
       return HAL_PIXEL_FORMAT_YCrCb_420_SP;
     case DRM_FORMAT_NV16:
@@ -160,10 +155,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
       return HAL_PIXEL_FORMAT_YCbCr_444_888;
     case DRM_FORMAT_YVU444:
       return 0;
-#ifdef USE_MINIGBM
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
-#endif
     case DRM_FORMAT_P010:
       return HAL_PIXEL_FORMAT_P010_INTEL;
     default:
@@ -217,7 +210,7 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   delete handle;
   handle = NULL;
 }
-#ifdef USE_MINIGBM
+
 static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
                                  HWCNativeHandle *handle, uint32_t layer_type) {
   struct gralloc_handle *temp = new struct gralloc_handle();
@@ -278,46 +271,45 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   return true;
 }
 
-static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
-                                 int fd) {
+static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
-  memset(bo, 0, sizeof(struct HwcBuffer));
-  bo->format = gr_handle->format;
-  bo->width = gr_handle->width;
-  bo->height = gr_handle->height;
-  bo->prime_fd = gr_handle->fds[0];
+  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
+  handle->meta_data_.format_ = gr_handle->format;
+  handle->meta_data_.width_ = gr_handle->width;
+  handle->meta_data_.height_ = gr_handle->height;
+  handle->meta_data_.prime_fd_ = gr_handle->fds[0];
+  handle->meta_data_.native_format_ = gr_handle->droid_format;
 
   uint32_t id = 0;
-  if (drmPrimeFDToHandle(fd, bo->prime_fd, &id)) {
+  if (drmPrimeFDToHandle(fd, handle->meta_data_.prime_fd_, &id)) {
     ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
     return false;
   }
 
   for (size_t p = 0; p < DRV_MAX_PLANES; p++) {
-    bo->offsets[p] = gr_handle->offsets[p];
-    bo->pitches[p] = gr_handle->strides[p];
-    bo->gem_handles[p] = id;
+    handle->meta_data_.offsets_[p] = gr_handle->offsets[p];
+    handle->meta_data_.pitches_[p] = gr_handle->strides[p];
+    handle->meta_data_.gem_handles_[p] = id;
   }
 
   if (gr_handle->usage & GRALLOC_USAGE_PROTECTED) {
-    bo->usage |= hwcomposer::kLayerProtected;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerProtected;
   } else if (gr_handle->usage & GRALLOC_USAGE_CURSOR) {
-    bo->usage |= hwcomposer::kLayerCursor;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerCursor;
     // We support DRM_FORMAT_ARGB8888 for cursor.
-    bo->format = DRM_FORMAT_ARGB8888;
+    handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
   } else {
-    bo->usage |= hwcomposer::kLayerNormal;
+    handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
   }
 
   handle->gem_handle_ = id;
 
   // switch minigbm specific enum to a standard one
-  if (bo->format == DRM_FORMAT_YVU420_ANDROID)
-    bo->format = DRM_FORMAT_YVU420;
+  if (handle->meta_data_.format_ == DRM_FORMAT_YVU420_ANDROID)
+    handle->meta_data_.format_ = DRM_FORMAT_YVU420;
 
   return true;
 }
-#endif
 #ifdef __cplusplus
 }
 #endif

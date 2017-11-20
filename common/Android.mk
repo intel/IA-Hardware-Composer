@@ -142,14 +142,8 @@ LOCAL_SRC_FILES += \
         compositor/gl/shim.cpp
 endif
 
-ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
-LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
         $(INTEL_MINIGBM)/cros_gralloc/
-else
-LOCAL_C_INCLUDES += \
-        $(INTEL_DRM_GRALLOC)
-endif
 
 LOCAL_MODULE := libhwcomposer_common
 LOCAL_CFLAGS += -fvisibility=default
