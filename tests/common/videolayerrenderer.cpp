@@ -240,7 +240,7 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
 
   char* pReadLoc = NULL;
   for (int i = 0; i < planes_; i++) {
-    pReadLoc = (char*)pBo + bo_.offsets[i];
+    pReadLoc = (char*)pBo + handle_->meta_data_.offsets_[i];
 
     uint32_t lineBytes = get_linewidth_from_format(format_, source_width_, i);
     uint32_t readHeight = 0;
@@ -257,7 +257,7 @@ void VideoLayerRenderer::Draw(int64_t* pfence) {
         i = -1;
         break;
       }
-      pReadLoc += bo_.pitches[i];
+      pReadLoc += handle_->meta_data_.pitches_[i];
       readHeight++;
     }
   }

@@ -17,8 +17,6 @@
 #ifndef COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 #define COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 
-#include <hwcbuffer.h>
-
 #include <memory>
 #include <map>
 #include <vector>

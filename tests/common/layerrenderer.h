@@ -17,7 +17,6 @@
 #ifndef LAYER_RENDERER_H_
 #define LAYER_RENDERER_H_
 
-#include <hwcbuffer.h>
 #include <platformdefines.h>
 #include "esUtil.h"
 #include <EGL/eglext.h>
@@ -59,7 +58,6 @@ class LayerRenderer {
 
  protected:
   HWCNativeHandle handle_;
-  HwcBuffer bo_;
   hwcomposer::NativeBufferHandler* buffer_handler_ = NULL;
   uint32_t format_ = DRM_FORMAT_XRGB8888;
   uint32_t planes_ = 0;

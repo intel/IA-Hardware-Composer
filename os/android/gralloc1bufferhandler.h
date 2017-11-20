@@ -36,7 +36,7 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
                     uint32_t layer_type) override;
   bool ReleaseBuffer(HWCNativeHandle handle) override;
   void DestroyHandle(HWCNativeHandle handle) override;
-  bool ImportBuffer(HWCNativeHandle handle, HwcBuffer *bo) override;
+  bool ImportBuffer(HWCNativeHandle handle) override;
   void CopyHandle(HWCNativeHandle source, HWCNativeHandle *target) override;
   uint32_t GetTotalPlanes(HWCNativeHandle handle) override;
   void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y, uint32_t width,
