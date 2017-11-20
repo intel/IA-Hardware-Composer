@@ -118,14 +118,8 @@ LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
 
-ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
-LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
-else
-LOCAL_C_INCLUDES += \
-	$(INTEL_DRM_GRALLOC)
-endif
 
 ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow

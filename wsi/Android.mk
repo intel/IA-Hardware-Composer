@@ -91,14 +91,8 @@ LOCAL_CPPFLAGS += \
         -DUSE_GL
 endif
 
-ifeq ($(strip $(BOARD_USES_MINIGBM)), true)
-LOCAL_CPPFLAGS += -DUSE_MINIGBM
 LOCAL_C_INCLUDES += \
-        $(INTEL_MINIGBM)/cros_gralloc/
-else
-LOCAL_C_INCLUDES += \
-        $(INTEL_DRM_GRALLOC)
-endif
+	$(INTEL_MINIGBM)/cros_gralloc/
 
 ifeq ($(strip $(DISABLE_HOTPLUG_SUPPORT)), true)
 LOCAL_CPPFLAGS += \

@@ -27,10 +27,8 @@
 
 #include "platformdefines.h"
 
-#ifdef USE_MINIGBM
 #include <cros_gralloc_handle.h>
 #include <cros_gralloc_helpers.h>
-#endif
 
 #include <hwcdefs.h>
 #include "hwcbuffer.h"
@@ -134,10 +132,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_AYUV:
       return 0;
-#ifdef USE_MINIGBM
     case DRM_FORMAT_NV12:
       return HAL_PIXEL_FORMAT_NV12;
-#endif
     case DRM_FORMAT_NV21:
       return HAL_PIXEL_FORMAT_YCrCb_420_SP;
     case DRM_FORMAT_NV16:
@@ -160,10 +156,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
       return HAL_PIXEL_FORMAT_YCbCr_444_888;
     case DRM_FORMAT_YVU444:
       return 0;
-#ifdef USE_MINIGBM
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
-#endif
     case DRM_FORMAT_P010:
       return HAL_PIXEL_FORMAT_P010_INTEL;
     default:
@@ -217,7 +211,7 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   delete handle;
   handle = NULL;
 }
-#ifdef USE_MINIGBM
+
 static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
                                  HWCNativeHandle *handle, uint32_t layer_type) {
   struct gralloc_handle *temp = new struct gralloc_handle();
@@ -317,7 +311,6 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, HwcBuffer *bo,
 
   return true;
 }
-#endif
 #ifdef __cplusplus
 }
 #endif
