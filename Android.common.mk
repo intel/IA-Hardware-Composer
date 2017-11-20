@@ -69,11 +69,7 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
 
-ifeq ($(strip $(BOARD_USES_GRALLOC1)), true)
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
-else
-LOCAL_SRC_FILES += os/android/grallocbufferhandler.cpp
-endif
 
 LOCAL_CPPFLAGS += \
 	-DHWC_VERSION_GIT_BRANCH="\"$(HWC_VERSION_GIT_BRANCH)\"" \
