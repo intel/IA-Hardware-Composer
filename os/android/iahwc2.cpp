@@ -151,6 +151,12 @@ HWC2::Error IAHWC2::Init() {
   primary_display_.Init(primary_display, 0, disable_explicit_sync_);
   size_t size = displays.size();
 
+  // Add nested display which is expected to use the output of this display and
+  // show it himself. Nested display can be implemented with real HW display.
+  // It's different from virtual display.
+  nested_display_.InitNestedDisplay(device_.GetNestedDisplay(),
+                                    disable_explicit_sync_);
+
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
     if (display == primary_display)
@@ -160,7 +166,8 @@ HWC2::Error IAHWC2::Init() {
     temp->Init(display, external_display_id, disable_explicit_sync_);
     extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
-// Let's not confuse things with Virtual Display.
+
+    // Let's not confuse things with Virtual Display.
     if (external_display_id == HWC_DISPLAY_VIRTUAL)
       external_display_id = HWC_DISPLAY_VIRTUAL + 1;
   }
@@ -225,6 +232,7 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   switch (callback) {
     case HWC2::Callback::Hotplug: {
       primary_display_.RegisterHotPlugCallback(data, function);
+      nested_display_.RegisterHotPlugCallback(data, function);
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
@@ -269,6 +277,21 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   type_ = HWC2::DisplayType::Virtual;
   handle_ = HWC_DISPLAY_VIRTUAL;
   display_->InitVirtualDisplay(width, height);
+  disable_explicit_sync_ = disable_explicit_sync;
+  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  return HWC2::Error::None;
+}
+
+// This function will be called only for Nested Display Init
+HWC2::Error IAHWC2::HwcDisplay::InitNestedDisplay(
+    hwcomposer::NativeDisplay *display, bool disable_explicit_sync) {
+  supported(__func__);
+  display_ = display;
+#ifdef NESTED_DISPLAY_SUPPORT
+  type_ = HWC2::DisplayType::Nested;
+  handle_ = HWC_DISPLAY_NESTED;
+#endif
+  display_->InitNestedDisplay();
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
   return HWC2::Error::None;
