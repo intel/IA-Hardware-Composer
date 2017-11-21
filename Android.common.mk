@@ -123,6 +123,7 @@ LOCAL_C_INCLUDES += \
 
 ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow
+LOCAL_CFLAGS += -DUSE_PROCESS_STATE
 endif
 
 ifeq ($(strip $(BOARD_CURSOR_WA)), true)

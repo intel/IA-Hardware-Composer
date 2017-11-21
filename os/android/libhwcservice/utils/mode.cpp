@@ -15,6 +15,8 @@
 */
 
 #include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
+#include <binder/TextOutput.h>
 #include <utils/String8.h>
 #include <cinttypes>
 #include "hwcserviceapi.h"
@@ -60,7 +62,9 @@ int main(int argc, char** argv) {
            argv[0]);
     return 1;
   }
-
+#ifdef USE_PROCESS_STATE
+  android::ProcessState::initWithDriver("/dev/vndbinder");
+#endif
   // Find and connect to HWC service
   sp<IService> hwcService = interface_cast<IService>(
       defaultServiceManager()->getService(String16(IA_HWC_SERVICE_NAME)));

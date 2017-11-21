@@ -16,6 +16,9 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
 LOCAL_SRC_FILES += icontrols.cpp                \
                    idiagnostic.cpp              \
                    iservice.cpp                 \
