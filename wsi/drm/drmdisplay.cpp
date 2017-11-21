@@ -688,7 +688,9 @@ bool DrmDisplay::PopulatePlanes(
 
   if (overlay_planes.empty()) {
     ETRACE("Failed to get primary plane for display %d", crtc_id_);
-    return false;
+    // It's valid case on some platforms to not have a plane associated
+    // with a pipe.
+    return true;
   }
 
   // We expect layers to be in ascending order.
