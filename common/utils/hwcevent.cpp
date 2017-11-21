@@ -75,7 +75,7 @@ bool HWCEvent::Wait() {
   }
 
   if (result != 1) {
-    ETRACE("read from eventfd has wrong value: %lu (should be 1)", result);
+    ETRACE("read from eventfd has wrong value: %" PRIu64 " (should be 1)", result);
     return false;
   }
 
