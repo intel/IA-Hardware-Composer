@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef WSI_LOGICALDISPLAY_H_
-#define WSI_LOGICALDISPLAY_H_
+#ifndef COMMON_CORE_NESTEDDISPLAY_H_
+#define COMMON_CORE_NESTEDDISPLAY_H_
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -26,19 +26,19 @@
 
 namespace hwcomposer {
 
-class LogicalDisplayManager;
+class NestedDisplayManager;
 
-class LogicalDisplay : public NativeDisplay {
+class NestedDisplay : public NativeDisplay {
  public:
-  LogicalDisplay(LogicalDisplayManager *display_manager,
-                 NativeDisplay *physical_display, uint32_t total_divisions,
-                 uint32_t index);
-  ~LogicalDisplay() override;
+  NestedDisplay();
+  ~NestedDisplay() override;
+
+  void InitNestedDisplay() override;
 
   bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
-    return DisplayType::kLogical;
+    return DisplayType::kNested;
   }
 
   uint32_t Width() const override {
@@ -46,7 +46,7 @@ class LogicalDisplay : public NativeDisplay {
   }
 
   uint32_t Height() const override {
-    return physical_display_->Height();
+    return height_;
   }
 
   uint32_t PowerMode() const override;
@@ -93,14 +93,6 @@ class LogicalDisplay : public NativeDisplay {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
-  uint32_t GetXTranslation() override {
-    return (((physical_display_->Width()) / total_divisions_) * index_);
-  }
-
-  uint32_t GetLogicalIndex() const override {
-    return index_;
-  }
-
   bool EnableVSync() const {
     return enable_vsync_;
   }
@@ -109,21 +101,19 @@ class LogicalDisplay : public NativeDisplay {
 
   void RefreshUpdate();
 
-  void HotPlugUpdate(bool connected) override;
+  void HotPlugUpdate(bool connected);
 
  private:
-  LogicalDisplayManager *logical_display_manager_;
-  NativeDisplay *physical_display_;
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   std::shared_ptr<VsyncCallback> vsync_callback_ = NULL;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
   uint32_t power_mode_ = kOff;
   uint32_t display_id_;
-  uint32_t index_ = 0;
   uint32_t width_ = 0;
-  uint32_t total_divisions_ = 1;
+  uint32_t height_ = 0;
   bool enable_vsync_ = false;
+  uint32_t config_ = 1;
 };
 
 }  // namespace hwcomposer
-#endif  // WSI_LOGICALDISPLAY_H_
+#endif  // COMMON_CORE_NESTEDDISPLAY_H_
