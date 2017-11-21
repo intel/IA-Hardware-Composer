@@ -98,6 +98,7 @@ bool DrmDisplayManager::Initialize() {
   }
 
   virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
+  nested_display_.reset(new NestedDisplay());
 
   hwc_lock_.reset(new HWCLock());
   if (!hwc_lock_->RegisterCallBack(this)) {
@@ -345,6 +346,12 @@ bool DrmDisplayManager::UpdateDisplayState() {
     NotifyClientsOfDisplayChangeStatus();
   }
 
+  static bool nested_display_registered = false;
+  if (notify_client_ && !nested_display_registered) {
+    nested_display_->HotPlugUpdate(true);
+    nested_display_registered = true;
+  }
+
   return true;
 }
 
@@ -367,6 +374,13 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 NativeDisplay *DrmDisplayManager::GetVirtualDisplay() {
   spin_lock_.lock();
   NativeDisplay *display = virtual_display_.get();
+  spin_lock_.unlock();
+  return display;
+}
+
+NativeDisplay *DrmDisplayManager::GetNestedDisplay() {
+  spin_lock_.lock();
+  NativeDisplay *display = nested_display_.get();
   spin_lock_.unlock();
   return display;
 }
