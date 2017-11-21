@@ -42,6 +42,7 @@ class GpuDevice {
   NativeDisplay* GetDisplay(uint32_t display);
 
   NativeDisplay* GetVirtualDisplay();
+  NativeDisplay* GetNestedDisplay();
 
   void GetConnectedPhysicalDisplays(std::vector<NativeDisplay*>& displays);
 
