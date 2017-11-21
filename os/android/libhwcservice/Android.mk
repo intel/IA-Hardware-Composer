@@ -16,10 +16,17 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
 LOCAL_SRC_FILES += icontrols.cpp                \
                    idiagnostic.cpp              \
                    iservice.cpp                 \
                    hwcserviceapi.cpp
+
+ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+LOCAL_CFLAGS += -DUSE_PROCESS_STATE
+endif
 
 LOCAL_MODULE := libhwcservice
 LOCAL_CFLAGS += -fvisibility=default
