@@ -76,6 +76,10 @@ class DisplayPlaneManager {
     return height_;
   }
 
+  uint32_t GetTotalPlanes() const {
+    return overlay_planes_.size();
+  }
+
  protected:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
