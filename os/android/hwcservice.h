@@ -150,6 +150,7 @@ class HwcService : public BnService {
 
   SpinLock lock_;
   IAHWC2* mpHwc;
+  bool initialized_;
 
   sp<IDiagnostic> mpDiagnostic;
 
