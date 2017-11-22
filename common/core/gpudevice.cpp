@@ -287,28 +287,7 @@ bool GpuDevice::Initialize() {
     }
   }
 
-  // Re-order displays based on connection status.
-  std::vector<NativeDisplay *> connected_displays;
-  std::vector<NativeDisplay *> un_connected_displays;
   size = displays.size();
-  for (size_t i = 0; i < size; i++) {
-    NativeDisplay *temp = displays.at(i);
-    if (temp->IsConnected()) {
-      connected_displays.emplace_back(temp);
-    } else {
-      un_connected_displays.emplace_back(temp);
-    }
-  }
-
-  displays.swap(connected_displays);
-
-  if (!un_connected_displays.empty()) {
-    size_t temp = un_connected_displays.size();
-    for (size_t i = 0; i < temp; i++) {
-      displays.emplace_back(un_connected_displays.at(i));
-    }
-  }
-
   for (size_t i = 0; i < size; i++) {
     displays.at(i)->SetDisplayOrder(i);
   }
