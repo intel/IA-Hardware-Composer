@@ -16,6 +16,15 @@ ifeq ($(strip $(BOARD_USES_DRM_HWCOMPOSER)),true)
 
 LOCAL_PATH := $(call my-dir)
 
+common_drm_hwcomposer_cflags := \
+    -Wall \
+    -Werror \
+    -Wno-unused-function \
+    -Wno-unused-label \
+    -Wno-unused-parameter \
+    -Wno-unused-private-field \
+    -Wno-unused-variable \
+
 # =====================
 # libdrmhwc_utils.a
 # =====================
@@ -23,6 +32,8 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
 	worker.cpp
+
+LOCAL_CFLAGS := $(common_drm_hwcomposer_cflags)
 
 LOCAL_MODULE := libdrmhwc_utils
 
@@ -73,6 +84,8 @@ LOCAL_SRC_FILES := \
 	separate_rects.cpp \
 	virtualcompositorworker.cpp \
 	vsyncworker.cpp
+
+LOCAL_CFLAGS := $(common_drm_hwcomposer_cflags)
 
 ifeq ($(strip $(BOARD_DRM_HWCOMPOSER_BUFFER_IMPORTER)),nvidia-gralloc)
 LOCAL_CPPFLAGS += -DUSE_NVIDIA_IMPORTER
