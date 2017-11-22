@@ -37,7 +37,7 @@ ifeq ($(strip $(TARGET_USES_HWC2)), true)
 # libhwcservice
 HWC_BUILD_DIRS := \
 $(HWC_PATH)/os/android/libhwcservice/Android.mk \
-$(HWC_PATH)/os/android/libhwcservice/utils/Android.mk \
+$(HWC_PATH)/os/android/libhwcservice/test/Android.mk \
 
 # Include tests only if eng build
 ifneq (,$(filter eng,$(TARGET_BUILD_VARIANT)))
