@@ -89,22 +89,8 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
     return false;
   }
 
-  // On some platforms we might have zero planes assigned to this
-  // pipe but we might be in clone mode. Let's detect this and
-  // ignore any updates in case of clone mode.
-  dummy_queue_ = false;
-  if (display_plane_manager_->GetTotalPlanes() == 0) {
-    dummy_queue_ = true;
-  }
-
   vblank_handler_->SetPowerMode(kOff);
-
-  if (!dummy_queue_) {
-    vblank_handler_->Init(gpu_fd_, pipe);
-  } else {
-    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
-  }
-
+  vblank_handler_->Init(gpu_fd_, pipe);
   return true;
 }
 
@@ -843,9 +829,7 @@ void DisplayQueue::HandleIdleCase() {
 }
 void DisplayQueue::ForceRefresh() {
   idle_tracker_.idle_lock_.lock();
-  if (!dummy_queue_)
-    idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
-
+  idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
   idle_tracker_.idle_lock_.unlock();
   power_mode_lock_.lock();
