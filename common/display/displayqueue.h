@@ -261,7 +261,6 @@ class DisplayQueue {
   SpinLock power_mode_lock_;
   bool sync_ = false;  // Synchronize with compositor thread.
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
-  bool dummy_queue_ = false;
   HWCRotation rotation_ = kRotateNone;
 };
 
