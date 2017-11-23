@@ -33,7 +33,6 @@ class DisplayManager {
   virtual bool Initialize() = 0;
 
   virtual NativeDisplay *GetVirtualDisplay() = 0;
-  virtual NativeDisplay *GetNestedDisplay() = 0;
 
   virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 
