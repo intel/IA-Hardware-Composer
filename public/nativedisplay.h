@@ -198,10 +198,6 @@ class NativeDisplay {
   virtual void InitVirtualDisplay(uint32_t /*width*/, uint32_t /*height*/) {
   }
 
-  // Nested display related.
-  virtual void InitNestedDisplay() {
-  }
-
   /**
   * API for setting output buffer for virtual display.
   * @param buffer ownership is taken by display.
@@ -260,9 +256,6 @@ class NativeDisplay {
 
   virtual uint32_t GetLogicalIndex() const {
     return 0;
-  }
-
-  virtual void HotPlugUpdate(bool /*connected*/) {
   }
 
  protected:
