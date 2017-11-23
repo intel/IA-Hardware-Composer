@@ -33,7 +33,6 @@
 #include "hwclock.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
-#include "nesteddisplay.h"
 
 namespace hwcomposer {
 
@@ -49,7 +48,6 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   bool Initialize() override;
 
   NativeDisplay *GetVirtualDisplay() override;
-  NativeDisplay *GetNestedDisplay() override;
 
   std::vector<NativeDisplay *> GetAllDisplays() override;
 
@@ -70,7 +68,6 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void HotPlugEventHandler();
   bool UpdateDisplayState();
   std::unique_ptr<NativeDisplay> virtual_display_;
-  std::unique_ptr<NativeDisplay> nested_display_;
   std::unique_ptr<HWCLock> hwc_lock_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;

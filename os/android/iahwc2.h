@@ -128,8 +128,6 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
                                    uint32_t width, uint32_t height,
                                    bool disable_explicit_sync);
-    HWC2::Error InitNestedDisplay(hwcomposer::NativeDisplay *display,
-                                  bool disable_explicit_sync);
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
@@ -227,12 +225,7 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>(
           (hwc->virtual_display_.*func)(std::forward<Args>(args)...));
     }
-#ifdef NESTED_DISPLAY_SUPPORT
-    if (display_handle == HWC_DISPLAY_NESTED) {
-      return static_cast<int32_t>(
-          (hwc->nested_display_.*func)(std::forward<Args>(args)...));
-    }
-#endif
+
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       return static_cast<int32_t>(
@@ -257,12 +250,7 @@ class IAHWC2 : public hwc2_device_t {
       Hwc2Layer &layer = hwc->virtual_display_.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
-#ifdef NESTED_DISPLAY_SUPPORT
-    if (display_handle == HWC_DISPLAY_NESTED) {
-      Hwc2Layer &layer = hwc->nested_display_.get_layer(layer_handle);
-      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
-    }
-#endif
+
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       Hwc2Layer &layer = display->get_layer(layer_handle);
@@ -294,7 +282,6 @@ class IAHWC2 : public hwc2_device_t {
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
   HwcDisplay virtual_display_;
-  HwcDisplay nested_display_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;
