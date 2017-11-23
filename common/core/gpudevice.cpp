@@ -457,11 +457,6 @@ NativeDisplay *GpuDevice::GetVirtualDisplay() {
   return display_manager_->GetVirtualDisplay();
 }
 
-//It's for nested display
-NativeDisplay *GpuDevice::GetNestedDisplay() {
-  return display_manager_->GetNestedDisplay();
-}
-
 void GpuDevice::GetConnectedPhysicalDisplays(
     std::vector<NativeDisplay *> &displays) {
   size_t size = total_displays_.size();

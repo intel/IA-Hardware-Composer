@@ -109,7 +109,7 @@ class LogicalDisplay : public NativeDisplay {
 
   void RefreshUpdate();
 
-  void HotPlugUpdate(bool connected) override;
+  void HotPlugUpdate(bool connected);
 
  private:
   LogicalDisplayManager *logical_display_manager_;
