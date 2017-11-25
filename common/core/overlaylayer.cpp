@@ -232,6 +232,16 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   int32_t left_constraint = layer->GetLeftConstraint();
   int32_t right_constraint = layer->GetRightConstraint();
   if (left_constraint >= 0 && right_constraint >= 0) {
+    if (display_frame_.left > right_constraint) {
+      state_ |= kInvisible;
+      return;
+    }
+
+    if (display_frame_.right < left_constraint) {
+      state_ |= kInvisible;
+      return;
+    }
+
     if (display_frame_.right > right_constraint) {
       display_frame_.right = right_constraint;
     }
@@ -251,7 +261,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
     if (left_constraint > 0) {
       display_frame_.left -= left_constraint;
-      display_frame_.right = right_constraint - display_frame_.right;
+      display_frame_.right -= left_constraint;
     }
 
     display_frame_.bottom =
