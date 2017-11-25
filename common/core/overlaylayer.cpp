@@ -220,8 +220,10 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   surface_damage_ = display_frame_;
 
   if (layer->HasContentAttributesChanged() ||
-      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged()) {
+      layer->HasVisibleRegionChanged() || layer->HasLayerAttributesChanged() ||
+      !layer->IsValidated()) {
     state_ |= kClearSurface;
+    state_ |= kLayerContentChanged;
   }
 
   if (!handle_constraints)
@@ -329,8 +331,22 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     if (blending_ != rhs->blending_)
       return;
 
-    if (rect_changed || layer->HasLayerAttributesChanged())
-      return;
+    if (rect_changed || layer->HasLayerAttributesChanged()) {
+      if (layer->IsValidated()) {
+        return;
+      }
+
+      if (rhs->transform_ != transform_) {
+        return;
+      }
+
+      if ((rhs->display_frame_.left != display_frame_.left) ||
+          (rhs->display_frame_.right != display_frame_.right) ||
+          (rhs->display_frame_.top != display_frame_.top) ||
+          (rhs->display_frame_.bottom != display_frame_.bottom)) {
+        return;
+      }
+    }
 
     if (layer->HasSourceRectChanged()) {
       // If the overall width and height hasn't changed, it
