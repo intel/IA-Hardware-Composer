@@ -17,6 +17,7 @@
 #include "hwcevent.h"
 
 #include <sys/eventfd.h>
+#include <inttypes.h>
 
 #include "hwctrace.h"
 
