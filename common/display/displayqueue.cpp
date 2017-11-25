@@ -337,6 +337,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     }
 
+    if (!overlay_layer->IsVisible()) {
+      layers.pop_back();
+      continue;
+    }
+
     if (overlay_layer->IsCursorLayer()) {
       cursor_state_ |= kFrameHasCursor;
       if (previous_frame_cursor_state & kFrameHasCursor) {
