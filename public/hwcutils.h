@@ -17,6 +17,8 @@
 #ifndef COMMON_UTILS_HWCUTILS_H_
 #define COMMON_UTILS_HWCUTILS_H_
 
+#include <hwcdefs.h>
+
 namespace hwcomposer {
 
 // Helper functions.
@@ -25,6 +27,9 @@ namespace hwcomposer {
 //  - timeout: time in miliseconds to stay blocked before returning if fd
 //  is not ready.
 int HWCPoll(int fd, int timeout);
+
+// Reset's rect to include region hwc_region.
+void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect);
 
 }  // namespace hwcomposer
 
