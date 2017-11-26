@@ -222,6 +222,23 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   return last_plane;
 }
 
+void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane) {
+  if (!plane->GetOffScreenTarget()) {
+    SetOffScreenPlaneTarget(*plane);
+  }
+
+  std::vector<CompositionRegion> &comp_regions = plane->GetCompositionRegion();
+  std::vector<CompositionRegion>().swap(comp_regions);
+  std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
+  size_t size = surfaces.size();
+  const HwcRect<int> &current_rect = plane->GetDisplayFrame();
+  for (size_t i = 0; i < size; i++) {
+    surfaces.at(i)->ResetDisplayFrame(current_rect);
+  }
+
+  plane->SwapSurfaceIfNeeded();
+}
+
 bool DisplayPlaneManager::ValidateCursorLayer(
     std::vector<OverlayLayer *> &cursor_layers,
     DisplayPlaneStateList &composition) {
@@ -263,27 +280,14 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       last_plane->AddLayer(cursor_layer->GetZorder(),
                            cursor_layer->GetDisplayFrame(),
                            cursor_layer->IsCursorLayer());
-      if (!last_plane->GetOffScreenTarget()) {
-        ResetPlaneTarget(*last_plane, commit_planes.back());
-      }
-
       gpu_rendered = true;
       status = true;
     } else {
       if (gpu_rendered) {
-        std::vector<CompositionRegion> &comp_regions =
-            last_plane->GetCompositionRegion();
-        std::vector<CompositionRegion>().swap(comp_regions);
-        std::vector<NativeSurface *> &surfaces = last_plane->GetSurfaces();
-        size_t size = surfaces.size();
-        const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
-        for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->ResetDisplayFrame(current_rect);
-        }
-
-        last_plane->SwapSurfaceIfNeeded();
+        PreparePlaneForCursor(last_plane);
         gpu_rendered = false;
       }
+
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
       plane->SetInUse(true);
       last_plane = GetLastUsedOverlay(composition);
@@ -304,20 +308,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   }
 
   if (gpu_rendered) {
-    if (!last_plane->GetOffScreenTarget()) {
-      SetOffScreenPlaneTarget(*last_plane);
-    }
-
-    last_plane->SwapSurfaceIfNeeded();
-    std::vector<CompositionRegion> &comp_regions =
-        last_plane->GetCompositionRegion();
-    std::vector<CompositionRegion>().swap(comp_regions);
-    std::vector<NativeSurface *> &surfaces = last_plane->GetSurfaces();
-    size_t size = surfaces.size();
-    const HwcRect<int> &current_rect = last_plane->GetDisplayFrame();
-    for (size_t i = 0; i < size; i++) {
-      surfaces.at(i)->ResetDisplayFrame(current_rect);
-    }
+    PreparePlaneForCursor(last_plane);
   }
 
   return status;
