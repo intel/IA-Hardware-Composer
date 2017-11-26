@@ -88,6 +88,8 @@ class DisplayPlaneManager {
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
+  void PreparePlaneForCursor(DisplayPlaneState *plane);
+
   NativeBufferHandler *buffer_handler_;
   DisplayPlaneHandler *plane_handler_;
   DisplayPlane *cursor_plane_;
