@@ -76,7 +76,6 @@ class NativeSurface {
   void ResetDisplayFrame(const HwcRect<int>& display_frame);
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
                            const HwcRect<int>& last_surface_damage);
-  void UpdateDisplayFrame(const HwcRect<int>& display_frame);
 
   const HwcRect<int>& GetLastSurfaceDamage() const {
     return last_surface_damage_;
