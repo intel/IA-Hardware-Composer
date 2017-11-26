@@ -211,6 +211,8 @@ struct OverlayLayer {
 
   void ValidateTransform(uint32_t transform, uint32_t display_transform);
 
+  void UpdateSurfaceDamage(HwcLayer* layer);
+
   void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
