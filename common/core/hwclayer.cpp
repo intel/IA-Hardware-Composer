@@ -18,6 +18,8 @@
 
 #include <cmath>
 
+#include <hwcutils.h>
+
 namespace hwcomposer {
 
 HwcLayer::~HwcLayer() {
@@ -93,9 +95,9 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
 void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   uint32_t rects = surface_damage.size();
   state_ |= kLayerContentChanged;
-  HwcRect<int> new_damage_rect;
+  HwcRect<int> rect;
+  ResetRectToRegion(surface_damage, rect);
   if (rects == 1) {
-    const HwcRect<int>& rect = surface_damage.at(0);
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
@@ -103,40 +105,25 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       surface_damage_ = rect;
       return;
     }
-
-    new_damage_rect.left = rect.left;
-    new_damage_rect.right = rect.right;
-    new_damage_rect.bottom = rect.bottom;
-    new_damage_rect.top = rect.top;
   } else if (rects == 0) {
-    new_damage_rect = display_frame_;
-  } else {
-    const HwcRect<int>& damage_region = surface_damage.at(0);
-    for (uint32_t r = 1; r < rects; r++) {
-      const HwcRect<int>& rect = surface_damage.at(r);
-      new_damage_rect.left = std::min(damage_region.left, rect.left);
-      new_damage_rect.top = std::min(damage_region.top, rect.top);
-      new_damage_rect.right = std::max(damage_region.right, rect.right);
-      new_damage_rect.bottom = std::max(damage_region.bottom, rect.bottom);
-    }
+    rect = display_frame_;
   }
 
   // Lets clip surface damage to display frame rect.
-  new_damage_rect.left = std::max(display_frame_.left, new_damage_rect.left);
-  new_damage_rect.top = std::max(display_frame_.top, new_damage_rect.top);
-  new_damage_rect.right = std::min(display_frame_.right, new_damage_rect.right);
-  new_damage_rect.bottom =
-      std::min(display_frame_.bottom, new_damage_rect.bottom);
+  rect.left = std::max(display_frame_.left, rect.left);
+  rect.top = std::max(display_frame_.top, rect.top);
+  rect.right = std::min(display_frame_.right, rect.right);
+  rect.bottom = std::min(display_frame_.bottom, rect.bottom);
 
-  if ((surface_damage_.left == new_damage_rect.left) &&
-      (surface_damage_.top == new_damage_rect.top) &&
-      (surface_damage_.right == new_damage_rect.right) &&
-      (surface_damage_.bottom == new_damage_rect.bottom)) {
+  if ((surface_damage_.left == rect.left) &&
+      (surface_damage_.top == rect.top) &&
+      (surface_damage_.right == rect.right) &&
+      (surface_damage_.bottom == rect.bottom)) {
     return;
   }
 
   state_ |= kSurfaceDamaged;
-  surface_damage_ = new_damage_rect;
+  surface_damage_ = rect;
 }
 
 void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
