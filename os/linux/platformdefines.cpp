@@ -18,7 +18,7 @@
 
 #ifdef USE_VK
 #include <gbm.h>
-
+//This is a comment
 VkFormat NativeToVkFormat(int native_format) {
   switch (native_format) {
     case GBM_FORMAT_R8:
