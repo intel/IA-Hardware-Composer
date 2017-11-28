@@ -72,6 +72,7 @@ LOCAL_SRC_FILES := \
 	compositor/va/varenderer.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
+        core/hwclayerbuffermanager.cpp \
 	core/logicaldisplay.cpp \
 	core/logicaldisplaymanager.cpp \
 	core/mosaicdisplay.cpp \

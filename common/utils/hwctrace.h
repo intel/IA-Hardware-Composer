@@ -112,6 +112,12 @@ class TraceFunc {
 #define ICOMPOSITORTRACE(fmt, ...) ((void)0)
 #endif
 
+#ifdef CACHE_TRACING
+#define ICACHETRACE ITRACE
+#else
+#define ICACHETRACE ((void)0)
+#endif
+
 // Errors
 #define PRINTERROR() strerror(-errno)
 

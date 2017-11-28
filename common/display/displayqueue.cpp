@@ -89,6 +89,12 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
     return false;
   }
 
+  buffer_manager_.reset(new HwcLayerBufferManager());
+  if (!buffer_manager_) {
+    ETRACE("Failed to construct hwc layer buffer manager");
+    return false;
+  }
+
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
   return true;
@@ -111,7 +117,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
-      compositor_.Init(display_plane_manager_.get());
+      compositor_.Init(display_plane_manager_.get(), buffer_manager_.get());
       power_mode_lock_.unlock();
       break;
     default:
@@ -300,6 +306,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     cursor_state_changed = true;
   }
 
+  buffer_manager_->RefreshBufferCache();
+
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
     layer->SetReleaseFence(-1);
@@ -328,13 +336,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
       overlay_layer->InitializeFromScaledHwcLayer(
-          layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_frame, display_plane_manager_->GetHeight(), rotation_,
-          handle_constraints);
+          layer, buffer_handler_, buffer_manager_.get(), previous_layer,
+          z_order, layer_index, display_frame,
+          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
-          layer, buffer_handler_, previous_layer, z_order, layer_index,
-          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
+          layer, buffer_handler_, buffer_manager_.get(), previous_layer,
+          z_order, layer_index, display_plane_manager_->GetHeight(), rotation_,
+          handle_constraints);
     }
 
     if (!overlay_layer->IsVisible()) {

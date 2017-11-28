@@ -39,6 +39,10 @@ VirtualDisplay::VirtualDisplay(uint32_t /*gpu_fd*/,
       buffer_handler_(buffer_handler),
       width_(0),
       height_(0) {
+  buffer_manager_.reset(new HwcLayerBufferManager());
+  if (!buffer_manager_) {
+    ETRACE("Failed to construct hwc layer buffer manager");
+  }
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -54,7 +58,7 @@ VirtualDisplay::~VirtualDisplay() {
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
-  compositor_.Init(nullptr);
+  compositor_.Init(nullptr, buffer_manager_.get());
   width_ = width;
   height_ = height;
 }
@@ -85,8 +89,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
   *retire_fence = -1;
   uint32_t z_order = 0;
 
+  buffer_manager_->RefreshBufferCache();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    HwcLayer* layer = source_layers.at(layer_index);
+    HwcLayer *layer = source_layers.at(layer_index);
     layer->SetReleaseFence(-1);
     if (!layer->IsVisible())
       continue;
@@ -98,9 +103,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       previous_layer = &(in_flight_layers_.at(z_order));
     }
 
-    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, previous_layer,
-                                         z_order, layer_index, width_,
-                                         kRotateNone, handle_constraints);
+    overlay_layer.InitializeFromHwcLayer(
+        layer, buffer_handler_, buffer_manager_.get(), previous_layer, z_order,
+        layer_index, width_, kRotateNone, handle_constraints);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
