@@ -135,6 +135,11 @@ struct OverlayLayer {
     return state_ & kLayerContentChanged;
   }
 
+  // Returns true if this layer is visible.
+  bool IsVisible() const {
+    return !(state_ & kInvisible);
+  }
+
   void GPURendered() {
     gpu_rendered_ = true;
   }
@@ -181,7 +186,8 @@ struct OverlayLayer {
     kLayerAttributesChanged = 1 << 0,
     kLayerContentChanged = 1 << 1,
     kDimensionsChanged = 1 << 2,
-    kClearSurface = 1 << 3
+    kClearSurface = 1 << 3,
+    kInvisible = 1 << 4
   };
 
   struct ImportedBuffer {
@@ -204,6 +210,8 @@ struct OverlayLayer {
   OverlayBuffer* ReleaseBuffer();
 
   void ValidateTransform(uint32_t transform, uint32_t display_transform);
+
+  void UpdateSurfaceDamage(HwcLayer* layer);
 
   void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
                        OverlayLayer* previous_layer, uint32_t z_order,

@@ -151,8 +151,9 @@ void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x,
 
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
-  uint32_t status = lock_(gralloc1_dvc, handle->imported_handle_, GRALLOC_USAGE_SW_READ_RARELY,
-          GRALLOC_USAGE_SW_READ_RARELY, &rect, map_data, acquireFence);
+  uint32_t status = lock_(
+      gralloc1_dvc, handle->handle_, GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN,
+      GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN, &rect, map_data, acquireFence);
   return (GRALLOC1_ERROR_NONE == status) ? *map_data : NULL;
 }
 

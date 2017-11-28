@@ -91,7 +91,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
-  UpdateDisplayFrame(plane.GetDisplayFrame());
+  ResetDisplayFrame(plane.GetDisplayFrame());
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
 
@@ -123,11 +123,6 @@ void NativeSurface::UpdateSurfaceDamage(
   surface_damage_.bottom =
       std::max(last_surface_damage.bottom, currentsurface_damage.bottom);
   last_surface_damage_ = currentsurface_damage;
-}
-
-void NativeSurface::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
-  layer_.SetDisplayFrame(display_frame);
-  layer_.SetSourceCrop(HwcRect<float>(display_frame));
 }
 
 void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,

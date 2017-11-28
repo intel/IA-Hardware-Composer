@@ -16,6 +16,8 @@
 
 #include "renderstate.h"
 
+#include <hwcutils.h>
+
 #include "compositionregion.h"
 #include "nativegpuresource.h"
 #include "overlaybuffer.h"
@@ -40,8 +42,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   if (!clear_surface) {
     // If viewport and layer doesn't interact we can avoid re-rendering
     // this state.
-    if ((left >= (width_ + x_)) || ((left + width) <= x_) ||
-        (top >= height_ + y_) || ((top + height) <= y_)) {
+    if (AnalyseOverlap(region.frame, damage) == kOutside) {
       return;
     }
 
@@ -63,15 +64,8 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       // If viewport and layer doesn't interact we can avoid re-rendering
       // this state.
       const HwcRect<int> &layer_damage = layer.GetDisplayFrame();
-      uint32_t layer_width = layer_damage.right - layer_damage.left;
-      uint32_t layer_height = layer_damage.bottom - layer_damage.top;
-      uint32_t layer_top = layer_damage.top;
-      uint32_t layer_left = layer_damage.left;
-      if ((left >= (layer_width + layer_left)) ||
-          ((left + width) <= layer_left) ||
-          (top >= (layer_height + layer_top)) ||
-          ((top + height) <= layer_top)) {
-        continue;
+      if (AnalyseOverlap(layer_damage, damage) == kOutside) {
+	continue;
       }
     }
 
