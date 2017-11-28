@@ -18,6 +18,7 @@
 #define COMMON_COMPOSITOR_RENDERER_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include <vector>
 
@@ -26,6 +27,7 @@ namespace hwcomposer {
 class NativeSurface;
 struct RenderState;
 struct MediaState;
+class HwcLayerBufferManager;
 
 class Renderer {
  public:
@@ -36,9 +38,10 @@ class Renderer {
   Renderer& operator=(const Renderer& rhs) = delete;
 
   // Needs to be implemented for 3D Renderer's only.
-  virtual bool Init() {
+  virtual bool Init(HwcLayerBufferManager* /*buffer_manager*/) {
     return false;
   }
+
   virtual bool Draw(const std::vector<RenderState>& /*commands*/,
                     NativeSurface* /*surface*/, bool /*clear_surface*/) {
     return false;

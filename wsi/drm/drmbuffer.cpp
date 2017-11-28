@@ -30,6 +30,16 @@ namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
   ReleaseFrameBuffer();
+#if USE_GL
+  if (image_)
+    eglDestroyImageKHR(display_, image_);
+  if (texture_) {
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    glDeleteTextures(1, &texture_);
+  }
+#elif USE_VK
+
+#endif
 
   if (buffer_handler_ && handle_) {
     buffer_handler_->ReleaseBuffer(handle_);
@@ -103,6 +113,9 @@ void DrmBuffer::InitializeFromNativeHandle(
 }
 
 GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
+  if (image_)
+    return image_;
+
 #ifdef USE_GL
   EGLImageKHR image = EGL_NO_IMAGE_KHR;
   // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
@@ -156,6 +169,8 @@ GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
                           static_cast<EGLClientBuffer>(nullptr), attr_list);
   }
 
+  image_ = image;
+  display_ = egl_display;
   return image;
 #elif USE_VK
   struct vk_import import;
@@ -192,9 +207,54 @@ GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
   import.res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL,
                                         &import.memory, &import.image);
 
+  image_ = import;
+  display_ = egl_display;
   return import;
 #else
   return NULL;
+#endif
+}
+
+void DrmBuffer::DeleteImage() {
+#if USE_GL
+  if (image_)
+    eglDestroyImageKHR(display_, image_);
+  image_ = 0;
+#endif
+}
+
+void DrmBuffer::DeleteTexture() {
+#if USE_GL
+  if (texture_) {
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    glDeleteTextures(1, &texture_);
+  }
+#endif
+}
+
+uint32_t DrmBuffer::GetImageTexture() {
+#ifdef USE_GL
+  if (texture_ != 0) {
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture_);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+                                 (GLeglImageOES)image_);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    return texture_;
+  }
+
+  GLuint texture;
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, (GLeglImageOES)image_);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+  texture_ = texture;
+  return texture;
+#elif USE_VK
+  return 0;
+#else
+  return 0;
 #endif
 }
 
@@ -203,7 +263,11 @@ void DrmBuffer::SetRecommendedFormat(uint32_t format) {
 }
 
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
-  ReleaseFrameBuffer();
+  if (fb_id_) {
+    // Has been created before
+    return true;
+  }
+
   int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
                           gem_handles_, pitches_, offsets_, &fb_id_, 0);
 
@@ -251,8 +315,8 @@ void DrmBuffer::Dump() {
   DUMPTRACE("DrmBuffer Information Ends. -------------");
 }
 
-OverlayBuffer* OverlayBuffer::CreateOverlayBuffer() {
-  return new DrmBuffer();
+std::shared_ptr<OverlayBuffer> OverlayBuffer::CreateOverlayBuffer() {
+  return std::make_shared<DrmBuffer>();
 }
 
 }  // namespace hwcomposer

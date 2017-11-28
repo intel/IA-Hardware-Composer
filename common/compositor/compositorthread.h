@@ -34,13 +34,15 @@ namespace hwcomposer {
 
 class OverlayBuffer;
 class DisplayPlaneManager;
+class HwcLayerBufferManager;
 
 class CompositorThread : public HWCThread {
  public:
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(DisplayPlaneManager* plane_manager);
+  void Initialize(DisplayPlaneManager* plane_manager,
+                  HwcLayerBufferManager* buffer_manager);
 
   void Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
@@ -80,6 +82,7 @@ class CompositorThread : public HWCThread {
   bool disable_explicit_sync_;
   bool release_all_resources_;
   DisplayPlaneManager* plane_manager_ = NULL;
+  HwcLayerBufferManager* buffer_manager_ = NULL;
   uint32_t tasks_ = kNone;
   FDHandler fd_chandler_;
   HWCEvent cevent_;

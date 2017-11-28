@@ -54,7 +54,6 @@ bool GLSurface::InitializeGPUResources() {
   glBindTexture(GL_TEXTURE_2D, 0);
 
   tex_ = texture;
-  eglDestroyImageKHR(egl_display, image);
 
   // Create Fb.
   GLuint gl_fb;

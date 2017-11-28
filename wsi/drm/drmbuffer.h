@@ -75,6 +75,10 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   GpuImage ImportImage(GpuDisplay egl_display) override;
+  void DeleteImage() override;
+
+  uint32_t GetImageTexture() override;
+  void DeleteTexture() override;
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
@@ -104,6 +108,9 @@ class DrmBuffer : public OverlayBuffer {
   bool is_yuv_ = false;
   HWCNativeHandle handle_ = 0;
   NativeBufferHandler* buffer_handler_ = 0;
+  GpuImage image_ = 0;
+  GpuDisplay display_ = 0;
+  uint32_t texture_ = 0;
 };
 
 }  // namespace hwcomposer
