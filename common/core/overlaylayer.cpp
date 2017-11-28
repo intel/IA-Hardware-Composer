@@ -105,13 +105,13 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
 
     switch (display_transform) {
       case kRotate90:
-	plane_transform_ |= kTransform180;
+        plane_transform_ |= kTransform180;
         break;
       case kRotate180:
-	plane_transform_ |= kTransform270;
+        plane_transform_ |= kTransform270;
         break;
       case kRotateNone:
-	plane_transform_ |= kTransform90;
+        plane_transform_ |= kTransform90;
         break;
       default:
         break;
@@ -119,13 +119,13 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   } else if (transform & kTransform180) {
     switch (display_transform) {
       case kRotate90:
-	plane_transform_ |= kTransform270;
+        plane_transform_ |= kTransform270;
         break;
       case kRotate270:
-	plane_transform_ |= kTransform90;
+        plane_transform_ |= kTransform90;
         break;
       case kRotateNone:
-	plane_transform_ |= kTransform180;
+        plane_transform_ |= kTransform180;
         break;
       default:
         break;
@@ -133,13 +133,13 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   } else if (transform & kTransform270) {
     switch (display_transform) {
       case kRotate270:
-	plane_transform_ |= kTransform180;
+        plane_transform_ |= kTransform180;
         break;
       case kRotate180:
-	plane_transform_ |= kTransform90;
+        plane_transform_ |= kTransform90;
         break;
       case kRotateNone:
-	plane_transform_ |= kTransform270;
+        plane_transform_ |= kTransform270;
         break;
       default:
         break;
@@ -147,21 +147,21 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   } else {
     if (display_transform == kRotate90) {
       if (transform & kReflectX) {
-	plane_transform_ |= kReflectX;
+        plane_transform_ |= kReflectX;
       }
 
       if (transform & kReflectY) {
-	plane_transform_ |= kReflectY;
+        plane_transform_ |= kReflectY;
       }
 
       plane_transform_ |= kTransform90;
     } else {
       switch (display_transform) {
         case kRotate270:
-	  plane_transform_ |= kTransform270;
+          plane_transform_ |= kTransform270;
           break;
         case kRotate180:
-	  plane_transform_ |= kReflectY;
+          plane_transform_ |= kReflectY;
           break;
         default:
           break;
@@ -229,43 +229,45 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   int32_t left_constraint = layer->GetLeftConstraint();
   int32_t right_constraint = layer->GetRightConstraint();
+  int32_t left_source_constraint = layer->GetLeftSourceConstraint();
+  int32_t right_source_constraint = layer->GetRightSourceConstraint();
+  int32_t display_frame_left = display_frame_.left;
+  uint32_t frame_width = display_frame_.right - display_frame_.left;
+  uint32_t source_width =
+      static_cast<int>(source_crop_.right - source_crop_.left);
+  uint32_t frame_offset_left = 0;
+  uint32_t frame_offset_right = frame_width;
   if (left_constraint >= 0 && right_constraint >= 0) {
-    if (display_frame_.left > right_constraint) {
+    if (display_frame_.left > right_source_constraint) {
       state_ |= kInvisible;
       return;
     }
 
-    if (display_frame_.right < left_constraint) {
+    if (display_frame_.right < left_source_constraint) {
       state_ |= kInvisible;
       return;
     }
 
-    if (display_frame_.right > right_constraint) {
-      display_frame_.right = right_constraint;
+    if (display_frame_.left < left_source_constraint) {
+      frame_offset_left = left_source_constraint - display_frame_left;
+      display_frame_.left = left_source_constraint;
     }
 
-    if (display_frame_.left < left_constraint) {
-      display_frame_.left = left_constraint;
+    if (display_frame_.right > right_source_constraint) {
+      frame_offset_right = right_source_constraint - display_frame_left;
+      display_frame_.right = right_source_constraint;
     }
 
-    if (display_frame_.right < right_constraint) {
-      display_frame_.right =
-          std::max(display_frame_.left, display_frame_.right);
-    }
-
-    if (display_frame_.left > left_constraint) {
-      display_frame_.left = std::min(display_frame_.left, display_frame_.right);
-    }
-
-    if (left_constraint > 0) {
-      display_frame_.left -= left_constraint;
-      display_frame_.right -= left_constraint;
-    }
+    display_frame_.left =
+        (display_frame_.left - left_source_constraint) + left_constraint;
+    display_frame_.right =
+        (display_frame_.right - left_source_constraint) + left_constraint;
 
     display_frame_.bottom =
         std::min(max_height, static_cast<uint32_t>(display_frame_.bottom));
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
+
     UpdateSurfaceDamage(layer);
     if (gpu_rendered_) {
       // If viewport and layer doesn't interact we can avoid re-rendering
@@ -282,27 +284,19 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
         surface_damage_ = HwcRect<int>(0, 0, 0, 0);
       }
     }
-  }
 
-  float lconstraint = (float)layer->GetLeftSourceConstraint();
-  float rconstraint = (float)layer->GetRightSourceConstraint();
-  if (lconstraint >= 0 && rconstraint >= 0) {
-    if (source_crop_.right > rconstraint) {
-      source_crop_.right = rconstraint;
-    }
+    // split the source in proportion of frame rect offset for sub displays as:
+    // 1. the original source size may be different with the original frame
+    // rect,
+    //    we need get proportional content of source.
+    // 2. the UI content may cross the sub displays of Mosaic or Logical mode
 
-    if (source_crop_.left < lconstraint) {
-      source_crop_.left = lconstraint;
-    }
-
-    if (source_crop_.right < rconstraint) {
-      source_crop_.right = std::max(source_crop_.left, source_crop_.right);
-    }
-
-    if (source_crop_.left > lconstraint) {
-      source_crop_.left = std::min(source_crop_.left, source_crop_.right);
-    }
-
+    source_crop_.left = static_cast<float>(source_width) *
+                        (static_cast<float>(frame_offset_left) /
+                         static_cast<float>(frame_width));
+    source_crop_.right = static_cast<float>(source_width) *
+                         (static_cast<float>(frame_offset_right) /
+                          static_cast<float>(frame_width));
     source_crop_width_ = static_cast<int>(ceilf(source_crop_.right) -
                                           static_cast<int>(source_crop_.left));
     source_crop_height_ = static_cast<int>(ceilf(source_crop_.bottom) -
