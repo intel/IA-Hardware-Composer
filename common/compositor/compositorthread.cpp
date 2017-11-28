@@ -18,6 +18,7 @@
 
 #include "hwcutils.h"
 #include "hwctrace.h"
+#include "hwclayerbuffermanager.h"
 #include "nativegpuresource.h"
 #include "overlaylayer.h"
 #include "renderer.h"
@@ -36,12 +37,14 @@ CompositorThread::CompositorThread() : HWCThread(-8, "CompositorThread") {
 CompositorThread::~CompositorThread() {
 }
 
-void CompositorThread::Initialize(DisplayPlaneManager *plane_manager) {
+void CompositorThread::Initialize(DisplayPlaneManager *plane_manager,
+                                  HwcLayerBufferManager *buffer_manager) {
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
     gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
 
   plane_manager_ = plane_manager;
+  buffer_manager_ = buffer_manager;
   tasks_lock_.unlock();
   if (!InitWorker()) {
     ETRACE("Failed to initalize CompositorThread. %s", PRINTERROR());
@@ -249,7 +252,7 @@ void CompositorThread::HandleMediaDrawRequest() {
 void CompositorThread::Ensure3DRenderer() {
   if (!gl_renderer_) {
     gl_renderer_.reset(Create3DRenderer());
-    if (!gl_renderer_->Init()) {
+    if (!gl_renderer_->Init(buffer_manager_)) {
       ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
       gl_renderer_.reset(nullptr);
     }

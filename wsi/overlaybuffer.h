@@ -18,6 +18,8 @@
 
 #include <platformdefines.h>
 
+#include <memory>
+
 #include "compositordefs.h"
 
 namespace hwcomposer {
@@ -26,7 +28,7 @@ class NativeBufferHandler;
 
 class OverlayBuffer {
  public:
-  static OverlayBuffer* CreateOverlayBuffer();
+  static std::shared_ptr<OverlayBuffer> CreateOverlayBuffer();
 
   OverlayBuffer(OverlayBuffer&& rhs) = default;
   OverlayBuffer& operator=(OverlayBuffer&& other) = default;
@@ -57,6 +59,10 @@ class OverlayBuffer {
   virtual const uint32_t* GetOffsets() const = 0;
 
   virtual GpuImage ImportImage(GpuDisplay egl_display) = 0;
+  virtual void DeleteImage() = 0;
+
+  virtual uint32_t GetImageTexture() = 0;
+  virtual void DeleteTexture() = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 

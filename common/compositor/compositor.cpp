@@ -37,11 +37,12 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(DisplayPlaneManager *plane_manager) {
+void Compositor::Init(DisplayPlaneManager *plane_manager,
+                      HwcLayerBufferManager *buffer_manager) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(plane_manager);
+  thread_->Initialize(plane_manager, buffer_manager);
 }
 
 void Compositor::EnsureTasksAreDone() {
