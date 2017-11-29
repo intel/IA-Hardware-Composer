@@ -43,6 +43,11 @@ class GpuDevice {
 
   NativeDisplay* GetVirtualDisplay();
 
+  // This display can be a client preparing
+  // content which will eventually shown by
+  // another parent display.
+  NativeDisplay* GetNestedDisplay();
+
   void GetConnectedPhysicalDisplays(std::vector<NativeDisplay*>& displays);
 
   std::vector<NativeDisplay*> GetAllDisplays();

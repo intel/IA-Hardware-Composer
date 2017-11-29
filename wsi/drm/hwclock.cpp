@@ -31,7 +31,7 @@ HWCLock::~HWCLock() {
 
 bool HWCLock::RegisterCallBack(DrmDisplayManager* display_manager) {
   display_manager_ = display_manager;
-  lock_fd_ = open("/hwc.lock", O_RDONLY);
+  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
   if (lock_fd_ == -1)
     return false;
 
