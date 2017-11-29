@@ -478,7 +478,6 @@ int GLWorkerCompositor::Init() {
   const char *egl_extensions;
   const char *gl_extensions;
   EGLint num_configs;
-  EGLint attribs[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE, EGL_NONE};
   EGLConfig egl_config;
 
   // clang-format off

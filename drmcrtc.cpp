@@ -31,12 +31,7 @@ DrmCrtc::DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe)
       id_(c->crtc_id),
       pipe_(pipe),
       display_(-1),
-      x_(c->x),
-      y_(c->y),
-      width_(c->width),
-      height_(c->height),
-      mode_(&c->mode),
-      mode_valid_(c->mode_valid) {
+      mode_(&c->mode) {
 }
 
 int DrmCrtc::Init() {

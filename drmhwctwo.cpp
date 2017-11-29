@@ -242,7 +242,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
 
 HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
-  uint32_t num_changes = 0;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
     l.second.accept_type_change();
   return HWC2::Error::None;
@@ -614,7 +613,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
 HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
                                                    int32_t acquire_fence,
                                                    int32_t dataspace,
-                                                   hwc_region_t damage) {
+                                                   hwc_region_t /*damage*/) {
   supported(__func__);
   UniqueFd uf(acquire_fence);
 

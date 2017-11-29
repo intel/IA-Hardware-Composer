@@ -54,13 +54,7 @@ class DrmCrtc {
   unsigned pipe_;
   int display_;
 
-  uint32_t x_;
-  uint32_t y_;
-  uint32_t width_;
-  uint32_t height_;
-
   DrmMode mode_;
-  bool mode_valid_;
 
   DrmProperty active_property_;
   DrmProperty mode_property_;

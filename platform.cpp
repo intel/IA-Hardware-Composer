@@ -142,8 +142,8 @@ int PlanStageProtected::ProvisionPlanes(
 
 int PlanStagePrecomp::ProvisionPlanes(
     std::vector<DrmCompositionPlane> *composition,
-    std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
-    std::vector<DrmPlane *> *planes) {
+    std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc * /*crtc*/,
+    std::vector<DrmPlane *> * /*planes*/) {
   DrmCompositionPlane *precomp = GetPrecomp(composition);
   if (!precomp || precomp->source_layers().empty())
     return 0;
