@@ -77,6 +77,16 @@ script:
 - make clean
 - ./autogen.sh --prefix=$WLD --disable-hotplug-support
 - make -j5
+
+#Build mesa with gbm and overwrite minigbm
+- pushd /tmp/mesa
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
+- make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
+- popd
+- make distclean
+- ./autogen.sh --prefix=$WLD --enable-gbm
+- make -j5
+
 branches:
   only:
   - master
