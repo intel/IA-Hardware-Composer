@@ -323,6 +323,8 @@ int VARenderer::DrmFormatToVAFormat(int format) {
       return VA_FOURCC_UYVY;
     case DRM_FORMAT_YUYV:
       return VA_FOURCC_YUY2;
+    case DRM_FORMAT_P010:
+      return VA_FOURCC_P010;
     case DRM_FORMAT_YVYU:
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_YUV444:
@@ -347,6 +349,8 @@ int VARenderer::DrmFormatToRTFormat(int format) {
       return VA_RT_FORMAT_YUV422;
     case DRM_FORMAT_YUV444:
       return VA_RT_FORMAT_YUV444;
+    case DRM_FORMAT_P010:
+      return VA_RT_FORMAT_YUV420_10BPP;
     default:
       break;
   }
