@@ -200,5 +200,6 @@ AC_CONFIG_FILES([
 		Makefile
 		tests/third_party/json-c/Makefile
 		tests/Makefile
+		iahwc.pc
 		])
 AC_OUTPUT
