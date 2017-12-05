@@ -76,7 +76,6 @@ LOCAL_SRC_FILES := \
 	core/logicaldisplaymanager.cpp \
 	core/mosaicdisplay.cpp \
         core/overlaylayer.cpp \
-	core/nesteddisplay.cpp \
         display/displayplanemanager.cpp \
         display/displayqueue.cpp \
         display/vblankeventhandler.cpp \
