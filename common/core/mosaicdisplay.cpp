@@ -385,6 +385,25 @@ void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void MosaicDisplay::SetVideoColor(HWCColorControl color, float value) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoColor(color, value);
+  }
+}
+
+void MosaicDisplay::GetVideoColor(HWCColorControl color, float *value,
+                                  float *start, float *end) {
+  physical_displays_.at(0)->GetVideoColor(color, value, start, end);
+}
+
+void MosaicDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RestoreVideoDefaultColor(color);
+  }
+}
+
 void MosaicDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                        uint32_t /*primary_height*/,
                                        uint32_t /*display_width*/,

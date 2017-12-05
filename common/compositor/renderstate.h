@@ -60,6 +60,7 @@ struct RenderState {
 
 struct MediaState {
   const OverlayLayer *layer_;
+  HWCColorMap colors_;
 };
 
 struct DrawState {
