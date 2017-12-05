@@ -70,6 +70,10 @@ libhwcinc_HEADERS =	\
 	$(top_srcdir)/public/nativedisplay.h	\
 	$(top_srcdir)/public/spinlock.h
 
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = iahwc.pc
+
 .PHONY: ChangeLog INSTALL
 
 INSTALL:
