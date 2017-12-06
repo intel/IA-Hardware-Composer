@@ -144,17 +144,13 @@ struct DrmHwcLayer {
   uint8_t alpha = 0xff;
   DrmHwcRect<float> source_crop;
   DrmHwcRect<int> display_frame;
+  std::vector<DrmHwcRect<int>> source_damage;
 
   UniqueFd acquire_fence;
   OutputFd release_fence;
 
   int InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
                        const gralloc_module_t *gralloc);
-  int ImportBuffer(Importer *importer, const gralloc_module_t *gralloc);
-
-  void SetTransform(int32_t sf_transform);
-  void SetSourceCrop(hwc_frect_t const &crop);
-  void SetDisplayFrame(hwc_rect_t const &frame);
 
   buffer_handle_t get_usable_handle() const {
     return handle.get() != NULL ? handle.get() : sf_handle;

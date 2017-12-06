@@ -47,14 +47,6 @@ class DrmResources {
     return planes_;
   }
 
-  std::pair<uint32_t, uint32_t> min_resolution() const {
-    return min_resolution_;
-  }
-
-  std::pair<uint32_t, uint32_t> max_resolution() const {
-    return max_resolution_;
-  }
-
   DrmConnector *GetConnectorForDisplay(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
@@ -91,9 +83,6 @@ class DrmResources {
   std::vector<std::unique_ptr<DrmPlane>> planes_;
   DrmCompositor compositor_;
   DrmEventListener event_listener_;
-
-  std::pair<uint32_t, uint32_t> min_resolution_;
-  std::pair<uint32_t, uint32_t> max_resolution_;
 };
 }
 
