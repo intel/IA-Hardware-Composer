@@ -48,8 +48,11 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
 
     scissor_x_ = std::max(x_, left);
     scissor_y_ = std::max(y_, top);
-    scissor_width_ = std::min(width_, width);
-    scissor_height_ = std::min(height_, height);
+
+    uint32_t scissor_right = std::min(damage.right, (int)bounds[2]);
+    uint32_t scissor_bottom = std::min(damage.bottom, (int)bounds[3]);
+    scissor_width_ = scissor_right - scissor_x_;
+    scissor_height_ = scissor_bottom - scissor_y_;
   } else {
     scissor_x_ = x_;
     scissor_y_ = y_;
