@@ -32,6 +32,7 @@ namespace hwcomposer {
 
 class NativeBufferHandler;
 class DisplayPlaneManager;
+class HwcLayerBufferManager;
 struct OverlayLayer;
 
 class Compositor {
@@ -39,7 +40,8 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(DisplayPlaneManager *plane_manager);
+  void Init(DisplayPlaneManager *plane_manager,
+            HwcLayerBufferManager *buffer_manager);
   void Reset();
 
   Compositor(const Compositor &) = delete;

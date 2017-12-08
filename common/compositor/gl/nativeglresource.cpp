@@ -36,17 +36,8 @@ bool NativeGLResource::PrepareResources(
       ETRACE("Failed to make import image.");
       return false;
     }
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
-                                 (GLeglImageOES)egl_image);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    GLuint texture = (GLuint)buffer->GetImageTexture();
     layer_textures_.emplace_back(texture);
-    eglDestroyImageKHR(egl_display, egl_image);
   }
 
   return true;
@@ -61,12 +52,6 @@ void NativeGLResource::ReleaseGPUResources() {
 }
 
 void NativeGLResource::Reset() {
-  GLuint texture_id = 0;
-  size_t size = layer_textures_.size();
-  for (size_t i = 0; i < size; i++) {
-    texture_id = layer_textures_.at(i);
-    glDeleteTextures(1, &texture_id);
-  }
 }
 
 GpuResourceHandle NativeGLResource::GetResourceHandle(
