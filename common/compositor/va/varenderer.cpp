@@ -199,6 +199,62 @@ bool VARenderer::Init(int gpu_fd) {
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
+bool VARenderer::QueryVAProcFilterCaps(VAContextID context,
+                                       VAProcFilterType type,
+                                       void* caps, uint32_t* num) {
+  VAStatus ret =
+      vaQueryVideoProcFilterCaps(va_display_, context,
+                                 type, caps, num);
+  if (ret != VA_STATUS_SUCCESS)
+    ETRACE("Query Filter Caps failed\n");
+  return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
+bool VARenderer::MapVAProcFilterModetoVpp(VppColorBalanceMode& vppmode,
+                                          VAProcColorBalanceType vamode) {
+  switch(vamode) {
+    case VAProcColorBalanceNone:
+      vppmode = COLORBALANCE_NONE;
+      break;
+    case VAProcColorBalanceHue:
+      vppmode = COLORBALANCE_HUE;
+      break;
+    case VAProcColorBalanceSaturation:
+      vppmode = COLORBALANCE_SATURATION;
+      break;
+    case VAProcColorBalanceBrightness:
+      vppmode = COLORBALANCE_BRIGHTNESS;
+      break;
+    case VAProcColorBalanceContrast:
+      vppmode = COLORBALANCE_CONTRAST;
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterDefaultValue(VAProcFilterCapColorBalance* caps) {
+  VppColorBalanceMode mode;
+  for (int i=0; i<VAProcColorBalanceCount; i++) {
+    if (MapVAProcFilterModetoVpp(mode, caps[i].type)) {
+      caps_[mode].caps = caps[i];
+      caps_[mode].value = caps[i].range.default_value;
+    }
+  }
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterValue(VppColorBalanceMode mode, float value) {
+  if (value > caps_[mode].caps.range.max_value ||
+          value < caps_[mode].caps.range.min_value) {
+    ETRACE("VAlue Filter value out of range\n");
+    return false;
+  }
+  caps_[mode].value = value;
+  return true;
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
@@ -264,7 +320,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   VAProcPipelineParameterBuffer param;
   memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
-
   VARectangle surface_region, output_region;
   HwcRect<float> source_crop = state.layer_->GetSourceCrop();
   surface_region.x = source_crop.left;
@@ -293,6 +348,44 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   param.num_filters = 0;
   param.filters = nullptr;
   param.filter_flags = VA_FRAME_PICTURE;
+
+  VAProcFilterCapColorBalance vacaps[VAProcColorBalanceCount];
+  uint32_t vacaps_num = VAProcColorBalanceCount;
+
+  if (caps_.empty()) {
+    if (!QueryVAProcFilterCaps(
+           va_context, VAProcFilterColorBalance, vacaps, &vacaps_num))
+      return false;
+    else
+        SetVAProcFilterDefaultValue(&vacaps[0]);
+  }
+
+  std::array<ScopedVABufferID, 5> cb_elements({va_display_, va_display_,
+                                               va_display_, va_display_,
+                                               va_display_});
+  std::vector<VABufferID> filters;
+  VAProcFilterParameterBufferColorBalance cbparam;
+  cbparam.type = VAProcFilterColorBalance;
+  cbparam.attrib = VAProcColorBalanceNone;
+
+  for (ColorBalanceCapMapItr itr = caps_.begin(); itr != caps_.end(); itr++) {
+    if (fabs(itr->second.value - itr->second.caps.range.default_value) >=
+            itr->second.caps.range.step) {
+      cbparam.value = itr->second.value;
+      cbparam.attrib = itr->second.caps.type;
+      if (!cb_elements[itr->first].CreateBuffer(
+             va_context,VAProcFilterParameterBufferType,
+             sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
+        return false;
+       }
+       filters.push_back(cb_elements[itr->first].buffer());
+    }
+  }
+
+  if (filters.size()) {
+    param.filters = &filters[0];
+    param.num_filters= (unsigned int)filters.size();
+  }
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
