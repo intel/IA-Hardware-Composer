@@ -82,6 +82,10 @@ class ResourceManager {
   std::vector<ResourceHandle> purged_resources_;
   NativeBufferHandler* buffer_handler_;
   SpinLock lock_;
+#ifdef RESOURCE_CACHE_TRACING
+  uint32_t hit_count_;
+  uint32_t miss_count_;
+#endif
 };
 
 }  // namespace hwcomposer
