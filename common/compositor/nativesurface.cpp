@@ -41,7 +41,7 @@ NativeSurface::~NativeSurface() {
   if (resource_manager_) {
     ResourceHandle temp;
     temp.handle_ = native_handle_;
-    resource_manager_->MarkResourceForDeletion(temp);
+    resource_manager_->MarkResourceForDeletion(temp, false);
   }
 }
 

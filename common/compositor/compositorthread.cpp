@@ -146,12 +146,16 @@ void CompositorThread::HandleReleaseRequest() {
   tasks_ &= ~kReleaseResources;
 
   std::vector<ResourceHandle> purged_resources;
-  resource_manager_->GetPurgedResources(purged_resources);
+  bool has_gpu_resource = false;
+  resource_manager_->GetPurgedResources(purged_resources, &has_gpu_resource);
   size_t purged_size = purged_resources.size();
 
   if (purged_size != 0) {
-    Ensure3DRenderer();
-    gpu_resource_handler_->ReleaseGPUResources(purged_resources);
+    if (has_gpu_resource) {
+      Ensure3DRenderer();
+      gpu_resource_handler_->ReleaseGPUResources(purged_resources);
+    }
+
     const NativeBufferHandler *handler =
         resource_manager_->GetNativeBufferHandler();
 

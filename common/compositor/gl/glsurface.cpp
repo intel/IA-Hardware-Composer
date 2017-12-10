@@ -34,7 +34,8 @@ GLSurface::~GLSurface() {
     std::memcpy(&temp, &current, sizeof temp);
     temp.fb_ = fb_;
 
-    resource_manager_->MarkResourceForDeletion(temp);
+    resource_manager_->MarkResourceForDeletion(temp,
+                                               fb_ > 0 || temp.texture_ > 0);
   }
 }
 

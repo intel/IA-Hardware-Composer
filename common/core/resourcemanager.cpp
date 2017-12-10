@@ -77,18 +77,22 @@ void ResourceManager::RegisterBuffer(const HWCNativeBuffer& native_buffer,
   first_map.emplace(std::make_pair(native_buffer, pBuffer));
 }
 
-void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle) {
+void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle,
+                                              bool has_valid_gpu_resources) {
   lock_.lock();
   purged_resources_.emplace_back();
   ResourceHandle& temp = purged_resources_.back();
   std::memcpy(&temp, &handle, sizeof temp);
+  if (!has_purged_gpu_resources_)
+    has_purged_gpu_resources_ = has_valid_gpu_resources;
   lock_.unlock();
 }
 
-void ResourceManager::GetPurgedResources(
-    std::vector<ResourceHandle>& resources) {
+void ResourceManager::GetPurgedResources(std::vector<ResourceHandle>& resources,
+                                         bool* has_gpu_resource) {
   lock_.lock();
   size_t purged_size = purged_resources_.size();
+  *has_gpu_resource = has_purged_gpu_resources_;
 
   if (purged_size != 0) {
     for (size_t i = 0; i < purged_size; i++) {
@@ -99,6 +103,7 @@ void ResourceManager::GetPurgedResources(
     }
 
     std::vector<ResourceHandle>().swap(purged_resources_);
+    has_purged_gpu_resources_ = false;
   }
 
   lock_.unlock();

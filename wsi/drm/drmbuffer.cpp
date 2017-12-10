@@ -31,7 +31,7 @@ namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
   if (owns_gpu_resources_) {
-    resource_manager_->MarkResourceForDeletion(image_);
+    resource_manager_->MarkResourceForDeletion(image_, image_.texture_ > 0);
   }
 }
 
