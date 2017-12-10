@@ -37,10 +37,7 @@ namespace hwcomposer {
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
                            NativeBufferHandler* buffer_handler,
                            PhysicalDisplay* display)
-    : frame_(0),
-      gpu_fd_(gpu_fd),
-      buffer_handler_(buffer_handler),
-      display_(display) {
+    : frame_(0), gpu_fd_(gpu_fd), display_(display) {
   if (disable_overlay) {
     state_ |= kDisableOverlayUsage;
   } else {
@@ -48,6 +45,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
   }
 
   vblank_handler_.reset(new VblankEventHandler(this));
+  buffer_manager_.reset(new HwcLayerBufferManager(buffer_handler));
 
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
@@ -82,16 +80,15 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
 
   compositor_.Reset();
 
-  display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, buffer_handler_, plane_handler));
-  if (!display_plane_manager_->Initialize(width, height)) {
-    ETRACE("Failed to initialize DisplayPlane Manager.");
+  if (!buffer_manager_) {
+    ETRACE("Failed to construct hwc layer buffer manager");
     return false;
   }
 
-  buffer_manager_.reset(new HwcLayerBufferManager());
-  if (!buffer_manager_) {
-    ETRACE("Failed to construct hwc layer buffer manager");
+  display_plane_manager_.reset(
+      new DisplayPlaneManager(gpu_fd_, plane_handler, buffer_manager_.get()));
+  if (!display_plane_manager_->Initialize(width, height)) {
+    ETRACE("Failed to initialize DisplayPlane Manager.");
     return false;
   }
 
@@ -117,7 +114,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
-      compositor_.Init(display_plane_manager_.get(), buffer_manager_.get());
+      compositor_.Init(buffer_manager_.get(),
+                       display_plane_manager_->GetGpuFd());
       power_mode_lock_.unlock();
       break;
     default:
@@ -279,14 +277,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool idle_update,
                                bool handle_constraints) {
   CTRACE();
-  ScopedIdleStateTracker tracker(idle_tracker_);
+  ScopedIdleStateTracker tracker(idle_tracker_, compositor_);
   if (tracker.IgnoreUpdate()) {
     return true;
-  }
-
-  if (sync_) {
-    compositor_.EnsureTasksAreDone();
-    sync_ = false;
   }
 
   size_t size = source_layers.size();
@@ -336,14 +329,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
       overlay_layer->InitializeFromScaledHwcLayer(
-          layer, buffer_handler_, buffer_manager_.get(), previous_layer,
-          z_order, layer_index, display_frame,
-          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
+          layer, buffer_manager_.get(), previous_layer, z_order, layer_index,
+          display_frame, display_plane_manager_->GetHeight(), rotation_,
+          handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
-          layer, buffer_handler_, buffer_manager_.get(), previous_layer,
-          z_order, layer_index, display_plane_manager_->GetHeight(), rotation_,
-          handle_constraints);
+          layer, buffer_manager_.get(), previous_layer, z_order, layer_index,
+          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     }
 
     if (!overlay_layer->IsVisible()) {
@@ -597,8 +589,7 @@ void DisplayQueue::IgnoreUpdates() {
 }
 
 void DisplayQueue::ReleaseSurfaces() {
-  compositor_.FreeResources(false);
-  sync_ = true;
+  display_plane_manager_->ReleaseFreeOffScreenTargets();
   state_ &= ~kMarkSurfacesForRelease;
   state_ &= ~kReleaseSurfaces;
 }
@@ -709,6 +700,8 @@ void DisplayQueue::HandleExit() {
 
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
+  display_plane_manager_->ReleaseAllOffScreenTargets();
+
   bool ignore_updates = false;
   if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
     ignore_updates = true;
@@ -743,8 +736,8 @@ void DisplayQueue::HandleExit() {
     state_ |= kClonedMode;
   }
 
+  buffer_manager_->PurgeBuffer();
   compositor_.Reset();
-  sync_ = true;
   cursor_state_ = kNoCursorState;
 }
 

@@ -25,6 +25,8 @@
 #include "displayplanemanager.h"
 #include "nativesurface.h"
 
+#include <nativebufferhandler.h>
+
 namespace hwcomposer {
 
 CompositorThread::CompositorThread() : HWCThread(-8, "CompositorThread") {
@@ -37,14 +39,14 @@ CompositorThread::CompositorThread() : HWCThread(-8, "CompositorThread") {
 CompositorThread::~CompositorThread() {
 }
 
-void CompositorThread::Initialize(DisplayPlaneManager *plane_manager,
-                                  HwcLayerBufferManager *buffer_manager) {
+void CompositorThread::Initialize(HwcLayerBufferManager *resource_manager,
+                                  uint32_t gpu_fd) {
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
     gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
 
-  plane_manager_ = plane_manager;
-  buffer_manager_ = buffer_manager;
+  resource_manager_ = resource_manager;
+  gpu_fd_ = gpu_fd;
   tasks_lock_.unlock();
   if (!InitWorker()) {
     ETRACE("Failed to initalize CompositorThread. %s", PRINTERROR());
@@ -55,14 +57,17 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
-void CompositorThread::EnsureTasksAreDone() {
+void CompositorThread::FreeResources() {
   tasks_lock_.lock();
-  tasks_lock_.unlock();
-}
+  const std::vector<ResourceHandle> &purged_resources =
+      resource_manager_->GetPurgedResources();
+  size_t purged_size = purged_resources.size();
+  // Let's not post a task if it's not needed.
+  if (purged_size == 0) {
+    tasks_lock_.unlock();
+    return;
+  }
 
-void CompositorThread::FreeResources(bool all_resources) {
-  release_all_resources_ = all_resources;
-  tasks_lock_.lock();
   tasks_ |= kReleaseResources;
   tasks_lock_.unlock();
   Resume();
@@ -108,19 +113,15 @@ void CompositorThread::Draw(std::vector<DrawState> &states,
 }
 
 void CompositorThread::ExitThread() {
-  FreeResources(true);
   HWCThread::Exit();
   std::vector<DrawState>().swap(states_);
   std::vector<OverlayBuffer *>().swap(buffers_);
-  release_all_resources_ = false;
-}
-
-void CompositorThread::ReleaseGpuResources() {
-  gpu_resource_handler_->ReleaseGPUResources();
 }
 
 void CompositorThread::HandleExit() {
+  HandleReleaseRequest();
   gl_renderer_.reset(nullptr);
+  gpu_resource_handler_.reset(nullptr);
 }
 
 void CompositorThread::HandleRoutine() {
@@ -148,20 +149,23 @@ void CompositorThread::HandleReleaseRequest() {
   ScopedSpinLock lock(tasks_lock_);
   tasks_ &= ~kReleaseResources;
 
-  if (!plane_manager_)
-    return;
+  const std::vector<ResourceHandle> &purged_resources =
+      resource_manager_->GetPurgedResources();
+  size_t purged_size = purged_resources.size();
 
-  if (!plane_manager_->HasSurfaces())
-    return;
+  if (purged_size != 0) {
+    Ensure3DRenderer();
+    gpu_resource_handler_->ReleaseGPUResources(purged_resources);
+    const NativeBufferHandler *handler =
+        resource_manager_->GetNativeBufferHandler();
 
-  Ensure3DRenderer();
+    for (size_t i = 0; i < purged_size; i++) {
+      const ResourceHandle &handle = purged_resources.at(i);
+      handler->ReleaseBuffer(handle.handle_);
+      handler->DestroyHandle(handle.handle_);
+    }
 
-  if (release_all_resources_) {
-    gpu_resource_handler_->ReleaseGPUResources();
-    plane_manager_->ReleaseAllOffScreenTargets();
-    gpu_resource_handler_.reset(nullptr);
-  } else {
-    plane_manager_->ReleaseFreeOffScreenTargets();
+    resource_manager_->ResetPurgedResources();
   }
 }
 
@@ -182,7 +186,6 @@ void CompositorThread::Handle3DDrawRequest() {
         "Failed to prepare GPU resources for compositing the frame, "
         "error: %s",
         PRINTERROR());
-    ReleaseGpuResources();
     return;
   }
 
@@ -252,7 +255,7 @@ void CompositorThread::HandleMediaDrawRequest() {
 void CompositorThread::Ensure3DRenderer() {
   if (!gl_renderer_) {
     gl_renderer_.reset(Create3DRenderer());
-    if (!gl_renderer_->Init(buffer_manager_)) {
+    if (!gl_renderer_->Init()) {
       ETRACE("Failed to initialize OpenGL compositor %s", PRINTERROR());
       gl_renderer_.reset(nullptr);
     }
@@ -262,7 +265,7 @@ void CompositorThread::Ensure3DRenderer() {
 void CompositorThread::EnsureMediaRenderer() {
   if (!media_renderer_) {
     media_renderer_.reset(CreateMediaRenderer());
-    if (!media_renderer_->Init(plane_manager_->GetGpuFd())) {
+    if (!media_renderer_->Init(gpu_fd_)) {
       ETRACE("Failed to initialize Media Renderer %s", PRINTERROR());
       media_renderer_.reset(nullptr);
     }

@@ -21,7 +21,6 @@
 #include "nativesurface.h"
 #include "renderstate.h"
 #include "shim.h"
-#include "hwclayerbuffermanager.h"
 
 namespace hwcomposer {
 
@@ -31,15 +30,12 @@ GLRenderer::~GLRenderer() {
     return;
   }
 
-  if (buffer_manager_)
-    buffer_manager_->PurgeGraphicsResources();
   if (vertex_array_)
     glDeleteVertexArraysOES(1, &vertex_array_);
 }
 
-bool GLRenderer::Init(HwcLayerBufferManager *buffer_manager) {
+bool GLRenderer::Init() {
   // clang-format off
-  buffer_manager_ = buffer_manager;
   const GLfloat verts[] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f,
                            0.0f, 2.0f, 2.0f, 0.0f, 2.0f, 0.0f};
   // clang-format on

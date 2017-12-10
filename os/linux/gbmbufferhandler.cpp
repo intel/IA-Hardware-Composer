@@ -63,7 +63,7 @@ bool GbmBufferHandler::Init() {
 
 bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                     HWCNativeHandle *handle,
-                                    uint32_t layer_type) {
+                                    uint32_t layer_type) const {
   uint32_t gbm_format = format;
   if (gbm_format == 0)
     gbm_format = GBM_FORMAT_XRGB8888;
@@ -120,7 +120,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   return true;
 }
 
-bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
+bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
   if (handle->bo || handle->imported_bo) {
     if (handle->bo && handle->hwc_buffer_) {
       gbm_bo_destroy(handle->bo);
@@ -140,13 +140,13 @@ bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
   return true;
 }
 
-void GbmBufferHandler::DestroyHandle(HWCNativeHandle handle) {
+void GbmBufferHandler::DestroyHandle(HWCNativeHandle handle) const {
   delete handle;
   handle = NULL;
 }
 
 void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
-                                  HWCNativeHandle *target) {
+                                  HWCNativeHandle *target) const {
   struct gbm_handle *temp = new struct gbm_handle();
   temp->import_data.width = source->import_data.width;
   temp->import_data.height = source->import_data.height;
@@ -168,7 +168,7 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
   *target = temp;
 }
 
-bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) {
+bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   uint32_t gem_handle = 0;
   handle->meta_data_.format_ = handle->import_data.format;
@@ -220,13 +220,13 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) {
   return true;
 }
 
-uint32_t GbmBufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
+uint32_t GbmBufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
   return handle->total_planes;
 }
 
 void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
                             uint32_t width, uint32_t height, uint32_t *stride,
-                            void **map_data, size_t plane) {
+                            void **map_data, size_t plane) const {
   if (!handle->bo)
     return NULL;
 
@@ -239,7 +239,7 @@ void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
 #endif
 }
 
-int32_t GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) {
+int32_t GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) const {
   if (!handle->bo)
     return -1;
 

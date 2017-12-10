@@ -32,7 +32,7 @@ class GLRenderer : public Renderer {
   GLRenderer() = default;
   ~GLRenderer();
 
-  bool Init(HwcLayerBufferManager *buffer_manager) override;
+  bool Init() override;
   bool Draw(const std::vector<RenderState> &commands, NativeSurface *surface,
             bool clear_surface) override;
 
@@ -44,7 +44,6 @@ class GLRenderer : public Renderer {
   GLProgram *GetProgram(unsigned texture_count);
 
   EGLOffScreenContext context_;
-  HwcLayerBufferManager *buffer_manager_;
 
   std::vector<std::unique_ptr<GLProgram>> programs_;
   GLuint vertex_array_ = 0;

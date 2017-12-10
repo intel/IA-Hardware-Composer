@@ -25,7 +25,7 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
+class HwcLayerBufferManager;
 class DisplayPlaneState;
 
 class NativeSurface {
@@ -37,11 +37,11 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(NativeBufferHandler* buffer_handler, uint32_t format,
+  bool Init(HwcLayerBufferManager* resource_manager, uint32_t format,
             bool cursor_layer = false);
 
-  bool InitializeForOffScreenRendering(NativeBufferHandler* buffer_handler,
-                                       HWCNativeHandle native_handle);
+  bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
+                                       HwcLayerBufferManager* resource_manager);
 
   virtual bool MakeCurrent() = 0;
 
@@ -86,12 +86,11 @@ class NativeSurface {
 
  protected:
   OverlayLayer layer_;
+  HwcLayerBufferManager* resource_manager_;
 
  private:
-  void InitializeLayer(NativeBufferHandler* buffer_handler,
-                       HWCNativeHandle native_handle);
+  void InitializeLayer(HWCNativeHandle native_handle);
   HWCNativeHandle native_handle_;
-  NativeBufferHandler* buffer_handler_;
   int width_;
   int height_;
   bool in_use_;

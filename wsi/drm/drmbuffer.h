@@ -35,8 +35,8 @@ class DrmBuffer : public OverlayBuffer {
 
   void Initialize(const HwcBuffer& bo);
 
-  void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  NativeBufferHandler* buffer_handler) override;
+  void InitializeFromNativeHandle(
+      HWCNativeHandle handle, HwcLayerBufferManager* buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -74,11 +74,10 @@ class DrmBuffer : public OverlayBuffer {
     return offsets_;
   }
 
-  GpuImage ImportImage(GpuDisplay egl_display) override;
-  void DeleteImage() override;
+  const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
+                                       bool external_import) override;
 
-  uint32_t GetImageTexture() override;
-  void DeleteTexture() override;
+  const ResourceHandle& GetGpuResource() override;
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
@@ -106,11 +105,8 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t gpu_fd_ = 0;
   uint32_t total_planes_ = 0;
   bool is_yuv_ = false;
-  HWCNativeHandle handle_ = 0;
-  NativeBufferHandler* buffer_handler_ = 0;
-  GpuImage image_ = 0;
-  GpuDisplay display_ = 0;
-  uint32_t texture_ = 0;
+  HwcLayerBufferManager* resource_manager_ = 0;
+  ResourceHandle image_;
 };
 
 }  // namespace hwcomposer

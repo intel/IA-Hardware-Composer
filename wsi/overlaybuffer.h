@@ -25,6 +25,7 @@
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class HwcLayerBufferManager;
 
 class OverlayBuffer {
  public:
@@ -38,7 +39,7 @@ class OverlayBuffer {
   }
 
   virtual void InitializeFromNativeHandle(
-      HWCNativeHandle handle, NativeBufferHandler* buffer_handler) = 0;
+      HWCNativeHandle handle, HwcLayerBufferManager* buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
@@ -58,11 +59,11 @@ class OverlayBuffer {
 
   virtual const uint32_t* GetOffsets() const = 0;
 
-  virtual GpuImage ImportImage(GpuDisplay egl_display) = 0;
-  virtual void DeleteImage() = 0;
+  // external_import should be true if this resource is not owned by HWC.
+  virtual const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
+                                               bool external_import) = 0;
 
-  virtual uint32_t GetImageTexture() = 0;
-  virtual void DeleteTexture() = 0;
+  virtual const ResourceHandle& GetGpuResource() = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 

@@ -27,7 +27,6 @@ namespace hwcomposer {
 class NativeSurface;
 struct RenderState;
 struct MediaState;
-class HwcLayerBufferManager;
 
 class Renderer {
  public:
@@ -38,7 +37,7 @@ class Renderer {
   Renderer& operator=(const Renderer& rhs) = delete;
 
   // Needs to be implemented for 3D Renderer's only.
-  virtual bool Init(HwcLayerBufferManager* /*buffer_manager*/) {
+  virtual bool Init() {
     return false;
   }
 

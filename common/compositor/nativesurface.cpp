@@ -20,12 +20,12 @@
 #include "displayplanestate.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
+#include "hwclayerbuffermanager.h"
 
 namespace hwcomposer {
 
 NativeSurface::NativeSurface(uint32_t width, uint32_t height)
     : native_handle_(0),
-      buffer_handler_(NULL),
       width_(width),
       height_(height),
       in_use_(false),
@@ -38,36 +38,38 @@ NativeSurface::~NativeSurface() {
   // releasing buffer.
   layer_.ResetBuffer();
 
-  if (native_handle_) {
-    buffer_handler_->DestroyHandle(native_handle_);
+  if (resource_manager_) {
+    ResourceHandle temp;
+    temp.handle_ = native_handle_;
+    resource_manager_->MarkResourceForDeletion(temp);
   }
 }
 
-bool NativeSurface::Init(NativeBufferHandler *buffer_handler, uint32_t format,
-                         bool cursor_layer) {
-  buffer_handler_ = buffer_handler;
+bool NativeSurface::Init(HwcLayerBufferManager *resource_manager,
+                         uint32_t format, bool cursor_layer) {
   uint32_t usage = hwcomposer::kLayerNormal;
   if (cursor_layer) {
     usage = hwcomposer::kLayerCursor;
   }
 
-  buffer_handler_->CreateBuffer(width_, height_, format, &native_handle_,
-                                usage);
+  resource_manager->GetNativeBufferHandler()->CreateBuffer(
+      width_, height_, format, &native_handle_, usage);
   if (!native_handle_) {
     ETRACE("NativeSurface: Failed to create buffer.");
     return false;
   }
 
-  InitializeLayer(buffer_handler, native_handle_);
+  resource_manager_ = resource_manager;
+  InitializeLayer(native_handle_);
   return true;
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    NativeBufferHandler *buffer_handler, HWCNativeHandle native_handle) {
-  InitializeLayer(buffer_handler, native_handle);
+    HWCNativeHandle native_handle, HwcLayerBufferManager *resource_manager) {
+  resource_manager_ = resource_manager;
+  InitializeLayer(native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
-
 
   return true;
 }
@@ -125,10 +127,9 @@ void NativeSurface::UpdateSurfaceDamage(
   last_surface_damage_ = currentsurface_damage;
 }
 
-void NativeSurface::InitializeLayer(NativeBufferHandler *buffer_handler,
-                                    HWCNativeHandle native_handle) {
+void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetBuffer(buffer_handler, native_handle, -1);
+  layer_.SetBuffer(native_handle, -1, resource_manager_, false);
 }
 
 }  // namespace hwcomposer

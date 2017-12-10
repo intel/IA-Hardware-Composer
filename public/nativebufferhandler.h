@@ -33,23 +33,24 @@ class NativeBufferHandler {
 
   virtual bool CreateBuffer(uint32_t w, uint32_t h, int format,
                             HWCNativeHandle *handle = NULL,
-                            uint32_t layer_type = kLayerNormal) = 0;
+                            uint32_t layer_type = kLayerNormal) const = 0;
 
-  virtual bool ReleaseBuffer(HWCNativeHandle handle) = 0;
+  virtual bool ReleaseBuffer(HWCNativeHandle handle) const = 0;
 
-  virtual void DestroyHandle(HWCNativeHandle handle) = 0;
+  virtual void DestroyHandle(HWCNativeHandle handle) const = 0;
 
-  virtual bool ImportBuffer(HWCNativeHandle handle) = 0;
+  virtual bool ImportBuffer(HWCNativeHandle handle) const = 0;
 
-  virtual void CopyHandle(HWCNativeHandle source, HWCNativeHandle *target) = 0;
+  virtual void CopyHandle(HWCNativeHandle source,
+                          HWCNativeHandle *target) const = 0;
 
-  virtual uint32_t GetTotalPlanes(HWCNativeHandle handle) = 0;
+  virtual uint32_t GetTotalPlanes(HWCNativeHandle handle) const = 0;
 
   virtual void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
                     uint32_t width, uint32_t height, uint32_t *stride,
-                    void **map_data, size_t plane) = 0;
+                    void **map_data, size_t plane) const = 0;
 
-  virtual int32_t UnMap(HWCNativeHandle handle, void *map_data) = 0;
+  virtual int32_t UnMap(HWCNativeHandle handle, void *map_data) const = 0;
 };
 
 }  // namespace hwcomposer

@@ -37,16 +37,11 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(DisplayPlaneManager *plane_manager,
-                      HwcLayerBufferManager *buffer_manager) {
+void Compositor::Init(HwcLayerBufferManager *buffer_manager, uint32_t gpu_fd) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(plane_manager, buffer_manager);
-}
-
-void Compositor::EnsureTasksAreDone() {
-  thread_->EnsureTasksAreDone();
+  thread_->Initialize(buffer_manager, gpu_fd);
 }
 
 bool Compositor::BeginFrame(bool disable_explicit_sync) {
@@ -125,7 +120,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
-                               NativeBufferHandler *buffer_handler,
+                               HwcLayerBufferManager *resource_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {
@@ -141,7 +136,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   }
 
   NativeSurface *surface = Create3DBuffer(width, height);
-  surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
+  surface->InitializeForOffScreenRendering(output_handle, resource_manager);
   std::vector<DrawState> draw;
   std::vector<DrawState> media;
   draw.emplace_back();
@@ -169,8 +164,8 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   return true;
 }
 
-void Compositor::FreeResources(bool all_resources) {
-  thread_->FreeResources(all_resources);
+void Compositor::FreeResources() {
+  thread_->FreeResources();
 }
 
 bool Compositor::CalculateRenderState(

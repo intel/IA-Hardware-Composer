@@ -18,8 +18,10 @@
 
 namespace hwcomposer {
 
-HwcLayerBufferManager::HwcLayerBufferManager() {
-  for(size_t i = 0; i < BUFFER_CACHE_LENGTH; i++)
+HwcLayerBufferManager::HwcLayerBufferManager(
+    NativeBufferHandler* buffer_handler)
+    : buffer_handler_(buffer_handler) {
+  for (size_t i = 0; i < BUFFER_CACHE_LENGTH; i++)
     cached_buffers_.emplace_back();
 }
 
@@ -30,15 +32,6 @@ HwcLayerBufferManager::~HwcLayerBufferManager() {
 void HwcLayerBufferManager::PurgeBuffer() {
   for(auto &map : cached_buffers_) {
 	map.clear();
-  }
-}
-
-void HwcLayerBufferManager::PurgeGraphicsResources() {
-  for (auto& map : cached_buffers_) {
-    for (auto& pair : map) {
-      pair.second->DeleteImage();
-      pair.second->DeleteTexture();
-    }
   }
 }
 
@@ -79,10 +72,24 @@ void HwcLayerBufferManager::RegisterBuffer(const HWCNativeBuffer& native_buffer,
   first_map.emplace(std::make_pair(native_buffer, pBuffer));
 }
 
+void HwcLayerBufferManager::MarkResourceForDeletion(
+    const ResourceHandle& handle) {
+  purged_resources_.emplace_back();
+  ResourceHandle& temp = purged_resources_.back();
+  temp.handle_ = handle.handle_;
+  temp.image_ = handle.image_;
+  temp.texture_ = handle.texture_;
+  temp.fb_ = handle.fb_;
+}
+
 void HwcLayerBufferManager::RefreshBufferCache() {
   auto begin = cached_buffers_.begin();
   cached_buffers_.emplace(begin);
   cached_buffers_.pop_back();
+}
+
+void HwcLayerBufferManager::ResetPurgedResources() {
+  std::vector<ResourceHandle>().swap(purged_resources_);
 }
 
 }  // namespace hwcomposer

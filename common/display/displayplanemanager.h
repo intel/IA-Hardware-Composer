@@ -30,13 +30,13 @@ namespace hwcomposer {
 class DisplayPlane;
 class DisplayPlaneState;
 class GpuDevice;
-class NativeBufferHandler;
+class HwcLayerBufferManager;
 struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
-  DisplayPlaneManager(int gpu_fd, NativeBufferHandler *buffer_handler,
-                      DisplayPlaneHandler *plane_handler);
+  DisplayPlaneManager(int gpu_fd, DisplayPlaneHandler *plane_handler,
+                      HwcLayerBufferManager *resource_manager);
 
   virtual ~DisplayPlaneManager();
 
@@ -91,8 +91,8 @@ class DisplayPlaneManager {
 
   void PreparePlaneForCursor(DisplayPlaneState *plane);
 
-  NativeBufferHandler *buffer_handler_;
   DisplayPlaneHandler *plane_handler_;
+  HwcLayerBufferManager *resource_manager_;
   DisplayPlane *cursor_plane_;
   DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;

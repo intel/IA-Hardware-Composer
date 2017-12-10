@@ -32,7 +32,7 @@ bool NativeVKResource::PrepareResources(
   clear_range.layerCount = 1;
 
   for (auto& buffer : buffers) {
-    struct vk_import import = buffer->ImportImage(dev_);
+    const struct vk_import& import = buffer->GetGpuResource(dev_, true);
     if (import.res != VK_SUCCESS) {
       ETRACE("Failed to make import image (%d)\n", import.res);
       return false;
