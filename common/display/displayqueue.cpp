@@ -258,7 +258,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     } else {
       const OverlayLayer* layer =
           &(*(layers.begin() + last_plane.source_layers().front()));
-      layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
+      if (layer->GetBuffer()->GetFb() == 0) {
+        layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
+      }
+
       last_plane.SetOverlayLayer(layer);
       if (layer->HasLayerContentChanged() || layer->HasDimensionsChanged()) {
         ignore_commit = false;

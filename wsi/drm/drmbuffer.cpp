@@ -240,9 +240,12 @@ void DrmBuffer::SetRecommendedFormat(uint32_t format) {
 
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   if (image_.drm_fd_) {
-    // Has been created before
-    return true;
+    ResourceHandle temp;
+    temp.drm_fd_ = image_.drm_fd_;
+    resource_manager_->MarkResourceForDeletion(temp, false);
   }
+
+  image_.drm_fd_ = 0;
 
   int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
                           gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
