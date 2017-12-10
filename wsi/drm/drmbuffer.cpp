@@ -30,8 +30,9 @@
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
-  if (resource_manager_)
+  if (owns_gpu_resources_) {
     resource_manager_->MarkResourceForDeletion(image_);
+  }
 
   ReleaseFrameBuffer();
 }
@@ -90,7 +91,8 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
-                                           ResourceManager* resource_manager) {
+                                           ResourceManager* resource_manager,
+                                           bool owns_gpu_resources) {
   const NativeBufferHandler* handler =
       resource_manager->GetNativeBufferHandler();
   handler->CopyHandle(handle, &image_.handle_);
@@ -100,6 +102,7 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   }
 
   resource_manager_ = resource_manager;
+  owns_gpu_resources_ = owns_gpu_resources;
   Initialize(image_.handle_->meta_data_);
 }
 
