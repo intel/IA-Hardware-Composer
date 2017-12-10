@@ -34,7 +34,7 @@ namespace hwcomposer {
 
 class OverlayBuffer;
 class DisplayPlaneManager;
-class HwcLayerBufferManager;
+class ResourceManager;
 class NativeBufferHandler;
 
 class CompositorThread : public HWCThread {
@@ -42,7 +42,7 @@ class CompositorThread : public HWCThread {
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(HwcLayerBufferManager* buffer_manager, uint32_t gpu_fd);
+  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd);
 
   void Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
@@ -79,7 +79,7 @@ class CompositorThread : public HWCThread {
   std::vector<DrawState> media_states_;
   std::vector<ResourceHandle> purged_resources_;
   bool disable_explicit_sync_;
-  HwcLayerBufferManager* resource_manager_ = NULL;
+  ResourceManager* resource_manager_ = NULL;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;
   FDHandler fd_chandler_;

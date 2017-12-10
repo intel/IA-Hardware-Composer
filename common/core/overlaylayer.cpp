@@ -23,7 +23,7 @@
 
 #include "hwcutils.h"
 
-#include "hwclayerbuffermanager.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 
@@ -65,7 +65,7 @@ OverlayBuffer* OverlayLayer::GetBuffer() const {
 }
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
-                             HwcLayerBufferManager* resource_manager,
+                             ResourceManager* resource_manager,
                              bool register_buffer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
@@ -202,7 +202,7 @@ void OverlayLayer::UpdateSurfaceDamage(HwcLayer* /*layer*/) {
 }
 
 void OverlayLayer::InitializeState(HwcLayer* layer,
-                                   HwcLayerBufferManager* resource_manager,
+                                   ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height, HWCRotation rotation,
@@ -320,7 +320,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
-    HwcLayer* layer, HwcLayerBufferManager* resource_manager,
+    HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
@@ -331,7 +331,7 @@ void OverlayLayer::InitializeFromHwcLayer(
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
-    HwcLayer* layer, HwcLayerBufferManager* resource_manager,
+    HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     const HwcRect<int>& display_frame, uint32_t max_height,
     HWCRotation rotation, bool handle_constraints) {

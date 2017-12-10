@@ -24,9 +24,9 @@
 
 namespace hwcomposer {
 
-DisplayPlaneManager::DisplayPlaneManager(
-    int gpu_fd, DisplayPlaneHandler *plane_handler,
-    HwcLayerBufferManager *resource_manager)
+DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
+                                         DisplayPlaneHandler *plane_handler,
+                                         ResourceManager *resource_manager)
     : plane_handler_(plane_handler),
       resource_manager_(resource_manager),
       width_(0),

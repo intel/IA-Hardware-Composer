@@ -45,7 +45,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
   }
 
   vblank_handler_.reset(new VblankEventHandler(this));
-  buffer_manager_.reset(new HwcLayerBufferManager(buffer_handler));
+  resource_manager_.reset(new ResourceManager(buffer_handler));
 
   /* use 0x80 as default brightness for all colors */
   brightness_ = 0x808080;
@@ -80,13 +80,13 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
 
   compositor_.Reset();
 
-  if (!buffer_manager_) {
+  if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
     return false;
   }
 
   display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, plane_handler, buffer_manager_.get()));
+      new DisplayPlaneManager(gpu_fd_, plane_handler, resource_manager_.get()));
   if (!display_plane_manager_->Initialize(width, height)) {
     ETRACE("Failed to initialize DisplayPlane Manager.");
     return false;
@@ -114,7 +114,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
-      compositor_.Init(buffer_manager_.get(),
+      compositor_.Init(resource_manager_.get(),
                        display_plane_manager_->GetGpuFd());
       power_mode_lock_.unlock();
       break;
@@ -299,7 +299,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     cursor_state_changed = true;
   }
 
-  buffer_manager_->RefreshBufferCache();
+  resource_manager_->RefreshBufferCache();
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -329,12 +329,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           (display_frame.bottom * scaling_tracker_.scaling_height);
 
       overlay_layer->InitializeFromScaledHwcLayer(
-          layer, buffer_manager_.get(), previous_layer, z_order, layer_index,
+          layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_frame, display_plane_manager_->GetHeight(), rotation_,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
-          layer, buffer_manager_.get(), previous_layer, z_order, layer_index,
+          layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_plane_manager_->GetHeight(), rotation_, handle_constraints);
     }
 
@@ -736,7 +736,7 @@ void DisplayQueue::HandleExit() {
     state_ |= kClonedMode;
   }
 
-  buffer_manager_->PurgeBuffer();
+  resource_manager_->PurgeBuffer();
   compositor_.Reset();
   cursor_state_ = kNoCursorState;
 }

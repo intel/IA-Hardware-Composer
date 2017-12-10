@@ -31,7 +31,7 @@
 namespace hwcomposer {
 
 class DisplayPlaneManager;
-class HwcLayerBufferManager;
+class ResourceManager;
 struct OverlayLayer;
 
 class Compositor {
@@ -39,7 +39,7 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(HwcLayerBufferManager *buffer_manager, uint32_t gpu_fd);
+  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
   void Reset();
 
   Compositor(const Compositor &) = delete;
@@ -50,7 +50,7 @@ class Compositor {
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     HwcLayerBufferManager *resource_manager, uint32_t width,
+                     ResourceManager *resource_manager, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t acquire_fence, int32_t *retire_fence);
   void FreeResources();

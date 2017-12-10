@@ -15,14 +15,14 @@
 */
 
 /*
-Design of hwclayerbuffermanager:
+Design of ResourceManager:
 The purpose is to add cache magagement to external buffer owned by hwcLayer
 to avoid import buffer and glimage/texture generation overhead
 
-1: the hwclayerbuffermanager is owned per display, as each display has a
+1: the ResourceManager is owned per display, as each display has a
 separate
 GL context
-2: hwclayerbuffermanager stores a refernce of external buffers in a vector
+2: ResourceManager stores a refernce of external buffers in a vector
    cached_buffers, each vector member is hash map.
    The vector stores history buffer in this way, vector[0] is for the current
    frame buffers, vector[1] is for last frame (-1) buffers, vector[2] is -2
@@ -35,8 +35,8 @@ map.
    can be resued.
 */
 
-#ifndef COMMON_CORE_HWCLAYERBUFFER_MANAGER_H_
-#define COMMON_CORE_HWCLAYERBUFFER_MANAGER_H_
+#ifndef COMMON_CORE_RESOURCE_MANAGER_H_
+#define COMMON_CORE_RESOURCE_MANAGER_H_
 
 #include <hwcdefs.h>
 #include <platformdefines.h>
@@ -44,6 +44,8 @@ map.
 
 #include <memory>
 #include <unordered_map>
+
+#include <spinlock.h>
 
 #include "overlaybuffer.h"
 
@@ -53,10 +55,10 @@ struct HwcLayer;
 class OverlayBuffer;
 class NativeBufferHandler;
 
-class HwcLayerBufferManager {
+class ResourceManager {
  public:
-  HwcLayerBufferManager(NativeBufferHandler* buffer_handler);
-  ~HwcLayerBufferManager();
+  ResourceManager(NativeBufferHandler* buffer_handler);
+  ~ResourceManager();
   void Dump();
   std::shared_ptr<OverlayBuffer>& FindCachedBuffer(
       const HWCNativeBuffer& native_buffer);
@@ -64,10 +66,8 @@ class HwcLayerBufferManager {
                       std::shared_ptr<OverlayBuffer>& pBuffer);
   void MarkResourceForDeletion(const ResourceHandle& handle);
   void RefreshBufferCache();
-  const std::vector<ResourceHandle>& GetPurgedResources() const {
-    return purged_resources_;
-  }
-  void ResetPurgedResources();
+  void GetPurgedResources(std::vector<ResourceHandle>& resources);
+  bool HasPurgedResources();
   void PurgeBuffer();
 
   const NativeBufferHandler* GetNativeBufferHandler() const {
@@ -81,7 +81,8 @@ class HwcLayerBufferManager {
   std::vector<BUFFER_MAP> cached_buffers_;
   std::vector<ResourceHandle> purged_resources_;
   NativeBufferHandler* buffer_handler_;
+  SpinLock lock_;
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_CORE_OVERLAYLAYER_H_
+#endif  // COMMON_CORE_RESOURCE_MANAGER_H_

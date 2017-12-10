@@ -29,9 +29,9 @@
 #include "compositor.h"
 #include "displayplanemanager.h"
 #include "hwcthread.h"
-#include "vblankeventhandler.h"
 #include "platformdefines.h"
-#include "hwclayerbuffermanager.h"
+#include "resourcemanager.h"
+#include "vblankeventhandler.h"
 
 namespace hwcomposer {
 struct gamma_colors {
@@ -254,7 +254,7 @@ class DisplayQueue {
   struct gamma_colors gamma_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
-  std::unique_ptr<HwcLayerBufferManager> buffer_manager_;
+  std::unique_ptr<ResourceManager> resource_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
   DisplayPlaneStateList previous_plane_state_;
   FrameStateTracker idle_tracker_;
