@@ -25,6 +25,9 @@ VkFormat NativeToVkFormat(int native_format);
 
 #include <hwcbuffer.h>
 
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
 #define DRM_FORMAT_NONE fourcc_code('0', '0', '0', '0')
 
 #define DRM_FORMAT_NV12_Y_TILED_INTEL fourcc_code('9', '9', '9', '6')
@@ -34,5 +37,7 @@ VkFormat NativeToVkFormat(int native_format);
 inline void hash_combine_hwc(size_t seed, size_t value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+int ReleaseFrameBuffer(uint32_t gpu_fd, uint32_t fd);
 
 #endif  // OS_LINUX_PLATFORMCOMMONDEFINES_H_

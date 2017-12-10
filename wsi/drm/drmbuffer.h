@@ -56,7 +56,7 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   uint32_t GetFb() const override {
-    return fb_id_;
+    return image_.drm_fd_;
   }
 
   uint32_t GetPrimeFD() const override {
@@ -82,8 +82,6 @@ class DrmBuffer : public OverlayBuffer {
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
-  void ReleaseFrameBuffer() override;
-
   void SetRecommendedFormat(uint32_t format) override;
 
   bool IsVideoBuffer() const override {
@@ -100,10 +98,8 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t pitches_[4];
   uint32_t offsets_[4];
   uint32_t gem_handles_[4];
-  uint32_t fb_id_ = 0;
   uint32_t prime_fd_ = 0;
   uint32_t usage_ = 0;
-  uint32_t gpu_fd_ = 0;
   uint32_t total_planes_ = 0;
   bool is_yuv_ = false;
   bool owns_gpu_resources_ = false;
