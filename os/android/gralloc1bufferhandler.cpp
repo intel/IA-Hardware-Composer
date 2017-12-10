@@ -158,9 +158,6 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 }
 
 bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
-  if (!ReleaseGraphicsBuffer(handle, fd_))
-    return false;
-
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
 
@@ -168,6 +165,7 @@ bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
     release_(gralloc1_dvc, handle->handle_);
   } else if (handle->imported_handle_) {
     release_(gralloc1_dvc, handle->imported_handle_);
+    ReleaseGraphicsBuffer(handle, fd_);
   }
 
   if (handle->gralloc1_buffer_descriptor_t_ > 0)
