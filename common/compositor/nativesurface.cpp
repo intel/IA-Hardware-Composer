@@ -34,10 +34,6 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
 }
 
 NativeSurface::~NativeSurface() {
-  // Ensure we close any framebuffers before
-  // releasing buffer.
-  layer_.ResetBuffer();
-
   if (resource_manager_ && native_handle_) {
     ResourceHandle temp;
     temp.handle_ = native_handle_;
