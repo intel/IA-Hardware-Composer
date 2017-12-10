@@ -198,9 +198,9 @@ static void free_buffer_handle(native_handle_t *handle) {
 static void CopyBufferHandle(HWCNativeHandle source, HWCNativeHandle *target) {
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->handle_ = source->handle_;
-  temp->buffer_ = source->buffer_;
+  temp->gralloc1_buffer_descriptor_t_ = 0;
   temp->imported_handle_ = dup_buffer_handle(source->handle_);
-  temp->hwc_buffer_ = source->hwc_buffer_;
+  temp->hwc_buffer_ = false;
   *target = temp;
 }
 
@@ -212,51 +212,9 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 
-static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
-                                 HWCNativeHandle *handle, uint32_t layer_type) {
-  struct gralloc_handle *temp = new struct gralloc_handle();
-  uint32_t usage = 0;
-  uint32_t pixel_format = 0;
-  if (format != 0) {
-    pixel_format = DrmFormatToHALFormat(format);
-  }
-
-  if (pixel_format == 0) {
-    pixel_format = android::PIXEL_FORMAT_RGBA_8888;
-  }
-
-  if (layer_type == hwcomposer::kLayerNormal) {
-    usage |= GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
-             GRALLOC_USAGE_HW_COMPOSER;
-  } else if (layer_type == hwcomposer::kLayerVideo) {
-    switch (pixel_format) {
-      case HAL_PIXEL_FORMAT_YCbCr_422_I:
-      case HAL_PIXEL_FORMAT_Y8:
-        usage |= GRALLOC_USAGE_HW_TEXTURE;
-        break;
-      default:
-        usage |= GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_HW_CAMERA_READ |
-                 GRALLOC_USAGE_HW_TEXTURE;
-    }
-  } else if (layer_type == hwcomposer::kLayerCursor) {
-    usage |= GRALLOC_USAGE_CURSOR;
-  }
-
-  temp->buffer_ = new android::GraphicBuffer(w, h, pixel_format, usage);
-  temp->handle_ = temp->buffer_->handle;
-  temp->hwc_buffer_ = true;
-  *handle = temp;
-
-  return true;
-}
-
 static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (!handle)
     return false;
-
-  if (handle->buffer_.get() && handle->hwc_buffer_) {
-    handle->buffer_.clear();
-  }
 
   if (handle->gem_handle_ > 0) {
     struct drm_gem_close gem_close;
