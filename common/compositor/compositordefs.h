@@ -47,6 +47,7 @@ typedef struct gl_import {
   GLuint texture_ = 0;
   GLuint fb_ = 0;
   HWCNativeHandle handle_ = 0;
+  uint32_t drm_fd_ = 0;
 } ResourceHandle;
 typedef EGLDisplay GpuDisplay;
 #elif USE_VK
@@ -59,6 +60,7 @@ typedef struct vk_import {
   VkDeviceMemory memory;
   VkResult res;
   HWCNativeHandle handle_ = 0;
+  uint32_t drm_fd_ = 0;
 } ResourceHandle;
 
 typedef VkDevice GpuDisplay;

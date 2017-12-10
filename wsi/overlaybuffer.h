@@ -72,8 +72,6 @@ class OverlayBuffer {
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 
-  virtual void ReleaseFrameBuffer() = 0;
-
   virtual void SetRecommendedFormat(uint32_t format) = 0;
 
   virtual bool IsVideoBuffer() const = 0;

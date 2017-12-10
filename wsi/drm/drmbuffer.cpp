@@ -33,8 +33,6 @@ DrmBuffer::~DrmBuffer() {
   if (owns_gpu_resources_) {
     resource_manager_->MarkResourceForDeletion(image_);
   }
-
-  ReleaseFrameBuffer();
 }
 
 void DrmBuffer::Initialize(const HwcBuffer& bo) {
@@ -241,13 +239,13 @@ void DrmBuffer::SetRecommendedFormat(uint32_t format) {
 }
 
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
-  if (fb_id_) {
+  if (image_.drm_fd_) {
     // Has been created before
     return true;
   }
 
   int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
-                          gem_handles_, pitches_, offsets_, &fb_id_, 0);
+                          gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
 
   if (ret) {
     ETRACE("drmModeAddFB2 error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",
@@ -255,19 +253,11 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
            frame_buffer_format_ >> 16, frame_buffer_format_ >> 24,
            gem_handles_[0], pitches_[0], strerror(-ret));
 
-    fb_id_ = 0;
+    image_.drm_fd_ = 0;
     return false;
   }
 
-  gpu_fd_ = gpu_fd;
   return true;
-}
-
-void DrmBuffer::ReleaseFrameBuffer() {
-  if (fb_id_ && gpu_fd_ && drmModeRmFB(gpu_fd_, fb_id_))
-    ETRACE("Failed to remove fb %s", PRINTERROR());
-
-  fb_id_ = 0;
 }
 
 void DrmBuffer::Dump() {
@@ -282,7 +272,7 @@ void DrmBuffer::Dump() {
     DUMPTRACE("BufferUsage: kLayerVideo.");
   DUMPTRACE("Width: %d", width_);
   DUMPTRACE("Height: %d", height_);
-  DUMPTRACE("Fb: %d", fb_id_);
+  DUMPTRACE("Fb: %d", image_.drm_fd_);
   DUMPTRACE("Prime Handle: %d", prime_fd_);
   DUMPTRACE("Format: %4.4s", (char*)&format_);
   for (uint32_t i = 0; i < 4; i++) {

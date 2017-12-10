@@ -31,9 +31,7 @@ GLSurface::~GLSurface() {
   if (resource_manager_) {
     const ResourceHandle& current = layer_.GetBuffer()->GetGpuResource();
     ResourceHandle temp;
-    temp.handle_ = current.handle_;
-    temp.image_ = current.image_;
-    temp.texture_ = current.texture_;
+    std::memcpy(&temp, &current, sizeof temp);
     temp.fb_ = fb_;
 
     resource_manager_->MarkResourceForDeletion(temp);
