@@ -165,6 +165,10 @@ void CompositorThread::HandleReleaseRequest() {
         ETRACE("Failed to remove fb %s", PRINTERROR());
       }
 
+      if (!handle.handle_) {
+        continue;
+      }
+
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
     }

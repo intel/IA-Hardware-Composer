@@ -38,7 +38,7 @@ NativeSurface::~NativeSurface() {
   // releasing buffer.
   layer_.ResetBuffer();
 
-  if (resource_manager_) {
+  if (resource_manager_ && native_handle_) {
     ResourceHandle temp;
     temp.handle_ = native_handle_;
     resource_manager_->MarkResourceForDeletion(temp, false);
