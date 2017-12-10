@@ -35,8 +35,8 @@ class DrmBuffer : public OverlayBuffer {
 
   void Initialize(const HwcBuffer& bo);
 
-  void InitializeFromNativeHandle(
-      HWCNativeHandle handle, HwcLayerBufferManager* buffer_manager) override;
+  void InitializeFromNativeHandle(HWCNativeHandle handle,
+                                  ResourceManager* buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -105,7 +105,7 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t gpu_fd_ = 0;
   uint32_t total_planes_ = 0;
   bool is_yuv_ = false;
-  HwcLayerBufferManager* resource_manager_ = 0;
+  ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
 };
 

@@ -18,10 +18,10 @@
 
 #include "hwcutils.h"
 #include "hwctrace.h"
-#include "hwclayerbuffermanager.h"
 #include "nativegpuresource.h"
 #include "overlaylayer.h"
 #include "renderer.h"
+#include "resourcemanager.h"
 #include "displayplanemanager.h"
 #include "nativesurface.h"
 
@@ -39,7 +39,7 @@ CompositorThread::CompositorThread() : HWCThread(-8, "CompositorThread") {
 CompositorThread::~CompositorThread() {
 }
 
-void CompositorThread::Initialize(HwcLayerBufferManager *resource_manager,
+void CompositorThread::Initialize(ResourceManager *resource_manager,
                                   uint32_t gpu_fd) {
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
@@ -58,16 +58,12 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
 void CompositorThread::FreeResources() {
-  tasks_lock_.lock();
-  const std::vector<ResourceHandle> &purged_resources =
-      resource_manager_->GetPurgedResources();
-  size_t purged_size = purged_resources.size();
   // Let's not post a task if it's not needed.
-  if (purged_size == 0) {
-    tasks_lock_.unlock();
+  if (!resource_manager_->HasPurgedResources()) {
     return;
   }
 
+  tasks_lock_.lock();
   tasks_ |= kReleaseResources;
   tasks_lock_.unlock();
   Resume();
@@ -149,8 +145,8 @@ void CompositorThread::HandleReleaseRequest() {
   ScopedSpinLock lock(tasks_lock_);
   tasks_ &= ~kReleaseResources;
 
-  const std::vector<ResourceHandle> &purged_resources =
-      resource_manager_->GetPurgedResources();
+  std::vector<ResourceHandle> purged_resources;
+  resource_manager_->GetPurgedResources(purged_resources);
   size_t purged_size = purged_resources.size();
 
   if (purged_size != 0) {
@@ -164,8 +160,6 @@ void CompositorThread::HandleReleaseRequest() {
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
     }
-
-    resource_manager_->ResetPurgedResources();
   }
 }
 

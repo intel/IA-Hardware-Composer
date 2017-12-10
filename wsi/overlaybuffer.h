@@ -25,7 +25,7 @@
 namespace hwcomposer {
 
 class NativeBufferHandler;
-class HwcLayerBufferManager;
+class ResourceManager;
 
 class OverlayBuffer {
  public:
@@ -38,8 +38,8 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
-  virtual void InitializeFromNativeHandle(
-      HWCNativeHandle handle, HwcLayerBufferManager* buffer_manager) = 0;
+  virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
+                                          ResourceManager* buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 

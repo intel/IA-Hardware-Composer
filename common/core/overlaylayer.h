@@ -29,7 +29,7 @@ namespace hwcomposer {
 
 struct HwcLayer;
 class OverlayBuffer;
-class HwcLayerBufferManager;
+class ResourceManager;
 
 struct OverlayLayer {
   OverlayLayer() = default;
@@ -40,14 +40,13 @@ struct OverlayLayer {
   int32_t ReleaseAcquireFence() const;
 
   // Initialize OverlayLayer from layer.
-  void InitializeFromHwcLayer(HwcLayer* layer,
-                              HwcLayerBufferManager* buffer_manager,
+  void InitializeFromHwcLayer(HwcLayer* layer, ResourceManager* buffer_manager,
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
                               HWCRotation rotation, bool handle_constraints);
 
   void InitializeFromScaledHwcLayer(HwcLayer* layer,
-                                    HwcLayerBufferManager* buffer_manager,
+                                    ResourceManager* buffer_manager,
                                     OverlayLayer* previous_layer,
                                     uint32_t z_order, uint32_t layer_index,
                                     const HwcRect<int>& display_frame,
@@ -89,7 +88,7 @@ struct OverlayLayer {
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
-                 HwcLayerBufferManager* buffer_manager, bool register_buffer);
+                 ResourceManager* buffer_manager, bool register_buffer);
   void ResetBuffer();
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
@@ -212,7 +211,7 @@ struct OverlayLayer {
 
   void UpdateSurfaceDamage(HwcLayer* layer);
 
-  void InitializeState(HwcLayer* layer, HwcLayerBufferManager* buffer_manager,
+  void InitializeState(HwcLayer* layer, ResourceManager* buffer_manager,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
                        HWCRotation rotation, bool handle_constraints);

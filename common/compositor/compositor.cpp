@@ -37,11 +37,11 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(HwcLayerBufferManager *buffer_manager, uint32_t gpu_fd) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(buffer_manager, gpu_fd);
+  thread_->Initialize(resource_manager, gpu_fd);
 }
 
 bool Compositor::BeginFrame(bool disable_explicit_sync) {
@@ -120,7 +120,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
-                               HwcLayerBufferManager *resource_manager,
+                               ResourceManager *resource_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {

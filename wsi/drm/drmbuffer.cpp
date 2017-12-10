@@ -25,7 +25,7 @@
 #include <nativebufferhandler.h>
 
 #include "hwctrace.h"
-#include "hwclayerbuffermanager.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 
@@ -89,8 +89,8 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   }
 }
 
-void DrmBuffer::InitializeFromNativeHandle(
-    HWCNativeHandle handle, HwcLayerBufferManager* resource_manager) {
+void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
+                                           ResourceManager* resource_manager) {
   const NativeBufferHandler* handler =
       resource_manager->GetNativeBufferHandler();
   handler->CopyHandle(handle, &image_.handle_);
@@ -223,6 +223,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     image_.texture_ = texture;
   }
 #elif USE_VK
+  ETRACE("Missing implementation for Vulkan. \n");
 #endif
 
   return image_;

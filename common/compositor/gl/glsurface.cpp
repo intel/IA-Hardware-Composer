@@ -17,8 +17,8 @@
 #include "glsurface.h"
 
 #include "hwctrace.h"
-#include "hwclayerbuffermanager.h"
 #include "overlaybuffer.h"
+#include "resourcemanager.h"
 #include "shim.h"
 
 namespace hwcomposer {

@@ -20,7 +20,7 @@
 #include "displayplanestate.h"
 #include "hwctrace.h"
 #include "nativebufferhandler.h"
-#include "hwclayerbuffermanager.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 
@@ -45,8 +45,8 @@ NativeSurface::~NativeSurface() {
   }
 }
 
-bool NativeSurface::Init(HwcLayerBufferManager *resource_manager,
-                         uint32_t format, bool cursor_layer) {
+bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
+                         bool cursor_layer) {
   uint32_t usage = hwcomposer::kLayerNormal;
   if (cursor_layer) {
     usage = hwcomposer::kLayerCursor;
@@ -65,7 +65,7 @@ bool NativeSurface::Init(HwcLayerBufferManager *resource_manager,
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    HWCNativeHandle native_handle, HwcLayerBufferManager *resource_manager) {
+    HWCNativeHandle native_handle, ResourceManager *resource_manager) {
   resource_manager_ = resource_manager;
   InitializeLayer(native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
