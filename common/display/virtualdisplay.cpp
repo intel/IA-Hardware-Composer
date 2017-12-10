@@ -156,6 +156,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
   }
 
+  compositor_.FreeResources();
+
   return true;
 }
 
