@@ -38,8 +38,13 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
+  // If owns_gpu_resources is true, than OverlayBuffer implementation
+  // is expected to mark these resources for deletion by calling
+  // MarkResourceForDeletion API of ResourceManager. If owns_gpu_resources
+  // is false than NativeSurface will handle this.
   virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                          ResourceManager* buffer_manager) = 0;
+                                          ResourceManager* buffer_manager,
+                                          bool owns_gpu_resources) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
