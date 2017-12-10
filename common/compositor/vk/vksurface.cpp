@@ -35,7 +35,8 @@ VKSurface::~VKSurface() {
 bool VKSurface::InitializeGPUResources() {
   VkResult res;
 
-  struct vk_import import = layer_.GetBuffer()->ImportImage(dev_);
+  const struct vk_import& import =
+      layer_.GetBuffer()->GetGpuResource(dev_, false);
   if (import.res != VK_SUCCESS) {
     ETRACE("Failed to make import image (%d)\n", import.res);
     return false;

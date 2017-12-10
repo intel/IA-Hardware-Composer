@@ -54,23 +54,33 @@ class OverlayBuffer;
 class NativeBufferHandler;
 
 class HwcLayerBufferManager {
-
-public:
-  HwcLayerBufferManager();
+ public:
+  HwcLayerBufferManager(NativeBufferHandler* buffer_handler);
   ~HwcLayerBufferManager();
   void Dump();
-  std::shared_ptr<OverlayBuffer>& FindCachedBuffer(const HWCNativeBuffer& native_buffer);
-  void RegisterBuffer(const HWCNativeBuffer& native_buffer, std::shared_ptr<OverlayBuffer>& pBuffer);
+  std::shared_ptr<OverlayBuffer>& FindCachedBuffer(
+      const HWCNativeBuffer& native_buffer);
+  void RegisterBuffer(const HWCNativeBuffer& native_buffer,
+                      std::shared_ptr<OverlayBuffer>& pBuffer);
+  void MarkResourceForDeletion(const ResourceHandle& handle);
   void RefreshBufferCache();
-  void PurgeGraphicsResources();
-
-private:
+  const std::vector<ResourceHandle>& GetPurgedResources() const {
+    return purged_resources_;
+  }
+  void ResetPurgedResources();
   void PurgeBuffer();
 
+  const NativeBufferHandler* GetNativeBufferHandler() const {
+    return buffer_handler_;
+  }
+
+ private:
 #define BUFFER_CACHE_LENGTH 4
   typedef std::unordered_map<HWCNativeBuffer, std::shared_ptr<OverlayBuffer>,
-                            BufferHash, BufferEqual> BUFFER_MAP;
+                             BufferHash, BufferEqual> BUFFER_MAP;
   std::vector<BUFFER_MAP> cached_buffers_;
+  std::vector<ResourceHandle> purged_resources_;
+  NativeBufferHandler* buffer_handler_;
 };
 
 }  // namespace hwcomposer

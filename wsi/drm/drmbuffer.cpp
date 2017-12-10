@@ -25,26 +25,15 @@
 #include <nativebufferhandler.h>
 
 #include "hwctrace.h"
+#include "hwclayerbuffermanager.h"
 
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
+  if (resource_manager_)
+    resource_manager_->MarkResourceForDeletion(image_);
+
   ReleaseFrameBuffer();
-#if USE_GL
-  if (image_)
-    eglDestroyImageKHR(display_, image_);
-  if (texture_) {
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    glDeleteTextures(1, &texture_);
-  }
-#elif USE_VK
-
-#endif
-
-  if (buffer_handler_ && handle_) {
-    buffer_handler_->ReleaseBuffer(handle_);
-    buffer_handler_->DestroyHandle(handle_);
-  }
 }
 
 void DrmBuffer::Initialize(const HwcBuffer& bo) {
@@ -101,161 +90,146 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 }
 
 void DrmBuffer::InitializeFromNativeHandle(
-    HWCNativeHandle handle, NativeBufferHandler* buffer_handler) {
-  buffer_handler->CopyHandle(handle, &handle_);
-  if (!buffer_handler->ImportBuffer(handle_)) {
+    HWCNativeHandle handle, HwcLayerBufferManager* resource_manager) {
+  const NativeBufferHandler* handler =
+      resource_manager->GetNativeBufferHandler();
+  handler->CopyHandle(handle, &image_.handle_);
+  if (!handler->ImportBuffer(image_.handle_)) {
     ETRACE("Failed to Import buffer.");
     return;
   }
 
-  buffer_handler_ = buffer_handler;
-  Initialize(handle_->meta_data_);
+  resource_manager_ = resource_manager;
+  Initialize(image_.handle_->meta_data_);
 }
 
-GpuImage DrmBuffer::ImportImage(GpuDisplay egl_display) {
-  if (image_)
-    return image_;
-
+const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
+                                                bool external_import) {
+  if (image_.image_ == 0) {
 #ifdef USE_GL
-  EGLImageKHR image = EGL_NO_IMAGE_KHR;
-  // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
-  // target, the EGL will take a reference to the dma_buf.
-  if (is_yuv_ && total_planes_ > 1) {
-    if (total_planes_ == 2) {
-      const EGLint attr_list_nv12[] = {
-          EGL_WIDTH,                     static_cast<EGLint>(width_),
-          EGL_HEIGHT,                    static_cast<EGLint>(height_),
-          EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-          EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-          EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-          EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
-          EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
-          EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
-          EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
-          EGL_NONE,                      0};
-      image = eglCreateImageKHR(
-          egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
-          static_cast<EGLClientBuffer>(nullptr), attr_list_nv12);
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
+    // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
+    // target, the EGL will take a reference to the dma_buf.
+    if (is_yuv_ && total_planes_ > 1) {
+      if (total_planes_ == 2) {
+        const EGLint attr_list_nv12[] = {
+            EGL_WIDTH,                     static_cast<EGLint>(width_),
+            EGL_HEIGHT,                    static_cast<EGLint>(height_),
+            EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
+            EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
+            EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
+            EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
+            EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
+            EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
+            EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
+            EGL_NONE,                      0};
+        image = eglCreateImageKHR(
+            egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+            static_cast<EGLClientBuffer>(nullptr), attr_list_nv12);
+      } else {
+        const EGLint attr_list_yv12[] = {
+            EGL_WIDTH,                     static_cast<EGLint>(width_),
+            EGL_HEIGHT,                    static_cast<EGLint>(height_),
+            EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
+            EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
+            EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
+            EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
+            EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
+            EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
+            EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
+            EGL_DMA_BUF_PLANE2_FD_EXT,     static_cast<EGLint>(prime_fd_),
+            EGL_DMA_BUF_PLANE2_PITCH_EXT,  static_cast<EGLint>(pitches_[2]),
+            EGL_DMA_BUF_PLANE2_OFFSET_EXT, static_cast<EGLint>(offsets_[2]),
+            EGL_NONE,                      0};
+        image = eglCreateImageKHR(
+            egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+            static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
+      }
     } else {
-      const EGLint attr_list_yv12[] = {
+      const EGLint attr_list[] = {
           EGL_WIDTH,                     static_cast<EGLint>(width_),
           EGL_HEIGHT,                    static_cast<EGLint>(height_),
           EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
           EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
           EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-          EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
-          EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
-          EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
-          EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
-          EGL_DMA_BUF_PLANE2_FD_EXT,     static_cast<EGLint>(prime_fd_),
-          EGL_DMA_BUF_PLANE2_PITCH_EXT,  static_cast<EGLint>(pitches_[2]),
-          EGL_DMA_BUF_PLANE2_OFFSET_EXT, static_cast<EGLint>(offsets_[2]),
+          EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
           EGL_NONE,                      0};
-      image = eglCreateImageKHR(
-          egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
-          static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
+      image =
+          eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                            static_cast<EGLClientBuffer>(nullptr), attr_list);
     }
-  } else {
-    const EGLint attr_list[] = {
-        EGL_WIDTH,                     static_cast<EGLint>(width_),
-        EGL_HEIGHT,                    static_cast<EGLint>(height_),
-        EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-        EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-        EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-        EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-        EGL_NONE,                      0};
-    image =
-        eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
-                          static_cast<EGLClientBuffer>(nullptr), attr_list);
-  }
 
-  image_ = image;
-  display_ = egl_display;
-  return image;
+    image_.image_ = image;
 #elif USE_VK
-  struct vk_import import;
+    struct vk_import import;
 
-  PFN_vkCreateDmaBufImageINTEL vkCreateDmaBufImageINTEL =
-      (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
-          egl_display, "vkCreateDmaBufImageINTEL");
-  if (vkCreateDmaBufImageINTEL == NULL) {
-    ETRACE("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
-    import.res = VK_ERROR_INITIALIZATION_FAILED;
-    return import;
+    PFN_vkCreateDmaBufImageINTEL vkCreateDmaBufImageINTEL =
+        (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
+            egl_display, "vkCreateDmaBufImageINTEL");
+    if (vkCreateDmaBufImageINTEL == NULL) {
+      ETRACE("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
+      import.res = VK_ERROR_INITIALIZATION_FAILED;
+      return import;
+    }
+
+    VkFormat vk_format = NativeToVkFormat(format_);
+    if (vk_format == VK_FORMAT_UNDEFINED) {
+      ETRACE("Failed DRM -> Vulkan format conversion\n");
+      import.res = VK_ERROR_FORMAT_NOT_SUPPORTED;
+      return import;
+    }
+
+    VkExtent3D image_extent = {};
+    image_extent.width = width_;
+    image_extent.height = height_;
+    image_extent.depth = 1;
+
+    VkDmaBufImageCreateInfo image_create = {};
+    image_create.sType =
+        (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
+    image_create.fd = static_cast<int>(prime_fd_);
+    image_create.format = vk_format;
+    image_create.extent = image_extent;
+    image_create.strideInBytes = pitches_[0];
+
+    import.res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL,
+                                          &import.memory, &import.image);
+
+    image_ = import;
+#endif
   }
 
-  VkFormat vk_format = NativeToVkFormat(format_);
-  if (vk_format == VK_FORMAT_UNDEFINED) {
-    ETRACE("Failed DRM -> Vulkan format conversion\n");
-    import.res = VK_ERROR_FORMAT_NOT_SUPPORTED;
-    return import;
-  }
-
-  VkExtent3D image_extent = {};
-  image_extent.width = width_;
-  image_extent.height = height_;
-  image_extent.depth = 1;
-
-  VkDmaBufImageCreateInfo image_create = {};
-  image_create.sType =
-      (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
-  image_create.fd = static_cast<int>(prime_fd_);
-  image_create.format = vk_format;
-  image_create.extent = image_extent;
-  image_create.strideInBytes = pitches_[0];
-
-  import.res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL,
-                                        &import.memory, &import.image);
-
-  image_ = import;
-  display_ = egl_display;
-  return import;
-#else
-  return NULL;
-#endif
-}
-
-void DrmBuffer::DeleteImage() {
-#if USE_GL
-  if (image_)
-    eglDestroyImageKHR(display_, image_);
-  image_ = 0;
-#endif
-}
-
-void DrmBuffer::DeleteTexture() {
-#if USE_GL
-  if (texture_) {
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    glDeleteTextures(1, &texture_);
-  }
-#endif
-}
-
-uint32_t DrmBuffer::GetImageTexture() {
 #ifdef USE_GL
-  if (texture_ != 0) {
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture_);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
-                                 (GLeglImageOES)image_);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    return texture_;
+  GLenum target = GL_TEXTURE_EXTERNAL_OES;
+  if (!external_import) {
+    target = GL_TEXTURE_2D;
   }
 
-  GLuint texture;
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
-  glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, (GLeglImageOES)image_);
-  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-  texture_ = texture;
-  return texture;
+  if (image_.texture_ != 0) {
+    glBindTexture(target, image_.texture_);
+    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
+    glBindTexture(target, 0);
+  } else {
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(target, texture);
+    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
+    if (external_import) {
+      glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+
+    glBindTexture(target, 0);
+    image_.texture_ = texture;
+  }
 #elif USE_VK
-  return 0;
-#else
-  return 0;
 #endif
+
+  return image_;
+}
+
+const ResourceHandle& DrmBuffer::GetGpuResource() {
+  return image_;
 }
 
 void DrmBuffer::SetRecommendedFormat(uint32_t format) {

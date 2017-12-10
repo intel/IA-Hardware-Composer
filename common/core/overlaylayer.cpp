@@ -23,7 +23,6 @@
 
 #include "hwcutils.h"
 
-#include <nativebufferhandler.h>
 #include "hwclayerbuffermanager.h"
 
 namespace hwcomposer {
@@ -65,20 +64,20 @@ OverlayBuffer* OverlayLayer::GetBuffer() const {
   return imported_buffer_->buffer_.get();
 }
 
-void OverlayLayer::SetBuffer(NativeBufferHandler* buffer_handler,
-                             HWCNativeHandle handle, int32_t acquire_fence,
-                             HwcLayerBufferManager* buffer_manager) {
+void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
+                             HwcLayerBufferManager* resource_manager,
+                             bool register_buffer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
-  if (buffer_manager) {
-    buffer = buffer_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
+  if (resource_manager) {
+    buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
   }
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(handle, buffer_handler);
-    if (buffer_manager) {
-      buffer_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
+    buffer->InitializeFromNativeHandle(handle, resource_manager);
+    if (register_buffer) {
+      resource_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
     }
   }
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
@@ -203,8 +202,7 @@ void OverlayLayer::UpdateSurfaceDamage(HwcLayer* /*layer*/) {
 }
 
 void OverlayLayer::InitializeState(HwcLayer* layer,
-                                   NativeBufferHandler* buffer_handler,
-                                   HwcLayerBufferManager* buffer_manager,
+                                   HwcLayerBufferManager* resource_manager,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height, HWCRotation rotation,
@@ -226,8 +224,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
-  SetBuffer(buffer_handler, layer->GetNativeHandle(), layer->GetAcquireFence(),
-            buffer_manager);
+  SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
+            resource_manager, true);
   ValidateForOverlayUsage();
   if (previous_layer) {
     ValidatePreviousFrameState(previous_layer, layer);
@@ -322,27 +320,24 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
-    HwcLayer* layer, NativeBufferHandler* buffer_handler,
-    HwcLayerBufferManager* buffer_manager, OverlayLayer* previous_layer,
-    uint32_t z_order, uint32_t layer_index, uint32_t max_height,
-    HWCRotation rotation, bool handle_constraints) {
+    HwcLayer* layer, HwcLayerBufferManager* resource_manager,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
-  InitializeState(layer, buffer_handler, buffer_manager, previous_layer,
-                  z_order, layer_index, max_height, rotation,
-                  handle_constraints);
+  InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
+                  max_height, rotation, handle_constraints);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
-    HwcLayer* layer, NativeBufferHandler* buffer_handler,
-    HwcLayerBufferManager* buffer_manager, OverlayLayer* previous_layer,
-    uint32_t z_order, uint32_t layer_index, const HwcRect<int>& display_frame,
-    uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
+    HwcLayer* layer, HwcLayerBufferManager* resource_manager,
+    OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+    const HwcRect<int>& display_frame, uint32_t max_height,
+    HWCRotation rotation, bool handle_constraints) {
   SetDisplayFrame(display_frame);
-  InitializeState(layer, buffer_handler, buffer_manager, previous_layer,
-                  z_order, layer_index, max_height, rotation,
-                  handle_constraints);
+  InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
+                  max_height, rotation, handle_constraints);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,

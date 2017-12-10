@@ -31,18 +31,16 @@
 
 namespace hwcomposer {
 
-VirtualDisplay::VirtualDisplay(uint32_t /*gpu_fd*/,
+VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
                                uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
-    : output_handle_(0),
-      acquire_fence_(-1),
-      buffer_handler_(buffer_handler),
-      width_(0),
-      height_(0) {
-  buffer_manager_.reset(new HwcLayerBufferManager());
+    : output_handle_(0), acquire_fence_(-1), width_(0), height_(0) {
+  buffer_manager_.reset(new HwcLayerBufferManager(buffer_handler));
   if (!buffer_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
+
+  compositor_.Init(buffer_manager_.get(), gpu_fd);
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -51,14 +49,13 @@ VirtualDisplay::~VirtualDisplay() {
   }
 
   if (handle_) {
-    buffer_handler_->DestroyHandle(handle_);
+    buffer_manager_->GetNativeBufferHandler()->DestroyHandle(handle_);
   }
 
   delete output_handle_;
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
-  compositor_.Init(nullptr, buffer_manager_.get());
   width_ = width;
   height_ = height;
 }
@@ -104,8 +101,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
 
     overlay_layer.InitializeFromHwcLayer(
-        layer, buffer_handler_, buffer_manager_.get(), previous_layer, z_order,
-        layer_index, width_, kRotateNone, handle_constraints);
+        layer, buffer_manager_.get(), previous_layer, z_order, layer_index,
+        width_, kRotateNone, handle_constraints);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -131,9 +128,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
 
     // Prepare for final composition.
-    if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
-                                   width_, height_, output_handle_,
-                                   acquire_fence_, retire_fence)) {
+    if (!compositor_.DrawOffscreen(
+            layers, layers_rects, index, buffer_manager_.get(), width_, height_,
+            output_handle_, acquire_fence_, retire_fence)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
       return false;
     }
@@ -165,8 +162,10 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
   if (!output_handle_ || output_handle_ != buffer) {
+    const NativeBufferHandler *handler =
+        buffer_manager_->GetNativeBufferHandler();
     if (handle_) {
-      buffer_handler_->DestroyHandle(handle_);
+      handler->DestroyHandle(handle_);
     }
 
     delete output_handle_;
@@ -174,7 +173,7 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
     handle_ = 0;
 
     if (output_handle_) {
-      buffer_handler_->CopyHandle(output_handle_, &handle_);
+      handler->CopyHandle(output_handle_, &handle_);
     }
   }
 

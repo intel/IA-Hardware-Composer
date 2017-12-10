@@ -86,11 +86,11 @@ bool Gralloc1BufferHandler::Init() {
 
 bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
-                                         uint32_t layer_type) {
+                                         uint32_t layer_type) const {
   return CreateGraphicsBuffer(w, h, format, handle, layer_type);
 }
 
-bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
+bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
   if (!ReleaseGraphicsBuffer(handle, fd_))
     return false;
 
@@ -101,11 +101,11 @@ bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
   return true;
 }
 
-void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) {
+void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) const {
   DestroyBufferHandle(handle);
 }
 
-bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) {
+bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   if (!handle->imported_handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
@@ -117,7 +117,7 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) {
   return ImportGraphicsBuffer(handle, fd_);
 }
 
-uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
+uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
@@ -128,14 +128,14 @@ uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
 }
 
 void Gralloc1BufferHandler::CopyHandle(HWCNativeHandle source,
-                                       HWCNativeHandle *target) {
+                                       HWCNativeHandle *target) const {
   CopyBufferHandle(source, target);
 }
 
-void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x,
-                                 uint32_t y, uint32_t width,
-                                 uint32_t height, uint32_t * /*stride*/,
-                                 void ** map_data, size_t /*plane*/) {
+void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
+                                 uint32_t width, uint32_t height,
+                                 uint32_t * /*stride*/, void **map_data,
+                                 size_t /*plane*/) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
@@ -158,7 +158,7 @@ void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x,
 }
 
 int32_t Gralloc1BufferHandler::UnMap(HWCNativeHandle handle,
-                                  void * /*map_data*/) {
+                                     void * /*map_data*/) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");

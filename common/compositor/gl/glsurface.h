@@ -33,7 +33,6 @@ class GLSurface : public NativeSurface {
 
  private:
   bool InitializeGPUResources();
-  GLuint tex_ = 0;
   GLuint fb_ = 0;
 };
 

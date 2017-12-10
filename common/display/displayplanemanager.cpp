@@ -24,11 +24,11 @@
 
 namespace hwcomposer {
 
-DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
-                                         NativeBufferHandler *buffer_handler,
-                                         DisplayPlaneHandler *plane_handler)
-    : buffer_handler_(buffer_handler),
-      plane_handler_(plane_handler),
+DisplayPlaneManager::DisplayPlaneManager(
+    int gpu_fd, DisplayPlaneHandler *plane_handler,
+    HwcLayerBufferManager *resource_manager)
+    : plane_handler_(plane_handler),
+      resource_manager_(resource_manager),
       width_(0),
       height_(0),
       gpu_fd_(gpu_fd) {
@@ -356,7 +356,7 @@ void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
 
   if (!surface) {
     NativeSurface *new_surface = Create3DBuffer(width, height);
-    new_surface->Init(buffer_handler_, preferred_format, true);
+    new_surface->Init(resource_manager_, preferred_format, true);
     cursor_surfaces_.emplace_back(std::move(new_surface));
     surface = cursor_surfaces_.back().get();
   }
@@ -419,7 +419,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
       new_surface = Create3DBuffer(width_, height_);
     }
 
-    new_surface->Init(buffer_handler_, preferred_format);
+    new_surface->Init(resource_manager_, preferred_format);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

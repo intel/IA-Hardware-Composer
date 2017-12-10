@@ -82,7 +82,6 @@ class VirtualDisplay : public NativeDisplay {
  private:
   HWCNativeHandle output_handle_;
   int32_t acquire_fence_ = -1;
-  NativeBufferHandler *buffer_handler_;
   Compositor compositor_;
   uint32_t width_ = 1;
   uint32_t height_ = 1;

@@ -154,8 +154,9 @@ class DisplayQueue {
   };
 
   struct ScopedIdleStateTracker {
-    ScopedIdleStateTracker(struct FrameStateTracker& tracker)
-        : tracker_(tracker) {
+    ScopedIdleStateTracker(struct FrameStateTracker& tracker,
+                           Compositor& compositor)
+        : tracker_(tracker), compositor_(compositor) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
@@ -216,10 +217,13 @@ class DisplayQueue {
       }
 
       tracker_.idle_lock_.unlock();
+
+      compositor_.FreeResources();
     }
 
    private:
     struct FrameStateTracker& tracker_;
+    Compositor& compositor_;
   };
 
   void HandleExit();
@@ -253,7 +257,6 @@ class DisplayQueue {
   std::unique_ptr<HwcLayerBufferManager> buffer_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
   DisplayPlaneStateList previous_plane_state_;
-  NativeBufferHandler* buffer_handler_;
   FrameStateTracker idle_tracker_;
   ScalingTracker scaling_tracker_;
   // shared_ptr since we need to use this outside of the thread lock (to
@@ -265,7 +268,6 @@ class DisplayQueue {
   uint32_t cursor_state_ = kNoCursorState;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool sync_ = false;  // Synchronize with compositor thread.
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
   HWCRotation rotation_ = kRotateNone;
   SpinLock video_lock_;

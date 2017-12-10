@@ -30,7 +30,6 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
 class DisplayPlaneManager;
 class HwcLayerBufferManager;
 struct OverlayLayer;
@@ -40,28 +39,26 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(DisplayPlaneManager *plane_manager,
-            HwcLayerBufferManager *buffer_manager);
+  void Init(HwcLayerBufferManager *buffer_manager, uint32_t gpu_fd);
   void Reset();
 
   Compositor(const Compositor &) = delete;
 
-  void EnsureTasksAreDone();
   bool BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     NativeBufferHandler *buffer_handler, uint32_t width,
+                     HwcLayerBufferManager *resource_manager, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t acquire_fence, int32_t *retire_fence);
-  void FreeResources(bool all_resources);
+  void FreeResources();
 
- void SetVideoColor(HWCColorControl color, float value);
- void GetVideoColor(HWCColorControl color,
-                    float* value, float* start, float* end);
- void RestoreVideoDefaultColor(HWCColorControl color);
+  void SetVideoColor(HWCColorControl color, float value);
+  void GetVideoColor(HWCColorControl color, float *value, float *start,
+                     float *end);
+  void RestoreVideoDefaultColor(HWCColorControl color);
 
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,

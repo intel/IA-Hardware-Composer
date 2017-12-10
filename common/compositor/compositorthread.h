@@ -35,22 +35,21 @@ namespace hwcomposer {
 class OverlayBuffer;
 class DisplayPlaneManager;
 class HwcLayerBufferManager;
+class NativeBufferHandler;
 
 class CompositorThread : public HWCThread {
  public:
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(DisplayPlaneManager* plane_manager,
-                  HwcLayerBufferManager* buffer_manager);
+  void Initialize(HwcLayerBufferManager* buffer_manager, uint32_t gpu_fd);
 
   void Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
             const std::vector<OverlayLayer>& layers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
-  void FreeResources(bool all_resources);
-  void EnsureTasksAreDone();
+  void FreeResources();
 
   void HandleRoutine() override;
   void HandleExit() override;
@@ -64,7 +63,6 @@ class CompositorThread : public HWCThread {
     kReleaseResources = 1 << 3,  // Release surfaces from plane manager.
   };
 
-  void ReleaseGpuResources();
   void Handle3DDrawRequest();
   void HandleMediaDrawRequest();
   void HandleReleaseRequest();
@@ -79,11 +77,11 @@ class CompositorThread : public HWCThread {
   std::vector<OverlayBuffer*> buffers_;
   std::vector<DrawState> states_;
   std::vector<DrawState> media_states_;
+  std::vector<ResourceHandle> purged_resources_;
   bool disable_explicit_sync_;
-  bool release_all_resources_;
-  DisplayPlaneManager* plane_manager_ = NULL;
-  HwcLayerBufferManager* buffer_manager_ = NULL;
+  HwcLayerBufferManager* resource_manager_ = NULL;
   uint32_t tasks_ = kNone;
+  uint32_t gpu_fd_ = 0;
   FDHandler fd_chandler_;
   HWCEvent cevent_;
 };
