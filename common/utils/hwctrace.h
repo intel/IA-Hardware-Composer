@@ -38,6 +38,7 @@ extern "C" {
 // #define ENABLE_HOT_PLUG_EVENT_TRACING 1
 // #define ENABLE_MOSAIC_DISPLAY_TRACING 1
 // #define FUNCTION_CALL_TRACING 1
+// #define RESOURCE_CACHE_TRACING 1
 #define COMPOSITOR_TRACING 1
 
 // Function call tracing
@@ -112,7 +113,7 @@ class TraceFunc {
 #define ICOMPOSITORTRACE(fmt, ...) ((void)0)
 #endif
 
-#ifdef CACHE_TRACING
+#ifdef RESOURCE_CACHE_TRACING
 #define ICACHETRACE ITRACE
 #else
 #define ICACHETRACE ((void)0)

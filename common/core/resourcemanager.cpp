@@ -54,14 +54,14 @@ std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
         first_map.emplace(std::make_pair(native_buffer, pBuf));
         map.erase(native_buffer);
       }
-#ifdef CACHE_TRACING
+#ifdef RESOURCE_CACHE_TRACING
       hit_count_++;
 #endif
       return pBuf;
     }
   }
 
-#ifdef CACHE_TRACING
+#ifdef RESOURCE_CACHE_TRACING
   miss_count_++;
   if (miss_count_ % 100 == 0)
     ICACHETRACE("cache miss count is %llu, while hit count is %llu",
