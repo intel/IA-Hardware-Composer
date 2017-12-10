@@ -28,12 +28,11 @@ GLSurface::GLSurface(uint32_t width, uint32_t height)
 }
 
 GLSurface::~GLSurface() {
-  if (resource_manager_) {
+  if (resource_manager_ && layer_.GetBuffer()) {
     const ResourceHandle& current = layer_.GetBuffer()->GetGpuResource();
     ResourceHandle temp;
     std::memcpy(&temp, &current, sizeof temp);
     temp.fb_ = fb_;
-
     resource_manager_->MarkResourceForDeletion(temp,
                                                fb_ > 0 || temp.texture_ > 0);
   }
