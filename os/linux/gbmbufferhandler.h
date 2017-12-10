@@ -39,7 +39,7 @@ class GbmBufferHandler : public NativeBufferHandler {
   void CopyHandle(HWCNativeHandle source,
                   HWCNativeHandle *target) const override;
   bool ImportBuffer(HWCNativeHandle handle) const override;
-  uint32_t GetTotalPlanes(HWCNativeHandle handle) override;
+  uint32_t GetTotalPlanes(HWCNativeHandle handle) const override;
   void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y, uint32_t width,
             uint32_t height, uint32_t *stride, void **map_data,
             size_t plane) const override;
