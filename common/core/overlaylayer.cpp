@@ -181,7 +181,7 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   }
 }
 
-void OverlayLayer::UpdateSurfaceDamage(HwcLayer* /*layer*/) {
+void OverlayLayer::UpdateSurfaceDamage(HwcLayer* layer) {
   if (!gpu_rendered_) {
     surface_damage_ = display_frame_;
     return;
@@ -193,9 +193,7 @@ void OverlayLayer::UpdateSurfaceDamage(HwcLayer* /*layer*/) {
     return;
   }
 
-  // TODO: FIXME: We should be able to use surfacedamage
-  // from HWCLayer here.
-  surface_damage_ = display_frame_;
+  surface_damage_ = layer->GetSurfaceDamage();
 }
 
 void OverlayLayer::InitializeState(HwcLayer* layer,
