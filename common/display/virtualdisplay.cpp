@@ -55,6 +55,10 @@ VirtualDisplay::~VirtualDisplay() {
   }
 
   delete output_handle_;
+  std::vector<OverlayLayer>().swap(in_flight_layers_);
+
+  resource_manager_->PurgeBuffer();
+  compositor_.Reset();
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
