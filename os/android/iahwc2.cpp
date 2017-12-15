@@ -230,7 +230,9 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   switch (callback) {
     case HWC2::Callback::Hotplug: {
       primary_display_.RegisterHotPlugCallback(data, function);
+#ifdef NESTED_DISPLAY_SUPPORT
       nested_display_.RegisterHotPlugCallback(data, function);
+#endif
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
