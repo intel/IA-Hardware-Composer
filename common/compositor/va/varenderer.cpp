@@ -17,11 +17,9 @@
 #include "varenderer.h"
 #include "platformdefines.h"
 
-#include <xf86drm.h>
 #include <drm_fourcc.h>
-#include <va/va.h>
-#include <va/va_vpp.h>
 #include <va/va_drmcommon.h>
+#include <xf86drm.h>
 #ifdef ANDROID
 #include <va/va_android.h>
 #else
@@ -50,6 +48,7 @@ class ScopedVASurfaceID {
   }
 
   bool CreateSurface(int format, VASurfaceAttribExternalBuffers& external) {
+    CTRACE();
     VASurfaceAttrib attribs[2];
     attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
     attribs[0].type = VASurfaceAttribMemoryType;
@@ -79,69 +78,6 @@ class ScopedVASurfaceID {
   VASurfaceID surface_ = VA_INVALID_ID;
 };
 
-class ScopedVAConfigID {
- public:
-  ScopedVAConfigID(VADisplay display) : display_(display) {
-  }
-  ~ScopedVAConfigID() {
-    if (config_ != VA_INVALID_ID) {
-      vaDestroyConfig(display_, config_);
-    }
-  }
-
-  bool CreateConfig(int format) {
-    VAConfigAttrib config_attrib;
-    config_attrib.type = VAConfigAttribRTFormat;
-    config_attrib.value = format;
-    VAStatus ret =
-        vaCreateConfig(display_, VAProfileNone, VAEntrypointVideoProc,
-                       &config_attrib, 1, &config_);
-    return ret == VA_STATUS_SUCCESS ? true : false;
-  }
-
-  operator VAConfigID() const {
-    return config_;
-  }
-
-  VAConfigID config() const {
-    return config_;
-  }
-
- private:
-  VADisplay display_;
-  VAConfigID config_ = VA_INVALID_ID;
-};
-
-class ScopedVAContextID {
- public:
-  ScopedVAContextID(VADisplay display) : display_(display) {
-  }
-  ~ScopedVAContextID() {
-    if (context_ != VA_INVALID_ID) {
-      vaDestroyContext(display_, context_);
-    }
-  }
-
-  bool CreateContext(VAConfigID config, int width, int height,
-                     VASurfaceID render_target) {
-    VAStatus ret = vaCreateContext(display_, config, width, height, 0x00,
-                                   &render_target, 1, &context_);
-    return ret == VA_STATUS_SUCCESS ? true : false;
-  }
-
-  operator VAContextID() const {
-    return context_;
-  }
-
-  VAContextID context() const {
-    return context_;
-  }
-
- private:
-  VADisplay display_;
-  VAContextID context_ = VA_INVALID_ID;
-};
-
 class ScopedVABufferID {
  public:
   ScopedVABufferID(VADisplay display) : display_(display) {
@@ -153,6 +89,7 @@ class ScopedVABufferID {
 
   bool CreateBuffer(VAContextID context, VABufferType type, uint32_t size,
                     uint32_t num, void* data) {
+    CTRACE();
     VAStatus ret =
         vaCreateBuffer(display_, context, type, size, num, data, &buffer_);
     return ret == VA_STATUS_SUCCESS ? true : false;
@@ -176,6 +113,8 @@ class ScopedVABufferID {
 };
 
 VARenderer::~VARenderer() {
+  DestroyContext();
+
   if (va_display_) {
     vaTerminate(va_display_);
   }
@@ -199,7 +138,61 @@ bool VARenderer::Init(int gpu_fd) {
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
+bool VARenderer::QueryVAProcFilterCaps(VAContextID context,
+                                       VAProcFilterType type, void* caps,
+                                       uint32_t* num) {
+  VAStatus ret =
+      vaQueryVideoProcFilterCaps(va_display_, context, type, caps, num);
+  if (ret != VA_STATUS_SUCCESS)
+    ETRACE("Query Filter Caps failed\n");
+  return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
+bool VARenderer::MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
+                                               VAProcColorBalanceType vamode) {
+  switch (vamode) {
+    case VAProcColorBalanceHue:
+      vppmode = HWCColorControl::kColorHue;
+      break;
+    case VAProcColorBalanceSaturation:
+      vppmode = HWCColorControl::kColorSaturation;
+      break;
+    case VAProcColorBalanceBrightness:
+      vppmode = HWCColorControl::kColorBrightness;
+      break;
+    case VAProcColorBalanceContrast:
+      vppmode = HWCColorControl::kColorContrast;
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterColorDefaultValue(
+    VAProcFilterCapColorBalance* caps) {
+  HWCColorControl mode;
+  for (int i = 0; i < VAProcColorBalanceCount; i++) {
+    if (MapVAProcFilterColorModetoHwc(mode, caps[i].type)) {
+      caps_[mode].caps = caps[i];
+      caps_[mode].value = caps[i].range.default_value;
+    }
+  }
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode, float value) {
+  if (value > caps_[mode].caps.range.max_value ||
+      value < caps_[mode].caps.range.min_value) {
+    ETRACE("VAlue Filter value out of range\n");
+    return false;
+  }
+  caps_[mode].value = value;
+  return true;
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
+  CTRACE();
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
   const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
@@ -251,15 +244,13 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     return false;
   }
 
-  ScopedVAConfigID va_config(va_display_);
-  if (!va_config.CreateConfig(rt_format)) {
-    return false;
-  }
-
-  ScopedVAContextID va_context(va_display_);
-  if (!va_context.CreateContext(va_config, dest_width, dest_height,
-                                surface_out)) {
-    return false;
+  if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
+    DTRACE("to create VA context\n");
+    render_target_format_ = rt_format;
+    if (!CreateContext()) {
+      ETRACE("Create VA context failed\n");
+      return false;
+    }
   }
 
   VAProcPipelineParameterBuffer param;
@@ -298,18 +289,61 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 #ifdef DISABLE_CURSOR_PLANE
   param.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
 #endif
+  VAProcFilterCapColorBalance vacaps[VAProcColorBalanceCount];
+  uint32_t vacaps_num = VAProcColorBalanceCount;
+
+  if (caps_.empty()) {
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance, vacaps,
+                               &vacaps_num)) {
+      return false;
+    } else {
+      SetVAProcFilterColorDefaultValue(&vacaps[0]);
+    }
+  }
+
+  for (HWCColorMap::const_iterator itr = state.colors_.begin();
+       itr != state.colors_.end(); itr++) {
+    SetVAProcFilterColorValue(itr->first, itr->second);
+  }
+
+  std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
+                                            va_display_);
+  std::vector<VABufferID> filters;
+  VAProcFilterParameterBufferColorBalance cbparam;
+  cbparam.type = VAProcFilterColorBalance;
+  cbparam.attrib = VAProcColorBalanceNone;
+
+  for (ColorBalanceCapMapItr itr = caps_.begin(); itr != caps_.end(); itr++) {
+    if (fabs(itr->second.value - itr->second.caps.range.default_value) >=
+        itr->second.caps.range.step) {
+      cbparam.value = itr->second.value;
+      cbparam.attrib = itr->second.caps.type;
+      if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
+              va_context_, VAProcFilterParameterBufferType,
+              sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
+        return false;
+      }
+      filters.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
+    }
+  }
+
+  if (filters.size()) {
+    param.filters = &filters[0];
+    param.num_filters = static_cast<unsigned int>(filters.size());
+  }
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
-          va_context, VAProcPipelineParameterBufferType,
+          va_context_, VAProcPipelineParameterBufferType,
           sizeof(VAProcPipelineParameterBuffer), 1, &param)) {
     return false;
   }
 
   VAStatus ret = VA_STATUS_SUCCESS;
-  ret = vaBeginPicture(va_display_, va_context, surface_out);
-  ret |= vaRenderPicture(va_display_, va_context, &pipeline_buffer.buffer(), 1);
-  ret |= vaEndPicture(va_display_, va_context);
+  ret = vaBeginPicture(va_display_, va_context_, surface_out);
+  ret |=
+      vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
+  ret |= vaEndPicture(va_display_, va_context_);
 
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
@@ -374,6 +408,40 @@ uint32_t VARenderer::HWCTransformToVA(uint32_t transform) {
       break;
   }
   return VA_ROTATION_NONE;
+}
+
+bool VARenderer::CreateContext() {
+  DestroyContext();
+
+  VAConfigAttrib config_attrib;
+  config_attrib.type = VAConfigAttribRTFormat;
+  config_attrib.value = render_target_format_;
+  VAStatus ret =
+      vaCreateConfig(va_display_, VAProfileNone, VAEntrypointVideoProc,
+                     &config_attrib, 1, &va_config_);
+  if (ret != VA_STATUS_SUCCESS) {
+    ETRACE("Create VA Config failed\n");
+    return false;
+  }
+
+  // These parameters are not used in vaCreateContext so just set them to dummy
+  // values
+  int width = 1;
+  int height = 1;
+  ret = vaCreateContext(va_display_, va_config_, width, height, 0x00, nullptr,
+                        0, &va_context_);
+  return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
+void VARenderer::DestroyContext() {
+  if (va_context_ != VA_INVALID_ID) {
+    vaDestroyContext(va_display_, va_context_);
+    va_context_ = VA_INVALID_ID;
+  }
+  if (va_config_ != VA_INVALID_ID) {
+    vaDestroyConfig(va_display_, va_config_);
+    va_config_ = VA_INVALID_ID;
+  }
 }
 
 }  // namespace hwcomposer

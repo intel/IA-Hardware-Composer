@@ -17,12 +17,25 @@
 #ifndef COMMON_COMPOSITOR_VA_VARENDERER_H_
 #define COMMON_COMPOSITOR_VA_VARENDERER_H_
 
+#include <va/va.h>
+#include <va/va_vpp.h>
+#include <map>
+
+#include "hwcdefs.h"
 #include "renderer.h"
 
 namespace hwcomposer {
 
 struct OverlayLayer;
 class NativeSurface;
+
+typedef struct _VppColorBalanceCap {
+  VAProcFilterCapColorBalance caps;
+  float value;
+} VppColorBalanceCap;
+
+typedef std::map<HWCColorControl, VppColorBalanceCap> ColorBalanceCapMap;
+typedef ColorBalanceCapMap::iterator ColorBalanceCapMapItr;
 
 class VARenderer : public Renderer {
  public:
@@ -39,9 +52,21 @@ class VARenderer : public Renderer {
  private:
   int DrmFormatToVAFormat(int format);
   int DrmFormatToRTFormat(int format);
+  bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
+                             void* caps, uint32_t* num);
+  bool SetVAProcFilterColorValue(HWCColorControl type, float value);
+  bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
+  bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
+                                     VAProcColorBalanceType vamode);
+  bool CreateContext();
+  void DestroyContext();
   uint32_t HWCTransformToVA(uint32_t transform);
 
-  void *va_display_ = nullptr;
+  void* va_display_ = nullptr;
+  ColorBalanceCapMap caps_;
+  int render_target_format_ = VA_RT_FORMAT_YUV420;
+  VAContextID va_context_ = VA_INVALID_ID;
+  VAConfigID va_config_ = VA_INVALID_ID;
 };
 
 }  // namespace hwcomposer
