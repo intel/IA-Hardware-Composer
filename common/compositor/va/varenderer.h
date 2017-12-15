@@ -54,8 +54,6 @@ class VARenderer : public Renderer {
                              void* caps, uint32_t* num);
   bool SetVAProcFilterColorValue(HWCColorControl type, float value);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
-  int DrmFormatToVAFormat(int format);
-  int DrmFormatToRTFormat(int format);
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
                                      VAProcColorBalanceType vamode);
   bool CreateContext();

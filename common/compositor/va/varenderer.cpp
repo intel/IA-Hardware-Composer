@@ -31,6 +31,10 @@
 #include "overlaybuffer.h"
 #include "renderstate.h"
 
+#include "vasurface.h"
+
+#include "vautils.h"
+
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
 #define UNUSED(x) (void*)(&x)
 
@@ -193,11 +197,23 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode, float value) {
 
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
+  OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
+  int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
+
+  if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
+    DTRACE("to create VA context\n");
+    render_target_format_ = rt_format;
+    if (!CreateContext()) {
+      ETRACE("Create VA context failed\n");
+      return false;
+    }
+  }
+
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
   const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
   unsigned long prime_fd_in = buffer_in->GetPrimeFD();
-  int rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
+  rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
   external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
   external_in.width = buffer_in->GetWidth();
   external_in.height = buffer_in->GetHeight();
@@ -217,46 +233,18 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     return false;
   }
 
-  VASurfaceAttribExternalBuffers external_out;
-  memset(&external_out, 0, sizeof(external_out));
-  OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
-  int dest_width = buffer_out->GetWidth();
-  int dest_height = buffer_out->GetHeight();
-  unsigned long prime_fd_out = buffer_out->GetPrimeFD();
-  rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
-  external_out.pixel_format = DrmFormatToVAFormat(buffer_out->GetFormat());
-  external_out.width = dest_width;
-  external_out.height = dest_height;
-  external_out.num_planes = buffer_out->GetTotalPlanes();
-  pitches = buffer_out->GetPitches();
-  offsets = buffer_out->GetOffsets();
-  for (unsigned int i = 0; i < external_out.num_planes; i++) {
-    external_out.pitches[i] = pitches[i];
-    external_out.offsets[i] = offsets[i];
-  }
-  external_out.num_buffers = 1;
-  external_out.buffers = &prime_fd_out;
+  VASurface* out_surface = static_cast<VASurface*>(surface);
 
-  ScopedVASurfaceID surface_out(va_display_);
-  if (!surface_out.CreateSurface(rt_format, external_out)) {
-    DTRACE("Create Output surface failed, pixel_format:%4.4s w/h: %dx%d\n",
-           (char*)&external_out.pixel_format, dest_width, dest_height);
+  out_surface->CreateVASurface(va_display_);
+  if (!out_surface) {
+    ETRACE("Failed to create Va Surface. \n");
     return false;
-  }
-
-  if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
-    DTRACE("to create VA context\n");
-    render_target_format_ = rt_format;
-    if (!CreateContext()) {
-      ETRACE("Create VA context failed\n");
-      return false;
-    }
   }
 
   VAProcPipelineParameterBuffer param;
   memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
 
-  VARectangle surface_region, output_region;
+  VARectangle surface_region;
   const HwcRect<float>& source_crop = state.layer_->GetSourceCrop();
   surface_region.x = static_cast<int>(source_crop.left);
   surface_region.y = static_cast<int>(source_crop.top);
@@ -265,15 +253,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
       static_cast<int>(source_crop.bottom - source_crop.top);
   param.surface_region = &surface_region;
 
-  const HwcRect<float>& target_source_rect =
-      surface->GetLayer()->GetSourceCrop();
-  output_region.x = static_cast<int>(target_source_rect.left);
-  output_region.y = static_cast<int>(target_source_rect.top);
-  output_region.width =
-      static_cast<int>(target_source_rect.right - target_source_rect.left);
-  output_region.height =
-      static_cast<int>(target_source_rect.bottom - target_source_rect.top);
-  param.output_region = &output_region;
+  param.output_region = out_surface->GetOutputRegion();
 
   DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
             surface_region.y, surface_region.width, surface_region.height);
@@ -338,60 +318,12 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   }
 
   VAStatus ret = VA_STATUS_SUCCESS;
-  ret = vaBeginPicture(va_display_, va_context_, surface_out);
+  ret = vaBeginPicture(va_display_, va_context_, out_surface->GetSurfaceID());
   ret |=
       vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
   ret |= vaEndPicture(va_display_, va_context_);
 
   return ret == VA_STATUS_SUCCESS ? true : false;
-}
-
-int VARenderer::DrmFormatToVAFormat(int format) {
-  switch (format) {
-    case DRM_FORMAT_NV12:
-      return VA_FOURCC_NV12;
-    case DRM_FORMAT_YVU420:
-      return VA_FOURCC_YV12;
-    case DRM_FORMAT_YUV420:
-      return VA_FOURCC('I', '4', '2', '0');
-    case DRM_FORMAT_YUV422:
-      return VA_FOURCC_YUY2;
-    case DRM_FORMAT_UYVY:
-      return VA_FOURCC_UYVY;
-    case DRM_FORMAT_YUYV:
-      return VA_FOURCC_YUY2;
-    case DRM_FORMAT_P010:
-      return VA_FOURCC_P010;
-    case DRM_FORMAT_YVYU:
-    case DRM_FORMAT_VYUY:
-    case DRM_FORMAT_YUV444:
-    case DRM_FORMAT_AYUV:
-    default:
-      break;
-  }
-  return 0;
-}
-
-int VARenderer::DrmFormatToRTFormat(int format) {
-  switch (format) {
-    case DRM_FORMAT_NV12:
-    case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_YUV420:
-    case DRM_FORMAT_UYVY:
-    case DRM_FORMAT_YUYV:
-    case DRM_FORMAT_YVYU:
-    case DRM_FORMAT_VYUY:
-      return VA_RT_FORMAT_YUV420;
-    case DRM_FORMAT_YUV422:
-      return VA_RT_FORMAT_YUV422;
-    case DRM_FORMAT_YUV444:
-      return VA_RT_FORMAT_YUV444;
-    case DRM_FORMAT_P010:
-      return VA_RT_FORMAT_YUV420_10BPP;
-    default:
-      break;
-  }
-  return 0;
 }
 
 bool VARenderer::CreateContext() {

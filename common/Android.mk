@@ -70,6 +70,7 @@ LOCAL_SRC_FILES := \
         compositor/renderstate.cpp \
 	compositor/va/vasurface.cpp \
 	compositor/va/varenderer.cpp \
+	compositor/va/vautils.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
 	core/resourcemanager.cpp \
