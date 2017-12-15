@@ -41,6 +41,7 @@ vk_SOURCES =\
         $(NULL)
 
 va_SOURCES =\
-    compositor/va/vasurface.cpp \
     compositor/va/varenderer.cpp \
+    compositor/va/vasurface.cpp \
+    compositor/va/vautils.cpp \
 	$(NULL)

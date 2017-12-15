@@ -19,6 +19,9 @@
 
 #include "nativesurface.h"
 
+#include <va/va.h>
+#include <va/va_vpp.h>
+
 namespace hwcomposer {
 
 class VASurface : public NativeSurface {
@@ -28,6 +31,22 @@ class VASurface : public NativeSurface {
   VASurface(uint32_t width, uint32_t height);
 
   bool MakeCurrent() override;
+  const VASurfaceID& GetSurfaceID() const {
+    return surface_;
+  }
+
+  VARectangle* GetOutputRegion() {
+    return &output_region_;
+  }
+
+  bool CreateVASurface(void* va_display);
+
+ private:
+  VADisplay display_;
+  VASurfaceID surface_ = VA_INVALID_ID;
+  VARectangle output_region_;
+  uint32_t previous_width_ = 0;
+  uint32_t previous_height_ = 0;
 };
 
 }  // namespace hwcomposer
