@@ -319,14 +319,14 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
 
   VARectangle surface_region, output_region;
-  HwcRect<float> source_crop = state.layer_->GetSourceCrop();
+  const HwcRect<float>& source_crop = state.layer_->GetSourceCrop();
   surface_region.x = source_crop.left;
   surface_region.y = source_crop.top;
   surface_region.width = source_crop.right - source_crop.left;
   surface_region.height = source_crop.bottom - source_crop.top;
   param.surface_region = &surface_region;
 
-  HwcRect<int> display_frame = state.layer_->GetDisplayFrame();
+  const HwcRect<int>& display_frame = state.layer_->GetDisplayFrame();
   output_region.x = display_frame.left;
   output_region.y = display_frame.top;
   output_region.width = display_frame.right - display_frame.left;
