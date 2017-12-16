@@ -61,6 +61,14 @@ class DisplayPlaneState {
     return display_frame_;
   }
 
+  const HwcRect<float> &GetSourceCrop() const {
+    return source_crop_;
+  }
+
+  void SetSourceCrop(const HwcRect<float> &crop) {
+    source_crop_ = crop;
+  }
+
   void AddLayer(size_t index, const HwcRect<int> &display_frame,
                 bool cursor_layer) {
     display_frame_.left = std::min(display_frame_.left, display_frame.left);
@@ -164,7 +172,6 @@ class DisplayPlaneState {
 
   void SetOverlayLayer(const OverlayLayer *layer) {
     layer_ = layer;
-    display_frame_ = layer->GetDisplayFrame();
   }
 
   void ReUseOffScreenTarget() {
@@ -279,6 +286,14 @@ class DisplayPlaneState {
     type_ = PlaneType::kVideo;
   }
 
+  void UsePlaneScalar(bool enable) {
+    use_plane_scalar_ = enable;
+  }
+
+  bool IsUsingPlaneScalar() const {
+    return use_plane_scalar_;
+  }
+
  private:
   enum class PlaneType : int32_t {
     kCursor,  // Plane is compositing only Cursor.
@@ -289,11 +304,13 @@ class DisplayPlaneState {
   DisplayPlane *plane_ = NULL;
   const OverlayLayer *layer_ = NULL;
   HwcRect<int> display_frame_;
+  HwcRect<float> source_crop_;
   std::vector<size_t> source_layers_;
   std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
   bool has_cursor_layer_ = false;
   bool surface_swapped_ = true;
+  bool use_plane_scalar_ = false;
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };

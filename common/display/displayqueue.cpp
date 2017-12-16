@@ -164,6 +164,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (plane.IsVideoPlane()) {
       last_plane.SetVideoPlane();
+      last_plane.SetSourceCrop(plane.GetSourceCrop());
     }
 
     if (plane_state_render || plane.SurfaceRecycled()) {
