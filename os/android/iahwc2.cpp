@@ -748,17 +748,7 @@ HWC2::Error IAHWC2::HwcDisplay::SetPowerMode(int32_t mode_in) {
 
 HWC2::Error IAHWC2::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
   supported(__func__);
-  switch (enabled) {
-    case HWC2_VSYNC_ENABLE:
-      display_->VSyncControl(true);
-      break;
-    case HWC2_VSYNC_DISABLE:
-      display_->VSyncControl(false);
-      break;
-    default:
-      ALOGE("SetVsyncEnabled called with invalid parameter");
-      return HWC2::Error::BadParameter;
-  }
+  display_->VSyncControl(enabled);
   return HWC2::Error::None;
 }
 
