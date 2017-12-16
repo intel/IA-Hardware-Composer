@@ -226,6 +226,7 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   supported(__func__);
   auto callback = static_cast<HWC2::Callback>(descriptor);
   size_t size = extended_displays_.size();
+  HWC2::Error error = HWC2::Error::None;
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
@@ -259,9 +260,10 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
       break;
     }
     default:
+      error = HWC2::Error::BadParameter;
       break;
   }
-  return HWC2::Error::None;
+  return error;
 }
 
 IAHWC2::HwcDisplay::HwcDisplay() {
