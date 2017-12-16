@@ -90,6 +90,10 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
   ResetDisplayFrame(plane.GetDisplayFrame());
+  if (plane.IsVideoPlane()) {
+    layer_.SetSourceCrop(plane.GetSourceCrop());
+  }
+
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
 
@@ -105,7 +109,9 @@ void NativeSurface::ResetDisplayFrame(const HwcRect<int> &display_frame) {
   surface_damage_ = display_frame;
   last_surface_damage_ = surface_damage_;
   layer_.SetDisplayFrame(display_frame);
-  layer_.SetSourceCrop(HwcRect<float>(display_frame));
+  if (!layer_.IsVideoLayer())
+    layer_.SetSourceCrop(HwcRect<float>(display_frame));
+
   clear_surface_ = true;
 }
 

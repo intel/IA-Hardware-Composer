@@ -112,12 +112,16 @@ bool DisplayPlaneManager::ValidateLayers(
       return render_layers;
     } else {
       DisplayPlaneState &last_plane = composition.back();
-      if (primary_layer->IsVideoLayer())
+      if (primary_layer->IsVideoLayer()) {
         last_plane.SetVideoPlane();
+      }
 
       ResetPlaneTarget(last_plane, commit_planes.back());
     }
   }
+
+  if (render_layers)
+    ValidateForDisplayScaling(composition, commit_planes, primary_layer);
 
   // We are just compositing Primary layer and nothing else.
   if (layers.size() == 1) {
@@ -129,11 +133,18 @@ bool DisplayPlaneManager::ValidateLayers(
     uint32_t index = 0;
     for (auto j = overlay_planes_.begin() + 1; j != overlay_planes_.end();
          ++j) {
-      DisplayPlaneState &last_plane = composition.back();
 #ifdef DISABLE_CURSOR_PLANE
       if (cursor_plane_ == j->get())
         continue;
 #endif
+      DisplayPlaneState &last_plane = composition.back();
+      OverlayLayer *previous_layer = NULL;
+      if (previous_layer &&
+          last_plane.GetCompositionState() ==
+              DisplayPlaneState::State::kRender) {
+        ValidateForDisplayScaling(composition, commit_planes, previous_layer);
+        render_layers = true;
+      }
 
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
@@ -163,22 +174,25 @@ bool DisplayPlaneManager::ValidateLayers(
             }
 
             ResetPlaneTarget(last_plane, commit_planes.back());
-            render_layers = true;
           }
 
           prefer_seperate_plane = layer->PreferSeparatePlane();
           break;
         } else {
           last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
+          if (!last_plane.GetOffScreenTarget()) {
+            SetOffScreenPlaneTarget(last_plane);
+          }
+
           commit_planes.pop_back();
         }
-      }
 
-      if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
-        render_layers = true;
+        previous_layer = layer;
+      }
     }
 
     DisplayPlaneState &last_plane = composition.back();
+    OverlayLayer *previous_layer = NULL;
     // We dont have any additional planes. Pre composite remaining layers
     // to the last overlay plane.
     for (auto i = layer_begin; i != layer_end; ++i) {
@@ -187,10 +201,20 @@ bool DisplayPlaneManager::ValidateLayers(
       }
 
       last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
+      previous_layer = &(*(i));
     }
 
-    if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
+    if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      if (previous_layer) {
+        if (!last_plane.GetOffScreenTarget()) {
+          EnsureOffScreenTarget(last_plane);
+        }
+
+        ValidateForDisplayScaling(composition, commit_planes, previous_layer);
+      }
+
       render_layers = true;
+    }
   }
 
   bool render_cursor_layer = ValidateCursorLayer(cursor_layers, composition);
@@ -204,10 +228,13 @@ bool DisplayPlaneManager::ValidateLayers(
       if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
         const std::vector<size_t> &source_layers = plane.source_layers();
         size_t layers_size = source_layers.size();
+        bool useplanescalar = plane.IsUsingPlaneScalar();
         for (size_t i = 0; i < layers_size; i++) {
           size_t source_index = source_layers.at(i);
           OverlayLayer &layer = layers.at(source_index);
           layer.GPURendered();
+          if (useplanescalar)
+            layer.UsePlaneScalar();
         }
       }
     }
@@ -324,6 +351,99 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   }
 
   return status;
+}
+
+void DisplayPlaneManager::ValidateForDisplayScaling(
+    DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes, OverlayLayer *current_layer) {
+  DisplayPlaneState &last_plane = composition.back();
+  last_plane.UsePlaneScalar(false);
+  last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
+      last_plane.GetDisplayFrame());
+  last_plane.SetSourceCrop(HwcRect<float>(last_plane.GetDisplayFrame()));
+
+  // TODO: Handle case where all layers to be compoisted have same scaling
+  // ratio.
+  // We cannot use plane scaling for Layers with different scaling ratio.
+  if (last_plane.source_layers().size() > 1) {
+    return;
+  }
+
+  uint32_t display_frame_width = current_layer->GetDisplayFrameWidth();
+  uint32_t display_frame_height = current_layer->GetDisplayFrameHeight();
+  uint32_t source_crop_width = current_layer->GetSourceCropWidth();
+  uint32_t source_crop_height = current_layer->GetSourceCropHeight();
+  // Source and Display frame width, height are same and scaling is not needed.
+  if ((display_frame_width == source_crop_width) &&
+      (display_frame_height == source_crop_height)) {
+    return;
+  }
+
+  // Display frame width, height is lesser than Source. Let's downscale
+  // it with our compositor backend.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    return;
+  }
+
+  // Display frame height is less. If the cost of upscaling width is less
+  // than downscaling height, than return.
+  if ((display_frame_width > source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    uint32_t width_cost =
+        (display_frame_width - source_crop_width) * display_frame_height;
+    uint32_t height_cost =
+        (source_crop_height - display_frame_height) * display_frame_width;
+    if (height_cost > width_cost) {
+      return;
+    }
+  }
+
+  // Display frame width is less. If the cost of upscaling height is less
+  // than downscaling width, than return.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height > source_crop_height)) {
+    uint32_t width_cost =
+        (source_crop_width - display_frame_width) * display_frame_height;
+    uint32_t height_cost =
+        (display_frame_height - source_crop_height) * display_frame_width;
+    if (width_cost > height_cost) {
+      return;
+    }
+  }
+
+  // Case where we are not rotating the layer and format is supported by the
+  // plane.
+  // If we are here this means the layer cannot be scaled using display, just
+  // return.
+  if ((current_layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
+      last_plane.plane()->IsSupportedFormat(
+          current_layer->GetBuffer()->GetFormat())) {
+    return;
+  }
+
+  // TODO: Scalars are limited in HW. Determine scaling ratio
+  // which would really benefit vs doing it in GPU side.
+
+  // Display frame and Source rect are different, let's check if
+  // we can take advantage of scalars attached to this plane.
+  last_plane.SetSourceCrop(current_layer->GetSourceCrop());
+  last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
+      current_layer->GetSourceCrop());
+
+  OverlayPlane &last_overlay_plane = commit_planes.back();
+  last_overlay_plane.layer = last_plane.GetOverlayLayer();
+
+  bool fall_back =
+      FallbacktoGPU(last_plane.plane(),
+                    last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
+  if (fall_back) {
+    last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
+        last_plane.GetDisplayFrame());
+    last_plane.SetSourceCrop(HwcRect<float>(last_plane.GetDisplayFrame()));
+  } else {
+    last_plane.UsePlaneScalar(true);
+  }
 }
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
@@ -486,12 +606,26 @@ bool DisplayPlaneManager::FallbacktoGPU(
 
   // TODO(kalyank): Take relevant factors into consideration to determine if
   // Plane Composition makes sense. i.e. layer size etc
-
   if (!plane_handler_->TestCommit(commit_planes)) {
     return true;
   }
 
   return false;
+}
+
+bool DisplayPlaneManager::PreferDisplayScaling(DisplayPlane *target_plane,
+                                               OverlayLayer *layer) const {
+  if ((layer->GetDisplayFrameWidth() == layer->GetSourceCropWidth()) &&
+      (layer->GetDisplayFrameHeight() == layer->GetSourceCropHeight())) {
+    return false;
+  }
+
+  if ((layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
+      target_plane->IsSupportedFormat(layer->GetBuffer()->GetFormat())) {
+    return false;
+  }
+
+  return true;
 }
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {

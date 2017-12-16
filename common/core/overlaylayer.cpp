@@ -82,6 +82,9 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
   }
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
+  if (!register_buffer) {
+    ValidateForOverlayUsage();
+  }
 }
 
 void OverlayLayer::SetBlending(HWCBlending blending) {

@@ -258,25 +258,27 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   VARectangle surface_region, output_region;
   const HwcRect<float>& source_crop = state.layer_->GetSourceCrop();
-  surface_region.x = source_crop.left;
-  surface_region.y = source_crop.top;
-  surface_region.width = source_crop.right - source_crop.left;
-  surface_region.height = source_crop.bottom - source_crop.top;
+  surface_region.x = static_cast<int>(source_crop.left);
+  surface_region.y = static_cast<int>(source_crop.top);
+  surface_region.width = static_cast<int>(source_crop.right - source_crop.left);
+  surface_region.height =
+      static_cast<int>(source_crop.bottom - source_crop.top);
   param.surface_region = &surface_region;
 
-  const HwcRect<int>& display_frame = state.layer_->GetDisplayFrame();
-  output_region.x = display_frame.left;
-  output_region.y = display_frame.top;
-  output_region.width = display_frame.right - display_frame.left;
-  output_region.height = display_frame.bottom - display_frame.top;
+  const HwcRect<float>& target_source_rect =
+      surface->GetLayer()->GetSourceCrop();
+  output_region.x = static_cast<int>(target_source_rect.left);
+  output_region.y = static_cast<int>(target_source_rect.top);
+  output_region.width =
+      static_cast<int>(target_source_rect.right - target_source_rect.left);
+  output_region.height =
+      static_cast<int>(target_source_rect.bottom - target_source_rect.top);
   param.output_region = &output_region;
 
-  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n",
-             surface_region.x, surface_region.y,
-             surface_region.width, surface_region.height);
-  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n",
-             display_frame.left, display_frame.top,
-             display_frame.right, display_frame.bottom);
+  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
+            surface_region.y, surface_region.width, surface_region.height);
+  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
+            output_region.y, output_region.width, output_region.height);
 
   param.surface = surface_in;
   param.surface_color_standard = VAProcColorStandardBT601;

@@ -154,6 +154,14 @@ struct OverlayLayer {
     return gpu_rendered_;
   }
 
+  bool IsUsingPlaneScalar() const {
+    return display_Scaled_;
+  }
+
+  void UsePlaneScalar() {
+    display_Scaled_ = true;
+  }
+
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in
@@ -232,6 +240,7 @@ struct OverlayLayer {
       kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_ = false;
+  bool display_Scaled_ = false;
   HWCLayerType type_ = kLayerNormal;
 };
 
