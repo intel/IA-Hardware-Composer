@@ -95,7 +95,7 @@ class DisplayPlaneManager {
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
-  void PreparePlaneForCursor(DisplayPlaneState *plane);
+  void PreparePlaneForCursor(DisplayPlaneState *plane, bool reset_buffer);
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes,
