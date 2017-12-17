@@ -152,7 +152,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     last_plane.CopyState(plane);
     last_plane.AddLayers(plane.source_layers(), layers, cursor_layer_removed);
 
-    if (plane_state_render || plane.SurfaceRecycled()) {
+    if (plane_state_render || plane.SurfaceRecycled() || plane.ApplyEffects()) {
       bool content_changed = false;
       bool update_source_rect = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
@@ -306,6 +306,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool layers_changed = tracker.RevalidateLayers();
   *retire_fence = -1;
   uint32_t z_order = 0;
+  bool has_video_layer = false;
 
   resource_manager_->RefreshBufferCache();
   total_cursor_layers_ = 0;
@@ -352,7 +353,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       continue;
     }
 
-    if (overlay_layer->IsCursorLayer()) {
+    if (overlay_layer->IsVideoLayer()) {
+      has_video_layer = true;
+    } else if (overlay_layer->IsCursorLayer()) {
       total_cursor_layers_++;
       cursor_layers.emplace_back(overlay_layer);
     } else if (!previous_layer ||
@@ -407,14 +410,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
   bool validate_layers = layers_changed;
-
+  bool force_media_composition = false;
+  bool requested_video_effect = false;
   video_lock_.lock();
-  if ((requested_video_effect_ && !validated_for_video_effect_) ||
-      (!requested_video_effect_ && validated_for_video_effect_)) {
-    // We need to validate the layers immediately to ensure
-    // the video effect is applied in the next frame.
-    validate_layers = true;
-    validated_for_video_effect_ = requested_video_effect_;
+  if (requested_video_effect_ != applied_video_effect_) {
+    // Let's ensure Media planes take this into account.
+    force_media_composition = true;
+    applied_video_effect_ = requested_video_effect_;
+    requested_video_effect = requested_video_effect_;
   }
   video_lock_.unlock();
 
@@ -435,6 +438,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (re_validate_commit) {
       display_plane_manager_->ReValidateLayers(
           layers, current_composition_planes, &request_full_validation);
+    }
+
+    if (!request_full_validation && force_media_composition) {
+      SetMediaEffectsState(requested_video_effect, layers,
+                           current_composition_planes);
+      if (!render_layers && requested_video_effect) {
+        render_layers = true;
+      }
+
+      can_ignore_commit = false;
     }
 
     if (request_full_validation) {
@@ -461,7 +474,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
         idle_frame || disable_ovelays, current_composition_planes,
-        requested_video_effect_);
+        requested_video_effect);
     state_ &= ~kConfigurationChanged;
   }
 
@@ -601,6 +614,37 @@ void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
   }
 }
 
+void DisplayQueue::SetMediaEffectsState(
+    bool apply_effects, const std::vector<OverlayLayer>& layers,
+    DisplayPlaneStateList& current_composition_planes) const {
+  for (DisplayPlaneState& plane : current_composition_planes) {
+    if (!plane.IsVideoPlane()) {
+      continue;
+    }
+
+    plane.SetApplyEffects(apply_effects);
+    std::vector<NativeSurface*>& surfaces = plane.GetSurfaces();
+    // Handle case where we enable effects but video plane is currently
+    // scanned out directly. In this case we will need to ensure we
+    // have a offscreen surface to render to.
+    if (apply_effects && surfaces.empty()) {
+      display_plane_manager_->SetOffScreenPlaneTarget(plane);
+    } else if (!apply_effects && !surfaces.empty() && plane.Scanout()) {
+      // Handle case where we disable effects but video plane can be
+      // scanned out directly. In this case we will need to delete all
+      // offscreen surfaces and set the right overlayer layer to the
+      // plane.
+      for (NativeSurface* surface : surfaces) {
+        surface->SetInUse(false);
+      }
+
+      std::vector<NativeSurface*>().swap(plane.GetSurfaces());
+      const std::vector<size_t>& source = plane.source_layers();
+      plane.SetOverlayLayer(&(layers.at(source.at(0))));
+    }
+  }
+}
+
 void DisplayQueue::UpdateSurfaceInUse(
     bool in_use, DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane_state : current_composition_planes) {
@@ -635,8 +679,7 @@ void DisplayQueue::SetReleaseFenceToLayers(
     const std::vector<size_t>& layers = plane.source_layers();
     size_t size = layers.size();
     int32_t release_fence = -1;
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout &&
-        !plane.SurfaceRecycled()) {
+    if (plane.Scanout() && !plane.SurfaceRecycled()) {
       for (size_t layer_index = 0; layer_index < size; layer_index++) {
         const OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));

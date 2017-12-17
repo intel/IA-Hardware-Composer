@@ -64,7 +64,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   std::vector<DrawState> media_state;
 
   for (DisplayPlaneState &plane : comp_planes) {
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
+    if (plane.Scanout()) {
       dedicated_layers.insert(dedicated_layers.end(),
                               plane.source_layers().begin(),
                               plane.source_layers().end());

@@ -36,7 +36,11 @@ typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
 
 class DisplayPlaneState {
  public:
-  enum class State : int32_t { kScanout, kRender };
+  enum class State : int32_t {
+    kScanout,  // Scanout the layer directly.
+    kRender,   // Needs to render the contents to
+               // layer before scanning out.
+  };
 
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
@@ -60,6 +64,7 @@ class DisplayPlaneState {
     state_ = state.state_;
     source_crop_ = state.source_crop_;
     display_frame_ = state.display_frame_;
+    apply_effects_ = state.apply_effects_;
     plane_->SetInUse(true);
     // We don't copy recycled_surface_ state as this
     // should be determined in DisplayQueue for every frame.
@@ -101,7 +106,11 @@ class DisplayPlaneState {
     if (source_layers_.size() == 1 && has_cursor_layer_) {
       type_ = PlaneType::kCursor;
     } else {
+      // TODO: Add checks for Video type once our
+      // Media backend can support compositing more
+      // than one layer together.
       type_ = PlaneType::kNormal;
+      apply_effects_ = false;
     }
 
     if (!use_plane_scalar_)
@@ -289,6 +298,39 @@ class DisplayPlaneState {
     return use_plane_scalar_;
   }
 
+  // This state means that the content scanned out
+  // by this plane needs to be post processed to
+  // take into account any video effects.
+  void SetApplyEffects(bool apply_effects) {
+    apply_effects_ = apply_effects;
+    // Doesn't have any impact on planes which
+    // are not meant for video purpose.
+    if (type_ != PlaneType::kVideo) {
+      apply_effects_ = false;
+    }
+  }
+
+  // Returns true if layer associated with this
+  // plane needs to be processed to apply needed
+  // video effects.
+  bool ApplyEffects() const {
+    return apply_effects_;
+  }
+
+  // Returns true if layer associated with
+  // this plane can be scanned out directly.
+  bool Scanout() const {
+    if (recycled_surface_) {
+      return true;
+    }
+
+    if (apply_effects_) {
+      return false;
+    }
+
+    return state_ == State::kScanout;
+  }
+
  private:
   enum class PlaneType : int32_t {
     kCursor,  // Plane is compositing only Cursor.
@@ -306,6 +348,9 @@ class DisplayPlaneState {
   bool has_cursor_layer_ = false;
   bool surface_swapped_ = true;
   bool use_plane_scalar_ = false;
+  bool apply_effects_ = false;  // Even if layer can be scanned out
+                                // directly, post processing for
+                                // applying video effects is needed.
   std::vector<NativeSurface *> surfaces_;
   PlaneType type_ = PlaneType::kNormal;
 };
