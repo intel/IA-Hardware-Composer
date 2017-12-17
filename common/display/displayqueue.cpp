@@ -376,7 +376,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       }
 
       cursor_layers.emplace_back(overlay_layer);
-    } else if (overlay_layer->HasLayerAttributesChanged()) {
+    } else if (!previous_layer) {
       layers_changed = true;
     }
 

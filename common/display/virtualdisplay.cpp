@@ -118,7 +118,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    if (overlay_layer.HasLayerAttributesChanged() ||
+    if (!previous_layer ||
         overlay_layer.HasLayerContentChanged() ||
         overlay_layer.HasDimensionsChanged()) {
       layers_changed = true;

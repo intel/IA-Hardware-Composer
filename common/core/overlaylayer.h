@@ -120,18 +120,12 @@ struct OverlayLayer {
     return display_frame_height_;
   }
 
-  // Returns true if any other attribute of layer
-  // other than psotion has changed from previous
-  // frame.
-  bool HasLayerAttributesChanged() const {
-    return state_ & kLayerAttributesChanged;
-  }
+   // Returns true if content of the layer has
+    // changed.
+    bool HasLayerContentChanged() const {
+      return state_ & kLayerContentChanged;
+    }
 
-  // Returns true if content of the layer has
-  // changed.
-  bool HasLayerContentChanged() const {
-    return state_ & kLayerContentChanged;
-  }
 
   // Returns true if this layer is visible.
   bool IsVisible() const {
@@ -204,13 +198,12 @@ struct OverlayLayer {
 
  private:
   enum LayerState {
-    kLayerAttributesChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1,
-    kDimensionsChanged = 1 << 2,
-    kClearSurface = 1 << 3,
-    kInvisible = 1 << 4,
-    kSourceRectChanged = 1 << 5,
-    kNeedsReValidation = 1 << 6
+    kLayerContentChanged = 1 << 0,
+    kDimensionsChanged = 1 << 1,
+    kClearSurface = 1 << 2,
+    kInvisible = 1 << 3,
+    kSourceRectChanged = 1 << 4,
+    kNeedsReValidation = 1 << 5
   };
 
   struct ImportedBuffer {
@@ -253,8 +246,7 @@ struct OverlayLayer {
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  uint32_t state_ =
-      kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
+  uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_ = false;
   bool display_scaled_ = false;
