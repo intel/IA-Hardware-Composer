@@ -74,6 +74,10 @@ class NativeSurface {
 
   // Resets DisplayFrame, SurfaceDamage to display_frame.
   void ResetDisplayFrame(const HwcRect<int>& display_frame);
+
+  // Resets Source Crop to source_crop..
+  void ResetSourceCrop(const HwcRect<float>& source_crop);
+
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
                            const HwcRect<int>& last_surface_damage);
 

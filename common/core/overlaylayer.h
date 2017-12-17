@@ -177,6 +177,12 @@ struct OverlayLayer {
     return state_ & kDimensionsChanged;
   }
 
+  // Returns true if source rect has changed
+  // from previous frame.
+  bool HasSourceRectChanged() const {
+    return state_ & kSourceRectChanged;
+  }
+
   /**
    * API for querying if Layer source position has
    * changed from last Present call to NativeDisplay.
@@ -193,7 +199,8 @@ struct OverlayLayer {
     kLayerContentChanged = 1 << 1,
     kDimensionsChanged = 1 << 2,
     kClearSurface = 1 << 3,
-    kInvisible = 1 << 4
+    kInvisible = 1 << 4,
+    kSourceRectChanged = 1 << 5
   };
 
   struct ImportedBuffer {
