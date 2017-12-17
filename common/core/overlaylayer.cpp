@@ -350,6 +350,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   if (source_rect_changed)
     state_ |= kSourceRectChanged;
 
+  display_scaled_ = rhs->display_scaled_;
+
   // We expect cursor plane to support alpha always.
   if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
     content_changed = rect_changed || source_rect_changed;

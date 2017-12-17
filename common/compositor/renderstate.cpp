@@ -118,8 +118,14 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     HwcRect<float> display_rect(layer.GetDisplayFrame());
     float display_size[2] = {static_cast<float>(layer.GetDisplayFrameWidth()),
                              static_cast<float>(layer.GetDisplayFrameHeight())};
-    float tex_width = layer.GetBuffer()->GetWidth();
-    float tex_height = layer.GetBuffer()->GetHeight();
+    if (layer.IsUsingPlaneScalar()) {
+      display_rect = layer.GetSourceCrop();
+      display_size[0] = static_cast<float>(layer.GetSourceCropWidth());
+      display_size[1] = static_cast<float>(layer.GetSourceCropHeight());
+    }
+
+    float tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
+    float tex_height = static_cast<float>(layer.GetBuffer()->GetHeight());
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
 
     HwcRect<float> crop_rect(
