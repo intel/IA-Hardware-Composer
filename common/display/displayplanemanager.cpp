@@ -120,7 +120,7 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   if (render_layers)
-    ValidateForDisplayScaling(composition, commit_planes, primary_layer);
+    ValidateForDisplayScaling(composition.back(), commit_planes, primary_layer);
 
   // We are just compositing Primary layer and nothing else.
   if (layers.size() == 1) {
@@ -141,7 +141,8 @@ bool DisplayPlaneManager::ValidateLayers(
       if (previous_layer &&
           last_plane.GetCompositionState() ==
               DisplayPlaneState::State::kRender) {
-        ValidateForDisplayScaling(composition, commit_planes, previous_layer);
+        ValidateForDisplayScaling(composition.back(), commit_planes,
+                                  previous_layer);
         render_layers = true;
       }
 
@@ -201,7 +202,8 @@ bool DisplayPlaneManager::ValidateLayers(
           EnsureOffScreenTarget(last_plane);
         }
 
-        ValidateForDisplayScaling(composition, commit_planes, previous_layer);
+        ValidateForDisplayScaling(composition.back(), commit_planes,
+                                  previous_layer);
       }
 
       render_layers = true;
@@ -228,6 +230,53 @@ bool DisplayPlaneManager::ValidateLayers(
         }
       }
     }
+  }
+
+  return render_layers;
+}
+
+bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
+                                           DisplayPlaneStateList &composition,
+                                           bool *request_full_validation) {
+  CTRACE();
+  // Let's mark all planes as free to be used.
+  for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
+    j->get()->SetInUse(false);
+  }
+
+  std::vector<OverlayPlane> commit_planes;
+  for (DisplayPlaneState &temp : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
+    // Check if we can still need/use scalar for this plane.
+    if (temp.IsUsingPlaneScalar()) {
+      size_t total_layers = temp.source_layers().size();
+      ValidateForDisplayScaling(
+          temp, commit_planes,
+          &(layers.at(temp.source_layers().at(total_layers - 1))));
+    }
+  }
+
+  bool render_layers = false;
+  // If this combination fails just fall back to 3D for all layers.
+  if (plane_handler_->TestCommit(commit_planes)) {
+    *request_full_validation = false;
+    for (DisplayPlaneState &plane : composition) {
+      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+        render_layers = true;
+        const std::vector<size_t> &source_layers = plane.source_layers();
+        size_t layers_size = source_layers.size();
+        bool useplanescalar = plane.IsUsingPlaneScalar();
+        for (size_t i = 0; i < layers_size; i++) {
+          size_t source_index = source_layers.at(i);
+          OverlayLayer &layer = layers.at(source_index);
+          layer.GPURendered();
+          layer.UsePlaneScalar(useplanescalar);
+        }
+      }
+    }
+  } else {
+    *request_full_validation = true;
   }
 
   return render_layers;
@@ -341,13 +390,10 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 }
 
 void DisplayPlaneManager::ValidateForDisplayScaling(
-    DisplayPlaneStateList &composition,
-    std::vector<OverlayPlane> &commit_planes, OverlayLayer *current_layer) {
-  DisplayPlaneState &last_plane = composition.back();
-  size_t total_layers = last_plane.source_layers().size() > 1;
-  // We may have cases where additional layers got added to this
-  // plane for composition. Reset the state in this case.
-  if (last_plane.IsUsingPlaneScalar() && total_layers > 1) {
+    DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
+    OverlayLayer *current_layer) {
+  size_t total_layers = last_plane.source_layers().size();
+  if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
     last_plane.ResetSourceRectToDisplayFrame();
     last_plane.GetOffScreenTarget()->ResetSourceCrop(

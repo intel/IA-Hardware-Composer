@@ -132,11 +132,12 @@ void DisplayQueue::RotateDisplay(HWCRotation rotation) {
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool cursor_layer_removed,
                                    DisplayPlaneStateList* composition,
-                                   bool* render_layers,
-                                   bool* can_ignore_commit) {
+                                   bool* render_layers, bool* can_ignore_commit,
+                                   bool* re_validate_commit) {
   CTRACE();
   bool needs_gpu_composition = false;
   bool ignore_commit = true;
+  bool needs_revalidation = false;
   for (DisplayPlaneState& plane : previous_plane_state_) {
     bool plane_state_render =
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
@@ -164,6 +165,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
+        if (!needs_revalidation)
+          needs_revalidation = layer.NeedsRevalidation();
+
         if (layer.HasDimensionsChanged()) {
           last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
           clear_surface = true;
@@ -278,6 +282,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (layer->HasLayerContentChanged() || layer->HasDimensionsChanged()) {
         ignore_commit = false;
       }
+
+      if (!needs_revalidation) {
+        needs_revalidation = layer->NeedsRevalidation();
+      }
     }
   }
 
@@ -286,6 +294,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     ignore_commit = false;
 
   *can_ignore_commit = ignore_commit;
+  *re_validate_commit = needs_revalidation;
 }
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
@@ -434,12 +443,23 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
     bool can_ignore_commit = false;
+    bool request_full_validation = false;
+    bool re_validate_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
     GetCachedLayers(layers, cursor_state_ & kIgnoredCursorLayer,
                     &current_composition_planes, &render_layers,
-                    &can_ignore_commit);
-    if (add_cursor_layer) {
+                    &can_ignore_commit, &re_validate_commit);
+
+    // Let's re-validate if their was a request for this.
+    if (re_validate_commit) {
+      display_plane_manager_->ReValidateLayers(
+          layers, current_composition_planes, &request_full_validation);
+    }
+
+    if (request_full_validation) {
+      validate_layers = true;
+    } else if (add_cursor_layer) {
       bool render_cursor = display_plane_manager_->ValidateCursorLayer(
           cursor_layers, current_composition_planes);
       if (!render_layers)
@@ -462,7 +482,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       HandleCommitIgnored(current_composition_planes);
       return true;
     }
-  } else {
+  }
+
+  if (validate_layers) {
     if (!idle_frame)
       tracker.ResetTrackerState();
 

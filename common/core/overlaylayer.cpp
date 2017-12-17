@@ -351,6 +351,11 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     state_ |= kSourceRectChanged;
 
   display_scaled_ = rhs->display_scaled_;
+  if (display_scaled_ && (source_rect_changed | rect_changed)) {
+    state_ |= kNeedsReValidation;
+  }
+
+  state_ &= ~kLayerAttributesChanged;
 
   // We expect cursor plane to support alpha always.
   if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
@@ -361,18 +366,24 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     // supporting XRGB format might not necessarily support
     // transparent planes. We assume plane supporting
     // ARGB will support XRGB.
-    if ((rhs->alpha_ == 0xff) && (alpha_ != rhs->alpha_))
+    if ((rhs->alpha_ == 0xff) && (alpha_ != rhs->alpha_)) {
+      state_ |= kNeedsReValidation;
       return;
+    }
 
-    if (blending_ != rhs->blending_)
+    if (blending_ != rhs->blending_) {
+      state_ |= kNeedsReValidation;
       return;
+    }
 
     if (rect_changed || layer->HasLayerAttributesChanged()) {
       if (layer->IsValidated()) {
+        state_ |= kNeedsReValidation;
         return;
       }
 
       if (rhs->transform_ != transform_) {
+        state_ |= kNeedsReValidation;
         return;
       }
 
@@ -380,6 +391,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
           (rhs->display_frame_.right != display_frame_.right) ||
           (rhs->display_frame_.top != display_frame_.top) ||
           (rhs->display_frame_.bottom != display_frame_.bottom)) {
+        state_ |= kNeedsReValidation;
         return;
       }
     }
@@ -389,12 +401,12 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       // shouldn't impact the plane composition results.
       if ((source_crop_width_ != rhs->source_crop_width_) ||
           (source_crop_height_ != rhs->source_crop_height_)) {
+        state_ |= kNeedsReValidation;
         return;
       }
     }
   }
 
-  state_ &= ~kLayerAttributesChanged;
   gpu_rendered_ = rhs->gpu_rendered_;
 
   if (!rect_changed) {

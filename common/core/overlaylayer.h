@@ -183,6 +183,15 @@ struct OverlayLayer {
     return state_ & kSourceRectChanged;
   }
 
+  // Returns true if this layer attributes
+  // have changed compared to last frame
+  // and needs to be re-tested to ensure
+  // we are able to show the layer on screen
+  // correctly.
+  bool NeedsRevalidation() const {
+    return state_ & kNeedsReValidation;
+  }
+
   /**
    * API for querying if Layer source position has
    * changed from last Present call to NativeDisplay.
@@ -200,7 +209,8 @@ struct OverlayLayer {
     kDimensionsChanged = 1 << 2,
     kClearSurface = 1 << 3,
     kInvisible = 1 << 4,
-    kSourceRectChanged = 1 << 5
+    kSourceRectChanged = 1 << 5,
+    kNeedsReValidation = 1 << 6
   };
 
   struct ImportedBuffer {
