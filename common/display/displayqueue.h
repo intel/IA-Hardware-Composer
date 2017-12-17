@@ -227,7 +227,8 @@ class DisplayQueue {
                           DisplayPlaneStateList& current_composition_planes);
   void RecyclePreviousPlaneSurfaces();
 
-  void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
+  void IgnoreCompositionResults(
+      DisplayPlaneStateList& current_composition_planes);
 
   void ReleaseSurfaces();
   void ReleaseSurfacesAsNeeded(bool layers_validated);

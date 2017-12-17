@@ -341,8 +341,12 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
-  if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat())
+  gpu_rendered_ = rhs->gpu_rendered_;
+  display_scaled_ = rhs->display_scaled_;
+  if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
+    state_ |= kNeedsReValidation;
     return;
+  }
 
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
@@ -351,7 +355,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     state_ |= kSourceRectChanged;
 
   display_scaled_ = rhs->display_scaled_;
-  if (display_scaled_ && (source_rect_changed | rect_changed)) {
+  if (display_scaled_ && (source_rect_changed || rect_changed)) {
     state_ |= kNeedsReValidation;
   }
 
@@ -404,8 +408,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       }
     }
   }
-
-  gpu_rendered_ = rhs->gpu_rendered_;
 
   if (!rect_changed) {
     state_ &= ~kDimensionsChanged;

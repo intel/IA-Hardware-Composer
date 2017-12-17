@@ -91,6 +91,7 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
   last_surface_damage_ = surface_damage_;
   ResetDisplayFrame(plane.GetDisplayFrame());
   ResetSourceCrop(plane.GetSourceCrop());
+  layer_.UsePlaneScalar(plane.IsUsingPlaneScalar());
 
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);

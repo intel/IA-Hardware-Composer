@@ -45,7 +45,7 @@ class DisplayPlaneState {
       : plane_(plane), layer_(layer) {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
-    source_crop_ = HwcRect<float>(display_frame_);
+    source_crop_ = layer->GetSourceCrop();
     if (layer->IsCursorLayer()) {
       type_ = PlaneType::kCursor;
       has_cursor_layer_ = true;
@@ -103,6 +103,9 @@ class DisplayPlaneState {
     } else {
       type_ = PlaneType::kNormal;
     }
+
+    if (!use_plane_scalar_)
+      source_crop_ = HwcRect<float>(display_frame_);
   }
 
   // This API should be called only when Cursor layer is being
@@ -137,6 +140,9 @@ class DisplayPlaneState {
 
         source_layers_.emplace_back(index);
       }
+
+      if (!use_plane_scalar_)
+        source_crop_ = HwcRect<float>(display_frame_);
     } else {
       for (const int &index : source_layers) {
         source_layers_.emplace_back(index);
@@ -150,6 +156,9 @@ class DisplayPlaneState {
     display_frame_.right = std::max(display_frame_.right, display_frame.right);
     display_frame_.bottom =
         std::max(display_frame_.bottom, display_frame.bottom);
+
+    if (!use_plane_scalar_)
+      source_crop_ = HwcRect<float>(display_frame_);
   }
 
   void ForceGPURendering() {

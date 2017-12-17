@@ -82,10 +82,23 @@ bool GLRenderer::Init() {
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
                       NativeSurface *surface, bool clear_surface) {
-  GLuint frame_width(surface->GetWidth());
-  GLuint frame_height(surface->GetHeight());
-  GLuint left(0);
-  GLuint top(0);
+  GLuint frame_width;
+  GLuint frame_height;
+  GLuint left;
+  GLuint top;
+  const OverlayLayer *layer = surface->GetLayer();
+  if (!layer->IsUsingPlaneScalar()) {
+    frame_width = surface->GetWidth();
+    frame_height = surface->GetHeight();
+    left = 0;
+    top = 0;
+  } else {
+    const HwcRect<float> &source_crop = layer->GetSourceCrop();
+    frame_width = layer->GetSourceCropWidth();
+    frame_height = layer->GetSourceCropHeight();
+    left = static_cast<GLuint>(source_crop.left);
+    top = static_cast<GLuint>(source_crop.top);
+  }
 
   if (!surface->MakeCurrent())
     return false;

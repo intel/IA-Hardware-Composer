@@ -99,7 +99,8 @@ class DisplayPlaneManager {
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes,
-                                 OverlayLayer *current_layer);
+                                 OverlayLayer *current_layer,
+                                 bool ignore_format = false);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;

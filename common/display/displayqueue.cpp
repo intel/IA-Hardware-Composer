@@ -211,13 +211,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (clear_surface) {
         content_changed = true;
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-        // DisplayFrame has changed. If this plane is not relying on display
-        // plane scalar, let's make sure source crop and display frame are
-        // same.
-        if (!last_plane.IsUsingPlaneScalar()) {
-          last_plane.ResetSourceRectToDisplayFrame();
-        }
-
         const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
         for (size_t i = 0; i < size; i++) {
           surfaces.at(i)->ResetDisplayFrame(current_rect);
@@ -448,13 +441,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (request_full_validation) {
       validate_layers = true;
+      UpdateSurfaceInUse(false, current_composition_planes);
+      UpdateSurfaceInUse(true, previous_plane_state_);
+      DisplayPlaneStateList().swap(current_composition_planes);
     } else if (add_cursor_layer) {
       bool render_cursor = display_plane_manager_->ValidateCursorLayer(
           cursor_layers, current_composition_planes);
       if (!render_layers)
         render_layers = render_cursor;
     } else if (can_ignore_commit) {
-      HandleCommitIgnored(current_composition_planes);
+      IgnoreCompositionResults(current_composition_planes);
       return true;
     }
   }
@@ -495,9 +491,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (!composition_passed) {
-    UpdateSurfaceInUse(false, current_composition_planes);
-    UpdateSurfaceInUse(true, previous_plane_state_);
-    ReleaseSurfaces();
+    IgnoreCompositionResults(current_composition_planes);
     return false;
   }
 
@@ -520,9 +514,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                        disable_ovelays, &fence);
 
   if (!composition_passed) {
-    UpdateSurfaceInUse(false, current_composition_planes);
-    UpdateSurfaceInUse(true, previous_plane_state_);
-    ReleaseSurfaces();
+    IgnoreCompositionResults(current_composition_planes);
     return false;
   }
 
@@ -632,22 +624,10 @@ void DisplayQueue::RecyclePreviousPlaneSurfaces() {
   }
 }
 
-void DisplayQueue::HandleCommitIgnored(
+void DisplayQueue::IgnoreCompositionResults(
     DisplayPlaneStateList& current_composition_planes) {
-  for (DisplayPlaneState& plane_state : current_composition_planes) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
-    for (NativeSurface* surface : surfaces) {
-      surface->SetInUse(false);
-    }
-  }
-
-  for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
-    for (NativeSurface* surface : surfaces) {
-      surface->SetInUse(true);
-    }
-  }
-
+  UpdateSurfaceInUse(false, current_composition_planes);
+  UpdateSurfaceInUse(true, previous_plane_state_);
   ReleaseSurfaces();
 }
 
