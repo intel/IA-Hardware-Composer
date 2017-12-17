@@ -37,7 +37,7 @@ namespace hwcomposer {
 DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
                            NativeBufferHandler* buffer_handler,
                            PhysicalDisplay* display)
-    : frame_(0), gpu_fd_(gpu_fd), display_(display) {
+    : gpu_fd_(gpu_fd), display_(display) {
   if (disable_overlay) {
     state_ |= kDisableOverlayUsage;
   } else {
@@ -65,7 +65,7 @@ DisplayQueue::~DisplayQueue() {
 
 bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
                               DisplayPlaneHandler* plane_handler) {
-  frame_ = 0;
+  total_cursor_layers_ = 0;
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
   bool ignore_updates = false;
@@ -136,13 +136,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool* re_validate_commit) {
   CTRACE();
   bool needs_gpu_composition = false;
-  bool ignore_commit = true;
+  bool ignore_commit = !cursor_layer_removed;
   bool needs_revalidation = false;
   for (DisplayPlaneState& plane : previous_plane_state_) {
     bool plane_state_render =
         plane.GetCompositionState() == DisplayPlaneState::State::kRender;
     if (cursor_layer_removed && plane.IsCursorPlane()) {
-      ignore_commit = false;
       plane.plane()->SetInUse(false);
       continue;
     }
@@ -310,20 +309,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;
   std::vector<OverlayLayer*> cursor_layers;
-  bool cursor_state_changed = false;
+  uint32_t new_layers = 0;
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
-  uint32_t previous_frame_cursor_state = cursor_state_;
   uint32_t previous_cursor_layers = total_cursor_layers_;
-  cursor_state_ = kNoCursorState;
-  total_cursor_layers_ = 0;
-  bool layers_changed = false;
+  bool layers_changed = tracker.RevalidateLayers();
   *retire_fence = -1;
   uint32_t z_order = 0;
-  if (previous_frame_cursor_state & kFrameHasCursor) {
-    cursor_state_changed = true;
-  }
 
   resource_manager_->RefreshBufferCache();
+  total_cursor_layers_ = 0;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -368,16 +362,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     if (overlay_layer->IsCursorLayer()) {
-      cursor_state_ |= kFrameHasCursor;
-      if (previous_frame_cursor_state & kFrameHasCursor) {
-        cursor_state_changed = false;
-      } else {
-        cursor_state_changed = true;
-      }
-
+      total_cursor_layers_++;
       cursor_layers.emplace_back(overlay_layer);
-    } else if (!previous_layer) {
-      layers_changed = true;
+    } else if (!previous_layer ||
+               (previous_layer && previous_layer->IsCursorLayer())) {
+      // Cursor layer is replaced by another layer or a new layer has
+      // been created.
+      new_layers++;
     }
 
     z_order++;
@@ -385,47 +376,46 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   // We may have skipped layers which are not visible.
   size = layers.size();
-  total_cursor_layers_ = cursor_layers.size();
-  bool frame_changed = (size != previous_size);
   bool add_cursor_layer = false;
-  // Optimize cursor visibility state change.
-  if (!layers_changed && !tracker.RevalidateLayers()) {
-    if ((state_ & kConfigurationChanged) || idle_frame) {
-      frame_changed = true;
-    } else if (frame_changed) {
-      if ((size == previous_size) ||
-          ((previous_frame_cursor_state & kIgnoredCursorLayer) &&
-           (size == previous_size - previous_cursor_layers))) {
-        frame_changed = false;
-      }
-    }
+  bool removed_cursor_layer = false;
 
-    // Let's avoid invalidating the whole cache when cursor state has changed
-    // from visible to invisible.
-    if (frame_changed && cursor_state_changed) {
-      if (previous_size - size == previous_cursor_layers) {
-        cursor_state_ |= kIgnoredCursorLayer;
-      } else if (size - previous_size == total_cursor_layers_) {
-        // Sometimes this is first frame and we only have cursor layer.
-        if (cursor_state_changed && total_cursor_layers_ > 0) {
-          // Let's add cursor plane as cursor layer has been added.
-          add_cursor_layer = true;
-        } else {
-          layers_changed = true;
-        }
-      } else {
+  if (!layers_changed) {
+    // New non cursor layers have been added. Force
+    // a re-validation.
+    if (new_layers > 0) {
+      layers_changed = true;
+    } else if (total_cursor_layers_ == previous_cursor_layers) {
+      // This case is when non-cursor layer has been removed and we
+      // don't have any cursor layers or we have cursor layers and
+      // non cursor layer has been removed.
+      // TODO: We should be able to optimize without forcing a full
+      // validation.
+      if (previous_size != size) {
         layers_changed = true;
       }
-    } else if (frame_changed ||
-               (cursor_state_changed &&
-                !(previous_frame_cursor_state & kCursorIsGpuRendered))) {
-      layers_changed = true;
+    } else if (previous_cursor_layers > total_cursor_layers_) {
+      // Cursor layer has been removed.
+      if ((previous_size - size) !=
+          (previous_cursor_layers - total_cursor_layers_)) {
+        // TODO: We should be able to optimize without forcing a full
+        // validation.
+        layers_changed = true;
+      } else {
+        // We should have "new_layers" set above in case cursor layer was
+        // removed
+        // and a new layer added.
+        removed_cursor_layer = true;
+      }
+    } else if (total_cursor_layers_ > previous_cursor_layers) {
+      // If here, no new layers apart from cursor have been added for this
+      // frame.
+      add_cursor_layer = true;
     }
   }
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
-  bool validate_layers = layers_changed || tracker.RevalidateLayers();
+  bool validate_layers = layers_changed;
 
   video_lock_.lock();
   if ((requested_video_effect_ && !validated_for_video_effect_) ||
@@ -447,9 +437,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     bool re_validate_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
-    GetCachedLayers(layers, cursor_state_ & kIgnoredCursorLayer,
-                    &current_composition_planes, &render_layers,
-                    &can_ignore_commit, &re_validate_commit);
+    GetCachedLayers(layers, removed_cursor_layer, &current_composition_planes,
+                    &render_layers, &can_ignore_commit, &re_validate_commit);
 
     // Let's re-validate if their was a request for this.
     if (re_validate_commit) {
@@ -464,20 +453,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           cursor_layers, current_composition_planes);
       if (!render_layers)
         render_layers = render_cursor;
-
-      if (render_cursor) {
-        bool gpu_rendered = true;
-        for (uint32_t i = 0; i < total_cursor_layers_; i++) {
-          OverlayLayer* cursor_layer = cursor_layers.at(i);
-          if (!cursor_layer->IsGpuRendered()) {
-            gpu_rendered = false;
-          }
-        }
-
-        if (gpu_rendered) {
-          cursor_state_ |= kCursorIsGpuRendered;
-        }
-      }
     } else if (can_ignore_commit) {
       HandleCommitIgnored(current_composition_planes);
       return true;
@@ -494,17 +469,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         idle_frame || disable_ovelays, current_composition_planes,
         requested_video_effect_);
     state_ &= ~kConfigurationChanged;
-    bool gpu_rendered = true;
-    for (uint32_t i = 0; i < total_cursor_layers_; i++) {
-      OverlayLayer* cursor_layer = cursor_layers.at(i);
-      if (!cursor_layer->IsGpuRendered()) {
-        gpu_rendered = false;
-      }
-    }
-
-    if (gpu_rendered) {
-      cursor_state_ |= kCursorIsGpuRendered;
-    }
   }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
@@ -738,6 +702,7 @@ void DisplayQueue::HandleExit() {
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
   display_plane_manager_->ReleaseAllOffScreenTargets();
+  total_cursor_layers_ = 0;
 
   bool ignore_updates = false;
   if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
@@ -775,7 +740,6 @@ void DisplayQueue::HandleExit() {
 
   resource_manager_->PurgeBuffer();
   compositor_.Reset();
-  cursor_state_ = kNoCursorState;
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {

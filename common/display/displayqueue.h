@@ -109,16 +109,6 @@ class DisplayQueue {
     kLastFrameIdleUpdate = 1 << 8  // Last frame was a refresh for Idle state.
   };
 
-  enum CursorState {
-    kNoCursorState = 1 << 0,        // No state
-    kFrameHasCursor = 1 << 1,       // Current Frame has Cursor.
-    kCursorIsGpuRendered = 1 << 2,  // Current Frame Cursor is Gpu Rendered
-    kIgnoredCursorLayer = 1 << 3,   // CursorLayer was ignored last frame.
-                                    // This is useful when we need to remove
-                                    // cursor layer from cache when previous
-                                    // frame commit was ignored.
-  };
-
   struct ScalingTracker {
     enum ScalingState {
       kNeeedsNoSclaing = 0,  // Needs no scaling.
@@ -243,13 +233,11 @@ class DisplayQueue {
   void ReleaseSurfacesAsNeeded(bool layers_validated);
 
   Compositor compositor_;
-  uint32_t frame_;
   uint32_t gpu_fd_;
   uint32_t brightness_;
   float color_transform_matrix_[16];
   HWCColorTransform color_transform_hint_;
   uint32_t contrast_;
-  uint32_t total_cursor_layers_ = 0;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
@@ -265,7 +253,7 @@ class DisplayQueue {
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
   int state_ = kConfigurationChanged;
-  uint32_t cursor_state_ = kNoCursorState;
+  uint32_t total_cursor_layers_ = 0;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
