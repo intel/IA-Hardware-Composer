@@ -224,8 +224,7 @@ bool DisplayPlaneManager::ValidateLayers(
           size_t source_index = source_layers.at(i);
           OverlayLayer &layer = layers.at(source_index);
           layer.GPURendered();
-          if (useplanescalar)
-            layer.UsePlaneScalar();
+          layer.UsePlaneScalar(useplanescalar);
         }
       }
     }

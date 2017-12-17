@@ -155,11 +155,11 @@ struct OverlayLayer {
   }
 
   bool IsUsingPlaneScalar() const {
-    return display_Scaled_;
+    return display_scaled_;
   }
 
-  void UsePlaneScalar() {
-    display_Scaled_ = true;
+  void UsePlaneScalar(bool value) {
+    display_scaled_ = value;
   }
 
   // Returns true if we should prefer
@@ -247,7 +247,7 @@ struct OverlayLayer {
       kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
   bool gpu_rendered_ = false;
-  bool display_Scaled_ = false;
+  bool display_scaled_ = false;
   HWCLayerType type_ = kLayerNormal;
 };
 
