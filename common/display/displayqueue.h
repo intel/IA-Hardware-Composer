@@ -223,6 +223,11 @@ class DisplayQueue {
                        bool* can_ignore_commit, bool* re_validate_commit);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
+
+  void SetMediaEffectsState(
+      bool apply_effects, const std::vector<OverlayLayer>& layers,
+      DisplayPlaneStateList& current_composition_planes) const;
+
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
   void RecyclePreviousPlaneSurfaces();
@@ -261,7 +266,7 @@ class DisplayQueue {
   HWCRotation rotation_ = kRotateNone;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
-  bool validated_for_video_effect_ = false;
+  bool applied_video_effect_ = false;
 };
 
 }  // namespace hwcomposer
