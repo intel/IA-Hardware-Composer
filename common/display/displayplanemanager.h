@@ -48,6 +48,12 @@ class DisplayPlaneManager {
                       DisplayPlaneStateList &composition,
                       bool request_video_effect);
 
+  // This can be used to quickly check if the new DisplayPlaneStateList
+  // can be succefully commited before doing a full re-validation.
+  bool ReValidateLayers(std::vector<OverlayLayer> &layers,
+                        DisplayPlaneStateList &composition,
+                        bool *request_full_validation);
+
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.
@@ -91,7 +97,7 @@ class DisplayPlaneManager {
 
   void PreparePlaneForCursor(DisplayPlaneState *plane);
 
-  void ValidateForDisplayScaling(DisplayPlaneStateList &composition,
+  void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes,
                                  OverlayLayer *current_layer);
 
