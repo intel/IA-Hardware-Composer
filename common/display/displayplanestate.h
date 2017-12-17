@@ -20,9 +20,10 @@
 #include <stdint.h>
 #include <vector>
 
-#include "overlaylayer.h"
 #include "compositionregion.h"
+#include "displayplane.h"
 #include "nativesurface.h"
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 
@@ -50,7 +51,17 @@ class DisplayPlaneState {
     }
   }
 
-  explicit DisplayPlaneState(DisplayPlane *plane) : plane_(plane) {
+  void CopyState(DisplayPlaneState &state) {
+    has_cursor_layer_ = state.has_cursor_layer_;
+    type_ = state.type_;
+    use_plane_scalar_ = state.use_plane_scalar_;
+    plane_ = state.plane_;
+    state_ = state.state_;
+    source_crop_ = state.source_crop_;
+    display_frame_ = state.display_frame_;
+    plane_->SetInUse(true);
+    // We don't copy recycled_surface_ state as this
+    // should be determined in DisplayQueue for every frame.
   }
 
   State GetCompositionState() const {
@@ -91,28 +102,13 @@ class DisplayPlaneState {
     }
   }
 
-  void AddLayers(const std::vector<size_t> &source_layers,
-                 const HwcRect<int> &display_frame, State state) {
-    size_t size = source_layers.size();
-    source_layers_.reserve(size);
-    for (const int &index : source_layers) {
-      source_layers_.emplace_back(index);
-    }
-
-    display_frame_ = display_frame;
-    state_ = state;
-    type_ = PlaneType::kNormal;
-    has_cursor_layer_ = false;
-  }
-
   // This API should be called only when Cursor layer is being
   // added, is part of layers displayed by plane or is being
   // removed in this frame. AddLayers should be used in all
   // other cases.
-  void AddLayersForCursor(const std::vector<size_t> &source_layers,
-                          const std::vector<OverlayLayer> &layers,
-                          const HwcRect<int> &display_frame, State state,
-                          bool ignore_cursor_layer) {
+  void AddLayers(const std::vector<size_t> &source_layers,
+                 const std::vector<OverlayLayer> &layers,
+                 bool ignore_cursor_layer) {
     if (ignore_cursor_layer) {
       size_t lsize = layers.size();
       size_t size = source_layers.size();
@@ -139,23 +135,11 @@ class DisplayPlaneState {
 
         source_layers_.emplace_back(index);
       }
-
-      type_ = PlaneType::kNormal;
     } else {
-      display_frame_ = display_frame;
       for (const int &index : source_layers) {
         source_layers_.emplace_back(index);
       }
-
-      has_cursor_layer_ = true;
-      if (source_layers_.size() == 1) {
-        type_ = PlaneType::kCursor;
-      } else {
-        type_ = PlaneType::kNormal;
-      }
     }
-
-    state_ = state;
   }
 
   void UpdateDisplayFrame(const HwcRect<int> &display_frame) {

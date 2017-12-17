@@ -147,25 +147,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     }
 
     bool clear_surface = false;
-    composition->emplace_back(plane.plane());
+    composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
-    last_plane.plane()->SetInUse(true);
-    bool has_cursor_layer = plane.HasCursorLayer();
-    if (has_cursor_layer) {
-      last_plane.AddLayersForCursor(
-          plane.source_layers(), layers, plane.GetDisplayFrame(),
-          plane.GetCompositionState(), cursor_layer_removed);
+    last_plane.CopyState(plane);
+    last_plane.AddLayers(plane.source_layers(), layers, cursor_layer_removed);
 
-      clear_surface = cursor_layer_removed;
-    } else {
-      last_plane.AddLayers(plane.source_layers(), plane.GetDisplayFrame(),
-                           plane.GetCompositionState());
-    }
-
-    if (plane.IsVideoPlane()) {
-      last_plane.SetVideoPlane();
-      last_plane.SetSourceCrop(plane.GetSourceCrop());
-    }
+    clear_surface = cursor_layer_removed;
 
     if (plane_state_render || plane.SurfaceRecycled()) {
       bool content_changed = false;
@@ -251,6 +238,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         }
 
+        // We always call this here to handle case where we recycled
+        // offscreen surface for last commit.
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
