@@ -250,10 +250,10 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
         OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
     // Check if we can still need/use scalar for this plane.
     if (temp.IsUsingPlaneScalar()) {
-      size_t total_layers = temp.source_layers().size();
+      const std::vector<size_t> &source = temp.source_layers();
+      size_t total_layers = source.size();
       ValidateForDisplayScaling(
-          temp, commit_planes,
-          &(layers.at(temp.source_layers().at(total_layers - 1))));
+          temp, commit_planes, &(layers.at(source.at(total_layers - 1))), true);
     }
   }
 
@@ -391,13 +391,20 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
 void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
-    OverlayLayer *current_layer) {
+    OverlayLayer *current_layer, bool ignore_format) {
   size_t total_layers = last_plane.source_layers().size();
+  std::vector<NativeSurface *> &surfaces = last_plane.GetSurfaces();
+  size_t size = surfaces.size();
+
   if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
+    current_layer->UsePlaneScalar(false);
     last_plane.ResetSourceRectToDisplayFrame();
-    last_plane.GetOffScreenTarget()->ResetSourceCrop(
-        last_plane.GetSourceCrop());
+    const HwcRect<float> &current_rect = last_plane.GetSourceCrop();
+    for (size_t i = 0; i < size; i++) {
+      surfaces.at(i)->ResetSourceCrop(current_rect);
+      surfaces.at(i)->GetLayer()->UsePlaneScalar(false);
+    }
   }
 
   // TODO: Handle case where all layers to be compoisted have same scaling
@@ -414,6 +421,17 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // Source and Display frame width, height are same and scaling is not needed.
   if ((display_frame_width == source_crop_width) &&
       (display_frame_height == source_crop_height)) {
+    return;
+  }
+
+  // Case where we are not rotating the layer and format is supported by the
+  // plane.
+  // If we are here this means the layer cannot be scaled using display, just
+  // return.
+  if (!ignore_format &&
+      (current_layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
+      last_plane.plane()->IsSupportedFormat(
+          current_layer->GetBuffer()->GetFormat())) {
     return;
   }
 
@@ -450,24 +468,17 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     }
   }
 
-  // Case where we are not rotating the layer and format is supported by the
-  // plane.
-  // If we are here this means the layer cannot be scaled using display, just
-  // return.
-  if ((current_layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
-      last_plane.plane()->IsSupportedFormat(
-          current_layer->GetBuffer()->GetFormat())) {
-    return;
-  }
-
   // TODO: Scalars are limited in HW. Determine scaling ratio
   // which would really benefit vs doing it in GPU side.
 
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
-  last_plane.SetSourceCrop(current_layer->GetSourceCrop());
-  last_plane.GetOffScreenTarget()->ResetSourceCrop(
-      current_layer->GetSourceCrop());
+  const HwcRect<float> &crop = current_layer->GetSourceCrop();
+  last_plane.SetSourceCrop(crop);
+  for (size_t i = 0; i < size; i++) {
+    surfaces.at(i)->ResetSourceCrop(crop);
+    surfaces.at(i)->GetLayer()->UsePlaneScalar(true);
+  }
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
@@ -477,10 +488,14 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
     last_plane.ResetSourceRectToDisplayFrame();
-    last_plane.GetOffScreenTarget()->ResetSourceCrop(
-        last_plane.GetSourceCrop());
+    const HwcRect<float> &current_rect = last_plane.GetSourceCrop();
+    for (size_t i = 0; i < size; i++) {
+      surfaces.at(i)->ResetSourceCrop(current_rect);
+      surfaces.at(i)->GetLayer()->UsePlaneScalar(false);
+    }
   } else {
     last_plane.UsePlaneScalar(true);
+    current_layer->UsePlaneScalar(true);
   }
 }
 

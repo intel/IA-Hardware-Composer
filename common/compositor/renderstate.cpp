@@ -115,13 +115,21 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     else
       std::copy_n(&TransformMatrices[0], 4, src.texture_matrix_);
 
-    HwcRect<float> display_rect(layer.GetDisplayFrame());
-    float display_size[2] = {static_cast<float>(layer.GetDisplayFrameWidth()),
-                             static_cast<float>(layer.GetDisplayFrameHeight())};
+    HwcRect<float> display_rect;
+    float display_size[2];
+
     if (layer.IsUsingPlaneScalar()) {
       display_rect = layer.GetSourceCrop();
       display_size[0] = static_cast<float>(layer.GetSourceCropWidth());
       display_size[1] = static_cast<float>(layer.GetSourceCropHeight());
+    } else {
+      const HwcRect<int> &display_Rect = layer.GetDisplayFrame();
+      display_rect.left = static_cast<float>(display_Rect.left);
+      display_rect.right = static_cast<float>(display_Rect.right);
+      display_rect.top = static_cast<float>(display_Rect.top);
+      display_rect.bottom = static_cast<float>(display_Rect.bottom);
+      display_size[0] = static_cast<float>(layer.GetDisplayFrameWidth());
+      display_size[1] = static_cast<float>(layer.GetDisplayFrameHeight());
     }
 
     float tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());

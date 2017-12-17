@@ -120,12 +120,11 @@ struct OverlayLayer {
     return display_frame_height_;
   }
 
-   // Returns true if content of the layer has
-    // changed.
-    bool HasLayerContentChanged() const {
-      return state_ & kLayerContentChanged;
-    }
-
+  // Returns true if content of the layer has
+  // changed.
+  bool HasLayerContentChanged() const {
+    return state_ & kLayerContentChanged;
+  }
 
   // Returns true if this layer is visible.
   bool IsVisible() const {
