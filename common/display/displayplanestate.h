@@ -45,6 +45,7 @@ class DisplayPlaneState {
       : plane_(plane), layer_(layer) {
     source_layers_.emplace_back(index);
     display_frame_ = layer->GetDisplayFrame();
+    source_crop_ = HwcRect<float>(display_frame_);
     if (layer->IsCursorLayer()) {
       type_ = PlaneType::kCursor;
       has_cursor_layer_ = true;
@@ -80,20 +81,22 @@ class DisplayPlaneState {
     source_crop_ = crop;
   }
 
-  void AddLayer(size_t index, const HwcRect<int> &display_frame,
-                bool cursor_layer) {
+  void ResetSourceRectToDisplayFrame() {
+    source_crop_ = HwcRect<float>(display_frame_);
+  }
+
+  void AddLayer(const OverlayLayer *layer) {
+    const HwcRect<int> &display_frame = layer->GetDisplayFrame();
     display_frame_.left = std::min(display_frame_.left, display_frame.left);
     display_frame_.top = std::min(display_frame_.top, display_frame.top);
     display_frame_.right = std::max(display_frame_.right, display_frame.right);
     display_frame_.bottom =
         std::max(display_frame_.bottom, display_frame.bottom);
 
-    source_layers_.emplace_back(index);
-    state_ = State::kRender;
+    source_layers_.emplace_back(layer->GetZorder());
 
-    if (cursor_layer) {
-      has_cursor_layer_ = true;
-    }
+    state_ = State::kRender;
+    has_cursor_layer_ = layer->IsCursorLayer();
 
     if (source_layers_.size() == 1 && has_cursor_layer_) {
       type_ = PlaneType::kCursor;
@@ -114,7 +117,6 @@ class DisplayPlaneState {
       size_t size = source_layers.size();
       source_layers_.reserve(size);
       has_cursor_layer_ = false;
-      display_frame_ = HwcRect<int>(0, 0, 0, 0);
       bool initialized = false;
       for (const size_t &index : source_layers) {
         if (index >= lsize) {

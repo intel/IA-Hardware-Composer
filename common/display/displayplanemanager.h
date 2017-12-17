@@ -91,9 +91,6 @@ class DisplayPlaneManager {
 
   void PreparePlaneForCursor(DisplayPlaneState *plane);
 
-  bool PreferDisplayScaling(DisplayPlane *target_plane,
-                            OverlayLayer *layer) const;
-
   void ValidateForDisplayScaling(DisplayPlaneStateList &composition,
                                  std::vector<OverlayPlane> &commit_planes,
                                  OverlayLayer *current_layer);

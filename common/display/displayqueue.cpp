@@ -156,6 +156,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (plane_state_render || plane.SurfaceRecycled()) {
       bool content_changed = false;
+      bool update_source_rect = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -168,6 +169,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           clear_surface = true;
         } else if (layer.NeedsToClearSurface()) {
           clear_surface = true;
+        }
+
+        if (layer.HasSourceRectChanged() && last_plane.IsUsingPlaneScalar()) {
+          last_plane.SetSourceCrop(layer.GetSourceCrop());
+          update_source_rect = true;
         }
 
         if (!clear_surface && layer.HasLayerContentChanged()) {
@@ -189,14 +195,30 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // we need to clear the surface.
       last_plane.TransferSurfaces(plane.GetSurfaces(),
                                   content_changed || clear_surface);
+      std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
+      size_t size = surfaces.size();
+      if (update_source_rect) {
+        const HwcRect<float>& current_rect = last_plane.GetSourceCrop();
+        content_changed = true;
+        for (size_t i = 0; i < size; i++) {
+          surfaces.at(i)->ResetSourceCrop(current_rect);
+        }
+      }
 
       if (clear_surface) {
         content_changed = true;
-        std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-        size_t size = surfaces.size();
+        // DisplayFrame has changed. If this plane is not relying on display
+        // plane scalar, let's make sure source crop and display frame are
+        // same.
+        if (!last_plane.IsUsingPlaneScalar()) {
+          last_plane.ResetSourceRectToDisplayFrame();
+        }
+
+        const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
         for (size_t i = 0; i < size; i++) {
           surfaces.at(i)->ResetDisplayFrame(current_rect);
+          surfaces.at(i)->ResetSourceCrop(source_crop);
         }
       } else {
         clear_surface = true;

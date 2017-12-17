@@ -101,8 +101,7 @@ bool DisplayPlaneManager::ValidateLayers(
     if (force_gpu || !prefer_seperate_plane) {
       DisplayPlaneState &last_plane = composition.back();
       for (auto i = layer_begin; i != layer_end; ++i) {
-        last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                            i->IsCursorLayer());
+        last_plane.AddLayer(&(*(i)));
         i->GPURendered();
       }
 
@@ -149,10 +148,6 @@ bool DisplayPlaneManager::ValidateLayers(
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
-        if (layer->IsCursorLayer()) {
-          continue;
-        }
-
         commit_planes.emplace_back(OverlayPlane(j->get(), layer));
         index = i->GetZorder();
         ++layer_begin;
@@ -179,7 +174,7 @@ bool DisplayPlaneManager::ValidateLayers(
           prefer_seperate_plane = layer->PreferSeparatePlane();
           break;
         } else {
-          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
+          last_plane.AddLayer(layer);
           if (!last_plane.GetOffScreenTarget()) {
             SetOffScreenPlaneTarget(last_plane);
           }
@@ -196,12 +191,8 @@ bool DisplayPlaneManager::ValidateLayers(
     // We dont have any additional planes. Pre composite remaining layers
     // to the last overlay plane.
     for (auto i = layer_begin; i != layer_end; ++i) {
-      if (i->IsCursorLayer()) {
-        continue;
-      }
-
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
       previous_layer = &(*(i));
+      last_plane.AddLayer(previous_layer);
     }
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
@@ -316,9 +307,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     if (FallbacktoGPU(plane, cursor_layer, commit_planes)) {
       commit_planes.pop_back();
       cursor_layer->GPURendered();
-      last_plane->AddLayer(cursor_layer->GetZorder(),
-                           cursor_layer->GetDisplayFrame(),
-                           cursor_layer->IsCursorLayer());
+      last_plane->AddLayer(cursor_layer);
       gpu_rendered = true;
       status = true;
     } else {
@@ -339,8 +328,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   // to the last overlay plane.
   for (uint32_t i = cursor_index; i < total_size; i++) {
     OverlayLayer *cursor_layer = cursor_layers.at(i);
-    last_plane->AddLayer(cursor_layer->GetZorder(),
-                         cursor_layer->GetDisplayFrame(), true);
+    last_plane->AddLayer(cursor_layer);
     cursor_layer->GPURendered();
     gpu_rendered = true;
     status = true;
@@ -357,15 +345,20 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneStateList &composition,
     std::vector<OverlayPlane> &commit_planes, OverlayLayer *current_layer) {
   DisplayPlaneState &last_plane = composition.back();
-  last_plane.UsePlaneScalar(false);
-  last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
-      last_plane.GetDisplayFrame());
-  last_plane.SetSourceCrop(HwcRect<float>(last_plane.GetDisplayFrame()));
+  size_t total_layers = last_plane.source_layers().size() > 1;
+  // We may have cases where additional layers got added to this
+  // plane for composition. Reset the state in this case.
+  if (last_plane.IsUsingPlaneScalar() && total_layers > 1) {
+    last_plane.UsePlaneScalar(false);
+    last_plane.ResetSourceRectToDisplayFrame();
+    last_plane.GetOffScreenTarget()->ResetSourceCrop(
+        last_plane.GetSourceCrop());
+  }
 
   // TODO: Handle case where all layers to be compoisted have same scaling
   // ratio.
   // We cannot use plane scaling for Layers with different scaling ratio.
-  if (last_plane.source_layers().size() > 1) {
+  if (total_layers > 1) {
     return;
   }
 
@@ -428,7 +421,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
   last_plane.SetSourceCrop(current_layer->GetSourceCrop());
-  last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
+  last_plane.GetOffScreenTarget()->ResetSourceCrop(
       current_layer->GetSourceCrop());
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
@@ -438,9 +431,9 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
       FallbacktoGPU(last_plane.plane(),
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
-    last_plane.GetOffScreenTarget()->GetLayer()->SetSourceCrop(
-        last_plane.GetDisplayFrame());
-    last_plane.SetSourceCrop(HwcRect<float>(last_plane.GetDisplayFrame()));
+    last_plane.ResetSourceRectToDisplayFrame();
+    last_plane.GetOffScreenTarget()->ResetSourceCrop(
+        last_plane.GetSourceCrop());
   } else {
     last_plane.UsePlaneScalar(true);
   }
@@ -583,8 +576,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     ++layer_begin;
 
     for (auto i = layer_begin; i != layers.end(); ++i) {
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                          i->IsCursorLayer());
+      last_plane.AddLayer(&(*(i)));
     }
 
     EnsureOffScreenTarget(last_plane);
@@ -611,21 +603,6 @@ bool DisplayPlaneManager::FallbacktoGPU(
   }
 
   return false;
-}
-
-bool DisplayPlaneManager::PreferDisplayScaling(DisplayPlane *target_plane,
-                                               OverlayLayer *layer) const {
-  if ((layer->GetDisplayFrameWidth() == layer->GetSourceCropWidth()) &&
-      (layer->GetDisplayFrameHeight() == layer->GetSourceCropHeight())) {
-    return false;
-  }
-
-  if ((layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
-      target_plane->IsSupportedFormat(layer->GetBuffer()->GetFormat())) {
-    return false;
-  }
-
-  return true;
 }
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {

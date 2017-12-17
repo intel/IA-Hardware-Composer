@@ -346,9 +346,13 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
+  bool source_rect_changed = layer->HasSourceRectChanged();
+  if (source_rect_changed)
+    state_ |= kSourceRectChanged;
+
   // We expect cursor plane to support alpha always.
   if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
-    content_changed = rect_changed || layer->HasSourceRectChanged();
+    content_changed = rect_changed || source_rect_changed;
   } else {
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
@@ -378,7 +382,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       }
     }
 
-    if (layer->HasSourceRectChanged()) {
+    if (source_rect_changed) {
       // If the overall width and height hasn't changed, it
       // shouldn't impact the plane composition results.
       if ((source_crop_width_ != rhs->source_crop_width_) ||
