@@ -188,6 +188,7 @@ bool DisplayPlaneManager::ValidateLayers(
     }
 
     DisplayPlaneState &last_plane = composition.back();
+    bool is_video = last_plane.IsVideoPlane();
     OverlayLayer *previous_layer = NULL;
     // We dont have any additional planes. Pre composite remaining layers
     // to the last overlay plane.
@@ -198,8 +199,18 @@ bool DisplayPlaneManager::ValidateLayers(
 
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
       if (previous_layer) {
-        if (!last_plane.GetOffScreenTarget()) {
-          EnsureOffScreenTarget(last_plane);
+        // In this case we need to fallback to 3Dcomposition till Media
+        // backend adds support for multiple layers.
+        bool force_buffer = false;
+        if (is_video && last_plane.source_layers().size() > 1 &&
+            last_plane.GetOffScreenTarget()) {
+          last_plane.GetOffScreenTarget()->SetInUse(false);
+          std::vector<NativeSurface *>().swap(last_plane.GetSurfaces());
+          force_buffer = true;
+        }
+
+        if (!last_plane.GetOffScreenTarget() || force_buffer) {
+          ResetPlaneTarget(last_plane, commit_planes.back());
         }
 
         ValidateForDisplayScaling(composition.back(), commit_planes,
@@ -239,11 +250,6 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
                                            DisplayPlaneStateList &composition,
                                            bool *request_full_validation) {
   CTRACE();
-  // Let's mark all planes as free to be used.
-  for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
-    j->get()->SetInUse(false);
-  }
-
   std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
@@ -300,8 +306,14 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   return last_plane;
 }
 
-void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane) {
-  if (!plane->GetOffScreenTarget()) {
+void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane,
+                                                bool reset_buffer) {
+  NativeSurface *surface = plane->GetOffScreenTarget();
+  if (surface && reset_buffer) {
+    surface->SetInUse(false);
+  }
+
+  if (!surface || reset_buffer) {
     SetOffScreenPlaneTarget(*plane);
   }
 
@@ -327,13 +339,13 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
   std::vector<OverlayPlane> commit_planes;
   DisplayPlaneState *last_plane = GetLastUsedOverlay(composition);
+  bool is_video = last_plane->IsVideoPlane();
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
         OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
   }
 
   uint32_t total_size = cursor_layers.size();
-  bool gpu_rendered = false;
   bool status = false;
   uint32_t cursor_index = 0;
   for (auto j = overlay_planes_.rbegin(); j != overlay_planes_.rend(); ++j) {
@@ -356,17 +368,29 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       commit_planes.pop_back();
       cursor_layer->GPURendered();
       last_plane->AddLayer(cursor_layer);
-      gpu_rendered = true;
-      status = true;
-    } else {
-      if (gpu_rendered) {
-        PreparePlaneForCursor(last_plane);
-        gpu_rendered = false;
+      bool reset_overlay = false;
+      if (!last_plane->GetOffScreenTarget() || is_video)
+        reset_overlay = true;
+
+      PreparePlaneForCursor(last_plane, is_video);
+
+      if (reset_overlay) {
+        // Layer for the plane should have changed, reset commit planes.
+        std::vector<OverlayPlane>().swap(commit_planes);
+        for (DisplayPlaneState &temp : composition) {
+          commit_planes.emplace_back(
+              OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
+        }
       }
 
+      ValidateForDisplayScaling(*last_plane, commit_planes, cursor_layer,
+                                false);
+      status = true;
+    } else {
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
       plane->SetInUse(true);
       last_plane = GetLastUsedOverlay(composition);
+      is_video = last_plane->IsVideoPlane();
     }
 
     cursor_index++;
@@ -374,16 +398,18 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
   // We dont have any additional planes. Pre composite remaining cursor layers
   // to the last overlay plane.
+  OverlayLayer *last_layer = NULL;
   for (uint32_t i = cursor_index; i < total_size; i++) {
     OverlayLayer *cursor_layer = cursor_layers.at(i);
     last_plane->AddLayer(cursor_layer);
     cursor_layer->GPURendered();
-    gpu_rendered = true;
     status = true;
+    last_layer = cursor_layer;
   }
 
-  if (gpu_rendered) {
-    PreparePlaneForCursor(last_plane);
+  if (last_layer) {
+    PreparePlaneForCursor(last_plane, is_video);
+    ValidateForDisplayScaling(*last_plane, commit_planes, last_layer, false);
   }
 
   return status;
