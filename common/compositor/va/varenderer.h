@@ -60,8 +60,9 @@ class VARenderer : public Renderer {
                                      VAProcColorBalanceType vamode);
   bool CreateContext();
   void DestroyContext();
+  uint32_t HWCTransformToVA(uint32_t transform);
 
-  void *va_display_ = nullptr;
+  void* va_display_ = nullptr;
   ColorBalanceCapMap caps_;
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;

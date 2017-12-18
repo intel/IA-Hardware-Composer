@@ -285,6 +285,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   param.filters = nullptr;
   param.filter_flags = VA_FRAME_PICTURE;
 
+  // currently rotation is only supported by VA on Android.
+#ifdef ANDROID
+  param.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
+#endif
+
   VAProcFilterCapColorBalance vacaps[VAProcColorBalanceCount];
   uint32_t vacaps_num = VAProcColorBalanceCount;
 
@@ -424,6 +429,20 @@ void VARenderer::DestroyContext() {
     vaDestroyConfig(va_display_, va_config_);
     va_config_ = VA_INVALID_ID;
   }
+}
+
+uint32_t VARenderer::HWCTransformToVA(uint32_t transform) {
+  switch (transform) {
+    case kTransform270:
+      return VA_ROTATION_270;
+    case kTransform180:
+      return VA_ROTATION_180;
+    case kTransform90:
+      return VA_ROTATION_90;
+    default:
+      break;
+  }
+  return VA_ROTATION_NONE;
 }
 
 }  // namespace hwcomposer
