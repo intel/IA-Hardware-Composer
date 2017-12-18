@@ -88,8 +88,9 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   GLuint top;
   const OverlayLayer *layer = surface->GetLayer();
   if (!layer->IsUsingPlaneScalar()) {
-    frame_width = surface->GetWidth();
-    frame_height = surface->GetHeight();
+    const HwcRect<int> &display_rect = layer->GetDisplayFrame();
+    frame_width = (layer->GetDisplayFrameWidth() + display_rect.left);
+    frame_height = (layer->GetDisplayFrameHeight() + display_rect.top);
     left = 0;
     top = 0;
   } else {
