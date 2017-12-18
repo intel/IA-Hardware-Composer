@@ -146,13 +146,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
-    bool clear_surface = false;
+    bool clear_surface = cursor_layer_removed;
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(plane);
     last_plane.AddLayers(plane.source_layers(), layers, cursor_layer_removed);
-
-    clear_surface = cursor_layer_removed;
 
     if (plane_state_render || plane.SurfaceRecycled()) {
       bool content_changed = false;
@@ -197,7 +195,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // Let's make sure we swap the surface if content has changed or
       // we need to clear the surface.
       last_plane.TransferSurfaces(plane.GetSurfaces(),
-                                  content_changed || clear_surface);
+				  content_changed || clear_surface || update_source_rect);
       std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
       size_t size = surfaces.size();
       if (update_source_rect) {
