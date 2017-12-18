@@ -238,6 +238,10 @@ class DisplayQueue {
   void ReleaseSurfaces();
   void ReleaseSurfacesAsNeeded(bool layers_validated);
 
+  // Re-initialize all state. When we are hearing this means the
+  // queue is teraing down or re-started for some reason.
+  void ResetQueue();
+
   Compositor compositor_;
   uint32_t gpu_fd_;
   uint32_t brightness_;

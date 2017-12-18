@@ -65,21 +65,6 @@ DisplayQueue::~DisplayQueue() {
 
 bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
                               DisplayPlaneHandler* plane_handler) {
-  total_cursor_layers_ = 0;
-  std::vector<OverlayLayer>().swap(in_flight_layers_);
-  DisplayPlaneStateList().swap(previous_plane_state_);
-  bool ignore_updates = false;
-  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-    ignore_updates = true;
-  }
-  idle_tracker_.state_ = 0;
-  idle_tracker_.idle_frames_ = 0;
-  if (ignore_updates) {
-    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
-  }
-
-  compositor_.Reset();
-
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
     return false;
@@ -92,6 +77,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
     return false;
   }
 
+  ResetQueue();
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
   return true;
@@ -720,21 +706,6 @@ void DisplayQueue::HandleExit() {
     display_->Disable(previous_plane_state_);
   }
 
-  std::vector<OverlayLayer>().swap(in_flight_layers_);
-  DisplayPlaneStateList().swap(previous_plane_state_);
-  display_plane_manager_->ReleaseAllOffScreenTargets();
-  total_cursor_layers_ = 0;
-
-  bool ignore_updates = false;
-  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-    ignore_updates = true;
-  }
-  idle_tracker_.state_ = 0;
-  idle_tracker_.idle_frames_ = 0;
-  if (ignore_updates) {
-    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
-  }
-
   if (kms_fence_ > 0) {
     close(kms_fence_);
     kms_fence_ = 0;
@@ -759,8 +730,7 @@ void DisplayQueue::HandleExit() {
     state_ |= kClonedMode;
   }
 
-  resource_manager_->PurgeBuffer();
-  compositor_.Reset();
+  ResetQueue();
 }
 
 bool DisplayQueue::CheckPlaneFormat(uint32_t format) {
@@ -921,6 +891,28 @@ void DisplayQueue::UpdateScalingRatio(uint32_t primary_width,
   }
 
   state_ |= kConfigurationChanged;
+}
+
+void DisplayQueue::ResetQueue() {
+  total_cursor_layers_ = 0;
+  applied_video_effect_ = false;
+  std::vector<OverlayLayer>().swap(in_flight_layers_);
+  DisplayPlaneStateList().swap(previous_plane_state_);
+  if (display_plane_manager_->HasSurfaces())
+    display_plane_manager_->ReleaseAllOffScreenTargets();
+
+  resource_manager_->PurgeBuffer();
+  bool ignore_updates = false;
+  if (idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
+    ignore_updates = true;
+  }
+
+  idle_tracker_.state_ = 0;
+  idle_tracker_.idle_frames_ = 0;
+  if (ignore_updates) {
+    idle_tracker_.state_ |= FrameStateTracker::kIgnoreUpdates;
+  }
+  compositor_.Reset();
 }
 
 }  // namespace hwcomposer
