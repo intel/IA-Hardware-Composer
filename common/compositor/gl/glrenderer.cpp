@@ -81,7 +81,7 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface, bool clear_surface) {
+                      NativeSurface *surface) {
   GLuint frame_width;
   GLuint frame_height;
   GLuint left;
@@ -102,6 +102,8 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   if (!surface->MakeCurrent())
     return false;
+
+  bool clear_surface = surface->ClearSurface();
 
   surface->SetClearSurface(false);
 

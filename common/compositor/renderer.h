@@ -42,7 +42,7 @@ class Renderer {
   }
 
   virtual bool Draw(const std::vector<RenderState>& /*commands*/,
-                    NativeSurface* /*surface*/, bool /*clear_surface*/) {
+                    NativeSurface* /*surface*/) {
     return false;
   }
 
