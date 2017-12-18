@@ -18,10 +18,11 @@
 #define COMMON_COMPOSITOR_VA_VARENDERER_H_
 
 #include <map>
+#include <va/va.h>
+#include <va/va_vpp.h>
+
 #include "renderer.h"
 #include "hwcdefs.h"
-#include "va/va.h"
-#include "va/va_vpp.h"
 
 namespace hwcomposer {
 
@@ -57,9 +58,15 @@ class VARenderer : public Renderer {
   int DrmFormatToRTFormat(int format);
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
                                      VAProcColorBalanceType vamode);
+  bool CreateContext();
+  void DestroyContext();
+  uint32_t HWCTransformToVA(uint32_t transform);
 
   void* va_display_ = nullptr;
   ColorBalanceCapMap caps_;
+  int render_target_format_ = VA_RT_FORMAT_YUV420;
+  VAContextID va_context_ = VA_INVALID_ID;
+  VAConfigID va_config_ = VA_INVALID_ID;
 };
 
 }  // namespace hwcomposer
