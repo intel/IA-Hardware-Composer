@@ -808,6 +808,24 @@ void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
   video_lock_.unlock();
 }
 
+void DisplayQueue::SetVideoSharp(float value) {
+  video_lock_.lock();
+  requested_video_effect_ = true;
+  compositor_.SetVideoSharp(value);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::GetVideoSharp(float* value, float* start, float* end) {
+  compositor_.GetVideoSharp(value, start, end);
+}
+
+void DisplayQueue::RestoreVideoDefaultSharp() {
+  video_lock_.lock();
+  requested_video_effect_ = false;
+  compositor_.RestoreVideoDefaultSharp();
+  video_lock_.unlock();
+}
+
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                         uint32_t display_id) {
   return vblank_handler_->RegisterCallback(callback, display_id);

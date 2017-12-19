@@ -79,6 +79,9 @@ class LogicalDisplay : public NativeDisplay {
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
+  void SetVideoSharp(float value) override;
+  void GetVideoSharp(float *value, float *start, float *end) override;
+  void RestoreVideoDefaultSharp() override;
 
   bool IsConnected() const override;
 

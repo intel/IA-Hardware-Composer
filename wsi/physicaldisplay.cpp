@@ -418,6 +418,18 @@ void PhysicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   display_queue_->RestoreVideoDefaultColor(color);
 }
 
+void PhysicalDisplay::SetVideoSharp(float value) {
+  display_queue_->SetVideoSharp(value);
+}
+
+void PhysicalDisplay::GetVideoSharp(float *value, float *start, float *end) {
+  display_queue_->GetVideoSharp(value, start, end);
+}
+
+void PhysicalDisplay::RestoreVideoDefaultSharp() {
+  display_queue_->RestoreVideoDefaultSharp();
+}
+
 bool PhysicalDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");
