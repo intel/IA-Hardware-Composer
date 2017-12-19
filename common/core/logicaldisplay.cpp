@@ -159,6 +159,18 @@ void LogicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   physical_display_->RestoreVideoDefaultColor(color);
 }
 
+void LogicalDisplay::SetVideoSharp(float value) {
+  physical_display_->SetVideoSharp(value);
+}
+
+void LogicalDisplay::GetVideoSharp(float *value, float *start, float *end) {
+  physical_display_->GetVideoSharp(value, start, end);
+}
+
+void LogicalDisplay::RestoreVideoDefaultSharp() {
+  physical_display_->RestoreVideoDefaultSharp();
+}
+
 void LogicalDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                         uint32_t /*primary_height*/,
                                         uint32_t /*display_width*/,

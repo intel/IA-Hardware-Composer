@@ -174,20 +174,30 @@ bool VARenderer::SetVAProcFilterColorDefaultValue(
   HWCColorControl mode;
   for (int i = 0; i < VAProcColorBalanceCount; i++) {
     if (MapVAProcFilterColorModetoHwc(mode, caps[i].type)) {
-      caps_[mode].caps = caps[i];
-      caps_[mode].value = caps[i].range.default_value;
+      colorbalance_caps_[mode].caps = caps[i];
+      colorbalance_caps_[mode].value = caps[i].range.default_value;
     }
   }
   return true;
 }
 
 bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode, float value) {
-  if (value > caps_[mode].caps.range.max_value ||
-      value < caps_[mode].caps.range.min_value) {
+  if (value > colorbalance_caps_[mode].caps.range.max_value ||
+      value < colorbalance_caps_[mode].caps.range.min_value) {
     ETRACE("VAlue Filter value out of range\n");
     return false;
   }
-  caps_[mode].value = value;
+  colorbalance_caps_[mode].value = value;
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterSharpValue(float value) {
+  if (value > sharp_caps_.caps.range.max_value ||
+      value < sharp_caps_.caps.range.min_value) {
+    ETRACE("VAlue Filter sharp value out of range\n");
+    return false;
+  }
+  sharp_caps_.value = value;
   return true;
 }
 
@@ -285,31 +295,42 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   param.filters = nullptr;
   param.filter_flags = VA_FRAME_PICTURE;
 
-  VAProcFilterCapColorBalance vacaps[VAProcColorBalanceCount];
-  uint32_t vacaps_num = VAProcColorBalanceCount;
+  VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
+  uint32_t colorbalance_num = VAProcColorBalanceCount;
+  uint32_t sharp_num = 1;
 
-  if (caps_.empty()) {
-    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance, vacaps,
-                               &vacaps_num)) {
+  if (colorbalance_caps_.empty()) {
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
+                               colorbalancecaps, &colorbalance_num)) {
       return false;
     } else {
-      SetVAProcFilterColorDefaultValue(&vacaps[0]);
+      SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
     }
+  }
+
+  if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
+                             &sharp_caps_.caps, &sharp_num)) {
+    return false;
   }
 
   for (HWCColorMap::const_iterator itr = state.colors_.begin();
        itr != state.colors_.end(); itr++) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
+  SetVAProcFilterSharpValue(state.sharp_);
 
   std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
                                             va_display_);
+  ScopedVABufferID sharp(va_display_);
+
   std::vector<VABufferID> filters;
   VAProcFilterParameterBufferColorBalance cbparam;
+  VAProcFilterParameterBuffer filterparam;
   cbparam.type = VAProcFilterColorBalance;
   cbparam.attrib = VAProcColorBalanceNone;
 
-  for (ColorBalanceCapMapItr itr = caps_.begin(); itr != caps_.end(); itr++) {
+  for (ColorBalanceCapMapItr itr = colorbalance_caps_.begin();
+       itr != colorbalance_caps_.end(); itr++) {
     if (fabs(itr->second.value - itr->second.caps.range.default_value) >=
         itr->second.caps.range.step) {
       cbparam.value = itr->second.value;
@@ -321,6 +342,18 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
       }
       filters.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
     }
+  }
+
+  if (fabs(sharp_caps_.value - sharp_caps_.caps.range.default_value) >=
+      sharp_caps_.caps.range.step) {
+    filterparam.value = sharp_caps_.value;
+    filterparam.type = VAProcFilterSharpening;
+    if (!sharp.CreateBuffer(va_context_, VAProcFilterParameterBufferType,
+                            sizeof(VAProcFilterParameterBuffer), 1,
+                            &filterparam)) {
+      return false;
+    }
+    filters.push_back(sharp.buffer());
   }
 
   if (filters.size()) {

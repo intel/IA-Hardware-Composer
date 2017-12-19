@@ -404,6 +404,24 @@ void MosaicDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   }
 }
 
+void MosaicDisplay::SetVideoSharp(float value) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoSharp(value);
+  }
+}
+
+void MosaicDisplay::GetVideoSharp(float *value, float *start, float *end) {
+  physical_displays_.at(0)->GetVideoSharp(value, start, end);
+}
+
+void MosaicDisplay::RestoreVideoDefaultSharp() {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RestoreVideoDefaultSharp();
+  }
+}
+
 void MosaicDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                        uint32_t /*primary_height*/,
                                        uint32_t /*display_width*/,

@@ -59,6 +59,9 @@ class Compositor {
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end);
   void RestoreVideoDefaultColor(HWCColorControl color);
+  void SetVideoSharp(float value);
+  void GetVideoSharp(float *value, float *start, float *end);
+  void RestoreVideoDefaultSharp();
 
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,
@@ -72,6 +75,7 @@ class Compositor {
   std::unique_ptr<CompositorThread> thread_;
   SpinLock lock_;
   HWCColorMap colors_;
+  float sharp_;
 };
 
 }  // namespace hwcomposer

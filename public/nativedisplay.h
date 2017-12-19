@@ -203,8 +203,27 @@ class NativeDisplay {
   /**
    * API for restoring video default color in HWC
    */
-   virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
-   }
+  virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
+  }
+
+  /**
+   * API for setting video sharp in HWC
+   */
+  virtual void SetVideoSharp(float /*value*/) {
+  }
+
+  /**
+       * API for getting video sharp in HWC
+       */
+  virtual void GetVideoSharp(float * /*value*/, float * /*start*/,
+                             float * /*end*/) {
+  }
+
+  /**
+       * API for restoring video default sharp in HWC
+       */
+  virtual void RestoreVideoDefaultSharp() {
+  }
 
   /**
   * API for setting display Broadcast RGB range property

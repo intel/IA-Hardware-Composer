@@ -78,6 +78,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       MediaState &media_state = state.media_state_;
       lock_.lock();
       media_state.colors_ = colors_;
+      media_state.sharp_ = sharp_;
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.source_layers().at(0)];
       media_state.layer_ = &layer;
@@ -209,6 +210,21 @@ void Compositor::GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
 }
 
 void Compositor::RestoreVideoDefaultColor(HWCColorControl /*color*/) {
+  // TODO
+}
+
+void Compositor::SetVideoSharp(float value) {
+  lock_.lock();
+  sharp_ = value;
+  lock_.unlock();
+}
+
+void Compositor::GetVideoSharp(float * /*value*/, float * /*start*/,
+                               float * /*end*/) {
+  // TODO
+}
+
+void Compositor::RestoreVideoDefaultSharp() {
   // TODO
 }
 
