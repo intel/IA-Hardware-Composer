@@ -64,8 +64,7 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
 bool DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> &layers,
     std::vector<OverlayLayer *> &cursor_layers, bool pending_modeset,
-    bool disable_overlay, DisplayPlaneStateList &composition,
-    bool request_video_effect) {
+    bool disable_overlay, DisplayPlaneStateList &composition) {
   CTRACE();
   // Let's mark all planes as free to be used.
   for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
@@ -88,15 +87,8 @@ bool DisplayPlaneManager::ValidateLayers(
   // primary layer cannot be scanned out directly.
   bool prefer_seperate_plane = primary_layer->PreferSeparatePlane();
   bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
-  bool force_va = false;
 
-  // If request video effect we have to use VA to process the video layer
-  if (request_video_effect && primary_layer->IsVideoLayer()) {
-    force_va = true;
-  }
-
-  if (force_gpu || force_va ||
-      FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
+  if (force_gpu || FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
     render_layers = true;
     if (force_gpu || !prefer_seperate_plane) {
       DisplayPlaneState &last_plane = composition.back();
@@ -153,10 +145,6 @@ bool DisplayPlaneManager::ValidateLayers(
         // If we are able to composite buffer with the given plane, lets use
         // it.
         bool fall_back = FallbacktoGPU(j->get(), layer, commit_planes);
-        if (request_video_effect && layer->IsVideoLayer()) {
-          fall_back = true;
-        }
-
         if (!fall_back || prefer_seperate_plane ||
             layer->PreferSeparatePlane()) {
           composition.emplace_back(j->get(), layer, index);
