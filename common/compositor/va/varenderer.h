@@ -39,6 +39,7 @@ class VARenderer : public Renderer {
  private:
   int DrmFormatToVAFormat(int format);
   int DrmFormatToRTFormat(int format);
+  uint32_t HWCTransformToVA(uint32_t transform);
 
   void *va_display_ = nullptr;
 };
