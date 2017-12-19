@@ -271,6 +271,16 @@ class DisplayQueue {
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
   bool applied_video_effect_ = false;
+  // Set to true when layers are validated and commit fails.
+  bool last_commit_failed_update_ = false;
+  // Surfaces to be marked as not in use. These
+  // are surfaces which are added to surfaces_not_inuse_
+  // below.
+  std::vector<NativeSurface*> mark_not_inuse_;
+  // Surfaces which are currently on screen and
+  // need to be marked as not in use during next
+  // frame.
+  std::vector<NativeSurface*> surfaces_not_inuse_;
 };
 
 }  // namespace hwcomposer

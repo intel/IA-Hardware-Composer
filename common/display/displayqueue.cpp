@@ -178,19 +178,16 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       // Let's make sure we swap the surface if content has changed or
       // we need to clear the surface.
-      last_plane.TransferSurfaces(plane.GetSurfaces(),
-				  content_changed || clear_surface || update_source_rect);
+      last_plane.TransferSurfaces(plane.GetSurfaces(), content_changed ||
+                                                           clear_surface ||
+                                                           update_source_rect);
       std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
       size_t size = surfaces.size();
-      if (update_source_rect) {
-        const HwcRect<float>& current_rect = last_plane.GetSourceCrop();
-        content_changed = true;
-        for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->ResetSourceCrop(current_rect);
-        }
-      }
-
-      if (clear_surface) {
+      // We consider last_commit_failed_update_ state here. Displayplanemanager
+      // Tries to recycle free surfaces and it could have changed the rect of
+      // these surfaces during test commit. Let's make sure the rect is correct
+      // even in this case.
+      if (clear_surface || last_commit_failed_update_ || update_source_rect) {
         content_changed = true;
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
         const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
@@ -436,9 +433,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (request_full_validation) {
       validate_layers = true;
-      UpdateSurfaceInUse(false, current_composition_planes);
-      UpdateSurfaceInUse(true, previous_plane_state_);
-      DisplayPlaneStateList().swap(current_composition_planes);
     } else if (add_cursor_layer) {
       bool render_cursor = display_plane_manager_->ValidateCursorLayer(
           cursor_layers, current_composition_planes);
@@ -450,11 +444,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  // Reset last commit failure state.
+  if (last_commit_failed_update_) {
+    last_commit_failed_update_ = false;
+    std::vector<NativeSurface*>().swap(surfaces_not_inuse_);
+  }
+
   if (validate_layers) {
     if (!idle_frame)
       tracker.ResetTrackerState();
 
+    UpdateSurfaceInUse(false, current_composition_planes);
     RecyclePreviousPlaneSurfaces();
+    DisplayPlaneStateList().swap(current_composition_planes);
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
         idle_frame || disable_ovelays, current_composition_planes);
@@ -493,6 +495,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     IgnoreCompositionResults(current_composition_planes);
+    last_commit_failed_update_ = true;
     return false;
   }
 
@@ -516,11 +519,26 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     IgnoreCompositionResults(current_composition_planes);
+    last_commit_failed_update_ = true;
     return false;
   }
 
+  // Mark any surfaces as not in use. These surfaces
+  // where not marked earlier as they where onscreen.
+  // Doing it here also ensures that if this surface
+  // is still in use than it will be marked in use
+  // below.
+  if (!mark_not_inuse_.empty()) {
+    size_t size = mark_not_inuse_.size();
+    for (uint32_t i = 0; i < size; i++) {
+      mark_not_inuse_.at(i)->SetInUse(false);
+    }
+
+    std::vector<NativeSurface*>().swap(mark_not_inuse_);
+  }
+
   in_flight_layers_.swap(layers);
-  UpdateSurfaceInUse(false, previous_plane_state_);
+  RecyclePreviousPlaneSurfaces();
   previous_plane_state_.swap(current_composition_planes);
   UpdateSurfaceInUse(true, previous_plane_state_);
 
@@ -557,6 +575,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (handle_display_initializations_) {
     handle_display_initializations_ = false;
     display_->HandleLazyInitialization();
+  }
+
+  // Swap any surfaces which are to be marked as not in
+  // use next frame.
+  if (!surfaces_not_inuse_.empty()) {
+    surfaces_not_inuse_.swap(mark_not_inuse_);
   }
 
   return true;
@@ -648,7 +672,14 @@ void DisplayQueue::UpdateSurfaceInUse(
 void DisplayQueue::RecyclePreviousPlaneSurfaces() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    if (surfaces.empty())
+      continue;
+
     size_t size = surfaces.size();
+    NativeSurface* surface = surfaces.at(0);
+    // Make sure we don't mark the current on-screen surface.
+    surface->SetInUse(true);
+    surfaces_not_inuse_.emplace_back(surface);
     // Let's not mark the surface currently on screen as free.
     for (size_t i = 1; i < size; i++) {
       surfaces.at(i)->SetInUse(false);
@@ -900,8 +931,11 @@ void DisplayQueue::UpdateScalingRatio(uint32_t primary_width,
 void DisplayQueue::ResetQueue() {
   total_cursor_layers_ = 0;
   applied_video_effect_ = false;
+  last_commit_failed_update_ = false;
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
+  std::vector<NativeSurface*>().swap(mark_not_inuse_);
+  std::vector<NativeSurface*>().swap(surfaces_not_inuse_);
   if (display_plane_manager_->HasSurfaces())
     display_plane_manager_->ReleaseAllOffScreenTargets();
 
