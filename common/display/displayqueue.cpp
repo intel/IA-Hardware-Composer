@@ -125,8 +125,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool ignore_commit = !cursor_layer_removed;
   bool needs_revalidation = false;
   for (DisplayPlaneState& plane : previous_plane_state_) {
-    bool plane_state_render =
-        plane.GetCompositionState() == DisplayPlaneState::State::kRender;
     if (cursor_layer_removed && plane.IsCursorPlane()) {
       plane.plane()->SetInUse(false);
       continue;
@@ -138,7 +136,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     last_plane.CopyState(plane);
     last_plane.AddLayers(plane.source_layers(), layers, cursor_layer_removed);
 
-    if (plane_state_render || plane.SurfaceRecycled() || plane.ApplyEffects()) {
+    if (plane.NeedsOffScreenComposition()) {
       bool content_changed = false;
       bool update_source_rect = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();

@@ -36,12 +36,6 @@ typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
 
 class DisplayPlaneState {
  public:
-  enum class State : int32_t {
-    kScanout,  // Scanout the layer directly.
-    kRender,   // Needs to render the contents to
-               // layer before scanning out.
-  };
-
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
@@ -68,10 +62,6 @@ class DisplayPlaneState {
     plane_->SetInUse(true);
     // We don't copy recycled_surface_ state as this
     // should be determined in DisplayQueue for every frame.
-  }
-
-  State GetCompositionState() const {
-    return state_;
   }
 
   const HwcRect<int> &GetDisplayFrame() const {
@@ -179,7 +169,6 @@ class DisplayPlaneState {
   }
 
   void ReUseOffScreenTarget() {
-    state_ = State::kScanout;
     recycled_surface_ = true;
   }
 
@@ -331,12 +320,36 @@ class DisplayPlaneState {
     return state_ == State::kScanout;
   }
 
+  // Returns true if offscreen composition
+  // is needed for this plane.
+  bool NeedsOffScreenComposition() {
+    if (state_ == State::kRender)
+      return true;
+
+    if (recycled_surface_) {
+      return true;
+    }
+
+    if (apply_effects_) {
+      return true;
+    }
+
+    return false;
+  }
+
  private:
   enum class PlaneType : int32_t {
     kCursor,  // Plane is compositing only Cursor.
     kVideo,   // Plane is compositing only Media content.
     kNormal   // Plane is compositing different types of content.
   };
+
+  enum class State : int32_t {
+    kScanout,  // Scanout the layer directly.
+    kRender,   // Needs to render the contents to
+               // layer before scanning out.
+  };
+
   State state_ = State::kScanout;
   DisplayPlane *plane_ = NULL;
   const OverlayLayer *layer_ = NULL;

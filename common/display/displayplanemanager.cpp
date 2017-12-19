@@ -138,9 +138,7 @@ bool DisplayPlaneManager::ValidateLayers(
 #endif
       DisplayPlaneState &last_plane = composition.back();
       OverlayLayer *previous_layer = NULL;
-      if (previous_layer &&
-          last_plane.GetCompositionState() ==
-              DisplayPlaneState::State::kRender) {
+      if (previous_layer && last_plane.NeedsOffScreenComposition()) {
         ValidateForDisplayScaling(composition.back(), commit_planes,
                                   previous_layer);
         render_layers = true;
@@ -197,7 +195,7 @@ bool DisplayPlaneManager::ValidateLayers(
       last_plane.AddLayer(previous_layer);
     }
 
-    if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+    if (last_plane.NeedsOffScreenComposition()) {
       if (previous_layer) {
         // In this case we need to fallback to 3Dcomposition till Media
         // backend adds support for multiple layers.
@@ -229,7 +227,7 @@ bool DisplayPlaneManager::ValidateLayers(
   if (render_layers) {
     ValidateFinalLayers(composition, layers);
     for (DisplayPlaneState &plane : composition) {
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      if (plane.NeedsOffScreenComposition()) {
         const std::vector<size_t> &source_layers = plane.source_layers();
         size_t layers_size = source_layers.size();
         bool useplanescalar = plane.IsUsingPlaneScalar();
@@ -268,7 +266,7 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
   if (plane_handler_->TestCommit(commit_planes)) {
     *request_full_validation = false;
     for (DisplayPlaneState &plane : composition) {
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      if (plane.NeedsOffScreenComposition()) {
         render_layers = true;
         const std::vector<size_t> &source_layers = plane.source_layers();
         size_t layers_size = source_layers.size();
@@ -631,8 +629,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
   std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &plane : composition) {
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender &&
-        !plane.GetOffScreenTarget()) {
+    if (plane.NeedsOffScreenComposition() && !plane.GetOffScreenTarget()) {
       EnsureOffScreenTarget(plane);
     }
 
@@ -645,7 +642,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     // We start off with Primary plane.
     DisplayPlane *current_plane = primary_plane_;
     for (DisplayPlaneState &plane : composition) {
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
+      if (plane.GetOffScreenTarget()) {
         plane.GetOffScreenTarget()->SetInUse(false);
       }
     }
