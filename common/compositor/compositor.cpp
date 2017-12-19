@@ -81,8 +81,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.source_layers().at(0)];
       media_state.layer_ = &layer;
-    } else if (plane.GetCompositionState() ==
-               DisplayPlaneState::State::kRender) {
+    } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
