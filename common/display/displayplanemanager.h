@@ -45,8 +45,7 @@ class DisplayPlaneManager {
   bool ValidateLayers(std::vector<OverlayLayer> &layers,
                       std::vector<OverlayLayer *> &cursor_layers,
                       bool pending_modeset, bool disable_overlay,
-                      DisplayPlaneStateList &composition,
-                      bool request_video_effect);
+                      DisplayPlaneStateList &composition);
 
   // This can be used to quickly check if the new DisplayPlaneStateList
   // can be succefully commited before doing a full re-validation.

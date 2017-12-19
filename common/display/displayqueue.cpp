@@ -427,7 +427,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (!request_full_validation && force_media_composition) {
       SetMediaEffectsState(requested_video_effect, layers,
                            current_composition_planes);
-      if (!render_layers && requested_video_effect) {
+      if (requested_video_effect) {
         render_layers = true;
       }
 
@@ -457,8 +457,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     RecyclePreviousPlaneSurfaces();
     render_layers = display_plane_manager_->ValidateLayers(
         layers, cursor_layers, state_ & kConfigurationChanged,
-        idle_frame || disable_ovelays, current_composition_planes,
-        requested_video_effect);
+        idle_frame || disable_ovelays, current_composition_planes);
+    // If Video effects need to be applied, let's make sure
+    // we go through the composition pass for Video Layers.
+    if (force_media_composition && requested_video_effect) {
+      SetMediaEffectsState(requested_video_effect, layers,
+                           current_composition_planes);
+      render_layers = true;
+    }
     state_ &= ~kConfigurationChanged;
   }
 
