@@ -119,7 +119,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool cursor_layer_removed,
                                    DisplayPlaneStateList* composition,
                                    bool* render_layers, bool* can_ignore_commit,
-                                   bool* re_validate_commit) {
+                                   bool* re_validate_commit,
+                                   bool* force_full_validation) {
   CTRACE();
   bool needs_gpu_composition = false;
   bool ignore_commit = !cursor_layer_removed;
@@ -146,8 +147,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       for (size_t i = 0; i < layers_size; i++) {
         size_t source_index = source_layers.at(i);
         const OverlayLayer& layer = layers.at(source_index);
-        if (!needs_revalidation)
+        if (!needs_revalidation) {
           needs_revalidation = layer.NeedsRevalidation();
+        }
 
         if (layer.HasDimensionsChanged()) {
           last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
@@ -248,8 +250,17 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     } else {
       const OverlayLayer* layer =
           &(*(layers.begin() + last_plane.source_layers().front()));
-      if (layer->GetBuffer()->GetFb() == 0) {
+      OverlayBuffer* buffer = layer->GetBuffer();
+      if (buffer->GetFb() == 0) {
         layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
+
+        // FB creation failed, we need to re-validate the
+        // whole commit.
+        if (buffer->GetFb() == 0) {
+          *force_full_validation = true;
+          ignore_commit = false;
+          break;
+        }
       }
 
       last_plane.SetOverlayLayer(layer);
@@ -264,7 +275,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   }
 
   *render_layers = needs_gpu_composition;
-  if (needs_gpu_composition)
+  if (needs_gpu_composition || needs_revalidation)
     ignore_commit = false;
 
   *can_ignore_commit = ignore_commit;
@@ -411,39 +422,39 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
     bool can_ignore_commit = false;
-    bool request_full_validation = false;
     bool re_validate_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
     GetCachedLayers(layers, removed_cursor_layer, &current_composition_planes,
-                    &render_layers, &can_ignore_commit, &re_validate_commit);
+                    &render_layers, &can_ignore_commit, &re_validate_commit,
+                    &validate_layers);
 
-    // Let's re-validate if their was a request for this.
-    if (re_validate_commit) {
+    if (!validate_layers && re_validate_commit) {
+      // Let's re-validate if their was a request for this.
       display_plane_manager_->ReValidateLayers(
-          layers, current_composition_planes, &request_full_validation);
+          layers, current_composition_planes, &validate_layers);
     }
 
-    if (!request_full_validation && force_media_composition) {
-      SetMediaEffectsState(requested_video_effect, layers,
-                           current_composition_planes);
-      if (requested_video_effect) {
-        render_layers = true;
+    if (!validate_layers) {
+      if (force_media_composition) {
+        SetMediaEffectsState(requested_video_effect, layers,
+                             current_composition_planes);
+        if (requested_video_effect) {
+          render_layers = true;
+        }
+
+        can_ignore_commit = false;
       }
 
-      can_ignore_commit = false;
-    }
-
-    if (request_full_validation) {
-      validate_layers = true;
-    } else if (add_cursor_layer) {
-      bool render_cursor = display_plane_manager_->ValidateCursorLayer(
-          cursor_layers, current_composition_planes);
-      if (!render_layers)
-        render_layers = render_cursor;
-    } else if (can_ignore_commit) {
-      IgnoreCompositionResults(current_composition_planes);
-      return true;
+      if (add_cursor_layer) {
+        bool render_cursor = display_plane_manager_->ValidateCursorLayer(
+            cursor_layers, current_composition_planes);
+        if (!render_layers)
+          render_layers = render_cursor;
+      } else if (can_ignore_commit) {
+        IgnoreCompositionResults(current_composition_planes);
+        return true;
+      }
     }
   }
 
@@ -512,7 +523,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 #endif
   if (state_ & kNeedsColorCorrection) {
     display_->SetColorCorrection(gamma_, contrast_, brightness_);
-    display_->SetColorTransformMatrix(color_transform_matrix_, color_transform_hint_);
+    display_->SetColorTransformMatrix(color_transform_matrix_,
+                                      color_transform_hint_);
     state_ &= ~kNeedsColorCorrection;
   }
 
