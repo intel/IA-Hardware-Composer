@@ -86,6 +86,8 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
       is_yuv_ = false;
       total_planes_ = 1;
   }
+
+  std:memset(&image_, 0, sizeof(image_));
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
@@ -240,9 +242,7 @@ void DrmBuffer::SetRecommendedFormat(uint32_t format) {
 
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   if (image_.drm_fd_) {
-    ResourceHandle temp;
-    temp.drm_fd_ = image_.drm_fd_;
-    resource_manager_->MarkResourceForDeletion(temp, false);
+    return true;
   }
 
   image_.drm_fd_ = 0;
