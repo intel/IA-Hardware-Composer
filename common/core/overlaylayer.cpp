@@ -91,11 +91,13 @@ void OverlayLayer::SetBlending(HWCBlending blending) {
 }
 
 void OverlayLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
-  source_crop_width_ = static_cast<int>(ceilf(source_crop.right) -
-                                        static_cast<int>(source_crop.left));
-  source_crop_height_ = static_cast<int>(ceilf(source_crop.bottom) -
-                                         static_cast<int>(source_crop.top));
   source_crop_ = source_crop;
+  source_crop_.right -= source_crop_.left;
+  source_crop_.bottom -= source_crop_.top;
+  source_crop_.top = 0;
+  source_crop_.left = 0;
+  source_crop_width_ = static_cast<int>(ceilf(source_crop_.right));
+  source_crop_height_ = static_cast<int>(ceilf(source_crop_.bottom));
 }
 
 void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
