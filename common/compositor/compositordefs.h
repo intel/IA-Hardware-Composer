@@ -70,5 +70,13 @@ typedef void* ResourceHandle;
 typedef void* GpuDisplay;
 #endif
 
+typedef struct media_import {
+  VASurfaceID surface_ = VA_INVALID_ID;
+  HWCNativeHandle handle_ = 0;
+  uint32_t drm_fd_ = 0;
+} MediaResourceHandle;
+
+typedef void* MediaDisplay;
+
 }  // namespace hwcomposer
 #endif  // COMMON_COMPOSITOR_COMPOSITORDEFS_H_

@@ -19,7 +19,6 @@
 
 #include <memory>
 
-#include "overlaybuffer.h"
 #include "overlaylayer.h"
 #include "platformdefines.h"
 

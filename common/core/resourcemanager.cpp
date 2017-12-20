@@ -30,7 +30,11 @@ ResourceManager::~ResourceManager() {
   }
 
   if (purged_resources_.size() > 0) {
-    ETRACE("ResourceManager destroyed with valid GPU resources \n");
+    ETRACE("ResourceManager destroyed with valid 3D resources \n");
+  }
+
+  if (purged_media_resources_.size() > 0) {
+    ETRACE("ResourceManager destroyed with valid Media resources \n");
   }
 }
 
@@ -88,8 +92,18 @@ void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle,
   lock_.unlock();
 }
 
-void ResourceManager::GetPurgedResources(std::vector<ResourceHandle>& resources,
-                                         bool* has_gpu_resource) {
+void ResourceManager::MarkMediaResourceForDeletion(
+    const MediaResourceHandle& handle) {
+  lock_.lock();
+  purged_media_resources_.emplace_back();
+  MediaResourceHandle& temp = purged_media_resources_.back();
+  std::memcpy(&temp, &handle, sizeof temp);
+  lock_.unlock();
+}
+
+void ResourceManager::GetPurgedResources(
+    std::vector<ResourceHandle>& gl_resources,
+    std::vector<MediaResourceHandle>& media_resources, bool* has_gpu_resource) {
   lock_.lock();
   size_t purged_size = purged_resources_.size();
   *has_gpu_resource = has_purged_gpu_resources_;
@@ -97,8 +111,8 @@ void ResourceManager::GetPurgedResources(std::vector<ResourceHandle>& resources,
   if (purged_size != 0) {
     for (size_t i = 0; i < purged_size; i++) {
       const ResourceHandle& handle = purged_resources_.at(i);
-      resources.emplace_back();
-      ResourceHandle& temp = resources.back();
+      gl_resources.emplace_back();
+      ResourceHandle& temp = gl_resources.back();
       std::memcpy(&temp, &handle, sizeof temp);
     }
 
@@ -106,15 +120,30 @@ void ResourceManager::GetPurgedResources(std::vector<ResourceHandle>& resources,
     has_purged_gpu_resources_ = false;
   }
 
+  purged_size = purged_media_resources_.size();
+  if (purged_size != 0) {
+    for (size_t i = 0; i < purged_size; i++) {
+      const MediaResourceHandle& handle = purged_media_resources_.at(i);
+      media_resources.emplace_back();
+      MediaResourceHandle& temp = media_resources.back();
+      std::memcpy(&temp, &handle, sizeof temp);
+    }
+
+    std::vector<MediaResourceHandle>().swap(purged_media_resources_);
+  }
+
   lock_.unlock();
 }
 
 bool ResourceManager::HasPurgedResources() {
   lock_.lock();
-  bool status = purged_resources_.empty();
+  bool status = false;
+  if (!purged_resources_.empty() || !purged_media_resources_.empty())
+    status = true;
+
   lock_.unlock();
 
-  return !status;
+  return status;
 }
 
 void ResourceManager::RefreshBufferCache() {

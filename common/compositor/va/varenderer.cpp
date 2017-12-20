@@ -19,12 +19,6 @@
 
 #include <xf86drm.h>
 #include <drm_fourcc.h>
-#include <va/va_drmcommon.h>
-#ifdef ANDROID
-#include <va/va_android.h>
-#else
-#include <va/va_drm.h>
-#endif
 
 #include "hwctrace.h"
 #include "nativesurface.h"
@@ -37,48 +31,6 @@
 #define UNUSED(x) (void*)(&x)
 
 namespace hwcomposer {
-
-class ScopedVASurfaceID {
- public:
-  ScopedVASurfaceID(VADisplay display) : display_(display) {
-  }
-
-  ~ScopedVASurfaceID() {
-    if (surface_ != VA_INVALID_ID) {
-      vaDestroySurfaces(display_, &surface_, 1);
-    }
-  }
-
-  bool CreateSurface(int format, VASurfaceAttribExternalBuffers& external) {
-    CTRACE();
-    VASurfaceAttrib attribs[2];
-    attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
-    attribs[0].type = VASurfaceAttribMemoryType;
-    attribs[0].value.type = VAGenericValueTypeInteger;
-    attribs[0].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME;
-
-    attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
-    attribs[1].type = VASurfaceAttribExternalBufferDescriptor;
-    attribs[1].value.type = VAGenericValueTypePointer;
-    attribs[1].value.value.p = &external;
-
-    VAStatus ret = vaCreateSurfaces(display_, format, external.width,
-                                    external.height, &surface_, 1, attribs, 2);
-    return ret == VA_STATUS_SUCCESS ? true : false;
-  }
-
-  operator VASurfaceID() const {
-    return surface_;
-  }
-
-  VASurfaceID surface() const {
-    return surface_;
-  }
-
- private:
-  VADisplay display_;
-  VASurfaceID surface_ = VA_INVALID_ID;
-};
 
 VARenderer::~VARenderer() {
   DestroyContext();
@@ -180,47 +132,47 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     return false;
   }
 
-  VASurfaceAttribExternalBuffers external_in;
-  memset(&external_in, 0, sizeof(external_in));
-  const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
-  unsigned long prime_fd_in = buffer_in->GetPrimeFD();
-  rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
-  external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
-  external_in.width = buffer_in->GetWidth();
-  external_in.height = buffer_in->GetHeight();
-  external_in.num_planes = buffer_in->GetTotalPlanes();
-  const uint32_t* pitches = buffer_in->GetPitches();
-  const uint32_t* offsets = buffer_in->GetOffsets();
-  for (unsigned int i = 0; i < external_in.num_planes; i++) {
-    external_in.pitches[i] = pitches[i];
-    external_in.offsets[i] = offsets[i];
-  }
-  external_in.num_buffers = 1;
-  external_in.buffers = &prime_fd_in;
-
-  ScopedVASurfaceID surface_in(va_display_);
-  if (!surface_in.CreateSurface(rt_format, external_in)) {
-    DTRACE("Create Input surface failed\n");
+  // Get Input Surface.
+  OverlayBuffer* buffer_in = state.layer_->GetBuffer();
+  const MediaResourceHandle& resource = buffer_in->GetMediaResource(
+      va_display_, state.layer_->GetSourceCropWidth(),
+      state.layer_->GetSourceCropHeight());
+  VASurfaceID surface_in = resource.surface_;
+  if (surface_in == VA_INVALID_ID) {
+    ETRACE("Failed to create Va Input Surface. \n");
     return false;
   }
 
-  VASurface* out_surface = static_cast<VASurface*>(surface);
-
-  out_surface->CreateVASurface(va_display_);
-  if (!out_surface) {
-    ETRACE("Failed to create Va Surface. \n");
+  // Get Output Surface.
+  OverlayLayer* layer_out = surface->GetLayer();
+  const MediaResourceHandle& out_resource =
+      layer_out->GetBuffer()->GetMediaResource(
+          va_display_, layer_out->GetSourceCropWidth(),
+          layer_out->GetSourceCropHeight());
+  VASurfaceID surface_out = out_resource.surface_;
+  if (surface_out == VA_INVALID_ID) {
+    ETRACE("Failed to create Va Output Surface. \n");
     return false;
   }
 
   VARectangle surface_region;
-  const HwcRect<float>& source_crop = state.layer_->GetSourceCrop();
+  OverlayLayer* layer_in = state.layer_;
+  const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
   surface_region.x = static_cast<int>(source_crop.left);
   surface_region.y = static_cast<int>(source_crop.top);
-  surface_region.width = state.layer_->GetSourceCropWidth();
-  surface_region.height = state.layer_->GetSourceCropHeight();
+  surface_region.width = layer_in->GetSourceCropWidth();
+  surface_region.height = layer_in->GetSourceCropHeight();
+
+  VARectangle output_region;
+  const HwcRect<float>& source_crop_out = layer_out->GetSourceCrop();
+  output_region.x = static_cast<int>(source_crop_out.left);
+  output_region.y = static_cast<int>(source_crop_out.top);
+  output_region.width = layer_out->GetSourceCropWidth();
+  output_region.height = layer_out->GetSourceCropHeight();
+
   param_.surface = surface_in;
   param_.surface_region = &surface_region;
-  param_.output_region = out_surface->GetOutputRegion();
+  param_.output_region = &output_region;
 
   DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
             surface_region.y, surface_region.width, surface_region.height);
@@ -240,12 +192,25 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   }
 
   VAStatus ret = VA_STATUS_SUCCESS;
-  ret = vaBeginPicture(va_display_, va_context_, out_surface->GetSurfaceID());
+  ret = vaBeginPicture(va_display_, va_context_, surface_out);
   ret |=
       vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
   ret |= vaEndPicture(va_display_, va_context_);
 
   return ret == VA_STATUS_SUCCESS ? true : false;
+}
+
+bool VARenderer::DestroyMediaResources(
+    std::vector<struct media_import>& resources) {
+  size_t purged_size = resources.size();
+  for (size_t i = 0; i < purged_size; i++) {
+    MediaResourceHandle& handle = resources.at(i);
+    if (handle.surface_ != VA_INVALID_ID) {
+      vaDestroySurfaces(va_display_, &handle.surface_, 1);
+    }
+  }
+
+  return true;
 }
 
 bool VARenderer::CreateContext() {

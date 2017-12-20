@@ -75,8 +75,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(handle, resource_manager,
-                                       register_buffer);
+    buffer->InitializeFromNativeHandle(handle, resource_manager);
     if (register_buffer) {
       resource_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
     }

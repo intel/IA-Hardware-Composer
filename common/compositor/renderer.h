@@ -27,6 +27,7 @@ namespace hwcomposer {
 class NativeSurface;
 struct RenderState;
 struct MediaState;
+struct media_import;
 
 class Renderer {
  public:
@@ -49,6 +50,11 @@ class Renderer {
   // Needs to be implemented for Media Renderer's only.
   virtual bool Init(int /*gpu_fd*/) {
     return false;
+  }
+
+  virtual bool DestroyMediaResources(
+      std::vector<struct media_import>& /*resources*/) {
+    return true;
   }
 
   virtual bool Draw(const MediaState& /*state*/, NativeSurface* /*surface*/) {
