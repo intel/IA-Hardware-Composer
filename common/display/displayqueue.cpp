@@ -138,7 +138,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (plane.NeedsOffScreenComposition()) {
       bool content_changed = false;
-      bool update_source_rect = false;
+      bool update_rect = false;
       const std::vector<size_t>& source_layers = last_plane.source_layers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
@@ -151,14 +151,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         if (layer.HasDimensionsChanged()) {
           last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
-          clear_surface = true;
+          update_rect = true;
         } else if (layer.NeedsToClearSurface()) {
           clear_surface = true;
         }
 
         if (layer.HasSourceRectChanged() && last_plane.IsUsingPlaneScalar()) {
           last_plane.SetSourceCrop(layer.GetSourceCrop());
-          update_source_rect = true;
+          update_rect = true;
         }
 
         if (!clear_surface && layer.HasLayerContentChanged()) {
@@ -176,18 +176,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
+      if (update_rect) {
+        content_changed = true;
+      }
+
       // Let's make sure we swap the surface if content has changed or
       // we need to clear the surface.
-      last_plane.TransferSurfaces(plane.GetSurfaces(), content_changed ||
-                                                           clear_surface ||
-                                                           update_source_rect);
+      last_plane.TransferSurfaces(plane.GetSurfaces(),
+                                  content_changed || clear_surface);
       std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
       size_t size = surfaces.size();
       // We consider last_commit_failed_update_ state here. Displayplanemanager
       // Tries to recycle free surfaces and it could have changed the rect of
       // these surfaces during test commit. Let's make sure the rect is correct
       // even in this case.
-      if (clear_surface || last_commit_failed_update_ || update_source_rect) {
+      if (clear_surface || last_commit_failed_update_ || update_rect) {
         content_changed = true;
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
         const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
