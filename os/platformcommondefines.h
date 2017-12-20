@@ -27,9 +27,6 @@ VkFormat NativeToVkFormat(int native_format);
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <va/va.h>
-#include <va/va_vpp.h>
-#include <va/va_drmcommon.h>
 
 #define DRM_FORMAT_NONE fourcc_code('0', '0', '0', '0')
 

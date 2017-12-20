@@ -28,6 +28,8 @@
 #include "resourcemanager.h"
 #include "vautils.h"
 
+#include <va/va_drmcommon.h>
+
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {

@@ -42,7 +42,9 @@ class NativeSurface {
   bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
                                        ResourceManager* resource_manager);
 
-  virtual bool MakeCurrent() = 0;
+  virtual bool MakeCurrent() {
+    return false;
+  }
 
   int GetWidth() const {
     return width_;

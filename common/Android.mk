@@ -68,7 +68,6 @@ LOCAL_SRC_FILES := \
         compositor/factory.cpp \
         compositor/nativesurface.cpp \
         compositor/renderstate.cpp \
-	compositor/va/vasurface.cpp \
 	compositor/va/varenderer.cpp \
 	compositor/va/vautils.cpp \
         core/gpudevice.cpp \
