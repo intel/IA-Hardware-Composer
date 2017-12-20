@@ -101,19 +101,13 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
-      state_ &= ~kSurfaceDamaged;
+      state_ &= ~kSurfaceDamageChanged;
       surface_damage_ = rect;
       return;
     }
   } else if (rects == 0) {
     rect = display_frame_;
   }
-
-  // Lets clip surface damage to display frame rect.
-  rect.left = std::max(display_frame_.left, rect.left);
-  rect.top = std::max(display_frame_.top, rect.top);
-  rect.right = std::min(display_frame_.right, rect.right);
-  rect.bottom = std::min(display_frame_.bottom, rect.bottom);
 
   if ((surface_damage_.left == rect.left) &&
       (surface_damage_.top == rect.top) &&
@@ -122,7 +116,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     return;
   }
 
-  state_ |= kSurfaceDamaged;
+  state_ |= kSurfaceDamageChanged;
   surface_damage_ = rect;
 }
 
@@ -193,6 +187,7 @@ void HwcLayer::Validate() {
   state_ &= ~kVisibleRegionChanged;
   state_ |= kLayerValidated;
   state_ &= ~kLayerContentChanged;
+  state_ &= ~kSurfaceDamageChanged;
   layer_cache_ &= ~kLayerAttributesChanged;
   layer_cache_ &= ~kDisplayFrameRectChanged;
   layer_cache_ &= ~kDIsplayContentAttributesChanged;
@@ -219,7 +214,6 @@ void HwcLayer::Validate() {
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
   if (z_order_ != order) {
-    state_ |= kSurfaceDamaged;
     z_order_ = order;
   }
 }

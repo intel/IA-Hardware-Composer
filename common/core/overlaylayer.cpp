@@ -191,13 +191,11 @@ void OverlayLayer::UpdateSurfaceDamage(HwcLayer* layer) {
     return;
   }
 
-  if ((state_ & kClearSurface) || (state_ & kDimensionsChanged) ||
-      (transform_ != kIdentity)) {
+  if (!layer->HasLayerContentChanged()) {
+    surface_damage_ = HwcRect<int> (0, 0, 0, 0);
+  } else {
     surface_damage_ = display_frame_;
-    return;
   }
-
-  surface_damage_ = layer->GetSurfaceDamage();
 }
 
 void OverlayLayer::InitializeState(HwcLayer* layer,
@@ -415,7 +413,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   }
 
   if (!layer->HasVisibleRegionChanged() &&
-      !layer->HasSurfaceDamageRegionChanged() &&
       !layer->HasLayerContentChanged() && !content_changed) {
     state_ &= ~kLayerContentChanged;
   }

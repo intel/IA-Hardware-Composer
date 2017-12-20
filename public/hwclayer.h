@@ -100,11 +100,12 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if layer has been damaged
-   * from last Present call to NativeDisplay.
+   * API for querying damage region of this layer
+   * has changed from last Present call to
+   * NativeDisplay.
    */
   bool HasSurfaceDamageRegionChanged() const {
-    return state_ & kSurfaceDamaged;
+    return state_ & kSurfaceDamageChanged;
   }
 
   /**
@@ -254,7 +255,7 @@ struct HwcLayer {
   friend class PhysicalDisplay;
 
   enum LayerState {
-    kSurfaceDamaged = 1 << 0,
+    kSurfaceDamageChanged = 1 << 0,
     kLayerContentChanged = 1 << 1,
     kVisibleRegionChanged = 1 << 2,
     kVisible = 1 << 3,
@@ -288,7 +289,7 @@ struct HwcLayer {
   std::vector<int32_t> left_source_constraint_;
   std::vector<int32_t> right_source_constraint_;
   uint32_t z_order_ = 0;
-  int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
+  int state_ = kVisible | kSurfaceDamageChanged | kVisibleRegionChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged |
                      kDIsplayContentAttributesChanged;
 };
