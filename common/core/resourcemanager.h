@@ -66,8 +66,11 @@ class ResourceManager {
                       std::shared_ptr<OverlayBuffer>& pBuffer);
   void MarkResourceForDeletion(const ResourceHandle& handle,
                                bool has_valid_gpu_resources);
+
+  void MarkMediaResourceForDeletion(const MediaResourceHandle& handle);
   void RefreshBufferCache();
-  void GetPurgedResources(std::vector<ResourceHandle>& resources,
+  void GetPurgedResources(std::vector<ResourceHandle>& gl_resources,
+                          std::vector<MediaResourceHandle>& media_resources,
                           bool* has_gpu_resource);
   bool HasPurgedResources();
   void PurgeBuffer();
@@ -82,6 +85,7 @@ class ResourceManager {
                              BufferHash, BufferEqual> BUFFER_MAP;
   std::vector<BUFFER_MAP> cached_buffers_;
   std::vector<ResourceHandle> purged_resources_;
+  std::vector<MediaResourceHandle> purged_media_resources_;
   bool has_purged_gpu_resources_ = false;
   NativeBufferHandler* buffer_handler_;
   SpinLock lock_;

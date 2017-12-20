@@ -145,22 +145,48 @@ void CompositorThread::HandleReleaseRequest() {
   ScopedSpinLock lock(tasks_lock_);
   tasks_ &= ~kReleaseResources;
 
-  std::vector<ResourceHandle> purged_resources;
+  std::vector<ResourceHandle> purged_gl_resources;
+  std::vector<MediaResourceHandle> purged_media_resources;
   bool has_gpu_resource = false;
-  resource_manager_->GetPurgedResources(purged_resources, &has_gpu_resource);
-  size_t purged_size = purged_resources.size();
+  resource_manager_->GetPurgedResources(
+      purged_gl_resources, purged_media_resources, &has_gpu_resource);
+  size_t purged_size = purged_gl_resources.size();
 
   if (purged_size != 0) {
     if (has_gpu_resource) {
       Ensure3DRenderer();
-      gpu_resource_handler_->ReleaseGPUResources(purged_resources);
+      gpu_resource_handler_->ReleaseGPUResources(purged_gl_resources);
     }
 
     const NativeBufferHandler *handler =
         resource_manager_->GetNativeBufferHandler();
 
     for (size_t i = 0; i < purged_size; i++) {
-      const ResourceHandle &handle = purged_resources.at(i);
+      const ResourceHandle &handle = purged_gl_resources.at(i);
+      if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
+        ETRACE("Failed to remove fb %s", PRINTERROR());
+      }
+
+      if (!handle.handle_) {
+        continue;
+      }
+
+      handler->ReleaseBuffer(handle.handle_);
+      handler->DestroyHandle(handle.handle_);
+    }
+  }
+
+  purged_size = purged_media_resources.size();
+
+  if (purged_size != 0) {
+    EnsureMediaRenderer();
+    media_renderer_->DestroyMediaResources(purged_media_resources);
+
+    const NativeBufferHandler *handler =
+        resource_manager_->GetNativeBufferHandler();
+
+    for (size_t i = 0; i < purged_size; i++) {
+      const MediaResourceHandle &handle = purged_media_resources.at(i);
       if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
         ETRACE("Failed to remove fb %s", PRINTERROR());
       }

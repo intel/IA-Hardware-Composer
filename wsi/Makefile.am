@@ -23,7 +23,7 @@ SUBDIRS = .
 
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
-AM_CPP_INCLUDES = -Idrm -I../os/ -I../os/linux/ -I../public/ -I../common/display/ -I../common/core/ -I../common/utils/ -I../common/compositor/
+AM_CPP_INCLUDES = -Idrm -I../os/ -I../os/linux/ -I../public/ -I../common/display/ -I../common/core/ -I../common/utils/ -I../common/compositor/ -I../common/compositor/va
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 

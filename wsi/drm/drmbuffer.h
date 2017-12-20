@@ -36,8 +36,7 @@ class DrmBuffer : public OverlayBuffer {
   void Initialize(const HwcBuffer& bo);
 
   void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  ResourceManager* buffer_manager,
-                                  bool owns_gpu_resources) override;
+                                  ResourceManager* buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -80,6 +79,10 @@ class DrmBuffer : public OverlayBuffer {
 
   const ResourceHandle& GetGpuResource() override;
 
+  const MediaResourceHandle& GetMediaResource(MediaDisplay display,
+                                              uint32_t width,
+                                              uint32_t height) override;
+
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
   void SetRecommendedFormat(uint32_t format) override;
@@ -101,10 +104,12 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t prime_fd_ = 0;
   uint32_t usage_ = 0;
   uint32_t total_planes_ = 0;
+  uint32_t previous_width_ = 0;   // For Media usage.
+  uint32_t previous_height_ = 0;  // For Media usage.
   bool is_yuv_ = false;
-  bool owns_gpu_resources_ = false;
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
+  MediaResourceHandle media_image_;
 };
 
 }  // namespace hwcomposer

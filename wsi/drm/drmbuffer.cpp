@@ -26,12 +26,21 @@
 
 #include "hwctrace.h"
 #include "resourcemanager.h"
+#include "vautils.h"
 
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
-  if (owns_gpu_resources_) {
+  if (media_image_.surface_ == VA_INVALID_ID) {
     resource_manager_->MarkResourceForDeletion(image_, image_.texture_ > 0);
+  } else {
+    if (image_.texture_ > 0) {
+      image_.handle_ = 0;
+      image_.drm_fd_ = 0;
+      resource_manager_->MarkResourceForDeletion(image_, true);
+    }
+
+    resource_manager_->MarkMediaResourceForDeletion(media_image_);
   }
 }
 
@@ -89,8 +98,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
-                                           ResourceManager* resource_manager,
-                                           bool owns_gpu_resources) {
+                                           ResourceManager* resource_manager) {
   const NativeBufferHandler* handler =
       resource_manager->GetNativeBufferHandler();
   handler->CopyHandle(handle, &image_.handle_);
@@ -100,7 +108,7 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   }
 
   resource_manager_ = resource_manager;
-  owns_gpu_resources_ = owns_gpu_resources;
+  media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
 }
 
@@ -223,11 +231,75 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     glBindTexture(target, 0);
     image_.texture_ = texture;
   }
+
+  if (!external_import && image_.fb_ == 0) {
+    glGenFramebuffers(1, &image_.fb_);
+  }
 #elif USE_VK
-  ETRACE("Missing implementation for Vulkan. \n");
+  ETRACE("Missing implementation for creating FB and Texture with Vulkan. \n");
 #endif
 
   return image_;
+}
+
+const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
+                                                       uint32_t width,
+                                                       uint32_t height) {
+  uint32_t temp_width = width;
+  uint32_t temp_height = height;
+  if ((temp_height == 0) || temp_height > height_) {
+    temp_height = height_;
+  }
+
+  if ((temp_width == 0) || temp_width > width_) {
+    temp_width = width_;
+  }
+
+  if (media_image_.surface_ != VA_INVALID_ID) {
+    if ((previous_width_ == temp_width) && (previous_height_ == temp_height)) {
+      return media_image_;
+    }
+
+    MediaResourceHandle media_resource;
+    media_resource.surface_ = media_image_.surface_;
+    media_image_.surface_ = VA_INVALID_ID;
+    resource_manager_->MarkMediaResourceForDeletion(media_resource);
+  }
+
+  previous_width_ = width;
+  previous_height_ = height;
+
+  VASurfaceAttribExternalBuffers external;
+  memset(&external, 0, sizeof(external));
+  uint32_t rt_format = DrmFormatToRTFormat(format_);
+  external.pixel_format = DrmFormatToVAFormat(format_);
+  external.width = temp_width;
+  external.height = temp_height;
+  external.num_planes = total_planes_;
+  unsigned long prime_fd = prime_fd_;
+  for (unsigned int i = 0; i < total_planes_; i++) {
+    external.pitches[i] = pitches_[i];
+    external.offsets[i] = offsets_[i];
+  }
+
+  external.num_buffers = 1;
+  external.buffers = &prime_fd;
+
+  VASurfaceAttrib attribs[2];
+  attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
+  attribs[0].type = VASurfaceAttribMemoryType;
+  attribs[0].value.type = VAGenericValueTypeInteger;
+  attribs[0].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME;
+
+  attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
+  attribs[1].type = VASurfaceAttribExternalBufferDescriptor;
+  attribs[1].value.type = VAGenericValueTypePointer;
+  attribs[1].value.value.p = &external;
+
+  vaCreateSurfaces(display, rt_format, external.width, external.height,
+                   &media_image_.surface_, 1, attribs, 2);
+
+  return media_image_;
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource() {
@@ -246,6 +318,7 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   }
 
   image_.drm_fd_ = 0;
+  media_image_.drm_fd_ = 0;
 
   int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
                           gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
@@ -260,6 +333,7 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
     return false;
   }
 
+  media_image_.drm_fd_ = image_.drm_fd_;
   return true;
 }
 

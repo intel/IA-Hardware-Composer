@@ -32,6 +32,8 @@
 #include <ui/GraphicBuffer.h>
 #include "platformcommondefines.h"
 #include <cros_gralloc_handle.h>
+#include <va/va_android.h>
+
 #define DRV_I915 1
 #include <i915_private_android_types.h>
 

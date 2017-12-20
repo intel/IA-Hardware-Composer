@@ -21,6 +21,8 @@
 #include <stddef.h>
 #include <gbm.h>
 
+#include <va/va_drm.h>
+
 #include <cstring>
 #include <algorithm>
 #include <cstddef>

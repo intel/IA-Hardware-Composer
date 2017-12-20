@@ -16,13 +16,7 @@
 
 #include "vautils.h"
 
-#ifdef ANDROID
-#include <va/va_android.h>
-#else
-#include <va/va_drm.h>
-#endif
-
-#include <va/va_drmcommon.h>
+#include <platformdefines.h>
 
 #include <drm_fourcc.h>
 

@@ -28,14 +28,6 @@ GLSurface::GLSurface(uint32_t width, uint32_t height)
 }
 
 GLSurface::~GLSurface() {
-  if (resource_manager_ && layer_.GetBuffer()) {
-    const ResourceHandle& current = layer_.GetBuffer()->GetGpuResource();
-    ResourceHandle temp;
-    std::memcpy(&temp, &current, sizeof temp);
-    temp.fb_ = fb_;
-    resource_manager_->MarkResourceForDeletion(temp,
-                                               fb_ > 0 || temp.texture_ > 0);
-  }
 }
 
 bool GLSurface::InitializeGPUResources() {
@@ -49,14 +41,13 @@ bool GLSurface::InitializeGPUResources() {
     return false;
   }
 
-  // Create Fb.
-  GLuint gl_fb;
-  glGenFramebuffers(1, &gl_fb);
-  glBindFramebuffer(GL_FRAMEBUFFER, gl_fb);
+  // Bind Fb.
+  fb_ = import.fb_;
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                          import.texture_, 0);
 
-  fb_ = gl_fb;
+  fb_ = import.fb_;
   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
   if (status != GL_FRAMEBUFFER_COMPLETE) {
     switch (status) {

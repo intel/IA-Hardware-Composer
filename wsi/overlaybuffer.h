@@ -38,13 +38,8 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
-  // If owns_gpu_resources is true, than OverlayBuffer implementation
-  // is expected to mark these resources for deletion by calling
-  // MarkResourceForDeletion API of ResourceManager. If owns_gpu_resources
-  // is false than NativeSurface will handle this.
   virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                          ResourceManager* buffer_manager,
-                                          bool owns_gpu_resources) = 0;
+                                          ResourceManager* buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
@@ -65,10 +60,19 @@ class OverlayBuffer {
   virtual const uint32_t* GetOffsets() const = 0;
 
   // external_import should be true if this resource is not owned by HWC.
+  // If resource is owned by HWC, than the implementation needs to create
+  // frame buffer for this buffer.
   virtual const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
                                                bool external_import) = 0;
 
   virtual const ResourceHandle& GetGpuResource() = 0;
+
+  // Returns Media resource for this buffer which can be used by compositor.
+  // Surface will be clipped to width, height even if buffer size is
+  // greater than these values.
+  virtual const MediaResourceHandle& GetMediaResource(MediaDisplay display,
+                                                      uint32_t width,
+                                                      uint32_t height) = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 

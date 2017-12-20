@@ -18,13 +18,13 @@
 #define COMMON_COMPOSITOR_VA_VARENDERER_H_
 
 #include <map>
-#include <va/va.h>
-#include <va/va_vpp.h>
 
 #include "renderer.h"
 #include "hwcdefs.h"
 
 #include "vautils.h"
+
+#include <platformdefines.h>
 
 namespace hwcomposer {
 
@@ -83,6 +83,8 @@ class VARenderer : public Renderer {
   }
   void SetExplicitSyncSupport(bool /*disable_explicit_sync*/) override {
   }
+
+  bool DestroyMediaResources(std::vector<struct media_import>&) override;
 
  private:
   bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
