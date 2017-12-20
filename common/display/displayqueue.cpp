@@ -628,7 +628,7 @@ void DisplayQueue::ReleaseSurfaces() {
 }
 
 void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
-  if (state_ & kReleaseSurfaces) {
+  if (!layers_validated && (state_ & kReleaseSurfaces)) {
     ReleaseSurfaces();
   }
 
@@ -691,13 +691,24 @@ void DisplayQueue::RecyclePreviousPlaneSurfaces() {
       continue;
 
     size_t size = surfaces.size();
-    NativeSurface* surface = surfaces.at(0);
-    // Make sure we don't mark the current on-screen surface.
-    surface->SetInUse(true);
-    surfaces_not_inuse_.emplace_back(surface);
-    // Let's not mark the surface currently on screen as free.
-    for (size_t i = 1; i < size; i++) {
-      surfaces.at(i)->SetInUse(false);
+    size_t in_use_buffers = size;
+    // Make sure we don't mark current on-screen surface or
+    // one in flight. These surfaces will be added as part of
+    // surfaces_not_inuse_ to be marked at the end of current
+    // present call. They will be marked as not in use next
+    // frame in case we are not using them still.
+    if (size == 3) {
+      in_use_buffers = size - 1;
+    }
+
+    for (uint32_t i = 0; i < in_use_buffers; i++) {
+      NativeSurface* surface = surfaces.at(i);
+      surface->SetInUse(true);
+      surfaces_not_inuse_.emplace_back(surface);
+    }
+
+    if (size == 3) {
+      surfaces.at(2)->SetInUse(false);
     }
   }
 }
