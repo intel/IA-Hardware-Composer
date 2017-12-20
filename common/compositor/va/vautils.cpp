@@ -16,7 +16,7 @@
 
 #include "vautils.h"
 
-#include <platformdefines.h>
+#include <va/va.h>
 
 #include <drm_fourcc.h>
 

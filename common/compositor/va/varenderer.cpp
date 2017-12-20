@@ -25,7 +25,9 @@
 #include "overlaybuffer.h"
 #include "renderstate.h"
 
-#include "vasurface.h"
+#ifdef ANDROID
+#include <va/va_android.h>
+#endif
 
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
 #define UNUSED(x) (void*)(&x)
@@ -144,7 +146,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   }
 
   // Get Output Surface.
-  OverlayLayer* layer_out = surface->GetLayer();
+  const OverlayLayer* layer_out = surface->GetLayer();
   const MediaResourceHandle& out_resource =
       layer_out->GetBuffer()->GetMediaResource(
           va_display_, layer_out->GetSourceCropWidth(),
@@ -156,7 +158,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   }
 
   VARectangle surface_region;
-  OverlayLayer* layer_in = state.layer_;
+  const OverlayLayer* layer_in = state.layer_;
   const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
   surface_region.x = static_cast<int>(source_crop.left);
   surface_region.y = static_cast<int>(source_crop.top);

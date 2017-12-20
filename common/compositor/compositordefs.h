@@ -27,6 +27,8 @@
 
 #include <platformdefines.h>
 
+#include <va/va.h>
+
 namespace hwcomposer {
 
 // clang-format off
