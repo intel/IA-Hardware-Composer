@@ -216,16 +216,16 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (!handle)
     return false;
 
-  if (handle->gem_handle_ > 0) {
+  uint32_t gem_handle = handle->meta_data_.gem_handles_[0];
+  if (gem_handle > 0) {
     struct drm_gem_close gem_close;
     memset(&gem_close, 0, sizeof(gem_close));
-    gem_close.handle = handle->gem_handle_;
+    gem_close.handle = gem_handle;
     int ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
     if (ret)
-      ETRACE("Failed to close gem handle %d", ret);
+      ETRACE("Failed to close gem handle %d %d %d %d \n", ret,
+             handle->meta_data_.prime_fd_, handle->hwc_buffer_, gem_handle);
   }
-
-  handle->gem_handle_ = 0;
 
   return true;
 }
@@ -260,8 +260,6 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   } else {
     handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
   }
-
-  handle->gem_handle_ = id;
 
   // switch minigbm specific enum to a standard one
   if (handle->meta_data_.format_ == DRM_FORMAT_YVU420_ANDROID)
