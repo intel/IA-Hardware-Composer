@@ -310,9 +310,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource() {
 
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   if (image_.drm_fd_) {
-    ResourceHandle temp;
-    temp.drm_fd_ = image_.drm_fd_;
-    resource_manager_->MarkResourceForDeletion(temp, false);
+    return true;
   }
 
   image_.drm_fd_ = 0;
