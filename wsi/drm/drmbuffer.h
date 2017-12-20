@@ -33,8 +33,6 @@ class DrmBuffer : public OverlayBuffer {
 
   ~DrmBuffer() override;
 
-  void Initialize(const HwcBuffer& bo);
-
   void InitializeFromNativeHandle(HWCNativeHandle handle,
                                   ResourceManager* buffer_manager) override;
 
@@ -94,6 +92,7 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
+    void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;
