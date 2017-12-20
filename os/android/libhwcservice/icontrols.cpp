@@ -186,9 +186,9 @@ class BpControls : public BpInterface<IControls> {
       ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
       return ret;
     }
-    *value = reply.readInt32();
-    *startvalue = reply.readInt32();
-    *endvalue = reply.readInt32();
+    *value = reply.readFloat();
+    *startvalue = reply.readFloat();
+    *endvalue = reply.readFloat();
     return reply.readInt32();
   }
 
@@ -199,7 +199,7 @@ class BpControls : public BpInterface<IControls> {
     data.writeInterfaceToken(getInterfaceDescriptor());
     data.writeInt32(display);
     data.writeInt32(color);
-    data.writeInt32(value);
+    data.writeFloat(value);
     status_t ret =
         remote()->transact(TRANSACT_DISPLAY_SET_COLOR_PARAM, data, &reply);
     if (ret != NO_ERROR) {
