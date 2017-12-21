@@ -72,8 +72,12 @@ class ResourceManager {
   void GetPurgedResources(std::vector<ResourceHandle>& gl_resources,
                           std::vector<MediaResourceHandle>& media_resources,
                           bool* has_gpu_resource);
-  bool HasPurgedResources();
   void PurgeBuffer();
+
+  // This should be called by DisplayQueue at end of every present call
+  // to free all purged GL, Native and Media resources. Returns true
+  // if any resources are marked to be deleted else returns false.
+  bool PreparePurgedResources();
 
   const NativeBufferHandler* GetNativeBufferHandler() const {
     return buffer_handler_;
@@ -84,9 +88,21 @@ class ResourceManager {
   typedef std::unordered_map<HWCNativeBuffer, std::shared_ptr<OverlayBuffer>,
                              BufferHash, BufferEqual> BUFFER_MAP;
   std::vector<BUFFER_MAP> cached_buffers_;
+  // This should be used in same thread handling
+  // Present in NativeDisplay.
   std::vector<ResourceHandle> purged_resources_;
+  // This should be used in same thread handling
+  // Present in NativeDisplay.
   std::vector<MediaResourceHandle> purged_media_resources_;
+  // This should be used in same thread handling
+  // NativeDisplay.
   bool has_purged_gpu_resources_ = false;
+  // This can be used from any thread.
+  bool destroy_gpu_resources_ = false;
+  // This can be used from any thread.
+  std::vector<ResourceHandle> destroy_gl_resources_;
+  // This can be used from any thread.
+  std::vector<MediaResourceHandle> destroy_media_resources_;
   NativeBufferHandler* buffer_handler_;
   SpinLock lock_;
 #ifdef RESOURCE_CACHE_TRACING

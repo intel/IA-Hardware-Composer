@@ -145,8 +145,11 @@ class DisplayQueue {
 
   struct ScopedIdleStateTracker {
     ScopedIdleStateTracker(struct FrameStateTracker& tracker,
-                           Compositor& compositor)
-        : tracker_(tracker), compositor_(compositor) {
+                           Compositor& compositor,
+                           ResourceManager* resource_manager)
+        : tracker_(tracker),
+          compositor_(compositor),
+          resource_manager_(resource_manager) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
@@ -208,12 +211,14 @@ class DisplayQueue {
 
       tracker_.idle_lock_.unlock();
 
-      compositor_.FreeResources();
+      if (resource_manager_->PreparePurgedResources())
+        compositor_.FreeResources();
     }
 
    private:
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
+    ResourceManager* resource_manager_;
   };
 
   void HandleExit();
