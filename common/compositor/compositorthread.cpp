@@ -58,11 +58,6 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
 }
 
 void CompositorThread::FreeResources() {
-  // Let's not post a task if it's not needed.
-  if (!resource_manager_->HasPurgedResources()) {
-    return;
-  }
-
   tasks_lock_.lock();
   tasks_ |= kReleaseResources;
   tasks_lock_.unlock();
