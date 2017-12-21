@@ -99,7 +99,8 @@ enum class HWCColorControl : int32_t {
   kColorHue = 0,
   kColorSaturation = 1,
   kColorBrightness = 2,
-  kColorContrast = 3
+  kColorContrast = 3,
+  kColorSharp = 4
 };
 
 struct EnumClassHash {
