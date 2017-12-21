@@ -452,7 +452,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         if (!render_layers)
           render_layers = render_cursor;
       } else if (can_ignore_commit) {
-        IgnoreCompositionResults(current_composition_planes);
         return true;
       }
     }
