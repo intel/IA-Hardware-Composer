@@ -308,7 +308,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
 
-  resource_manager_->RefreshBufferCache();
   total_cursor_layers_ = 0;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -457,6 +456,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         if (!render_layers)
           render_layers = render_cursor;
       } else if (can_ignore_commit) {
+        in_flight_layers_.swap(layers);
         return true;
       }
     }
