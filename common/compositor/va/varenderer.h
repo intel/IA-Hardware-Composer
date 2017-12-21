@@ -84,7 +84,7 @@ class VARenderer : public Renderer {
   void SetExplicitSyncSupport(bool /*disable_explicit_sync*/) override {
   }
 
-  bool DestroyMediaResources(std::vector<struct media_import>&) override;
+  bool DestroyMediaResources(const std::vector<struct media_import>&) override;
 
  private:
   bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,

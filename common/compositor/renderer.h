@@ -53,7 +53,7 @@ class Renderer {
   }
 
   virtual bool DestroyMediaResources(
-      std::vector<struct media_import>& /*resources*/) {
+      const std::vector<struct media_import>& /*resources*/) {
     return true;
   }
 

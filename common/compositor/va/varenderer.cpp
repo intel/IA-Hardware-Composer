@@ -203,15 +203,21 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 }
 
 bool VARenderer::DestroyMediaResources(
-    std::vector<struct media_import>& resources) {
+    const std::vector<struct media_import>& resources) {
   size_t purged_size = resources.size();
+  std::vector<VASurfaceID> surfaces;
+
   for (size_t i = 0; i < purged_size; i++) {
-    MediaResourceHandle& handle = resources.at(i);
+    const MediaResourceHandle& handle = resources.at(i);
     if (handle.surface_ != VA_INVALID_ID) {
-      vaDestroySurfaces(va_display_, &handle.surface_, 1);
+      surfaces.emplace_back(handle.surface_);
     }
   }
 
+  if (surfaces.empty())
+    return true;
+
+  vaDestroySurfaces(va_display_, surfaces.data(), surfaces.size());
   return true;
 }
 
