@@ -238,7 +238,7 @@ void CompositorThread::Handle3DDrawRequest() {
 
     if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_)) {
       ETRACE(
-          "Failed to prepare GPU resources for compositing the frame, "
+          "Failed to Draw: "
           "error: %s",
           PRINTERROR());
       break;
