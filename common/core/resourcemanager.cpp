@@ -54,11 +54,16 @@ std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
   BUFFER_MAP& first_map = cached_buffers_[0];
   static std::shared_ptr<OverlayBuffer> pBufNull = nullptr;
   for (auto& map : cached_buffers_) {
-    if (map.count(native_buffer)) {
-      std::shared_ptr<OverlayBuffer>& pBuf = map[native_buffer];
+    if (map.empty()) {
+      continue;
+    }
+
+    BUFFER_MAP::iterator it = map.find(native_buffer);
+
+    if (it != map.end()) {
+      std::shared_ptr<OverlayBuffer>& pBuf = it->second;
       if (&map != &first_map) {
         first_map.emplace(std::make_pair(native_buffer, pBuf));
-        map.erase(native_buffer);
       }
 #ifdef RESOURCE_CACHE_TRACING
       hit_count_++;
@@ -136,10 +141,12 @@ void ResourceManager::GetPurgedResources(
 void ResourceManager::RefreshBufferCache() {
   auto begin = cached_buffers_.begin();
   cached_buffers_.emplace(begin);
-  cached_buffers_.pop_back();
 }
 
 bool ResourceManager::PreparePurgedResources() {
+  if (cached_buffers_.size() > 4)
+    cached_buffers_.pop_back();
+
   if (purged_resources_.empty() && purged_media_resources_.empty())
     return false;
 

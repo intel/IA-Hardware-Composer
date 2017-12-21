@@ -157,6 +157,7 @@ class DisplayQueue {
         tracker_.state_ &= ~FrameStateTracker::kPrepareIdleComposition;
       }
 
+      resource_manager_->RefreshBufferCache();
       tracker_.idle_lock_.unlock();
     }
 
