@@ -222,9 +222,12 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
     memset(&gem_close, 0, sizeof(gem_close));
     gem_close.handle = gem_handle;
     int ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
-    if (ret)
-      ETRACE("Failed to close gem handle %d %d %d %d \n", ret,
-             handle->meta_data_.prime_fd_, handle->hwc_buffer_, gem_handle);
+    if (ret) {
+      ETRACE(
+          "Failed to close gem handle ErrorCode: %d PrimeFD: %d HWCBuffer: %d "
+          "GemHandle: %d  \n",
+          ret, handle->meta_data_.prime_fd_, handle->hwc_buffer_, gem_handle);
+    }
   }
 
   return true;
