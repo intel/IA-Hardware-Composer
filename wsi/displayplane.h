@@ -35,8 +35,6 @@ class DisplayPlane {
 
   virtual bool IsSupportedFormat(uint32_t format) = 0;
 
-  virtual uint32_t GetFormatForFrameBuffer(uint32_t format) = 0;
-
   /**
    * API for querying preferred Video format supported by this
    * plane.

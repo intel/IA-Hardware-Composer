@@ -93,6 +93,13 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     }
   }
 
+  if (type_ == DRM_PLANE_TYPE_PRIMARY) {
+    if (prefered_format_ != DRM_FORMAT_XBGR8888 &&
+        IsSupportedFormat(DRM_FORMAT_XBGR8888)) {
+      prefered_format_ = DRM_FORMAT_XBGR8888;
+    }
+  }
+
   if (prefered_video_format_ == 0) {
     prefered_video_format_ = prefered_format_;
   }
@@ -361,25 +368,6 @@ bool DrmPlane::IsSupportedFormat(uint32_t format) {
   }
 
   return false;
-}
-
-uint32_t DrmPlane::GetFormatForFrameBuffer(uint32_t format) {
-  if (IsSupportedFormat(format))
-    return format;
-
-  if (type_ == DRM_PLANE_TYPE_PRIMARY) {
-    // In case of alpha, fall back to XRGB.
-    switch (format) {
-      case DRM_FORMAT_ABGR8888:
-        return DRM_FORMAT_XBGR8888;
-      case DRM_FORMAT_ARGB8888:
-        return DRM_FORMAT_XRGB8888;
-      default:
-        break;
-    }
-  }
-
-  return format;
 }
 
 uint32_t DrmPlane::GetPreferredVideoFormat() const {
