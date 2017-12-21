@@ -286,7 +286,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool idle_update,
                                bool handle_constraints) {
   CTRACE();
-  ScopedIdleStateTracker tracker(idle_tracker_, compositor_);
+  ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
+                                 resource_manager_.get());
   if (tracker.IgnoreUpdate()) {
     return true;
   }

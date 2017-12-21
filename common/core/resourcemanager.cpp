@@ -25,15 +25,15 @@ ResourceManager::ResourceManager(NativeBufferHandler* buffer_handler)
 }
 
 ResourceManager::~ResourceManager() {
-  if (cached_buffers_.size() > 0) {
+  if (!cached_buffers_.empty()) {
     ETRACE("ResourceManager destroyed with valid native resources \n");
   }
 
-  if (purged_resources_.size() > 0) {
+  if (!purged_resources_.empty() || !destroy_gl_resources_.empty()) {
     ETRACE("ResourceManager destroyed with valid 3D resources \n");
   }
 
-  if (purged_media_resources_.size() > 0) {
+  if (!purged_media_resources_.empty() || !destroy_media_resources_.empty()) {
     ETRACE("ResourceManager destroyed with valid Media resources \n");
   }
 }
@@ -42,6 +42,8 @@ void ResourceManager::PurgeBuffer() {
   for (auto& map : cached_buffers_) {
     map.clear();
   }
+
+  PreparePurgedResources();
 }
 
 void ResourceManager::Dump() {
@@ -83,73 +85,94 @@ void ResourceManager::RegisterBuffer(const HWCNativeBuffer& native_buffer,
 
 void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle,
                                               bool has_valid_gpu_resources) {
-  lock_.lock();
   purged_resources_.emplace_back();
   ResourceHandle& temp = purged_resources_.back();
   std::memcpy(&temp, &handle, sizeof temp);
   if (!has_purged_gpu_resources_)
     has_purged_gpu_resources_ = has_valid_gpu_resources;
-  lock_.unlock();
 }
 
 void ResourceManager::MarkMediaResourceForDeletion(
     const MediaResourceHandle& handle) {
-  lock_.lock();
   purged_media_resources_.emplace_back();
   MediaResourceHandle& temp = purged_media_resources_.back();
   std::memcpy(&temp, &handle, sizeof temp);
-  lock_.unlock();
 }
 
 void ResourceManager::GetPurgedResources(
     std::vector<ResourceHandle>& gl_resources,
     std::vector<MediaResourceHandle>& media_resources, bool* has_gpu_resource) {
   lock_.lock();
-  size_t purged_size = purged_resources_.size();
-  *has_gpu_resource = has_purged_gpu_resources_;
+  size_t purged_size = destroy_gl_resources_.size();
+  *has_gpu_resource = destroy_gpu_resources_;
 
   if (purged_size != 0) {
     for (size_t i = 0; i < purged_size; i++) {
-      const ResourceHandle& handle = purged_resources_.at(i);
+      const ResourceHandle& handle = destroy_gl_resources_.at(i);
       gl_resources.emplace_back();
       ResourceHandle& temp = gl_resources.back();
       std::memcpy(&temp, &handle, sizeof temp);
     }
 
-    std::vector<ResourceHandle>().swap(purged_resources_);
-    has_purged_gpu_resources_ = false;
+    std::vector<ResourceHandle>().swap(destroy_gl_resources_);
+    destroy_gpu_resources_ = false;
   }
 
-  purged_size = purged_media_resources_.size();
+  purged_size = destroy_media_resources_.size();
   if (purged_size != 0) {
     for (size_t i = 0; i < purged_size; i++) {
-      const MediaResourceHandle& handle = purged_media_resources_.at(i);
+      const MediaResourceHandle& handle = destroy_media_resources_.at(i);
       media_resources.emplace_back();
       MediaResourceHandle& temp = media_resources.back();
       std::memcpy(&temp, &handle, sizeof temp);
     }
 
-    std::vector<MediaResourceHandle>().swap(purged_media_resources_);
+    std::vector<MediaResourceHandle>().swap(destroy_media_resources_);
   }
 
   lock_.unlock();
 }
 
 bool ResourceManager::HasPurgedResources() {
-  lock_.lock();
-  bool status = false;
-  if (!purged_resources_.empty() || !purged_media_resources_.empty())
-    status = true;
+  if (!destroy_gl_resources_.empty() || !destroy_media_resources_.empty())
+    return true;
 
-  lock_.unlock();
-
-  return status;
+  return false;
 }
 
 void ResourceManager::RefreshBufferCache() {
   auto begin = cached_buffers_.begin();
   cached_buffers_.emplace(begin);
   cached_buffers_.pop_back();
+}
+
+void ResourceManager::PreparePurgedResources() {
+  lock_.lock();
+  if (!purged_resources_.empty()) {
+    size_t purged_size = purged_resources_.size();
+    for (size_t i = 0; i < purged_size; i++) {
+      const ResourceHandle& handle = purged_resources_.at(i);
+      destroy_gl_resources_.emplace_back();
+      ResourceHandle& temp = destroy_gl_resources_.back();
+      std::memcpy(&temp, &handle, sizeof temp);
+    }
+    std::vector<ResourceHandle>().swap(purged_resources_);
+  }
+
+  if (!purged_media_resources_.empty()) {
+    size_t purged_size = purged_media_resources_.size();
+    for (size_t i = 0; i < purged_size; i++) {
+      const MediaResourceHandle& handle = purged_media_resources_.at(i);
+      destroy_media_resources_.emplace_back();
+      MediaResourceHandle& temp = destroy_media_resources_.back();
+      std::memcpy(&temp, &handle, sizeof temp);
+    }
+    std::vector<MediaResourceHandle>().swap(purged_media_resources_);
+  }
+
+  destroy_gpu_resources_ = has_purged_gpu_resources_;
+  has_purged_gpu_resources_ = false;
+  lock_.unlock();
 }
 
 }  // namespace hwcomposer
