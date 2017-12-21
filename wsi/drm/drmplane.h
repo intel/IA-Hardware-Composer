@@ -59,7 +59,6 @@ class DrmPlane : public DisplayPlane {
 
   bool IsSupportedFormat(uint32_t format) override;
 
-  uint32_t GetFormatForFrameBuffer(uint32_t format) override;
   uint32_t GetPreferredVideoFormat() const override;
   uint32_t GetPreferredFormat() const override;
 

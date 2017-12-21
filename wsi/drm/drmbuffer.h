@@ -83,8 +83,6 @@ class DrmBuffer : public OverlayBuffer {
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
-  void SetRecommendedFormat(uint32_t format) override;
-
   bool IsVideoBuffer() const override {
     return is_yuv_;
   }

@@ -308,10 +308,6 @@ const ResourceHandle& DrmBuffer::GetGpuResource() {
   return image_;
 }
 
-void DrmBuffer::SetRecommendedFormat(uint32_t format) {
-  frame_buffer_format_ = format;
-}
-
 bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   if (image_.drm_fd_) {
     ResourceHandle temp;

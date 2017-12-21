@@ -100,7 +100,6 @@ class NativeSurface {
   int height_;
   bool in_use_;
   bool clear_surface_;
-  uint32_t framebuffer_format_;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;
 };

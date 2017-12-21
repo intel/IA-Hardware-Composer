@@ -29,8 +29,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       width_(width),
       height_(height),
       in_use_(false),
-      clear_surface_(true),
-      framebuffer_format_(0) {
+      clear_surface_(true) {
 }
 
 NativeSurface::~NativeSurface() {
@@ -83,9 +82,6 @@ void NativeSurface::SetClearSurface(bool clear_surface) {
 }
 
 void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
-  uint32_t format =
-      plane.plane()->GetFormatForFrameBuffer(layer_.GetBuffer()->GetFormat());
-
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
@@ -95,13 +91,9 @@ void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
 
   plane.SetOverlayLayer(&layer_);
   SetInUse(true);
-
-  if (framebuffer_format_ == format)
-    return;
-
-  framebuffer_format_ = format;
-  layer_.GetBuffer()->SetRecommendedFormat(framebuffer_format_);
-  layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
+  if (layer_.GetBuffer()->GetFb() == 0) {
+    layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
+  }
 }
 
 void NativeSurface::ResetDisplayFrame(const HwcRect<int> &display_frame) {
