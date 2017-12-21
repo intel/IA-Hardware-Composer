@@ -36,8 +36,7 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(ResourceManager* resource_manager, uint32_t format,
-            bool cursor_layer = false);
+  bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage);
 
   bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
                                        ResourceManager* resource_manager);
