@@ -131,7 +131,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
-    bool clear_surface = cursor_layer_removed;
+    bool clear_surface = last_commit_failed_update_;
+    if (cursor_layer_removed && plane.HasCursorLayer()) {
+      clear_surface = true;
+    }
+
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(plane);

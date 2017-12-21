@@ -110,10 +110,11 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
     }
   }
 
+  bool status = true;
   if (!draw_state.empty() || !media_state.empty())
-    thread_->Draw(draw_state, media_state, layers);
+    status = thread_->Draw(draw_state, media_state, layers);
 
-  return true;
+  return status;
 }
 
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
@@ -157,10 +158,14 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     draw_state.acquire_fences_.emplace_back(acquire_fence);
   }
 
-  thread_->Draw(draw, media, layers);
-  *retire_fence = draw_state.retire_fence_;
+  bool status = thread_->Draw(draw, media, layers);
+  if (status) {
+    *retire_fence = draw_state.retire_fence_;
+  } else {
+    *retire_fence = -1;
+  }
 
-  return true;
+  return status;
 }
 
 void Compositor::FreeResources() {

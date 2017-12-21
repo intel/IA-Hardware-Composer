@@ -77,7 +77,7 @@ void CompositorThread::Wait() {
   }
 }
 
-void CompositorThread::Draw(std::vector<DrawState> &states,
+bool CompositorThread::Draw(std::vector<DrawState> &states,
                             std::vector<DrawState> &media_states,
                             const std::vector<OverlayLayer> &layers) {
   states_.swap(states);
@@ -98,9 +98,13 @@ void CompositorThread::Draw(std::vector<DrawState> &states,
     tasks_ |= kRenderMedia;
   }
 
+  // We start of assuming that the draw calls
+  // succeed.
+  draw_succeeded_ = true;
   tasks_lock_.unlock();
   Resume();
   Wait();
+  return draw_succeeded_;
 }
 
 void CompositorThread::ExitThread() {
@@ -203,6 +207,7 @@ void CompositorThread::Handle3DDrawRequest() {
 
   Ensure3DRenderer();
   if (!gl_renderer_) {
+    draw_succeeded_ = false;
     return;
   }
 
@@ -213,6 +218,7 @@ void CompositorThread::Handle3DDrawRequest() {
         "Failed to prepare GPU resources for compositing the frame, "
         "error: %s",
         PRINTERROR());
+    draw_succeeded_ = false;
     return;
   }
 
@@ -241,12 +247,16 @@ void CompositorThread::Handle3DDrawRequest() {
           "Failed to Draw: "
           "error: %s",
           PRINTERROR());
+      draw_succeeded_ = false;
       break;
     }
 
     if (draw_state.destroy_surface_) {
-      draw_state.retire_fence_ =
-          draw_state.surface_->GetLayer()->ReleaseAcquireFence();
+      if (draw_succeeded_) {
+        draw_state.retire_fence_ =
+            draw_state.surface_->GetLayer()->ReleaseAcquireFence();
+      }
+
       delete draw_state.surface_;
     }
   }
@@ -262,6 +272,7 @@ void CompositorThread::HandleMediaDrawRequest() {
 
   EnsureMediaRenderer();
   if (!media_renderer_) {
+    draw_succeeded_ = false;
     return;
   }
 
@@ -273,6 +284,7 @@ void CompositorThread::HandleMediaDrawRequest() {
           "Failed to render the frame by VA, "
           "error: %s\n",
           PRINTERROR());
+      draw_succeeded_ = false;
       break;
     }
   }

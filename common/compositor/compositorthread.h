@@ -44,7 +44,7 @@ class CompositorThread : public HWCThread {
 
   void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd);
 
-  void Draw(std::vector<DrawState>& states,
+  bool Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
             const std::vector<OverlayLayer>& layers);
 
@@ -79,6 +79,7 @@ class CompositorThread : public HWCThread {
   std::vector<DrawState> media_states_;
   std::vector<ResourceHandle> purged_resources_;
   bool disable_explicit_sync_;
+  bool draw_succeeded_ = false;
   ResourceManager* resource_manager_ = NULL;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;
