@@ -525,61 +525,27 @@ void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
   plane.ForceGPURendering();
 }
 
-void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
-    DisplayPlaneState &plane, uint32_t width, uint32_t height) {
-  NativeSurface *surface = NULL;
-  uint32_t preferred_format = plane.plane()->GetPreferredFormat();
-  for (auto &fb : cursor_surfaces_) {
-    if (!fb->InUse()) {
-      uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
-      if (preferred_format == surface_format) {
-        surface = fb.get();
-        break;
-      }
-    }
-  }
-
-  if (!surface) {
-    NativeSurface *new_surface = Create3DBuffer(width, height);
-    new_surface->Init(resource_manager_, preferred_format, true);
-    cursor_surfaces_.emplace_back(std::move(new_surface));
-    surface = cursor_surfaces_.back().get();
-  }
-
-  surface->SetPlaneTarget(plane, gpu_fd_);
-  plane.SetOffScreenTarget(surface);
-  plane.ForceGPURendering();
-}
-
 void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
   CTRACE();
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
-  std::vector<std::unique_ptr<NativeSurface>>().swap(cursor_surfaces_);
 }
 
 void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
-  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces;
   for (auto &fb : surfaces_) {
     if (fb->InUse()) {
       surfaces.emplace_back(fb.release());
     }
   }
 
-  for (auto &cursor_fb : cursor_surfaces_) {
-    if (cursor_fb->InUse()) {
-      cursor_surfaces.emplace_back(cursor_fb.release());
-    }
-  }
-
   surfaces.swap(surfaces_);
-  cursor_surfaces.swap(cursor_surfaces_);
 }
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   bool video_separate = plane.IsVideoPlane();
   uint32_t preferred_format = 0;
+  uint32_t usage = hwcomposer::kLayerNormal;
   if (video_separate) {
     preferred_format = plane.plane()->GetPreferredVideoFormat();
   } else {
@@ -600,11 +566,12 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
       new_surface = CreateVideoBuffer(width_, height_);
+      usage = hwcomposer::kLayerVideo;
     } else {
       new_surface = Create3DBuffer(width_, height_);
     }
 
-    new_surface->Init(resource_manager_, preferred_format);
+    new_surface->Init(resource_manager_, preferred_format, usage);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }

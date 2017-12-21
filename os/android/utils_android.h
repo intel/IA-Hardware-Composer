@@ -131,6 +131,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_UYVY:
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_AYUV:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_NV12:
       return HAL_PIXEL_FORMAT_NV12;
@@ -143,6 +144,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YVU410:
     case DRM_FORMAT_YUV411:
     case DRM_FORMAT_YVU411:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_YUV420:
       return HAL_PIXEL_FORMAT_YCbCr_420_888;
@@ -151,10 +153,12 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YUV422:
       return HAL_PIXEL_FORMAT_YCbCr_422_888;
     case DRM_FORMAT_YVU422:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_YUV444:
       return HAL_PIXEL_FORMAT_YCbCr_444_888;
     case DRM_FORMAT_YVU444:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;

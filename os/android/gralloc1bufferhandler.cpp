@@ -139,6 +139,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
       default:
         usage |= GRALLOC1_PRODUCER_USAGE_CAMERA |
                  GRALLOC1_CONSUMER_USAGE_CAMERA |
+                 GRALLOC1_PRODUCER_USAGE_VIDEO_DECODER |
                  GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
     }
   } else if (layer_type == hwcomposer::kLayerCursor) {

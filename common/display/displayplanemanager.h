@@ -63,15 +63,12 @@ class DisplayPlaneManager {
 
   void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
 
-  void SetOffScreenCursorPlaneTarget(DisplayPlaneState &plane, uint32_t width,
-                                     uint32_t height);
-
   void ReleaseFreeOffScreenTargets();
 
   void ReleaseAllOffScreenTargets();
 
   bool HasSurfaces() const {
-    return !surfaces_.empty() || !cursor_surfaces_.empty();
+    return !surfaces_.empty();
   }
 
   uint32_t GetGpuFd() const {
@@ -107,7 +104,6 @@ class DisplayPlaneManager {
   DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
-  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
 
   uint32_t width_;
   uint32_t height_;

@@ -41,12 +41,7 @@ NativeSurface::~NativeSurface() {
 }
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
-                         bool cursor_layer) {
-  uint32_t usage = hwcomposer::kLayerNormal;
-  if (cursor_layer) {
-    usage = hwcomposer::kLayerCursor;
-  }
-
+                         uint32_t usage) {
   resource_manager->GetNativeBufferHandler()->CreateBuffer(
       width_, height_, format, &native_handle_, usage);
   if (!native_handle_) {
