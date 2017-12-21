@@ -64,12 +64,17 @@ class ScopedVABufferID {
   VABufferID buffer_ = VA_INVALID_ID;
 };
 
-typedef struct _VppColorBalanceCap {
-  VAProcFilterCapColorBalance caps;
-  float value;
-} VppColorBalanceCap;
+typedef struct _HwcColorBalanceCap {
+  VAProcFilterCapColorBalance caps_;
+  float value_;
+} HwcColorBalanceCap;
 
-typedef std::map<HWCColorControl, VppColorBalanceCap> ColorBalanceCapMap;
+typedef struct _HwcFilterCap {
+  VAProcFilterCap caps_;
+  float value_;
+} HwcFilterCap;
+
+typedef std::map<HWCColorControl, HwcColorBalanceCap> ColorBalanceCapMap;
 typedef ColorBalanceCapMap::iterator ColorBalanceCapMapItr;
 
 class VARenderer : public Renderer {
@@ -101,7 +106,9 @@ class VARenderer : public Renderer {
   void* va_display_ = nullptr;
   std::vector<VABufferID> filters_;
   std::vector<ScopedVABufferID> cb_elements_;
-  ColorBalanceCapMap caps_;
+  std::vector<ScopedVABufferID> sharp_;
+  ColorBalanceCapMap colorbalance_caps_;
+  HwcFilterCap sharp_caps_;
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;
   VAConfigID va_config_ = VA_INVALID_ID;
