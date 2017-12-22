@@ -81,8 +81,9 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
       case DRM_FORMAT_XBGR8888:
       case DRM_FORMAT_RGBX8888:
       case DRM_FORMAT_ABGR8888:
-      case DRM_FORMAT_RGBA8888:
       case DRM_FORMAT_BGRA8888:
+      case DRM_FORMAT_ARGB8888:
+      case DRM_FORMAT_RGBA8888:
         prefered_format_ = format;
         break;
     }
