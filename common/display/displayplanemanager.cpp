@@ -127,6 +127,10 @@ bool DisplayPlaneManager::ValidateLayers(
 #ifdef DISABLE_CURSOR_PLANE
       if (cursor_plane_ == j->get())
         continue;
+#else
+      if ((cursor_plane_ == j->get()) && !cursor_plane_->IsUniversal()) {
+        continue;
+      }
 #endif
       DisplayPlaneState &last_plane = composition.back();
       OverlayLayer *previous_layer = NULL;
