@@ -238,6 +238,8 @@ class DisplayQueue {
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
   void RecyclePreviousPlaneSurfaces();
+  void SaveOnScreenSurfaces(DisplayPlaneStateList& current_composition_planes);
+  void UpdateOnScreenSurfaces();
 
   void IgnoreCompositionResults(
       DisplayPlaneStateList& current_composition_planes);
