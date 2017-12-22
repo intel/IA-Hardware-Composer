@@ -119,10 +119,6 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   bool force_normal_usage = false;
   if (format != 0) {
     pixel_format = DrmFormatToHALFormat(format);
-    if ((layer_type == hwcomposer::kLayerVideo) &&
-        !(IsSupportedMediaFormat(format))) {
-      force_normal_usage = true;
-    }
   }
 
   if (pixel_format == 0) {
@@ -130,6 +126,12 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
+
+  if ((layer_type == hwcomposer::kLayerVideo) &&
+      !IsSupportedMediaFormat(format)) {
+    ETRACE("Forcing normal usage for Video Layer. \n");
+    force_normal_usage = true;
+  }
 
   if ((layer_type == hwcomposer::kLayerNormal) || force_normal_usage) {
     usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER |
