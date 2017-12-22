@@ -31,6 +31,12 @@ int HWCPoll(int fd, int timeout);
 // Reset's rect to include region hwc_region.
 void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect);
 
+// Returns true if format is a Media format.
+bool IsSupportedMediaFormat(uint32_t format);
+
+// Returns total planes for a given format.
+uint32_t GetTotalPlanesForFormat(uint32_t format);
+
 template <class T>
 inline bool IsOverlapping(T l1, T t1, T r1, T b1, T l2, T t2, T r2, T b2)
 // Do two rectangles overlap?

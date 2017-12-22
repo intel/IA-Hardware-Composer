@@ -23,6 +23,7 @@
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -66,15 +67,9 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   uint32_t total_size = supported_formats_.size();
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
-    switch (format) {
-      case DRM_FORMAT_NV12:
-      case DRM_FORMAT_YVU420:  // YV12
-      case DRM_FORMAT_YUV420:  // I420
-      case DRM_FORMAT_YUV422:
-      case DRM_FORMAT_YUV444:
-      case DRM_FORMAT_YUYV:  // YUY2
-        prefered_video_format_ = format;
-        break;
+    if (IsSupportedMediaFormat(format)) {
+      prefered_video_format_ = format;
+      break;
     }
   }
 

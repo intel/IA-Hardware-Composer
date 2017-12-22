@@ -22,6 +22,8 @@
 
 #include "compositordefs.h"
 
+#include "hwcdefs.h"
+
 namespace hwcomposer {
 
 class NativeBufferHandler;
@@ -47,7 +49,7 @@ class OverlayBuffer {
 
   virtual uint32_t GetFormat() const = 0;
 
-  virtual uint32_t GetUsage() const = 0;
+  virtual HWCLayerType GetUsage() const = 0;
 
   virtual uint32_t GetFb() const = 0;
 
@@ -75,8 +77,6 @@ class OverlayBuffer {
                                                       uint32_t height) = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
-
-  virtual bool IsVideoBuffer() const = 0;
 
   virtual void Dump() = 0;
 };

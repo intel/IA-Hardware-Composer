@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include <hwcdefs.h>
+
 struct HwcBuffer {
   HwcBuffer() = default;
 
@@ -33,7 +35,7 @@ struct HwcBuffer {
   uint32_t offsets_[4];
   uint32_t gem_handles_[4];
   uint32_t prime_fd_ = 0;
-  uint32_t usage_ = 0;
+  hwcomposer::HWCLayerType usage_ = hwcomposer::kLayerNormal;
 };
 
 #endif  // PUBLIC_HWCBUFFER_H_

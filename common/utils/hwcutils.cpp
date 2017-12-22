@@ -20,6 +20,8 @@
 
 #include "hwctrace.h"
 
+#include <drm_fourcc.h>
+
 namespace hwcomposer {
 
 int HWCPoll(int fd, int timeout) {
@@ -58,6 +60,55 @@ void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect) {
     rect.right = std::max(rect.right, temp.right);
     rect.bottom = std::max(rect.bottom, temp.bottom);
   }
+}
+
+bool IsSupportedMediaFormat(uint32_t format) {
+  switch (format) {
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_P010:
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+    case DRM_FORMAT_NV12_Y_TILED_INTEL:
+    case DRM_FORMAT_NV21:
+    case DRM_FORMAT_YVU420_ANDROID:
+      return true;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+uint32_t GetTotalPlanesForFormat(uint32_t format) {
+  switch (format) {
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_P010:
+      return 2;
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
+      return 3;
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+      return 1;
+    default:
+      break;
+  }
+
+  return 1;
 }
 
 }  // namespace hwcomposer

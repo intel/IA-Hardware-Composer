@@ -33,6 +33,7 @@
 
 #include <hwcdefs.h>
 #include "hwctrace.h"
+#include "hwcutils.h"
 
 #define HWC_UNUSED(x) ((void)&(x))
 
@@ -259,13 +260,15 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   }
 
   if (gr_handle->usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerProtected;
+    handle->meta_data_.usage_ = hwcomposer::kLayerProtected;
   } else if (gr_handle->usage & GRALLOC1_CONSUMER_USAGE_CURSOR) {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerCursor;
+    handle->meta_data_.usage_ = hwcomposer::kLayerCursor;
     // We support DRM_FORMAT_ARGB8888 for cursor.
     handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
+  } else if (hwcomposer::IsSupportedMediaFormat(handle->meta_data_.format_)) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerVideo;
   } else {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
+    handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
   }
 
   // switch minigbm specific enum to a standard one
