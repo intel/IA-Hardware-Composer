@@ -66,6 +66,20 @@ class NativeSurface {
     return in_use_;
   }
 
+  // Set's the no of frames before this
+  // surface goes from offscreen to onscreen
+  // and than offscreen.
+  // 2 indicates that the surface is in queue to
+  // be updated during next vblank.
+  // 1 indicates that the surface is now onscreen.
+  // 0 indicates that the surface is offscreen
+  // and is not yet queued to be presented.
+  void SetSurfaceAge(uint32_t age);
+
+  uint32_t GetSurfaceAge() const {
+    return surface_age_;
+  }
+
   bool ClearSurface() const {
     return clear_surface_;
   }
@@ -99,6 +113,7 @@ class NativeSurface {
   int height_;
   bool in_use_;
   bool clear_surface_;
+  uint32_t surface_age_;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;
 };

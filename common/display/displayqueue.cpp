@@ -463,10 +463,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   // Reset last commit failure state.
-  if (last_commit_failed_update_) {
-    last_commit_failed_update_ = false;
-    std::vector<NativeSurface*>().swap(surfaces_not_inuse_);
-  }
+  last_commit_failed_update_ = false;
 
   if (validate_layers) {
     if (!idle_frame)
@@ -556,10 +553,47 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
   }
 
+  // Swap any surfaces which are to be marked as not in
+  // use next frame.
+  if (!surfaces_not_inuse_.empty()) {
+    size_t size = surfaces_not_inuse_.size();
+    std::vector<NativeSurface*> temp;
+    for (uint32_t i = 0; i < size; i++) {
+      NativeSurface* surface = surfaces_not_inuse_.at(i);
+      uint32_t age = surface->GetSurfaceAge();
+      if (age > 0) {
+        temp.emplace_back(surface);
+        surface->SetSurfaceAge(surface->GetSurfaceAge() - 1);
+      } else {
+        mark_not_inuse_.emplace_back(surface);
+      }
+    }
+
+    surfaces_not_inuse_.swap(temp);
+  }
+
   in_flight_layers_.swap(layers);
-  RecyclePreviousPlaneSurfaces();
+  // If we have done a full validation, mark any surfaces
+  // from previous composition as not in use.
+  if (validate_layers)
+    UpdateSurfaceInUse(false, previous_plane_state_);
+
+  // Swap current and previous composition results.
   previous_plane_state_.swap(current_composition_planes);
-  UpdateSurfaceInUse(true, previous_plane_state_);
+
+  if (validate_layers) {
+    // If we have done a full validation, mark any surfaces
+    // from current composition as in use as they might have
+    // been marked as not in use above.
+    UpdateSurfaceInUse(true, previous_plane_state_);
+    // Save any onscreen/in-flight surfaces and not part
+    // of current composition to be marked for re-cycling
+    // later.
+    SaveOnScreenSurfaces(current_composition_planes);
+  }
+
+  // Set Age for all offscreen surfaces.
+  UpdateOnScreenSurfaces();
 
   if (idle_frame) {
     ReleaseSurfaces();
@@ -594,12 +628,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (handle_display_initializations_) {
     handle_display_initializations_ = false;
     display_->HandleLazyInitialization();
-  }
-
-  // Swap any surfaces which are to be marked as not in
-  // use next frame.
-  if (!surfaces_not_inuse_.empty()) {
-    surfaces_not_inuse_.swap(mark_not_inuse_);
   }
 
   return true;
@@ -688,6 +716,30 @@ void DisplayQueue::UpdateSurfaceInUse(
   }
 }
 
+void DisplayQueue::UpdateOnScreenSurfaces() {
+  for (DisplayPlaneState& plane_state : previous_plane_state_) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    if (surfaces.empty())
+      continue;
+
+    size_t size = surfaces.size();
+    if (size == 3) {
+      NativeSurface* surface = surfaces.at(1);
+      surface->SetSurfaceAge(0);
+
+      surface = surfaces.at(0);
+      surface->SetSurfaceAge(2);
+
+      surface = surfaces.at(2);
+      surface->SetSurfaceAge(1);
+    } else {
+      for (uint32_t i = 0; i < size; i++) {
+        surfaces.at(i)->SetSurfaceAge(2 - i);
+      }
+    }
+  }
+}
+
 void DisplayQueue::RecyclePreviousPlaneSurfaces() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
     std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
@@ -695,24 +747,32 @@ void DisplayQueue::RecyclePreviousPlaneSurfaces() {
       continue;
 
     size_t size = surfaces.size();
-    size_t in_use_buffers = size;
+    // Make sure we don't mark current on-screen surface or
+    // one in flight.
+    for (uint32_t i = 0; i < size; i++) {
+      NativeSurface* surface = surfaces.at(i);
+      surface->SetInUse(surface->GetSurfaceAge() > 0);
+    }
+  }
+}
+
+void DisplayQueue::SaveOnScreenSurfaces(
+    DisplayPlaneStateList& current_composition_planes) {
+  for (DisplayPlaneState& plane_state : current_composition_planes) {
+    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    if (surfaces.empty())
+      continue;
+
+    size_t size = surfaces.size();
     // Make sure we don't mark current on-screen surface or
     // one in flight. These surfaces will be added as part of
-    // surfaces_not_inuse_ to be marked at the end of current
-    // present call. They will be marked as not in use next
-    // frame in case we are not using them still.
-    if (size == 3) {
-      in_use_buffers = size - 1;
-    }
-
-    for (uint32_t i = 0; i < in_use_buffers; i++) {
+    // surfaces_not_inuse_.
+    for (uint32_t i = 0; i < size; i++) {
       NativeSurface* surface = surfaces.at(i);
-      surface->SetInUse(true);
-      surfaces_not_inuse_.emplace_back(surface);
-    }
-
-    if (size == 3) {
-      surfaces.at(2)->SetInUse(false);
+      if (!surface->InUse() && (surface->GetSurfaceAge() > 0)) {
+        surface->SetInUse(true);
+        surfaces_not_inuse_.emplace_back(surface);
+      }
     }
   }
 }
