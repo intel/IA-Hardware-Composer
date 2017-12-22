@@ -200,7 +200,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   handle->meta_data_.width_ = handle->import_data.width;
   handle->meta_data_.height_ = handle->import_data.height;
   // FIXME: Set right flag here.
-  handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
+  handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
 
 #if USE_MINIGBM
   handle->meta_data_.prime_fd_ = handle->import_data.fds[0];

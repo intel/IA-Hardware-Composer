@@ -25,6 +25,7 @@
 #include <hwctrace.h>
 
 #include "commondrmutils.h"
+#include "hwcutils.h"
 #include "utils_android.h"
 
 namespace hwcomposer {
@@ -115,8 +116,13 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   create_descriptor_(gralloc1_dvc, &temp->gralloc1_buffer_descriptor_t_);
   uint32_t usage = 0;
   uint32_t pixel_format = 0;
+  bool force_normal_usage = false;
   if (format != 0) {
     pixel_format = DrmFormatToHALFormat(format);
+    if ((layer_type == hwcomposer::kLayerVideo) &&
+        !(IsSupportedMediaFormat(format))) {
+      force_normal_usage = true;
+    }
   }
 
   if (pixel_format == 0) {
@@ -125,7 +131,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
 
-  if (layer_type == hwcomposer::kLayerNormal) {
+  if ((layer_type == hwcomposer::kLayerNormal) || force_normal_usage) {
     usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER |
              GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET |
              GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
@@ -151,6 +157,10 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   set_dimensions_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, w, h);
   allocate_(gralloc1_dvc, 1, &temp->gralloc1_buffer_descriptor_t_,
             &temp->handle_);
+
+  if (!temp->handle_) {
+    ETRACE("Failed to allocate buffer \n");
+  }
 
   temp->hwc_buffer_ = true;
   *handle = temp;

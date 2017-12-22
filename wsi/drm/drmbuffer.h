@@ -48,7 +48,7 @@ class DrmBuffer : public OverlayBuffer {
     return format_;
   }
 
-  uint32_t GetUsage() const override {
+  HWCLayerType GetUsage() const override {
     return usage_;
   }
 
@@ -83,10 +83,6 @@ class DrmBuffer : public OverlayBuffer {
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
 
-  bool IsVideoBuffer() const override {
-    return is_yuv_;
-  }
-
   void Dump() override;
 
  private:
@@ -99,11 +95,10 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t offsets_[4];
   uint32_t gem_handles_[4];
   uint32_t prime_fd_ = 0;
-  uint32_t usage_ = 0;
+  HWCLayerType usage_ = kLayerNormal;
   uint32_t total_planes_ = 0;
   uint32_t previous_width_ = 0;   // For Media usage.
   uint32_t previous_height_ = 0;  // For Media usage.
-  bool is_yuv_ = false;
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;

@@ -420,11 +420,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
 void OverlayLayer::ValidateForOverlayUsage() {
   const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
-  if (buffer->GetUsage() & kLayerCursor) {
-    type_ = kLayerCursor;
-  } else if (buffer->IsVideoBuffer()) {
-    type_ = kLayerVideo;
-  }
+  type_ = buffer->GetUsage();
 }
 
 void OverlayLayer::Dump() {

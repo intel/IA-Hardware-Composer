@@ -25,6 +25,7 @@
 #include <nativebufferhandler.h>
 
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "resourcemanager.h"
 #include "vautils.h"
 
@@ -64,39 +65,14 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   prime_fd_ = bo.prime_fd_;
   usage_ = bo.usage_;
 
-  if (usage_ & hwcomposer::kLayerCursor) {
+  if (usage_ == hwcomposer::kLayerCursor) {
     // We support DRM_FORMAT_ARGB8888 for cursor.
     frame_buffer_format_ = DRM_FORMAT_ARGB8888;
   } else {
     frame_buffer_format_ = format_;
   }
 
-  switch (format_) {
-    case DRM_FORMAT_NV12:
-    case DRM_FORMAT_NV16:
-    case DRM_FORMAT_P010:
-      total_planes_ = 2;
-      is_yuv_ = true;
-      break;
-    case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_YUV420:
-    case DRM_FORMAT_YUV422:
-    case DRM_FORMAT_YUV444:
-      is_yuv_ = true;
-      total_planes_ = 3;
-      break;
-    case DRM_FORMAT_UYVY:
-    case DRM_FORMAT_YUYV:
-    case DRM_FORMAT_YVYU:
-    case DRM_FORMAT_VYUY:
-    case DRM_FORMAT_AYUV:
-      is_yuv_ = true;
-      total_planes_ = 1;
-      break;
-    default:
-      is_yuv_ = false;
-      total_planes_ = 1;
-  }
+  total_planes_ = GetTotalPlanesForFormat(format_);
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
@@ -121,7 +97,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
     // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
     // target, the EGL will take a reference to the dma_buf.
-    if (is_yuv_ && total_planes_ > 1) {
+    if ((usage_ == kLayerVideo) && total_planes_ > 1) {
       if (total_planes_ == 2) {
         const EGLint attr_list_nv12[] = {
             EGL_WIDTH,                     static_cast<EGLint>(width_),
