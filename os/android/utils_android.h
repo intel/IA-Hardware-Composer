@@ -259,9 +259,9 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
     handle->meta_data_.gem_handles_[p] = id;
   }
 
-  if (gr_handle->usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
+  if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
     handle->meta_data_.usage_ = hwcomposer::kLayerProtected;
-  } else if (gr_handle->usage & GRALLOC1_CONSUMER_USAGE_CURSOR) {
+  } else if (gr_handle->consumer_usage & GRALLOC1_CONSUMER_USAGE_CURSOR) {
     handle->meta_data_.usage_ = hwcomposer::kLayerCursor;
     // We support DRM_FORMAT_ARGB8888 for cursor.
     handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
