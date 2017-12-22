@@ -131,6 +131,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
+    // We consider last_commit_failed_update_ state here. Displayplanemanager
+    // Tries to recycle free surfaces and it could have changed the rect of
+    // these surfaces during test commit. Let's make sure the rect is correct
+    // even in this case.
     bool clear_surface = last_commit_failed_update_;
     if (cursor_layer_removed && plane.HasCursorLayer()) {
       clear_surface = true;
@@ -192,11 +196,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                   content_changed || clear_surface);
       std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
       size_t size = surfaces.size();
-      // We consider last_commit_failed_update_ state here. Displayplanemanager
-      // Tries to recycle free surfaces and it could have changed the rect of
-      // these surfaces during test commit. Let's make sure the rect is correct
-      // even in this case.
-      if (clear_surface || last_commit_failed_update_ || update_rect) {
+      if (clear_surface || update_rect) {
         content_changed = true;
         const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
         const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
@@ -303,7 +303,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t new_layers = 0;
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
   uint32_t previous_cursor_layers = total_cursor_layers_;
-  bool layers_changed = tracker.RevalidateLayers();
+  // If last commit failed, lets force full validation as
+  // state might be all wrong in our side.
+  bool layers_changed =
+      tracker.RevalidateLayers() || last_commit_failed_update_;
   *retire_fence = -1;
   uint32_t z_order = 0;
   bool has_video_layer = false;
