@@ -98,10 +98,12 @@ class DisplayPlaneManager {
                                  OverlayLayer *current_layer,
                                  bool ignore_format = false);
 
+  void ForceGpuForAllLayers(DisplayPlaneStateList &composition,
+                            std::vector<OverlayLayer> &layers);
+
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
   DisplayPlane *cursor_plane_;
-  DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
 
