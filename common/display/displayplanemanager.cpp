@@ -54,8 +54,6 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
         cursor_plane_ = NULL;
       }
     }
-
-    primary_plane_ = overlay_planes_.at(0).get();
   }
 
   return status;
@@ -71,142 +69,136 @@ bool DisplayPlaneManager::ValidateLayers(
     j->get()->SetInUse(false);
   }
 
+  bool force_gpu = disable_overlay || (pending_modeset && (layers.size() > 1));
+
+  // In case we are forcing GPU composition for all layers and using a single
+  // plane.
+  if (force_gpu) {
+    ForceGpuForAllLayers(composition, layers);
+    return true;
+  }
+
   std::vector<OverlayPlane> commit_planes;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
   bool render_layers = false;
-  // We start off with Primary plane.
-  DisplayPlane *current_plane = primary_plane_;
-  OverlayLayer *primary_layer = &(*(layers.begin()));
-  commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
-  composition.emplace_back(current_plane, primary_layer,
-                           primary_layer->GetZorder());
-  current_plane->SetInUse(true);
-  ++layer_begin;
-  // Lets ensure we fall back to GPU composition in case
-  // primary layer cannot be scanned out directly.
-  bool prefer_seperate_plane = primary_layer->PreferSeparatePlane();
-  bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
-
-  if (force_gpu || FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
-    render_layers = true;
-    if (force_gpu || !prefer_seperate_plane) {
-      DisplayPlaneState &last_plane = composition.back();
-      for (auto i = layer_begin; i != layer_end; ++i) {
-        last_plane.AddLayer(&(*(i)));
-        i->GPURendered();
-      }
-
-      ResetPlaneTarget(last_plane, commit_planes.back());
-      // We need to composite primary using GPU, lets use this for
-      // all layers in this case.
-      return render_layers;
-    } else {
-      DisplayPlaneState &last_plane = composition.back();
-      if (primary_layer->IsVideoLayer()) {
-        last_plane.SetVideoPlane();
-      }
-
-      ResetPlaneTarget(last_plane, commit_planes.back());
-    }
-  }
-
-  if (render_layers)
-    ValidateForDisplayScaling(composition.back(), commit_planes, primary_layer);
-
-  // We are just compositing Primary layer and nothing else.
-  if (layers.size() == 1) {
-    return render_layers;
-  }
+  OverlayLayer *previous_layer = NULL;
 
   if (layer_begin != layer_end) {
-    // Handle layers for overlay
-    uint32_t index = 0;
-    for (auto j = overlay_planes_.begin() + 1; j != overlay_planes_.end();
-         ++j) {
+    auto overlay_end = overlay_planes_.end();
 #ifdef DISABLE_CURSOR_PLANE
-      if (cursor_plane_ == j->get())
-        continue;
+    overlay_end = overlay_planes_.end() - 1;
 #else
-      if ((cursor_plane_ == j->get()) && !cursor_plane_->IsUniversal()) {
-        continue;
-      }
+    if (!cursor_plane_->IsUniversal()) {
+      overlay_end = overlay_planes_.end() - 1;
+    }
 #endif
-      DisplayPlaneState &last_plane = composition.back();
-      OverlayLayer *previous_layer = NULL;
-      if (previous_layer && last_plane.NeedsOffScreenComposition()) {
-        ValidateForDisplayScaling(composition.back(), commit_planes,
-                                  previous_layer);
-        render_layers = true;
+    // Handle layers for overlays.
+    for (auto j = overlay_planes_.begin(); j != overlay_end; ++j) {
+      DisplayPlane *plane = j->get();
+      if (previous_layer && !composition.empty()) {
+        DisplayPlaneState &last_plane = composition.back();
+        if (last_plane.NeedsOffScreenComposition()) {
+          ValidateForDisplayScaling(composition.back(), commit_planes,
+                                    previous_layer);
+          render_layers = true;
+        }
       }
 
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
-        commit_planes.emplace_back(OverlayPlane(j->get(), layer));
-        index = i->GetZorder();
+        // Ignore cursor layer as it will handled separately.
+        if (layer->IsCursorLayer()) {
+          continue;
+        }
+
+        bool prefer_seperate_plane = layer->PreferSeparatePlane();
+        if (!prefer_seperate_plane && previous_layer) {
+          prefer_seperate_plane = previous_layer->PreferSeparatePlane();
+        }
+
+        // Previous layer should not be used anywhere below, so can be
+        // safely reset to current layer.
+        previous_layer = layer;
+
+        commit_planes.emplace_back(OverlayPlane(plane, layer));
         ++layer_begin;
         // If we are able to composite buffer with the given plane, lets use
         // it.
-        bool fall_back = FallbacktoGPU(j->get(), layer, commit_planes);
-        if (!fall_back || prefer_seperate_plane ||
-            layer->PreferSeparatePlane()) {
-          composition.emplace_back(j->get(), layer, index);
-          j->get()->SetInUse(true);
-          if (fall_back) {
-            DisplayPlaneState &last_plane = composition.back();
-            if (layer->IsVideoLayer()) {
-              last_plane.SetVideoPlane();
-            }
+        bool fall_back = FallbacktoGPU(plane, layer, commit_planes);
+        if (!fall_back || prefer_seperate_plane) {
+          composition.emplace_back(plane, layer, layer->GetZorder());
+          plane->SetInUse(true);
+          DisplayPlaneState &last_plane = composition.back();
+          if (layer->IsVideoLayer()) {
+            last_plane.SetVideoPlane();
+          }
 
+          if (fall_back) {
+            ResetPlaneTarget(last_plane, commit_planes.back());
+          }
+          break;
+        } else {
+          if (composition.empty()) {
+            composition.emplace_back(plane, layer, layer->GetZorder());
+            DisplayPlaneState &last_plane = composition.back();
+            if (!last_plane.GetOffScreenTarget()) {
+              ResetPlaneTarget(last_plane, commit_planes.back());
+            }
+            // If we are here, it means the layer failed with
+            // Primary. Let's try to use overlay for next layer.
+            break;
+          } else {
+            commit_planes.pop_back();
+            DisplayPlaneState &last_plane = composition.back();
+            last_plane.AddLayer(layer);
+            if (!last_plane.GetOffScreenTarget()) {
+              ResetPlaneTarget(last_plane, commit_planes.back());
+            }
+          }
+        }
+      }
+    }
+
+    if (layer_begin != layer_end) {
+      DisplayPlaneState &last_plane = composition.back();
+      bool is_video = last_plane.IsVideoPlane();
+      previous_layer = NULL;
+      // We dont have any additional planes. Pre composite remaining layers
+      // to the last overlay plane.
+      for (auto i = layer_begin; i != layer_end; ++i) {
+        previous_layer = &(*(i));
+        // Ignore cursor layer as it will handled separately.
+        if (previous_layer->IsCursorLayer()) {
+          previous_layer = NULL;
+          continue;
+        }
+
+        last_plane.AddLayer(previous_layer);
+      }
+
+      if (last_plane.NeedsOffScreenComposition()) {
+        if (previous_layer) {
+          // In this case we need to fallback to 3Dcomposition till Media
+          // backend adds support for multiple layers.
+          bool force_buffer = false;
+          if (is_video && last_plane.GetSourceLayers().size() > 1 &&
+              last_plane.GetOffScreenTarget()) {
+            last_plane.ReleaseSurfaces(false);
+            force_buffer = true;
+          }
+
+          if (!last_plane.GetOffScreenTarget() || force_buffer) {
             ResetPlaneTarget(last_plane, commit_planes.back());
           }
 
-          prefer_seperate_plane = layer->PreferSeparatePlane();
-          break;
-        } else {
-          last_plane.AddLayer(layer);
-          if (!last_plane.GetOffScreenTarget()) {
-            SetOffScreenPlaneTarget(last_plane);
-          }
-
-          commit_planes.pop_back();
+          ValidateForDisplayScaling(composition.back(), commit_planes,
+                                    previous_layer);
         }
 
-        previous_layer = layer;
+        render_layers = true;
       }
-    }
-
-    DisplayPlaneState &last_plane = composition.back();
-    bool is_video = last_plane.IsVideoPlane();
-    OverlayLayer *previous_layer = NULL;
-    // We dont have any additional planes. Pre composite remaining layers
-    // to the last overlay plane.
-    for (auto i = layer_begin; i != layer_end; ++i) {
-      previous_layer = &(*(i));
-      last_plane.AddLayer(previous_layer);
-    }
-
-    if (last_plane.NeedsOffScreenComposition()) {
-      if (previous_layer) {
-        // In this case we need to fallback to 3Dcomposition till Media
-        // backend adds support for multiple layers.
-        bool force_buffer = false;
-        if (is_video && last_plane.GetSourceLayers().size() > 1 &&
-            last_plane.GetOffScreenTarget()) {
-          last_plane.ReleaseSurfaces(false);
-          force_buffer = true;
-        }
-
-        if (!last_plane.GetOffScreenTarget() || force_buffer) {
-          ResetPlaneTarget(last_plane, commit_planes.back());
-        }
-
-        ValidateForDisplayScaling(composition.back(), commit_planes,
-                                  previous_layer);
-      }
-
-      render_layers = true;
     }
   }
 
@@ -586,29 +578,14 @@ void DisplayPlaneManager::ValidateFinalLayers(
   // If this combination fails just fall back to 3D for all layers.
   if (!plane_handler_->TestCommit(commit_planes)) {
     // We start off with Primary plane.
-    DisplayPlane *current_plane = primary_plane_;
+    DisplayPlane *current_plane = overlay_planes_.at(0).get();
     for (DisplayPlaneState &plane : composition) {
       if (plane.GetOffScreenTarget()) {
         plane.GetOffScreenTarget()->SetInUse(false);
       }
     }
 
-    DisplayPlaneStateList().swap(composition);
-    auto layer_begin = layers.begin();
-    OverlayLayer *primary_layer = &(*(layer_begin));
-    commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
-    composition.emplace_back(current_plane, primary_layer,
-                             primary_layer->GetZorder());
-    current_plane->SetInUse(true);
-    DisplayPlaneState &last_plane = composition.back();
-    last_plane.ForceGPURendering();
-    ++layer_begin;
-
-    for (auto i = layer_begin; i != layers.end(); ++i) {
-      last_plane.AddLayer(&(*(i)));
-    }
-
-    EnsureOffScreenTarget(last_plane);
+    ForceGpuForAllLayers(composition, layers);
     ReleaseFreeOffScreenTargets();
   }
 }
@@ -635,7 +612,29 @@ bool DisplayPlaneManager::FallbacktoGPU(
 }
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {
-  return primary_plane_->IsSupportedFormat(format);
+  return overlay_planes_.at(0)->IsSupportedFormat(format);
+}
+
+void DisplayPlaneManager::ForceGpuForAllLayers(
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
+  auto layer_begin = layers.begin();
+  auto layer_end = layers.end();
+  DisplayPlaneStateList().swap(composition);
+  OverlayLayer *primary_layer = &(*(layers.begin()));
+  DisplayPlane *current_plane = overlay_planes_.at(0).get();
+
+  composition.emplace_back(current_plane, primary_layer,
+                           primary_layer->GetZorder());
+  DisplayPlaneState &last_plane = composition.back();
+  last_plane.ForceGPURendering();
+
+  for (auto i = layer_begin; i != layer_end; ++i) {
+    last_plane.AddLayer(&(*(i)));
+    i->GPURendered();
+  }
+
+  EnsureOffScreenTarget(last_plane);
+  current_plane->SetInUse(true);
 }
 
 }  // namespace hwcomposer
