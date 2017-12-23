@@ -194,7 +194,7 @@ bool DisplayPlaneManager::ValidateLayers(
         bool force_buffer = false;
         if (is_video && last_plane.GetSourceLayers().size() > 1 &&
             last_plane.GetOffScreenTarget()) {
-          last_plane.ReleaseSurfaces();
+          last_plane.ReleaseSurfaces(false);
           force_buffer = true;
         }
 
@@ -307,16 +307,16 @@ void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane,
     SetOffScreenPlaneTarget(*plane);
   }
 
-  std::vector<CompositionRegion> &comp_regions = plane->GetCompositionRegion();
-  std::vector<CompositionRegion>().swap(comp_regions);
-  const std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
-  size_t size = surfaces.size();
-  const HwcRect<int> &current_rect = plane->GetDisplayFrame();
-  for (size_t i = 0; i < size; i++) {
-    surfaces.at(i)->ResetDisplayFrame(current_rect);
+  // If Last frame surface is re-cycled and surfaces are
+  // less than 3, make sure we have the offscreen surface
+  // which is not in queued to be onscreen yet.
+  if (plane->SurfaceRecycled() && (plane->GetSurfaces().size() < 3)) {
+    SetOffScreenPlaneTarget(*plane);
+  } else {
+    plane->SwapSurfaceIfNeeded();
   }
 
-  plane->SwapSurfaceIfNeeded();
+  plane->RefreshSurfaces(true);
 }
 
 bool DisplayPlaneManager::ValidateCursorLayer(
@@ -409,18 +409,12 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
     OverlayLayer *current_layer, bool ignore_format) {
   size_t total_layers = last_plane.GetSourceLayers().size();
-  const std::vector<NativeSurface *> &surfaces = last_plane.GetSurfaces();
-  size_t size = surfaces.size();
 
   if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
     current_layer->UsePlaneScalar(false);
     last_plane.ResetSourceRectToDisplayFrame();
-    const HwcRect<float> &current_rect = last_plane.GetSourceCrop();
-    for (size_t i = 0; i < size; i++) {
-      surfaces.at(i)->ResetSourceCrop(current_rect);
-      surfaces.at(i)->GetLayer()->UsePlaneScalar(false);
-    }
+    last_plane.RefreshSurfaces(false);
   }
 
   // TODO: Handle case where all layers to be compoisted have same scaling
@@ -491,10 +485,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // we can take advantage of scalars attached to this plane.
   const HwcRect<float> &crop = current_layer->GetSourceCrop();
   last_plane.SetSourceCrop(crop);
-  for (size_t i = 0; i < size; i++) {
-    surfaces.at(i)->ResetSourceCrop(crop);
-    surfaces.at(i)->GetLayer()->UsePlaneScalar(true);
-  }
+  last_plane.RefreshSurfaces(false);
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
@@ -504,11 +495,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
     last_plane.ResetSourceRectToDisplayFrame();
-    const HwcRect<float> &current_rect = last_plane.GetSourceCrop();
-    for (size_t i = 0; i < size; i++) {
-      surfaces.at(i)->ResetSourceCrop(current_rect);
-      surfaces.at(i)->GetLayer()->UsePlaneScalar(false);
-    }
+    last_plane.RefreshSurfaces(false);
   } else {
     last_plane.UsePlaneScalar(true);
     current_layer->UsePlaneScalar(true);
