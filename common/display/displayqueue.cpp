@@ -137,6 +137,20 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     last_plane.CopyState(plane);
     if (cursor_layer_removed && plane.HasCursorLayer()) {
       last_plane.ResetLayers(layers, &clear_surface);
+
+      if (last_plane.GetSourceLayers().empty()) {
+        // On some platforms disabling primary disables
+        // the whole pipe. Let's revalidate the new layers
+        // and ensure primary has a buffer.
+        if (last_plane.GetDisplayPlane() ==
+            previous_plane_state_.begin()->GetDisplayPlane()) {
+          *force_full_validation = true;
+          return;
+        }
+
+        plane.GetDisplayPlane()->SetInUse(false);
+        continue;
+      }
     }
 
     if (plane.NeedsOffScreenComposition()) {
