@@ -250,7 +250,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           &(*(layers.begin() + last_plane.GetSourceLayers().front()));
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
-        layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
+        buffer->CreateFrameBuffer(gpu_fd_);
 
         // FB creation failed, we need to re-validate the
         // whole commit.
