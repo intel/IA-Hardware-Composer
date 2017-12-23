@@ -81,15 +81,12 @@ void NativeSurface::SetSurfaceAge(uint32_t value) {
   surface_age_ = value;
 }
 
-void NativeSurface::SetPlaneTarget(DisplayPlaneState &plane, uint32_t gpu_fd) {
+void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
+                                   uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
-  ResetDisplayFrame(plane.GetDisplayFrame());
-  ResetSourceCrop(plane.GetSourceCrop());
   layer_.UsePlaneScalar(plane.IsUsingPlaneScalar());
-
-  plane.SetOverlayLayer(&layer_);
   in_use_ = true;
   clear_surface_ = true;
   surface_age_ = 0;
