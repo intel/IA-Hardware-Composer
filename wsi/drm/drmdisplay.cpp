@@ -318,7 +318,7 @@ bool DrmDisplay::CommitFrame(
   }
 
   for (const DisplayPlaneState &comp_plane : comp_planes) {
-    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
+    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
     const OverlayLayer *layer = comp_plane.GetOverlayLayer();
     int32_t fence = layer->GetAcquireFence();
     if (fence > 0) {
@@ -331,7 +331,7 @@ bool DrmDisplay::CommitFrame(
   }
 
   for (const DisplayPlaneState &comp_plane : previous_composition_planes) {
-    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
+    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
     if (plane->InUse())
       continue;
 
@@ -637,7 +637,7 @@ void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
   IHOTPLUGEVENTTRACE("Disable: Disabling Display: %p", this);
 
   for (const DisplayPlaneState &comp_plane : composition_planes) {
-    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.plane());
+    DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
     plane->SetInUse(false);
     plane->SetNativeFence(-1);
   }

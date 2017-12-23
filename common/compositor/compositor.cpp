@@ -66,12 +66,12 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   for (DisplayPlaneState &plane : comp_planes) {
     if (plane.Scanout()) {
       dedicated_layers.insert(dedicated_layers.end(),
-                              plane.source_layers().begin(),
-                              plane.source_layers().end());
+                              plane.GetSourceLayers().begin(),
+                              plane.GetSourceLayers().end());
     } else if (plane.IsVideoPlane()) {
       dedicated_layers.insert(dedicated_layers.end(),
-                              plane.source_layers().begin(),
-                              plane.source_layers().end());
+                              plane.GetSourceLayers().begin(),
+                              plane.GetSourceLayers().end());
       media_state.emplace_back();
       DrawState &state = media_state.back();
       state.surface_ = plane.GetOffScreenTarget();
@@ -79,14 +79,14 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.lock();
       media_state.colors_ = colors_;
       lock_.unlock();
-      const OverlayLayer &layer = layers[plane.source_layers().at(0)];
+      const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
       if (comp_regions.empty()) {
-        SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
+        SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
                        comp_regions);
       }
 
