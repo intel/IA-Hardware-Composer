@@ -228,8 +228,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  if (layer->HasContentAttributesChanged() ||
-      layer->HasLayerAttributesChanged() || !layer->IsValidated()) {
+  if (layer->HasLayerAttributesChanged() || !layer->IsValidated()) {
     state_ |= kClearSurface;
     state_ |= kLayerContentChanged;
   }
@@ -359,8 +358,18 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   }
 
   // We expect cursor plane to support alpha always.
-  if (rhs->gpu_rendered_ || (type_ == kLayerCursor)) {
+  if (gpu_rendered_ || (type_ == kLayerCursor)) {
     content_changed = rect_changed || source_rect_changed;
+
+    if (!content_changed) {
+      if (alpha_ != rhs->alpha_) {
+        content_changed = true;
+      }
+
+      if (blending_ != rhs->blending_) {
+        content_changed = true;
+      }
+    }
   } else {
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
@@ -378,23 +387,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     }
 
     if (rect_changed || layer->HasLayerAttributesChanged()) {
-      if (layer->IsValidated()) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
-
-      if (rhs->transform_ != transform_) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
-
-      if ((rhs->display_frame_.left != display_frame_.left) ||
-          (rhs->display_frame_.right != display_frame_.right) ||
-          (rhs->display_frame_.top != display_frame_.top) ||
-          (rhs->display_frame_.bottom != display_frame_.bottom)) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
+      state_ |= kNeedsReValidation;
+      return;
     }
 
     if (source_rect_changed) {

@@ -133,8 +133,10 @@ struct OverlayLayer {
     return !(state_ & kInvisible);
   }
 
-  void GPURendered() {
-    gpu_rendered_ = true;
+  // If value is true than it inidicates the
+  // layer needs to be gpu rendered.
+  void GPURendered(bool value) {
+    gpu_rendered_ = value;
   }
 
   bool IsCursorLayer() const {
