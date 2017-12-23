@@ -39,73 +39,16 @@ class DisplayPlaneState {
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
-  DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer, uint32_t index)
-      : plane_(plane), layer_(layer) {
-    source_layers_.emplace_back(index);
-    display_frame_ = layer->GetDisplayFrame();
-    source_crop_ = layer->GetSourceCrop();
-    if (layer->IsCursorLayer()) {
-      type_ = PlaneType::kCursor;
-      has_cursor_layer_ = true;
-    }
-  }
+  DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer, uint32_t index);
 
-  void CopyState(DisplayPlaneState &state) {
-    has_cursor_layer_ = state.has_cursor_layer_;
-    type_ = state.type_;
-    use_plane_scalar_ = state.use_plane_scalar_;
-    plane_ = state.plane_;
-    state_ = state.state_;
-    source_crop_ = state.source_crop_;
-    display_frame_ = state.display_frame_;
-    apply_effects_ = state.apply_effects_;
-    plane_->SetInUse(true);
-    // We don't copy recycled_surface_ state as this
-    // should be determined in DisplayQueue for every frame.
-  }
+  // Copies plane state from state.
+  void CopyState(DisplayPlaneState &state);
 
-  const HwcRect<int> &GetDisplayFrame() const {
-    return display_frame_;
-  }
+  void SetSourceCrop(const HwcRect<float> &crop);
 
-  const HwcRect<float> &GetSourceCrop() const {
-    return source_crop_;
-  }
+  void ResetSourceRectToDisplayFrame();
 
-  void SetSourceCrop(const HwcRect<float> &crop) {
-    source_crop_ = crop;
-  }
-
-  void ResetSourceRectToDisplayFrame() {
-    source_crop_ = HwcRect<float>(display_frame_);
-  }
-
-  void AddLayer(const OverlayLayer *layer) {
-    const HwcRect<int> &display_frame = layer->GetDisplayFrame();
-    display_frame_.left = std::min(display_frame_.left, display_frame.left);
-    display_frame_.top = std::min(display_frame_.top, display_frame.top);
-    display_frame_.right = std::max(display_frame_.right, display_frame.right);
-    display_frame_.bottom =
-        std::max(display_frame_.bottom, display_frame.bottom);
-
-    source_layers_.emplace_back(layer->GetZorder());
-
-    state_ = State::kRender;
-    has_cursor_layer_ = layer->IsCursorLayer();
-
-    if (source_layers_.size() == 1 && has_cursor_layer_) {
-      type_ = PlaneType::kCursor;
-    } else {
-      // TODO: Add checks for Video type once our
-      // Media backend can support compositing more
-      // than one layer together.
-      type_ = PlaneType::kNormal;
-      apply_effects_ = false;
-    }
-
-    if (!use_plane_scalar_)
-      source_crop_ = HwcRect<float>(display_frame_);
-  }
+  void AddLayer(const OverlayLayer *layer);
 
   // This API should be called only when Cursor layer is being
   // added, is part of layers displayed by plane or is being
@@ -113,229 +56,95 @@ class DisplayPlaneState {
   // other cases.
   void AddLayers(const std::vector<size_t> &source_layers,
                  const std::vector<OverlayLayer> &layers,
-                 bool ignore_cursor_layer) {
-    if (ignore_cursor_layer) {
-      size_t lsize = layers.size();
-      size_t size = source_layers.size();
-      source_layers_.reserve(size);
-      has_cursor_layer_ = false;
-      bool initialized = false;
-      for (const size_t &index : source_layers) {
-        if (index >= lsize) {
-          continue;
-        }
+                 bool ignore_cursor_layer);
 
-        const OverlayLayer &layer = layers.at(index);
-        const HwcRect<int> &df = layer.GetDisplayFrame();
-        if (!initialized) {
-          display_frame_ = df;
-          initialized = true;
-        } else {
-          display_frame_.left = std::min(display_frame_.left, df.left);
-          display_frame_.top = std::min(display_frame_.top, df.top);
-          display_frame_.right = std::max(display_frame_.right, df.right);
-          display_frame_.bottom = std::max(display_frame_.bottom, df.bottom);
-        }
+  // Updates Display frame rect of this plane to include
+  // display_frame.
+  void UpdateDisplayFrame(const HwcRect<int> &display_frame);
 
-        source_layers_.emplace_back(index);
-      }
+  // Forces GPU Rendering of content for this plane.
+  void ForceGPURendering();
 
-      if (!use_plane_scalar_)
-        source_crop_ = HwcRect<float>(display_frame_);
-    } else {
-      for (const int &index : source_layers) {
-        source_layers_.emplace_back(index);
-      }
-    }
-  }
+  // Set's layer to be scanned out for this plane. This layer
+  // can be associated with NativeSurface in case the content
+  // need's to be rendered before being scanned out.
+  void SetOverlayLayer(const OverlayLayer *layer);
 
-  void UpdateDisplayFrame(const HwcRect<int> &display_frame) {
-    display_frame_.left = std::min(display_frame_.left, display_frame.left);
-    display_frame_.top = std::min(display_frame_.top, display_frame.top);
-    display_frame_.right = std::max(display_frame_.right, display_frame.right);
-    display_frame_.bottom =
-        std::max(display_frame_.bottom, display_frame.bottom);
-
-    if (!use_plane_scalar_)
-      source_crop_ = HwcRect<float>(display_frame_);
-  }
-
-  void ForceGPURendering() {
-    state_ = State::kRender;
-  }
-
-  void SetOverlayLayer(const OverlayLayer *layer) {
-    layer_ = layer;
-  }
-
-  void ReUseOffScreenTarget() {
-    recycled_surface_ = true;
-  }
-
-  bool SurfaceRecycled() const {
-    return recycled_surface_;
-  }
-
-  const OverlayLayer *GetOverlayLayer() const {
-    return layer_;
-  }
-
-  void SetOffScreenTarget(NativeSurface *target) {
-    surfaces_.emplace(surfaces_.begin(), target);
-  }
-
-  NativeSurface *GetOffScreenTarget() const {
-    if (surfaces_.size() == 0) {
-      return NULL;
-    }
-
-    return surfaces_.at(0);
-  }
-
-  void TransferSurfaces(const std::vector<NativeSurface *> &surfaces,
-                        bool swap_front_buffer) {
-    size_t size = surfaces.size();
-    source_layers_.reserve(size);
-    if (size < 3 || !swap_front_buffer) {
-      for (uint32_t i = 0; i < size; i++) {
-        surfaces_.emplace_back(surfaces.at(i));
-      }
-    } else {
-      // Lets make sure front buffer is now back in the list.
-      surfaces_.emplace_back(surfaces.at(1));
-      surfaces_.emplace_back(surfaces.at(2));
-      surfaces_.emplace_back(surfaces.at(0));
-    }
-
-    NativeSurface *surface = surfaces_.at(0);
-    surface->SetInUse(true);
-    SetOverlayLayer(surface->GetLayer());
-
-    if (surfaces_.size() == 3) {
-      surface_swapped_ = swap_front_buffer;
-    } else {
-      // We will be using an empty buffer, no need to
-      // swap buffer in this case.
-      surface_swapped_ = true;
-    }
-  }
+  // Reuses last shown surface for current frame.
+  void ReUseOffScreenTarget();
 
   // This will be called by DisplayPlaneManager when adding
   // cursor layer to any existing overlay.
-  void SwapSurfaceIfNeeded() {
-    if (surface_swapped_) {
-      return;
-    }
+  void SwapSurfaceIfNeeded();
 
-    std::vector<NativeSurface *> temp;
-    temp.reserve(surfaces_.size());
-    temp.emplace_back(surfaces_.at(1));
-    temp.emplace_back(surfaces_.at(2));
-    temp.emplace_back(surfaces_.at(0));
-    temp.swap(surfaces_);
-    surface_swapped_ = true;
-    NativeSurface *surface = surfaces_.at(0);
-    surface->SetInUse(true);
-    SetOverlayLayer(surface->GetLayer());
-  }
+  // SetOffcreen Surface for this plane.
+  void SetOffScreenTarget(NativeSurface *target);
 
-  const std::vector<NativeSurface *> &GetSurfaces() const {
-    return surfaces_;
-  }
+  // Moves surfaces to this plane. If swap_front_buffer
+  // is true we would swap the buffer first in surfaces to
+  // last.
+  void TransferSurfaces(const std::vector<NativeSurface *> &surfaces,
+                        bool swap_front_buffer);
 
-  std::vector<NativeSurface *> &GetSurfaces() {
-    return surfaces_;
-  }
+  const HwcRect<int> &GetDisplayFrame() const;
 
-  DisplayPlane *plane() const {
-    return plane_;
-  }
+  const HwcRect<float> &GetSourceCrop() const;
 
-  const std::vector<size_t> &source_layers() const {
-    return source_layers_;
-  }
+  bool SurfaceRecycled() const;
 
-  std::vector<CompositionRegion> &GetCompositionRegion() {
-    return composition_region_;
-  }
+  const OverlayLayer *GetOverlayLayer() const;
 
-  const std::vector<CompositionRegion> &GetCompositionRegion() const {
-    return composition_region_;
-  }
+  NativeSurface *GetOffScreenTarget() const;
 
-  bool IsCursorPlane() const {
-    return type_ == PlaneType::kCursor;
-  }
+  // Returns all NativeSurfaces associated with this plane.
+  // These can be empty if the plane doesn't need to go
+  // through any composition pass before being scanned out.
+  const std::vector<NativeSurface *> &GetSurfaces() const;
 
-  bool HasCursorLayer() const {
-    return has_cursor_layer_;
-  }
+  // Marks all surfaces used by this plane as not in use
+  // and removes surfaces from this plane. After this call
+  // this plane will not have have any associated offscreen
+  // surfaces.
+  void ReleaseSurfaces();
 
-  bool IsVideoPlane() const {
-    return type_ == PlaneType::kVideo;
-  }
+  DisplayPlane *GetDisplayPlane() const;
 
-  void SetVideoPlane() {
-    type_ = PlaneType::kVideo;
-  }
+  // Returns source layers for this plane.
+  const std::vector<size_t> &GetSourceLayers() const;
 
-  void UsePlaneScalar(bool enable) {
-    use_plane_scalar_ = enable;
-  }
+  std::vector<CompositionRegion> &GetCompositionRegion();
 
-  bool IsUsingPlaneScalar() const {
-    return use_plane_scalar_;
-  }
+  const std::vector<CompositionRegion> &GetCompositionRegion() const;
+
+  bool IsCursorPlane() const;
+
+  bool HasCursorLayer() const;
+
+  bool IsVideoPlane() const;
+
+  void SetVideoPlane();
+
+  void UsePlaneScalar(bool enable);
+
+  bool IsUsingPlaneScalar() const;
 
   // This state means that the content scanned out
   // by this plane needs to be post processed to
   // take into account any video effects.
-  void SetApplyEffects(bool apply_effects) {
-    apply_effects_ = apply_effects;
-    // Doesn't have any impact on planes which
-    // are not meant for video purpose.
-    if (type_ != PlaneType::kVideo) {
-      apply_effects_ = false;
-    }
-  }
+  void SetApplyEffects(bool apply_effects);
 
   // Returns true if layer associated with this
   // plane needs to be processed to apply needed
   // video effects.
-  bool ApplyEffects() const {
-    return apply_effects_;
-  }
+  bool ApplyEffects() const;
 
   // Returns true if layer associated with
   // this plane can be scanned out directly.
-  bool Scanout() const {
-    if (recycled_surface_) {
-      return true;
-    }
-
-    if (apply_effects_) {
-      return false;
-    }
-
-    return state_ == State::kScanout;
-  }
+  bool Scanout() const;
 
   // Returns true if offscreen composition
   // is needed for this plane.
-  bool NeedsOffScreenComposition() {
-    if (state_ == State::kRender)
-      return true;
-
-    if (recycled_surface_) {
-      return true;
-    }
-
-    if (apply_effects_) {
-      return true;
-    }
-
-    return false;
-  }
+  bool NeedsOffScreenComposition();
 
  private:
   enum class PlaneType : int32_t {

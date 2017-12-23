@@ -192,10 +192,9 @@ bool DisplayPlaneManager::ValidateLayers(
         // In this case we need to fallback to 3Dcomposition till Media
         // backend adds support for multiple layers.
         bool force_buffer = false;
-        if (is_video && last_plane.source_layers().size() > 1 &&
+        if (is_video && last_plane.GetSourceLayers().size() > 1 &&
             last_plane.GetOffScreenTarget()) {
-          last_plane.GetOffScreenTarget()->SetInUse(false);
-          std::vector<NativeSurface *>().swap(last_plane.GetSurfaces());
+          last_plane.ReleaseSurfaces();
           force_buffer = true;
         }
 
@@ -220,7 +219,7 @@ bool DisplayPlaneManager::ValidateLayers(
     ValidateFinalLayers(composition, layers);
     for (DisplayPlaneState &plane : composition) {
       if (plane.NeedsOffScreenComposition()) {
-        const std::vector<size_t> &source_layers = plane.source_layers();
+        const std::vector<size_t> &source_layers = plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
         bool useplanescalar = plane.IsUsingPlaneScalar();
         for (size_t i = 0; i < layers_size; i++) {
@@ -243,10 +242,10 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
   std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
-        OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
+        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
     // Check if we can still need/use scalar for this plane.
     if (temp.IsUsingPlaneScalar()) {
-      const std::vector<size_t> &source = temp.source_layers();
+      const std::vector<size_t> &source = temp.GetSourceLayers();
       size_t total_layers = source.size();
       ValidateForDisplayScaling(
           temp, commit_planes, &(layers.at(source.at(total_layers - 1))), true);
@@ -260,7 +259,7 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
     for (DisplayPlaneState &plane : composition) {
       if (plane.NeedsOffScreenComposition()) {
         render_layers = true;
-        const std::vector<size_t> &source_layers = plane.source_layers();
+        const std::vector<size_t> &source_layers = plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
         bool useplanescalar = plane.IsUsingPlaneScalar();
         for (size_t i = 0; i < layers_size; i++) {
@@ -286,7 +285,8 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   size_t size = composition.size();
   for (size_t i = size; i > 0; i--) {
     DisplayPlaneState &plane = composition.at(i - 1);
-    if ((cursor_plane_ == plane.plane()) && (!cursor_plane_->IsUniversal()))
+    if ((cursor_plane_ == plane.GetDisplayPlane()) &&
+        (!cursor_plane_->IsUniversal()))
       continue;
 
     last_plane = &plane;
@@ -309,7 +309,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane,
 
   std::vector<CompositionRegion> &comp_regions = plane->GetCompositionRegion();
   std::vector<CompositionRegion>().swap(comp_regions);
-  std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
+  const std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
   size_t size = surfaces.size();
   const HwcRect<int> &current_rect = plane->GetDisplayFrame();
   for (size_t i = 0; i < size; i++) {
@@ -332,7 +332,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   bool is_video = last_plane->IsVideoPlane();
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
-        OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
+        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
   }
 
   uint32_t total_size = cursor_layers.size();
@@ -369,7 +369,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         std::vector<OverlayPlane>().swap(commit_planes);
         for (DisplayPlaneState &temp : composition) {
           commit_planes.emplace_back(
-              OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
+              OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
         }
       }
 
@@ -408,8 +408,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
     OverlayLayer *current_layer, bool ignore_format) {
-  size_t total_layers = last_plane.source_layers().size();
-  std::vector<NativeSurface *> &surfaces = last_plane.GetSurfaces();
+  size_t total_layers = last_plane.GetSourceLayers().size();
+  const std::vector<NativeSurface *> &surfaces = last_plane.GetSurfaces();
   size_t size = surfaces.size();
 
   if (last_plane.IsUsingPlaneScalar()) {
@@ -446,7 +446,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // return.
   if (!ignore_format &&
       (current_layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
-      last_plane.plane()->IsSupportedFormat(
+      last_plane.GetDisplayPlane()->IsSupportedFormat(
           current_layer->GetBuffer()->GetFormat())) {
     return;
   }
@@ -500,7 +500,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
 
   bool fall_back =
-      FallbacktoGPU(last_plane.plane(),
+      FallbacktoGPU(last_plane.GetDisplayPlane(),
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
     last_plane.ResetSourceRectToDisplayFrame();
@@ -551,9 +551,9 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   uint32_t preferred_format = 0;
   uint32_t usage = hwcomposer::kLayerNormal;
   if (video_separate) {
-    preferred_format = plane.plane()->GetPreferredVideoFormat();
+    preferred_format = plane.GetDisplayPlane()->GetPreferredVideoFormat();
   } else {
-    preferred_format = plane.plane()->GetPreferredFormat();
+    preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
   }
 
   for (auto &fb : surfaces_) {
@@ -593,7 +593,7 @@ void DisplayPlaneManager::ValidateFinalLayers(
     }
 
     commit_planes.emplace_back(
-        OverlayPlane(plane.plane(), plane.GetOverlayLayer()));
+        OverlayPlane(plane.GetDisplayPlane(), plane.GetOverlayLayer()));
   }
 
   // If this combination fails just fall back to 3D for all layers.

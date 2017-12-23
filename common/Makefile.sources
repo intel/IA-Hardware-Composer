@@ -14,6 +14,7 @@ common_SOURCES =              \
     core/nesteddisplay.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
+    display/displayplanestate.cpp \
     display/vblankeventhandler.cpp \
     display/virtualdisplay.cpp \
     utils/fdhandler.cpp \
