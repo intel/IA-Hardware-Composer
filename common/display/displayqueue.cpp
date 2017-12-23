@@ -127,7 +127,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool needs_revalidation = false;
   for (DisplayPlaneState& plane : previous_plane_state_) {
     if (cursor_layer_removed && plane.IsCursorPlane()) {
-      plane.plane()->SetInUse(false);
+      plane.GetDisplayPlane()->SetInUse(false);
       continue;
     }
 
@@ -143,12 +143,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(plane);
-    last_plane.AddLayers(plane.source_layers(), layers, cursor_layer_removed);
+    last_plane.AddLayers(plane.GetSourceLayers(), layers, cursor_layer_removed);
 
     if (plane.NeedsOffScreenComposition()) {
       bool content_changed = false;
       bool update_rect = false;
-      const std::vector<size_t>& source_layers = last_plane.source_layers();
+      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       size_t layers_size = source_layers.size();
 
@@ -194,7 +194,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // we need to clear the surface.
       last_plane.TransferSurfaces(plane.GetSurfaces(),
                                   content_changed || clear_surface);
-      std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
+      const std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
       size_t size = surfaces.size();
       if (clear_surface || update_rect) {
         content_changed = true;
@@ -225,7 +225,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         if (last_plane.GetSurfaces().size() == 3) {
           if (!clear_surface) {
             HwcRect<int> last_damage;
-            std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
+            const std::vector<NativeSurface*>& surfaces =
+                last_plane.GetSurfaces();
             // Calculate Surface damage for the current surface. This should
             // be always equal to current surface damage + damage of last
             // two surfaces.(We use tripple buffering for our internal surfaces)
@@ -253,7 +254,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
     } else {
       const OverlayLayer* layer =
-          &(*(layers.begin() + last_plane.source_layers().front()));
+          &(*(layers.begin() + last_plane.GetSourceLayers().front()));
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
         layer->GetBuffer()->CreateFrameBuffer(gpu_fd_);
@@ -687,7 +688,7 @@ void DisplayQueue::SetMediaEffectsState(
     }
 
     plane.SetApplyEffects(apply_effects);
-    std::vector<NativeSurface*>& surfaces = plane.GetSurfaces();
+    const std::vector<NativeSurface*>& surfaces = plane.GetSurfaces();
     // Handle case where we enable effects but video plane is currently
     // scanned out directly. In this case we will need to ensure we
     // have a offscreen surface to render to.
@@ -698,12 +699,8 @@ void DisplayQueue::SetMediaEffectsState(
       // scanned out directly. In this case we will need to delete all
       // offscreen surfaces and set the right overlayer layer to the
       // plane.
-      for (NativeSurface* surface : surfaces) {
-        surface->SetInUse(false);
-      }
-
-      std::vector<NativeSurface*>().swap(plane.GetSurfaces());
-      const std::vector<size_t>& source = plane.source_layers();
+      plane.ReleaseSurfaces();
+      const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
   }
@@ -712,7 +709,7 @@ void DisplayQueue::SetMediaEffectsState(
 void DisplayQueue::UpdateSurfaceInUse(
     bool in_use, DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane_state : current_composition_planes) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    const std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     for (NativeSurface* surface : surfaces) {
       surface->SetInUse(in_use);
     }
@@ -721,7 +718,7 @@ void DisplayQueue::UpdateSurfaceInUse(
 
 void DisplayQueue::UpdateOnScreenSurfaces() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    const std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     if (surfaces.empty())
       continue;
 
@@ -745,7 +742,7 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
 
 void DisplayQueue::RecyclePreviousPlaneSurfaces() {
   for (DisplayPlaneState& plane_state : previous_plane_state_) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    const std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     if (surfaces.empty())
       continue;
 
@@ -762,7 +759,7 @@ void DisplayQueue::RecyclePreviousPlaneSurfaces() {
 void DisplayQueue::SaveOnScreenSurfaces(
     DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane_state : current_composition_planes) {
-    std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
+    const std::vector<NativeSurface*>& surfaces = plane_state.GetSurfaces();
     if (surfaces.empty())
       continue;
 
@@ -790,7 +787,7 @@ void DisplayQueue::IgnoreCompositionResults(
 void DisplayQueue::SetReleaseFenceToLayers(
     int32_t fence, std::vector<HwcLayer*>& source_layers) const {
   for (const DisplayPlaneState& plane : previous_plane_state_) {
-    const std::vector<size_t>& layers = plane.source_layers();
+    const std::vector<size_t>& layers = plane.GetSourceLayers();
     size_t size = layers.size();
     int32_t release_fence = -1;
     if (plane.Scanout() && !plane.SurfaceRecycled()) {
