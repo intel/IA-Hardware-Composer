@@ -50,13 +50,12 @@ class DisplayPlaneState {
 
   void AddLayer(const OverlayLayer *layer);
 
-  // This API should be called only when Cursor layer is being
-  // added, is part of layers displayed by plane or is being
-  // removed in this frame. AddLayers should be used in all
-  // other cases.
-  void AddLayers(const std::vector<size_t> &source_layers,
-                 const std::vector<OverlayLayer> &layers,
-                 bool ignore_cursor_layer);
+  // This API should be called only when source_layers being
+  // shown by this plane might be removed in this frame.
+  // layer_removed will be set to true in case layers
+  // associated with this plane are changed.
+  void ResetLayers(const std::vector<OverlayLayer> &layers,
+                   bool *layers_changed);
 
   // Updates Display frame rect of this plane to include
   // display_frame.
@@ -80,11 +79,9 @@ class DisplayPlaneState {
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
 
-  // Moves surfaces to this plane. If swap_front_buffer
-  // is true we would swap the buffer first in surfaces to
-  // last.
-  void TransferSurfaces(const std::vector<NativeSurface *> &surfaces,
-                        bool swap_front_buffer);
+  // Put's current OffscreenSurface to back in the
+  // list.
+  void SwapSurface();
 
   const HwcRect<int> &GetDisplayFrame() const;
 
@@ -104,17 +101,27 @@ class DisplayPlaneState {
   // Marks all surfaces used by this plane as not in use
   // and removes surfaces from this plane. After this call
   // this plane will not have have any associated offscreen
-  // surfaces.
-  void ReleaseSurfaces();
+  // surfaces. If only_release is set to true than we dont
+  // change the use flag.
+  void ReleaseSurfaces(bool only_release);
+
+  // Updates all offscreen surfaces to have same display frame
+  // and source rect as displayplanestate. Also, resets
+  // composition region to null. Also updates if layer
+  // needs to use scalar or not depending on what
+  // IsUsingPlaneScalar returns.
+  void RefreshSurfaces(bool clear_surface);
 
   DisplayPlane *GetDisplayPlane() const;
 
   // Returns source layers for this plane.
   const std::vector<size_t> &GetSourceLayers() const;
 
+  // Returns composition region used by this plane.
   std::vector<CompositionRegion> &GetCompositionRegion();
 
-  const std::vector<CompositionRegion> &GetCompositionRegion() const;
+  // Resets composition region to null.
+  void ResetCompositionRegion();
 
   bool IsCursorPlane() const;
 
@@ -147,34 +154,44 @@ class DisplayPlaneState {
   bool NeedsOffScreenComposition();
 
  private:
-  enum class PlaneType : int32_t {
-    kCursor,  // Plane is compositing only Cursor.
-    kVideo,   // Plane is compositing only Media content.
-    kNormal   // Plane is compositing different types of content.
+  class DisplayPlanePrivateState {
+   public:
+    enum class PlaneType : int32_t {
+      kCursor,  // Plane is compositing only Cursor.
+      kVideo,   // Plane is compositing only Media content.
+      kNormal   // Plane is compositing different types of content.
+    };
+
+    enum class State : int32_t {
+      kScanout,  // Scanout the layer directly.
+      kRender,   // Needs to render the contents to
+                 // layer before scanning out.
+    };
+
+    State state_ = State::kScanout;
+    DisplayPlane *plane_ = NULL;
+    const OverlayLayer *layer_ = NULL;
+    HwcRect<int> display_frame_;
+    HwcRect<float> source_crop_;
+    std::vector<size_t> source_layers_;
+    std::vector<CompositionRegion> composition_region_;
+
+    bool use_plane_scalar_ = false;
+    // Even if layer can be scanned out
+    // directly, post processing for
+    // applying video effects is needed.
+    bool apply_effects_ = false;
+    // This plane shows cursor.
+    bool has_cursor_layer_ = false;
+    // Any offscreen surfaces used by this
+    // plane.
+    std::vector<NativeSurface *> surfaces_;
+    PlaneType type_ = PlaneType::kNormal;
   };
 
-  enum class State : int32_t {
-    kScanout,  // Scanout the layer directly.
-    kRender,   // Needs to render the contents to
-               // layer before scanning out.
-  };
-
-  State state_ = State::kScanout;
-  DisplayPlane *plane_ = NULL;
-  const OverlayLayer *layer_ = NULL;
-  HwcRect<int> display_frame_;
-  HwcRect<float> source_crop_;
-  std::vector<size_t> source_layers_;
-  std::vector<CompositionRegion> composition_region_;
   bool recycled_surface_ = false;
-  bool has_cursor_layer_ = false;
   bool surface_swapped_ = true;
-  bool use_plane_scalar_ = false;
-  bool apply_effects_ = false;  // Even if layer can be scanned out
-                                // directly, post processing for
-                                // applying video effects is needed.
-  std::vector<NativeSurface *> surfaces_;
-  PlaneType type_ = PlaneType::kNormal;
+  std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };
 
 }  // namespace hwcomposer

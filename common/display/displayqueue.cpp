@@ -131,19 +131,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       continue;
     }
 
-    // We consider last_commit_failed_update_ state here. Displayplanemanager
-    // Tries to recycle free surfaces and it could have changed the rect of
-    // these surfaces during test commit. Let's make sure the rect is correct
-    // even in this case.
-    bool clear_surface = last_commit_failed_update_;
-    if (cursor_layer_removed && plane.HasCursorLayer()) {
-      clear_surface = true;
-    }
-
+    bool clear_surface = false;
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(plane);
-    last_plane.AddLayers(plane.GetSourceLayers(), layers, cursor_layer_removed);
+    if (cursor_layer_removed && plane.HasCursorLayer()) {
+      last_plane.ResetLayers(layers, &clear_surface);
+    }
 
     if (plane.NeedsOffScreenComposition()) {
       bool content_changed = false;
@@ -186,38 +180,23 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (update_rect) {
-        content_changed = true;
-      }
-
-      // Let's make sure we swap the surface if content has changed or
-      // we need to clear the surface.
-      last_plane.TransferSurfaces(plane.GetSurfaces(),
-                                  content_changed || clear_surface);
-      const std::vector<NativeSurface*>& surfaces = last_plane.GetSurfaces();
-      size_t size = surfaces.size();
+      // If surfaces need to be cleared or rect is updated,
+      // let's make sure all surfaces are refreshed.
       if (clear_surface || update_rect) {
         content_changed = true;
-        const HwcRect<int>& current_rect = last_plane.GetDisplayFrame();
-        const HwcRect<float>& source_crop = last_plane.GetSourceCrop();
-        for (size_t i = 0; i < size; i++) {
-          surfaces.at(i)->ResetDisplayFrame(current_rect);
-          surfaces.at(i)->ResetSourceCrop(source_crop);
-        }
-      } else {
-        clear_surface = true;
+        last_plane.RefreshSurfaces(clear_surface);
+      }
+
+      // Let's make sure we swap the surface in case content has changed.
+      if (content_changed) {
+        last_plane.SwapSurface();
+      }
+
+      // Let's get the state from surface if it needs to be cleared.
+      if (!clear_surface) {
         NativeSurface* surface = last_plane.GetOffScreenTarget();
         if (surface) {
           clear_surface = surface->ClearSurface();
-        }
-
-        if (!clear_surface) {
-          const std::vector<CompositionRegion>& comp_regions =
-              plane.GetCompositionRegion();
-          last_plane.GetCompositionRegion().assign(comp_regions.begin(),
-                                                   comp_regions.end());
-        } else {
-          content_changed = true;
         }
       }
 
@@ -513,7 +492,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (!composition_passed) {
-    IgnoreCompositionResults(current_composition_planes);
     last_commit_failed_update_ = true;
     return false;
   }
@@ -538,7 +516,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                        disable_ovelays, &fence);
 
   if (!composition_passed) {
-    IgnoreCompositionResults(current_composition_planes);
     last_commit_failed_update_ = true;
     return false;
   }
@@ -681,7 +658,7 @@ void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
 
 void DisplayQueue::SetMediaEffectsState(
     bool apply_effects, const std::vector<OverlayLayer>& layers,
-    DisplayPlaneStateList& current_composition_planes) const {
+    DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane : current_composition_planes) {
     if (!plane.IsVideoPlane()) {
       continue;
@@ -699,7 +676,8 @@ void DisplayQueue::SetMediaEffectsState(
       // scanned out directly. In this case we will need to delete all
       // offscreen surfaces and set the right overlayer layer to the
       // plane.
-      plane.ReleaseSurfaces();
+      RecyclePreviousPlaneSurfaces();
+      plane.ReleaseSurfaces(true);
       const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
@@ -775,13 +753,6 @@ void DisplayQueue::SaveOnScreenSurfaces(
       }
     }
   }
-}
-
-void DisplayQueue::IgnoreCompositionResults(
-    DisplayPlaneStateList& current_composition_planes) {
-  UpdateSurfaceInUse(false, current_composition_planes);
-  UpdateSurfaceInUse(true, previous_plane_state_);
-  ReleaseSurfaces();
 }
 
 void DisplayQueue::SetReleaseFenceToLayers(

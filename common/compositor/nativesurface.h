@@ -84,7 +84,7 @@ class NativeSurface {
     return clear_surface_;
   }
 
-  void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
+  void SetPlaneTarget(const DisplayPlaneState& plane, uint32_t gpu_fd);
 
   // Resets DisplayFrame, SurfaceDamage to display_frame.
   void ResetDisplayFrame(const HwcRect<int>& display_frame);

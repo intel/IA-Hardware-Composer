@@ -231,18 +231,15 @@ class DisplayQueue {
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
 
-  void SetMediaEffectsState(
-      bool apply_effects, const std::vector<OverlayLayer>& layers,
-      DisplayPlaneStateList& current_composition_planes) const;
+  void SetMediaEffectsState(bool apply_effects,
+                            const std::vector<OverlayLayer>& layers,
+                            DisplayPlaneStateList& current_composition_planes);
 
   void UpdateSurfaceInUse(bool in_use,
                           DisplayPlaneStateList& current_composition_planes);
   void RecyclePreviousPlaneSurfaces();
   void SaveOnScreenSurfaces(DisplayPlaneStateList& current_composition_planes);
   void UpdateOnScreenSurfaces();
-
-  void IgnoreCompositionResults(
-      DisplayPlaneStateList& current_composition_planes);
 
   void ReleaseSurfaces();
   void ReleaseSurfacesAsNeeded(bool layers_validated);
