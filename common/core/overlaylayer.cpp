@@ -228,8 +228,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  if (layer->HasContentAttributesChanged() ||
-      layer->HasLayerAttributesChanged() || !layer->IsValidated()) {
+  if (layer->HasLayerAttributesChanged() || !layer->IsValidated()) {
     state_ |= kClearSurface;
     state_ |= kLayerContentChanged;
   }
@@ -378,23 +377,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     }
 
     if (rect_changed || layer->HasLayerAttributesChanged()) {
-      if (layer->IsValidated()) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
-
-      if (rhs->transform_ != transform_) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
-
-      if ((rhs->display_frame_.left != display_frame_.left) ||
-          (rhs->display_frame_.right != display_frame_.right) ||
-          (rhs->display_frame_.top != display_frame_.top) ||
-          (rhs->display_frame_.bottom != display_frame_.bottom)) {
-        state_ |= kNeedsReValidation;
-        return;
-      }
+      state_ |= kNeedsReValidation;
+      return;
     }
 
     if (source_rect_changed) {

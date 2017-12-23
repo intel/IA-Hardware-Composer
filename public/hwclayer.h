@@ -174,16 +174,6 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if layer attributes has
-   * changed from last Present call to NativeDisplay.
-   * This takes into consideration any changes to
-   * alpha and blending.
-   */
-  bool HasContentAttributesChanged() const {
-    return layer_cache_ & kDIsplayContentAttributesChanged;
-  }
-
-  /**
    * API for setting release fence for this layer.
    * @param fd will be populated with Native Fence object.
    *        When fd is signalled, any previous frame
@@ -266,8 +256,7 @@ struct HwcLayer {
   enum LayerCache {
     kLayerAttributesChanged = 1 << 0,
     kDisplayFrameRectChanged = 1 << 1,
-    kDIsplayContentAttributesChanged = 1 << 2,
-    kSourceRectChanged = 1 << 3
+    kSourceRectChanged = 1 << 2
   };
 
   int32_t transform_ = 0;
@@ -290,8 +279,7 @@ struct HwcLayer {
   std::vector<int32_t> right_source_constraint_;
   uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamageChanged | kVisibleRegionChanged;
-  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged |
-                     kDIsplayContentAttributesChanged;
+  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
 };
 
 }  // namespace hwcomposer

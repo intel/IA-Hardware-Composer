@@ -78,6 +78,14 @@ bool DisplayPlaneManager::ValidateLayers(
     return true;
   }
 
+  // Let's reset some of the layer's state.
+  size_t size = layers.size();
+  for (size_t i = 0; i != size; ++i) {
+    OverlayLayer &layer = layers.at(i);
+    layer.GPURendered(false);
+    layer.UsePlaneScalar(false);
+  }
+
   std::vector<OverlayPlane> commit_planes;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
@@ -217,7 +225,7 @@ bool DisplayPlaneManager::ValidateLayers(
         for (size_t i = 0; i < layers_size; i++) {
           size_t source_index = source_layers.at(i);
           OverlayLayer &layer = layers.at(source_index);
-          layer.GPURendered();
+          layer.GPURendered(true);
           layer.UsePlaneScalar(useplanescalar);
         }
       }
@@ -257,7 +265,7 @@ bool DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
         for (size_t i = 0; i < layers_size; i++) {
           size_t source_index = source_layers.at(i);
           OverlayLayer &layer = layers.at(source_index);
-          layer.GPURendered();
+          layer.GPURendered(true);
           layer.UsePlaneScalar(useplanescalar);
         }
       }
@@ -348,7 +356,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     // cursor layer cannot be scanned out directly.
     if (FallbacktoGPU(plane, cursor_layer, commit_planes)) {
       commit_planes.pop_back();
-      cursor_layer->GPURendered();
+      cursor_layer->GPURendered(true);
       last_plane->AddLayer(cursor_layer);
       bool reset_overlay = false;
       if (!last_plane->GetOffScreenTarget() || is_video)
@@ -384,7 +392,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   for (uint32_t i = cursor_index; i < total_size; i++) {
     OverlayLayer *cursor_layer = cursor_layers.at(i);
     last_plane->AddLayer(cursor_layer);
-    cursor_layer->GPURendered();
+    cursor_layer->GPURendered(true);
     status = true;
     last_layer = cursor_layer;
   }
@@ -577,8 +585,6 @@ void DisplayPlaneManager::ValidateFinalLayers(
 
   // If this combination fails just fall back to 3D for all layers.
   if (!plane_handler_->TestCommit(commit_planes)) {
-    // We start off with Primary plane.
-    DisplayPlane *current_plane = overlay_planes_.at(0).get();
     for (DisplayPlaneState &plane : composition) {
       if (plane.GetOffScreenTarget()) {
         plane.GetOffScreenTarget()->SetInUse(false);
@@ -630,7 +636,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
 
   for (auto i = layer_begin; i != layer_end; ++i) {
     last_plane.AddLayer(&(*(i)));
-    i->GPURendered();
+    i->GPURendered(true);
   }
 
   EnsureOffScreenTarget(last_plane);
