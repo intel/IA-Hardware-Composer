@@ -79,6 +79,7 @@ LOCAL_SRC_FILES := \
         core/overlaylayer.cpp \
 	core/nesteddisplay.cpp \
         display/displayplanemanager.cpp \
+	display/displayplanestate.cpp \
         display/displayqueue.cpp \
         display/vblankeventhandler.cpp \
         display/virtualdisplay.cpp \
