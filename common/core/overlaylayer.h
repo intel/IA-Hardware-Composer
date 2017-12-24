@@ -90,9 +90,7 @@ struct OverlayLayer {
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                  ResourceManager* buffer_manager, bool register_buffer);
 
-  // This is expected to be called from NativeSurface only.
   void SetSourceCrop(const HwcRect<float>& source_crop);
-
   const HwcRect<float>& GetSourceCrop() const {
     return source_crop_;
   }
