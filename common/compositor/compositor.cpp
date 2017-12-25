@@ -203,7 +203,8 @@ bool Compositor::CalculateRenderState(
 
 void Compositor::SetVideoColor(HWCColorControl color, float value) {
   lock_.lock();
-  colors_[color] = value;
+  colors_[color].value_ = value;
+  colors_[color].use_default_ = false;
   lock_.unlock();
 }
 
@@ -212,8 +213,10 @@ void Compositor::GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
   // TODO
 }
 
-void Compositor::RestoreVideoDefaultColor(HWCColorControl /*color*/) {
-  // TODO
+void Compositor::RestoreVideoDefaultColor(HWCColorControl color) {
+  lock_.lock();
+  colors_[color].use_default_ = true;
+  lock_.unlock();
 }
 
 // Below code is taken from drm_hwcomposer adopted to our needs.

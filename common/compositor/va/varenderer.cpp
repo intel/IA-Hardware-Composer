@@ -105,26 +105,37 @@ bool VARenderer::SetVAProcFilterColorDefaultValue(
   return true;
 }
 
-bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode, float value) {
+bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
+                                           const HWCColorProp& prop) {
   if (mode == HWCColorControl::kColorHue ||
       mode == HWCColorControl::kColorSaturation ||
       mode == HWCColorControl::kColorBrightness ||
       mode == HWCColorControl::kColorContrast) {
-    if (value > colorbalance_caps_[mode].caps_.range.max_value ||
-        value < colorbalance_caps_[mode].caps_.range.min_value) {
-      ETRACE("VA Filter value out of range\n");
-      return false;
+    if (prop.use_default_) {
+      colorbalance_caps_[mode].use_default_ = true;
+    } else {
+      if (prop.value_ > colorbalance_caps_[mode].caps_.range.max_value ||
+          prop.value_ < colorbalance_caps_[mode].caps_.range.min_value) {
+        ETRACE("VA Filter value out of range\n");
+        return false;
+      }
+      colorbalance_caps_[mode].value_ = prop.value_;
+      colorbalance_caps_[mode].use_default_ = false;
     }
-    colorbalance_caps_[mode].value_ = value;
     update_caps_ = true;
     return true;
-  } else if (mode == HWCColorControl::kColorSharp) {
-    if (value > sharp_caps_.caps_.range.max_value ||
-        value < sharp_caps_.caps_.range.min_value) {
-      ETRACE("VA Filter sharp value out of range\n");
-      return false;
+  } else if (mode == HWCColorControl::kColorSharpness) {
+    if (prop.use_default_) {
+      sharp_caps_.use_default_ = true;
+    } else {
+      if (prop.value_ > sharp_caps_.caps_.range.max_value ||
+          prop.value_ < sharp_caps_.caps_.range.min_value) {
+        ETRACE("VA Filter sharp value out of range\n");
+        return false;
+      }
+      sharp_caps_.value_ = prop.value_;
+      sharp_caps_.use_default_ = false;
     }
-    sharp_caps_.value_ = value;
     update_caps_ = true;
     return true;
   } else {
@@ -197,15 +208,14 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
             output_region.y, output_region.width, output_region.height);
 
-  for (HWCColorMap::const_iterator itr = state.colors_.begin();
-       itr != state.colors_.end(); itr++) {
+  for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
           va_context_, VAProcPipelineParameterBufferType,
-	  sizeof(VAProcPipelineParameterBuffer), 1, &param_)) {
+          sizeof(VAProcPipelineParameterBuffer), 1, &param_)) {
     return false;
   }
 
@@ -305,10 +315,17 @@ bool VARenderer::UpdateCaps() {
     VAProcFilterParameterBufferColorBalance cbparam;
     VAProcFilterParameterBuffer sharpparam;
 
-    for (ColorBalanceCapMapItr itr = colorbalance_caps_.begin();
-         itr != colorbalance_caps_.end(); itr++) {
+    for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
+         itr++) {
+      bool use_default =
+          itr->second.use_default_ &&
+          itr->second.value_ != itr->second.caps_.range.default_value;
       if (fabs(itr->second.value_ - itr->second.caps_.range.default_value) >=
-          itr->second.caps_.range.step) {
+              itr->second.caps_.range.step ||
+          use_default) {
+        if (use_default) {
+          itr->second.value_ = itr->second.caps_.range.default_value;
+        }
         cbparam.type = VAProcFilterColorBalance;
         cbparam.value = itr->second.value_;
         cbparam.attrib = itr->second.caps_.type;
@@ -323,8 +340,15 @@ bool VARenderer::UpdateCaps() {
 
     cb_elements_.swap(cb_elements);
 
+    bool sharp_use_default =
+        sharp_caps_.use_default_ &&
+        sharp_caps_.value_ != sharp_caps_.caps_.range.default_value;
     if (fabs(sharp_caps_.value_ - sharp_caps_.caps_.range.default_value) >=
-        sharp_caps_.caps_.range.step) {
+            sharp_caps_.caps_.range.step ||
+        sharp_use_default) {
+      if (sharp_use_default) {
+        sharp_caps_.value_ = sharp_caps_.caps_.range.default_value;
+      }
       sharpparam.value = sharp_caps_.value_;
       sharpparam.type = VAProcFilterSharpening;
       if (!sharp[0].CreateBuffer(va_context_, VAProcFilterParameterBufferType,

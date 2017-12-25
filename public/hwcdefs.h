@@ -100,7 +100,7 @@ enum class HWCColorControl : int32_t {
   kColorSaturation = 1,
   kColorBrightness = 2,
   kColorContrast = 3,
-  kColorSharp = 4
+  kColorSharpness = 4
 };
 
 struct EnumClassHash {
@@ -110,7 +110,13 @@ struct EnumClassHash {
   }
 };
 
-using HWCColorMap = std::unordered_map<HWCColorControl, float, EnumClassHash>;
+struct HWCColorProp {
+  float value_ = 0.0;
+  bool use_default_ = true;
+};
+
+using HWCColorMap =
+    std::unordered_map<HWCColorControl, HWCColorProp, EnumClassHash>;
 
 }  // namespace hwcomposer
 #endif  // PUBLIC_HWCDEFS_H_

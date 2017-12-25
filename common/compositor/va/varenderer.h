@@ -64,18 +64,17 @@ class ScopedVABufferID {
   VABufferID buffer_ = VA_INVALID_ID;
 };
 
-typedef struct _HwcColorBalanceCap {
+struct HwcColorBalanceCap {
   VAProcFilterCapColorBalance caps_;
   float value_;
-} HwcColorBalanceCap;
+  bool use_default_ = true;
+};
 
-typedef struct _HwcFilterCap {
+struct HwcFilterCap {
   VAProcFilterCap caps_;
   float value_;
-} HwcFilterCap;
-
-typedef std::map<HWCColorControl, HwcColorBalanceCap> ColorBalanceCapMap;
-typedef ColorBalanceCapMap::iterator ColorBalanceCapMapItr;
+  bool use_default_ = true;
+};
 
 class VARenderer : public Renderer {
  public:
@@ -94,7 +93,8 @@ class VARenderer : public Renderer {
  private:
   bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
                              void* caps, uint32_t* num);
-  bool SetVAProcFilterColorValue(HWCColorControl type, float value);
+  bool SetVAProcFilterColorValue(HWCColorControl type,
+                                 const HWCColorProp& prop);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
                                      VAProcColorBalanceType vamode);
@@ -107,7 +107,7 @@ class VARenderer : public Renderer {
   std::vector<VABufferID> filters_;
   std::vector<ScopedVABufferID> cb_elements_;
   std::vector<ScopedVABufferID> sharp_;
-  ColorBalanceCapMap colorbalance_caps_;
+  std::map<HWCColorControl, HwcColorBalanceCap> colorbalance_caps_;
   HwcFilterCap sharp_caps_;
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;
