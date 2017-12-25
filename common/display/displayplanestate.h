@@ -52,10 +52,7 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  // layer_removed will be set to true in case layers
-  // associated with this plane are changed.
-  void ResetLayers(const std::vector<OverlayLayer> &layers,
-                   bool *layers_changed);
+  void ResetLayers(const std::vector<OverlayLayer> &layers);
 
   // Updates Display frame rect of this plane to include
   // display_frame.

@@ -117,17 +117,19 @@ void DisplayQueue::RotateDisplay(HWCRotation rotation) {
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    bool cursor_layer_removed,
+                                   bool layers_removed,
                                    DisplayPlaneStateList* composition,
                                    bool* render_layers, bool* can_ignore_commit,
                                    bool* re_validate_commit,
                                    bool* force_full_validation) {
   CTRACE();
   bool needs_gpu_composition = false;
-  bool ignore_commit = !cursor_layer_removed;
+  bool ignore_commit = true;
   bool needs_revalidation = false;
   for (DisplayPlaneState& plane : previous_plane_state_) {
     if (cursor_layer_removed && plane.IsCursorPlane()) {
       plane.GetDisplayPlane()->SetInUse(false);
+      ignore_commit = false;
       continue;
     }
 
@@ -135,8 +137,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(plane);
-    if (cursor_layer_removed && plane.HasCursorLayer()) {
-      last_plane.ResetLayers(layers, &clear_surface);
+    if ((cursor_layer_removed && plane.HasCursorLayer()) || (layers_removed)) {
+      last_plane.ResetLayers(layers);
+      // We need to force re-validation of commit to ensure we update any
+      // Scalar usage with the new combination of layers.
+      needs_revalidation = true;
+      ignore_commit = false;
+      clear_surface = true;
 
       if (last_plane.GetSourceLayers().empty()) {
         // On some platforms disabling primary disables
@@ -148,12 +155,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           return;
         }
 
-        plane.GetDisplayPlane()->SetInUse(false);
+        last_plane.GetDisplayPlane()->SetInUse(false);
+        composition->pop_back();
         continue;
       }
     }
 
-    if (plane.NeedsOffScreenComposition()) {
+    if (last_plane.NeedsOffScreenComposition()) {
       bool content_changed = false;
       bool update_rect = false;
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
@@ -247,7 +255,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
     } else {
       const OverlayLayer* layer =
-          &(*(layers.begin() + last_plane.GetSourceLayers().front()));
+          &(layers.at(last_plane.GetSourceLayers().front()));
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
         buffer->CreateFrameBuffer(gpu_fd_);
@@ -368,6 +376,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   size = layers.size();
   bool add_cursor_layer = false;
   bool removed_cursor_layer = false;
+  bool layers_removed = false;
 
   if (!layers_changed) {
     // New non cursor layers have been added. Force
@@ -378,18 +387,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       // This case is when non-cursor layer has been removed and we
       // don't have any cursor layers or we have cursor layers and
       // non cursor layer has been removed.
-      // TODO: We should be able to optimize without forcing a full
-      // validation.
       if (previous_size != size) {
-        layers_changed = true;
+        layers_removed = true;
       }
     } else if (previous_cursor_layers > total_cursor_layers_) {
       // Cursor layer has been removed.
       if ((previous_size - size) !=
           (previous_cursor_layers - total_cursor_layers_)) {
-        // TODO: We should be able to optimize without forcing a full
-        // validation.
-        layers_changed = true;
+        layers_removed = true;
       } else {
         // We should have "new_layers" set above in case cursor layer was
         // removed
@@ -426,9 +431,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     bool re_validate_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
-    GetCachedLayers(layers, removed_cursor_layer, &current_composition_planes,
-                    &render_layers, &can_ignore_commit, &re_validate_commit,
-                    &validate_layers);
+    GetCachedLayers(layers, removed_cursor_layer, layers_removed,
+                    &current_composition_planes, &render_layers,
+                    &can_ignore_commit, &re_validate_commit, &validate_layers);
 
     if (!validate_layers && re_validate_commit) {
       // Let's re-validate if their was a request for this.
