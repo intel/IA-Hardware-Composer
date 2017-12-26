@@ -32,6 +32,12 @@ class OverlayBuffer;
 class ResourceManager;
 
 struct OverlayLayer {
+  enum LayerComposition {
+    kGpu = 1 << 0,      // Needs GPU Composition.
+    kDisplay = 1 << 1,  // Display Can scanout the layer directly.
+    kAll = kGpu | kDisplay
+  };
+
   OverlayLayer() = default;
   void SetAcquireFence(int32_t acquire_fence);
 
@@ -131,10 +137,22 @@ struct OverlayLayer {
     return !(state_ & kInvisible);
   }
 
-  // If value is true than it inidicates the
-  // layer needs to be gpu rendered.
-  void GPURendered(bool value) {
-    gpu_rendered_ = value;
+  // Value is the actual composition (i.e. GPU/Display)
+  // being used for this layer ir-respective of the
+  // actual supported composition.
+  void SetLayerComposition(OverlayLayer::LayerComposition value) {
+    actual_composition_ = value;
+  }
+
+  // value should indicate if the layer can be scanned out
+  // by display directly or needs to go through gpu
+  // composition pass or can handle both.
+  void SupportedDisplayComposition(OverlayLayer::LayerComposition value) {
+    supported_composition_ = value;
+  }
+
+  bool CanScanOut() const {
+    return supported_composition_ & kDisplay;
   }
 
   bool IsCursorLayer() const {
@@ -146,7 +164,7 @@ struct OverlayLayer {
   }
 
   bool IsGpuRendered() const {
-    return gpu_rendered_;
+    return actual_composition_ & kGpu;
   }
 
   bool IsUsingPlaneScalar() const {
@@ -249,8 +267,9 @@ struct OverlayLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  bool gpu_rendered_ = false;
   bool display_scaled_ = false;
+  LayerComposition supported_composition_;
+  LayerComposition actual_composition_;
   HWCLayerType type_ = kLayerNormal;
 };
 

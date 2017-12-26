@@ -52,7 +52,8 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers);
+  void ResetLayers(const std::vector<OverlayLayer> &layers,
+                   size_t remove_index);
 
   // Updates Display frame rect of this plane to include
   // display_frame.
@@ -60,6 +61,8 @@ class DisplayPlaneState {
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();
+
+  void DisableGPURendering();
 
   // Set's layer to be scanned out for this plane. This layer
   // can be associated with NativeSurface in case the content
@@ -95,12 +98,9 @@ class DisplayPlaneState {
   // through any composition pass before being scanned out.
   const std::vector<NativeSurface *> &GetSurfaces() const;
 
-  // Marks all surfaces used by this plane as not in use
-  // and removes surfaces from this plane. After this call
-  // this plane will not have have any associated offscreen
-  // surfaces. If only_release is set to true than we dont
-  // change the use flag.
-  void ReleaseSurfaces(bool only_release);
+  // Removes surfaces for this plane. Caller is responsible
+  // for ensuring the surfaces are released/recycled.
+  void ReleaseSurfaces();
 
   // Updates all offscreen surfaces to have same display frame
   // and source rect as displayplanestate. Also, resets
@@ -150,6 +150,22 @@ class DisplayPlaneState {
   // is needed for this plane.
   bool NeedsOffScreenComposition();
 
+  // Returns true if this plane needs to be re-validated
+  // with current source layer. This will be the case
+  // when plane had multiple layers and they where
+  // removed leaving it with single layer now.
+  bool IsRevalidationNeeded() const;
+
+  // Plane has been revalidated by DisplayPlaneManager.
+  void RevalidationDone();
+
+  // Returns true if we can squash this with other plane.
+  // i.e. This will be the case when it's having only
+  // gpu composited layer and could potentially be
+  // squashed with another having similar composition.
+  // This should be used only as a hint.
+  bool CanSquash() const;
+
  private:
   class DisplayPlanePrivateState {
    public:
@@ -188,6 +204,7 @@ class DisplayPlaneState {
 
   bool recycled_surface_ = false;
   bool surface_swapped_ = true;
+  bool re_validate_layer_ = false;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };
 

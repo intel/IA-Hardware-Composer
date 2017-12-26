@@ -224,10 +224,9 @@ class DisplayQueue {
 
   void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       bool cursor_layer_removed, bool layers_removed,
-                       DisplayPlaneStateList* composition, bool* render_layers,
-                       bool* can_ignore_commit, bool* re_validate_commit,
-                       bool* force_full_validation);
+                       int remove_index, DisplayPlaneStateList* composition,
+                       bool* revalidate_plane, bool* render_layers,
+                       bool* can_ignore_commit, bool* force_full_validation);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
 
@@ -235,10 +234,6 @@ class DisplayQueue {
                             const std::vector<OverlayLayer>& layers,
                             DisplayPlaneStateList& current_composition_planes);
 
-  void UpdateSurfaceInUse(bool in_use,
-                          DisplayPlaneStateList& current_composition_planes);
-  void RecyclePreviousPlaneSurfaces();
-  void SaveOnScreenSurfaces(DisplayPlaneStateList& current_composition_planes);
   void UpdateOnScreenSurfaces();
 
   void ReleaseSurfaces();
@@ -269,7 +264,6 @@ class DisplayQueue {
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
   int state_ = kConfigurationChanged;
-  uint32_t total_cursor_layers_ = 0;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
   bool handle_display_initializations_ = true;  // to disable hwclock thread.
