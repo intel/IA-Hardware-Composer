@@ -184,7 +184,7 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
 }
 
 void OverlayLayer::UpdateSurfaceDamage(HwcLayer* layer) {
-  if (!gpu_rendered_) {
+  if (!(actual_composition_ & kGpu)) {
     surface_damage_ = display_frame_;
     return;
   }
@@ -278,7 +278,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
 
     UpdateSurfaceDamage(layer);
-    if (gpu_rendered_) {
+    if (actual_composition_ & kGpu) {
       // If viewport and layer doesn't interact we can avoid re-rendering
       // this layer.
       if (AnalyseOverlap(surface_damage_, display_frame_) != kOutside) {
@@ -337,8 +337,9 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
-  gpu_rendered_ = rhs->gpu_rendered_;
   display_scaled_ = rhs->display_scaled_;
+  supported_composition_ = rhs->supported_composition_;
+  actual_composition_ = rhs->actual_composition_;
   if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
     state_ |= kNeedsReValidation;
     return;
@@ -356,7 +357,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   }
 
   // We expect cursor plane to support alpha always.
-  if (gpu_rendered_ || (type_ == kLayerCursor)) {
+  if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
     content_changed = rect_changed || source_rect_changed;
 
     if (!content_changed) {

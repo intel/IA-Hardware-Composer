@@ -39,7 +39,10 @@ extern "C" {
 // #define ENABLE_MOSAIC_DISPLAY_TRACING 1
 // #define FUNCTION_CALL_TRACING 1
 // #define RESOURCE_CACHE_TRACING 1
-#define COMPOSITOR_TRACING 1
+// #define SURFACE_PLANE_LAYER_MAP_TRACING 1
+// #define SURFACE_DUPLICATE_LAYER_TRACING 1
+// #define SURFACE_BASIC_TRACING 1
+// #define COMPOSITOR_TRACING 1
 
 // Function call tracing
 #ifdef FUNCTION_CALL_TRACING
@@ -117,6 +120,12 @@ class TraceFunc {
 #define ICACHETRACE ITRACE
 #else
 #define ICACHETRACE ((void)0)
+#endif
+
+#ifdef SURFACE_BASIC_TRACING
+#define ISURFACETRACE ITRACE
+#else
+#define ISURFACETRACE ((void)0)
 #endif
 
 // Errors
@@ -216,6 +225,163 @@ class TraceFunc {
       "-----------------------------\n");
 #else
 #define DUMP_CURRENT_COMPOSITION_PLANES() ((void)0)
+#endif
+
+#ifdef SURFACE_PLANE_LAYER_MAP_TRACING
+#define DUMP_CURRENT_LAYER_PLANE_COMBINATIONS()                                \
+  static int layer_frame_ = 0;                                                 \
+  layer_frame_++;                                                              \
+  ITRACE(                                                                      \
+      "Dumping Layers of Current Composition planes "                          \
+      "-----------------------------");                                        \
+  ITRACE("Frame: %d", layer_frame_);                                           \
+  ITRACE("Total Layers for this Frame: %d", layers.size());                    \
+  ITRACE("Total Planes in use for this Frame: %d",                             \
+         current_composition_planes.size());                                   \
+  int plane_layer_index = 1;                                                   \
+  for (DisplayPlaneState & comp_plane : current_composition_planes) {          \
+    ITRACE("Composition Plane State for Index: %d", plane_layer_index);        \
+    const std::vector<size_t> &source_layers = comp_plane.GetSourceLayers();   \
+    if (comp_plane.NeedsOffScreenComposition()) {                              \
+      ITRACE("DisplayPlane state: kRender. Total layers: %lu",                 \
+             source_layers.size());                                            \
+      ITRACE("Layers Index:");                                                 \
+      for (const size_t &primary_index : source_layers) {                      \
+        ITRACE("index: %d", primary_index);                                    \
+      }                                                                        \
+    } else if (comp_plane.Scanout()) {                                         \
+      if (source_layers.size() > 1 && !comp_plane.SurfaceRecycled())           \
+        ITRACE(                                                                \
+            "Plane has more than one layer associated when its type is "       \
+            "kScanout. This needs to be fixed.");                              \
+      ITRACE("DisplayPlane State: kScanout. Total layers: %lu",                \
+             source_layers.size());                                            \
+      ITRACE("Layers Index:");                                                 \
+      for (const size_t &overlay_index : source_layers) {                      \
+        ITRACE("index: %d", overlay_index);                                    \
+      }                                                                        \
+    }                                                                          \
+    ITRACE("Composition Plane State ends for Index: %d\n", plane_layer_index); \
+    plane_layer_index++;                                                       \
+  }                                                                            \
+  ITRACE(                                                                      \
+      "Dumping Layers of Current Composition planes ends. "                    \
+      "-----------------------------\n");
+#else
+#define DUMP_CURRENT_LAYER_PLANE_COMBINATIONS() ((void)0)
+#endif
+
+#ifdef SURFACE_DUPLICATE_LAYER_TRACING
+#define DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS()                           \
+  int plane_dup_layer_index = 1;                                              \
+  ITRACE("Checking for duplicate layers Within a Plane: \n");                 \
+  bool duplicate_found = false;                                               \
+  for (DisplayPlaneState & comp_plane : current_composition_planes) {         \
+    const std::vector<size_t> &source_layers = comp_plane.GetSourceLayers();  \
+    std::vector<size_t> temp;                                                 \
+    for (size_t i = 0; i < source_layers.size(); i++) {                       \
+      bool found = false;                                                     \
+      size_t current_index = source_layers.at(i);                             \
+      if (!temp.empty()) {                                                    \
+        for (size_t j = 0; j < temp.size(); j++) {                            \
+          if (temp.at(j) == current_index) {                                  \
+            found = true;                                                     \
+            duplicate_found = true;                                           \
+            ITRACE(                                                           \
+                "ALERT: Same Layer added again for this plane. Plane Index: " \
+                "%d "                                                         \
+                "Layer "                                                      \
+                "Index: %d \n",                                               \
+                plane_dup_layer_index, current_index);                        \
+            break;                                                            \
+          }                                                                   \
+        }                                                                     \
+      }                                                                       \
+      if (!found) {                                                           \
+        temp.emplace_back(current_index);                                     \
+      }                                                                       \
+    }                                                                         \
+    plane_dup_layer_index++;                                                  \
+  }                                                                           \
+  if (!duplicate_found) {                                                     \
+    ITRACE("No duplicate layers present within a plane. \n");                 \
+  }                                                                           \
+  ITRACE("Checking for duplicate layers Within a Plane Ends. \n");            \
+  ITRACE("Checking for duplicate layers between different Planes. \n");       \
+  duplicate_found = false;                                                    \
+  std::vector<std::vector<size_t>> test_layers;                               \
+  for (DisplayPlaneState & comp_plane : current_composition_planes) {         \
+    const std::vector<size_t> &source_layers = comp_plane.GetSourceLayers();  \
+    test_layers.emplace_back();                                               \
+    std::vector<size_t> &temp = test_layers.back();                           \
+    for (size_t i = 0; i < source_layers.size(); i++) {                       \
+      temp.emplace_back(source_layers.at(i));                                 \
+    }                                                                         \
+  }                                                                           \
+  for (size_t i = 0; i < test_layers.size(); i++) {                           \
+    const std::vector<size_t> &temp2 = test_layers.at(i);                     \
+    for (size_t k = 0; k < current_composition_planes.size(); k++) {          \
+      if (i == k) {                                                           \
+        continue;                                                             \
+      }                                                                       \
+      const std::vector<size_t> &source_layers =                              \
+          current_composition_planes.at(k).GetSourceLayers();                 \
+      for (size_t z = 0; z < source_layers.size(); z++) {                     \
+        size_t current_index = source_layers.at(z);                           \
+        for (size_t j = 0; j < temp2.size(); j++) {                           \
+          if (temp2.at(j) == current_index) {                                 \
+            duplicate_found = true;                                           \
+            ITRACE(                                                           \
+                "ALERT: Same Layer added in more than one plane. Plane "      \
+                "Index1: %d "                                                 \
+                "Plane Index2 %d "                                            \
+                "Layer Index: %d \n",                                         \
+                i, k, current_index);                                         \
+          }                                                                   \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }                                                                           \
+  if (!duplicate_found) {                                                     \
+    ITRACE("No duplicate layers present between different planes. \n");       \
+  }                                                                           \
+  ITRACE("Checking for duplicate layers between different Plane Ends. \n");   \
+  ITRACE("Checking if we missed rendering any layers for this frame. \n");    \
+  std::vector<size_t> total_layers;                                           \
+  std::vector<size_t> missed_layers;                                          \
+  for (DisplayPlaneState & comp_plane : current_composition_planes) {         \
+    const std::vector<size_t> &source_layers = comp_plane.GetSourceLayers();  \
+    for (size_t i = 0; i < source_layers.size(); i++) {                       \
+      total_layers.emplace_back(source_layers.at(i));                         \
+    }                                                                         \
+  }                                                                           \
+  for (size_t i = 0; i < layers.size(); i++) {                                \
+    bool found = false;                                                       \
+    size_t current_index = static_cast<size_t>(layers.at(i).GetZorder());     \
+    for (size_t j = 0; j < total_layers.size(); j++) {                        \
+      if (total_layers.at(j) == current_index) {                              \
+        found = true;                                                         \
+        break;                                                                \
+      }                                                                       \
+    }                                                                         \
+    if (!found) {                                                             \
+      missed_layers.emplace_back(current_index);                              \
+    }                                                                         \
+  }                                                                           \
+  if (missed_layers.empty()) {                                                \
+    ITRACE("We handled all layers valid for this frame. \n");                 \
+  } else {                                                                    \
+    for (size_t z = 0; z < missed_layers.size(); z++) {                       \
+      size_t current_index = missed_layers.at(z);                             \
+      ITRACE("ALERT: Missed layer with index %d for this frame. \n",          \
+             current_index);                                                  \
+    }                                                                         \
+  }                                                                           \
+  ITRACE(                                                                     \
+      "Finished Checking if we missed rendering any layers for this frame. "  \
+      "\n");
+#else
+#define DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS() ((void)0)
 #endif
 
 // _cplusplus

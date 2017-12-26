@@ -42,22 +42,22 @@ class DisplayPlaneManager {
 
   bool Initialize(uint32_t width, uint32_t height);
 
-  bool ValidateLayers(std::vector<OverlayLayer> &layers,
-                      std::vector<OverlayLayer *> &cursor_layers,
-                      bool pending_modeset, bool disable_overlay,
-                      DisplayPlaneStateList &composition);
+  bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
+                      bool check_plane, bool pending_modeset,
+                      bool disable_overlay, bool recycle_resources,
+                      DisplayPlaneStateList &composition,
+                      DisplayPlaneStateList &previous_composition,
+                      std::vector<NativeSurface *> &mark_later);
 
   // This can be used to quickly check if the new DisplayPlaneStateList
   // can be succefully commited before doing a full re-validation.
-  bool ReValidateLayers(std::vector<OverlayLayer> &layers,
+  void ReValidateLayers(std::vector<OverlayLayer> &layers,
                         DisplayPlaneStateList &composition,
                         bool *request_full_validation);
 
-  // This should be called only in case of a new cursor layer
-  // being added and all other layers are same as previous
-  // frame.
-  bool ValidateCursorLayer(std::vector<OverlayLayer *> &cursor_layers,
-                           DisplayPlaneStateList &composition);
+  void MarkSurfacesForRecycling(DisplayPlaneState *plane,
+                                std::vector<NativeSurface *> &mark_later,
+                                bool recycle_resources);
 
   bool CheckPlaneFormat(uint32_t format);
 
@@ -79,27 +79,50 @@ class DisplayPlaneManager {
     return height_;
   }
 
- protected:
+ private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
-  void ValidateFinalLayers(DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> &layers);
+  void ValidateFinalLayers(std::vector<OverlayPlane> &commit_planes,
+                           DisplayPlaneStateList &list,
+                           std::vector<OverlayLayer> &layers,
+                           std::vector<NativeSurface *> &mark_later,
+                           bool recycle_resources);
 
   void ResetPlaneTarget(DisplayPlaneState &plane, OverlayPlane &overlay_plane);
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
-  void PreparePlaneForCursor(DisplayPlaneState *plane, bool reset_buffer);
+  void PreparePlaneForCursor(DisplayPlaneState *plane,
+                             std::vector<NativeSurface *> &mark_later,
+                             bool reset_buffer, bool recycle_resources);
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes,
                                  OverlayLayer *current_layer,
                                  bool ignore_format = false);
 
-  void ForceGpuForAllLayers(DisplayPlaneStateList &composition,
-                            std::vector<OverlayLayer> &layers);
+  void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayLayer> &layers,
+                            std::vector<NativeSurface *> &mark_later,
+                            bool recycle_resources);
+
+  // This should be called only in case of a new cursor layer
+  // being added and all other layers are same as previous
+  // frame.
+  bool ValidateCursorLayer(std::vector<OverlayPlane> &commit_planes,
+                           std::vector<OverlayLayer *> &cursor_layers,
+                           std::vector<NativeSurface *> &mark_later,
+                           DisplayPlaneStateList &composition,
+                           bool recycle_resources);
+
+  bool ReValidatePlanes(std::vector<OverlayPlane> &commit_planes,
+                        DisplayPlaneStateList &list,
+                        std::vector<OverlayLayer> &layers,
+                        std::vector<NativeSurface *> &mark_later,
+                        bool recycle_resources);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
