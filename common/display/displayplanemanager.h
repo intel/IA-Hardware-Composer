@@ -96,7 +96,8 @@ class DisplayPlaneManager {
 
   void PreparePlaneForCursor(DisplayPlaneState *plane,
                              std::vector<NativeSurface *> &mark_later,
-                             bool reset_buffer, bool recycle_resources);
+                             bool *validate_final_layers, bool reset_buffer,
+                             bool recycle_resources);
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes,
@@ -116,13 +117,13 @@ class DisplayPlaneManager {
                            std::vector<OverlayLayer *> &cursor_layers,
                            std::vector<NativeSurface *> &mark_later,
                            DisplayPlaneStateList &composition,
-                           bool recycle_resources);
+                           bool *validate_final_layers, bool recycle_resources);
 
   bool ReValidatePlanes(std::vector<OverlayPlane> &commit_planes,
                         DisplayPlaneStateList &list,
                         std::vector<OverlayLayer> &layers,
                         std::vector<NativeSurface *> &mark_later,
-                        bool recycle_resources);
+                        bool *validate_final_layers, bool recycle_resources);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
