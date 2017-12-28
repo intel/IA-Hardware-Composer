@@ -73,10 +73,13 @@ bool DisplayPlaneManager::ValidateLayers(
         OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
   }
 
-  if (check_plane && add_index <= 0) {
+  if (check_plane && add_index != 0) {
     // We are only revalidating planes and can avoid full validation.
-    return ReValidatePlanes(commit_planes, composition, layers, mark_later,
-                            recycle_resources);
+    bool status = ReValidatePlanes(commit_planes, composition, layers,
+                                   mark_later, recycle_resources);
+    if (add_index == -1) {
+      return status;
+    }
   }
 
   if (!previous_composition.empty() && add_index <= 0) {
@@ -136,6 +139,7 @@ bool DisplayPlaneManager::ValidateLayers(
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
   bool render_layers = false;
+  bool validate_final_layers = false;
   OverlayLayer *previous_layer = NULL;
 
   if (add_index > 0) {
@@ -187,6 +191,7 @@ bool DisplayPlaneManager::ValidateLayers(
         // If we are able to composite buffer with the given plane, lets use
         // it.
         bool fall_back = FallbacktoGPU(plane, layer, commit_planes);
+        validate_final_layers = false;
         if (!fall_back || prefer_seperate_plane) {
           composition.emplace_back(plane, layer, layer->GetZorder());
           plane->SetInUse(true);
@@ -197,6 +202,7 @@ bool DisplayPlaneManager::ValidateLayers(
 
           if (fall_back) {
             ResetPlaneTarget(last_plane, commit_planes.back());
+            validate_final_layers = true;
           }
           break;
         } else {
@@ -217,6 +223,7 @@ bool DisplayPlaneManager::ValidateLayers(
             last_plane.AddLayer(layer);
             if (!last_plane.GetOffScreenTarget()) {
               ResetPlaneTarget(last_plane, commit_planes.back());
+              validate_final_layers = true;
             }
           }
         }
@@ -244,21 +251,21 @@ bool DisplayPlaneManager::ValidateLayers(
       }
 
       if (last_plane.NeedsOffScreenComposition()) {
+        // In this case we need to fallback to 3Dcomposition till Media
+        // backend adds support for multiple layers.
+        bool force_buffer = false;
+        if (is_video && last_plane.GetSourceLayers().size() > 1 &&
+            last_plane.GetOffScreenTarget()) {
+          MarkSurfacesForRecycling(&last_plane, mark_later, recycle_resources);
+          force_buffer = true;
+        }
+
+        if (!last_plane.GetOffScreenTarget() || force_buffer) {
+          ResetPlaneTarget(last_plane, commit_planes.back());
+          validate_final_layers = true;
+        }
+
         if (previous_layer) {
-          // In this case we need to fallback to 3Dcomposition till Media
-          // backend adds support for multiple layers.
-          bool force_buffer = false;
-          if (is_video && last_plane.GetSourceLayers().size() > 1 &&
-              last_plane.GetOffScreenTarget()) {
-            MarkSurfacesForRecycling(&last_plane, mark_later,
-                                     recycle_resources);
-            force_buffer = true;
-          }
-
-          if (!last_plane.GetOffScreenTarget() || force_buffer) {
-            ResetPlaneTarget(last_plane, commit_planes.back());
-          }
-
           ValidateForDisplayScaling(composition.back(), commit_planes,
                                     previous_layer);
         }
@@ -270,21 +277,18 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   if (!cursor_layers.empty()) {
-    bool render_cursor_layer =
-        ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
-                            composition, recycle_resources);
+    bool render_cursor_layer = ValidateCursorLayer(
+        commit_planes, cursor_layers, mark_later, composition,
+        &validate_final_layers, recycle_resources);
     if (!render_layers) {
       render_layers = render_cursor_layer;
     }
   }
 
   if (render_layers) {
-    ValidateFinalLayers(commit_planes, composition, layers, mark_later,
-                        recycle_resources);
-
-    if (check_plane) {
-      render_layers = ReValidatePlanes(commit_planes, composition, layers,
-                                       mark_later, recycle_resources);
+    if (validate_final_layers) {
+      ValidateFinalLayers(commit_planes, composition, layers, mark_later,
+                          recycle_resources);
     }
 
     for (DisplayPlaneState &plane : composition) {
@@ -356,7 +360,7 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
 
 void DisplayPlaneManager::PreparePlaneForCursor(
     DisplayPlaneState *plane, std::vector<NativeSurface *> &mark_later,
-    bool reset_buffer, bool recycle_resources) {
+    bool *validate_final_layers, bool reset_buffer, bool recycle_resources) {
   NativeSurface *surface = NULL;
   if (reset_buffer) {
     MarkSurfacesForRecycling(plane, mark_later, recycle_resources);
@@ -367,6 +371,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
 
   if (!surface) {
     SetOffScreenPlaneTarget(*plane);
+    *validate_final_layers = true;
   } else {
     // If Last frame surface is re-cycled and surfaces are
     // less than 3, make sure we have the offscreen surface
@@ -385,7 +390,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     std::vector<OverlayPlane> &commit_planes,
     std::vector<OverlayLayer *> &cursor_layers,
     std::vector<NativeSurface *> &mark_later,
-    DisplayPlaneStateList &composition, bool recycle_resources) {
+    DisplayPlaneStateList &composition, bool *validate_final_layers,
+    bool recycle_resources) {
   CTRACE();
   if (cursor_layers.empty()) {
     return false;
@@ -415,6 +421,11 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
     commit_planes.emplace_back(OverlayPlane(plane, cursor_layer));
     bool fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
+    if (fall_back) {
+      status = true;
+    } else {
+      *validate_final_layers = false;
+    }
     // Lets ensure we fall back to GPU composition in case
     // cursor layer cannot be scanned out directly.
     if (fall_back && !is_video) {
@@ -428,8 +439,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       if (!last_plane->GetOffScreenTarget() || is_video)
         reset_overlay = true;
 
-      PreparePlaneForCursor(last_plane, mark_later, is_video,
-                            recycle_resources);
+      PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
+                            is_video, recycle_resources);
 
       if (reset_overlay) {
         // Layer for the plane should have changed, reset commit planes.
@@ -442,7 +453,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
       ValidateForDisplayScaling(*last_plane, commit_planes, cursor_layer,
                                 false);
-      status = true;
     } else {
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
       plane->SetInUse(true);
@@ -477,7 +487,8 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   }
 
   if (last_layer) {
-    PreparePlaneForCursor(last_plane, mark_later, is_video, recycle_resources);
+    PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
+                          is_video, recycle_resources);
     ValidateForDisplayScaling(*last_plane, commit_planes, last_layer, false);
   }
 
