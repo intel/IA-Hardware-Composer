@@ -369,6 +369,10 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
         content_changed = true;
       }
     }
+
+    if ((type_ == kLayerCursor) && layer->HasLayerAttributesChanged()) {
+      state_ |= kNeedsReValidation;
+    }
   } else {
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
