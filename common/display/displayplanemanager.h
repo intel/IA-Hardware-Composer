@@ -43,8 +43,7 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
-                      bool check_plane, bool pending_modeset,
-                      bool disable_overlay, bool recycle_resources,
+                      bool check_plane, bool disable_overlay,
                       DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);
