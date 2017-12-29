@@ -518,9 +518,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (!validate_layers && (add_index > 0 || check_plane)) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, check_plane, state_ & kConfigurationChanged,
-          idle_frame || disable_ovelays, false, current_composition_planes,
-          previous_plane_state_, surfaces_not_inuse_);
+          layers, add_index, check_plane, disable_ovelays,
+          current_composition_planes, previous_plane_state_,
+          surfaces_not_inuse_);
 
       if (!render_layers)
         render_layers = render_cursor;
@@ -564,9 +564,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     // We are doing a full re-validation.
     add_index = 0;
+    bool force_gpu = disable_ovelays || idle_frame ||
+                     (state_ & kConfigurationChanged && (layers.size() > 1));
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, false, state_ & kConfigurationChanged,
-        idle_frame || disable_ovelays, false, current_composition_planes,
+        layers, add_index, false, force_gpu, current_composition_planes,
         previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.

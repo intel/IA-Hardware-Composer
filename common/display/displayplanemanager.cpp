@@ -61,8 +61,7 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
 
 bool DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> &layers, int add_index, bool check_plane,
-    bool pending_modeset, bool disable_overlay, bool recycle_resources,
-    DisplayPlaneStateList &composition,
+    bool disable_overlay, DisplayPlaneStateList &composition,
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
@@ -77,24 +76,23 @@ bool DisplayPlaneManager::ValidateLayers(
     bool temp;
     // We are only revalidating planes and can avoid full validation.
     return ReValidatePlanes(commit_planes, composition, layers, mark_later,
-                            &temp, recycle_resources);
+                            &temp, false);
   }
 
   if (!previous_composition.empty() && add_index <= 0) {
     for (DisplayPlaneState &plane : previous_composition) {
-      MarkSurfacesForRecycling(&plane, mark_later, recycle_resources);
+      MarkSurfacesForRecycling(&plane, mark_later, false);
     }
   }
 
   if (!composition.empty() && add_index <= 0) {
     for (DisplayPlaneState &plane : previous_composition) {
-      MarkSurfacesForRecycling(&plane, mark_later, recycle_resources);
+      MarkSurfacesForRecycling(&plane, mark_later, false);
     }
 
     DisplayPlaneStateList().swap(composition);
   }
 
-  bool force_gpu = disable_overlay || (pending_modeset && (layers.size() > 1));
 #ifdef SURFACE_TRACING
   if (add_index <= 0) {
     ISURFACETRACE("FUll validation Being performed. \n");
@@ -103,13 +101,12 @@ bool DisplayPlaneManager::ValidateLayers(
 
   // In case we are forcing GPU composition for all layers and using a single
   // plane.
-  if (force_gpu) {
+  if (disable_overlay) {
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Forcing GPU For all layers %d %d %d \n", disable_overlay,
                   pending_modeset, layers.size() > 1);
 #endif
-    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
-                         recycle_resources);
+    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
     return true;
   }
 
@@ -210,7 +207,7 @@ bool DisplayPlaneManager::ValidateLayers(
             // FIXME: We should try to use overlay for
             // other layers in this case.
             ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
-                                 recycle_resources);
+                                 false);
             return true;
           } else {
             commit_planes.pop_back();
@@ -254,7 +251,7 @@ bool DisplayPlaneManager::ValidateLayers(
         bool force_buffer = false;
         if (is_video && last_plane.GetSourceLayers().size() > 1 &&
             last_plane.GetOffScreenTarget()) {
-          MarkSurfacesForRecycling(&last_plane, mark_later, recycle_resources);
+          MarkSurfacesForRecycling(&last_plane, mark_later, false);
           force_buffer = true;
         }
 
@@ -275,9 +272,9 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   if (!cursor_layers.empty()) {
-    bool render_cursor_layer = ValidateCursorLayer(
-        commit_planes, cursor_layers, mark_later, composition,
-        &validate_final_layers, recycle_resources);
+    bool render_cursor_layer =
+        ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
+                            composition, &validate_final_layers, false);
     if (!render_layers) {
       render_layers = render_cursor_layer;
     }
@@ -285,9 +282,8 @@ bool DisplayPlaneManager::ValidateLayers(
 
   if (check_plane) {
     // We are only revalidating planes and can avoid full validation.
-    bool status =
-        ReValidatePlanes(commit_planes, composition, layers, mark_later,
-                         &validate_final_layers, recycle_resources);
+    bool status = ReValidatePlanes(commit_planes, composition, layers,
+                                   mark_later, &validate_final_layers, false);
     if (!render_layers) {
       render_layers = status;
     }
@@ -296,7 +292,7 @@ bool DisplayPlaneManager::ValidateLayers(
   if (render_layers) {
     if (validate_final_layers) {
       ValidateFinalLayers(commit_planes, composition, layers, mark_later,
-                          recycle_resources);
+                          false);
     }
 
     for (DisplayPlaneState &plane : composition) {
