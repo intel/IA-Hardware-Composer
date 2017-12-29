@@ -512,13 +512,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
     bool check_plane = false;
+    bool commit_checked = false;
     GetCachedLayers(layers, remove_index, &current_composition_planes,
                     &check_plane, &render_layers, &can_ignore_commit,
                     &validate_layers);
 
     if (!validate_layers && (add_index > 0 || check_plane)) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, check_plane, disable_ovelays,
+          layers, add_index, check_plane, disable_ovelays, &commit_checked,
           current_composition_planes, previous_plane_state_,
           surfaces_not_inuse_);
 
@@ -526,8 +527,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         render_layers = render_cursor;
 
       can_ignore_commit = false;
-      re_validate_commit = false;
-      state_ &= ~kConfigurationChanged;
+      if (commit_checked)
+        re_validate_commit = false;
     }
 
     if (!validate_layers && re_validate_commit) {
@@ -566,9 +567,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     add_index = 0;
     bool force_gpu = disable_ovelays || idle_frame ||
                      (state_ & kConfigurationChanged && (layers.size() > 1));
+    bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, false, force_gpu, current_composition_planes,
-        previous_plane_state_, surfaces_not_inuse_);
+        layers, add_index, false, force_gpu, &test_commit,
+        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.
     if (force_media_composition && requested_video_effect) {

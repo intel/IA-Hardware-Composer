@@ -61,7 +61,8 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
 
 bool DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> &layers, int add_index, bool check_plane,
-    bool disable_overlay, DisplayPlaneStateList &composition,
+    bool disable_overlay, bool *commit_checked,
+    DisplayPlaneStateList &composition,
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
@@ -95,7 +96,7 @@ bool DisplayPlaneManager::ValidateLayers(
 
 #ifdef SURFACE_TRACING
   if (add_index <= 0) {
-    ISURFACETRACE("FUll validation Being performed. \n");
+    ISURFACETRACE("Full validation being performed. \n");
   }
 #endif
 
@@ -271,15 +272,6 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
-  if (!cursor_layers.empty()) {
-    bool render_cursor_layer =
-        ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
-                            composition, &validate_final_layers, false);
-    if (!render_layers) {
-      render_layers = render_cursor_layer;
-    }
-  }
-
   if (check_plane) {
     // We are only revalidating planes and can avoid full validation.
     bool status = ReValidatePlanes(commit_planes, composition, layers,
@@ -289,10 +281,30 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
+  if (!cursor_layers.empty()) {
+    bool render_cursor_layer =
+        ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
+                            composition, &validate_final_layers, false);
+    if (!render_layers) {
+      render_layers = render_cursor_layer;
+    }
+
+    if (validate_final_layers && add_index > 0 &&
+        (composition.size() == (overlay_planes_.size() - 1))) {
+      // If commit failed here and we are doing incremental validation,
+      // something might be wrong with other layer+plane combinations.
+      // Let's ensure DisplayQueue, checks final combination again and
+      // request full validation if needed.
+      *commit_checked = false;
+      return render_layers;
+    }
+  }
+
   if (render_layers) {
     if (validate_final_layers) {
       ValidateFinalLayers(commit_planes, composition, layers, mark_later,
                           false);
+      validate_final_layers = false;
     }
 
     for (DisplayPlaneState &plane : composition) {
@@ -310,6 +322,8 @@ bool DisplayPlaneManager::ValidateLayers(
       }
     }
   }
+
+  *commit_checked = !validate_final_layers;
 
   return render_layers;
 }
@@ -485,6 +499,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         status = true;
         cached_plane->last_failed_transform_ =
             cursor_layer->GetPlaneTransform();
+        *validate_final_layers = true;
       }
     }
 
