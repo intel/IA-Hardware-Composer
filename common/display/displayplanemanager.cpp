@@ -415,7 +415,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   auto overlay_begin = overlay_planes_.begin() + composition.size();
 #ifdef DISABLE_CURSOR_PLANE
   overlay_end = overlay_planes_.end() - 1;
-  DisplayPlane *cursor_plane = NULL;
 #endif
   for (auto j = overlay_begin; j != overlay_end; ++j) {
     if (cursor_index == total_size)
@@ -428,12 +427,71 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
     commit_planes.emplace_back(OverlayPlane(plane, cursor_layer));
-    bool fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
-    if (fall_back) {
-      status = true;
-    } else {
-      *validate_final_layers = false;
+    bool fall_back = true;
+    LayerResultCache *cached_plane = NULL;
+    if (!results_cache_.empty()) {
+      size_t size = results_cache_.size();
+      for (size_t i = 0; i < size; i++) {
+        LayerResultCache &cache = results_cache_.at(i);
+        if (cache.plane_ != plane)
+          continue;
+
+        uint32_t layer_transform = cursor_layer->GetPlaneTransform();
+        bool cached = false;
+        if (cache.last_transform_ == layer_transform) {
+          cached = true;
+        }
+
+        if (cached) {
+          fall_back = false;
+          cursor_layer->SupportedDisplayComposition(OverlayLayer::kAll);
+          if (cursor_layer->GetBuffer()->GetFb() == 0) {
+            if (!cursor_layer->GetBuffer()->CreateFrameBuffer(gpu_fd_)) {
+              fall_back = true;
+            }
+          }
+
+          if (!fall_back) {
+            *validate_final_layers = false;
+          }
+        }
+
+        if (!cached) {
+          if (cache.last_failed_transform_ == layer_transform) {
+            cached = true;
+          }
+
+          if (cached) {
+            fall_back = true;
+            status = true;
+            cursor_layer->SupportedDisplayComposition(OverlayLayer::kGpu);
+          }
+        }
+
+        cached_plane = &(results_cache_.at(i));
+        break;
+      }
     }
+
+    // We don't have this in cache.
+    if (fall_back && !status) {
+      fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
+      if (!cached_plane) {
+        results_cache_.emplace_back();
+        cached_plane = &(results_cache_.back());
+        cached_plane->plane_ = plane;
+      }
+
+      if (!fall_back) {
+        cached_plane->last_transform_ = cursor_layer->GetPlaneTransform();
+        *validate_final_layers = false;
+      } else {
+        status = true;
+        cached_plane->last_failed_transform_ =
+            cursor_layer->GetPlaneTransform();
+      }
+    }
+
     // Lets ensure we fall back to GPU composition in case
     // cursor layer cannot be scanned out directly.
     if (fall_back && !is_video) {
