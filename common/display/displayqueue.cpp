@@ -189,39 +189,42 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     }
 
     if (last_plane.NeedsOffScreenComposition()) {
+      HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool content_changed = false;
       bool update_rect = false;
-      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-      HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      size_t layers_size = source_layers.size();
+      if (remove_index == -1) {
+        const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+        size_t layers_size = source_layers.size();
 
-      for (size_t i = 0; i < layers_size; i++) {
-        const size_t& source_index = source_layers.at(i);
-        const OverlayLayer& layer = layers.at(source_index);
-        if (layer.HasDimensionsChanged()) {
-          last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
-          update_rect = true;
-        } else if (layer.NeedsToClearSurface()) {
-          clear_surface = true;
-        }
-
-        if (layer.HasSourceRectChanged() && last_plane.IsUsingPlaneScalar()) {
-          last_plane.SetSourceCrop(layer.GetSourceCrop());
-          update_rect = true;
-        }
-
-        if (!clear_surface && layer.HasLayerContentChanged()) {
-          const HwcRect<int>& damage = layer.GetSurfaceDamage();
-          if (content_changed) {
-            surface_damage.left = std::min(surface_damage.left, damage.left);
-            surface_damage.top = std::min(surface_damage.top, damage.top);
-            surface_damage.right = std::max(surface_damage.right, damage.right);
-            surface_damage.bottom =
-                std::max(surface_damage.bottom, damage.bottom);
-          } else {
-            surface_damage = damage;
+        for (size_t i = 0; i < layers_size; i++) {
+          const size_t& source_index = source_layers.at(i);
+          const OverlayLayer& layer = layers.at(source_index);
+          if (layer.HasDimensionsChanged()) {
+            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
+            update_rect = true;
+          } else if (layer.NeedsToClearSurface()) {
+            clear_surface = true;
           }
-          content_changed = true;
+
+          if (layer.HasSourceRectChanged() && last_plane.IsUsingPlaneScalar()) {
+            last_plane.SetSourceCrop(layer.GetSourceCrop());
+            update_rect = true;
+          }
+
+          if (!clear_surface && layer.HasLayerContentChanged()) {
+            const HwcRect<int>& damage = layer.GetSurfaceDamage();
+            if (content_changed) {
+              surface_damage.left = std::min(surface_damage.left, damage.left);
+              surface_damage.top = std::min(surface_damage.top, damage.top);
+              surface_damage.right =
+                  std::max(surface_damage.right, damage.right);
+              surface_damage.bottom =
+                  std::max(surface_damage.bottom, damage.bottom);
+            } else {
+              surface_damage = damage;
+            }
+            content_changed = true;
+          }
         }
       }
 
