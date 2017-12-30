@@ -226,7 +226,8 @@ class DisplayQueue {
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        int remove_index, DisplayPlaneStateList* composition,
                        bool* revalidate_plane, bool* render_layers,
-                       bool* can_ignore_commit, bool* force_full_validation);
+                       bool* can_ignore_commit, bool* needs_plane_validation,
+                       bool* force_full_validation);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers) const;
 
