@@ -120,11 +120,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    DisplayPlaneStateList* composition,
                                    bool* check_plane, bool* render_layers,
                                    bool* can_ignore_commit,
+                                   bool* needs_plane_validation,
                                    bool* force_full_validation) {
   CTRACE();
   bool needs_gpu_composition = false;
   bool ignore_commit = true;
   bool check_to_squash = false;
+  bool plane_validation = false;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     bool clear_surface = remove_index > -1 ? true : false;
@@ -228,11 +230,25 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
+      bool referesh_surfaces = true;
+      // Let's check if we need to check this plane-layer combination.
+      if (update_rect && last_plane.IsUsingPlaneScalar()) {
+        bool use_scalar = last_plane.CanUseDisplayUpScaling();
+        if (!previous_plane.IsUsingPlaneScalar() && use_scalar) {
+          plane_validation = true;
+        } else if (previous_plane.IsUsingPlaneScalar() && !use_scalar) {
+          // We see no benefit using display scalar, disable it.
+          last_plane.UsePlaneScalar(false);
+          referesh_surfaces = false;
+        }
+      }
+
       // If surfaces need to be cleared or rect is updated,
       // let's make sure all surfaces are refreshed.
       if (clear_surface || update_rect) {
         content_changed = true;
-        last_plane.RefreshSurfaces(clear_surface);
+        if (referesh_surfaces)
+          last_plane.RefreshSurfaces(clear_surface);
       }
 
       // Let's make sure we swap the surface in case content has changed.
@@ -307,6 +323,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     ignore_commit = false;
 
   *can_ignore_commit = ignore_commit;
+  *needs_plane_validation = plane_validation;
 
   // Check if we can squash the last overlay (Before Cursor Plane).
   if (check_to_squash) {
@@ -513,9 +530,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // if not continue showing the current buffer.
     bool check_plane = false;
     bool commit_checked = false;
+    bool needs_plane_validation = false;
     GetCachedLayers(layers, remove_index, &current_composition_planes,
                     &check_plane, &render_layers, &can_ignore_commit,
-                    &validate_layers);
+                    &needs_plane_validation, &validate_layers);
+
+    if (needs_plane_validation) {
+      re_validate_commit = true;
+    }
 
     if (!validate_layers && (add_index > 0 || check_plane)) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
@@ -527,7 +549,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         render_layers = render_cursor;
 
       can_ignore_commit = false;
-      if (commit_checked)
+      if (commit_checked && !needs_plane_validation)
         re_validate_commit = false;
     }
 

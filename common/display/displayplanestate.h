@@ -164,6 +164,11 @@ class DisplayPlaneState {
   // This should be used only as a hint.
   bool CanSquash() const;
 
+  // Returns true if we can benefit by using display scalar
+  // for this plane.
+  // This should be used only as a hint.
+  bool CanUseDisplayUpScaling() const;
+
  private:
   class DisplayPlanePrivateState {
    public:
@@ -194,6 +199,10 @@ class DisplayPlaneState {
     bool apply_effects_ = false;
     // This plane shows cursor.
     bool has_cursor_layer_ = false;
+    // Can benefit using display scalar.
+    bool can_use_display_scalar_ = false;
+    // Retest for display scalar beenfit.
+    bool check_display_scalar_ = true;
     // Any offscreen surfaces used by this
     // plane.
     std::vector<NativeSurface *> surfaces_;

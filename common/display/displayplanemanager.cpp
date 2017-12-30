@@ -575,27 +575,9 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
     OverlayLayer *current_layer, bool ignore_format) {
-  size_t total_layers = last_plane.GetSourceLayers().size();
-
   if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
     current_layer->UsePlaneScalar(false);
-  }
-
-  // TODO: Handle case where all layers to be compoisted have same scaling
-  // ratio.
-  // We cannot use plane scaling for Layers with different scaling ratio.
-  if (total_layers > 1) {
-    return;
-  }
-
-  uint32_t display_frame_width = current_layer->GetDisplayFrameWidth();
-  uint32_t display_frame_height = current_layer->GetDisplayFrameHeight();
-  uint32_t source_crop_width = current_layer->GetSourceCropWidth();
-  uint32_t source_crop_height = current_layer->GetSourceCropHeight();
-  // Source and Display frame width, height are same and scaling is not needed.
-  if ((display_frame_width == source_crop_width) &&
-      (display_frame_height == source_crop_height)) {
     return;
   }
 
@@ -610,37 +592,8 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     return;
   }
 
-  // Display frame width, height is lesser than Source. Let's downscale
-  // it with our compositor backend.
-  if ((display_frame_width < source_crop_width) &&
-      (display_frame_height < source_crop_height)) {
+  if (!last_plane.CanUseDisplayUpScaling()) {
     return;
-  }
-
-  // Display frame height is less. If the cost of upscaling width is less
-  // than downscaling height, than return.
-  if ((display_frame_width > source_crop_width) &&
-      (display_frame_height < source_crop_height)) {
-    uint32_t width_cost =
-        (display_frame_width - source_crop_width) * display_frame_height;
-    uint32_t height_cost =
-        (source_crop_height - display_frame_height) * display_frame_width;
-    if (height_cost > width_cost) {
-      return;
-    }
-  }
-
-  // Display frame width is less. If the cost of upscaling height is less
-  // than downscaling width, than return.
-  if ((display_frame_width < source_crop_width) &&
-      (display_frame_height > source_crop_height)) {
-    uint32_t width_cost =
-        (source_crop_width - display_frame_width) * display_frame_height;
-    uint32_t height_cost =
-        (display_frame_height - source_crop_height) * display_frame_width;
-    if (width_cost > height_cost) {
-      return;
-    }
   }
 
   // TODO: Scalars are limited in HW. Determine scaling ratio
@@ -867,12 +820,16 @@ bool DisplayPlaneManager::ReValidatePlanes(
   for (DisplayPlaneState &last_plane : composition) {
     if (last_plane.IsRevalidationNeeded()) {
       const std::vector<size_t> &source_layers = last_plane.GetSourceLayers();
+      bool uses_scalar = last_plane.IsUsingPlaneScalar();
       // Store current layer to re-set in case commit fails.
       const OverlayLayer *current_layer = last_plane.GetOverlayLayer();
       OverlayLayer *layer = &(layers.at(source_layers.at(0)));
       last_plane.SetOverlayLayer(layer);
       // Disable GPU Rendering.
       last_plane.DisableGPURendering();
+      if (uses_scalar)
+        last_plane.UsePlaneScalar(false);
+
       layer->SetLayerComposition(OverlayLayer::kDisplay);
 
       commit_planes.at(index).layer = last_plane.GetOverlayLayer();
@@ -883,6 +840,8 @@ bool DisplayPlaneManager::ReValidatePlanes(
         last_plane.ForceGPURendering();
         layer->SetLayerComposition(OverlayLayer::kGpu);
         last_plane.SetOverlayLayer(current_layer);
+        if (uses_scalar)
+          last_plane.UsePlaneScalar(true);
       } else {
 #ifdef SURFACE_TRACING
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");

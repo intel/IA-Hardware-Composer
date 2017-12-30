@@ -24,6 +24,7 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
   private_data_->source_layers_.emplace_back(index);
   private_data_->display_frame_ = layer->GetDisplayFrame();
+  private_data_->check_display_scalar_ = true;
   private_data_->source_crop_ = layer->GetSourceCrop();
   if (layer->IsCursorLayer()) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
@@ -178,6 +179,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   private_data_->source_layers_.swap(source_layers);
   private_data_->display_frame_ = target_display_frame;
   private_data_->source_crop_ = target_source_crop;
+  private_data_->check_display_scalar_ = true;
 
   if (use_scalar) {
     // In case we previously relied on display scalar, we leave that
@@ -211,6 +213,7 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
       std::max(target_display_frame.right, display_frame.right);
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
+  private_data_->check_display_scalar_ = true;
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
@@ -221,6 +224,7 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
       std::max(target_source_crop.right, source_crop.right);
   target_source_crop.bottom =
       std::max(target_source_crop.bottom, source_crop.bottom);
+  private_data_->check_display_scalar_ = true;
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -424,6 +428,74 @@ bool DisplayPlaneState::CanSquash() const {
     return false;
 
   return true;
+}
+
+bool DisplayPlaneState::CanUseDisplayUpScaling() const {
+  // TODO: Handle case where all layers to be compoisted have same scaling
+  // ratio.
+  // We cannot use plane scaling for Layers with different scaling ratio.
+  if (private_data_->source_layers_.size() > 1) {
+    return false;
+  }
+
+  if (!private_data_->check_display_scalar_) {
+    return private_data_->can_use_display_scalar_;
+  }
+
+  private_data_->check_display_scalar_ = false;
+  const HwcRect<int> &target_display_frame = private_data_->display_frame_;
+  const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+
+  uint32_t display_frame_width =
+      target_display_frame.right - target_display_frame.left;
+  uint32_t display_frame_height =
+      target_display_frame.bottom - target_display_frame.top;
+  uint32_t source_crop_width = static_cast<uint32_t>(
+      ceilf(target_src_rect.right - target_src_rect.left));
+  uint32_t source_crop_height = static_cast<uint32_t>(
+      ceilf(target_src_rect.bottom - target_src_rect.top));
+  // Source and Display frame width, height are same and scaling is not needed.
+  if ((display_frame_width == source_crop_width) &&
+      (display_frame_height == source_crop_height)) {
+    private_data_->can_use_display_scalar_ = false;
+  }
+
+  // Display frame width, height is lesser than Source. Let's downscale
+  // it with our compositor backend.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    private_data_->can_use_display_scalar_ = false;
+  }
+
+  // Display frame height is less. If the cost of upscaling width is less
+  // than downscaling height, than return.
+  if ((display_frame_width > source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    uint32_t width_cost =
+        (display_frame_width - source_crop_width) * display_frame_height;
+    uint32_t height_cost =
+        (source_crop_height - display_frame_height) * display_frame_width;
+    if (height_cost > width_cost) {
+      private_data_->can_use_display_scalar_ = false;
+    }
+  }
+
+  // Display frame width is less. If the cost of upscaling height is less
+  // than downscaling width, than return.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height > source_crop_height)) {
+    uint32_t width_cost =
+        (source_crop_width - display_frame_width) * display_frame_height;
+    uint32_t height_cost =
+        (display_frame_height - source_crop_height) * display_frame_width;
+    if (width_cost > height_cost) {
+      private_data_->can_use_display_scalar_ = false;
+    }
+  }
+
+  private_data_->can_use_display_scalar_ = true;
+
+  return private_data_->can_use_display_scalar_;
 }
 
 }  // namespace hwcomposer
