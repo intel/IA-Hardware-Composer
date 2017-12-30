@@ -44,10 +44,6 @@ class DisplayPlaneState {
   // Copies plane state from state.
   void CopyState(DisplayPlaneState &state);
 
-  void SetSourceCrop(const HwcRect<float> &crop);
-
-  void ResetSourceRectToDisplayFrame();
-
   void AddLayer(const OverlayLayer *layer);
 
   // This API should be called only when source_layers being
@@ -58,6 +54,8 @@ class DisplayPlaneState {
   // Updates Display frame rect of this plane to include
   // display_frame.
   void UpdateDisplayFrame(const HwcRect<int> &display_frame);
+
+  void UpdateSourceCrop(const HwcRect<float> &source_crop);
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();

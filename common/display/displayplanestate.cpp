@@ -49,14 +49,6 @@ const HwcRect<float> &DisplayPlaneState::GetSourceCrop() const {
   return private_data_->source_crop_;
 }
 
-void DisplayPlaneState::SetSourceCrop(const HwcRect<float> &crop) {
-  private_data_->source_crop_ = crop;
-}
-
-void DisplayPlaneState::ResetSourceRectToDisplayFrame() {
-  private_data_->source_crop_ = HwcRect<float>(private_data_->display_frame_);
-}
-
 void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
   HwcRect<int> &target_display_frame = private_data_->display_frame_;
@@ -68,6 +60,15 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
       std::max(target_display_frame.right, display_frame.right);
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
+
+  HwcRect<float> &target_source_crop = private_data_->source_crop_;
+  const HwcRect<float> &source_crop = layer->GetSourceCrop();
+  target_source_crop.left = std::min(target_source_crop.left, source_crop.left);
+  target_source_crop.top = std::min(target_source_crop.top, source_crop.top);
+  target_source_crop.right =
+      std::max(target_source_crop.right, source_crop.right);
+  target_source_crop.bottom =
+      std::max(target_source_crop.bottom, source_crop.bottom);
 
   private_data_->source_layers_.emplace_back(layer->GetZorder());
 
@@ -87,9 +88,6 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     private_data_->apply_effects_ = false;
   }
 
-  if (!private_data_->use_plane_scalar_)
-    private_data_->source_crop_ = HwcRect<float>(private_data_->display_frame_);
-
   if (private_data_->source_layers_.size() > 1)
     re_validate_layer_ = false;
 }
@@ -102,6 +100,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   private_data_->has_cursor_layer_ = false;
   bool initialized = false;
   HwcRect<int> target_display_frame;
+  HwcRect<float> target_source_crop;
   bool use_scalar = false;
   bool has_video = false;
   for (const size_t &index : current_layers) {
@@ -130,8 +129,10 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     }
 
     const HwcRect<int> &df = layer.GetDisplayFrame();
+    const HwcRect<float> &source_crop = layer.GetSourceCrop();
     if (!initialized) {
       target_display_frame = df;
+      target_source_crop = source_crop;
       initialized = true;
     } else {
       target_display_frame.left = std::min(target_display_frame.left, df.left);
@@ -140,6 +141,15 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
           std::max(target_display_frame.right, df.right);
       target_display_frame.bottom =
           std::max(target_display_frame.bottom, df.bottom);
+
+      target_source_crop.left =
+          std::min(target_source_crop.left, source_crop.left);
+      target_source_crop.top =
+          std::min(target_source_crop.top, source_crop.top);
+      target_source_crop.right =
+          std::max(target_source_crop.right, source_crop.right);
+      target_source_crop.bottom =
+          std::max(target_source_crop.bottom, source_crop.bottom);
     }
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Reset adds index: %d \n", layer.GetZorder());
@@ -167,6 +177,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   private_data_->source_layers_.swap(source_layers);
   private_data_->display_frame_ = target_display_frame;
+  private_data_->source_crop_ = target_source_crop;
 
   if (use_scalar) {
     // In case we previously relied on display scalar, we leave that
@@ -174,9 +185,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     // ValidateForDisplayScaling in planemanager.
     private_data_->use_plane_scalar_ = true;
   }
-
-  if (!private_data_->use_plane_scalar_)
-    private_data_->source_crop_ = HwcRect<float>(target_display_frame);
 
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
@@ -203,9 +211,16 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
       std::max(target_display_frame.right, display_frame.right);
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
+}
 
-  if (!private_data_->use_plane_scalar_)
-    private_data_->source_crop_ = HwcRect<float>(target_display_frame);
+void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
+  HwcRect<float> &target_source_crop = private_data_->source_crop_;
+  target_source_crop.left = std::min(target_source_crop.left, source_crop.left);
+  target_source_crop.top = std::min(target_source_crop.top, source_crop.top);
+  target_source_crop.right =
+      std::max(target_source_crop.right, source_crop.right);
+  target_source_crop.bottom =
+      std::max(target_source_crop.bottom, source_crop.bottom);
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -235,7 +250,11 @@ const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
 void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   private_data_->layer_ = target->GetLayer();
   target->ResetDisplayFrame(private_data_->display_frame_);
-  target->ResetSourceCrop(private_data_->source_crop_);
+  if (private_data_->use_plane_scalar_) {
+    target->ResetSourceCrop(private_data_->source_crop_);
+  } else {
+    target->ResetSourceCrop(HwcRect<float>(private_data_->display_frame_));
+  }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   target->GetLayer()->UsePlaneScalar(private_data_->use_plane_scalar_);
   recycled_surface_ = false;
@@ -292,7 +311,11 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
   bool use_scalar = private_data_->use_plane_scalar_;
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->ResetDisplayFrame(target_display_frame);
-    surface->ResetSourceCrop(target_src_rect);
+    if (private_data_->use_plane_scalar_) {
+      surface->ResetSourceCrop(target_src_rect);
+    } else {
+      surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
+    }
     surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
     if (!surface->ClearSurface())
       surface->SetClearSurface(clear_surface);
@@ -335,7 +358,10 @@ void DisplayPlaneState::SetVideoPlane() {
 }
 
 void DisplayPlaneState::UsePlaneScalar(bool enable) {
-  private_data_->use_plane_scalar_ = enable;
+  if (private_data_->use_plane_scalar_ != enable) {
+    private_data_->use_plane_scalar_ = enable;
+    RefreshSurfaces(false);
+  }
 }
 
 bool DisplayPlaneState::IsUsingPlaneScalar() const {

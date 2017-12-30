@@ -580,8 +580,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
     current_layer->UsePlaneScalar(false);
-    last_plane.ResetSourceRectToDisplayFrame();
-    last_plane.RefreshSurfaces(false);
   }
 
   // TODO: Handle case where all layers to be compoisted have same scaling
@@ -650,9 +648,8 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
 
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
-  const HwcRect<float> &crop = current_layer->GetSourceCrop();
-  last_plane.SetSourceCrop(crop);
-  last_plane.RefreshSurfaces(false);
+  last_plane.UsePlaneScalar(true);
+  current_layer->UsePlaneScalar(true);
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
@@ -661,11 +658,8 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
       FallbacktoGPU(last_plane.GetDisplayPlane(),
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
-    last_plane.ResetSourceRectToDisplayFrame();
-    last_plane.RefreshSurfaces(false);
-  } else {
-    last_plane.UsePlaneScalar(true);
-    current_layer->UsePlaneScalar(true);
+    last_plane.UsePlaneScalar(false);
+    current_layer->UsePlaneScalar(false);
   }
 }
 
