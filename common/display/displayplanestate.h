@@ -37,10 +37,9 @@ typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
 class DisplayPlaneState {
  public:
   enum class ReValidationType : int32_t {
-    kNone,          // No Revalidation Needed.
-    kScanout,       // Check if layer can be scanned out directly.
-    kScalar,        // Check if layer can use plane scalar.
-    kDisableScalar  // Check if this plane can disable scaling.
+    kNone,     // No Revalidation Needed.
+    kScanout,  // Check if layer can be scanned out directly.
+    kScalar    // Check if layer can use plane scalar.
   };
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;

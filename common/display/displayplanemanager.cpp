@@ -113,15 +113,6 @@ bool DisplayPlaneManager::ValidateLayers(
     j->get()->SetInUse(false);
   }
 
-  // Let's reset some of the layer's state.
-  if (add_index != -1) {
-    size_t size = layers.size();
-    for (size_t i = add_index; i != size; ++i) {
-      OverlayLayer &layer = layers.at(i);
-      layer.SetLayerComposition(OverlayLayer::kAll);
-    }
-  }
-
   std::vector<OverlayLayer *> cursor_layers;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
@@ -282,24 +273,14 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
-  if (render_layers) {
-    if (validate_final_layers) {
-      ValidateFinalLayers(commit_planes, composition, layers, mark_later,
-                          false);
-      validate_final_layers = false;
-    }
+  if (validate_final_layers) {
+    ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
+    validate_final_layers = false;
   }
 
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfacesIfNeeded();
-      const std::vector<size_t> &source_layers = plane.GetSourceLayers();
-      size_t layers_size = source_layers.size();
-      for (size_t i = 0; i < layers_size; i++) {
-        size_t source_index = source_layers.at(i);
-        OverlayLayer &layer = layers.at(source_index);
-        layer.SetLayerComposition(OverlayLayer::kGpu);
-      }
     }
   }
 
@@ -772,8 +753,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
   }
 
   // If this combination fails just fall back to full validation.
-  if (plane_handler_->TestCommit(commit_planes)) {
-  } else {
+  if (!plane_handler_->TestCommit(commit_planes)) {
 #ifdef SURFACE_TRACING
     ISURFACETRACE(
         "ReValidatePlanes Test commit failed. Forcing full validation. \n");
@@ -789,6 +769,11 @@ bool DisplayPlaneManager::ReValidatePlanes(
   uint32_t index = 0;
 
   for (DisplayPlaneState &last_plane : composition) {
+    if (!last_plane.NeedsOffScreenComposition()) {
+      index++;
+      continue;
+    }
+
     if (last_plane.IsRevalidationNeeded() ==
         DisplayPlaneState::ReValidationType::kScanout) {
       const std::vector<size_t> &source_layers = last_plane.GetSourceLayers();
@@ -825,27 +810,10 @@ bool DisplayPlaneManager::ReValidatePlanes(
       ValidateForDisplayScaling(last_plane, commit_planes,
                                 last_plane.GetOffScreenTarget()->GetLayer(),
                                 true);
-    } else if (last_plane.IsRevalidationNeeded() ==
-               DisplayPlaneState::ReValidationType::kDisableScalar) {
-      if (!last_plane.IsUsingPlaneScalar())
-        continue;
-
-      last_plane.UsePlaneScalar(false);
-
-      // If this combination fails just fall back to 3D for all layers.
-      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
-                        last_plane.GetOffScreenTarget()->GetLayer(),
-                        commit_planes)) {
-        last_plane.UsePlaneScalar(true);
-      }
     }
 
-    if (last_plane.NeedsOffScreenComposition()) {
-      render = true;
-    }
-
+    render = true;
     last_plane.RevalidationDone();
-
     index++;
   }
 

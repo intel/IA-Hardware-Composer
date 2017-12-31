@@ -424,9 +424,7 @@ void DisplayPlaneState::ValidateReValidation() {
     re_validate_layer_ = ReValidationType::kScanout;
   } else {
     bool use_scalar = CanUseDisplayUpScaling();
-    if (private_data_->use_plane_scalar_ && !use_scalar) {
-      re_validate_layer_ = ReValidationType::kDisableScalar;
-    } else if (!private_data_->use_plane_scalar_ && use_scalar) {
+    if (!private_data_->use_plane_scalar_ != use_scalar) {
       re_validate_layer_ = ReValidationType::kScalar;
     }
   }

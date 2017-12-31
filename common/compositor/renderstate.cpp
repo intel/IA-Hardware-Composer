@@ -61,6 +61,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   const std::vector<size_t> &source = region.source_layers;
   for (size_t texture_index : source) {
     OverlayLayer &layer = layers.at(texture_index);
+    layer.SetLayerComposition(OverlayLayer::kGpu);
     if (!clear_surface) {
       // If viewport and layer doesn't interact we can avoid re-rendering
       // this state.
