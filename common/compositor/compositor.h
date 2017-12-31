@@ -63,7 +63,7 @@ class Compositor {
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
-                            DrawState &state);
+                            DrawState &state, bool uses_display_up_scaling);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,
                       const std::vector<size_t> &source_layers,
                       const std::vector<HwcRect<int>> &display_frame,

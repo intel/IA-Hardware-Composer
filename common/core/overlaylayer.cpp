@@ -337,7 +337,6 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
-  display_scaled_ = rhs->display_scaled_;
   supported_composition_ = rhs->supported_composition_;
   actual_composition_ = rhs->actual_composition_;
   if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
@@ -350,8 +349,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   bool source_rect_changed = layer->HasSourceRectChanged();
   if (source_rect_changed)
     state_ |= kSourceRectChanged;
-
-  display_scaled_ = rhs->display_scaled_;
 
   // We expect cursor plane to support alpha always.
   if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
