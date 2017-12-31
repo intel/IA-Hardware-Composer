@@ -118,6 +118,7 @@ bool DisplayPlaneManager::ValidateLayers(
   auto layer_end = layers.end();
   bool render_layers = false;
   bool validate_final_layers = false;
+  bool test_commit_done = false;
   OverlayLayer *previous_layer = NULL;
 
   if (add_index > 0) {
@@ -170,6 +171,7 @@ bool DisplayPlaneManager::ValidateLayers(
         // it.
         bool fall_back = FallbacktoGPU(plane, layer, commit_planes);
         validate_final_layers = false;
+        test_commit_done = true;
         if (!fall_back || prefer_seperate_plane) {
           composition.emplace_back(plane, layer, layer->GetZorder());
           plane->SetInUse(true);
@@ -244,8 +246,7 @@ bool DisplayPlaneManager::ValidateLayers(
         }
 
         if (previous_layer) {
-          ValidateForDisplayScaling(composition.back(), commit_planes,
-                                    previous_layer);
+          last_plane.UsePlaneScalar(false);
         }
 
         render_layers = true;
@@ -255,9 +256,9 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   if (!cursor_layers.empty()) {
-    bool render_cursor_layer =
-        ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
-                            composition, &validate_final_layers, false);
+    bool render_cursor_layer = ValidateCursorLayer(
+        commit_planes, cursor_layers, mark_later, composition,
+        &validate_final_layers, &test_commit_done, false);
     if (!render_layers) {
       render_layers = render_cursor_layer;
     }
@@ -276,6 +277,7 @@ bool DisplayPlaneManager::ValidateLayers(
   if (validate_final_layers) {
     ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
     validate_final_layers = false;
+    test_commit_done = true;
   }
 
   for (DisplayPlaneState &plane : composition) {
@@ -284,7 +286,7 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
-  *commit_checked = !validate_final_layers;
+  *commit_checked = test_commit_done;
 
   return render_layers;
 }
@@ -341,7 +343,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     std::vector<OverlayLayer *> &cursor_layers,
     std::vector<NativeSurface *> &mark_later,
     DisplayPlaneStateList &composition, bool *validate_final_layers,
-    bool recycle_resources) {
+    bool *test_commit_done, bool recycle_resources) {
   CTRACE();
   if (cursor_layers.empty()) {
     return false;
@@ -404,6 +406,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
           if (cached) {
             fall_back = true;
             status = true;
+            *validate_final_layers = true;
             cursor_layer->SupportedDisplayComposition(OverlayLayer::kGpu);
           }
         }
@@ -416,6 +419,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     // We don't have this in cache.
     if (fall_back && !status) {
       fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
+      *test_commit_done = true;
       if (!cached_plane) {
         results_cache_.emplace_back();
         cached_plane = &(results_cache_.back());
@@ -458,8 +462,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         }
       }
 
-      ValidateForDisplayScaling(*last_plane, commit_planes, cursor_layer,
-                                false);
+      last_plane->UsePlaneScalar(false);
     } else {
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
       plane->SetInUse(true);
@@ -496,7 +499,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
   if (last_layer) {
     PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
                           is_video, recycle_resources);
-    ValidateForDisplayScaling(*last_plane, commit_planes, last_layer, false);
+    last_plane->UsePlaneScalar(false);
   }
 
   return status;

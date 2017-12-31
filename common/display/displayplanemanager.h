@@ -124,7 +124,8 @@ class DisplayPlaneManager {
                            std::vector<OverlayLayer *> &cursor_layers,
                            std::vector<NativeSurface *> &mark_later,
                            DisplayPlaneStateList &composition,
-                           bool *validate_final_layers, bool recycle_resources);
+                           bool *validate_final_layers, bool *test_commit_done,
+                           bool recycle_resources);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
