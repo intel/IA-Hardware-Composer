@@ -180,7 +180,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
-          if (layer->CanScanOut() && layer->IsGpuRendered()) {
+          if (layer->CanScanOut() && last_plane.NeedsOffScreenComposition()) {
             plane_validation = true;
           } else if (source_layers.size() == 1) {
             check_to_squash = true;
@@ -232,14 +232,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             content_changed = true;
           }
         }
-      }
 
-      // Let's check if we need to check this plane-layer combination.
-      if (update_rect) {
-        last_plane.ValidateReValidation();
-        if (last_plane.IsRevalidationNeeded() !=
-            DisplayPlaneState::ReValidationType::kNone) {
-          plane_validation = true;
+        // Let's check if we need to check this plane-layer combination.
+        if (update_rect) {
+          last_plane.ValidateReValidation();
+          if (last_plane.IsRevalidationNeeded() !=
+              DisplayPlaneState::ReValidationType::kNone) {
+            plane_validation = true;
+          }
         }
       }
 

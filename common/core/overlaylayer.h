@@ -163,10 +163,6 @@ struct OverlayLayer {
     return type_ == kLayerVideo;
   }
 
-  bool IsGpuRendered() const {
-    return actual_composition_ & kGpu;
-  }
-
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in
