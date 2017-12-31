@@ -99,7 +99,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   bool initialized = false;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
-  bool use_scalar = false;
   bool has_video = false;
   for (const size_t &index : current_layers) {
     if (index >= remove_index) {
@@ -120,10 +119,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
       private_data_->has_cursor_layer_ = true;
     } else if (!has_video) {
       has_video = layer.IsVideoLayer();
-    }
-
-    if (!use_scalar) {
-      use_scalar = layer.IsUsingPlaneScalar();
     }
 
     const HwcRect<int> &df = layer.GetDisplayFrame();
@@ -172,13 +167,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   private_data_->display_frame_ = target_display_frame;
   private_data_->source_crop_ = target_source_crop;
   private_data_->check_display_scalar_ = true;
-
-  if (use_scalar) {
-    // In case we previously relied on display scalar, we leave that
-    // state untouched as it needs to be handled during
-    // ValidateForDisplayScaling in planemanager.
-    private_data_->use_plane_scalar_ = true;
-  }
 
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
@@ -252,7 +240,6 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
     target->ResetSourceCrop(HwcRect<float>(private_data_->display_frame_));
   }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
-  target->GetLayer()->UsePlaneScalar(private_data_->use_plane_scalar_);
   recycled_surface_ = false;
 }
 
@@ -304,7 +291,6 @@ void DisplayPlaneState::ReleaseSurfaces() {
 void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
-  bool use_scalar = private_data_->use_plane_scalar_;
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->ResetDisplayFrame(target_display_frame);
     if (private_data_->use_plane_scalar_) {
@@ -315,7 +301,6 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
     surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
     if (!surface->ClearSurface())
       surface->SetClearSurface(clear_surface);
-    surface->GetLayer()->UsePlaneScalar(use_scalar);
   }
 
   std::vector<CompositionRegion>().swap(private_data_->composition_region_);

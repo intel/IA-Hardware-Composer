@@ -27,8 +27,8 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 const HwcRect<int> &damage,
-                                 bool clear_surface) {
+                                 const HwcRect<int> &damage, bool clear_surface,
+                                 bool uses_display_up_scaling) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
@@ -118,7 +118,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     HwcRect<float> display_rect;
     float display_size[2];
 
-    if (layer.IsUsingPlaneScalar()) {
+    if (uses_display_up_scaling) {
       display_rect = layer.GetSourceCrop();
       display_size[0] = static_cast<float>(layer.GetSourceCropWidth());
       display_size[1] = static_cast<float>(layer.GetSourceCropHeight());

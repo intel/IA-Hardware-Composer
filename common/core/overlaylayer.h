@@ -167,14 +167,6 @@ struct OverlayLayer {
     return actual_composition_ & kGpu;
   }
 
-  bool IsUsingPlaneScalar() const {
-    return display_scaled_;
-  }
-
-  void UsePlaneScalar(bool value) {
-    display_scaled_ = value;
-  }
-
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in
@@ -267,7 +259,6 @@ struct OverlayLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  bool display_scaled_ = false;
   LayerComposition supported_composition_;
   LayerComposition actual_composition_;
   HWCLayerType type_ = kLayerNormal;

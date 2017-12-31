@@ -119,7 +119,6 @@ bool DisplayPlaneManager::ValidateLayers(
     for (size_t i = add_index; i != size; ++i) {
       OverlayLayer &layer = layers.at(i);
       layer.SetLayerComposition(OverlayLayer::kAll);
-      layer.UsePlaneScalar(false);
     }
   }
 
@@ -295,12 +294,10 @@ bool DisplayPlaneManager::ValidateLayers(
         plane.RefreshSurfaces(true);
         const std::vector<size_t> &source_layers = plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
-        bool useplanescalar = plane.IsUsingPlaneScalar();
         for (size_t i = 0; i < layers_size; i++) {
           size_t source_index = source_layers.at(i);
           OverlayLayer &layer = layers.at(source_index);
           layer.SetLayerComposition(OverlayLayer::kGpu);
-          layer.UsePlaneScalar(useplanescalar);
         }
       }
     }
@@ -529,8 +526,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     OverlayLayer *current_layer, bool ignore_format) {
   if (last_plane.IsUsingPlaneScalar()) {
     last_plane.UsePlaneScalar(false);
-    current_layer->UsePlaneScalar(false);
-    return;
   }
 
   // Case where we are not rotating the layer and format is supported by the
@@ -554,7 +549,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
   last_plane.UsePlaneScalar(true);
-  current_layer->UsePlaneScalar(true);
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
@@ -564,7 +558,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
     last_plane.UsePlaneScalar(false);
-    current_layer->UsePlaneScalar(false);
   }
 }
 

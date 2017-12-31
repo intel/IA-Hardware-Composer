@@ -86,7 +86,6 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
-  layer_.UsePlaneScalar(plane.IsUsingPlaneScalar());
   in_use_ = true;
   clear_surface_ = true;
   surface_age_ = 0;
