@@ -179,6 +179,11 @@ class DisplayPlaneState {
   // This should be used only as a hint.
   bool CanUseDisplayUpScaling() const;
 
+  // Calls RefreshSurfaces if internal plane state
+  // has changed because layers have been added or
+  // removed.
+  void RefreshSurfacesIfNeeded();
+
  private:
   class DisplayPlanePrivateState {
    public:
@@ -221,6 +226,7 @@ class DisplayPlaneState {
 
   bool recycled_surface_ = false;
   bool surface_swapped_ = true;
+  bool refresh_needed_ = true;
   ReValidationType re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };

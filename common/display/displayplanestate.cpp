@@ -88,6 +88,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     private_data_->apply_effects_ = false;
   }
+
+  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -181,6 +183,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   }
 
   std::vector<CompositionRegion>().swap(private_data_->composition_region_);
+  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
@@ -194,6 +197,7 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
   private_data_->check_display_scalar_ = true;
+  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
@@ -205,6 +209,7 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
   target_source_crop.bottom =
       std::max(target_source_crop.bottom, source_crop.bottom);
   private_data_->check_display_scalar_ = true;
+  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -241,6 +246,10 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
+  refresh_needed_ = true;
+  if (private_data_->surfaces_.size() == 1) {
+    refresh_needed_ = false;
+  }
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -304,6 +313,7 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
   }
 
   std::vector<CompositionRegion>().swap(private_data_->composition_region_);
+  refresh_needed_ = false;
 }
 
 DisplayPlane *DisplayPlaneState::GetDisplayPlane() const {
@@ -341,7 +351,7 @@ void DisplayPlaneState::SetVideoPlane() {
 void DisplayPlaneState::UsePlaneScalar(bool enable) {
   if (private_data_->use_plane_scalar_ != enable) {
     private_data_->use_plane_scalar_ = enable;
-    RefreshSurfaces(false);
+    RefreshSurfaces(refresh_needed_);
   }
 }
 
@@ -488,6 +498,12 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
   private_data_->can_use_display_scalar_ = true;
 
   return private_data_->can_use_display_scalar_;
+}
+
+void DisplayPlaneState::RefreshSurfacesIfNeeded() {
+  if (refresh_needed_) {
+    RefreshSurfaces(true);
+  }
 }
 
 }  // namespace hwcomposer
