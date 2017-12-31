@@ -288,17 +288,17 @@ bool DisplayPlaneManager::ValidateLayers(
                           false);
       validate_final_layers = false;
     }
+  }
 
-    for (DisplayPlaneState &plane : composition) {
-      if (plane.NeedsOffScreenComposition()) {
-        plane.RefreshSurfaces(true);
-        const std::vector<size_t> &source_layers = plane.GetSourceLayers();
-        size_t layers_size = source_layers.size();
-        for (size_t i = 0; i < layers_size; i++) {
-          size_t source_index = source_layers.at(i);
-          OverlayLayer &layer = layers.at(source_index);
-          layer.SetLayerComposition(OverlayLayer::kGpu);
-        }
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.NeedsOffScreenComposition()) {
+      plane.RefreshSurfacesIfNeeded();
+      const std::vector<size_t> &source_layers = plane.GetSourceLayers();
+      size_t layers_size = source_layers.size();
+      for (size_t i = 0; i < layers_size; i++) {
+        size_t source_index = source_layers.at(i);
+        OverlayLayer &layer = layers.at(source_index);
+        layer.SetLayerComposition(OverlayLayer::kGpu);
       }
     }
   }
@@ -351,7 +351,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
       plane->SwapSurfaceIfNeeded();
     }
 
-    plane->RefreshSurfaces(true);
+    plane->RefreshSurfacesIfNeeded();
   }
 }
 
