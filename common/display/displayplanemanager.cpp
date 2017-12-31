@@ -60,9 +60,8 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
 }
 
 bool DisplayPlaneManager::ValidateLayers(
-    std::vector<OverlayLayer> &layers, int add_index, bool check_plane,
-    bool disable_overlay, bool *commit_checked,
-    DisplayPlaneStateList &composition,
+    std::vector<OverlayLayer> &layers, int add_index, bool disable_overlay,
+    bool *commit_checked, DisplayPlaneStateList &composition,
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
@@ -71,13 +70,6 @@ bool DisplayPlaneManager::ValidateLayers(
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
         OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
-  }
-
-  if (check_plane && add_index == -1) {
-    bool temp;
-    // We are only revalidating planes and can avoid full validation.
-    return ReValidatePlanes(commit_planes, composition, layers, mark_later,
-                            &temp, false);
   }
 
   if (!previous_composition.empty() && add_index <= 0) {
@@ -272,15 +264,6 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
-  if (check_plane) {
-    // We are only revalidating planes and can avoid full validation.
-    bool status = ReValidatePlanes(commit_planes, composition, layers,
-                                   mark_later, &validate_final_layers, false);
-    if (!render_layers) {
-      render_layers = status;
-    }
-  }
-
   if (!cursor_layers.empty()) {
     bool render_cursor_layer =
         ValidateCursorLayer(commit_planes, cursor_layers, mark_later,
@@ -326,35 +309,6 @@ bool DisplayPlaneManager::ValidateLayers(
   *commit_checked = !validate_final_layers;
 
   return render_layers;
-}
-
-void DisplayPlaneManager::ReValidateLayers(std::vector<OverlayLayer> &layers,
-                                           DisplayPlaneStateList &composition,
-                                           bool *request_full_validation) {
-  CTRACE();
-  std::vector<OverlayPlane> commit_planes;
-  for (DisplayPlaneState &temp : composition) {
-    commit_planes.emplace_back(
-        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
-    // Check if we can still need/use scalar for this plane.
-    if (temp.IsUsingPlaneScalar()) {
-      const std::vector<size_t> &source = temp.GetSourceLayers();
-      size_t total_layers = source.size();
-      ValidateForDisplayScaling(
-          temp, commit_planes, &(layers.at(source.at(total_layers - 1))), true);
-    }
-  }
-
-  // If this combination fails just fall back to full validation.
-  if (plane_handler_->TestCommit(commit_planes)) {
-    *request_full_validation = false;
-  } else {
-#ifdef SURFACE_TRACING
-    ISURFACETRACE(
-        "ReValidateLayers Test commit failed. Forcing full validation. \n");
-#endif
-    *request_full_validation = true;
-  }
 }
 
 DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
@@ -464,9 +418,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
           if (!fall_back) {
             *validate_final_layers = false;
           }
-        }
-
-        if (!cached) {
+        } else {
           if (cache.last_failed_transform_ == layer_transform) {
             cached = true;
           }
@@ -807,18 +759,45 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
 }
 
 bool DisplayPlaneManager::ReValidatePlanes(
-    std::vector<OverlayPlane> &commit_planes,
     DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
-    std::vector<NativeSurface *> &mark_later, bool *validate_final_layers,
-    bool recycle_resources) {
+    std::vector<NativeSurface *> &mark_later, bool *request_full_validation,
+    bool needs_revalidation_checks) {
 #ifdef SURFACE_TRACING
   ISURFACETRACE("ReValidatePlanes called \n");
 #endif
+  // Let's first check the current combination works.
+  *request_full_validation = false;
   bool render = false;
+  std::vector<OverlayPlane> commit_planes;
+  for (DisplayPlaneState &temp : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+
+    if (temp.NeedsOffScreenComposition()) {
+      render = true;
+    }
+  }
+
+  // If this combination fails just fall back to full validation.
+  if (plane_handler_->TestCommit(commit_planes)) {
+  } else {
+#ifdef SURFACE_TRACING
+    ISURFACETRACE(
+        "ReValidatePlanes Test commit failed. Forcing full validation. \n");
+#endif
+    *request_full_validation = true;
+    return render;
+  }
+
+  if (!needs_revalidation_checks) {
+    return render;
+  }
+
   uint32_t index = 0;
 
   for (DisplayPlaneState &last_plane : composition) {
-    if (last_plane.IsRevalidationNeeded()) {
+    if (last_plane.IsRevalidationNeeded() ==
+        DisplayPlaneState::ReValidationType::kScanout) {
       const std::vector<size_t> &source_layers = last_plane.GetSourceLayers();
       bool uses_scalar = last_plane.IsUsingPlaneScalar();
       // Store current layer to re-set in case commit fails.
@@ -846,8 +825,25 @@ bool DisplayPlaneManager::ReValidatePlanes(
 #ifdef SURFACE_TRACING
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
 #endif
-        MarkSurfacesForRecycling(&last_plane, mark_later, recycle_resources);
-        *validate_final_layers = false;
+        MarkSurfacesForRecycling(&last_plane, mark_later, false);
+      }
+    } else if (last_plane.IsRevalidationNeeded() ==
+               DisplayPlaneState::ReValidationType::kScalar) {
+      ValidateForDisplayScaling(last_plane, commit_planes,
+                                last_plane.GetOffScreenTarget()->GetLayer(),
+                                true);
+    } else if (last_plane.IsRevalidationNeeded() ==
+               DisplayPlaneState::ReValidationType::kDisableScalar) {
+      if (!last_plane.IsUsingPlaneScalar())
+        continue;
+
+      last_plane.UsePlaneScalar(false);
+
+      // If this combination fails just fall back to 3D for all layers.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                        last_plane.GetOffScreenTarget()->GetLayer(),
+                        commit_planes)) {
+        last_plane.UsePlaneScalar(true);
       }
     }
 
