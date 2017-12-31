@@ -229,7 +229,7 @@ class DisplayQueue {
                        bool* needs_plane_validation,
                        bool* force_full_validation);
   void SetReleaseFenceToLayers(int32_t fence,
-                               std::vector<HwcLayer*>& source_layers) const;
+                               std::vector<HwcLayer*>& source_layers);
 
   void SetMediaEffectsState(bool apply_effects,
                             const std::vector<OverlayLayer>& layers,

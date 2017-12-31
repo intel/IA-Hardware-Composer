@@ -852,24 +852,26 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
 }
 
 void DisplayQueue::SetReleaseFenceToLayers(
-    int32_t fence, std::vector<HwcLayer*>& source_layers) const {
+    int32_t fence, std::vector<HwcLayer*>& source_layers) {
   for (const DisplayPlaneState& plane : previous_plane_state_) {
     const std::vector<size_t>& layers = plane.GetSourceLayers();
     size_t size = layers.size();
     int32_t release_fence = -1;
     if (plane.Scanout() && !plane.SurfaceRecycled()) {
       for (size_t layer_index = 0; layer_index < size; layer_index++) {
-        const OverlayLayer& overlay_layer =
+        OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));
         HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
         layer->SetReleaseFence(dup(fence));
+        overlay_layer.SetLayerComposition(OverlayLayer::kDisplay);
       }
     } else {
       release_fence = plane.GetOverlayLayer()->ReleaseAcquireFence();
 
       for (size_t layer_index = 0; layer_index < size; layer_index++) {
-        const OverlayLayer& overlay_layer =
+        OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));
+        overlay_layer.SetLayerComposition(OverlayLayer::kGpu);
         HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
         if (release_fence > 0) {
           layer->SetReleaseFence(dup(release_fence));
