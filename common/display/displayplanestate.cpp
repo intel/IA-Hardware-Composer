@@ -88,9 +88,6 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     private_data_->apply_effects_ = false;
   }
-
-  if (private_data_->source_layers_.size() > 1)
-    re_validate_layer_ = false;
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -161,11 +158,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   if (source_layers.empty()) {
     private_data_->source_layers_.swap(source_layers);
     return;
-  }
-
-  if ((source_layers.size() == 1) &&
-      (private_data_->source_layers_.size() > 1)) {
-    re_validate_layer_ = true;
   }
 
 #ifdef SURFACE_TRACING
@@ -412,12 +404,13 @@ bool DisplayPlaneState::NeedsOffScreenComposition() {
   return false;
 }
 
-bool DisplayPlaneState::IsRevalidationNeeded() const {
+DisplayPlaneState::ReValidationType DisplayPlaneState::IsRevalidationNeeded()
+    const {
   return re_validate_layer_;
 }
 
 void DisplayPlaneState::RevalidationDone() {
-  re_validate_layer_ = false;
+  re_validate_layer_ = ReValidationType::kNone;
 }
 
 bool DisplayPlaneState::CanSquash() const {
@@ -428,6 +421,20 @@ bool DisplayPlaneState::CanSquash() const {
     return false;
 
   return true;
+}
+
+void DisplayPlaneState::ValidateReValidation() {
+  if (private_data_->source_layers_.size() == 1 &&
+      !(private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo)) {
+    re_validate_layer_ = ReValidationType::kScanout;
+  } else {
+    bool use_scalar = CanUseDisplayUpScaling();
+    if (private_data_->use_plane_scalar_ && !use_scalar) {
+      re_validate_layer_ = ReValidationType::kDisableScalar;
+    } else if (!private_data_->use_plane_scalar_ && use_scalar) {
+      re_validate_layer_ = ReValidationType::kScalar;
+    }
+  }
 }
 
 bool DisplayPlaneState::CanUseDisplayUpScaling() const {

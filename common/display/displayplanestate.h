@@ -36,6 +36,12 @@ typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
 
 class DisplayPlaneState {
  public:
+  enum class ReValidationType : int32_t {
+    kNone,          // No Revalidation Needed.
+    kScanout,       // Check if layer can be scanned out directly.
+    kScalar,        // Check if layer can use plane scalar.
+    kDisableScalar  // Check if this plane can disable scaling.
+  };
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
@@ -152,10 +158,14 @@ class DisplayPlaneState {
   // with current source layer. This will be the case
   // when plane had multiple layers and they where
   // removed leaving it with single layer now.
-  bool IsRevalidationNeeded() const;
+  ReValidationType IsRevalidationNeeded() const;
 
   // Plane has been revalidated by DisplayPlaneManager.
   void RevalidationDone();
+
+  // Call this to determine what kind of re-validation
+  // is needed by this plane for this frame.
+  void ValidateReValidation();
 
   // Returns true if we can squash this with other plane.
   // i.e. This will be the case when it's having only
@@ -211,7 +221,7 @@ class DisplayPlaneState {
 
   bool recycled_surface_ = false;
   bool surface_swapped_ = true;
-  bool re_validate_layer_ = false;
+  ReValidationType re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };
 

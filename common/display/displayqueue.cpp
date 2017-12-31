@@ -118,8 +118,7 @@ void DisplayQueue::RotateDisplay(HWCRotation rotation) {
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    int remove_index,
                                    DisplayPlaneStateList* composition,
-                                   bool* check_plane, bool* render_layers,
-                                   bool* can_ignore_commit,
+                                   bool* render_layers, bool* can_ignore_commit,
                                    bool* needs_plane_validation,
                                    bool* force_full_validation) {
   CTRACE();
@@ -170,14 +169,19 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           last_plane.GetDisplayPlane()->SetInUse(false);
           composition->pop_back();
           continue;
-        } else if (last_plane.IsRevalidationNeeded()) {
+        }
+
+        last_plane.ValidateReValidation();
+
+        if (last_plane.IsRevalidationNeeded() ==
+            DisplayPlaneState::ReValidationType::kScanout) {
           const std::vector<size_t>& source_layers =
               last_plane.GetSourceLayers();
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
           if (layer->CanScanOut() && layer->IsGpuRendered()) {
-            *check_plane = true;
+            plane_validation = true;
           } else if (source_layers.size() == 1) {
             check_to_squash = true;
             last_plane.RevalidationDone();
@@ -232,14 +236,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       bool referesh_surfaces = true;
       // Let's check if we need to check this plane-layer combination.
-      if (update_rect && last_plane.IsUsingPlaneScalar()) {
-        bool use_scalar = last_plane.CanUseDisplayUpScaling();
-        if (!previous_plane.IsUsingPlaneScalar() && use_scalar) {
+      if (update_rect) {
+        last_plane.ValidateReValidation();
+        if (last_plane.IsRevalidationNeeded() !=
+            DisplayPlaneState::ReValidationType::kNone) {
           plane_validation = true;
-        } else if (previous_plane.IsUsingPlaneScalar() && !use_scalar) {
-          // We see no benefit using display scalar, disable it.
-          last_plane.UsePlaneScalar(false);
-          referesh_surfaces = false;
         }
       }
 
@@ -528,20 +529,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     bool can_ignore_commit = false;
     // Before forcing layer validation, check if content has changed
     // if not continue showing the current buffer.
-    bool check_plane = false;
     bool commit_checked = false;
     bool needs_plane_validation = false;
     GetCachedLayers(layers, remove_index, &current_composition_planes,
-                    &check_plane, &render_layers, &can_ignore_commit,
-                    &needs_plane_validation, &validate_layers);
+                    &render_layers, &can_ignore_commit, &needs_plane_validation,
+                    &validate_layers);
 
-    if (needs_plane_validation) {
-      re_validate_commit = true;
-    }
-
-    if (!validate_layers && (add_index > 0 || check_plane)) {
+    if (!validate_layers && add_index > 0) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, check_plane, disable_ovelays, &commit_checked,
+          layers, add_index, disable_ovelays, &commit_checked,
           current_composition_planes, previous_plane_state_,
           surfaces_not_inuse_);
 
@@ -549,14 +545,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         render_layers = render_cursor;
 
       can_ignore_commit = false;
-      if (commit_checked && !needs_plane_validation)
+      if (commit_checked)
         re_validate_commit = false;
     }
 
-    if (!validate_layers && re_validate_commit) {
-      // Let's re-validate if their was a request for this.
-      display_plane_manager_->ReValidateLayers(
-          layers, current_composition_planes, &validate_layers);
+    if (!validate_layers && (re_validate_commit || needs_plane_validation)) {
+      display_plane_manager_->ReValidatePlanes(
+          current_composition_planes, layers, surfaces_not_inuse_,
+          &validate_layers, needs_plane_validation);
       can_ignore_commit = false;
     }
 
@@ -591,8 +587,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                      (state_ & kConfigurationChanged && (layers.size() > 1));
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, false, force_gpu, &test_commit,
-        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
+        layers, add_index, force_gpu, &test_commit, current_composition_planes,
+        previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.
     if (force_media_composition && requested_video_effect) {

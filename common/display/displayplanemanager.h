@@ -43,20 +43,22 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
-                      bool check_plane, bool disable_overlay,
-                      bool *commit_checked, DisplayPlaneStateList &composition,
+                      bool disable_overlay, bool *commit_checked,
+                      DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);
-
-  // This can be used to quickly check if the new DisplayPlaneStateList
-  // can be succefully commited before doing a full re-validation.
-  void ReValidateLayers(std::vector<OverlayLayer> &layers,
-                        DisplayPlaneStateList &composition,
-                        bool *request_full_validation);
 
   void MarkSurfacesForRecycling(DisplayPlaneState *plane,
                                 std::vector<NativeSurface *> &mark_later,
                                 bool recycle_resources);
+
+  // This can be used to quickly check if the new DisplayPlaneStateList
+  // can be succefully commited before doing a full re-validation.
+  bool ReValidatePlanes(DisplayPlaneStateList &list,
+                        std::vector<OverlayLayer> &layers,
+                        std::vector<NativeSurface *> &mark_later,
+                        bool *request_full_validation,
+                        bool needs_revalidation_checks);
 
   bool CheckPlaneFormat(uint32_t format);
 
@@ -123,12 +125,6 @@ class DisplayPlaneManager {
                            std::vector<NativeSurface *> &mark_later,
                            DisplayPlaneStateList &composition,
                            bool *validate_final_layers, bool recycle_resources);
-
-  bool ReValidatePlanes(std::vector<OverlayPlane> &commit_planes,
-                        DisplayPlaneStateList &list,
-                        std::vector<OverlayLayer> &layers,
-                        std::vector<NativeSurface *> &mark_later,
-                        bool *validate_final_layers, bool recycle_resources);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
