@@ -58,7 +58,8 @@ class DisplayPlaneManager {
                         std::vector<OverlayLayer> &layers,
                         std::vector<NativeSurface *> &mark_later,
                         bool *request_full_validation,
-                        bool needs_revalidation_checks);
+                        bool needs_revalidation_checks,
+                        bool re_validate_commit);
 
   bool CheckPlaneFormat(uint32_t format);
 

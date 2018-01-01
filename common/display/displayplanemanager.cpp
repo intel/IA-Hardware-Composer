@@ -738,7 +738,7 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
 bool DisplayPlaneManager::ReValidatePlanes(
     DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
     std::vector<NativeSurface *> &mark_later, bool *request_full_validation,
-    bool needs_revalidation_checks) {
+    bool needs_revalidation_checks, bool re_validate_commit) {
 #ifdef SURFACE_TRACING
   ISURFACETRACE("ReValidatePlanes called \n");
 #endif
@@ -755,14 +755,16 @@ bool DisplayPlaneManager::ReValidatePlanes(
     }
   }
 
-  // If this combination fails just fall back to full validation.
-  if (!plane_handler_->TestCommit(commit_planes)) {
+  if (re_validate_commit) {
+    // If this combination fails just fall back to full validation.
+    if (!plane_handler_->TestCommit(commit_planes)) {
 #ifdef SURFACE_TRACING
-    ISURFACETRACE(
-        "ReValidatePlanes Test commit failed. Forcing full validation. \n");
+      ISURFACETRACE(
+          "ReValidatePlanes Test commit failed. Forcing full validation. \n");
 #endif
-    *request_full_validation = true;
-    return render;
+      *request_full_validation = true;
+      return render;
+    }
   }
 
   if (!needs_revalidation_checks) {
@@ -794,7 +796,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
 
       commit_planes.at(index).layer = last_plane.GetOverlayLayer();
 
-      // If this combination fails just fall back to 3D for all layers.
+      // If this combination fails just fall back to original state.
       if (FallbacktoGPU(last_plane.GetDisplayPlane(), layer, commit_planes)) {
         // Reset to old state.
         last_plane.ForceGPURendering();
