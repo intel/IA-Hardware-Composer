@@ -29,7 +29,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       width_(width),
       height_(height),
       in_use_(false),
-      clear_surface_(true),
+      clear_surface_(kFullClear),
       surface_age_(0) {
 }
 
@@ -73,7 +73,7 @@ void NativeSurface::SetInUse(bool inuse) {
   in_use_ = inuse;
 }
 
-void NativeSurface::SetClearSurface(bool clear_surface) {
+void NativeSurface::SetClearSurface(ClearType clear_surface) {
   clear_surface_ = clear_surface;
 }
 
@@ -87,7 +87,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
   surface_damage_ = display_rect;
   last_surface_damage_ = surface_damage_;
   in_use_ = true;
-  clear_surface_ = true;
+  clear_surface_ = kFullClear;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
     layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
@@ -95,8 +95,6 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
 }
 
 void NativeSurface::ResetDisplayFrame(const HwcRect<int> &display_frame) {
-  surface_damage_ = display_frame;
-  last_surface_damage_ = surface_damage_;
   layer_.SetDisplayFrame(display_frame);
 }
 

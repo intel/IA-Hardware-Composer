@@ -29,6 +29,12 @@ class DisplayPlaneState;
 
 class NativeSurface {
  public:
+  enum ClearType {
+    kNone = 0,         // No need to clear the buffer.
+    kFullClear = 1,    // Clear the whole buffer.
+    kPartialClear = 2  // Clear rect equal to SurfaceDamage of this layer.
+  };
+
   NativeSurface() = default;
   NativeSurface(uint32_t width, uint32_t height);
   NativeSurface(const NativeSurface& rhs) = delete;
@@ -60,7 +66,7 @@ class NativeSurface {
   void SetNativeFence(int32_t fd);
 
   void SetInUse(bool inuse);
-  void SetClearSurface(bool clear_surface);
+  void SetClearSurface(NativeSurface::ClearType clear_surface);
 
   bool InUse() const {
     return in_use_;
@@ -81,7 +87,11 @@ class NativeSurface {
   }
 
   bool ClearSurface() const {
-    return clear_surface_;
+    return clear_surface_ == kFullClear;
+  }
+
+  bool IsPartialClear() const {
+    return clear_surface_ == kPartialClear;
   }
 
   void SetPlaneTarget(const DisplayPlaneState& plane, uint32_t gpu_fd);
@@ -112,7 +122,7 @@ class NativeSurface {
   int width_;
   int height_;
   bool in_use_;
-  bool clear_surface_;
+  ClearType clear_surface_;
   uint32_t surface_age_;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;

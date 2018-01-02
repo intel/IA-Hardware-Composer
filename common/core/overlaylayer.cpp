@@ -183,19 +183,6 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   }
 }
 
-void OverlayLayer::UpdateSurfaceDamage(HwcLayer* layer) {
-  if (!(actual_composition_ & kGpu)) {
-    surface_damage_ = display_frame_;
-    return;
-  }
-
-  if (!layer->HasLayerContentChanged()) {
-    surface_damage_ = HwcRect<int> (0, 0, 0, 0);
-  } else {
-    surface_damage_ = display_frame_;
-  }
-}
-
 void OverlayLayer::InitializeState(HwcLayer* layer,
                                    ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
@@ -226,13 +213,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  if (layer->HasLayerAttributesChanged() || !layer->IsValidated()) {
-    state_ |= kClearSurface;
-    state_ |= kLayerContentChanged;
-  }
-
   if (!handle_constraints) {
-    UpdateSurfaceDamage(layer);
+    surface_damage_ = layer->GetDamagedArea();
     return;
   }
 
@@ -277,22 +259,13 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
 
-    UpdateSurfaceDamage(layer);
-    if (actual_composition_ & kGpu) {
-      // If viewport and layer doesn't interact we can avoid re-rendering
-      // this layer.
-      if (AnalyseOverlap(surface_damage_, display_frame_) != kOutside) {
-        surface_damage_.left =
-            std::max(surface_damage_.left, display_frame_.left);
-        surface_damage_.right =
-            std::min(surface_damage_.right, display_frame_.right);
-        surface_damage_.top = std::max(surface_damage_.top, display_frame_.top);
-        surface_damage_.bottom =
-            std::min(surface_damage_.bottom, display_frame_.bottom);
-      } else {
-        surface_damage_ = HwcRect<int>(0, 0, 0, 0);
-      }
-    }
+    surface_damage_ = layer->GetDamagedArea();
+    surface_damage_.bottom =
+        std::min(static_cast<uint32_t>(surface_damage_.bottom), max_height);
+    surface_damage_.right =
+        std::min(surface_damage_.right, right_source_constraint);
+    surface_damage_.left =
+        std::max(surface_damage_.left, left_source_constraint);
 
     // split the source in proportion of frame rect offset for sub displays as:
     // 1. the original source size may be different with the original frame
@@ -354,10 +327,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
     if (actual_composition_ & kGpu) {
       content_changed = rect_changed || source_rect_changed;
-      if (rect_changed) {
-        state_ |= kClearSurface;
-      }
-
       if (!content_changed) {
         if (alpha_ != rhs->alpha_) {
           content_changed = true;
