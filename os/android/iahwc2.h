@@ -88,7 +88,7 @@ class IAHWC2 : public hwc2_device_t {
     }
 
     bool IsCursorLayer() const {
-      return is_cursor_layer_;
+      return hwc_layer_.IsCursorLayer();
     }
 
     // Layer hooks
@@ -112,7 +112,6 @@ class IAHWC2 : public hwc2_device_t {
     // validated_type_ stores the type after running ValidateDisplay
     HWC2::Composition sf_type_ = HWC2::Composition::Invalid;
     HWC2::Composition validated_type_ = HWC2::Composition::Invalid;
-    bool is_cursor_layer_ = false;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
     hwcomposer::HwcLayer hwc_layer_;
     struct gralloc_handle native_handle_;

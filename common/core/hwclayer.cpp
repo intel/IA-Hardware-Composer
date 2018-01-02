@@ -303,4 +303,12 @@ int32_t HwcLayer::GetRightSourceConstraint() {
   return value;
 }
 
+void HwcLayer::MarkAsCursorLayer() {
+  is_cursor_layer_ = true;
+}
+
+bool HwcLayer::IsCursorLayer() const {
+  return is_cursor_layer_;
+}
+
 }  // namespace hwcomposer
