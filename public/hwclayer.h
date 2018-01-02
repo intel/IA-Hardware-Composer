@@ -133,6 +133,14 @@ struct HwcLayer {
   }
 
   /**
+   * API for getting damage area caused by this layer for current
+   * frame update.
+   */
+  const HwcRect<int>& GetDamagedArea() const {
+    return rendering_damage_;
+  }
+
+  /**
    * API for querying if visible region has
    * changed from last Present call to NativeDisplay.
    */
@@ -244,6 +252,8 @@ struct HwcLayer {
 
  private:
   void Validate();
+  void UpdateRenderingDamage(const HwcRect<int>& old_rect,
+                             const HwcRect<int>& newrect, bool same_rect);
   friend class VirtualDisplay;
   friend class PhysicalDisplay;
 
@@ -272,6 +282,7 @@ struct HwcLayer {
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
   HwcRect<int> visible_rect_;
+  HwcRect<int> rendering_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;

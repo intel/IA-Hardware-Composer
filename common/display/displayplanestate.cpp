@@ -312,9 +312,16 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
     } else {
       surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
     }
-    surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
-    if (!surface->ClearSurface())
-      surface->SetClearSurface(clear_surface);
+
+    if (!surface->ClearSurface() && clear_surface) {
+      surface->SetClearSurface(NativeSurface::kFullClear);
+      if (private_data_->use_plane_scalar_) {
+        surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
+      } else {
+        surface->UpdateSurfaceDamage(target_display_frame,
+                                     target_display_frame);
+      }
+    }
   }
 
   std::vector<CompositionRegion>().swap(private_data_->composition_region_);
@@ -357,7 +364,7 @@ void DisplayPlaneState::SetVideoPlane() {
 void DisplayPlaneState::UsePlaneScalar(bool enable) {
   if (private_data_->use_plane_scalar_ != enable) {
     private_data_->use_plane_scalar_ = enable;
-    RefreshSurfaces(refresh_needed_);
+    RefreshSurfaces(true);
   }
 }
 

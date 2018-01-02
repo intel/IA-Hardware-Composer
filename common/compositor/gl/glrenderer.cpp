@@ -91,15 +91,38 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
     return false;
 
   bool clear_surface = surface->ClearSurface();
+  bool partial_clear = surface->IsPartialClear();
 
-  surface->SetClearSurface(false);
+  surface->SetClearSurface(NativeSurface::kNone);
 
   glViewport(left, top, frame_width, frame_height);
 
-  if (clear_surface)
-    glClear(GL_COLOR_BUFFER_BIT);
-
-  glEnable(GL_SCISSOR_TEST);
+  if (clear_surface || partial_clear) {
+    const HwcRect<int> &damage = surface->GetSurfaceDamage();
+    GLuint clear_width = damage.right - damage.left;
+    GLuint clear_height = damage.bottom - damage.top;
+    if ((frame_width != clear_width) || (frame_height != clear_height)) {
+      glEnable(GL_SCISSOR_TEST);
+      glScissor(damage.left, damage.top, clear_width, clear_height);
+      glClear(GL_COLOR_BUFFER_BIT);
+#ifdef COMPOSITOR_TRACING
+      ICOMPOSITORTRACE("Partial Clear: %d %d %d %d \n", damage.left, damage.top,
+                       damage.right - damage.left, damage.bottom - damage.top);
+#endif
+    } else {
+      glClear(GL_COLOR_BUFFER_BIT);
+      glEnable(GL_SCISSOR_TEST);
+#ifdef COMPOSITOR_TRACING
+      ICOMPOSITORTRACE("Full Clear: %d %d %d %d \n", damage.left, damage.top,
+                       damage.right - damage.left, damage.bottom - damage.top);
+#endif
+    }
+  } else {
+#ifdef COMPOSITOR_TRACING
+    ICOMPOSITORTRACE("Skipping clear \n");
+#endif
+    glEnable(GL_SCISSOR_TEST);
+  }
 
   for (const RenderState &state : render_states) {
     unsigned size = state.layer_state_.size();

@@ -54,6 +54,14 @@ struct Rect {
     }
     return true;
   }
+
+  bool empty() const {
+    for (int i = 0; i < 4; i++) {
+      if (bounds[i] != 0)
+        return false;
+    }
+    return true;
+  }
 };
 
 }  // namespace hwcomposer
