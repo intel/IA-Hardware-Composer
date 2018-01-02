@@ -17,6 +17,7 @@
 #include "logicaldisplaymanager.h"
 
 #include "logicaldisplay.h"
+#include <hwclayer.h>
 
 namespace hwcomposer {
 
@@ -153,42 +154,40 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
   }
 
   if (total_size == 0) {
-      std::vector<std::vector<HwcLayer*>>().swap(layers_);
-      maximum_size_ = 0;
-      ETRACE("logical dpm total_size == 0 \n");
-      return true;
+    std::vector<HwcLayer*>().swap(cursor_layers_);
+    std::vector<HwcLayer*>().swap(layers_);
+    queued_displays_ = 0;
+    ETRACE("logical dpm total_size == 0 \n");
+    return true;
   }
 
-  if (layers_.size() != total_size) {
-    layers_.emplace_back();
-    std::vector<HwcLayer*>& layer = layers_.back();
+  if (queued_displays_ != total_size) {
     uint32_t size = source_layers.size();
     for (uint32_t i = 0; i < size; i++) {
-      layer.emplace_back(source_layers.at(i));
+      HwcLayer* layer = source_layers.at(i);
+      if (layer->IsCursorLayer()) {
+        cursor_layers_.emplace_back(layer);
+      } else {
+        layers_.emplace_back(layer);
+      }
     }
 
-    maximum_size_ = std::max(maximum_size_, size);
-    if (layers_.size() < total_size) {
+    queued_displays_++;
+    if (queued_displays_ < total_size) {
       return true;
     }
   }
 
-  std::vector<HwcLayer*> total_layers;
-  for (uint32_t i = 0; i < maximum_size_; i++) {
-    uint32_t size = layers_.size();
-    for (uint32_t j = 0; j < size; j++) {
-      std::vector<HwcLayer*>& layers = layers_.at(j);
-      if (i >= layers.size())
-        continue;
-
-      total_layers.emplace_back(layers.at(i));
-    }
+  uint32_t cursor_layers = cursor_layers_.size();
+  for (uint32_t j = 0; j < cursor_layers; j++) {
+    layers_.emplace_back(cursor_layers_.at(j));
   }
 
-  bool success = physical_display_->Present(total_layers, retire_fence,
-                                            handle_constraints);
-  std::vector<std::vector<HwcLayer*>>().swap(layers_);
-  maximum_size_ = 0;
+  bool success =
+      physical_display_->Present(layers_, retire_fence, handle_constraints);
+  std::vector<HwcLayer*>().swap(cursor_layers_);
+  std::vector<HwcLayer*>().swap(layers_);
+  queued_displays_ = 0;
   return success;
 }
 

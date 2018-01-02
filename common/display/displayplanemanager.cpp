@@ -147,6 +147,9 @@ bool DisplayPlaneManager::ValidateLayers(
         }
       }
 
+      if (layer_begin == layer_end)
+	  break;
+
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));

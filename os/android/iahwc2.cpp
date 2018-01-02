@@ -850,7 +850,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
   sf_type_ = static_cast<HWC2::Composition>(type);
   if (sf_type_ == HWC2::Composition::Cursor) {
-    is_cursor_layer_ = true;
+    hwc_layer_.MarkAsCursorLayer();
   }
 
   return HWC2::Error::None;

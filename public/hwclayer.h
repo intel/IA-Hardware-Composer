@@ -239,6 +239,9 @@ struct HwcLayer {
   void SetRightSourceConstraint(int32_t right_constraint);
   int32_t GetRightSourceConstraint();
 
+  void MarkAsCursorLayer();
+  bool IsCursorLayer() const;
+
  private:
   void Validate();
   friend class VirtualDisplay;
@@ -280,6 +283,7 @@ struct HwcLayer {
   uint32_t z_order_ = 0;
   int state_ = kVisible | kSurfaceDamageChanged | kVisibleRegionChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
+  bool is_cursor_layer_ = false;
 };
 
 }  // namespace hwcomposer
