@@ -75,16 +75,12 @@ class DisplayPlaneState {
   // Reuses last shown surface for current frame.
   void ReUseOffScreenTarget();
 
-  // This will be called by DisplayPlaneManager when adding
-  // cursor layer to any existing overlay.
+  // Put's current OffscreenSurface to back in the
+  // list if not already done.
   void SwapSurfaceIfNeeded();
 
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
-
-  // Put's current OffscreenSurface to back in the
-  // list.
-  void SwapSurface();
 
   const HwcRect<int> &GetDisplayFrame() const;
 
@@ -224,7 +220,7 @@ class DisplayPlaneState {
   };
 
   bool recycled_surface_ = false;
-  bool surface_swapped_ = true;
+  bool surface_swapped_ = false;
   bool refresh_needed_ = true;
   ReValidationType re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;

@@ -252,7 +252,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       // Let's make sure we swap the surface in case content has changed.
       if (content_changed) {
-        last_plane.SwapSurface();
+        last_plane.SwapSurfaceIfNeeded();
       }
 
       // Let's get the state from surface if it needs to be cleared.
@@ -831,12 +831,12 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
     // Swap any surfaces which are to be marked as not in
     // use next frame.
     if (!surfaces_not_inuse_.empty()) {
-      size_t size = surfaces_not_inuse_.size();
-      for (uint32_t i = 0; i < size; i++) {
-        NativeSurface* temp = surfaces_not_inuse_.at(i);
+      size_t n_size = surfaces_not_inuse_.size();
+      for (uint32_t j = 0; j < n_size; j++) {
+        NativeSurface* temp = surfaces_not_inuse_.at(j);
         bool found = false;
-        for (uint32_t i = 0; i < size; i++) {
-          NativeSurface* surface = surfaces.at(i);
+        for (uint32_t k = 0; k < size; k++) {
+          NativeSurface* surface = surfaces.at(k);
           if (temp == surface) {
             found = true;
             ICOMPOSITORTRACE(

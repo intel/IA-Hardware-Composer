@@ -98,7 +98,6 @@ void NativeSurface::ResetDisplayFrame(const HwcRect<int> &display_frame) {
   surface_damage_ = display_frame;
   last_surface_damage_ = surface_damage_;
   layer_.SetDisplayFrame(display_frame);
-  clear_surface_ = true;
 }
 
 void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
