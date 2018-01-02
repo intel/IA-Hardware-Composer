@@ -128,6 +128,8 @@ class DisplayPlaneManager {
                            bool *validate_final_layers, bool *test_commit_done,
                            bool recycle_resources);
 
+  void SwapSurfaceIfNeeded(DisplayPlaneState *plane);
+
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
   DisplayPlane *cursor_plane_;

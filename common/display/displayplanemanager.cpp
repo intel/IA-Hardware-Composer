@@ -207,6 +207,8 @@ bool DisplayPlaneManager::ValidateLayers(
             if (!last_plane.GetOffScreenTarget()) {
               ResetPlaneTarget(last_plane, commit_planes.back());
               validate_final_layers = true;
+            } else if (add_index > 0) {
+              SwapSurfaceIfNeeded(&last_plane);
             }
           }
         }
@@ -246,6 +248,8 @@ bool DisplayPlaneManager::ValidateLayers(
         if (!last_plane.GetOffScreenTarget() || force_buffer) {
           ResetPlaneTarget(last_plane, commit_planes.back());
           validate_final_layers = true;
+        } else if (add_index > 0) {
+          SwapSurfaceIfNeeded(&last_plane);
         }
 
         if (previous_layer) {
@@ -328,15 +332,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
     SetOffScreenPlaneTarget(*plane);
     *validate_final_layers = true;
   } else {
-    // If Last frame surface is re-cycled and surfaces are
-    // less than 3, make sure we have the offscreen surface
-    // which is not in queued to be onscreen yet.
-    if (plane->SurfaceRecycled() && (plane->GetSurfaces().size() < 3)) {
-      SetOffScreenPlaneTarget(*plane);
-    } else {
-      plane->SwapSurfaceIfNeeded();
-    }
-
+    SwapSurfaceIfNeeded(plane);
     plane->RefreshSurfacesIfNeeded();
   }
 }
@@ -826,6 +822,17 @@ bool DisplayPlaneManager::ReValidatePlanes(
   }
 
   return render;
+}
+
+void DisplayPlaneManager::SwapSurfaceIfNeeded(DisplayPlaneState *plane) {
+  // If Last frame surface is re-cycled and surfaces are
+  // less than 3, make sure we have the offscreen surface
+  // which is not in queued to be onscreen yet.
+  if (plane->SurfaceRecycled() && (plane->GetSurfaces().size() < 3)) {
+    SetOffScreenPlaneTarget(*plane);
+  } else {
+    plane->SwapSurfaceIfNeeded();
+  }
 }
 
 }  // namespace hwcomposer

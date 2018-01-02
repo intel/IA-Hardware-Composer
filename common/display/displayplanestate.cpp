@@ -225,6 +225,10 @@ void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
 }
 
 void DisplayPlaneState::ReUseOffScreenTarget() {
+  if (surface_swapped_) {
+    ETRACE(
+        "Surface has been swapped and being re-used as offscreen target. \n");
+  }
   recycled_surface_ = true;
 }
 
@@ -250,6 +254,8 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   if (private_data_->surfaces_.size() == 1) {
     refresh_needed_ = false;
   }
+
+  surface_swapped_ = true;
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -260,13 +266,12 @@ NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
   return private_data_->surfaces_.at(0);
 }
 
-void DisplayPlaneState::SwapSurface() {
-  surface_swapped_ = false;
-  SwapSurfaceIfNeeded();
-}
-
 void DisplayPlaneState::SwapSurfaceIfNeeded() {
   if (surface_swapped_) {
+    if (recycled_surface_) {
+      ETRACE(
+          "Surface has been swapped and being re-used as offscreen target. \n");
+    }
     return;
   }
 
