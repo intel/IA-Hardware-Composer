@@ -333,7 +333,6 @@ void DisplayPlaneManager::PreparePlaneForCursor(
     *validate_final_layers = true;
   } else {
     SwapSurfaceIfNeeded(plane);
-    plane->RefreshSurfacesIfNeeded();
   }
 }
 
