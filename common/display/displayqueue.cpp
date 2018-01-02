@@ -208,7 +208,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           if (layer.HasDimensionsChanged()) {
             last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
             update_rect = true;
-          } else if (layer.NeedsToClearSurface()) {
+          }
+
+          if (layer.NeedsToClearSurface()) {
             clear_surface = true;
           }
 
