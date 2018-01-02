@@ -352,20 +352,25 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   // We expect cursor plane to support alpha always.
   if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
-    content_changed = rect_changed || source_rect_changed;
-
-    if (!content_changed) {
-      if (alpha_ != rhs->alpha_) {
-        content_changed = true;
+    if (actual_composition_ & kGpu) {
+      content_changed = rect_changed || source_rect_changed;
+      if (rect_changed) {
+        state_ |= kClearSurface;
       }
 
-      if (blending_ != rhs->blending_) {
-        content_changed = true;
-      }
-    }
+      if (!content_changed) {
+        if (alpha_ != rhs->alpha_) {
+          content_changed = true;
+        }
 
-    if ((type_ == kLayerCursor) && layer->HasLayerAttributesChanged()) {
-      state_ |= kNeedsReValidation;
+        if (blending_ != rhs->blending_) {
+          content_changed = true;
+        }
+      }
+    } else if (type_ == kLayerCursor) {
+      if (layer->HasLayerAttributesChanged()) {
+        state_ |= kNeedsReValidation;
+      }
     }
   } else {
     // If previous layer was opaque and we have alpha now,
