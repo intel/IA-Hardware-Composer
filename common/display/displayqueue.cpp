@@ -381,7 +381,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // state might be all wrong in our side.
   bool validate_layers = tracker.RevalidateLayers() ||
                          last_commit_failed_update_ ||
-                         previous_plane_state_.empty();
+                         previous_plane_state_.empty() || idle_frame;
   *retire_fence = -1;
   uint32_t z_order = 0;
   bool has_video_layer = false;
@@ -590,7 +590,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     // We are doing a full re-validation.
     add_index = 0;
     bool force_gpu = disable_ovelays || idle_frame ||
-                     (state_ & kConfigurationChanged && (layers.size() > 1));
+                     ((state_ & kConfigurationChanged) && (layers.size() > 1));
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
         layers, add_index, force_gpu, &test_commit, current_composition_planes,
