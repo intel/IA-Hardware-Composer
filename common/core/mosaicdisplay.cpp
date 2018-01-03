@@ -209,8 +209,8 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
     IMOSAICDISPLAYTRACE("drconstraint %d \n", drconstraint);
     IMOSAICDISPLAYTRACE("right_constraint %d \n", right_constraint);
     IMOSAICDISPLAYTRACE("left_constraint %d \n", left_constraint);
-    for (size_t i = 0; i < total_layers; i++) {
-      HwcLayer *layer = source_layers.at(i);
+    for (size_t j = 0; j < total_layers; j++) {
+      HwcLayer *layer = source_layers.at(j);
       const HwcRect<int> &frame_Rect = layer->GetDisplayFrame();
       if ((frame_Rect.right < left_constraint) ||
           (frame_Rect.left > right_constraint)) {
@@ -221,6 +221,8 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
       layer->SetRightConstraint(drconstraint);
       layer->SetLeftSourceConstraint(left_constraint);
       layer->SetRightSourceConstraint(right_constraint);
+      layer->SetTotalDisplays(size - i);
+
       layers.emplace_back(layer);
     }
 

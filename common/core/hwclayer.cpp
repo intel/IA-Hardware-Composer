@@ -192,13 +192,29 @@ int32_t HwcLayer::GetAcquireFence() {
 }
 
 void HwcLayer::Validate() {
-  state_ &= ~kVisibleRegionChanged;
-  state_ |= kLayerValidated;
-  state_ &= ~kLayerContentChanged;
-  state_ &= ~kSurfaceDamageChanged;
-  layer_cache_ &= ~kLayerAttributesChanged;
-  layer_cache_ &= ~kDisplayFrameRectChanged;
-  layer_cache_ &= ~kSourceRectChanged;
+  if (total_displays_ == 1) {
+    state_ &= ~kVisibleRegionChanged;
+    state_ |= kLayerValidated;
+    state_ &= ~kLayerContentChanged;
+    state_ &= ~kSurfaceDamageChanged;
+    layer_cache_ &= ~kLayerAttributesChanged;
+    layer_cache_ &= ~kDisplayFrameRectChanged;
+    layer_cache_ &= ~kSourceRectChanged;
+    if (!last_rendering_damage_.empty()) {
+      last_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+    }
+
+    if (!previous_rendering_damage_.empty()) {
+      last_rendering_damage_ = previous_rendering_damage_;
+      previous_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+    }
+
+    if (!current_rendering_damage_.empty()) {
+      previous_rendering_damage_ = current_rendering_damage_;
+      current_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+    }
+  }
+
   if (left_constraint_.empty() && left_source_constraint_.empty())
     return;
 
@@ -216,10 +232,6 @@ void HwcLayer::Validate() {
 
   if (!right_source_constraint_.empty()) {
     std::vector<int32_t>().swap(right_source_constraint_);
-  }
-
-  if (!rendering_damage_.empty()) {
-    rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
   }
 }
 
@@ -328,23 +340,85 @@ bool HwcLayer::IsCursorLayer() const {
 void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
                                      const HwcRect<int>& newrect,
                                      bool same_rect) {
-  if (rendering_damage_.empty()) {
-    rendering_damage_ = old_rect;
+  damage_validated_ = false;
+  if (current_rendering_damage_.empty()) {
+    current_rendering_damage_ = old_rect;
   } else {
-    rendering_damage_.left = std::min(rendering_damage_.left, old_rect.left);
-    rendering_damage_.top = std::min(rendering_damage_.top, old_rect.top);
-    rendering_damage_.right = std::max(rendering_damage_.right, old_rect.right);
-    rendering_damage_.bottom =
-        std::max(rendering_damage_.bottom, old_rect.bottom);
+    current_rendering_damage_.left =
+        std::min(current_rendering_damage_.left, old_rect.left);
+    current_rendering_damage_.top =
+        std::min(current_rendering_damage_.top, old_rect.top);
+    current_rendering_damage_.right =
+        std::max(current_rendering_damage_.right, old_rect.right);
+    current_rendering_damage_.bottom =
+        std::max(current_rendering_damage_.bottom, old_rect.bottom);
   }
 
   if (same_rect)
     return;
 
-  rendering_damage_.left = std::min(rendering_damage_.left, newrect.left);
-  rendering_damage_.top = std::min(rendering_damage_.top, newrect.top);
-  rendering_damage_.right = std::max(rendering_damage_.right, newrect.right);
-  rendering_damage_.bottom = std::max(rendering_damage_.bottom, newrect.bottom);
+  current_rendering_damage_.left =
+      std::min(current_rendering_damage_.left, newrect.left);
+  current_rendering_damage_.top =
+      std::min(current_rendering_damage_.top, newrect.top);
+  current_rendering_damage_.right =
+      std::max(current_rendering_damage_.right, newrect.right);
+  current_rendering_damage_.bottom =
+      std::max(current_rendering_damage_.bottom, newrect.bottom);
+}
+
+const HwcRect<int>& HwcLayer::ValidateDamage() {
+  if (damage_validated_) {
+    return current_rendering_damage_;
+  }
+
+  damage_validated_ = true;
+  if (current_rendering_damage_.empty()) {
+    current_rendering_damage_ = previous_rendering_damage_;
+
+    if (current_rendering_damage_.empty()) {
+      current_rendering_damage_ = last_rendering_damage_;
+    } else {
+      current_rendering_damage_.left =
+          std::min(current_rendering_damage_.left, last_rendering_damage_.left);
+      current_rendering_damage_.top =
+          std::min(current_rendering_damage_.top, last_rendering_damage_.top);
+      current_rendering_damage_.right = std::max(
+          current_rendering_damage_.right, last_rendering_damage_.right);
+      current_rendering_damage_.bottom = std::max(
+          current_rendering_damage_.bottom, last_rendering_damage_.bottom);
+    }
+
+    return current_rendering_damage_;
+  }
+
+  if (!previous_rendering_damage_.empty()) {
+    current_rendering_damage_.left = std::min(current_rendering_damage_.left,
+                                              previous_rendering_damage_.left);
+    current_rendering_damage_.top =
+        std::min(current_rendering_damage_.top, previous_rendering_damage_.top);
+    current_rendering_damage_.right = std::max(
+        current_rendering_damage_.right, previous_rendering_damage_.right);
+    current_rendering_damage_.bottom = std::max(
+        current_rendering_damage_.bottom, previous_rendering_damage_.bottom);
+  }
+
+  if (!last_rendering_damage_.empty()) {
+    current_rendering_damage_.left =
+        std::min(current_rendering_damage_.left, last_rendering_damage_.left);
+    current_rendering_damage_.top =
+        std::min(current_rendering_damage_.top, last_rendering_damage_.top);
+    current_rendering_damage_.right =
+        std::max(current_rendering_damage_.right, last_rendering_damage_.right);
+    current_rendering_damage_.bottom = std::max(
+        current_rendering_damage_.bottom, last_rendering_damage_.bottom);
+  }
+
+  return current_rendering_damage_;
+}
+
+void HwcLayer::SetTotalDisplays(uint32_t total_displays) {
+  total_displays_ = total_displays;
 }
 
 }  // namespace hwcomposer
