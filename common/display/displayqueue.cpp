@@ -560,17 +560,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       if (!render_layers)
         render_layers = render_cursor;
-
       can_ignore_commit = false;
       if (commit_checked)
         re_validate_commit = false;
     }
 
     if (!validate_layers && (re_validate_commit || needs_plane_validation)) {
-      display_plane_manager_->ReValidatePlanes(
+      bool render = display_plane_manager_->ReValidatePlanes(
           current_composition_planes, layers, surfaces_not_inuse_,
           &validate_layers, needs_plane_validation, re_validate_commit);
       can_ignore_commit = false;
+      if (!render_layers)
+        render_layers = render;
     }
 
     if (!validate_layers) {

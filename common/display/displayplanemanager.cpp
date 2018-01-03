@@ -119,7 +119,6 @@ bool DisplayPlaneManager::ValidateLayers(
   std::vector<OverlayLayer *> cursor_layers;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
-  bool render_layers = false;
   bool validate_final_layers = false;
   bool test_commit_done = false;
   OverlayLayer *previous_layer = NULL;
@@ -146,7 +145,6 @@ bool DisplayPlaneManager::ValidateLayers(
         if (last_plane.NeedsOffScreenComposition()) {
           ValidateForDisplayScaling(composition.back(), commit_planes,
                                     previous_layer);
-          render_layers = true;
         }
       }
 
@@ -265,19 +263,14 @@ bool DisplayPlaneManager::ValidateLayers(
           last_plane.UsePlaneScalar(false);
         }
 
-        render_layers = true;
         commit_planes.back().layer = last_plane.GetOverlayLayer();
       }
     }
   }
 
   if (!cursor_layers.empty()) {
-    bool render_cursor_layer = ValidateCursorLayer(
-        commit_planes, cursor_layers, mark_later, composition,
-        &validate_final_layers, &test_commit_done, false);
-    if (!render_layers) {
-      render_layers = render_cursor_layer;
-    }
+    ValidateCursorLayer(commit_planes, cursor_layers, mark_later, composition,
+                        &validate_final_layers, &test_commit_done, false);
 
     if (validate_final_layers && add_index > 0 &&
         (composition.size() == (overlay_planes_.size() - 1))) {
@@ -286,7 +279,7 @@ bool DisplayPlaneManager::ValidateLayers(
       // Let's ensure DisplayQueue, checks final combination again and
       // request full validation if needed.
       *commit_checked = false;
-      return render_layers;
+      return true;
     }
   }
 
@@ -296,9 +289,11 @@ bool DisplayPlaneManager::ValidateLayers(
     test_commit_done = true;
   }
 
+  bool render_layers = false;
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfacesIfNeeded();
+      render_layers = true;
     }
   }
 
@@ -345,7 +340,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
   }
 }
 
-bool DisplayPlaneManager::ValidateCursorLayer(
+void DisplayPlaneManager::ValidateCursorLayer(
     std::vector<OverlayPlane> &commit_planes,
     std::vector<OverlayLayer *> &cursor_layers,
     std::vector<NativeSurface *> &mark_later,
@@ -353,14 +348,13 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     bool *test_commit_done, bool recycle_resources) {
   CTRACE();
   if (cursor_layers.empty()) {
-    return false;
+    return;
   }
 
   DisplayPlaneState *last_plane = GetLastUsedOverlay(composition);
   bool is_video = last_plane->IsVideoPlane();
 
   uint32_t total_size = cursor_layers.size();
-  bool status = false;
   uint32_t cursor_index = 0;
   auto overlay_end = overlay_planes_.end();
   auto overlay_begin = overlay_planes_.begin() + composition.size();
@@ -412,7 +406,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
           if (cached) {
             fall_back = true;
-            status = true;
             *validate_final_layers = true;
             cursor_layer->SupportedDisplayComposition(OverlayLayer::kGpu);
           }
@@ -424,7 +417,7 @@ bool DisplayPlaneManager::ValidateCursorLayer(
     }
 
     // We don't have this in cache.
-    if (fall_back && !status) {
+    if (fall_back && !(*validate_final_layers)) {
       fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
       *test_commit_done = true;
       if (!cached_plane) {
@@ -437,7 +430,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
         cached_plane->last_transform_ = cursor_layer->GetPlaneTransform();
         *validate_final_layers = false;
       } else {
-        status = true;
         cached_plane->last_failed_transform_ =
             cursor_layer->GetPlaneTransform();
         *validate_final_layers = true;
@@ -503,7 +495,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 #endif
     last_plane->AddLayer(cursor_layer);
     cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
-    status = true;
     last_layer = cursor_layer;
   }
 
@@ -512,8 +503,6 @@ bool DisplayPlaneManager::ValidateCursorLayer(
                           is_video, recycle_resources);
     last_plane->UsePlaneScalar(false);
   }
-
-  return status;
 }
 
 void DisplayPlaneManager::ValidateForDisplayScaling(

@@ -121,7 +121,7 @@ class DisplayPlaneManager {
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.
-  bool ValidateCursorLayer(std::vector<OverlayPlane> &commit_planes,
+  void ValidateCursorLayer(std::vector<OverlayPlane> &commit_planes,
                            std::vector<OverlayLayer *> &cursor_layers,
                            std::vector<NativeSurface *> &mark_later,
                            DisplayPlaneStateList &composition,
