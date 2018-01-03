@@ -169,11 +169,15 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kRevalidateLayers;
     }
 
+    void PostponeRevalidation() {
+      revalidate_ignored_ = true;
+    }
+
     void ResetTrackerState() {
       if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-	tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+        tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
       } else {
-	tracker_.state_ = 0;
+        tracker_.state_ = 0;
       }
 
       tracker_.revalidate_frames_counter_ = 0;
@@ -205,7 +209,8 @@ class DisplayQueue {
         } else {
           tracker_.revalidate_frames_counter_++;
         }
-      } else if (tracker_.state_ & FrameStateTracker::kRevalidateLayers) {
+      } else if (!revalidate_ignored_ &&
+                 (tracker_.state_ & FrameStateTracker::kRevalidateLayers)) {
         tracker_.state_ &= ~FrameStateTracker::kRevalidateLayers;
         tracker_.revalidate_frames_counter_ = 0;
       }
@@ -220,6 +225,7 @@ class DisplayQueue {
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
     ResourceManager* resource_manager_;
+    bool revalidate_ignored_ = false;
   };
 
   void HandleExit();
