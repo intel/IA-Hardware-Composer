@@ -379,9 +379,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
   // If last commit failed, lets force full validation as
   // state might be all wrong in our side.
-  bool validate_layers = tracker.RevalidateLayers() ||
-                         last_commit_failed_update_ ||
-                         previous_plane_state_.empty() || idle_frame;
+  bool validate_layers =
+      last_commit_failed_update_ || previous_plane_state_.empty() || idle_frame;
   *retire_fence = -1;
   uint32_t z_order = 0;
   bool has_video_layer = false;
@@ -530,6 +529,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
+  // If we are in idle mode, we can postpone re-validation
+  // in case we are only removing layers and no new layers
+  // are being added.
+  if (tracker.RevalidateLayers()) {
+    if (!validate_layers && tracker.RevalidateLayers() &&
+        (add_index != -1 || re_validate_commit)) {
+      validate_layers = true;
+    } else {
+      tracker.PostponeRevalidation();
+    }
+  }
 
   // Validate Overlays and Layers usage.
   if (!validate_layers) {
