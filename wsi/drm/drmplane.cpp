@@ -76,14 +76,14 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
     switch (format) {
+      case DRM_FORMAT_BGRA8888:
+      case DRM_FORMAT_RGBA8888:
+      case DRM_FORMAT_ABGR8888:
+      case DRM_FORMAT_ARGB8888:
       case DRM_FORMAT_RGB888:
       case DRM_FORMAT_XRGB8888:
       case DRM_FORMAT_XBGR8888:
       case DRM_FORMAT_RGBX8888:
-      case DRM_FORMAT_ABGR8888:
-      case DRM_FORMAT_BGRA8888:
-      case DRM_FORMAT_ARGB8888:
-      case DRM_FORMAT_RGBA8888:
         prefered_format_ = format;
         break;
     }
