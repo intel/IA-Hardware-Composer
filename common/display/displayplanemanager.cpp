@@ -99,8 +99,8 @@ bool DisplayPlaneManager::ValidateLayers(
   // plane.
   if (disable_overlay) {
 #ifdef SURFACE_TRACING
-    ISURFACETRACE("Forcing GPU For all layers %d %d %d \n", disable_overlay,
-                  pending_modeset, layers.size() > 1);
+    ISURFACETRACE("Forcing GPU For all layers %d %d %d %d \n", disable_overlay,
+                  composition.empty(), add_index <= 0, layers.size());
 #endif
     ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
     return true;
@@ -182,6 +182,10 @@ bool DisplayPlaneManager::ValidateLayers(
         test_commit_done = true;
         if (!fall_back || prefer_seperate_plane) {
           composition.emplace_back(plane, layer, layer->GetZorder());
+#ifdef SURFACE_TRACING
+          ISURFACETRACE("Added Layer for direct Scanout: %d \n",
+                        layer->GetZorder());
+#endif
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
           if (layer->IsVideoLayer()) {
@@ -468,6 +472,10 @@ bool DisplayPlaneManager::ValidateCursorLayer(
       last_plane->UsePlaneScalar(false);
     } else {
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
+#ifdef SURFACE_TRACING
+      ISURFACETRACE("Added CursorLayer for direct scanout: %d \n",
+                    cursor_layer->GetZorder());
+#endif
       plane->SetInUse(true);
       if (fall_back) {
         DisplayPlaneState &temp = composition.back();
@@ -696,6 +704,10 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   DisplayPlaneState &last_plane = composition.back();
   last_plane.ForceGPURendering();
   layer_begin++;
+#ifdef SURFACE_TRACING
+  ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
+                primary_layer->GetZorder());
+#endif
 
   for (auto i = layer_begin; i != layer_end; ++i) {
 #ifdef SURFACE_TRACING

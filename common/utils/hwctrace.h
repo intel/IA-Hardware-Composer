@@ -124,6 +124,7 @@ class TraceFunc {
 
 #ifdef SURFACE_BASIC_TRACING
 #define ISURFACETRACE ITRACE
+#define SURFACE_TRACING 1
 #else
 #define ISURFACETRACE ((void)0)
 #endif
