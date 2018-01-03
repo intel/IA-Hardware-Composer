@@ -508,9 +508,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (validate_layers) {
     ISURFACETRACE(
         "Full Validation Forced: add_index: %d last_commit_failed_update_: %d "
-        "tracker.RevalidateLayers(): %d  previous_plane_state_.empty(): %d \n",
+        "tracker.RevalidateLayers(): %d  previous_plane_state_.empty(): %d "
+        "tracker.RenderIdleMode():%d idle_update:%d \n",
         add_index, last_commit_failed_update_, tracker.RevalidateLayers(),
-        previous_plane_state_.empty());
+        previous_plane_state_.empty(), tracker.RenderIdleMode(), idle_update);
   }
 #endif
 
