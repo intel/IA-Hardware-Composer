@@ -198,7 +198,7 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   success |= drmModeAtomicAddProperty(property_set, id_, crtc_y_prop_.id,
                                       display_frame.top) < 0;
 
-  if (type_ == DRM_PLANE_TYPE_CURSOR) {
+  if (layer->IsCursorLayer()) {
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id,
                                         buffer->GetWidth()) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
