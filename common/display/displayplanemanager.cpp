@@ -65,32 +65,35 @@ bool DisplayPlaneManager::ValidateLayers(
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
+
+  if (add_index <= 0) {
+    if (!previous_composition.empty()) {
+      for (DisplayPlaneState &plane : previous_composition) {
+        MarkSurfacesForRecycling(&plane, mark_later, false);
+      }
+    }
+
+    if (!composition.empty()) {
+      for (DisplayPlaneState &plane : previous_composition) {
+        MarkSurfacesForRecycling(&plane, mark_later, false);
+      }
+
+      DisplayPlaneStateList().swap(composition);
+    }
+
+#ifdef SURFACE_TRACING
+    if (add_index <= 0) {
+      ISURFACETRACE("Full validation being performed. \n");
+    }
+#endif
+  }
+
   std::vector<OverlayPlane> commit_planes;
 
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
         OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
   }
-
-  if (!previous_composition.empty() && add_index <= 0) {
-    for (DisplayPlaneState &plane : previous_composition) {
-      MarkSurfacesForRecycling(&plane, mark_later, false);
-    }
-  }
-
-  if (!composition.empty() && add_index <= 0) {
-    for (DisplayPlaneState &plane : previous_composition) {
-      MarkSurfacesForRecycling(&plane, mark_later, false);
-    }
-
-    DisplayPlaneStateList().swap(composition);
-  }
-
-#ifdef SURFACE_TRACING
-  if (add_index <= 0) {
-    ISURFACETRACE("Full validation being performed. \n");
-  }
-#endif
 
   // In case we are forcing GPU composition for all layers and using a single
   // plane.
@@ -104,7 +107,7 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   auto overlay_begin = overlay_planes_.begin();
-  if (add_index > 0) {
+  if (!composition.empty()) {
     overlay_begin = overlay_planes_.begin() + composition.size();
   }
 
@@ -147,8 +150,10 @@ bool DisplayPlaneManager::ValidateLayers(
         }
       }
 
+      // Let's break in case we have already mapped all our
+      // layers.
       if (layer_begin == layer_end)
-	  break;
+        break;
 
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
