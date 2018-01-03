@@ -213,8 +213,9 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
+  surface_damage_ = layer->ValidateDamage();
+
   if (!handle_constraints) {
-    surface_damage_ = layer->GetDamagedArea();
     return;
   }
 
@@ -249,23 +250,37 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       display_frame_.right = right_source_constraint;
     }
 
+    // Handle case where we might be using logical and Mosaic together.
     display_frame_.left =
         (display_frame_.left - left_source_constraint) + left_constraint;
     display_frame_.right =
         (display_frame_.right - left_source_constraint) + left_constraint;
+    IMOSAICDISPLAYTRACE(
+        "display_frame_ %d %d %d %d  left_source_constraint: %d "
+        "left_constraint: %d \n",
+        display_frame_.left, display_frame_.right, display_frame_.top,
+        display_frame_.bottom, left_source_constraint, left_constraint);
 
     display_frame_.bottom =
         std::min(max_height, static_cast<uint32_t>(display_frame_.bottom));
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
 
-    surface_damage_ = layer->GetDamagedArea();
-    surface_damage_.bottom =
-        std::min(static_cast<uint32_t>(surface_damage_.bottom), max_height);
-    surface_damage_.right =
-        std::min(surface_damage_.right, right_source_constraint);
-    surface_damage_.left =
-        std::max(surface_damage_.left, left_source_constraint);
+    if (AnalyseOverlap(surface_damage_, display_frame_) != kOutside) {
+      surface_damage_.bottom =
+          std::min(surface_damage_.bottom, display_frame_.bottom);
+      surface_damage_.right =
+          std::min(surface_damage_.right, display_frame_.right);
+      surface_damage_.left =
+          std::max(surface_damage_.left, display_frame_.left);
+    } else {
+      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+    }
+    IMOSAICDISPLAYTRACE(
+        "surface_damage_ %d %d %d %d  left_source_constraint: %d "
+        "left_constraint: %d \n",
+        surface_damage_.left, surface_damage_.right, surface_damage_.top,
+        surface_damage_.bottom, left_source_constraint, left_constraint);
 
     // split the source in proportion of frame rect offset for sub displays as:
     // 1. the original source size may be different with the original frame
