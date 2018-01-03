@@ -120,6 +120,7 @@ class MosaicDisplay : public NativeDisplay {
   uint32_t config_ = 0;
   uint32_t vsync_counter_ = 0;
   uint32_t vsync_divisor_ = 0;
+  uint32_t preferred_display_index_ = 0;
   int64_t vsync_timestamp_ = 0;
   bool enable_vsync_ = false;
   bool connected_ = false;
