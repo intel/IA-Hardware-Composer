@@ -237,7 +237,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         // Let's check if we need to check this plane-layer combination.
         if (update_rect) {
-	  content_changed = true;
+          content_changed = true;
           last_plane.ValidateReValidation();
           if (last_plane.IsRevalidationNeeded() !=
               DisplayPlaneState::ReValidationType::kNone) {
@@ -250,7 +250,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
         content_changed = true;
-	last_plane.RefreshSurfaces(true);
+        last_plane.RefreshSurfaces(true);
       }
 
       // Let's make sure we swap the surface in case content has changed.
