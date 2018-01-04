@@ -36,7 +36,6 @@ ifeq ($(strip $(TARGET_USES_HWC2)), true)
 # libhwcservice
 HWC_BUILD_DIRS := \
 $(HWC_PATH)/os/android/libhwcservice/Android.mk \
-$(HWC_PATH)/os/android/libhwcservice/utils/Android.mk
 
 include $(HWC_BUILD_DIRS)
 
