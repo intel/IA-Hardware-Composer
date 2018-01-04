@@ -211,7 +211,7 @@ void HwcLayer::Validate() {
 
     if (!current_rendering_damage_.empty()) {
       previous_rendering_damage_ = current_rendering_damage_;
-      current_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+      current_rendering_damage_ = surface_damage_;
     }
   }
 
