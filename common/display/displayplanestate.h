@@ -147,7 +147,7 @@ class DisplayPlaneState {
 
   // Returns true if offscreen composition
   // is needed for this plane.
-  bool NeedsOffScreenComposition();
+  bool NeedsOffScreenComposition() const;
 
   // Returns true if this plane needs to be re-validated
   // with current source layer. This will be the case
@@ -174,10 +174,19 @@ class DisplayPlaneState {
   // This should be used only as a hint.
   bool CanUseDisplayUpScaling() const;
 
+  // Returns true if we can benefit by using gpu for
+  // downscaling content of this plane.
+  // This should be used only as a hint.
+  bool CanUseGPUDownScaling() const;
+
   // Calls RefreshSurfaces if internal plane state
   // has changed because layers have been added or
   // removed.
   void RefreshSurfacesIfNeeded();
+
+  void SetDisplayDownScalingFactor(uint32_t factor, bool update_surfaces);
+
+  uint32_t GetDownScalingFactor() const;
 
  private:
   class DisplayPlanePrivateState {
@@ -211,10 +220,19 @@ class DisplayPlaneState {
     bool has_cursor_layer_ = false;
     // Can benefit using display scalar.
     bool can_use_display_scalar_ = false;
-    // Retest for display scalar beenfit.
+    // Retest to check for display scalar benefit.
     bool check_display_scalar_ = true;
+    // Using GPU for downscaling.
+    bool use_down_scaling_ = false;
+    // Retest to check if we can benefit by
+    // downscaling using GPU.
+    bool check_downscaling_ = true;
+    // Can benefit by downscaling using
+    // GPU.
+    bool can_use_downscaling_ = false;
     // Any offscreen surfaces used by this
     // plane.
+    uint32_t down_scaling_factor_ = 1;
     std::vector<NativeSurface *> surfaces_;
     PlaneType type_ = PlaneType::kNormal;
   };

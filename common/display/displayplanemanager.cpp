@@ -289,13 +289,7 @@ bool DisplayPlaneManager::ValidateLayers(
     test_commit_done = true;
   }
 
-  bool render_layers = false;
-  for (DisplayPlaneState &plane : composition) {
-    if (plane.NeedsOffScreenComposition()) {
-      plane.RefreshSurfacesIfNeeded();
-      render_layers = true;
-    }
-  }
+  bool render_layers = CheckForDownScaling(composition, commit_planes);
 
   *commit_checked = test_commit_done;
 
@@ -838,6 +832,29 @@ void DisplayPlaneManager::SwapSurfaceIfNeeded(DisplayPlaneState *plane) {
   } else {
     plane->SwapSurfaceIfNeeded();
   }
+}
+
+bool DisplayPlaneManager::CheckForDownScaling(
+    DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes) {
+    bool render_layers = false;
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.NeedsOffScreenComposition()) {
+	render_layers = true;
+      if (plane.IsUsingPlaneScalar() || !plane.CanUseGPUDownScaling() ||
+	  (plane.GetDownScalingFactor() > 1)) {
+	plane.RefreshSurfacesIfNeeded();
+	continue;
+      }
+
+      plane.SetDisplayDownScalingFactor(4, true);
+      if (!plane_handler_->TestCommit(commit_planes)) {
+	plane.SetDisplayDownScalingFactor(1, true);
+      }
+    }
+  }
+
+  return render_layers;
 }
 
 }  // namespace hwcomposer

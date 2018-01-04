@@ -82,10 +82,10 @@ bool GLRenderer::Init() {
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
                       NativeSurface *surface) {
-  GLuint frame_width = surface->GetWidth();
-  GLuint frame_height = surface->GetHeight();
-  GLuint left = 0;
-  GLuint top = 0;
+  GLuint frame_width = surface->GetLayer()->GetSourceCropWidth();
+  GLuint frame_height = surface->GetLayer()->GetSourceCropHeight();
+  GLuint left = surface->GetLayer()->GetSourceCrop().left;
+  GLuint top = surface->GetLayer()->GetSourceCrop().top;
 
   if (!surface->MakeCurrent())
     return false;

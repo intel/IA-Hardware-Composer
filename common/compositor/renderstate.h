@@ -46,7 +46,8 @@ struct RenderState {
   void ConstructState(std::vector<OverlayLayer> &layers,
                       const CompositionRegion &region,
                       const HwcRect<int> &damage, bool clear_surface,
-                      bool uses_display_up_scaling);
+                      bool uses_display_up_scaling,
+                      uint32_t downscaling_factor);
 
   uint32_t x_;
   uint32_t y_;

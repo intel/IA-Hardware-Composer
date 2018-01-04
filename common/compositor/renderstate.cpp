@@ -28,7 +28,8 @@ namespace hwcomposer {
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
                                  const HwcRect<int> &damage, bool clear_surface,
-                                 bool uses_display_up_scaling) {
+                                 bool uses_display_up_scaling,
+                                 uint32_t downscaling_factor) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
@@ -128,8 +129,21 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       display_rect.right = static_cast<float>(display_Rect.right);
       display_rect.top = static_cast<float>(display_Rect.top);
       display_rect.bottom = static_cast<float>(display_Rect.bottom);
-      display_size[0] = static_cast<float>(layer.GetDisplayFrameWidth());
-      display_size[1] = static_cast<float>(layer.GetDisplayFrameHeight());
+      if (downscaling_factor > 1) {
+        display_rect.right =
+            display_rect.right -
+            ((display_rect.right - display_rect.left) / downscaling_factor);
+
+	display_rect.bottom =
+	    display_rect.bottom - ((display_rect.bottom - display_rect.top) /
+				 downscaling_factor);
+
+        display_size[0] = display_rect.right - display_rect.left;
+	display_size[1] = display_rect.bottom - display_rect.top;
+      } else {
+        display_size[0] = static_cast<float>(layer.GetDisplayFrameWidth());
+	display_size[1] = static_cast<float>(layer.GetDisplayFrameHeight());
+      }
     }
 
     float tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
