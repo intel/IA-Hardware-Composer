@@ -85,7 +85,15 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       comp = &plane;
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
-      if (comp_regions.empty()) {
+      bool regions_empty = comp_regions.empty();
+      NativeSurface *surface = plane.GetOffScreenTarget();
+      if (!regions_empty &&
+          (surface->ClearSurface() || surface->IsPartialClear())) {
+        plane.ResetCompositionRegion();
+        regions_empty = true;
+      }
+
+      if (regions_empty) {
         SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
                        comp_regions);
       }
@@ -96,7 +104,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
       draw_state.emplace_back();
       DrawState &state = draw_state.back();
-      state.surface_ = plane.GetOffScreenTarget();
+      state.surface_ = surface;
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
       if (!CalculateRenderState(layers, comp_regions, state,

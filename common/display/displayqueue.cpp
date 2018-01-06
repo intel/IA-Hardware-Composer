@@ -289,7 +289,18 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                 std::max(previous_damage.right, last_damage.right);
             last_damage.bottom =
                 std::max(previous_damage.bottom, last_damage.bottom);
-            surfaces.at(0)->UpdateSurfaceDamage(surface_damage, last_damage);
+
+            bool surface_damage_changed = true;
+            NativeSurface* offscreen_surface = surfaces.at(0);
+            HwcRect<int> damage = offscreen_surface->GetSurfaceDamage();
+            offscreen_surface->UpdateSurfaceDamage(surface_damage, last_damage);
+            if (damage == offscreen_surface->GetSurfaceDamage()) {
+              surface_damage_changed = false;
+            }
+
+            if (surface_damage_changed) {
+              last_plane.ResetCompositionRegion();
+            }
           }
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);

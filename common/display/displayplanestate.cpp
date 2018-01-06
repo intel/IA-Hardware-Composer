@@ -324,7 +324,6 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
     }
   }
 
-  std::vector<CompositionRegion>().swap(private_data_->composition_region_);
   refresh_needed_ = false;
 }
 
@@ -514,10 +513,6 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
 void DisplayPlaneState::RefreshSurfacesIfNeeded() {
   if (refresh_needed_) {
     RefreshSurfaces(true);
-  } else {
-    // Let's make sure we reset our composition region cache
-    // of all planes in case we are adding some indexes.
-    ResetCompositionRegion();
   }
 }
 
