@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 #include "hwctrace.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -68,6 +69,7 @@ struct POI {
 // It will traverse through each y_poi and given out
 // rectangle with rect_ids active at that time.
 void GenerateOutLayers(Region *reg, uint64_t x,
+                       const HwcRect<int> &damage_region,
                        std::vector<RectSet<int>> *out) {
   Rect<int> out_rect;
   out_rect.left = reg->sx;
@@ -92,6 +94,9 @@ void GenerateOutLayers(Region *reg, uint64_t x,
         continue;
       }
       out_rect.bottom = y_poi.y;
+      if (AnalyseOverlap(damage_region, out_rect) == kOutside)
+        continue;
+
       out->emplace_back(RectSet<int>(rect_ids, out_rect));
       out_rect.top = y_poi.y;
       if (y_poi.type == START) {
@@ -122,6 +127,7 @@ bool compare_region(const Region *first, const Region *second) {
 }
 
 void get_draw_regions(const std::vector<Rect<int>> &in,
+                      const HwcRect<int> &damage_region,
                       std::vector<RectSet<int>> *out) {
   if (in.size() > RectIDs::max_elements) {
     return;
@@ -138,6 +144,9 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
 
     // Filter out empty or invalid rects.
     if (rect.left >= rect.right || rect.top >= rect.bottom)
+      continue;
+
+    if (AnalyseOverlap(damage_region, rect) == kOutside)
       continue;
 
     POI poi;
@@ -225,7 +234,7 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
           continue;
         }
         if (poi.type == START) {
-          GenerateOutLayers(&cur_reg, poi.x, out);
+          GenerateOutLayers(&cur_reg, poi.x, damage_region, out);
           cur_reg.sx = poi.x;
           cur_reg.rect_ids.add(poi.rect_id);
           imp_reg.push_back(&cur_reg);
@@ -246,7 +255,7 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
           }
           it_reg++;
         } else {
-          GenerateOutLayers(&cur_reg, poi.x, out);
+          GenerateOutLayers(&cur_reg, poi.x, damage_region, out);
           RemoveYpois(&cur_reg, poi.rect_id);
           cur_reg.sx = poi.x;
           cur_reg.rect_ids.subtract(poi.rect_id);

@@ -290,16 +290,24 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             last_damage.bottom =
                 std::max(previous_damage.bottom, last_damage.bottom);
 
-            bool surface_damage_changed = true;
             NativeSurface* offscreen_surface = surfaces.at(0);
-            HwcRect<int> damage = offscreen_surface->GetSurfaceDamage();
-            offscreen_surface->UpdateSurfaceDamage(surface_damage, last_damage);
-            if (damage == offscreen_surface->GetSurfaceDamage()) {
-              surface_damage_changed = false;
-            }
+            // If update_rect is true than we should have already reset
+            // Composition region and can be avoided here.
+            if (update_rect) {
+              offscreen_surface->UpdateSurfaceDamage(surface_damage,
+                                                     last_damage);
+            } else {
+              bool surface_damage_changed = true;
+              HwcRect<int> damage = offscreen_surface->GetSurfaceDamage();
+              offscreen_surface->UpdateSurfaceDamage(surface_damage,
+                                                     last_damage);
+              if (damage == offscreen_surface->GetSurfaceDamage()) {
+                surface_damage_changed = false;
+              }
 
-            if (surface_damage_changed) {
-              last_plane.ResetCompositionRegion();
+              if (surface_damage_changed) {
+                last_plane.ResetCompositionRegion();
+              }
             }
           }
         } else {

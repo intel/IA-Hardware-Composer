@@ -67,6 +67,7 @@ class Compositor {
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,
                       const std::vector<size_t> &source_layers,
                       const std::vector<HwcRect<int>> &display_frame,
+                      const HwcRect<int> &damage_region,
                       std::vector<CompositionRegion> &comp_regions);
 
   std::unique_ptr<CompositorThread> thread_;
