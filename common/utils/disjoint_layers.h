@@ -23,6 +23,8 @@
 
 #include <vector>
 
+#include <hwcdefs.h>
+
 namespace hwcomposer {
 
 // Some of the structs are adopted from drm_hwcomposer
@@ -94,6 +96,7 @@ struct RectSet {
 };
 
 void get_draw_regions(const std::vector<Rect<int>> &in,
+                      const HwcRect<int> &damage_region,
                       std::vector<RectSet<int>> *out);
 }  // namespace hwcomposer
 

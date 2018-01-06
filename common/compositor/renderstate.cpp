@@ -36,12 +36,6 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
   if (!clear_surface) {
-    // If viewport and layer doesn't interact we can avoid re-rendering
-    // this state.
-    if (AnalyseOverlap(region.frame, damage) == kOutside) {
-      return;
-    }
-
     uint32_t top = damage.top;
     uint32_t left = damage.left;
     uint32_t scissor_right = std::min(damage.right, (int)bounds[2]);
@@ -61,15 +55,6 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   const std::vector<size_t> &source = region.source_layers;
   for (size_t texture_index : source) {
     OverlayLayer &layer = layers.at(texture_index);
-    if (!clear_surface) {
-      // If viewport and layer doesn't interact we can avoid re-rendering
-      // this state.
-      const HwcRect<int> &layer_damage = layer.GetDisplayFrame();
-      if (AnalyseOverlap(layer_damage, damage) == kOutside) {
-	continue;
-      }
-    }
-
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.layer_index_ = texture_index;

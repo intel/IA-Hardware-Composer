@@ -21,6 +21,9 @@
 #include "nativesurface.h"
 #include "renderstate.h"
 #include "shim.h"
+#ifdef COMPOSITOR_TRACING
+#include "hwcutils.h"
+#endif
 
 namespace hwcomposer {
 
@@ -89,6 +92,9 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   if (!surface->MakeCurrent())
     return false;
+#ifdef COMPOSITOR_TRACING
+  ICOMPOSITORTRACE("Draw starts \n");
+#endif
 
   bool clear_surface = surface->ClearSurface();
   bool partial_clear = surface->IsPartialClear();
@@ -105,24 +111,24 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       glEnable(GL_SCISSOR_TEST);
       glScissor(damage.left, damage.top, clear_width, clear_height);
       glClear(GL_COLOR_BUFFER_BIT);
-#ifdef COMPOSITOR_TRACING
-      ICOMPOSITORTRACE("Partial Clear: %d %d %d %d \n", damage.left, damage.top,
-                       damage.right - damage.left, damage.bottom - damage.top);
-#endif
     } else {
       glClear(GL_COLOR_BUFFER_BIT);
       glEnable(GL_SCISSOR_TEST);
-#ifdef COMPOSITOR_TRACING
-      ICOMPOSITORTRACE("Full Clear: %d %d %d %d \n", damage.left, damage.top,
-                       damage.right - damage.left, damage.bottom - damage.top);
-#endif
     }
   } else {
-#ifdef COMPOSITOR_TRACING
-    ICOMPOSITORTRACE("Skipping clear \n");
-#endif
     glEnable(GL_SCISSOR_TEST);
   }
+
+#ifdef COMPOSITOR_TRACING
+  const HwcRect<int> &damage = surface->GetSurfaceDamage();
+  ICOMPOSITORTRACE(
+      "Full clear: %d Partial clear: %d Skipped clear: %d damage.left: %d "
+      "damage.right: %d damage.right - "
+      "damage.left %d damage.bottom - damage.top %d \n",
+      clear_surface, partial_clear, !(clear_surface || partial_clear),
+      damage.left, damage.top, damage.right - damage.left,
+      damage.bottom - damage.top);
+#endif
 
   for (const RenderState &state : render_states) {
     unsigned size = state.layer_state_.size();
@@ -131,6 +137,20 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
+#ifdef COMPOSITOR_TRACING
+    ICOMPOSITORTRACE(
+        "scissor_x_: %d state.scissor_y_: %d scissor_width_: %d "
+        "scissor_height_: %d \n",
+        state.scissor_x_, state.scissor_y_, state.scissor_width_,
+        state.scissor_height_);
+    const HwcRect<int> &damage = surface->GetSurfaceDamage();
+    if (AnalyseOverlap(damage, HwcRect<int>(state.scissor_x_, state.scissor_y_,
+                                            state.scissor_width_,
+                                            state.scissor_height_)) ==
+        kOutside) {
+      ICOMPOSITORTRACE("ALERT: Rendering Layer outside Damaged Region. \n");
+    }
+#endif
     glScissor(state.scissor_x_, state.scissor_y_, state.scissor_width_,
               state.scissor_height_);
 
@@ -146,7 +166,9 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   if (!disable_explicit_sync_)
     surface->SetNativeFence(context_.GetSyncFD());
-
+#ifdef COMPOSITOR_TRACING
+  ICOMPOSITORTRACE("Draw Ends. \n");
+#endif
   return true;
 }
 
