@@ -174,7 +174,7 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
           plane_transform_ |= kTransform270;
           break;
         case kRotate180:
-          plane_transform_ |= kReflectY;
+          plane_transform_ |= kTransform180;
           break;
         default:
           break;
