@@ -193,24 +193,15 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
-  /**
-   * API for querying if Layer source position has
-   * changed from last Present call to NativeDisplay.
-   */
-  bool NeedsToClearSurface() const {
-    return state_ & kClearSurface;
-  }
-
   void Dump();
 
  private:
   enum LayerState {
     kLayerContentChanged = 1 << 0,
     kDimensionsChanged = 1 << 1,
-    kClearSurface = 1 << 2,
-    kInvisible = 1 << 3,
-    kSourceRectChanged = 1 << 4,
-    kNeedsReValidation = 1 << 5
+    kInvisible = 1 << 2,
+    kSourceRectChanged = 1 << 3,
+    kNeedsReValidation = 1 << 4
   };
 
   struct ImportedBuffer {

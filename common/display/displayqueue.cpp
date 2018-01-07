@@ -207,10 +207,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             update_rect = true;
           }
 
-          if (layer.NeedsToClearSurface()) {
-            clear_surface = true;
-          }
-
           if (layer.HasSourceRectChanged()) {
             last_plane.UpdateSourceCrop(layer.GetSourceCrop());
             update_rect = true;
