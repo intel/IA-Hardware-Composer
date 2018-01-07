@@ -128,7 +128,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool plane_validation = false;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-    bool clear_surface = remove_index > -1 ? true : false;
+    bool clear_surface = false;
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(previous_plane);
@@ -146,6 +146,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               threshold, index, previous_plane_state_.size());
 #endif
           last_plane.ResetLayers(layers, threshold);
+          clear_surface = true;
         }
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
@@ -187,10 +188,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             last_plane.RevalidationDone();
           }
         }
-      } else {
-        // Let's make sure we reset our composition region cache of all planes
-        // in case we are removing some indexes.
-        last_plane.ResetCompositionRegion();
       }
     }
 

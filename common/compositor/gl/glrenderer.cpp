@@ -144,9 +144,10 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
         state.scissor_x_, state.scissor_y_, state.scissor_width_,
         state.scissor_height_);
     const HwcRect<int> &damage = surface->GetSurfaceDamage();
-    if (AnalyseOverlap(damage, HwcRect<int>(state.scissor_x_, state.scissor_y_,
-                                            state.scissor_width_,
-                                            state.scissor_height_)) ==
+    if (AnalyseOverlap(
+            damage, HwcRect<int>(state.scissor_x_, state.scissor_y_,
+                                 state.scissor_x_ + state.scissor_width_,
+                                 state.scissor_y_ + state.scissor_height_)) ==
         kOutside) {
       ICOMPOSITORTRACE("ALERT: Rendering Layer outside Damaged Region. \n");
     }
