@@ -72,8 +72,8 @@ void GenerateOutLayers(Region *reg, uint64_t x,
                        const HwcRect<int> &damage_region,
                        std::vector<RectSet<int>> *out) {
   Rect<int> out_rect;
-  out_rect.left = reg->sx;
-  out_rect.right = x;
+  out_rect.left = std::max(damage_region.left, static_cast<int>(reg->sx));
+  out_rect.right = std::min(damage_region.right, static_cast<int>(x));
   RectIDs rect_ids;
 
   for (std::set<YPOI>::iterator y_poi_it = reg->y_points.begin();
@@ -82,7 +82,7 @@ void GenerateOutLayers(Region *reg, uint64_t x,
     // No need to check for start or end event
     // as rect_ids is empty
     if (rect_ids.isEmpty()) {
-      out_rect.top = y_poi.y;
+      out_rect.top = std::max(damage_region.top, static_cast<int>(y_poi.y));
       rect_ids.add(y_poi.rect_id);
     } else {
       if (out_rect.top == static_cast<int>(y_poi.y)) {
@@ -98,7 +98,7 @@ void GenerateOutLayers(Region *reg, uint64_t x,
         continue;
 
       out->emplace_back(RectSet<int>(rect_ids, out_rect));
-      out_rect.top = y_poi.y;
+      out_rect.top = std::max(damage_region.top, static_cast<int>(y_poi.y));
       if (y_poi.type == START) {
         rect_ids.add(y_poi.rect_id);
       } else {
@@ -151,14 +151,14 @@ void get_draw_regions(const std::vector<Rect<int>> &in,
 
     POI poi;
     poi.rect_id = i;
-    poi.x = rect.left;
-    poi.top_y = rect.top;
-    poi.bot_y = rect.bottom;
+    poi.x = std::max(damage_region.left, rect.left);
+    poi.top_y = std::max(damage_region.top, rect.top);
+    poi.bot_y = std::min(damage_region.bottom, rect.bottom);
     poi.type = START;
     pois.insert(poi);
 
     poi.type = END;
-    poi.x = rect.right;
+    poi.x = std::min(damage_region.right, rect.right);
     pois.insert(poi);
   }
 

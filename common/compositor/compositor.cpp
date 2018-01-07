@@ -190,9 +190,7 @@ bool Compositor::CalculateRenderState(
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(
-        layers, region, draw_state.surface_->GetSurfaceDamage(),
-        draw_state.surface_->ClearSurface(), uses_display_up_scaling);
+    state.ConstructState(layers, region, uses_display_up_scaling);
     if (state.layer_state_.empty()) {
       continue;
     }

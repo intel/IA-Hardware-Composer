@@ -27,7 +27,6 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 const HwcRect<int> &damage, bool clear_surface,
                                  bool uses_display_up_scaling) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
@@ -35,22 +34,10 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   y_ = bounds[1];
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
-  if (!clear_surface) {
-    uint32_t top = damage.top;
-    uint32_t left = damage.left;
-    uint32_t scissor_right = std::min(damage.right, (int)bounds[2]);
-    uint32_t scissor_bottom = std::min(damage.bottom, (int)bounds[3]);
-
-    scissor_x_ = std::max(x_, left);
-    scissor_y_ = std::max(y_, top);
-    scissor_width_ = scissor_right - scissor_x_;
-    scissor_height_ = scissor_bottom - scissor_y_;
-  } else {
-    scissor_x_ = x_;
-    scissor_y_ = y_;
-    scissor_width_ = width_;
-    scissor_height_ = height_;
-  }
+  scissor_x_ = x_;
+  scissor_y_ = y_;
+  scissor_width_ = width_;
+  scissor_height_ = height_;
 
   const std::vector<size_t> &source = region.source_layers;
   for (size_t texture_index : source) {
