@@ -105,8 +105,10 @@ class DisplayPlaneState {
   // and source rect as displayplanestate. Also, resets
   // composition region to null. Also updates if layer
   // needs to use scalar or not depending on what
-  // IsUsingPlaneScalar returns.
-  void RefreshSurfaces(bool clear_surface);
+  // IsUsingPlaneScalar returns. clear_surface determines
+  // if all offscreen surfaces of this plane are partially or
+  // fully cleared.
+  void RefreshSurfaces(NativeSurface::ClearType clear_surface);
 
   DisplayPlane *GetDisplayPlane() const;
 
