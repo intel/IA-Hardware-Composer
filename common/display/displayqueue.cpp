@@ -568,8 +568,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (!validate_layers && add_index > 0) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
           layers, add_index, disable_ovelays, &commit_checked,
-          current_composition_planes, previous_plane_state_,
-          surfaces_not_inuse_);
+          &needs_plane_validation, current_composition_planes,
+          previous_plane_state_, surfaces_not_inuse_);
 
       if (!render_layers)
         render_layers = render_cursor;
@@ -618,8 +618,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                      ((state_ & kConfigurationChanged) && (layers.size() > 1));
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, force_gpu, &test_commit, current_composition_planes,
-        previous_plane_state_, surfaces_not_inuse_);
+        layers, add_index, force_gpu, &test_commit, &test_commit,
+        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.
     if (force_media_composition && requested_video_effect) {
