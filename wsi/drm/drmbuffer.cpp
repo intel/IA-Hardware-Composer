@@ -251,8 +251,8 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   memset(&external, 0, sizeof(external));
   uint32_t rt_format = DrmFormatToRTFormat(format_);
   external.pixel_format = DrmFormatToVAFormat(format_);
-  external.width = temp_width;
-  external.height = temp_height;
+  external.width = width_;
+  external.height = height_;
   external.num_planes = total_planes_;
   unsigned long prime_fd = prime_fd_;
   for (unsigned int i = 0; i < total_planes_; i++) {
