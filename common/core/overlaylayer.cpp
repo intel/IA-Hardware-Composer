@@ -274,7 +274,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       surface_damage_.left =
           std::max(surface_damage_.left, display_frame_.left);
     } else {
-      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+      surface_damage_.reset();
     }
     IMOSAICDISPLAYTRACE(
         "surface_damage_ %d %d %d %d  left_source_constraint: %d "

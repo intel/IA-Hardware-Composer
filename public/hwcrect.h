@@ -62,6 +62,12 @@ struct Rect {
     }
     return true;
   }
+
+  void reset() {
+    for (int i = 0; i < 4; i++) {
+      bounds[i] = 0;
+    }
+  }
 };
 
 }  // namespace hwcomposer

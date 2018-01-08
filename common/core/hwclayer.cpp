@@ -107,7 +107,8 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
       state_ &= ~kSurfaceDamageChanged;
-      surface_damage_ = rect;
+      surface_damage_.reset();
+      current_rendering_damage_.reset();
       return;
     }
   } else if (rects == 0) {
@@ -201,18 +202,20 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
     if (!last_rendering_damage_.empty()) {
-      last_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+      last_rendering_damage_.reset();
     }
 
     if (!previous_rendering_damage_.empty()) {
       last_rendering_damage_ = previous_rendering_damage_;
-      previous_rendering_damage_ = HwcRect<int>(0, 0, 0, 0);
+      previous_rendering_damage_.reset();
     }
 
     if (!current_rendering_damage_.empty()) {
       previous_rendering_damage_ = current_rendering_damage_;
-      current_rendering_damage_ = surface_damage_;
     }
+
+    current_rendering_damage_ = surface_damage_;
+    damage_validated_ = false;
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
