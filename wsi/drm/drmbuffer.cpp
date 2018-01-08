@@ -223,18 +223,8 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
                                                        uint32_t width,
                                                        uint32_t height) {
-  uint32_t temp_width = width;
-  uint32_t temp_height = height;
-  if ((temp_height == 0) || temp_height > height_) {
-    temp_height = height_;
-  }
-
-  if ((temp_width == 0) || temp_width > width_) {
-    temp_width = width_;
-  }
-
   if (media_image_.surface_ != VA_INVALID_ID) {
-    if ((previous_width_ == temp_width) && (previous_height_ == temp_height)) {
+    if ((previous_width_ == width) && (previous_height_ == height)) {
       return media_image_;
     }
 
@@ -251,8 +241,8 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   memset(&external, 0, sizeof(external));
   uint32_t rt_format = DrmFormatToRTFormat(format_);
   external.pixel_format = DrmFormatToVAFormat(format_);
-  external.width = temp_width;
-  external.height = temp_height;
+  external.width = width_;
+  external.height = height_;
   external.num_planes = total_planes_;
   unsigned long prime_fd = prime_fd_;
   for (unsigned int i = 0; i < total_planes_; i++) {
