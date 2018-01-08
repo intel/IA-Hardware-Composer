@@ -195,7 +195,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool content_changed = false;
       bool update_rect = false;
-      if (remove_index == -1) {
+      if (!clear_surface) {
         const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
 
@@ -247,7 +247,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       // Let's make sure we swap the surface in case content has changed.
-      if (content_changed) {
+      size_t total_surfaces = last_plane.GetSurfaces().size();
+      if (content_changed && total_surfaces == 3) {
         last_plane.SwapSurfaceIfNeeded();
       }
 
@@ -265,7 +266,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       if (content_changed) {
-        if (last_plane.GetSurfaces().size() == 3) {
+        if (total_surfaces == 3) {
           if (!clear_surface) {
             HwcRect<int> last_damage;
             const std::vector<NativeSurface*>& surfaces =
