@@ -76,6 +76,11 @@ struct HwcFilterCap {
   bool use_default_ = true;
 };
 
+typedef struct _HwcDeinterlaceCap {
+  VAProcFilterCapDeinterlacing caps_[VAProcDeinterlacingCount];
+  VAProcDeinterlacingType mode_;
+} HwcDeinterlaceCap;
+
 class VARenderer : public Renderer {
  public:
   VARenderer() = default;
@@ -95,9 +100,13 @@ class VARenderer : public Renderer {
                              void* caps, uint32_t* num);
   bool SetVAProcFilterColorValue(HWCColorControl type,
                                  const HWCColorProp& prop);
+  bool SetVAProcFilterDeinterlaceValue(HWCDeinterlaceFlag flag,
+                                       HWCDeinterlaceControl mode);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
+  bool SetVAProcFilterDeinterlaceDefaultValue();
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
                                      VAProcColorBalanceType vamode);
+  bool GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag);
   bool CreateContext();
   void DestroyContext();
   bool UpdateCaps();
@@ -107,8 +116,10 @@ class VARenderer : public Renderer {
   std::vector<VABufferID> filters_;
   std::vector<ScopedVABufferID> cb_elements_;
   std::vector<ScopedVABufferID> sharp_;
+  std::vector<ScopedVABufferID> deinterlace_;
   std::map<HWCColorControl, HwcColorBalanceCap> colorbalance_caps_;
   HwcFilterCap sharp_caps_;
+  HwcDeinterlaceCap deinterlace_caps_;
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;
   VAConfigID va_config_ = VA_INVALID_ID;

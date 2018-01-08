@@ -105,6 +105,12 @@ bool VARenderer::SetVAProcFilterColorDefaultValue(
   return true;
 }
 
+bool VARenderer::SetVAProcFilterDeinterlaceDefaultValue() {
+  deinterlace_caps_.mode_ = VAProcDeinterlacingNone;
+  update_caps_ = true;
+  return true;
+}
+
 bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
                                            const HWCColorProp& prop) {
   if (mode == HWCColorControl::kColorHue ||
@@ -143,6 +149,49 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
     return false;
   }
 }
+
+bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag) {
+  if (flag != HWCDeinterlaceFlag::kDeinterlaceFlagAuto) {
+    return false;
+  } else {
+    // TODO:Need video buffer meta data to judge if the frame really need
+    // Deinterlace.
+  }
+  return false;
+}
+bool VARenderer::SetVAProcFilterDeinterlaceValue(HWCDeinterlaceFlag flag,
+                                                 HWCDeinterlaceControl mode) {
+  if (flag == HWCDeinterlaceFlag::kDeinterlaceFlagNone) {
+    deinterlace_caps_.mode_ = VAProcDeinterlacingNone;
+    update_caps_ = true;
+    return true;
+  } else if (flag == HWCDeinterlaceFlag::kDeinterlaceFlagForce ||
+             GetVAProcDeinterlaceFlagFromVideo(flag)) {
+    if (mode == HWCDeinterlaceControl::kDeinterlaceNone) {
+      deinterlace_caps_.mode_ = VAProcDeinterlacingNone;
+    } else if (mode == HWCDeinterlaceControl::kDeinterlaceBob) {
+      deinterlace_caps_.mode_ = VAProcDeinterlacingBob;
+    } else if (mode == HWCDeinterlaceControl::kDeinterlaceWeave) {
+      deinterlace_caps_.mode_ = VAProcDeinterlacingWeave;
+    } else if (mode == HWCDeinterlaceControl::kDeinterlaceMotionAdaptive) {
+      deinterlace_caps_.mode_ = VAProcDeinterlacingMotionAdaptive;
+    } else if (mode == HWCDeinterlaceControl::kDeinterlaceMotionCompensated) {
+      deinterlace_caps_.mode_ = VAProcDeinterlacingMotionCompensated;
+    } else {
+      ETRACE("Hwc unsupport deinterlace mode\n");
+      return false;
+    }
+  }
+  for (int i = 0; i < VAProcDeinterlacingCount; i++) {
+    if (deinterlace_caps_.caps_[i].type == deinterlace_caps_.mode_) {
+      update_caps_ = true;
+      return true;
+    }
+  }
+  ETRACE("VA Filter unsupport deinterlace mode\n");
+  return false;
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
@@ -211,6 +260,9 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
+
+  SetVAProcFilterDeinterlaceValue(state.deinterlace_.flag,
+                                  state.deinterlace_.mode);
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
@@ -291,6 +343,7 @@ bool VARenderer::UpdateCaps() {
   VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
   uint32_t colorbalance_num = VAProcColorBalanceCount;
   uint32_t sharp_num = 1;
+  uint32_t deinterlace_num = VAProcDeinterlacingCount;
 
   if (colorbalance_caps_.empty()) {
     if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
@@ -301,19 +354,28 @@ bool VARenderer::UpdateCaps() {
                                &sharp_caps_.caps_, &sharp_num)) {
       return false;
     }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
+                               &deinterlace_caps_.caps_, &deinterlace_num)) {
+      return false;
+    }
+
     SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
+    SetVAProcFilterDeinterlaceDefaultValue();
 
   } else {
     std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
                                               va_display_);
     std::vector<ScopedVABufferID> sharp(1, va_display_);
+    std::vector<ScopedVABufferID> deinterlace(1, va_display_);
 
     std::vector<VABufferID>().swap(filters_);
     std::vector<ScopedVABufferID>().swap(cb_elements_);
     std::vector<ScopedVABufferID>().swap(sharp_);
+    std::vector<ScopedVABufferID>().swap(deinterlace_);
 
     VAProcFilterParameterBufferColorBalance cbparam;
     VAProcFilterParameterBuffer sharpparam;
+    VAProcFilterParameterBufferDeinterlacing deinterlaceparam;
 
     for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
          itr++) {
@@ -359,6 +421,18 @@ bool VARenderer::UpdateCaps() {
       filters_.push_back(sharp[0].buffer());
     }
     sharp_.swap(sharp);
+
+    if (deinterlace_caps_.mode_ != VAProcDeinterlacingNone) {
+      deinterlaceparam.algorithm = deinterlace_caps_.mode_;
+      deinterlaceparam.type = VAProcFilterDeinterlacing;
+      if (!deinterlace[0].CreateBuffer(
+              va_context_, VAProcFilterParameterBufferType,
+              sizeof(VAProcFilterDeinterlacing), 1, &deinterlaceparam)) {
+        return false;
+      }
+      filters_.push_back(deinterlace[0].buffer());
+    }
+    deinterlace_.swap(deinterlace);
   }
 
   memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
