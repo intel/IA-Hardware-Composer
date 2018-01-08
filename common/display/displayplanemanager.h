@@ -44,6 +44,7 @@ class DisplayPlaneManager {
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
                       bool disable_overlay, bool *commit_checked,
+                      bool *re_validation_needed,
                       DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);

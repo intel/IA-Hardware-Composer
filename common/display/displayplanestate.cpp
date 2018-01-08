@@ -89,6 +89,10 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     private_data_->apply_effects_ = false;
   }
 
+  // Reset Validation state.
+  if (re_validate_layer_ == ReValidationType::kScanout)
+    re_validate_layer_ = ReValidationType::kNone;
+
   refresh_needed_ = true;
 }
 
