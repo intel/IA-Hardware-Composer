@@ -536,6 +536,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     force_media_composition = true;
     applied_video_effect_ = requested_video_effect_;
     requested_video_effect = requested_video_effect_;
+    validate_layers = true;
+    DTRACE("Video Effect changed");
   }
   video_lock_.unlock();
 
@@ -586,21 +588,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         render_layers = render;
     }
 
-    if (!validate_layers) {
-      if (force_media_composition) {
-        SetMediaEffectsState(requested_video_effect, layers,
-                             current_composition_planes);
-        if (requested_video_effect) {
-          render_layers = true;
-        }
-
-        can_ignore_commit = false;
-      }
-
-      if (can_ignore_commit) {
-        in_flight_layers_.swap(layers);
-        return true;
-      }
+    if (!validate_layers && can_ignore_commit) {
+      in_flight_layers_.swap(layers);
+      return true;
     }
   }
 
@@ -615,13 +605,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     add_index = 0;
     bool force_gpu = disable_ovelays || idle_frame ||
                      ((state_ & kConfigurationChanged) && (layers.size() > 1));
+    // If video effect is requested we have to go through VARenderer
+    // for effect processing or when the effect is off we have to go through
+    // VARenderer once for restoring the default effect settings.
+    if (applied_video_effect_ || force_media_composition) {
+      force_gpu = false;
+    }
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
         layers, add_index, force_gpu, &test_commit, &test_commit,
         current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.
-    if (force_media_composition && requested_video_effect) {
+    if (force_media_composition) {
       SetMediaEffectsState(requested_video_effect, layers,
                            current_composition_planes);
       render_layers = true;
