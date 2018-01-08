@@ -213,7 +213,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  surface_damage_ = layer->ValidateDamage();
+  surface_damage_ = layer->GetLayerDamage();
 
   if (!handle_constraints) {
     return;

@@ -107,8 +107,8 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
       state_ &= ~kSurfaceDamageChanged;
+      UpdateRenderingDamage(surface_damage_, rect, false);
       surface_damage_.reset();
-      current_rendering_damage_.reset();
       return;
     }
   } else if (rects == 0) {
@@ -119,7 +119,6 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       (surface_damage_.top == rect.top) &&
       (surface_damage_.right == rect.right) &&
       (surface_damage_.bottom == rect.bottom)) {
-    UpdateRenderingDamage(surface_damage_, rect, true);
     return;
   }
 
@@ -147,6 +146,11 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
       (visible_rect_.top == new_visible_rect.top) &&
       (visible_rect_.right == new_visible_rect.right) &&
       (visible_rect_.bottom == new_visible_rect.bottom)) {
+    // If SurfaceDamage is not empty and Visible Rect is called,
+    // go ahead and mark this region as damaged. This happens in
+    // case of drop down menus etc.
+    if (!surface_damage_.empty())
+      UpdateRenderingDamage(visible_rect_, new_visible_rect, true);
     return;
   }
 
@@ -201,21 +205,7 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
-    if (!last_rendering_damage_.empty()) {
-      last_rendering_damage_.reset();
-    }
-
-    if (!previous_rendering_damage_.empty()) {
-      last_rendering_damage_ = previous_rendering_damage_;
-      previous_rendering_damage_.reset();
-    }
-
-    if (!current_rendering_damage_.empty()) {
-      previous_rendering_damage_ = current_rendering_damage_;
-    }
-
     current_rendering_damage_ = surface_damage_;
-    damage_validated_ = false;
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
@@ -343,7 +333,6 @@ bool HwcLayer::IsCursorLayer() const {
 void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
                                      const HwcRect<int>& newrect,
                                      bool same_rect) {
-  damage_validated_ = false;
   if (current_rendering_damage_.empty()) {
     current_rendering_damage_ = old_rect;
   } else {
@@ -370,53 +359,7 @@ void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
       std::max(current_rendering_damage_.bottom, newrect.bottom);
 }
 
-const HwcRect<int>& HwcLayer::ValidateDamage() {
-  if (damage_validated_) {
-    return current_rendering_damage_;
-  }
-
-  damage_validated_ = true;
-  if (current_rendering_damage_.empty()) {
-    current_rendering_damage_ = previous_rendering_damage_;
-
-    if (current_rendering_damage_.empty()) {
-      current_rendering_damage_ = last_rendering_damage_;
-    } else {
-      current_rendering_damage_.left =
-          std::min(current_rendering_damage_.left, last_rendering_damage_.left);
-      current_rendering_damage_.top =
-          std::min(current_rendering_damage_.top, last_rendering_damage_.top);
-      current_rendering_damage_.right = std::max(
-          current_rendering_damage_.right, last_rendering_damage_.right);
-      current_rendering_damage_.bottom = std::max(
-          current_rendering_damage_.bottom, last_rendering_damage_.bottom);
-    }
-
-    return current_rendering_damage_;
-  }
-
-  if (!previous_rendering_damage_.empty()) {
-    current_rendering_damage_.left = std::min(current_rendering_damage_.left,
-                                              previous_rendering_damage_.left);
-    current_rendering_damage_.top =
-        std::min(current_rendering_damage_.top, previous_rendering_damage_.top);
-    current_rendering_damage_.right = std::max(
-        current_rendering_damage_.right, previous_rendering_damage_.right);
-    current_rendering_damage_.bottom = std::max(
-        current_rendering_damage_.bottom, previous_rendering_damage_.bottom);
-  }
-
-  if (!last_rendering_damage_.empty()) {
-    current_rendering_damage_.left =
-        std::min(current_rendering_damage_.left, last_rendering_damage_.left);
-    current_rendering_damage_.top =
-        std::min(current_rendering_damage_.top, last_rendering_damage_.top);
-    current_rendering_damage_.right =
-        std::max(current_rendering_damage_.right, last_rendering_damage_.right);
-    current_rendering_damage_.bottom = std::max(
-        current_rendering_damage_.bottom, last_rendering_damage_.bottom);
-  }
-
+const HwcRect<int>& HwcLayer::GetLayerDamage() {
   return current_rendering_damage_;
 }
 
