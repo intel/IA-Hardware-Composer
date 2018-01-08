@@ -243,7 +243,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
         content_changed = true;
-        last_plane.RefreshSurfaces(true);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear);
       }
 
       // Let's make sure we swap the surface in case content has changed.
@@ -260,8 +260,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         if (!clear_surface && update_rect) {
-          last_plane.RefreshSurfaces(false);
-          surface->SetClearSurface(NativeSurface::kPartialClear);
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
         }
       }
 
