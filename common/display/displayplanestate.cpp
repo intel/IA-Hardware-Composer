@@ -308,6 +308,9 @@ void DisplayPlaneState::ReleaseSurfaces() {
 
 void DisplayPlaneState::RefreshSurfaces(
     NativeSurface::ClearType clear_surface) {
+  if (!refresh_needed_)
+    return;
+
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
   for (NativeSurface *surface : private_data_->surfaces_) {
@@ -326,7 +329,7 @@ void DisplayPlaneState::RefreshSurfaces(
     } else if (!clear && clear_surface == NativeSurface::kPartialClear) {
       surface->SetClearSurface(clear_surface);
     } else if (partial_clear && clear_surface == NativeSurface::kFullClear) {
-      surface->SetClearSurface(clear_surface);
+      surface->SetClearSurface(NativeSurface::kFullClear);
     }
 
     if (surface->ClearSurface()) {
@@ -340,6 +343,7 @@ void DisplayPlaneState::RefreshSurfaces(
   }
 
   refresh_needed_ = false;
+  recycled_surface_ = false;
 }
 
 DisplayPlane *DisplayPlaneState::GetDisplayPlane() const {
