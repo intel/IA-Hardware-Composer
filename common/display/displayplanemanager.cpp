@@ -295,6 +295,10 @@ bool DisplayPlaneManager::ValidateLayers(
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfacesIfNeeded();
+      if (!render_layers) {
+        render_layers = !plane.SurfaceRecycled();
+      }
+
       render_layers = true;
       if (plane.IsRevalidationNeeded() !=
           DisplayPlaneState::ReValidationType::kNone) {
