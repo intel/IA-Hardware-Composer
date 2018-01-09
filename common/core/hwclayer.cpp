@@ -22,6 +22,13 @@
 
 namespace hwcomposer {
 
+// Minimum threshold before we take advantage of
+// Surface damage for this layer. This should not
+// be needed ideally but we seem to run into problems
+// when using Surface Damage for layers having damage
+// rect less than 1000.
+static uint32_t DAMAGE_THRESHOLD = 1000;
+
 HwcLayer::~HwcLayer() {
   if (release_fd_ > 0) {
     close(release_fd_);
@@ -123,7 +130,13 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   }
 
   state_ |= kSurfaceDamageChanged;
-  UpdateRenderingDamage(surface_damage_, rect, false);
+  if (display_frame_width_ < DAMAGE_THRESHOLD &&
+      display_frame_height_ < DAMAGE_THRESHOLD) {
+    UpdateRenderingDamage(visible_rect_, visible_rect_, true);
+  } else {
+    UpdateRenderingDamage(surface_damage_, rect, false);
+  }
+
   surface_damage_ = rect;
 }
 
@@ -146,11 +159,6 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
       (visible_rect_.top == new_visible_rect.top) &&
       (visible_rect_.right == new_visible_rect.right) &&
       (visible_rect_.bottom == new_visible_rect.bottom)) {
-    // If SurfaceDamage is not empty and Visible Rect is called,
-    // go ahead and mark this region as damaged. This happens in
-    // case of drop down menus etc.
-    if (!surface_damage_.empty())
-      UpdateRenderingDamage(visible_rect_, new_visible_rect, true);
     return;
   }
 
@@ -205,7 +213,13 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
-    current_rendering_damage_ = surface_damage_;
+    if (!surface_damage_.empty() &&
+        (display_frame_width_ < DAMAGE_THRESHOLD &&
+         display_frame_height_ < DAMAGE_THRESHOLD)) {
+      current_rendering_damage_ = visible_rect_;
+    } else {
+      current_rendering_damage_ = surface_damage_;
+    }
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
