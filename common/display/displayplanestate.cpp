@@ -89,6 +89,10 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     private_data_->apply_effects_ = false;
   }
 
+  // Reset Validation state.
+  if (re_validate_layer_ == ReValidationType::kScanout)
+    re_validate_layer_ = ReValidationType::kNone;
+
   refresh_needed_ = true;
 }
 
@@ -302,7 +306,8 @@ void DisplayPlaneState::ReleaseSurfaces() {
   std::vector<NativeSurface *>().swap(private_data_->surfaces_);
 }
 
-void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
+void DisplayPlaneState::RefreshSurfaces(
+    NativeSurface::ClearType clear_surface) {
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
   for (NativeSurface *surface : private_data_->surfaces_) {
@@ -313,8 +318,18 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
       surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
     }
 
-    if (!surface->ClearSurface() && clear_surface) {
-      surface->SetClearSurface(NativeSurface::kFullClear);
+    bool clear = surface->ClearSurface();
+    bool partial_clear = surface->IsPartialClear();
+
+    if (!clear && !partial_clear) {
+      surface->SetClearSurface(clear_surface);
+    } else if (!clear && clear_surface == NativeSurface::kPartialClear) {
+      surface->SetClearSurface(clear_surface);
+    } else if (partial_clear && clear_surface == NativeSurface::kFullClear) {
+      surface->SetClearSurface(clear_surface);
+    }
+
+    if (surface->ClearSurface()) {
       if (private_data_->use_plane_scalar_) {
         surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
       } else {
@@ -324,7 +339,6 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
     }
   }
 
-  std::vector<CompositionRegion>().swap(private_data_->composition_region_);
   refresh_needed_ = false;
 }
 
@@ -364,7 +378,7 @@ void DisplayPlaneState::SetVideoPlane() {
 void DisplayPlaneState::UsePlaneScalar(bool enable) {
   if (private_data_->use_plane_scalar_ != enable) {
     private_data_->use_plane_scalar_ = enable;
-    RefreshSurfaces(true);
+    RefreshSurfaces(NativeSurface::kFullClear);
   }
 }
 
@@ -513,11 +527,7 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
 
 void DisplayPlaneState::RefreshSurfacesIfNeeded() {
   if (refresh_needed_) {
-    RefreshSurfaces(true);
-  } else {
-    // Let's make sure we reset our composition region cache
-    // of all planes in case we are adding some indexes.
-    ResetCompositionRegion();
+    RefreshSurfaces(NativeSurface::kFullClear);
   }
 }
 

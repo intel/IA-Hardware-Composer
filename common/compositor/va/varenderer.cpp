@@ -112,8 +112,11 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
       mode == HWCColorControl::kColorBrightness ||
       mode == HWCColorControl::kColorContrast) {
     if (prop.use_default_) {
-      colorbalance_caps_[mode].use_default_ = true;
-    } else {
+      if (!colorbalance_caps_[mode].use_default_) {
+        colorbalance_caps_[mode].use_default_ = true;
+        update_caps_ = true;
+      }
+    } else if (prop.value_ != colorbalance_caps_[mode].value_) {
       if (prop.value_ > colorbalance_caps_[mode].caps_.range.max_value ||
           prop.value_ < colorbalance_caps_[mode].caps_.range.min_value) {
         ETRACE("VA Filter value out of range\n");
@@ -121,13 +124,16 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
       }
       colorbalance_caps_[mode].value_ = prop.value_;
       colorbalance_caps_[mode].use_default_ = false;
+      update_caps_ = true;
     }
-    update_caps_ = true;
     return true;
   } else if (mode == HWCColorControl::kColorSharpness) {
     if (prop.use_default_) {
-      sharp_caps_.use_default_ = true;
-    } else {
+      if (!sharp_caps_.use_default_) {
+        sharp_caps_.use_default_ = true;
+        update_caps_ = true;
+      }
+    } else if (prop.value_ != sharp_caps_.value_) {
       if (prop.value_ > sharp_caps_.caps_.range.max_value ||
           prop.value_ < sharp_caps_.caps_.range.min_value) {
         ETRACE("VA Filter sharp value out of range\n");
@@ -135,8 +141,8 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
       }
       sharp_caps_.value_ = prop.value_;
       sharp_caps_.use_default_ = false;
+      update_caps_ = true;
     }
-    update_caps_ = true;
     return true;
   } else {
     ETRACE("VA Filter undefined color mode\n");
@@ -147,18 +153,12 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
-
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
     render_target_format_ = rt_format;
     if (!CreateContext()) {
       ETRACE("Create VA context failed\n");
       return false;
     }
-  }
-
-  if (!UpdateCaps()) {
-    ETRACE("Failed to update capabailities. \n");
-    return false;
   }
 
   // Get Input Surface.
@@ -210,6 +210,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
     SetVAProcFilterColorValue(itr->first, itr->second);
+  }
+
+  if (!UpdateCaps()) {
+    ETRACE("Failed to update capabailities. \n");
+    return false;
   }
 
   ScopedVABufferID pipeline_buffer(va_display_);

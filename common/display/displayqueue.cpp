@@ -128,7 +128,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool plane_validation = false;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-    bool clear_surface = remove_index > -1 ? true : false;
+    bool clear_surface = false;
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(previous_plane);
@@ -146,6 +146,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               threshold, index, previous_plane_state_.size());
 #endif
           last_plane.ResetLayers(layers, threshold);
+          clear_surface = true;
         }
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
@@ -187,10 +188,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             last_plane.RevalidationDone();
           }
         }
-      } else {
-        // Let's make sure we reset our composition region cache of all planes
-        // in case we are removing some indexes.
-        last_plane.ResetCompositionRegion();
       }
     }
 
@@ -198,7 +195,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool content_changed = false;
       bool update_rect = false;
-      if (remove_index == -1) {
+      if (!clear_surface) {
         const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
 
@@ -208,10 +205,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           if (layer.HasDimensionsChanged()) {
             last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
             update_rect = true;
-          }
-
-          if (layer.NeedsToClearSurface()) {
-            clear_surface = true;
           }
 
           if (layer.HasSourceRectChanged()) {
@@ -250,11 +243,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
         content_changed = true;
-        last_plane.RefreshSurfaces(true);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear);
       }
 
       // Let's make sure we swap the surface in case content has changed.
-      if (content_changed) {
+      size_t total_surfaces = last_plane.GetSurfaces().size();
+      if (content_changed && total_surfaces == 3) {
         last_plane.SwapSurfaceIfNeeded();
       }
 
@@ -266,13 +260,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         if (!clear_surface && update_rect) {
-          last_plane.RefreshSurfaces(false);
-          surface->SetClearSurface(NativeSurface::kPartialClear);
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
         }
       }
 
       if (content_changed) {
-        if (last_plane.GetSurfaces().size() == 3) {
+        if (total_surfaces == 3) {
           if (!clear_surface) {
             HwcRect<int> last_damage;
             const std::vector<NativeSurface*>& surfaces =
@@ -289,7 +282,26 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                 std::max(previous_damage.right, last_damage.right);
             last_damage.bottom =
                 std::max(previous_damage.bottom, last_damage.bottom);
-            surfaces.at(0)->UpdateSurfaceDamage(surface_damage, last_damage);
+
+            NativeSurface* offscreen_surface = surfaces.at(0);
+            // If update_rect is true than we should have already reset
+            // Composition region and can be avoided here.
+            if (update_rect) {
+              offscreen_surface->UpdateSurfaceDamage(surface_damage,
+                                                     last_damage);
+            } else {
+              bool surface_damage_changed = true;
+              HwcRect<int> damage = offscreen_surface->GetSurfaceDamage();
+              offscreen_surface->UpdateSurfaceDamage(surface_damage,
+                                                     last_damage);
+              if (damage == offscreen_surface->GetSurfaceDamage()) {
+                surface_damage_changed = false;
+              }
+
+              if (surface_damage_changed) {
+                last_plane.ResetCompositionRegion();
+              }
+            }
           }
         } else {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
@@ -555,8 +567,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (!validate_layers && add_index > 0) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
           layers, add_index, disable_ovelays, &commit_checked,
-          current_composition_planes, previous_plane_state_,
-          surfaces_not_inuse_);
+          &needs_plane_validation, current_composition_planes,
+          previous_plane_state_, surfaces_not_inuse_);
 
       if (!render_layers)
         render_layers = render_cursor;
@@ -605,8 +617,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                      ((state_ & kConfigurationChanged) && (layers.size() > 1));
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, force_gpu, &test_commit, current_composition_planes,
-        previous_plane_state_, surfaces_not_inuse_);
+        layers, add_index, force_gpu, &test_commit, &test_commit,
+        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
     // If Video effects need to be applied, let's make sure
     // we go through the composition pass for Video Layers.
     if (force_media_composition && requested_video_effect) {

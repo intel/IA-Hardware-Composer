@@ -61,7 +61,8 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
 
 bool DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> &layers, int add_index, bool disable_overlay,
-    bool *commit_checked, DisplayPlaneStateList &composition,
+    bool *commit_checked, bool *re_validation_needed,
+    DisplayPlaneStateList &composition,
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
@@ -290,14 +291,20 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   bool render_layers = false;
+  bool re_validation = false;
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfacesIfNeeded();
       render_layers = true;
+      if (plane.IsRevalidationNeeded() !=
+          DisplayPlaneState::ReValidationType::kNone) {
+        re_validation = true;
+      }
     }
   }
 
   *commit_checked = test_commit_done;
+  *re_validation_needed = re_validation;
 
   return render_layers;
 }

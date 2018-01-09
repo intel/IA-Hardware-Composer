@@ -246,7 +246,7 @@ struct HwcLayer {
    * API for getting damage area caused by this layer for current
    * frame update.
    */
-  const HwcRect<int>& ValidateDamage();
+  const HwcRect<int>& GetLayerDamage();
 
  private:
   void Validate();
@@ -284,8 +284,6 @@ struct HwcLayer {
   HwcRect<int> surface_damage_;
   HwcRect<int> visible_rect_;
   HwcRect<int> current_rendering_damage_;
-  HwcRect<int> previous_rendering_damage_;
-  HwcRect<int> last_rendering_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
@@ -299,7 +297,6 @@ struct HwcLayer {
   int state_ = kVisible | kSurfaceDamageChanged | kVisibleRegionChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
-  bool damage_validated_ = false;
 };
 
 }  // namespace hwcomposer

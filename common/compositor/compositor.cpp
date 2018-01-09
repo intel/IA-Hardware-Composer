@@ -85,9 +85,17 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       comp = &plane;
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
-      if (comp_regions.empty()) {
+      bool regions_empty = comp_regions.empty();
+      NativeSurface *surface = plane.GetOffScreenTarget();
+      if (!regions_empty &&
+          (surface->ClearSurface() || surface->IsPartialClear())) {
+        plane.ResetCompositionRegion();
+        regions_empty = true;
+      }
+
+      if (regions_empty) {
         SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
-                       comp_regions);
+                       surface->GetSurfaceDamage(), comp_regions);
       }
 
       std::vector<size_t>().swap(dedicated_layers);
@@ -96,7 +104,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
       draw_state.emplace_back();
       DrawState &state = draw_state.back();
-      state.surface_ = plane.GetOffScreenTarget();
+      state.surface_ = surface;
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
       if (!CalculateRenderState(layers, comp_regions, state,
@@ -127,7 +135,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                int32_t acquire_fence, int32_t *retire_fence) {
   std::vector<CompositionRegion> comp_regions;
   SeparateLayers(std::vector<size_t>(), source_layers, display_frame,
-                 comp_regions);
+                 HwcRect<int>(0, 0, width, height), comp_regions);
   if (comp_regions.empty()) {
     ETRACE(
         "Failed to prepare offscreen buffer. "
@@ -182,9 +190,7 @@ bool Compositor::CalculateRenderState(
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(
-        layers, region, draw_state.surface_->GetSurfaceDamage(),
-        draw_state.surface_->ClearSurface(), uses_display_up_scaling);
+    state.ConstructState(layers, region, uses_display_up_scaling);
     if (state.layer_state_.empty()) {
       continue;
     }
@@ -236,6 +242,7 @@ static std::vector<size_t> SetBitsToVector(
 void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
                                 const std::vector<size_t> &source_layers,
                                 const std::vector<HwcRect<int>> &display_frame,
+                                const HwcRect<int> &damage_region,
                                 std::vector<CompositionRegion> &comp_regions) {
   CTRACE();
   if (source_layers.size() > 64) {
@@ -269,7 +276,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
   });
 
   std::vector<RectSet<int>> separate_regions;
-  get_draw_regions(layer_rects, &separate_regions);
+  get_draw_regions(layer_rects, damage_region, &separate_regions);
   uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
   uint64_t dedicated_mask = (((uint64_t)1 << dedicated_layers.size()) - 1)
                             << num_exclude_rects;

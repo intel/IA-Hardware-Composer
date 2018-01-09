@@ -174,7 +174,7 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
           plane_transform_ |= kTransform270;
           break;
         case kRotate180:
-          plane_transform_ |= kReflectY;
+          plane_transform_ |= kTransform180;
           break;
         default:
           break;
@@ -213,7 +213,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     ValidatePreviousFrameState(previous_layer, layer);
   }
 
-  surface_damage_ = layer->ValidateDamage();
+  surface_damage_ = layer->GetLayerDamage();
 
   if (!handle_constraints) {
     return;
@@ -274,7 +274,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       surface_damage_.left =
           std::max(surface_damage_.left, display_frame_.left);
     } else {
-      surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+      surface_damage_.reset();
     }
     IMOSAICDISPLAYTRACE(
         "surface_damage_ %d %d %d %d  left_source_constraint: %d "
