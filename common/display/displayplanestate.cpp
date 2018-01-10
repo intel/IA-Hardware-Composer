@@ -391,11 +391,15 @@ bool DisplayPlaneState::IsUsingPlaneScalar() const {
 }
 
 void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
-  private_data_->apply_effects_ = apply_effects;
-  // Doesn't have any impact on planes which
-  // are not meant for video purpose.
-  if (private_data_->type_ != DisplayPlanePrivateState::PlaneType::kVideo) {
-    private_data_->apply_effects_ = false;
+  if (private_data_->apply_effects_ != apply_effects) {
+    private_data_->apply_effects_ = apply_effects;
+    recycled_surface_ = false;
+    // Doesn't have any impact on planes which
+    // are not meant for video.
+    if (apply_effects &&
+        private_data_->type_ != DisplayPlanePrivateState::PlaneType::kVideo) {
+      private_data_->apply_effects_ = false;
+    }
   }
 }
 

@@ -830,6 +830,8 @@ void DisplayQueue::SetMediaEffectsState(
       const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
+
+    plane.SwapSurfaceIfNeeded();
   }
 }
 
