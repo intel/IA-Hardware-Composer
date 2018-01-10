@@ -103,6 +103,20 @@ enum class HWCColorControl : int32_t {
   kColorSharpness = 4
 };
 
+enum class HWCDeinterlaceFlag : int32_t {
+  kDeinterlaceFlagNone = 0,
+  kDeinterlaceFlagForce = 1,
+  kDeinterlaceFlagAuto = 2
+};
+
+enum class HWCDeinterlaceControl : int32_t {
+  kDeinterlaceNone = 0,
+  kDeinterlaceBob = 1,
+  kDeinterlaceWeave = 2,
+  kDeinterlaceMotionAdaptive = 3,
+  kDeinterlaceMotionCompensated = 4
+};
+
 struct EnumClassHash {
   template <typename T>
   std::size_t operator()(T t) const {
@@ -113,6 +127,11 @@ struct EnumClassHash {
 struct HWCColorProp {
   float value_ = 0.0;
   bool use_default_ = true;
+};
+
+struct HWCDeinterlaceProp {
+  HWCDeinterlaceFlag flag_;
+  HWCDeinterlaceControl mode_;
 };
 
 using HWCColorMap =
