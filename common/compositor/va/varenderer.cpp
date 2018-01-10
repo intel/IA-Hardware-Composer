@@ -196,7 +196,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   VASurfaceAttribExternalBuffers external_in;
   memset(&external_in, 0, sizeof(external_in));
   const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
+#if VA_MAJOR_VERSION < 1
   unsigned long prime_fd_in = buffer_in->GetPrimeFD();
+#else
+  uintptr_t prime_fd_in = buffer_in->GetPrimeFD();
+#endif
   int rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
   external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
   external_in.width = buffer_in->GetWidth();
@@ -222,7 +226,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
   int dest_width = buffer_out->GetWidth();
   int dest_height = buffer_out->GetHeight();
+#if VA_MAJOR_VERSION < 1
   unsigned long prime_fd_out = buffer_out->GetPrimeFD();
+#else
+  uintptr_t prime_fd_out = buffer_out->GetPrimeFD();
+#endif
   rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   external_out.pixel_format = DrmFormatToVAFormat(buffer_out->GetFormat());
   external_out.width = dest_width;
