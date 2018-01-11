@@ -91,6 +91,9 @@ struct OverlayLayer {
     return plane_transform_;
   }
 
+  // Rotates this layer to rotation.
+  void SetDisplayRotation(HWCRotation rotation);
+
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,

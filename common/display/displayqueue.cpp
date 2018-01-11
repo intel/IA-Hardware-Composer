@@ -77,6 +77,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
     return false;
   }
 
+  display_plane_manager_->SetDisplayRotation(plane_rotation_);
   ResetQueue();
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
@@ -112,7 +113,30 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 }
 
 void DisplayQueue::RotateDisplay(HWCRotation rotation) {
-  rotation_ = rotation;
+  switch (rotation) {
+    case (kRotateNone):
+      plane_rotation_ = kRotateNone;
+      gl_rotation_ = kRotateNone;
+      break;
+    case (kRotate90):
+      plane_rotation_ = kRotateNone;
+      gl_rotation_ = kRotate90;
+      break;
+    case (kRotate180):
+      plane_rotation_ = kRotate180;
+      gl_rotation_ = kRotateNone;
+      break;
+    case (kRotate270):
+      plane_rotation_ = kRotate270;
+      gl_rotation_ = kRotateNone;
+      break;
+    default:
+      plane_rotation_ = kRotateNone;
+      gl_rotation_ = kRotateNone;
+      break;
+  }
+
+  display_plane_manager_->SetDisplayRotation(plane_rotation_);
 }
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
@@ -429,12 +453,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_frame, display_plane_manager_->GetHeight(), rotation_,
+          display_frame, display_plane_manager_->GetHeight(), gl_rotation_,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_plane_manager_->GetHeight(), rotation_, handle_constraints);
+          display_plane_manager_->GetHeight(), gl_rotation_,
+          handle_constraints);
     }
 
     if (!overlay_layer->IsVisible()) {
