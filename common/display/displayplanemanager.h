@@ -82,6 +82,10 @@ class DisplayPlaneManager {
     return height_;
   }
 
+  // This is the rotation to which physical pipe
+  // associated with this plane manager is rotated.
+  void SetDisplayRotation(HWCRotation rotation);
+
  private:
   struct LayerResultCache {
     uint32_t last_transform_ = 0;
@@ -141,6 +145,7 @@ class DisplayPlaneManager {
   uint32_t width_;
   uint32_t height_;
   uint32_t gpu_fd_;
+  HWCRotation rotation_ = kRotateNone;
 };
 
 }  // namespace hwcomposer

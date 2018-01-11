@@ -99,7 +99,7 @@ class NativeSurface {
   // Resets DisplayFrame, SurfaceDamage to display_frame.
   void ResetDisplayFrame(const HwcRect<int>& display_frame);
 
-  // Resets Source Crop to source_crop..
+  // Resets Source Crop to source_crop.
   void ResetSourceCrop(const HwcRect<float>& source_crop);
 
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
@@ -111,6 +111,9 @@ class NativeSurface {
   const HwcRect<int>& GetSurfaceDamage() const {
     return surface_damage_;
   }
+
+  // Rotates this surface to rotation.
+  void SetDisplayRotation(HWCRotation rotation);
 
  protected:
   OverlayLayer layer_;
@@ -124,6 +127,7 @@ class NativeSurface {
   bool in_use_;
   ClearType clear_surface_;
   uint32_t surface_age_;
+  HWCRotation rotation_ = kRotateNone;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;
 };

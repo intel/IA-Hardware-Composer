@@ -586,6 +586,10 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   surfaces.swap(surfaces_);
 }
 
+void DisplayPlaneManager::SetDisplayRotation(HWCRotation rotation) {
+  rotation_ = rotation;
+}
+
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   bool video_separate = plane.IsVideoPlane();
@@ -622,6 +626,9 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   surface->SetPlaneTarget(plane, gpu_fd_);
+  if (rotation_ != kRotateNone)
+    surface->SetDisplayRotation(rotation_);
+
   plane.SetOffScreenTarget(surface);
 }
 

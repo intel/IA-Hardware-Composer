@@ -105,17 +105,13 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   surface_damage_ = display_frame;
 }
 
+void OverlayLayer::SetDisplayRotation(HWCRotation rotation) {
+  ValidateTransform(transform_, rotation);
+}
+
 void OverlayLayer::ValidateTransform(uint32_t transform,
                                      uint32_t display_transform) {
   if (transform & kTransform90) {
-    if (transform & kReflectX) {
-      plane_transform_ |= kReflectX;
-    }
-
-    if (transform & kReflectY) {
-      plane_transform_ |= kReflectY;
-    }
-
     switch (display_transform) {
       case kRotate90:
         plane_transform_ |= kTransform180;
@@ -125,6 +121,13 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
         break;
       case kRotateNone:
         plane_transform_ |= kTransform90;
+        if (transform & kReflectX) {
+          plane_transform_ |= kReflectX;
+        }
+
+        if (transform & kReflectY) {
+          plane_transform_ |= kReflectY;
+        }
         break;
       default:
         break;
@@ -192,8 +195,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
-    // Remove this in case we enable support in future
-    // to apply display rotation at pipe level.
     transform_ = plane_transform_;
   } else {
     plane_transform_ = transform_;
