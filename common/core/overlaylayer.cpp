@@ -210,13 +210,12 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
   ValidateForOverlayUsage();
-  if (previous_layer) {
-    ValidatePreviousFrameState(previous_layer, layer);
-  }
-
   surface_damage_ = layer->GetLayerDamage();
 
   if (!handle_constraints) {
+    if (previous_layer) {
+      ValidatePreviousFrameState(previous_layer, layer);
+    }
     return;
   }
 
@@ -300,6 +299,10 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     source_crop_height_ = static_cast<int>(ceilf(source_crop_.bottom) -
                                            static_cast<int>(source_crop_.top));
   }
+
+  if (previous_layer) {
+    ValidatePreviousFrameState(previous_layer, layer);
+  }
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
@@ -325,6 +328,7 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
+  OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   supported_composition_ = rhs->supported_composition_;
   actual_composition_ = rhs->actual_composition_;
 
@@ -338,12 +342,23 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
     if (actual_composition_ & kGpu) {
       content_changed = rect_changed || source_rect_changed;
-      if (!content_changed) {
-        if (alpha_ != rhs->alpha_) {
-          content_changed = true;
-        }
-
-        if (blending_ != rhs->blending_) {
+      // This layer has replaced an existing layer, let's make sure
+      // we re-draw this and previous layer regions.
+      if (!layer->IsValidated()) {
+        content_changed = true;
+        surface_damage_.left =
+            std::min(surface_damage_.left, rhs->display_frame_.left);
+        surface_damage_.top =
+            std::min(surface_damage_.top, rhs->display_frame_.top);
+        surface_damage_.right =
+            std::max(surface_damage_.right, rhs->display_frame_.right);
+        surface_damage_.bottom =
+            std::max(surface_damage_.bottom, rhs->display_frame_.bottom);
+      } else if (!content_changed) {
+        if ((buffer->GetFormat() !=
+             rhs->imported_buffer_->buffer_->GetFormat()) ||
+            (alpha_ != rhs->alpha_) || (blending_ != rhs->blending_) ||
+            (transform_ != rhs->transform_)) {
           content_changed = true;
         }
       }
@@ -355,7 +370,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   } else {
     // Ensure the buffer can be supported by display for direct
     // scanout.
-    OverlayBuffer* buffer = imported_buffer_->buffer_.get();
     if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
       state_ |= kNeedsReValidation;
       return;
