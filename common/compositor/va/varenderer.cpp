@@ -208,6 +208,8 @@ bool VARenderer::SetVAProcFilterDeinterlaceMode(
 
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
+  // TODO: Clear surface ?
+  surface->SetClearSurface(NativeSurface::kNone);
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {

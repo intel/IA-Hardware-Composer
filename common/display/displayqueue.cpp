@@ -283,14 +283,16 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       // Let's get the state from surface if it needs to be cleared.
       if (!clear_surface) {
+        if (update_rect) {
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
+        }
+
         NativeSurface* surface = last_plane.GetOffScreenTarget();
         if (surface) {
           clear_surface = surface->ClearSurface();
         }
 
-        if (!clear_surface && update_rect) {
-          last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
-        }
+        content_changed = content_changed || update_rect || clear_surface;
       }
 
       if (content_changed) {
