@@ -325,13 +325,8 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
-  OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   supported_composition_ = rhs->supported_composition_;
   actual_composition_ = rhs->actual_composition_;
-  if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
-    state_ |= kNeedsReValidation;
-    return;
-  }
 
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
@@ -358,6 +353,14 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       }
     }
   } else {
+    // Ensure the buffer can be supported by display for direct
+    // scanout.
+    OverlayBuffer* buffer = imported_buffer_->buffer_.get();
+    if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
+      state_ |= kNeedsReValidation;
+      return;
+    }
+
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
     // supporting XRGB format might not necessarily support
