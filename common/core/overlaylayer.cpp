@@ -105,21 +105,22 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   surface_damage_ = display_frame;
 }
 
-void OverlayLayer::SetDisplayRotation(HWCRotation rotation) {
-  ValidateTransform(transform_, rotation);
+void OverlayLayer::SetTransform(uint32_t transform) {
+  plane_transform_ = transform;
+  transform_ = transform;
 }
 
 void OverlayLayer::ValidateTransform(uint32_t transform,
                                      uint32_t display_transform) {
   if (transform & kTransform90) {
     switch (display_transform) {
-      case kRotate90:
+      case HWCTransform::kTransform90:
         plane_transform_ |= kTransform180;
         break;
-      case kRotate180:
+      case HWCTransform::kTransform180:
         plane_transform_ |= kTransform270;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform90;
         if (transform & kReflectX) {
           plane_transform_ |= kReflectX;
@@ -134,13 +135,13 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
     }
   } else if (transform & kTransform180) {
     switch (display_transform) {
-      case kRotate90:
+      case HWCTransform::kTransform90:
         plane_transform_ |= kTransform270;
         break;
-      case kRotate270:
+      case HWCTransform::kTransform270:
         plane_transform_ |= kTransform90;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform180;
         break;
       default:
@@ -148,20 +149,20 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
     }
   } else if (transform & kTransform270) {
     switch (display_transform) {
-      case kRotate270:
+      case HWCTransform::kTransform270:
         plane_transform_ |= kTransform180;
         break;
-      case kRotate180:
+      case HWCTransform::kTransform180:
         plane_transform_ |= kTransform90;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform270;
         break;
       default:
         break;
     }
   } else {
-    if (display_transform == kRotate90) {
+    if (display_transform & HWCTransform::kTransform90) {
       if (transform & kReflectX) {
         plane_transform_ |= kReflectX;
       }
@@ -173,10 +174,10 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
       plane_transform_ |= kTransform90;
     } else {
       switch (display_transform) {
-        case kRotate270:
+        case HWCTransform::kTransform270:
           plane_transform_ |= kTransform270;
           break;
-        case kRotate180:
+        case HWCTransform::kTransform180:
           plane_transform_ |= kTransform180;
           break;
         default:
@@ -190,12 +191,11 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
-                                   uint32_t max_height, HWCRotation rotation,
+                                   uint32_t max_height, uint32_t rotation,
                                    bool handle_constraints) {
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
-    transform_ = plane_transform_;
   } else {
     plane_transform_ = transform_;
   }
@@ -305,7 +305,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
+    uint32_t max_height, uint32_t rotation, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
@@ -316,8 +316,8 @@ void OverlayLayer::InitializeFromHwcLayer(
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, uint32_t max_height,
-    HWCRotation rotation, bool handle_constraints) {
+    const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
+    bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
                   max_height, rotation, handle_constraints);

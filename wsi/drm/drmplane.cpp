@@ -32,13 +32,31 @@ DrmPlane::Property::Property() {
 
 bool DrmPlane::Property::Initialize(
     uint32_t fd, const char* name,
-    const ScopedDrmObjectPropertyPtr& plane_props) {
+    const ScopedDrmObjectPropertyPtr& plane_props, uint32_t* rotation) {
   uint32_t count_props = plane_props->count_props;
   for (uint32_t i = 0; i < count_props; i++) {
     ScopedDrmPropertyPtr property(
         drmModeGetProperty(fd, plane_props->props[i]));
     if (property && !strcmp(property->name, name)) {
       id = property->prop_id;
+      if (rotation) {
+        uint32_t temp = 0;
+        for (int enum_index = 0; enum_index < property->count_enums;
+             enum_index++) {
+          struct drm_mode_property_enum* penum = &(property->enums[enum_index]);
+          if (!strcmp(penum->name, "rotate-90")) {
+            temp |= DRM_MODE_ROTATE_90;
+          }
+          if (!strcmp(penum->name, "rotate-180"))
+            temp |= DRM_MODE_ROTATE_180;
+          else if (!strcmp(penum->name, "rotate-270"))
+            temp |= DRM_MODE_ROTATE_270;
+          else if (!strcmp(penum->name, "rotate-0"))
+            temp |= DRM_MODE_ROTATE_0;
+        }
+
+        *rotation = temp;
+      }
       break;
     }
   }
@@ -156,7 +174,7 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   if (!ret)
     return false;
 
-  ret = rotation_prop_.Initialize(gpu_fd, "rotation", plane_props);
+  ret = rotation_prop_.Initialize(gpu_fd, "rotation", plane_props, &rotation_);
   if (!ret)
     ETRACE("Could not get rotation property");
 
@@ -349,7 +367,7 @@ bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
     return false;
   }
 
-  return true;
+  return IsSupportedTransform(transform);
 }
 
 bool DrmPlane::IsSupportedFormat(uint32_t format) {
@@ -364,6 +382,28 @@ bool DrmPlane::IsSupportedFormat(uint32_t format) {
   }
 
   return false;
+}
+
+bool DrmPlane::IsSupportedTransform(uint32_t transform) const {
+  if (transform & kTransform90) {
+    if (!(rotation_ & DRM_MODE_ROTATE_90)) {
+      return false;
+    }
+  } else if (transform & kTransform180) {
+    if (!(rotation_ & DRM_MODE_ROTATE_180)) {
+      return false;
+    }
+  } else if (transform & kTransform270) {
+    if (!(rotation_ & DRM_MODE_ROTATE_270)) {
+      return false;
+    }
+  } else {
+    if (!(rotation_ & DRM_MODE_ROTATE_0)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 uint32_t DrmPlane::GetPreferredVideoFormat() const {

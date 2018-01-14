@@ -112,8 +112,8 @@ class NativeSurface {
     return surface_damage_;
   }
 
-  // Rotates this surface to rotation.
-  void SetDisplayRotation(HWCRotation rotation);
+  // Applies rotation transform to this surface.
+  void SetTransform(uint32_t transform);
 
  protected:
   OverlayLayer layer_;
@@ -127,7 +127,6 @@ class NativeSurface {
   bool in_use_;
   ClearType clear_surface_;
   uint32_t surface_age_;
-  HWCRotation rotation_ = kRotateNone;
   HwcRect<int> surface_damage_;
   HwcRect<int> last_surface_damage_;
 };

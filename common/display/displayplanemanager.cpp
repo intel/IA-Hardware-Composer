@@ -180,7 +180,8 @@ bool DisplayPlaneManager::ValidateLayers(
         validate_final_layers = false;
         test_commit_done = true;
         if (!fall_back || prefer_seperate_plane) {
-          composition.emplace_back(plane, layer, layer->GetZorder());
+          composition.emplace_back(plane, layer, layer->GetZorder(),
+                                   display_transform_);
 #ifdef SURFACE_TRACING
           ISURFACETRACE("Added Layer for direct Scanout: %d \n",
                         layer->GetZorder());
@@ -198,13 +199,38 @@ bool DisplayPlaneManager::ValidateLayers(
           break;
         } else {
           if (composition.empty()) {
-            // If we are here, it means the layer failed with
-            // Primary. Let's force GPU for all layers.
-            // FIXME: We should try to use overlay for
-            // other layers in this case.
-            ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
-                                 false);
-            return true;
+            bool force_all_layers = true;
+            if (display_transform_ != kIdentity) {
+              composition.emplace_back(plane, layer, layer->GetZorder(),
+                                       display_transform_);
+              DisplayPlaneState &last_plane = composition.back();
+              ResetPlaneTarget(last_plane, commit_planes.back());
+              // If DisplayTransform is not supported, let's check if
+              // we can fallback to GPU rotation for this plane.
+              if (last_plane.GetRotationType() ==
+                  DisplayPlaneState::RotationType::kDisplayRotation) {
+                last_plane.SetRotationType(
+                    DisplayPlaneState::RotationType::kGPURotation, false);
+
+                // Check if we can rotate using Display plane.
+                if (!FallbacktoGPU(last_plane.GetDisplayPlane(),
+                                   last_plane.GetOffScreenTarget()->GetLayer(),
+                                   commit_planes)) {
+                  force_all_layers = false;
+                  validate_final_layers = true;
+                }
+              }
+            }
+
+            if (force_all_layers) {
+              // If we are here, it means the layer failed with
+              // Primary. Let's force GPU for all layers.
+              // FIXME: We should try to use overlay for
+              // other layers in this case.
+              ForceGpuForAllLayers(commit_planes, composition, layers,
+                                   mark_later, false);
+              return true;
+            }
           } else {
             commit_planes.pop_back();
             DisplayPlaneState &last_plane = composition.back();
@@ -218,6 +244,8 @@ bool DisplayPlaneManager::ValidateLayers(
             } else if (add_index > 0) {
               SwapSurfaceIfNeeded(&last_plane);
             }
+
+            ValidateForDisplayTransform(last_plane, commit_planes);
           }
         }
       }
@@ -265,6 +293,7 @@ bool DisplayPlaneManager::ValidateLayers(
         }
 
         commit_planes.back().layer = last_plane.GetOverlayLayer();
+        ValidateForDisplayTransform(last_plane, commit_planes);
       }
     }
   }
@@ -295,12 +324,12 @@ bool DisplayPlaneManager::ValidateLayers(
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfacesIfNeeded();
+      plane.ValidateReValidation();
       if (!render_layers) {
         render_layers = !plane.SurfaceRecycled();
       }
 
-      render_layers = true;
-      if (plane.IsRevalidationNeeded() !=
+      if (plane.RevalidationType() !=
           DisplayPlaneState::ReValidationType::kNone) {
         re_validation = true;
       }
@@ -473,8 +502,10 @@ void DisplayPlaneManager::ValidateCursorLayer(
       }
 
       last_plane->UsePlaneScalar(false);
+      ValidateForDisplayTransform(*last_plane, commit_planes);
     } else {
-      composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
+      composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder(),
+                               display_transform_);
 #ifdef SURFACE_TRACING
       ISURFACETRACE("Added CursorLayer for direct scanout: %d \n",
                     cursor_layer->GetZorder());
@@ -513,6 +544,35 @@ void DisplayPlaneManager::ValidateCursorLayer(
     PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
                           is_video, recycle_resources);
     last_plane->UsePlaneScalar(false);
+    ValidateForDisplayTransform(*last_plane, commit_planes);
+  }
+}
+
+void DisplayPlaneManager::ValidateForDisplayTransform(
+    DisplayPlaneState &last_plane,
+    const std::vector<OverlayPlane> &commit_planes) const {
+  if (display_transform_ != kIdentity) {
+    // No need for any check if we are relying on rotation during
+    // 3D Composition pass.
+    if (last_plane.GetRotationType() ==
+        DisplayPlaneState::RotationType::kGPURotation) {
+      return;
+    }
+
+    last_plane.ValidateReValidation();
+    if (last_plane.RevalidationType() &
+        DisplayPlaneState::ReValidationType::kRotation) {
+      uint32_t validation_done = DisplayPlaneState::ReValidationType::kRotation;
+      // Ensure Rotation doesn't impact the results.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                        last_plane.GetOffScreenTarget()->GetLayer(),
+                        commit_planes)) {
+        last_plane.SetRotationType(
+            DisplayPlaneState::RotationType::kGPURotation, false);
+      }
+
+      last_plane.RevalidationDone(validation_done);
+    }
   }
 }
 
@@ -528,7 +588,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   // If we are here this means the layer cannot be scaled using display, just
   // return.
   if (!ignore_format &&
-      (current_layer->GetPlaneTransform() == HWCTransform::kIdentity) &&
+      (current_layer->GetTransform() == HWCTransform::kIdentity) &&
       last_plane.GetDisplayPlane()->IsSupportedFormat(
           current_layer->GetBuffer()->GetFormat())) {
     return;
@@ -586,8 +646,8 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   surfaces.swap(surfaces_);
 }
 
-void DisplayPlaneManager::SetDisplayRotation(HWCRotation rotation) {
-  rotation_ = rotation;
+void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
+  display_transform_ = transform;
 }
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
@@ -626,9 +686,6 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   surface->SetPlaneTarget(plane, gpu_fd_);
-  if (rotation_ != kRotateNone)
-    surface->SetDisplayRotation(rotation_);
-
   plane.SetOffScreenTarget(surface);
 }
 
@@ -707,7 +764,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   DisplayPlane *current_plane = overlay_planes_.at(0).get();
 
   composition.emplace_back(current_plane, primary_layer,
-                           primary_layer->GetZorder());
+                           primary_layer->GetZorder(), display_transform_);
   DisplayPlaneState &last_plane = composition.back();
   last_plane.ForceGPURendering();
   layer_begin++;
@@ -801,8 +858,16 @@ bool DisplayPlaneManager::ReValidatePlanes(
       continue;
     }
 
-    if (last_plane.IsRevalidationNeeded() ==
-        DisplayPlaneState::ReValidationType::kScanout) {
+    uint32_t revalidation_type = last_plane.RevalidationType();
+
+    if (!revalidation_type) {
+      render = true;
+      index++;
+      continue;
+    }
+
+    uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kScanout) {
       const std::vector<size_t> &source_layers = last_plane.GetSourceLayers();
       bool uses_scalar = last_plane.IsUsingPlaneScalar();
       // Store current layer to re-set in case commit fails.
@@ -832,16 +897,45 @@ bool DisplayPlaneManager::ReValidatePlanes(
 #endif
         MarkSurfacesForRecycling(&last_plane, mark_later, false);
       }
-    } else if (last_plane.IsRevalidationNeeded() ==
-               DisplayPlaneState::ReValidationType::kScalar) {
-      ValidateForDisplayScaling(last_plane, commit_planes,
-                                last_plane.GetOffScreenTarget()->GetLayer(),
-                                true);
     }
 
     render = true;
-    last_plane.RevalidationDone();
     index++;
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kScalar) {
+      ValidateForDisplayScaling(last_plane, commit_planes,
+                                last_plane.GetOffScreenTarget()->GetLayer(),
+                                true);
+      validation_done |= DisplayPlaneState::ReValidationType::kScalar;
+    }
+
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kRotation) {
+      validation_done |= DisplayPlaneState::ReValidationType::kRotation;
+      // Save old rotation type.
+      DisplayPlaneState::RotationType old_type = last_plane.GetRotationType();
+      DisplayPlaneState::RotationType new_type = old_type;
+      if (old_type == DisplayPlaneState::RotationType::kGPURotation) {
+        last_plane.SetRotationType(
+            DisplayPlaneState::RotationType::kDisplayRotation, false);
+      } else if (re_validate_commit) {
+        // We should have already done a full commit check above.
+        // As their is no state change we can avoid another test
+        // commit here.
+        last_plane.RevalidationDone(validation_done);
+        continue;
+      }
+
+      // Check if we can rotate using Display plane.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                        last_plane.GetOffScreenTarget()->GetLayer(),
+                        commit_planes)) {
+        new_type = DisplayPlaneState::RotationType::kGPURotation;
+      }
+
+      // Set new rotation type. Clear surfaces in case type has changed.
+      last_plane.SetRotationType(new_type, new_type != old_type);
+    }
+
+    last_plane.RevalidationDone(validation_done);
   }
 
   return render;

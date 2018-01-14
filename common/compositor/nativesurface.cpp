@@ -77,8 +77,8 @@ void NativeSurface::SetClearSurface(ClearType clear_surface) {
   clear_surface_ = clear_surface;
 }
 
-void NativeSurface::SetDisplayRotation(HWCRotation rotation) {
-  layer_.SetDisplayRotation(rotation);
+void NativeSurface::SetTransform(uint32_t transform) {
+  layer_.SetTransform(transform);
 }
 
 void NativeSurface::SetSurfaceAge(uint32_t value) {
