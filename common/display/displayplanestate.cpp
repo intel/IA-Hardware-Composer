@@ -20,11 +20,11 @@
 namespace hwcomposer {
 
 DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                                     uint32_t index) {
+                                     uint32_t index, uint32_t plane_transform) {
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
   private_data_->source_layers_.emplace_back(index);
   private_data_->display_frame_ = layer->GetDisplayFrame();
-  private_data_->check_display_scalar_ = true;
+  private_data_->rect_updated_ = true;
   private_data_->source_crop_ = layer->GetSourceCrop();
   if (layer->IsCursorLayer()) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
@@ -34,6 +34,14 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   plane->SetInUse(true);
   private_data_->plane_ = plane;
   private_data_->layer_ = layer;
+  private_data_->plane_transform_ = plane_transform;
+  if (!private_data_->plane_->IsSupportedTransform(plane_transform)) {
+    private_data_->rotation_type_ =
+        DisplayPlaneState::RotationType::kGPURotation;
+    private_data_->unsupported_siplay_rotation_ = true;
+  } else {
+    private_data_->rotation_type_ = RotationType::kDisplayRotation;
+  }
 }
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
@@ -52,7 +60,7 @@ const HwcRect<float> &DisplayPlaneState::GetSourceCrop() const {
 
 void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
-  HwcRect<int> &target_display_frame = private_data_->display_frame_;
+  HwcRect<int> target_display_frame = private_data_->display_frame_;
   target_display_frame.left =
       std::min(target_display_frame.left, display_frame.left);
   target_display_frame.top =
@@ -62,7 +70,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
 
-  HwcRect<float> &target_source_crop = private_data_->source_crop_;
+  HwcRect<float> target_source_crop = private_data_->source_crop_;
   const HwcRect<float> &source_crop = layer->GetSourceCrop();
   target_source_crop.left = std::min(target_source_crop.left, source_crop.left);
   target_source_crop.top = std::min(target_source_crop.top, source_crop.top);
@@ -74,6 +82,22 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   private_data_->source_layers_.emplace_back(layer->GetZorder());
 
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
+
+  // If layers are less than 2, we need to enforce rect checks as
+  // we shouldn't have done them yet (i.e. Previous state could have
+  // been direct scanout.)
+  bool rect_updated = true;
+  if (private_data_->source_layers_.size() > 2 &&
+      (private_data_->display_frame_ == target_display_frame) &&
+      ((private_data_->source_crop_ == target_source_crop))) {
+    rect_updated = false;
+  } else {
+    private_data_->display_frame_ = target_display_frame;
+    private_data_->source_crop_ = target_source_crop;
+  }
+
+  if (!private_data_->rect_updated_)
+    private_data_->rect_updated_ = rect_updated;
 
   if (!private_data_->has_cursor_layer_)
     private_data_->has_cursor_layer_ = layer->IsCursorLayer();
@@ -90,8 +114,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   }
 
   // Reset Validation state.
-  if (re_validate_layer_ == ReValidationType::kScanout)
-    re_validate_layer_ = ReValidationType::kNone;
+  if (re_validate_layer_ & ReValidationType::kScanout)
+    re_validate_layer_ &= ~ReValidationType::kScanout;
 
   refresh_needed_ = true;
 }
@@ -170,9 +194,17 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 #endif
 
   private_data_->source_layers_.swap(source_layers);
-  private_data_->display_frame_ = target_display_frame;
-  private_data_->source_crop_ = target_source_crop;
-  private_data_->check_display_scalar_ = true;
+  bool rect_updated = true;
+  if ((private_data_->display_frame_ == target_display_frame) &&
+      ((private_data_->source_crop_ == target_source_crop))) {
+    rect_updated = false;
+  } else {
+    private_data_->display_frame_ = target_display_frame;
+    private_data_->source_crop_ = target_source_crop;
+  }
+
+  if (!private_data_->rect_updated_)
+    private_data_->rect_updated_ = rect_updated;
 
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
@@ -182,6 +214,9 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     } else {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }
+
+    if (!has_video)
+      re_validate_layer_ |= ReValidationType::kScanout;
   } else {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
@@ -200,7 +235,6 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
       std::max(target_display_frame.right, display_frame.right);
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
-  private_data_->check_display_scalar_ = true;
   refresh_needed_ = true;
 }
 
@@ -212,7 +246,6 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
       std::max(target_source_crop.right, source_crop.right);
   target_source_crop.bottom =
       std::max(target_source_crop.bottom, source_crop.bottom);
-  private_data_->check_display_scalar_ = true;
   refresh_needed_ = true;
 }
 
@@ -246,6 +279,12 @@ const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
 
 void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   private_data_->layer_ = target->GetLayer();
+  uint32_t rotation = private_data_->plane_transform_;
+  if (private_data_->rotation_type_ != RotationType::kDisplayRotation)
+    rotation = kIdentity;
+
+  target->SetTransform(rotation);
+
   target->ResetDisplayFrame(private_data_->display_frame_);
   if (private_data_->use_plane_scalar_) {
     target->ResetSourceCrop(private_data_->source_crop_);
@@ -434,13 +473,22 @@ bool DisplayPlaneState::NeedsOffScreenComposition() {
   return false;
 }
 
-DisplayPlaneState::ReValidationType DisplayPlaneState::IsRevalidationNeeded()
-    const {
+uint32_t DisplayPlaneState::RevalidationType() const {
   return re_validate_layer_;
 }
 
-void DisplayPlaneState::RevalidationDone() {
-  re_validate_layer_ = ReValidationType::kNone;
+void DisplayPlaneState::RevalidationDone(uint32_t validation_done) {
+  if (validation_done & ReValidationType::kScanout) {
+    re_validate_layer_ &= ~ReValidationType::kScanout;
+  }
+
+  if (validation_done & ReValidationType::kScalar) {
+    re_validate_layer_ &= ~ReValidationType::kScalar;
+  }
+
+  if (validation_done & ReValidationType::kRotation) {
+    re_validate_layer_ &= ~ReValidationType::kRotation;
+  }
 }
 
 bool DisplayPlaneState::CanSquash() const {
@@ -454,13 +502,21 @@ bool DisplayPlaneState::CanSquash() const {
 }
 
 void DisplayPlaneState::ValidateReValidation() {
+  if (!private_data_->rect_updated_)
+    return;
+
+  if (private_data_->plane_transform_ != kIdentity &&
+      !private_data_->unsupported_siplay_rotation_) {
+    re_validate_layer_ |= ReValidationType::kRotation;
+  }
+
   if (private_data_->source_layers_.size() == 1 &&
       !(private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo)) {
-    re_validate_layer_ = ReValidationType::kScanout;
+    re_validate_layer_ |= ReValidationType::kScanout;
   } else {
     bool use_scalar = CanUseDisplayUpScaling();
     if (private_data_->use_plane_scalar_ != use_scalar) {
-      re_validate_layer_ = ReValidationType::kScalar;
+      re_validate_layer_ |= ReValidationType::kScalar;
     }
   }
 }
@@ -473,11 +529,10 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
     return false;
   }
 
-  if (!private_data_->check_display_scalar_) {
+  if (!private_data_->rect_updated_) {
     return private_data_->can_use_display_scalar_;
   }
 
-  private_data_->check_display_scalar_ = false;
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
 
@@ -537,6 +592,32 @@ void DisplayPlaneState::RefreshSurfacesIfNeeded() {
   if (refresh_needed_) {
     RefreshSurfaces(NativeSurface::kFullClear);
   }
+}
+
+void DisplayPlaneState::SetRotationType(RotationType type, bool refresh) {
+  if (private_data_->rotation_type_ != type) {
+    private_data_->rotation_type_ = type;
+    if (refresh) {
+      refresh_needed_ = true;
+      RefreshSurfaces(NativeSurface::kFullClear);
+    }
+
+    uint32_t rotation = private_data_->plane_transform_;
+    if (type != RotationType::kDisplayRotation)
+      rotation = kIdentity;
+
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->SetTransform(rotation);
+    }
+  }
+}
+
+DisplayPlaneState::RotationType DisplayPlaneState::GetRotationType() const {
+  return private_data_->rotation_type_;
+}
+
+void DisplayPlaneState::PlaneRectUpdated() {
+  private_data_->rect_updated_ = true;
 }
 
 }  // namespace hwcomposer

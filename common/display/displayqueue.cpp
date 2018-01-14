@@ -77,7 +77,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
     return false;
   }
 
-  display_plane_manager_->SetDisplayRotation(plane_rotation_);
+  display_plane_manager_->SetDisplayTransform(plane_transform_);
   ResetQueue();
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
@@ -114,29 +114,20 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
 
 void DisplayQueue::RotateDisplay(HWCRotation rotation) {
   switch (rotation) {
-    case (kRotateNone):
-      plane_rotation_ = kRotateNone;
-      gl_rotation_ = kRotateNone;
+    case kRotate90:
+      plane_transform_ |= kTransform90;
       break;
-    case (kRotate90):
-      plane_rotation_ = kRotateNone;
-      gl_rotation_ = kRotate90;
+    case kRotate270:
+      plane_transform_ |= kTransform270;
       break;
-    case (kRotate180):
-      plane_rotation_ = kRotate180;
-      gl_rotation_ = kRotateNone;
-      break;
-    case (kRotate270):
-      plane_rotation_ = kRotate270;
-      gl_rotation_ = kRotateNone;
+    case kRotate180:
+      plane_transform_ |= kTransform180;
       break;
     default:
-      plane_rotation_ = kRotateNone;
-      gl_rotation_ = kRotateNone;
       break;
   }
 
-  display_plane_manager_->SetDisplayRotation(plane_rotation_);
+  display_plane_manager_->SetDisplayTransform(plane_transform_);
 }
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
@@ -198,7 +189,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         last_plane.ValidateReValidation();
 
-        if (last_plane.IsRevalidationNeeded() ==
+        if (last_plane.RevalidationType() &
             DisplayPlaneState::ReValidationType::kScanout) {
           const std::vector<size_t>& source_layers =
               last_plane.GetSourceLayers();
@@ -209,7 +200,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             plane_validation = true;
           } else if (source_layers.size() == 1) {
             check_to_squash = true;
-            last_plane.RevalidationDone();
+            last_plane.RevalidationDone(
+                DisplayPlaneState::ReValidationType::kScanout);
           }
         }
       }
@@ -222,6 +214,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (!clear_surface) {
         const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
+
+        HwcRect<int> display_frame = last_plane.GetDisplayFrame();
+        HwcRect<float> source_crop = last_plane.GetSourceCrop();
 
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
@@ -256,9 +251,19 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         if (update_rect) {
           content_changed = true;
           last_plane.ValidateReValidation();
-          if (last_plane.IsRevalidationNeeded() !=
+          if (last_plane.RevalidationType() !=
               DisplayPlaneState::ReValidationType::kNone) {
             plane_validation = true;
+          }
+
+          bool rect_updated = true;
+          if ((last_plane.GetDisplayFrame() == display_frame) &&
+              (last_plane.GetSourceCrop() == source_crop)) {
+            rect_updated = false;
+          }
+
+          if (rect_updated) {
+            last_plane.PlaneRectUpdated();
           }
         }
       }
@@ -453,12 +458,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_frame, display_plane_manager_->GetHeight(), gl_rotation_,
+          display_frame, display_plane_manager_->GetHeight(), plane_transform_,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_plane_manager_->GetHeight(), gl_rotation_,
+          display_plane_manager_->GetHeight(), plane_transform_,
           handle_constraints);
     }
 

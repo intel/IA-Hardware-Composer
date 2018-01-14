@@ -27,7 +27,8 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 bool uses_display_up_scaling) {
+                                 bool uses_display_up_scaling,
+                                 bool use_plane_transform) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
@@ -47,7 +48,12 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     src.layer_index_ = texture_index;
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
-    switch (layer.GetTransform()) {
+    uint32_t transform = layer.GetTransform();
+    if (use_plane_transform) {
+      transform = layer.GetPlaneTransform();
+    }
+
+    switch (transform) {
       case HWCTransform::kTransform180: {
         swap_xy = false;
         flip_xy[0] = true;
@@ -62,10 +68,10 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       }
       case HWCTransform::kTransform90: {
         swap_xy = true;
-        if (layer.GetTransform() & HWCTransform::kReflectX) {
+        if (transform & HWCTransform::kReflectX) {
           flip_xy[0] = true;
           flip_xy[1] = true;
-        } else if (layer.GetTransform() & HWCTransform::kReflectY) {
+        } else if (transform & HWCTransform::kReflectY) {
           flip_xy[0] = false;
           flip_xy[1] = false;
         } else {
