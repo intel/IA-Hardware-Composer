@@ -285,6 +285,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (!clear_surface) {
         if (update_rect) {
           last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
+	  if (!content_changed && total_surfaces == 3) {
+	    last_plane.SwapSurfaceIfNeeded();
+	  }
         }
 
         NativeSurface* surface = last_plane.GetOffScreenTarget();
@@ -292,7 +295,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           clear_surface = surface->ClearSurface();
         }
 
-        content_changed = content_changed || update_rect || clear_surface;
+	if (!content_changed) {
+	  content_changed = update_rect || clear_surface;
+        }
       }
 
       if (content_changed) {
