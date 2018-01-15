@@ -410,8 +410,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     state_ &= ~kDimensionsChanged;
   }
 
-  if (!layer->HasVisibleRegionChanged() &&
-      !layer->HasLayerContentChanged() && !content_changed) {
+  if (!layer->HasVisibleRegionChanged() && !content_changed &&
+      surface_damage_.empty()) {
     state_ &= ~kLayerContentChanged;
   }
 }
