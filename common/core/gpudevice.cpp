@@ -453,8 +453,12 @@ NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
   return NULL;
 }
 
-NativeDisplay *GpuDevice::GetVirtualDisplay() {
-  return display_manager_->GetVirtualDisplay();
+NativeDisplay *GpuDevice::CreateVirtualDisplay(uint32_t display_index) {
+  return display_manager_->CreateVirtualDisplay(display_index);
+}
+
+void GpuDevice::DestroyVirtualDisplay(uint32_t display_index) {
+  return display_manager_->DestroyVirtualDisplay(display_index);
 }
 
 //It's for nested display

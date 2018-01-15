@@ -41,7 +41,8 @@ class GpuDevice {
 
   NativeDisplay* GetDisplay(uint32_t display);
 
-  NativeDisplay* GetVirtualDisplay();
+  NativeDisplay* CreateVirtualDisplay(uint32_t display_index);
+  void DestroyVirtualDisplay(uint32_t display_index);
 
   // This display can be a client preparing
   // content which will eventually shown by

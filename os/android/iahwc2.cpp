@@ -191,9 +191,15 @@ static inline void supported(char const *func) {
 HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
-  *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  virtual_display_.InitVirtualDisplay(device_.GetVirtualDisplay(), width,
-                                      height, disable_explicit_sync_);
+
+  //we have two extend displays, the seconde one's take over virtual display ID slot.
+  //to simplify ID management,start the virtual display ID from 4(HWC_DISPLAY_VIRTUAL+2).
+  *display = (hwc2_display_t)(virtual_display_index_ + HWC_DISPLAY_VIRTUAL + 2);
+  std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
+  temp->InitVirtualDisplay(device_.CreateVirtualDisplay(virtual_display_index_), width,
+                                      height, virtual_display_index_, disable_explicit_sync_);
+  virtual_displays_.emplace_back(std::move(temp));
+  virtual_display_index_++;
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -203,11 +209,14 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
 }
 
 HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
-  if (display != (hwc2_display_t)HWC_DISPLAY_VIRTUAL) {
+  if (display <= (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + 2)) {
     ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
     return HWC2::Error::BadDisplay;
   }
-
+  //we have two extend displays, the seconde one's take over virtual display ID slot.
+  //to simplify ID management,start the virtual display ID from 4(HWC_DISPLAY_VIRTUAL+2).
+  device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL -2);
+  virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL -2).reset(nullptr);
   return HWC2::Error::None;
 }
 
@@ -217,7 +226,7 @@ void IAHWC2::Dump(uint32_t *size, char *buffer) {
 }
 
 uint32_t IAHWC2::GetMaxVirtualDisplayCount() {
-  return 2;
+  return 10;
 }
 
 HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
@@ -273,11 +282,11 @@ IAHWC2::HwcDisplay::HwcDisplay() {
 // This function will be called only for Virtual Display Init
 HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
     hwcomposer::NativeDisplay *display, uint32_t width, uint32_t height,
-    bool disable_explicit_sync) {
+    uint32_t display_index, bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Virtual;
-  handle_ = HWC_DISPLAY_VIRTUAL;
+  handle_ = display_index + HWC_DISPLAY_VIRTUAL + 2;
   display_->InitVirtualDisplay(width, height);
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);

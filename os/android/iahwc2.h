@@ -125,7 +125,7 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
                      bool disable_explicit_sync);
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
-                                   uint32_t width, uint32_t height,
+                                   uint32_t width, uint32_t height, uint32_t display_index,
                                    bool disable_explicit_sync);
     HWC2::Error InitNestedDisplay(hwcomposer::NativeDisplay *display,
                                   bool disable_explicit_sync);
@@ -222,9 +222,12 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
     }
 
-    if (display_handle == HWC_DISPLAY_VIRTUAL) {
+    //we have two extend displays, the seconde one's take over virtual display ID slot.
+    //to simplify ID management,start the virtual display ID from 4(HWC_DISPLAY_VIRTUAL+2).
+    if (display_handle >= (HWC_DISPLAY_VIRTUAL + 2)) {
+      HwcDisplay *display = hwc->virtual_displays_.at(display_handle-HWC_DISPLAY_VIRTUAL-2).get();
       return static_cast<int32_t>(
-          (hwc->virtual_display_.*func)(std::forward<Args>(args)...));
+          (display->*func)(std::forward<Args>(args)...));
     }
 #ifdef NESTED_DISPLAY_SUPPORT
     if (display_handle == HWC_DISPLAY_NESTED) {
@@ -252,8 +255,11 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
 
-    if (display_handle == HWC_DISPLAY_VIRTUAL) {
-      Hwc2Layer &layer = hwc->virtual_display_.get_layer(layer_handle);
+    //we have two extend displays, the seconde one's ID take over virtual display ID slot
+    //to simplify ID management,start the virtual display ID from 4(HWC_DISPLAY_VIRTUAL+2).
+    if (display_handle >= (HWC_DISPLAY_VIRTUAL + 2)) {
+      HwcDisplay *display = hwc->virtual_displays_.at(display_handle-HWC_DISPLAY_VIRTUAL-2).get();
+      Hwc2Layer &layer = display->get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
 #ifdef NESTED_DISPLAY_SUPPORT
@@ -292,7 +298,8 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::GpuDevice device_;
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
-  HwcDisplay virtual_display_;
+  std::vector<std::unique_ptr<HwcDisplay>> virtual_displays_;
+  uint32_t virtual_display_index_ = 0;
   HwcDisplay nested_display_;
 
   bool disable_explicit_sync_ = false;

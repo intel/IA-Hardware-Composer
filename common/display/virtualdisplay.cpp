@@ -33,8 +33,8 @@ namespace hwcomposer {
 
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
-                               uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
-    : output_handle_(0), acquire_fence_(-1), width_(0), height_(0) {
+                               uint32_t pipe_id, uint32_t /*crtc_id*/)
+    : output_handle_(0), acquire_fence_(-1), width_(0), height_(0), display_index_(pipe_id) {
   resource_manager_.reset(new ResourceManager(buffer_handler));
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
@@ -244,7 +244,7 @@ bool VirtualDisplay::GetDisplayConfigs(uint32_t *num_configs,
 
 bool VirtualDisplay::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
-  stream << "Virtual";
+  stream << "Virtual:" << display_index_;
   std::string string = stream.str();
   size_t length = string.length();
   if (!name) {

@@ -97,7 +97,6 @@ bool DrmDisplayManager::Initialize() {
     displays_.emplace_back(std::move(display));
   }
 
-  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
   nested_display_.reset(new NestedDisplay());
 
   hwc_lock_.reset(new HWCLock());
@@ -371,12 +370,24 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
   spin_lock_.unlock();
 }
 
-NativeDisplay *DrmDisplayManager::GetVirtualDisplay() {
+NativeDisplay *DrmDisplayManager::CreateVirtualDisplay(uint32_t display_index) {
   spin_lock_.lock();
-  NativeDisplay *display = virtual_display_.get();
+  NativeDisplay * latest_display;
+  std::unique_ptr<VirtualDisplay> display(
+      new VirtualDisplay(fd_, buffer_handler_.get(), display_index, 0));
+  virtual_displays_.emplace_back(std::move(display));
+  size_t size = virtual_displays_.size();
+  latest_display = virtual_displays_.at(size-1).get();
+  spin_lock_.unlock();
+  return latest_display;
+}
+
+void DrmDisplayManager::DestroyVirtualDisplay(uint32_t display_index) {
+  spin_lock_.lock();
+  virtual_displays_.at(display_index).reset(nullptr);
   spin_lock_.unlock();
   return display;
-}
+ }
 
 NativeDisplay *DrmDisplayManager::GetNestedDisplay() {
   spin_lock_.lock();

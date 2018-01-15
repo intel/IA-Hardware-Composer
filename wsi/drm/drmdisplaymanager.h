@@ -48,7 +48,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   bool Initialize() override;
 
-  NativeDisplay *GetVirtualDisplay() override;
+  NativeDisplay *CreateVirtualDisplay(uint32_t display_index) override;
+  void DestroyVirtualDisplay(uint32_t display_index) override;
   NativeDisplay *GetNestedDisplay() override;
 
   std::vector<NativeDisplay *> GetAllDisplays() override;
@@ -69,7 +70,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
  private:
   void HotPlugEventHandler();
   bool UpdateDisplayState();
-  std::unique_ptr<NativeDisplay> virtual_display_;
+  std::vector<std::unique_ptr<NativeDisplay>> virtual_displays_;
   std::unique_ptr<NativeDisplay> nested_display_;
   std::unique_ptr<HWCLock> hwc_lock_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
