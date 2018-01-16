@@ -215,6 +215,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool content_changed = false;
       bool update_rect = false;
+      bool update_source_rect = false;
 
       if (!clear_surface) {
         const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
@@ -233,7 +234,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           if (layer.HasSourceRectChanged()) {
             last_plane.UpdateSourceCrop(layer.GetSourceCrop());
-            update_rect = true;
+            update_source_rect = true;
           }
 
           if (layer.HasLayerContentChanged()) {
@@ -252,7 +253,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           }
         }
 
-        if (update_rect) {
+        if (update_rect || update_source_rect) {
           content_changed = true;
           // Let's check if we need to check this plane-layer combination.
           last_plane.ValidateReValidation();
@@ -261,10 +262,15 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             plane_validation = true;
           }
 
-          bool rect_updated = true;
-          if ((last_plane.GetDisplayFrame() == display_frame) &&
-              (last_plane.GetSourceCrop() == source_crop)) {
+          bool rect_updated = update_rect;
+          bool source_rect_updated = update_source_rect;
+          if (update_rect && (last_plane.GetDisplayFrame() == display_frame)) {
             rect_updated = false;
+          }
+
+          if (update_source_rect &&
+              (last_plane.GetSourceCrop() == source_crop)) {
+            source_rect_updated = false;
           }
 
           if (rect_updated) {
@@ -273,8 +279,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           // If reset_composition_regions is true we will mark the whole
           // plane as damaged below. We can ignore setting the flag here.
-          if (!reset_composition_regions) {
+          if (!reset_composition_regions &&
+              (update_rect ||
+               (update_source_rect && last_plane.IsUsingPlaneScalar()))) {
             last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+            update_rect = true;
           }
         }
       }
