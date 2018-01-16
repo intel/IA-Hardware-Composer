@@ -167,6 +167,8 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   if (!disable_explicit_sync_)
     surface->SetNativeFence(context_.GetSyncFD());
+
+  surface->ResetDamage();
 #ifdef COMPOSITOR_TRACING
   ICOMPOSITORTRACE("Draw Ends. \n");
 #endif

@@ -210,7 +210,12 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
   ValidateForOverlayUsage();
-  surface_damage_ = layer->GetLayerDamage();
+  if (transform_ == kIdentity) {
+    surface_damage_ = layer->GetLayerDamage();
+  } else {
+    // FIXME: Rotate co-ordinates and remove this.
+    surface_damage_ = display_frame_;
+  }
 
   if (!handle_constraints) {
     if (previous_layer) {

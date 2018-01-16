@@ -323,7 +323,7 @@ bool DisplayPlaneManager::ValidateLayers(
   bool re_validation = false;
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
-      plane.RefreshSurfacesIfNeeded();
+      plane.RefreshSurfaces(NativeSurface::kFullClear);
       plane.ValidateReValidation();
       if (!render_layers) {
         render_layers = !plane.SurfaceRecycled();
@@ -579,8 +579,19 @@ void DisplayPlaneManager::ValidateForDisplayTransform(
 void DisplayPlaneManager::ValidateForDisplayScaling(
     DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
     OverlayLayer *current_layer, bool ignore_format) {
-  if (last_plane.IsUsingPlaneScalar()) {
-    last_plane.UsePlaneScalar(false);
+  if (!ignore_format) {
+    last_plane.ValidateReValidation();
+    if (!(last_plane.RevalidationType() &
+          DisplayPlaneState::ReValidationType::kScalar)) {
+      return;
+    }
+
+    last_plane.RevalidationDone(DisplayPlaneState::ReValidationType::kScalar);
+  }
+
+  bool old_state = last_plane.IsUsingPlaneScalar();
+  if (old_state) {
+    last_plane.UsePlaneScalar(false, false);
   }
 
   // Case where we are not rotating the layer and format is supported by the
@@ -603,7 +614,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
 
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
-  last_plane.UsePlaneScalar(true);
+  last_plane.UsePlaneScalar(true, false);
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
@@ -612,7 +623,7 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
       FallbacktoGPU(last_plane.GetDisplayPlane(),
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
-    last_plane.UsePlaneScalar(false);
+    last_plane.UsePlaneScalar(false, false);
   }
 }
 
@@ -877,7 +888,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
       // Disable GPU Rendering.
       last_plane.DisableGPURendering();
       if (uses_scalar)
-        last_plane.UsePlaneScalar(false);
+        last_plane.UsePlaneScalar(false, false);
 
       layer->SetLayerComposition(OverlayLayer::kDisplay);
 
@@ -890,7 +901,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
         layer->SetLayerComposition(OverlayLayer::kGpu);
         last_plane.SetOverlayLayer(current_layer);
         if (uses_scalar)
-          last_plane.UsePlaneScalar(true);
+          last_plane.UsePlaneScalar(true, false);
       } else {
 #ifdef SURFACE_TRACING
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");

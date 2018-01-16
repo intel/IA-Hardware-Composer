@@ -116,7 +116,10 @@ class DisplayPlaneState {
   // IsUsingPlaneScalar returns. clear_surface determines
   // if all offscreen surfaces of this plane are partially or
   // fully cleared.
-  void RefreshSurfaces(NativeSurface::ClearType clear_surface);
+  void RefreshSurfaces(NativeSurface::ClearType clear_surface,
+                       bool force = false);
+
+  void UpdateDamage(const HwcRect<int> &surface_damage, bool forced);
 
   DisplayPlane *GetDisplayPlane() const;
 
@@ -137,8 +140,14 @@ class DisplayPlaneState {
 
   void SetVideoPlane();
 
-  void UsePlaneScalar(bool enable);
+  // Updates plane state to using plane scalar if enable is
+  // true. Forces clearing all offscreen surfaces if force_refresh
+  // is true. This setting makes sure we set the right source
+  // crop to the surface layer.
+  void UsePlaneScalar(bool enable, bool force_refresh = true);
 
+  // Returns true if we intend to use display scalar with this
+  // plane.
   bool IsUsingPlaneScalar() const;
 
   // This state means that the content scanned out
@@ -183,11 +192,6 @@ class DisplayPlaneState {
   // for this plane.
   // This should be used only as a hint.
   bool CanUseDisplayUpScaling() const;
-
-  // Calls RefreshSurfaces if internal plane state
-  // has changed because layers have been added or
-  // removed.
-  void RefreshSurfacesIfNeeded();
 
   // Set if Plane rotation needs to be handled
   // using GPU or Display.
