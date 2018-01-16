@@ -487,7 +487,7 @@ bool DisplayPlaneState::Scanout() const {
   return private_data_->state_ == DisplayPlanePrivateState::State::kScanout;
 }
 
-bool DisplayPlaneState::NeedsOffScreenComposition() {
+bool DisplayPlaneState::NeedsOffScreenComposition() const {
   if (private_data_->state_ == DisplayPlanePrivateState::State::kRender)
     return true;
 

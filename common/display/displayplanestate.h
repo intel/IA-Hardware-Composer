@@ -166,7 +166,7 @@ class DisplayPlaneState {
 
   // Returns true if offscreen composition
   // is needed for this plane.
-  bool NeedsOffScreenComposition();
+  bool NeedsOffScreenComposition() const;
 
   // Returns type of validation needed by the plane
   // with current source layer. This will be the case
