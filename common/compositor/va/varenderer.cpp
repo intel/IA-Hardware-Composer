@@ -27,6 +27,7 @@
 
 #ifdef ANDROID
 #include <va/va_android.h>
+#include <cutils/properties.h>
 #endif
 
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
@@ -42,11 +43,27 @@ VARenderer::~VARenderer() {
   }
 }
 
+static uint32_t GetScalingModeFromEnv() {
+  char value[PROPERTY_VALUE_MAX];
+  property_get("board.hwc.scaling.mode", value, "0");
+  switch (atoi(value)) {
+    case 0:
+      return VA_FILTER_SCALING_DEFAULT;
+    case 1:
+      return VA_FILTER_SCALING_FAST;
+    case 2:
+      return VA_FILTER_SCALING_HQ;
+    default:
+      return VA_FILTER_SCALING_DEFAULT;
+  }
+  return VA_FILTER_SCALING_DEFAULT;
+}
 bool VARenderer::Init(int gpu_fd) {
 #ifdef ANDROID
   unsigned int native_display = ANDROID_DISPLAY_HANDLE;
   va_display_ = vaGetDisplay(&native_display);
   UNUSED(gpu_fd);
+  filter_flags_ = GetScalingModeFromEnv();
 #else
   va_display_ = vaGetDisplayDRM(gpu_fd);
 #endif
@@ -453,7 +470,7 @@ bool VARenderer::UpdateCaps() {
   param_.output_color_standard = VAProcColorStandardBT601;
   param_.num_filters = 0;
   param_.filters = nullptr;
-  param_.filter_flags = VA_FRAME_PICTURE;
+  param_.filter_flags = filter_flags_;
 
   if (filters_.size()) {
     param_.filters = &filters_[0];
