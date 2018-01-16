@@ -141,6 +141,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool ignore_commit = true;
   bool check_to_squash = false;
   bool plane_validation = false;
+  // If Scanout layers DisplayFrame rect has changed, we need
+  // to re-calculate our Composition regions for planes using
+  // GPU Composition.
+  bool reset_composition_regions = false;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     bool clear_surface = false;
@@ -211,6 +215,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool content_changed = false;
       bool update_rect = false;
+
       if (!clear_surface) {
         const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
         size_t layers_size = source_layers.size();
@@ -231,7 +236,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             update_rect = true;
           }
 
-          if (!clear_surface && layer.HasLayerContentChanged()) {
+          if (layer.HasLayerContentChanged()) {
             const HwcRect<int>& damage = layer.GetSurfaceDamage();
             if (content_changed) {
               surface_damage.left = std::min(surface_damage.left, damage.left);
@@ -247,9 +252,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           }
         }
 
-        // Let's check if we need to check this plane-layer combination.
         if (update_rect) {
           content_changed = true;
+          // Let's check if we need to check this plane-layer combination.
           last_plane.ValidateReValidation();
           if (last_plane.RevalidationType() !=
               DisplayPlaneState::ReValidationType::kNone) {
@@ -265,6 +270,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           if (rect_updated) {
             last_plane.PlaneRectUpdated();
           }
+
+          // If reset_composition_regions is true we will mark the whole
+          // plane as damaged below. We can ignore setting the flag here.
+          if (!reset_composition_regions) {
+            last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+          }
         }
       }
 
@@ -272,7 +283,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
         content_changed = true;
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
       }
 
       // Let's make sure we swap the surface in case content has changed.
@@ -283,70 +294,41 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       // Let's get the state from surface if it needs to be cleared.
       if (!clear_surface) {
-        if (update_rect) {
-          last_plane.RefreshSurfaces(NativeSurface::kPartialClear);
-	  if (!content_changed && total_surfaces == 3) {
-	    last_plane.SwapSurfaceIfNeeded();
-	  }
-        }
+        // If a rect intersects one of the dedicated layers, we need to remove
+        // the layers from the composition region which appear *below* the
+        // dedicated
+        // layer. This effectively punches a hole through the composition layer
+        // such that the dedicated layer can be placed below the composition and
+        // not
+        // be occluded. Rest composition regions in case
+        // reset_composition_regions is true.
+        if (reset_composition_regions) {
+          surface_damage = last_plane.GetDisplayFrame();
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+          if (!content_changed && total_surfaces == 3) {
+            last_plane.SwapSurfaceIfNeeded();
+          }
 
-        NativeSurface* surface = last_plane.GetOffScreenTarget();
-        if (surface) {
-          clear_surface = surface->ClearSurface();
-        }
-
-	if (!content_changed) {
-	  content_changed = update_rect || clear_surface;
+          content_changed = true;
         }
       }
 
       if (content_changed) {
-        if (total_surfaces == 3) {
-          if (!clear_surface) {
-            HwcRect<int> last_damage;
-            const std::vector<NativeSurface*>& surfaces =
-                last_plane.GetSurfaces();
-            // Calculate Surface damage for the current surface. This should
-            // be always equal to current surface damage + damage of last
-            // two surfaces.(We use tripple buffering for our internal surfaces)
-            last_damage = surfaces.at(1)->GetLastSurfaceDamage();
-            const HwcRect<int>& previous_damage =
-                surfaces.at(2)->GetLastSurfaceDamage();
-            last_damage.left = std::min(previous_damage.left, last_damage.left);
-            last_damage.top = std::min(previous_damage.top, last_damage.top);
-            last_damage.right =
-                std::max(previous_damage.right, last_damage.right);
-            last_damage.bottom =
-                std::max(previous_damage.bottom, last_damage.bottom);
-
-            NativeSurface* offscreen_surface = surfaces.at(0);
-            // If update_rect is true than we should have already reset
-            // Composition region and can be avoided here.
-            if (update_rect) {
-              offscreen_surface->UpdateSurfaceDamage(surface_damage,
-                                                     last_damage);
-            } else {
-              bool surface_damage_changed = true;
-              HwcRect<int> damage = offscreen_surface->GetSurfaceDamage();
-              offscreen_surface->UpdateSurfaceDamage(surface_damage,
-                                                     last_damage);
-              if (damage == offscreen_surface->GetSurfaceDamage()) {
-                surface_damage_changed = false;
-              }
-
-              if (surface_damage_changed) {
-                last_plane.ResetCompositionRegion();
-              }
-            }
-          }
-        } else {
+        if (total_surfaces != 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        }
+
+        // Make sure all rects are correct.
+        if (!clear_surface && !surface_damage.empty()) {
+          last_plane.UpdateDamage(surface_damage,
+                                  reset_composition_regions || update_rect);
         }
 
         // We always call this here to handle case where we recycled
         // offscreen surface for last commit.
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
+        reset_composition_regions = false;
       } else {
         last_plane.ReUseOffScreenTarget();
       }
@@ -367,8 +349,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       last_plane.SetOverlayLayer(layer);
-      if (layer->HasLayerContentChanged() || layer->HasDimensionsChanged()) {
+      if (layer->HasLayerContentChanged()) {
         ignore_commit = false;
+      }
+
+      if (layer->HasDimensionsChanged()) {
+        ignore_commit = false;
+        reset_composition_regions = true;
       }
     }
   }

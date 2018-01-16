@@ -102,18 +102,24 @@ class NativeSurface {
   // Resets Source Crop to source_crop.
   void ResetSourceCrop(const HwcRect<float>& source_crop);
 
+  // Set's Damage rect of this surface.
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
-                           const HwcRect<int>& last_surface_damage);
+                           bool forced);
 
-  const HwcRect<int>& GetLastSurfaceDamage() const {
-    return last_surface_damage_;
-  }
+  // Resets damage of this surface to empty.
+  void ResetDamage();
+
+  // Return's damage area of this surface.
   const HwcRect<int>& GetSurfaceDamage() const {
     return surface_damage_;
   }
 
   // Applies rotation transform to this surface.
   void SetTransform(uint32_t transform);
+
+  // Returns true in case damage of this surface has changed
+  // compared to previous frame.
+  bool IsSurfaceDamageChanged() const;
 
  protected:
   OverlayLayer layer_;
@@ -125,10 +131,10 @@ class NativeSurface {
   int width_;
   int height_;
   bool in_use_;
+  bool damage_changed_;
   ClearType clear_surface_;
   uint32_t surface_age_;
   HwcRect<int> surface_damage_;
-  HwcRect<int> last_surface_damage_;
 };
 
 }  // namespace hwcomposer

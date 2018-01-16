@@ -235,7 +235,6 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
       std::max(target_display_frame.right, display_frame.right);
   target_display_frame.bottom =
       std::max(target_display_frame.bottom, display_frame.bottom);
-  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
@@ -246,7 +245,6 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
       std::max(target_source_crop.right, source_crop.right);
   target_source_crop.bottom =
       std::max(target_source_crop.bottom, source_crop.bottom);
-  refresh_needed_ = true;
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -345,10 +343,11 @@ void DisplayPlaneState::ReleaseSurfaces() {
   std::vector<NativeSurface *>().swap(private_data_->surfaces_);
 }
 
-void DisplayPlaneState::RefreshSurfaces(
-    NativeSurface::ClearType clear_surface) {
-  if (!refresh_needed_)
+void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
+                                        bool force) {
+  if (!refresh_needed_ && !private_data_->rect_updated_ && !force) {
     return;
+  }
 
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
@@ -373,16 +372,25 @@ void DisplayPlaneState::RefreshSurfaces(
 
     if (surface->ClearSurface()) {
       if (private_data_->use_plane_scalar_) {
-        surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
+        surface->UpdateSurfaceDamage(target_src_rect, true);
       } else {
-        surface->UpdateSurfaceDamage(target_display_frame,
-                                     target_display_frame);
+        surface->UpdateSurfaceDamage(target_display_frame, true);
       }
     }
   }
 
   refresh_needed_ = false;
   recycled_surface_ = false;
+  if (private_data_->rect_updated_) {
+    ValidateReValidation();
+  }
+}
+
+void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage,
+                                     bool forced) {
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    surface->UpdateSurfaceDamage(surface_damage, forced);
+  }
 }
 
 DisplayPlane *DisplayPlaneState::GetDisplayPlane() const {
@@ -418,10 +426,31 @@ void DisplayPlaneState::SetVideoPlane() {
   private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
 }
 
-void DisplayPlaneState::UsePlaneScalar(bool enable) {
+void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
   if (private_data_->use_plane_scalar_ != enable) {
     private_data_->use_plane_scalar_ = enable;
-    RefreshSurfaces(NativeSurface::kFullClear);
+    if (force_refresh) {
+      RefreshSurfaces(NativeSurface::kFullClear, true);
+    } else {
+      const HwcRect<int> &target_display_frame = private_data_->display_frame_;
+      const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+      for (NativeSurface *surface : private_data_->surfaces_) {
+        surface->ResetDisplayFrame(target_display_frame);
+        if (private_data_->use_plane_scalar_) {
+          surface->ResetSourceCrop(target_src_rect);
+        } else {
+          surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
+        }
+
+        if (surface->ClearSurface()) {
+          if (private_data_->use_plane_scalar_) {
+            surface->UpdateSurfaceDamage(target_src_rect, true);
+          } else {
+            surface->UpdateSurfaceDamage(target_display_frame, true);
+          }
+        }
+      }
+    }
   }
 }
 
@@ -519,6 +548,8 @@ void DisplayPlaneState::ValidateReValidation() {
       re_validate_layer_ |= ReValidationType::kScalar;
     }
   }
+
+  private_data_->rect_updated_ = false;
 }
 
 bool DisplayPlaneState::CanUseDisplayUpScaling() const {
@@ -588,18 +619,11 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
   return private_data_->can_use_display_scalar_;
 }
 
-void DisplayPlaneState::RefreshSurfacesIfNeeded() {
-  if (refresh_needed_) {
-    RefreshSurfaces(NativeSurface::kFullClear);
-  }
-}
-
 void DisplayPlaneState::SetRotationType(RotationType type, bool refresh) {
   if (private_data_->rotation_type_ != type) {
     private_data_->rotation_type_ = type;
     if (refresh) {
-      refresh_needed_ = true;
-      RefreshSurfaces(NativeSurface::kFullClear);
+      RefreshSurfaces(NativeSurface::kFullClear, true);
     }
 
     uint32_t rotation = private_data_->plane_transform_;
