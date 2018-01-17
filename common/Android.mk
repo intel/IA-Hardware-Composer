@@ -42,9 +42,14 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../wsi/drm \
         $(TARGET_OUT_HEADERS)/libva
 
+ifneq ($(strip $(DISABLE_MEDIA_COMPOSITOR)), true)
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
+
+LOCAL_CPPFLAGS += \
+        -DUSE_LIBVA
+endif
 
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += \
@@ -68,8 +73,6 @@ LOCAL_SRC_FILES := \
         compositor/factory.cpp \
         compositor/nativesurface.cpp \
         compositor/renderstate.cpp \
-	compositor/va/vasurface.cpp \
-	compositor/va/varenderer.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
 	core/logicaldisplay.cpp \
@@ -141,6 +144,12 @@ LOCAL_SRC_FILES += \
         compositor/gl/egloffscreencontext.cpp \
         compositor/gl/nativeglresource.cpp \
         compositor/gl/shim.cpp
+endif
+
+ifneq ($(strip $(DISABLE_MEDIA_COMPOSITOR)), true)
+LOCAL_SRC_FILES += \
+	compositor/va/vasurface.cpp \
+	compositor/va/varenderer.cpp
 endif
 
 LOCAL_C_INCLUDES += \

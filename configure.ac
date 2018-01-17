@@ -70,6 +70,17 @@ if test "x$disable_hotplug_support" = "xyes"; then
     AC_MSG_RESULT([Hot Plug support is enabled.])
 fi
 
+# For libva
+AC_ARG_ENABLE(libva,
+  AS_HELP_STRING([--enable-libva],
+    [Enable libva support (EXPERIMENTAL)]),
+[if test x$enableval = xyes; then
+  enable_libva=yes
+  AC_DEFINE(ENABLE_LIBVA, 1, [Enable LibVA backend])
+fi])
+
+AM_CONDITIONAL([ENABLE_LIBVA], [test "x$enable_libva" = "xyes"])
+
 # For json-c
 AC_CONFIG_HEADER(tests/third_party/json-c/json_config.h)
 AC_ARG_ENABLE(rdrand,
@@ -185,8 +196,10 @@ PKG_CHECK_MODULES(DRM, [libdrm])
 PKG_CHECK_MODULES(GBM, [gbm])
 PKG_CHECK_MODULES(EGL, [egl])
 PKG_CHECK_MODULES(GLES2, [glesv2])
+if test "x$enable_libva" = "xyes"; then
 PKG_CHECK_MODULES(LIBVA, [libva])
 PKG_CHECK_MODULES(LIBVA_DRM, [libva-drm])
+fi
 
 AC_ARG_ENABLE(git-hash,
 		AS_HELP_STRING([--disable-git-hash],

@@ -111,12 +111,14 @@ LOCAL_CPPFLAGS += \
 	-DUSE_GL
 endif
 
+ifneq ($(strip $(DISABLE_MEDIA_COMPOSITOR)), true)
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/common/compositor/va
 
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
+endif
 
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/

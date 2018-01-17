@@ -39,7 +39,9 @@ vk_SOURCES =\
     compositor/vk/vkshim.cpp \
         $(NULL)
 
+if ENABLE_LIBVA
 va_SOURCES =\
     compositor/va/vasurface.cpp \
     compositor/va/varenderer.cpp \
 	$(NULL)
+endif

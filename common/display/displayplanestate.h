@@ -276,7 +276,9 @@ class DisplayPlaneState {
   }
 
   void SetVideoPlane() {
+#ifdef USE_LIBVA
     type_ = PlaneType::kVideo;
+#endif
   }
 
  private:

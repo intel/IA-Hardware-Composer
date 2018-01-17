@@ -40,9 +40,13 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	libjson-c
 
+ifneq ($(strip $(DISABLE_MEDIA_COMPOSITOR)), true)
+
 LOCAL_SHARED_LIBRARIES += \
   libva \
   libva-android
+
+endif
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
