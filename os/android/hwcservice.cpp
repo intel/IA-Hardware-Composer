@@ -73,9 +73,6 @@ bool HwcService::Start(IAHWC2 &hwc) {
     return true;
 
   mpHwc = &hwc;
-#ifdef USE_PROCESS_STATE
-  ProcessState::initWithDriver("/dev/vndbinder");
-#endif
   sp<IServiceManager> sm(defaultServiceManager());
   if (sm->addService(String16(IA_HWC_SERVICE_NAME), this, false)) {
     ALOGE("Failed to start %s service", IA_HWC_SERVICE_NAME);
