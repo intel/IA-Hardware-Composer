@@ -405,6 +405,10 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void PhysicalDisplay::SetVideoScalingMode(uint32_t mode) {
+  display_queue_->SetVideoScalingMode(mode);
+}
+
 void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   display_queue_->SetVideoColor(color, value);
 }
@@ -416,6 +420,15 @@ void PhysicalDisplay::GetVideoColor(HWCColorControl color,
 
 void PhysicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   display_queue_->RestoreVideoDefaultColor(color);
+}
+
+void PhysicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                          HWCDeinterlaceControl mode) {
+  display_queue_->SetVideoDeinterlace(flag, mode);
+}
+
+void PhysicalDisplay::RestoreVideoDefaultDeinterlace() {
+  display_queue_->RestoreVideoDefaultDeinterlace();
 }
 
 bool PhysicalDisplay::PopulatePlanes(

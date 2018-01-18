@@ -102,6 +102,14 @@ typedef enum _EHwcsColorControl {
   HWCS_COLOR_HUE,
 } EHwcsColorControl;
 
+typedef enum _EHwcsDeinterlaceControl {
+  HWCS_DEINTERLACE_NONE,
+  HWCS_DEINTERLACE_BOB,
+  HWCS_DEINTERLACE_WEAVE,
+  HWCS_DEINTERLACE_MOTIONADAPTIVE,
+  HWCS_DEINTERLACE_MOTIONCOMPENSATED,
+} EHwcsDeinterlaceControl;
+
 status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
                                                      uint32_t display,
                                                      EHwcsColorControl color);
@@ -110,6 +118,9 @@ status_t HwcService_Display_GetColorParam(HWCSHANDLE hwcs, uint32_t display,
                                           float *startvalue, float *endvalue);
 status_t HwcService_Display_SetColorParam(HWCSHANDLE hwcs, uint32_t display,
                                           EHwcsColorControl color, float value);
+status_t HwcService_Display_SetDeinterlaceParam(HWCSHANDLE hwcs,
+                                                uint32_t display,
+                                                uint32_t mode);
 
 // DisplayModeControl
 

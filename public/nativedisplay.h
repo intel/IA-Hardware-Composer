@@ -206,10 +206,29 @@ class NativeDisplay {
    virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
    }
 
-  /**
-  * API for setting display Broadcast RGB range property
-  * @param range_property supported property string, e.g. "Full", "Automatic"
-  */
+   /**
+    * API for setting video scaling mode in HWC
+    */
+   virtual void SetVideoScalingMode(uint32_t /*mode*/) {
+   }
+
+   /**
+    * API for setting video deinterlace in HWC
+    */
+   virtual void SetVideoDeinterlace(HWCDeinterlaceFlag /*flags*/,
+                                    HWCDeinterlaceControl /*mode*/) {
+   }
+
+   /**
+        * API for restoring video default deinterlace in HWC
+        */
+   virtual void RestoreVideoDefaultDeinterlace() {
+   }
+
+   /**
+   * API for setting display Broadcast RGB range property
+   * @param range_property supported property string, e.g. "Full", "Automatic"
+   */
   virtual bool SetBroadcastRGB(const char * /*range_property*/) {
     return false;
   }
