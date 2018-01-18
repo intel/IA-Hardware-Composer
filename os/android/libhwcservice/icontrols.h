@@ -44,6 +44,8 @@ class IControls : public android::IInterface {
   virtual status_t DisplaySetColorParam(uint32_t display,
                                         EHwcsColorControl color,
                                         float value) = 0;
+  virtual status_t DisplaySetDeinterlaceParam(uint32_t display,
+                                              EHwcsDeinterlaceControl mode) = 0;
 
   virtual std::vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
       uint32_t display) = 0;

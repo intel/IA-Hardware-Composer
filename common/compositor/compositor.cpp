@@ -243,6 +243,20 @@ void Compositor::RestoreVideoDefaultColor(HWCColorControl color) {
   lock_.unlock();
 }
 
+void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                     HWCDeinterlaceControl mode) {
+  lock_.lock();
+  deinterlace_.flag_ = flag;
+  deinterlace_.mode_ = mode;
+  lock_.unlock();
+}
+
+void Compositor::RestoreVideoDefaultDeinterlace() {
+  lock_.lock();
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
+  lock_.unlock();
+}
+
 // Below code is taken from drm_hwcomposer adopted to our needs.
 static std::vector<size_t> SetBitsToVector(
     uint64_t in, const std::vector<size_t> &index_map) {

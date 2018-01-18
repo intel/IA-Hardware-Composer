@@ -428,6 +428,21 @@ void MosaicDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   }
 }
 
+void MosaicDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                        HWCDeinterlaceControl mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoDeinterlace(flag, mode);
+  }
+}
+
+void MosaicDisplay::RestoreVideoDefaultDeinterlace() {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RestoreVideoDefaultDeinterlace();
+  }
+}
+
 void MosaicDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                        uint32_t /*primary_height*/,
                                        uint32_t /*display_width*/,

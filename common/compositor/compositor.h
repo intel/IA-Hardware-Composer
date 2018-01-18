@@ -61,6 +61,9 @@ class Compositor {
                      float *end);
   void RestoreVideoDefaultColor(HWCColorControl color);
 
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
+
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
@@ -76,6 +79,7 @@ class Compositor {
   SpinLock lock_;
   HWCColorMap colors_;
   uint32_t scaling_mode_;
+  HWCDeinterlaceProp deinterlace_;
 };
 
 }  // namespace hwcomposer

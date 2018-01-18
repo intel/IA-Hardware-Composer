@@ -1065,6 +1065,21 @@ void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
   video_lock_.unlock();
 }
 
+void DisplayQueue::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                       HWCDeinterlaceControl mode) {
+  video_lock_.lock();
+  requested_video_effect_ = true;
+  compositor_.SetVideoDeinterlace(flag, mode);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::RestoreVideoDefaultDeinterlace() {
+  video_lock_.lock();
+  requested_video_effect_ = false;
+  compositor_.RestoreVideoDefaultDeinterlace();
+  video_lock_.unlock();
+}
+
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                         uint32_t display_id) {
   return vblank_handler_->RegisterCallback(callback, display_id);

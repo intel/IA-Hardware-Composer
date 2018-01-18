@@ -69,7 +69,8 @@ class DisplayQueue {
   void GetVideoColor(HWCColorControl color, float* value, float* start,
                      float* end);
   void RestoreVideoDefaultColor(HWCColorControl color);
-
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
 

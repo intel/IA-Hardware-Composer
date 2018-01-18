@@ -88,7 +88,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
-  void RestoreVideoDefaultColor(HWCColorControl color)override;
+  void RestoreVideoDefaultColor(HWCColorControl color) override;
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                           HWCDeinterlaceControl mode) override;
+  void RestoreVideoDefaultDeinterlace() override;
 
   void Connect() override;
 

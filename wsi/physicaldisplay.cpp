@@ -422,6 +422,15 @@ void PhysicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   display_queue_->RestoreVideoDefaultColor(color);
 }
 
+void PhysicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                          HWCDeinterlaceControl mode) {
+  display_queue_->SetVideoDeinterlace(flag, mode);
+}
+
+void PhysicalDisplay::RestoreVideoDefaultDeinterlace() {
+  display_queue_->RestoreVideoDefaultDeinterlace();
+}
+
 bool PhysicalDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");
