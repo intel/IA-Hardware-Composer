@@ -112,6 +112,17 @@ class NativeSurface {
     return surface_damage_;
   }
 
+ void SetDamageDownScalingFactor(uint32_t downscaling_factor)
+ {
+    damage_down_scale_ = downscaling_factor;
+ }
+
+ uint32_t GetDamageDownScalingFactor()
+ {
+   return damage_down_scale_;
+ }
+
+
  protected:
   OverlayLayer layer_;
   ResourceManager* resource_manager_;
@@ -125,6 +136,7 @@ class NativeSurface {
   ClearType clear_surface_;
   uint32_t surface_age_;
   HwcRect<int> surface_damage_;
+  uint32_t damage_down_scale_= 1;
   HwcRect<int> last_surface_damage_;
 };
 

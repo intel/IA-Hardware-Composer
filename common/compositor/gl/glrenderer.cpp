@@ -97,24 +97,32 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   glViewport(left, top, frame_width, frame_height);
 
+
   if (clear_surface || partial_clear) {
     const HwcRect<int> &damage = surface->GetSurfaceDamage();
-    GLuint clear_width = damage.right - damage.left;
-    GLuint clear_height = damage.bottom - damage.top;
+    HwcRect<int> scaled_damage = damage;
+    uint32_t scaling_factor = surface->GetDamageDownScalingFactor();
+    scaled_damage.left /= scaling_factor;
+    scaled_damage.right /= scaling_factor;
+    scaled_damage.top /= scaling_factor;
+    scaled_damage.bottom /= scaling_factor;
+
+    GLuint clear_width = scaled_damage.right - scaled_damage.left;
+    GLuint clear_height = scaled_damage.bottom - scaled_damage.top;
     if ((frame_width != clear_width) || (frame_height != clear_height)) {
       glEnable(GL_SCISSOR_TEST);
-      glScissor(damage.left, damage.top, clear_width, clear_height);
+      glScissor(scaled_damage.left, scaled_damage.top, clear_width, clear_height);
       glClear(GL_COLOR_BUFFER_BIT);
 #ifdef COMPOSITOR_TRACING
-      ICOMPOSITORTRACE("Partial Clear: %d %d %d %d \n", damage.left, damage.top,
-                       damage.right - damage.left, damage.bottom - damage.top);
+      ICOMPOSITORTRACE("Partial Clear: %d %d %d %d \n", scaled_damage.left, scaled_damage.top,
+                       clear_width, clear_height);
 #endif
     } else {
       glClear(GL_COLOR_BUFFER_BIT);
       glEnable(GL_SCISSOR_TEST);
 #ifdef COMPOSITOR_TRACING
-      ICOMPOSITORTRACE("Full Clear: %d %d %d %d \n", damage.left, damage.top,
-                       damage.right - damage.left, damage.bottom - damage.top);
+      ICOMPOSITORTRACE("Full Clear: %d %d %d %d \n", scaled_damage.left, scaled_damage.top,
+                       clear_width, clear_height);
 #endif
     }
   } else {

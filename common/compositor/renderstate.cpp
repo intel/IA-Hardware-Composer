@@ -34,8 +34,12 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
   y_ = bounds[1];
-  width_ = bounds[2] - bounds[0];
-  height_ = bounds[3] - bounds[1];
+  width_ = (bounds[2] - bounds[0]);
+  height_ = (bounds[3] - bounds[1]);
+
+  ETRACE("render state scaler :%d, damage:%d %d %d %d, bounds:%f %f %f %f\n", downscaling_factor,
+  damage.left, damage.top, damage.right, damage.bottom, bounds[0], bounds[1], bounds[2], bounds[3]);
+
   if (!clear_surface) {
     // If viewport and layer doesn't interact we can avoid re-rendering
     // this state.
@@ -50,13 +54,25 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
 
     scissor_x_ = std::max(x_, left);
     scissor_y_ = std::max(y_, top);
-    scissor_width_ = scissor_right - scissor_x_;
-    scissor_height_ = scissor_bottom - scissor_y_;
+    scissor_width_ = (scissor_right - scissor_x_);
+    scissor_height_ = (scissor_bottom - scissor_y_);
   } else {
     scissor_x_ = x_;
     scissor_y_ = y_;
     scissor_width_ = width_;
     scissor_height_ = height_;
+  }
+
+  if(downscaling_factor > 1)
+  {
+    x_ /= downscaling_factor;
+    y_ /= downscaling_factor;
+    width_ /= downscaling_factor;
+    height_ /= downscaling_factor;
+    scissor_x_ /= downscaling_factor;
+    scissor_y_ /= downscaling_factor;
+    scissor_width_ /= downscaling_factor;
+    scissor_height_ /= downscaling_factor;
   }
 
   const std::vector<size_t> &source = region.source_layers;
@@ -129,7 +145,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       display_rect.right = static_cast<float>(display_Rect.right);
       display_rect.top = static_cast<float>(display_Rect.top);
       display_rect.bottom = static_cast<float>(display_Rect.bottom);
-      if (downscaling_factor > 1) {
+      if (0) {
         display_rect.right =
             display_rect.right -
             ((display_rect.right - display_rect.left) / downscaling_factor);

@@ -247,21 +247,26 @@ const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
 void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   HwcRect<float> scaled_rect = HwcRect<float>(private_data_->display_frame_);
   if (private_data_->down_scaling_factor_ > 1) {
-    scaled_rect.right =
-        scaled_rect.right - ((scaled_rect.right - scaled_rect.left) /
-                             private_data_->down_scaling_factor_);
-
-    scaled_rect.bottom =
-	scaled_rect.bottom - ((scaled_rect.bottom - scaled_rect.top) /
-			     private_data_->down_scaling_factor_);
+    scaled_rect.left /= private_data_->down_scaling_factor_;
+    scaled_rect.top /= private_data_->down_scaling_factor_;
+    scaled_rect.right /= private_data_->down_scaling_factor_;
+    scaled_rect.bottom /= private_data_->down_scaling_factor_;
   }
 
   private_data_->layer_ = target->GetLayer();
   target->ResetDisplayFrame(private_data_->display_frame_);
   if (private_data_->use_plane_scalar_) {
+    ETRACE("use plane scaler");
     target->ResetSourceCrop(private_data_->source_crop_);
+    target->SetDamageDownScalingFactor(1);
   } else {
+    ETRACE("use scaler plane");
+    ETRACE("scaler scaled_rect:%f %f %f %f, scaling_factor:%d\n", scaled_rect.left, scaled_rect.right, scaled_rect.top, scaled_rect.bottom, private_data_->down_scaling_factor_);
     target->ResetSourceCrop(scaled_rect);
+    if(private_data_->down_scaling_factor_ > 1)
+       target->SetDamageDownScalingFactor(private_data_->down_scaling_factor_);
+    else
+       target->SetDamageDownScalingFactor(1);
   }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
@@ -322,13 +327,10 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
   const HwcRect<float> &target_src_rect = private_data_->source_crop_;
     HwcRect<float> scaled_rect = target_display_frame;
     if (private_data_->down_scaling_factor_ > 1) {
-      scaled_rect.right =
-	  scaled_rect.right - ((scaled_rect.right - scaled_rect.left) /
-			       private_data_->down_scaling_factor_);
-
-      scaled_rect.bottom =
-	scaled_rect.bottom - ((scaled_rect.bottom - scaled_rect.top) /
-			     private_data_->down_scaling_factor_);
+      scaled_rect.right = scaled_rect.right/private_data_->down_scaling_factor_;
+      scaled_rect.left = scaled_rect.left/private_data_->down_scaling_factor_;
+      scaled_rect.top = scaled_rect.top/private_data_->down_scaling_factor_;
+      scaled_rect.bottom = scaled_rect.bottom/private_data_->down_scaling_factor_;
     }
 
   for (NativeSurface *surface : private_data_->surfaces_) {
@@ -342,12 +344,14 @@ void DisplayPlaneState::RefreshSurfaces(bool clear_surface) {
     if (!surface->ClearSurface() && clear_surface) {
       surface->SetClearSurface(NativeSurface::kFullClear);
       if (private_data_->use_plane_scalar_) {
-	surface->UpdateSurfaceDamage(scaled_rect, scaled_rect);
+	surface->UpdateSurfaceDamage(target_src_rect, target_src_rect);
       } else {
-	surface->UpdateSurfaceDamage(scaled_rect,
-				     scaled_rect);
+	surface->UpdateSurfaceDamage(target_display_frame, target_display_frame);
       }
     }
+
+   if(private_data_->down_scaling_factor_ > 1)
+     surface->SetDamageDownScalingFactor(private_data_->down_scaling_factor_);
   }
 
   std::vector<CompositionRegion>().swap(private_data_->composition_region_);
