@@ -44,6 +44,24 @@ static HWCColorControl HWCS2HWC(EHwcsColorControl color) {
   return HWCColorControl::kColorHue;
 }
 
+static HWCDeinterlaceControl HWCS2HWCDeinterlace(EHwcsDeinterlaceControl mode) {
+  switch (mode) {
+    case HWCS_DEINTERLACE_NONE:
+      return HWCDeinterlaceControl::kDeinterlaceNone;
+    case HWCS_DEINTERLACE_BOB:
+      return HWCDeinterlaceControl::kDeinterlaceBob;
+    case HWCS_DEINTERLACE_WEAVE:
+      return HWCDeinterlaceControl::kDeinterlaceWeave;
+    case HWCS_DEINTERLACE_MOTIONADAPTIVE:
+      return HWCDeinterlaceControl::kDeinterlaceMotionAdaptive;
+    case HWCS_DEINTERLACE_MOTIONCOMPENSATED:
+    default:
+      return HWCDeinterlaceControl::kDeinterlaceMotionCompensated;
+  }
+  return HWCDeinterlaceControl::kDeinterlaceNone;
+  ;
+}
+
 HwcService::HwcService() : mpHwc(NULL), initialized_(false) {
 }
 
@@ -244,6 +262,19 @@ status_t HwcService::Controls::DisplaySetColorParam(uint32_t display,
     phyDisplay = mHwc.GetExtendedDisplay(display - 1);
   }
   phyDisplay->SetVideoColor(HWCS2HWC(color), value);
+  return OK;
+}
+
+status_t HwcService::Controls::DisplaySetDeinterlaceParam(
+    uint32_t display, EHwcsDeinterlaceControl mode) {
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->SetVideoDeinterlace(HWCDeinterlaceFlag::kDeinterlaceFlagForce,
+                                  HWCS2HWCDeinterlace(mode));
   return OK;
 }
 

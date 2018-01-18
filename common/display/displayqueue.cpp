@@ -1039,6 +1039,13 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void DisplayQueue::SetVideoScalingMode(uint32_t mode) {
+  video_lock_.lock();
+  // requested_video_effect_ = true;
+  compositor_.SetVideoScalingMode(mode);
+  video_lock_.unlock();
+}
+
 void DisplayQueue::SetVideoColor(HWCColorControl color, float value) {
   video_lock_.lock();
   requested_video_effect_ = true;
@@ -1055,6 +1062,21 @@ void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
   video_lock_.lock();
   requested_video_effect_ = false;
   compositor_.RestoreVideoDefaultColor(color);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                       HWCDeinterlaceControl mode) {
+  video_lock_.lock();
+  requested_video_effect_ = true;
+  compositor_.SetVideoDeinterlace(flag, mode);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::RestoreVideoDefaultDeinterlace() {
+  video_lock_.lock();
+  requested_video_effect_ = false;
+  compositor_.RestoreVideoDefaultDeinterlace();
   video_lock_.unlock();
 }
 

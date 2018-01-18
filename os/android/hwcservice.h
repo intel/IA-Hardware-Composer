@@ -79,6 +79,8 @@ class HwcService : public BnService {
                                   float* endvalue);
     status_t DisplaySetColorParam(uint32_t display, EHwcsColorControl color,
                                   float value);
+    status_t DisplaySetDeinterlaceParam(uint32_t display,
+                                        EHwcsDeinterlaceControl mode);
 
     std::vector<HwcsDisplayModeInfo> DisplayModeGetAvailableModes(
         uint32_t display);

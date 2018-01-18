@@ -151,6 +151,38 @@ status_t HwcService_Display_SetColorParam(HWCSHANDLE hwcs, uint32_t display,
   return pContext->mControls->DisplaySetColorParam(display, color, value);
 }
 
+status_t HwcService_Display_SetDeinterlaceParam(HWCSHANDLE hwcs,
+                                                uint32_t display,
+                                                uint32_t mode) {
+  EHwcsDeinterlaceControl de_mode;
+
+  switch (mode) {
+    case 0:
+      de_mode = HWCS_DEINTERLACE_NONE;
+      break;
+    case 1:
+      de_mode = HWCS_DEINTERLACE_BOB;
+      break;
+    case 2:
+      de_mode = HWCS_DEINTERLACE_WEAVE;
+      break;
+    case 3:
+      de_mode = HWCS_DEINTERLACE_MOTIONADAPTIVE;
+      break;
+    case 4:
+      de_mode = HWCS_DEINTERLACE_MOTIONCOMPENSATED;
+      break;
+    default:
+      de_mode = HWCS_DEINTERLACE_NONE;
+      break;
+  }
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+  return pContext->mControls->DisplaySetDeinterlaceParam(display, de_mode);
+}
+
 status_t HwcService_DisplayMode_GetAvailableModes(
     HWCSHANDLE hwcs, uint32_t display,
     std::vector<HwcsDisplayModeInfo>& pModeList) {
