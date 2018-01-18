@@ -469,6 +469,11 @@ void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
       private_data_->apply_effects_ = false;
     }
   }
+
+  // If video effect has been changed, the video layer should be
+  // rendered immediately to apply the effect so it can't reuse
+  // the last offscreen target.
+  recycled_surface_ = false;
 }
 
 bool DisplayPlaneState::ApplyEffects() const {
