@@ -82,6 +82,10 @@ class DisplayPlaneManager {
     return height_;
   }
 
+  // Transform to be applied to all planes associated
+  // with pipe of this displayplanemanager.
+  void SetDisplayTransform(uint32_t transform);
+
  private:
   struct LayerResultCache {
     uint32_t last_transform_ = 0;
@@ -113,6 +117,10 @@ class DisplayPlaneManager {
                                  OverlayLayer *current_layer,
                                  bool ignore_format = false);
 
+  void ValidateForDisplayTransform(
+      DisplayPlaneState &last_plane,
+      const std::vector<OverlayPlane> &commit_planes) const;
+
   void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
                             DisplayPlaneStateList &composition,
                             std::vector<OverlayLayer> &layers,
@@ -141,6 +149,7 @@ class DisplayPlaneManager {
   uint32_t width_;
   uint32_t height_;
   uint32_t gpu_fd_;
+  uint32_t display_transform_ = kIdentity;
 };
 
 }  // namespace hwcomposer

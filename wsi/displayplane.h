@@ -36,6 +36,12 @@ class DisplayPlane {
   virtual bool IsSupportedFormat(uint32_t format) = 0;
 
   /**
+   * API for querying if transform is supported by this
+   * plane.
+   */
+  virtual bool IsSupportedTransform(uint32_t transform) const = 0;
+
+  /**
    * API for querying preferred Video format supported by this
    * plane.
    */

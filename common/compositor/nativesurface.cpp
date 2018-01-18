@@ -74,18 +74,31 @@ void NativeSurface::SetInUse(bool inuse) {
 }
 
 void NativeSurface::SetClearSurface(ClearType clear_surface) {
-  clear_surface_ = clear_surface;
+  if (clear_surface_ != clear_surface) {
+    clear_surface_ = clear_surface;
+    if (clear_surface_ == kFullClear) {
+      damage_changed_ = true;
+    }
+  }
+}
+
+void NativeSurface::SetTransform(uint32_t transform) {
+  layer_.SetTransform(transform);
 }
 
 void NativeSurface::SetSurfaceAge(uint32_t value) {
   surface_age_ = value;
 }
 
+bool NativeSurface::IsSurfaceDamageChanged() const {
+  return damage_changed_;
+}
+
 void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
                                    uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
-  last_surface_damage_ = surface_damage_;
+  damage_changed_ = true;
   in_use_ = true;
   clear_surface_ = kFullClear;
   surface_age_ = 0;
@@ -103,17 +116,43 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 }
 
 void NativeSurface::UpdateSurfaceDamage(
-    const HwcRect<int> &currentsurface_damage,
-    const HwcRect<int> &last_surface_damage) {
+    const HwcRect<int> &currentsurface_damage, bool forced) {
+  if (surface_damage_.empty()) {
+    surface_damage_ = currentsurface_damage;
+    if (!surface_damage_.empty())
+      damage_changed_ = true;
+
+    return;
+  }
+
+  if (currentsurface_damage == surface_damage_) {
+    if (!damage_changed_ && forced) {
+      damage_changed_ = true;
+    }
+
+    return;
+  }
+
+  HwcRect<int> temp = surface_damage_;
   surface_damage_.left =
-      std::min(last_surface_damage.left, currentsurface_damage.left);
+      std::min(surface_damage_.left, currentsurface_damage.left);
   surface_damage_.top =
-      std::min(last_surface_damage.top, currentsurface_damage.top);
+      std::min(surface_damage_.top, currentsurface_damage.top);
   surface_damage_.right =
-      std::max(last_surface_damage.right, currentsurface_damage.right);
+      std::max(surface_damage_.right, currentsurface_damage.right);
   surface_damage_.bottom =
-      std::max(last_surface_damage.bottom, currentsurface_damage.bottom);
-  last_surface_damage_ = currentsurface_damage;
+      std::max(surface_damage_.bottom, currentsurface_damage.bottom);
+  if (!damage_changed_) {
+    damage_changed_ = true;
+    if (!forced && (temp == surface_damage_)) {
+      damage_changed_ = false;
+    }
+  }
+}
+
+void NativeSurface::ResetDamage() {
+  surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+  damage_changed_ = false;
 }
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {

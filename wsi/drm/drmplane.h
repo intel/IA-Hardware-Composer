@@ -59,6 +59,8 @@ class DrmPlane : public DisplayPlane {
 
   bool IsSupportedFormat(uint32_t format) override;
 
+  bool IsSupportedTransform(uint32_t transform) const override;
+
   uint32_t GetPreferredVideoFormat() const override;
   uint32_t GetPreferredFormat() const override;
 
@@ -78,7 +80,8 @@ class DrmPlane : public DisplayPlane {
   struct Property {
     Property();
     bool Initialize(uint32_t fd, const char* name,
-                    const ScopedDrmObjectPropertyPtr& plane_properties);
+                    const ScopedDrmObjectPropertyPtr& plane_properties,
+                    uint32_t* rotation = NULL);
     uint32_t id = 0;
   };
 
@@ -109,6 +112,7 @@ class DrmPlane : public DisplayPlane {
   int32_t kms_fence_ = 0;
   uint32_t prefered_video_format_ = 0;
   uint32_t prefered_format_ = 0;
+  uint32_t rotation_ = 0;
 };
 
 }  // namespace hwcomposer

@@ -105,39 +105,43 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   surface_damage_ = display_frame;
 }
 
+void OverlayLayer::SetTransform(uint32_t transform) {
+  plane_transform_ = transform;
+  transform_ = transform;
+}
+
 void OverlayLayer::ValidateTransform(uint32_t transform,
                                      uint32_t display_transform) {
   if (transform & kTransform90) {
-    if (transform & kReflectX) {
-      plane_transform_ |= kReflectX;
-    }
-
-    if (transform & kReflectY) {
-      plane_transform_ |= kReflectY;
-    }
-
     switch (display_transform) {
-      case kRotate90:
+      case HWCTransform::kTransform90:
         plane_transform_ |= kTransform180;
         break;
-      case kRotate180:
+      case HWCTransform::kTransform180:
         plane_transform_ |= kTransform270;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform90;
+        if (transform & kReflectX) {
+          plane_transform_ |= kReflectX;
+        }
+
+        if (transform & kReflectY) {
+          plane_transform_ |= kReflectY;
+        }
         break;
       default:
         break;
     }
   } else if (transform & kTransform180) {
     switch (display_transform) {
-      case kRotate90:
+      case HWCTransform::kTransform90:
         plane_transform_ |= kTransform270;
         break;
-      case kRotate270:
+      case HWCTransform::kTransform270:
         plane_transform_ |= kTransform90;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform180;
         break;
       default:
@@ -145,20 +149,20 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
     }
   } else if (transform & kTransform270) {
     switch (display_transform) {
-      case kRotate270:
+      case HWCTransform::kTransform270:
         plane_transform_ |= kTransform180;
         break;
-      case kRotate180:
+      case HWCTransform::kTransform180:
         plane_transform_ |= kTransform90;
         break;
-      case kRotateNone:
+      case HWCTransform::kIdentity:
         plane_transform_ |= kTransform270;
         break;
       default:
         break;
     }
   } else {
-    if (display_transform == kRotate90) {
+    if (display_transform & HWCTransform::kTransform90) {
       if (transform & kReflectX) {
         plane_transform_ |= kReflectX;
       }
@@ -170,10 +174,10 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
       plane_transform_ |= kTransform90;
     } else {
       switch (display_transform) {
-        case kRotate270:
+        case HWCTransform::kTransform270:
           plane_transform_ |= kTransform270;
           break;
-        case kRotate180:
+        case HWCTransform::kTransform180:
           plane_transform_ |= kTransform180;
           break;
         default:
@@ -187,14 +191,11 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
-                                   uint32_t max_height, HWCRotation rotation,
+                                   uint32_t max_height, uint32_t rotation,
                                    bool handle_constraints) {
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
-    // Remove this in case we enable support in future
-    // to apply display rotation at pipe level.
-    transform_ = plane_transform_;
   } else {
     plane_transform_ = transform_;
   }
@@ -209,13 +210,12 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
   ValidateForOverlayUsage();
-  if (previous_layer) {
-    ValidatePreviousFrameState(previous_layer, layer);
-  }
-
   surface_damage_ = layer->GetLayerDamage();
 
   if (!handle_constraints) {
+    if (previous_layer) {
+      ValidatePreviousFrameState(previous_layer, layer);
+    }
     return;
   }
 
@@ -299,12 +299,16 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     source_crop_height_ = static_cast<int>(ceilf(source_crop_.bottom) -
                                            static_cast<int>(source_crop_.top));
   }
+
+  if (previous_layer) {
+    ValidatePreviousFrameState(previous_layer, layer);
+  }
 }
 
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, HWCRotation rotation, bool handle_constraints) {
+    uint32_t max_height, uint32_t rotation, bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
@@ -315,8 +319,8 @@ void OverlayLayer::InitializeFromHwcLayer(
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, uint32_t max_height,
-    HWCRotation rotation, bool handle_constraints) {
+    const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
+    bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
                   max_height, rotation, handle_constraints);
@@ -327,10 +331,6 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   OverlayBuffer* buffer = imported_buffer_->buffer_.get();
   supported_composition_ = rhs->supported_composition_;
   actual_composition_ = rhs->actual_composition_;
-  if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
-    state_ |= kNeedsReValidation;
-    return;
-  }
 
   bool content_changed = false;
   bool rect_changed = layer->HasDisplayRectChanged();
@@ -342,12 +342,23 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
     if (actual_composition_ & kGpu) {
       content_changed = rect_changed || source_rect_changed;
-      if (!content_changed) {
-        if (alpha_ != rhs->alpha_) {
-          content_changed = true;
-        }
-
-        if (blending_ != rhs->blending_) {
+      // This layer has replaced an existing layer, let's make sure
+      // we re-draw this and previous layer regions.
+      if (!layer->IsValidated()) {
+        content_changed = true;
+        surface_damage_.left =
+            std::min(surface_damage_.left, rhs->display_frame_.left);
+        surface_damage_.top =
+            std::min(surface_damage_.top, rhs->display_frame_.top);
+        surface_damage_.right =
+            std::max(surface_damage_.right, rhs->display_frame_.right);
+        surface_damage_.bottom =
+            std::max(surface_damage_.bottom, rhs->display_frame_.bottom);
+      } else if (!content_changed) {
+        if ((buffer->GetFormat() !=
+             rhs->imported_buffer_->buffer_->GetFormat()) ||
+            (alpha_ != rhs->alpha_) || (blending_ != rhs->blending_) ||
+            (transform_ != rhs->transform_)) {
           content_changed = true;
         }
       }
@@ -357,6 +368,13 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       }
     }
   } else {
+    // Ensure the buffer can be supported by display for direct
+    // scanout.
+    if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
+      state_ |= kNeedsReValidation;
+      return;
+    }
+
     // If previous layer was opaque and we have alpha now,
     // let's mark this layer for re-validation. Plane
     // supporting XRGB format might not necessarily support
@@ -392,8 +410,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     state_ &= ~kDimensionsChanged;
   }
 
-  if (!layer->HasVisibleRegionChanged() &&
-      !layer->HasLayerContentChanged() && !content_changed) {
+  if (!layer->HasVisibleRegionChanged() && !content_changed &&
+      surface_damage_.empty()) {
     state_ &= ~kLayerContentChanged;
   }
 }

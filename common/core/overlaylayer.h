@@ -49,14 +49,14 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer, ResourceManager* buffer_manager,
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
-                              HWCRotation rotation, bool handle_constraints);
+                              uint32_t rotation, bool handle_constraints);
 
   void InitializeFromScaledHwcLayer(HwcLayer* layer,
                                     ResourceManager* buffer_manager,
                                     OverlayLayer* previous_layer,
                                     uint32_t z_order, uint32_t layer_index,
                                     const HwcRect<int>& display_frame,
-                                    uint32_t max_height, HWCRotation rotation,
+                                    uint32_t max_height, uint32_t rotation,
                                     bool handle_constraints);
   // Get z order of this layer.
   uint32_t GetZorder() const {
@@ -79,6 +79,10 @@ struct OverlayLayer {
     return blending_;
   }
 
+  // This represents the transform to
+  // be applied to this layer without taking
+  // into account any Display transform i.e.
+  // GetPlaneTransform()
   uint32_t GetTransform() const {
     return transform_;
   }
@@ -90,6 +94,9 @@ struct OverlayLayer {
   uint32_t GetPlaneTransform() const {
     return plane_transform_;
   }
+
+  // Applies transform to this layer before scanout.
+  void SetTransform(uint32_t transform);
 
   OverlayBuffer* GetBuffer() const;
 
@@ -227,7 +234,7 @@ struct OverlayLayer {
   void InitializeState(HwcLayer* layer, ResourceManager* buffer_manager,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
-                       HWCRotation rotation, bool handle_constraints);
+                       uint32_t rotation, bool handle_constraints);
 
   uint32_t transform_ = 0;
   uint32_t plane_transform_ = 0;

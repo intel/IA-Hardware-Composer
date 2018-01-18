@@ -88,7 +88,8 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       bool regions_empty = comp_regions.empty();
       NativeSurface *surface = plane.GetOffScreenTarget();
       if (!regions_empty &&
-          (surface->ClearSurface() || surface->IsPartialClear())) {
+          (surface->ClearSurface() || surface->IsPartialClear() ||
+           surface->IsSurfaceDamageChanged())) {
         plane.ResetCompositionRegion();
         regions_empty = true;
       }
@@ -107,8 +108,15 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       state.surface_ = surface;
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
+      bool use_plane_transform = false;
+      if (plane.GetRotationType() ==
+          DisplayPlaneState::RotationType::kGPURotation) {
+        use_plane_transform = true;
+      }
+
       if (!CalculateRenderState(layers, comp_regions, state,
-                                plane.IsUsingPlaneScalar())) {
+                                plane.IsUsingPlaneScalar(),
+                                use_plane_transform)) {
         ETRACE("Failed to calculate Render state.");
         return false;
       }
@@ -184,13 +192,14 @@ void Compositor::FreeResources() {
 bool Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
-    bool uses_display_up_scaling) {
+    bool uses_display_up_scaling, bool use_plane_transform) {
   CTRACE();
   size_t num_regions = comp_regions.size();
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(layers, region, uses_display_up_scaling);
+    state.ConstructState(layers, region, uses_display_up_scaling,
+                         use_plane_transform);
     if (state.layer_state_.empty()) {
       continue;
     }
