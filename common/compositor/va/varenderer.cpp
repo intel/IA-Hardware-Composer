@@ -206,6 +206,24 @@ bool VARenderer::SetVAProcFilterDeinterlaceMode(
   return false;
 }
 
+bool VARenderer::SetVAProcFilterScalingMode(uint32_t mode) {
+  switch (mode) {
+    case 0:
+      filter_flags_ = VA_FILTER_SCALING_DEFAULT;
+      break;
+    case 1:
+      filter_flags_ = VA_FILTER_SCALING_FAST;
+      break;
+    case 2:
+      filter_flags_ = VA_FILTER_SCALING_HQ;
+      break;
+    default:
+      filter_flags_ = VA_FILTER_SCALING_DEFAULT;
+      break;
+  }
+  return true;
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   // TODO: Clear surface ?
@@ -271,6 +289,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
   SetVAProcFilterDeinterlaceMode(state.deinterlace_);
+  SetVAProcFilterScalingMode(state.scaling_mode_);
 
   if (!UpdateCaps()) {
     ETRACE("Failed to update capabailities. \n");
@@ -453,7 +472,7 @@ bool VARenderer::UpdateCaps() {
   param_.output_color_standard = VAProcColorStandardBT601;
   param_.num_filters = 0;
   param_.filters = nullptr;
-  param_.filter_flags = VA_FRAME_PICTURE;
+  param_.filter_flags = filter_flags_;
 
   if (filters_.size()) {
     param_.filters = &filters_[0];

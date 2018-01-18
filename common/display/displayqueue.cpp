@@ -1039,6 +1039,13 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void DisplayQueue::SetVideoScalingMode(uint32_t mode) {
+  video_lock_.lock();
+  // requested_video_effect_ = true;
+  compositor_.SetVideoScalingMode(mode);
+  video_lock_.unlock();
+}
+
 void DisplayQueue::SetVideoColor(HWCColorControl color, float value) {
   video_lock_.lock();
   requested_video_effect_ = true;

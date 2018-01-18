@@ -55,6 +55,7 @@ class Compositor {
                      int32_t acquire_fence, int32_t *retire_fence);
   void FreeResources();
 
+  void SetVideoScalingMode(uint32_t);
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end);
@@ -74,6 +75,7 @@ class Compositor {
   std::unique_ptr<CompositorThread> thread_;
   SpinLock lock_;
   HWCColorMap colors_;
+  uint32_t scaling_mode_;
 };
 
 }  // namespace hwcomposer

@@ -146,6 +146,10 @@ void LogicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   physical_display_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void LogicalDisplay::SetVideoScalingMode(uint32_t mode) {
+  physical_display_->SetVideoScalingMode(mode);
+}
+
 void LogicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   physical_display_->SetVideoColor(color, value);
 }

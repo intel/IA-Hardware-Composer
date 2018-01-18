@@ -402,6 +402,13 @@ void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void MosaicDisplay::SetVideoScalingMode(uint32_t mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoScalingMode(mode);
+  }
+}
+
 void MosaicDisplay::SetVideoColor(HWCColorControl color, float value) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {

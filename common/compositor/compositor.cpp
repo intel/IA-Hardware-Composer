@@ -78,6 +78,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       MediaState &media_state = state.media_state_;
       lock_.lock();
       media_state.colors_ = colors_;
+      media_state.scaling_mode_ = scaling_mode_;
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
@@ -216,6 +217,12 @@ bool Compositor::CalculateRenderState(
   }
 
   return true;
+}
+
+void Compositor::SetVideoScalingMode(uint32_t mode) {
+  lock_.lock();
+  scaling_mode_ = mode;
+  lock_.unlock();
 }
 
 void Compositor::SetVideoColor(HWCColorControl color, float value) {

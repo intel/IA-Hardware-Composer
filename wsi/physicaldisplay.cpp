@@ -405,6 +405,10 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void PhysicalDisplay::SetVideoScalingMode(uint32_t mode) {
+  display_queue_->SetVideoScalingMode(mode);
+}
+
 void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   display_queue_->SetVideoColor(color, value);
 }
