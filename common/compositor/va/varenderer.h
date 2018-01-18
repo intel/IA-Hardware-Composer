@@ -101,6 +101,7 @@ class VARenderer : public Renderer {
   bool SetVAProcFilterColorValue(HWCColorControl type,
                                  const HWCColorProp& prop);
   bool SetVAProcFilterDeinterlaceMode(const HWCDeinterlaceProp& prop);
+  bool SetVAProcFilterScalingMode(uint32_t mode);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
   bool SetVAProcFilterDeinterlaceDefaultMode();
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
@@ -123,6 +124,7 @@ class VARenderer : public Renderer {
   VAContextID va_context_ = VA_INVALID_ID;
   VAConfigID va_config_ = VA_INVALID_ID;
   VAProcPipelineParameterBuffer param_;
+  uint32_t filter_flags_ = 0;
 };
 
 }  // namespace hwcomposer

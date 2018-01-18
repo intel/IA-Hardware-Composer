@@ -64,11 +64,13 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetVideoScalingMode(uint32_t mode);
   void SetVideoColor(HWCColorControl color, float value);
-  void GetVideoColor(HWCColorControl color,
-                     float* value, float* start, float* end);
+  void GetVideoColor(HWCColorControl color, float* value, float* start,
+                     float* end);
   void RestoreVideoDefaultColor(HWCColorControl color);
-
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
 

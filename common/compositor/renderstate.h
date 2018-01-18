@@ -62,6 +62,7 @@ struct MediaState {
   const OverlayLayer *layer_;
   HWCColorMap colors_;
   HWCDeinterlaceProp deinterlace_;
+  uint32_t scaling_mode_;
 };
 
 struct DrawState {

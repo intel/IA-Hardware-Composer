@@ -123,7 +123,7 @@ class IAHWC2 : public hwc2_device_t {
     HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
-                     bool disable_explicit_sync);
+                     bool disable_explicit_sync, uint32_t scaling_mode);
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
                                    uint32_t width, uint32_t height,
                                    bool disable_explicit_sync);
@@ -195,6 +195,7 @@ class IAHWC2 : public hwc2_device_t {
     // True after validateDisplay
     bool checkValidateDisplay = false;
     bool disable_explicit_sync_ = false;
+    uint32_t scaling_mode_ = 0;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
@@ -297,6 +298,7 @@ class IAHWC2 : public hwc2_device_t {
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;
+  uint32_t scaling_mode_ = 0;
 };
 }  // namespace android
 

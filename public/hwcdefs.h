@@ -117,6 +117,12 @@ enum class HWCDeinterlaceControl : int32_t {
   kDeinterlaceMotionCompensated = 4
 };
 
+enum class HWCScalingRunTimeSetting : int32_t {
+  kScalingModeNone = 0,        // use default scaling mode.
+  kScalingModeFast = 1,        // use fast scaling mode.
+  kScalingModeHighQuality = 2  // use high quality scaling mode.
+};
+
 struct EnumClassHash {
   template <typename T>
   std::size_t operator()(T t) const {
