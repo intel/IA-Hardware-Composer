@@ -420,9 +420,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   std::vector<OverlayLayer> layers;
   int remove_index = -1;
   int add_index = -1;
-  bool idle_frame = tracker.RenderIdleMode() || idle_update;
   // If last commit failed, lets force full validation as
   // state might be all wrong in our side.
+  bool idle_frame = tracker.RenderIdleMode() || idle_update;
   bool validate_layers =
       last_commit_failed_update_ || previous_plane_state_.empty() || idle_frame;
   *retire_fence = -1;
@@ -563,14 +563,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   bool force_media_composition = false;
   bool requested_video_effect = false;
-  video_lock_.lock();
-  if (requested_video_effect_ != applied_video_effect_) {
-    // Let's ensure Media planes take this into account.
-    force_media_composition = true;
-    applied_video_effect_ = requested_video_effect_;
-    requested_video_effect = requested_video_effect_;
+  if (has_video_layer) {
+    video_lock_.lock();
+    if (requested_video_effect_ != applied_video_effect_) {
+      // Let's ensure Media planes take this into account.
+      force_media_composition = true;
+      applied_video_effect_ = requested_video_effect_;
+      requested_video_effect = requested_video_effect_;
+      idle_frame = false;
+      validate_layers = true;
+    }
+    video_lock_.unlock();
   }
-  video_lock_.unlock();
 
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
@@ -584,6 +588,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     } else {
       tracker.PostponeRevalidation();
     }
+  } else if (idle_frame) {
+    validate_layers = true;
   }
 
   // Validate Overlays and Layers usage.
