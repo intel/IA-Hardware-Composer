@@ -629,10 +629,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       if (force_media_composition) {
         SetMediaEffectsState(requested_video_effect, layers,
                              current_composition_planes);
-        if (requested_video_effect) {
-          render_layers = true;
-        }
-
+        render_layers = true;
         can_ignore_commit = false;
       }
 
