@@ -410,7 +410,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                bool handle_constraints) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
-                                 resource_manager_.get());
+                                 resource_manager_.get(), this);
   if (tracker.IgnoreUpdate()) {
     return true;
   }
@@ -429,6 +429,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
+  bool force_validation = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -481,6 +482,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
+      if (idle_frame && !overlay_layer->IsCursorLayer()) {
+        // We have a new layer, ignore any idle frame
+        // update requests.
+        idle_frame = false;
+        force_validation = true;
+      }
     }
 
     z_order++;
@@ -530,7 +537,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   // We may have skipped layers which are not visible.
   size = layers.size();
-  if ((add_index == 0) || validate_layers) {
+  if ((add_index == 0) || validate_layers ||
+      (force_validation && tracker.TrackingFrames())) {
     // If index is zero, no point trying for incremental validation.
     validate_layers = true;
   } else if (previous_size > size) {
@@ -588,8 +596,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     } else {
       tracker.PostponeRevalidation();
     }
-  } else if (idle_frame) {
-    validate_layers = true;
   }
 
   // Validate Overlays and Layers usage.
@@ -1107,12 +1113,17 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  size_t size = previous_plane_state_.size();
+  if (idle_tracker_.total_planes_ <= 1 ||
+      (idle_tracker_.revalidate_frames_counter_ > 0)) {
+    idle_tracker_.idle_lock_.unlock();
+    return;
+  }
+
   if (idle_tracker_.idle_reset_frames_counter_ == 5) {
     // If we are using more than one plane and have had
     // 5 continuous idle frames, lets reset our counter
     // to fallback to single plane composition when possible.
-    if ((idle_tracker_.idle_frames_ > kidleframes) && size > 1)
+    if (idle_tracker_.idle_frames_ > kidleframes)
       idle_tracker_.idle_frames_ = 0;
   } else {
     idle_tracker_.idle_reset_frames_counter_++;
@@ -1120,9 +1131,7 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  idle_tracker_.revalidate_frames_counter_ = 0;
-
-  if (size <= 1 || (idle_tracker_.idle_frames_ > kidleframes)) {
+  if (idle_tracker_.idle_frames_ > kidleframes) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
