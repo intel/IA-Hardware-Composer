@@ -143,15 +143,18 @@ class DisplayQueue {
     int state_ = kPrepareComposition;
     uint32_t revalidate_frames_counter_ = 0;
     uint32_t idle_reset_frames_counter_ = 0;
+    size_t total_planes_ = 1;
   };
 
   struct ScopedIdleStateTracker {
     ScopedIdleStateTracker(struct FrameStateTracker& tracker,
                            Compositor& compositor,
-                           ResourceManager* resource_manager)
+                           ResourceManager* resource_manager,
+                           DisplayQueue* queue)
         : tracker_(tracker),
           compositor_(compositor),
-          resource_manager_(resource_manager) {
+          resource_manager_(resource_manager),
+          queue_(queue) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
@@ -169,6 +172,10 @@ class DisplayQueue {
 
     bool RevalidateLayers() const {
       return tracker_.state_ & FrameStateTracker::kRevalidateLayers;
+    }
+
+    bool TrackingFrames() const {
+      return tracker_.state_ & FrameStateTracker::kTrackingFrames;
     }
 
     void PostponeRevalidation() {
@@ -217,6 +224,7 @@ class DisplayQueue {
         tracker_.revalidate_frames_counter_ = 0;
       }
 
+      tracker_.total_planes_ = queue_->previous_plane_state_.size();
       tracker_.idle_lock_.unlock();
 
       if (resource_manager_->PreparePurgedResources())
@@ -227,6 +235,7 @@ class DisplayQueue {
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
     ResourceManager* resource_manager_;
+    DisplayQueue* queue_;
     bool revalidate_ignored_ = false;
   };
 
