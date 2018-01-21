@@ -210,8 +210,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                 DisplayPlaneState::ReValidationType::kScanout);
           }
         }
-      } else {
-        last_plane.ResetCompositionRegion();
       }
     }
 
@@ -359,6 +357,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           ignore_commit = false;
           break;
         }
+
+        reset_composition_regions = true;
       }
 
       last_plane.SetOverlayLayer(layer);
@@ -392,7 +392,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       DisplayPlaneState& old_plane = composition->at(size - 2);
       DisplayPlaneState& last_overlay = composition->at(size - 1);
       const std::vector<size_t>& source_layers = last_overlay.GetSourceLayers();
-      const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
 
       if (old_plane.CanSquash() && last_overlay.CanSquash() &&
           source_layers.size() == 1) {
@@ -401,7 +400,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             "Moving layer index %d from plane index: %d to plane idex: %d. \n",
             source_layers.at(0), size - 1, size - 2);
 #endif
+        const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
+        old_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
       }
