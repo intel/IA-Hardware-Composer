@@ -282,20 +282,9 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
     rotation = kIdentity;
 
   target->SetTransform(rotation);
-
-  target->ResetDisplayFrame(private_data_->display_frame_);
-  if (private_data_->use_plane_scalar_) {
-    target->ResetSourceCrop(private_data_->source_crop_);
-  } else {
-    target->ResetSourceCrop(HwcRect<float>(private_data_->display_frame_));
-  }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
   refresh_needed_ = true;
-  if (private_data_->surfaces_.size() == 1) {
-    refresh_needed_ = false;
-  }
-
   surface_swapped_ = true;
 }
 

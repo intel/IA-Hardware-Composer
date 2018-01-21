@@ -104,6 +104,8 @@ bool DisplayPlaneManager::ValidateLayers(
                   composition.empty(), add_index <= 0, layers.size());
 #endif
     ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
+    *re_validation_needed = false;
+    *commit_checked = true;
     return true;
   }
 
@@ -229,6 +231,8 @@ bool DisplayPlaneManager::ValidateLayers(
               // other layers in this case.
               ForceGpuForAllLayers(commit_planes, composition, layers,
                                    mark_later, false);
+              *re_validation_needed = false;
+              *commit_checked = true;
               return true;
             }
           } else {
@@ -245,6 +249,7 @@ bool DisplayPlaneManager::ValidateLayers(
               SwapSurfaceIfNeeded(&last_plane);
             }
 
+            last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
             ValidateForDisplayTransform(last_plane, commit_planes);
           }
         }
@@ -293,6 +298,7 @@ bool DisplayPlaneManager::ValidateLayers(
         }
 
         commit_planes.back().layer = last_plane.GetOverlayLayer();
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         ValidateForDisplayTransform(last_plane, commit_planes);
       }
     }
@@ -320,25 +326,9 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   bool render_layers = false;
-  bool re_validation = false;
-  for (DisplayPlaneState &plane : composition) {
-    if (plane.NeedsOffScreenComposition()) {
-      plane.RefreshSurfaces(NativeSurface::kFullClear);
-      plane.ValidateReValidation();
-      if (!render_layers) {
-        render_layers = !plane.SurfaceRecycled();
-      }
-
-      if (plane.RevalidationType() !=
-          DisplayPlaneState::ReValidationType::kNone) {
-        re_validation = true;
-      }
-    }
-  }
+  FinalizeValidation(composition, &render_layers, re_validation_needed);
 
   *commit_checked = test_commit_done;
-  *re_validation_needed = re_validation;
-
   return render_layers;
 }
 
@@ -376,6 +366,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
     SetOffScreenPlaneTarget(*plane);
     *validate_final_layers = true;
   } else {
+    plane->RefreshSurfaces(NativeSurface::kFullClear, true);
     SwapSurfaceIfNeeded(plane);
   }
 }
@@ -698,6 +689,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   surface->SetPlaneTarget(plane, gpu_fd_);
   plane.SetOffScreenTarget(surface);
+  plane.RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
@@ -794,6 +786,17 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
 
   EnsureOffScreenTarget(last_plane);
   current_plane->SetInUse(true);
+  commit_planes.emplace_back(
+      OverlayPlane(last_plane.GetDisplayPlane(), last_plane.GetOverlayLayer()));
+  // Check for Any display transform to be applied.
+  ValidateForDisplayTransform(last_plane, commit_planes);
+  // Check for any change to scalar usage.
+  ValidateForDisplayScaling(last_plane, commit_planes,
+                            last_plane.GetOffScreenTarget()->GetLayer(), false);
+  // Reset andy Scanout validation state.
+  uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+  last_plane.RevalidationDone(validation_done);
+  last_plane.ResetCompositionRegion();
 
   if (free_surfaces) {
     ReleaseFreeOffScreenTargets();
@@ -945,7 +948,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
       // Set new rotation type. Clear surfaces in case type has changed.
       last_plane.SetRotationType(new_type, new_type != old_type);
     }
-
     last_plane.RevalidationDone(validation_done);
   }
 
@@ -961,6 +963,33 @@ void DisplayPlaneManager::SwapSurfaceIfNeeded(DisplayPlaneState *plane) {
   } else {
     plane->SwapSurfaceIfNeeded();
   }
+}
+
+void DisplayPlaneManager::FinalizeValidation(DisplayPlaneStateList &composition,
+                                             bool *render_layers,
+                                             bool *re_validation_needed) {
+  bool re_validation = false;
+  bool needs_gpu = false;
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.NeedsOffScreenComposition()) {
+      plane.RefreshSurfaces(NativeSurface::kFullClear);
+      plane.ValidateReValidation();
+      if (!needs_gpu) {
+        needs_gpu = !plane.SurfaceRecycled();
+      }
+
+      if (plane.RevalidationType() !=
+          DisplayPlaneState::ReValidationType::kNone) {
+        re_validation = true;
+      }
+    }
+  }
+
+  if (re_validation_needed)
+    *re_validation_needed = re_validation;
+
+  if (render_layers)
+    *render_layers = needs_gpu;
 }
 
 }  // namespace hwcomposer

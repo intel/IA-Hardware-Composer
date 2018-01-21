@@ -117,6 +117,10 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 
 void NativeSurface::UpdateSurfaceDamage(
     const HwcRect<int> &currentsurface_damage, bool forced) {
+  if (forced) {
+    damage_changed_ = true;
+  }
+
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
     if (!surface_damage_.empty())
@@ -126,10 +130,6 @@ void NativeSurface::UpdateSurfaceDamage(
   }
 
   if (currentsurface_damage == surface_damage_) {
-    if (!damage_changed_ && forced) {
-      damage_changed_ = true;
-    }
-
     return;
   }
 
