@@ -45,7 +45,7 @@ class DisplayPlaneHandler;
 struct HwcLayer;
 class NativeBufferHandler;
 
-static uint32_t kidleframes = 250;
+static uint32_t kidleframes = 350;
 class DisplayQueue {
  public:
   DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
@@ -142,7 +142,6 @@ class DisplayQueue {
     SpinLock idle_lock_;
     int state_ = kPrepareComposition;
     uint32_t revalidate_frames_counter_ = 0;
-    uint32_t idle_reset_frames_counter_ = 0;
     size_t total_planes_ = 1;
   };
 
@@ -198,12 +197,9 @@ class DisplayQueue {
 
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
-      tracker_.idle_reset_frames_counter_ = 0;
-      // Reset idle frame count if it's less than
-      // kidleframes. We want that idle frames
+      // Reset idle frame count. We want that idle frames
       // are continuous to detect idle mode scenario.
-      if (tracker_.idle_frames_ < kidleframes)
-        tracker_.idle_frames_ = 0;
+      tracker_.idle_frames_ = 0;
 
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {

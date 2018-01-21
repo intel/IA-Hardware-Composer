@@ -158,15 +158,17 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (index >= threshold) {
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
-#ifdef SURFACE_TRACING
-          ISURFACETRACE(
-              "Plane has more than one layer, calling Reset Layers. Threshold: "
-              "%d Plane Layer Index: %d Total Planes: %d \n",
-              threshold, index, previous_plane_state_.size());
-#endif
           last_plane.ResetLayers(layers, threshold);
           clear_surface = true;
         }
+#ifdef SURFACE_TRACING
+        ISURFACETRACE(
+            "Layers removed. Threshold: "
+            "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
+            "%d \n",
+            threshold, index, composition->size(),
+            previous_plane_state_.size());
+#endif
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
         ignore_commit = false;
@@ -208,6 +210,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                 DisplayPlaneState::ReValidationType::kScanout);
           }
         }
+      } else {
+        last_plane.ResetCompositionRegion();
       }
     }
 
@@ -429,7 +433,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
-  bool force_validation = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -482,12 +485,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
-      if (idle_frame && !overlay_layer->IsCursorLayer()) {
-        // We have a new layer, ignore any idle frame
-        // update requests.
-        idle_frame = false;
-        force_validation = true;
-      }
     }
 
     z_order++;
@@ -537,8 +534,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   // We may have skipped layers which are not visible.
   size = layers.size();
-  if ((add_index == 0) || validate_layers ||
-      (force_validation && tracker.TrackingFrames())) {
+  if ((add_index == 0) || validate_layers) {
     // If index is zero, no point trying for incremental validation.
     validate_layers = true;
   } else if (previous_size > size) {
@@ -553,8 +549,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if ((remove_index != -1) || (add_index != -1)) {
     ISURFACETRACE(
         "Remove index For this Frame: %d Add index For this Frame: %d Total "
-        "Layers: %d \n",
-        remove_index, add_index, layers.size());
+        "Layers: %d previous_size %d size %d re_validate_commit %d \n",
+        remove_index, add_index, layers.size(), previous_size, size,
+        re_validate_commit);
   }
 
   if (validate_layers) {
@@ -589,12 +586,25 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // If we are in idle mode, we can postpone re-validation
   // in case we are only removing layers and no new layers
   // are being added.
-  if (tracker.RevalidateLayers()) {
-    if (!validate_layers && tracker.RevalidateLayers() &&
-        (add_index != -1 || re_validate_commit)) {
-      validate_layers = true;
-    } else {
+  if (!validate_layers && tracker.RevalidateLayers()) {
+    bool only_cursor_changed = false;
+    if (add_index > 0 &&
+        ((remove_index == add_index) || (remove_index == -1)) &&
+        (add_index < static_cast<int>(size))) {
+      if (layers.at(add_index).IsCursorLayer()) {
+        only_cursor_changed = true;
+      }
+    } else if (remove_index > 0 && !re_validate_commit && add_index == -1 &&
+               (remove_index <= static_cast<int>(previous_size))) {
+      if (in_flight_layers_.at(remove_index - 1).IsCursorLayer()) {
+        only_cursor_changed = true;
+      }
+    }
+
+    if (only_cursor_changed) {
       tracker.PostponeRevalidation();
+    } else {
+      validate_layers = true;
     }
   }
 
@@ -822,7 +832,6 @@ void DisplayQueue::IgnoreUpdates() {
   idle_tracker_.idle_frames_ = 0;
   idle_tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.revalidate_frames_counter_ = 0;
-  idle_tracker_.idle_reset_frames_counter_ = 0;
 }
 
 void DisplayQueue::ReleaseSurfaces() {
@@ -1114,19 +1123,8 @@ void DisplayQueue::HandleIdleCase() {
   }
 
   if (idle_tracker_.total_planes_ <= 1 ||
-      (idle_tracker_.revalidate_frames_counter_ > 0)) {
-    idle_tracker_.idle_lock_.unlock();
-    return;
-  }
-
-  if (idle_tracker_.idle_reset_frames_counter_ == 5) {
-    // If we are using more than one plane and have had
-    // 5 continuous idle frames, lets reset our counter
-    // to fallback to single plane composition when possible.
-    if (idle_tracker_.idle_frames_ > kidleframes)
-      idle_tracker_.idle_frames_ = 0;
-  } else {
-    idle_tracker_.idle_reset_frames_counter_++;
+      (idle_tracker_.state_ & FrameStateTracker::kTrackingFrames) ||
+      (idle_tracker_.state_ & FrameStateTracker::kRevalidateLayers)) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
