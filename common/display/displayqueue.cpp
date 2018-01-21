@@ -429,7 +429,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // state might be all wrong in our side.
   bool idle_frame = tracker.RenderIdleMode() || idle_update;
   bool validate_layers =
-      last_commit_failed_update_ || previous_plane_state_.empty() || idle_frame;
+      last_commit_failed_update_ || previous_plane_state_.empty();
   *retire_fence = -1;
   uint32_t z_order = 0;
   bool has_video_layer = false;
@@ -486,6 +486,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
+    } else if (overlay_layer->HasLayerContentChanged()) {
+      idle_frame = false;
+    }
+
+    if (overlay_layer->IsCursorLayer()) {
+      tracker.FrameHasCursor();
     }
 
     z_order++;
@@ -546,6 +552,14 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  if (idle_frame) {
+    if ((add_index != -1) || (remove_index != -1) || re_validate_commit) {
+      idle_frame = false;
+    }
+  }
+
+  if (!validate_layers)
+    validate_layers = idle_frame;
 #ifdef SURFACE_TRACING
   if ((remove_index != -1) || (add_index != -1)) {
     ISURFACETRACE(
@@ -584,29 +598,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
-  // If we are in idle mode, we can postpone re-validation
-  // in case we are only removing layers and no new layers
-  // are being added.
   if (!validate_layers && tracker.RevalidateLayers()) {
-    bool only_cursor_changed = false;
-    if (add_index > 0 &&
-        ((remove_index == add_index) || (remove_index == -1)) &&
-        (add_index < static_cast<int>(size))) {
-      if (layers.at(add_index).IsCursorLayer()) {
-        only_cursor_changed = true;
-      }
-    } else if (remove_index > 0 && !re_validate_commit && add_index == -1 &&
-               (remove_index <= static_cast<int>(previous_size))) {
-      if (in_flight_layers_.at(remove_index - 1).IsCursorLayer()) {
-        only_cursor_changed = true;
-      }
-    }
-
-    if (only_cursor_changed) {
-      tracker.PostponeRevalidation();
-    } else {
-      validate_layers = true;
-    }
+    validate_layers = true;
   }
 
   // Validate Overlays and Layers usage.
@@ -1125,7 +1118,8 @@ void DisplayQueue::HandleIdleCase() {
 
   if (idle_tracker_.total_planes_ <= 1 ||
       (idle_tracker_.state_ & FrameStateTracker::kTrackingFrames) ||
-      (idle_tracker_.state_ & FrameStateTracker::kRevalidateLayers)) {
+      (idle_tracker_.state_ & FrameStateTracker::kRevalidateLayers) ||
+      idle_tracker_.has_cursor_layer_) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }

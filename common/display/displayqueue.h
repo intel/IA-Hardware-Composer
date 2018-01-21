@@ -45,7 +45,7 @@ class DisplayPlaneHandler;
 struct HwcLayer;
 class NativeBufferHandler;
 
-static uint32_t kidleframes = 350;
+static uint32_t kidleframes = 250;
 class DisplayQueue {
  public:
   DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
@@ -139,6 +139,7 @@ class DisplayQueue {
     };
 
     uint32_t idle_frames_ = 0;
+    bool has_cursor_layer_ = false;
     SpinLock idle_lock_;
     int state_ = kPrepareComposition;
     uint32_t revalidate_frames_counter_ = 0;
@@ -156,6 +157,7 @@ class DisplayQueue {
           queue_(queue) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
+      tracker_.has_cursor_layer_ = false;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
         tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
         tracker_.state_ &= ~FrameStateTracker::kPrepareIdleComposition;
@@ -177,10 +179,6 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kTrackingFrames;
     }
 
-    void PostponeRevalidation() {
-      revalidate_ignored_ = true;
-    }
-
     void ResetTrackerState() {
       if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
         tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
@@ -193,6 +191,10 @@ class DisplayQueue {
 
     bool IgnoreUpdate() const {
       return tracker_.state_ & FrameStateTracker::kIgnoreUpdates;
+    }
+
+    void FrameHasCursor() {
+      tracker_.has_cursor_layer_ = true;
     }
 
     ~ScopedIdleStateTracker() {
@@ -214,8 +216,7 @@ class DisplayQueue {
         } else {
           tracker_.revalidate_frames_counter_++;
         }
-      } else if (!revalidate_ignored_ &&
-                 (tracker_.state_ & FrameStateTracker::kRevalidateLayers)) {
+      } else if (tracker_.state_ & FrameStateTracker::kRevalidateLayers) {
         tracker_.state_ &= ~FrameStateTracker::kRevalidateLayers;
         tracker_.revalidate_frames_counter_ = 0;
       }
@@ -232,7 +233,6 @@ class DisplayQueue {
     Compositor& compositor_;
     ResourceManager* resource_manager_;
     DisplayQueue* queue_;
-    bool revalidate_ignored_ = false;
   };
 
   void HandleExit();
