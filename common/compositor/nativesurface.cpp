@@ -19,6 +19,7 @@
 #include "displayplane.h"
 #include "displayplanestate.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativebufferhandler.h"
 #include "resourcemanager.h"
 
@@ -117,15 +118,11 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 
 void NativeSurface::UpdateSurfaceDamage(
     const HwcRect<int> &currentsurface_damage, bool forced) {
-  if (forced) {
-    damage_changed_ = true;
-  }
+  damage_changed_ = forced;
 
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
-    if (!surface_damage_.empty())
-      damage_changed_ = true;
-
+    damage_changed_ = true;
     return;
   }
 
@@ -134,17 +131,10 @@ void NativeSurface::UpdateSurfaceDamage(
   }
 
   HwcRect<int> temp = surface_damage_;
-  surface_damage_.left =
-      std::min(surface_damage_.left, currentsurface_damage.left);
-  surface_damage_.top =
-      std::min(surface_damage_.top, currentsurface_damage.top);
-  surface_damage_.right =
-      std::max(surface_damage_.right, currentsurface_damage.right);
-  surface_damage_.bottom =
-      std::max(surface_damage_.bottom, currentsurface_damage.bottom);
+  CalculateRect(currentsurface_damage, surface_damage_);
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (!forced && (temp == surface_damage_)) {
+    if (temp == surface_damage_) {
       damage_changed_ = false;
     }
   }

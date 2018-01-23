@@ -31,6 +31,15 @@ int HWCPoll(int fd, int timeout);
 // Reset's rect to include region hwc_region.
 void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect);
 
+// Calculate new_rect to include target_rect. This is used to calculate
+// Display Frame and Surface Damage rect of layers.
+void CalculateRect(const HwcRect<int>& target_rect, HwcRect<int>& new_rect);
+
+// Calculate new_rect to include target_rect. This is used to calculate
+// Source Rect of layers.
+void CalculateSourceRect(const HwcRect<float>& target_rect,
+                         HwcRect<float>& new_rect);
+
 // Returns true if format is a Media format.
 bool IsSupportedMediaFormat(uint32_t format);
 

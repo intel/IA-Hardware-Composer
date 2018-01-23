@@ -104,7 +104,7 @@ class NativeSurface {
 
   // Set's Damage rect of this surface.
   void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
-                           bool forced);
+                           bool forced = true);
 
   // Resets damage of this surface to empty.
   void ResetDamage();
