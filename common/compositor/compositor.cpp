@@ -79,6 +79,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.lock();
       media_state.colors_ = colors_;
       media_state.scaling_mode_ = scaling_mode_;
+      media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
@@ -253,6 +254,7 @@ void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 
 void Compositor::RestoreVideoDefaultDeinterlace() {
   lock_.lock();
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
   deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
   lock_.unlock();
 }
