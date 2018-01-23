@@ -38,6 +38,7 @@ class IControls : public android::IInterface {
   virtual status_t DisplayEnableBlank(uint32_t display, bool blank) = 0;
   virtual status_t DisplayRestoreDefaultColorParam(uint32_t display,
                                                    EHwcsColorControl color) = 0;
+  virtual status_t DisplayRestoreDefaultDeinterlaceParam(uint32_t display) = 0;
   virtual status_t DisplayGetColorParam(uint32_t display,
                                         EHwcsColorControl color, float *value,
                                         float *startvalue, float *endvalue) = 0;
