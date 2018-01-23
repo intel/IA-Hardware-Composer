@@ -37,6 +37,8 @@ static HWCColorControl HWCS2HWC(EHwcsColorControl color) {
       return HWCColorControl::kColorContrast;
     case HWCS_COLOR_SATURATION:
       return HWCColorControl::kColorSaturation;
+    case HWCS_COLOR_SHARP:
+      return HWCColorControl::kColorSharpness;
     case HWCS_COLOR_HUE:
     default:
       return HWCColorControl::kColorHue;
@@ -231,6 +233,18 @@ status_t HwcService::Controls::DisplayRestoreDefaultColorParam(
     phyDisplay = mHwc.GetExtendedDisplay(display - 1);
   }
   phyDisplay->RestoreVideoDefaultColor(HWCS2HWC(color));
+  return OK;
+}
+
+status_t HwcService::Controls::DisplayRestoreDefaultDeinterlaceParam(
+    uint32_t display) {
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->RestoreVideoDefaultDeinterlace();
   return OK;
 }
 
