@@ -130,6 +130,15 @@ status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
   return pContext->mControls->DisplayRestoreDefaultColorParam(display, color);
 }
 
+status_t HwcService_Display_RestoreDefaultDeinterlaceParam(HWCSHANDLE hwcs,
+                                                           uint32_t display) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+  return pContext->mControls->DisplayRestoreDefaultDeinterlaceParam(display);
+}
+
 status_t HwcService_Display_GetColorParam(HWCSHANDLE hwcs, uint32_t display,
                                           EHwcsColorControl color, float* value,
                                           float* startvalue, float* endvalue) {

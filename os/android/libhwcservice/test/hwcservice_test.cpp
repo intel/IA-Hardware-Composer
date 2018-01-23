@@ -34,7 +34,8 @@ static void usage() {
           "\t-a: Set Saturation\n"
           "\t-b: Set Brightness\n"
           "\t-c: Set Contrast\n"
-          "\t-d: Set deinterlace Bob\n"
+          "\t-e: Set Sharpness\n"
+          "\t-d: Set deinterlace\n"
           "\t-r: Restore all default video colors/deinterlace \n";
   exit(-1);
 }
@@ -50,9 +51,10 @@ int main(int argc, char** argv) {
   bool set_brightness = false;
   bool set_contrast = false;
   bool set_deinterlace = false;
+  bool set_sharpness = false;
   bool restore = false;
   int ch;
-  while ((ch = getopt(argc, argv, "gsphurabcd")) != -1) {
+  while ((ch = getopt(argc, argv, "gsphurabcde")) != -1) {
     switch (ch) {
       case 'g':
         get_mode = true;
@@ -78,6 +80,10 @@ int main(int argc, char** argv) {
       case 'c':
         set_contrast = true;
         break;
+      case 'e':
+        set_sharpness = true;
+        break;
+
       case 'd':
         set_deinterlace = true;
         break;
@@ -155,6 +161,12 @@ int main(int argc, char** argv) {
                                      atoi(argv[0]));
   }
 
+  if (set_sharpness) {
+    aout << "Set Sharpness to: " << atoi(argv[0]) << endl;
+    HwcService_Display_SetColorParam(hwcs, display, HWCS_COLOR_SHARP,
+                                     atoi(argv[0]));
+  }
+
   if (set_deinterlace) {
     aout << "Set Deinterlace to: " << atoi(argv[0]) << endl;
     HwcService_Display_SetDeinterlaceParam(hwcs, display, atoi(argv[0]));
@@ -169,6 +181,9 @@ int main(int argc, char** argv) {
                                                 HWCS_COLOR_BRIGHTNESS);
     HwcService_Display_RestoreDefaultColorParam(hwcs, display,
                                                 HWCS_COLOR_CONTRAST);
+    HwcService_Display_RestoreDefaultColorParam(hwcs, display,
+                                                HWCS_COLOR_SHARP);
+    HwcService_Display_RestoreDefaultDeinterlaceParam(hwcs, display);
   }
 
   HwcService_Disconnect(hwcs);

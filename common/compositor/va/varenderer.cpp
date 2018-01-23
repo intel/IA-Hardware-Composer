@@ -169,6 +169,7 @@ bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag) {
 }
 bool VARenderer::SetVAProcFilterDeinterlaceMode(
     const HWCDeinterlaceProp& prop) {
+  VAProcDeinterlacingType mode;
   if (prop.flag_ == HWCDeinterlaceFlag::kDeinterlaceFlagNone) {
     SetVAProcFilterDeinterlaceDefaultMode();
     return true;
@@ -176,32 +177,34 @@ bool VARenderer::SetVAProcFilterDeinterlaceMode(
              GetVAProcDeinterlaceFlagFromVideo(prop.flag_)) {
     switch (prop.mode_) {
       case HWCDeinterlaceControl::kDeinterlaceNone:
-        deinterlace_caps_.mode_ = VAProcDeinterlacingNone;
+        mode = VAProcDeinterlacingNone;
         break;
       case HWCDeinterlaceControl::kDeinterlaceBob:
-        deinterlace_caps_.mode_ = VAProcDeinterlacingBob;
+        mode = VAProcDeinterlacingBob;
         break;
       case HWCDeinterlaceControl::kDeinterlaceWeave:
-        deinterlace_caps_.mode_ = VAProcDeinterlacingWeave;
+        mode = VAProcDeinterlacingWeave;
         break;
       case HWCDeinterlaceControl::kDeinterlaceMotionAdaptive:
-        deinterlace_caps_.mode_ = VAProcDeinterlacingMotionAdaptive;
+        mode = VAProcDeinterlacingMotionAdaptive;
         break;
       case HWCDeinterlaceControl::kDeinterlaceMotionCompensated:
-        deinterlace_caps_.mode_ = VAProcDeinterlacingMotionCompensated;
+        mode = VAProcDeinterlacingMotionCompensated;
         break;
       default:
         ETRACE("Hwc unsupport deinterlace mode\n");
         return false;
     }
-  for (int i = 0; i < VAProcDeinterlacingCount; i++) {
-    if (deinterlace_caps_.caps_[i].type == deinterlace_caps_.mode_) {
-      update_caps_ = true;
-      return true;
+    for (int i = 0; i < VAProcDeinterlacingCount; i++) {
+      if (deinterlace_caps_.caps_[i].type == mode &&
+          deinterlace_caps_.mode_ != mode) {
+        deinterlace_caps_.mode_ = mode;
+        update_caps_ = true;
+        return true;
+      }
     }
-  }
-  ETRACE("VA Filter unsupport deinterlace mode\n");
-  return false;
+    ETRACE("VA Filter unsupport deinterlace mode\n");
+    return false;
   }
   return false;
 }
@@ -459,7 +462,8 @@ bool VARenderer::UpdateCaps() {
       deinterlaceparam.type = VAProcFilterDeinterlacing;
       if (!deinterlace[0].CreateBuffer(
               va_context_, VAProcFilterParameterBufferType,
-              sizeof(VAProcFilterDeinterlacing), 1, &deinterlaceparam)) {
+              sizeof(VAProcFilterParameterBufferDeinterlacing), 1,
+              &deinterlaceparam)) {
         return false;
       }
       filters_.push_back(deinterlace[0].buffer());
@@ -473,7 +477,6 @@ bool VARenderer::UpdateCaps() {
   param_.num_filters = 0;
   param_.filters = nullptr;
   param_.filter_flags = filter_flags_;
-
   if (filters_.size()) {
     param_.filters = &filters_[0];
     param_.num_filters = static_cast<unsigned int>(filters_.size());
