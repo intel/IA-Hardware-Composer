@@ -77,6 +77,8 @@ script:
 - make clean
 - ./autogen.sh --prefix=$WLD --disable-hotplug-support
 - make -j5
+- ./autogen.sh --prefix=$WLD --enable-libva
+- make -j5
 branches:
   only:
   - master
