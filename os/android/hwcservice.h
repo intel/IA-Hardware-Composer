@@ -74,6 +74,7 @@ class HwcService : public BnService {
     status_t DisplayEnableBlank(uint32_t display, bool blank);
     status_t DisplayRestoreDefaultColorParam(uint32_t display,
                                              EHwcsColorControl color);
+    status_t DisplayRestoreDefaultDeinterlaceParam(uint32_t display);
     status_t DisplayGetColorParam(uint32_t display, EHwcsColorControl color,
                                   float* value, float* startvalue,
                                   float* endvalue);

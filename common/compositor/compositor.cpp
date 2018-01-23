@@ -254,6 +254,7 @@ void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 
 void Compositor::RestoreVideoDefaultDeinterlace() {
   lock_.lock();
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
   deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
   lock_.unlock();
 }
