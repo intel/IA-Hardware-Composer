@@ -82,16 +82,15 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
 }
 
 void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
-                               uint32_t translate_x_pos) {
-  HwcRect<int> frame = display_frame;
-  frame.left += translate_x_pos;
-  frame.right += translate_x_pos;
-
-  if ((frame.left != display_frame_.left) ||
-      (frame.right != display_frame_.right) ||
-      (frame.top != display_frame_.top) ||
-      (frame.bottom != display_frame_.bottom)) {
+                               int translate_x_pos) {
+  if (((display_frame.left + translate_x_pos) != display_frame_.left) ||
+      ((display_frame.right + translate_x_pos) != display_frame_.right) ||
+      (display_frame.top != display_frame_.top) ||
+      (display_frame.bottom != display_frame_.bottom)) {
     layer_cache_ |= kDisplayFrameRectChanged;
+    HwcRect<int> frame = display_frame;
+    frame.left += translate_x_pos;
+    frame.right += translate_x_pos;
     UpdateRenderingDamage(display_frame_, frame, false);
 
     display_frame_ = frame;
@@ -350,27 +349,13 @@ void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
   if (current_rendering_damage_.empty()) {
     current_rendering_damage_ = old_rect;
   } else {
-    current_rendering_damage_.left =
-        std::min(current_rendering_damage_.left, old_rect.left);
-    current_rendering_damage_.top =
-        std::min(current_rendering_damage_.top, old_rect.top);
-    current_rendering_damage_.right =
-        std::max(current_rendering_damage_.right, old_rect.right);
-    current_rendering_damage_.bottom =
-        std::max(current_rendering_damage_.bottom, old_rect.bottom);
+    CalculateRect(old_rect, current_rendering_damage_);
   }
 
   if (same_rect)
     return;
 
-  current_rendering_damage_.left =
-      std::min(current_rendering_damage_.left, newrect.left);
-  current_rendering_damage_.top =
-      std::min(current_rendering_damage_.top, newrect.top);
-  current_rendering_damage_.right =
-      std::max(current_rendering_damage_.right, newrect.right);
-  current_rendering_damage_.bottom =
-      std::max(current_rendering_damage_.bottom, newrect.bottom);
+  CalculateRect(newrect, current_rendering_damage_);
 }
 
 const HwcRect<int>& HwcLayer::GetLayerDamage() {

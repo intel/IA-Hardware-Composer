@@ -35,8 +35,6 @@
 #include "hwctrace.h"
 #include "hwcutils.h"
 
-#define HWC_UNUSED(x) ((void)&(x))
-
 #ifdef __cplusplus
 extern "C" {
 #endif

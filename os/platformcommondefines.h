@@ -34,6 +34,8 @@ VkFormat NativeToVkFormat(int native_format);
 // minigbm specific DRM_FORMAT_YVU420_ANDROID enum
 #define DRM_FORMAT_YVU420_ANDROID fourcc_code('9', '9', '9', '7')
 
+#define HWC_UNUSED(x) ((void)&(x))
+
 inline void hash_combine_hwc(size_t seed, size_t value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }

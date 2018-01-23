@@ -116,9 +116,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         use_plane_transform = true;
       }
 
-      if (!CalculateRenderState(layers, comp_regions, state,
-                                plane.IsUsingPlaneScalar(),
-                                use_plane_transform)) {
+      if (!CalculateRenderState(
+              layers, comp_regions, state, plane.GetDownScalingFactor(),
+              plane.IsUsingPlaneScalar(), use_plane_transform)) {
         ETRACE("Failed to calculate Render state.");
         return false;
       }
@@ -164,7 +164,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
   draw_state.states_.reserve(num_regions);
-  if (!CalculateRenderState(layers, comp_regions, draw_state, false)) {
+  if (!CalculateRenderState(layers, comp_regions, draw_state, 1, false)) {
     ETRACE("Failed to calculate render state.");
     return false;
   }
@@ -194,14 +194,15 @@ void Compositor::FreeResources() {
 bool Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
-    bool uses_display_up_scaling, bool use_plane_transform) {
+    uint32_t downscaling_factor, bool uses_display_up_scaling,
+    bool use_plane_transform) {
   CTRACE();
   size_t num_regions = comp_regions.size();
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(layers, region, uses_display_up_scaling,
-                         use_plane_transform);
+    state.ConstructState(layers, region, downscaling_factor,
+                         uses_display_up_scaling, use_plane_transform);
     if (state.layer_state_.empty()) {
       continue;
     }

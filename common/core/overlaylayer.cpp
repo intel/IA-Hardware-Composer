@@ -346,14 +346,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
       // we re-draw this and previous layer regions.
       if (!layer->IsValidated()) {
         content_changed = true;
-        surface_damage_.left =
-            std::min(surface_damage_.left, rhs->display_frame_.left);
-        surface_damage_.top =
-            std::min(surface_damage_.top, rhs->display_frame_.top);
-        surface_damage_.right =
-            std::max(surface_damage_.right, rhs->display_frame_.right);
-        surface_damage_.bottom =
-            std::max(surface_damage_.bottom, rhs->display_frame_.bottom);
+        CalculateRect(rhs->display_frame_, surface_damage_);
       } else if (!content_changed) {
         if ((buffer->GetFormat() !=
              rhs->imported_buffer_->buffer_->GetFormat()) ||
