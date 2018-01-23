@@ -520,6 +520,13 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   }
 
   if (mode_.needs_modeset) {
+    ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->active_property().id(), 1);
+    if (ret < 0) {
+      ALOGE("Failed to add crtc active to pset\n");
+      drmModeAtomicFree(pset);
+      return ret;
+    }
+
     ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->mode_property().id(),
                                    mode_.blob_id) < 0 ||
           drmModeAtomicAddProperty(pset, connector->id(),
