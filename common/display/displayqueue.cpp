@@ -156,6 +156,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       const size_t& index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
       if (index >= threshold) {
+#ifdef SURFACE_TRACING
+        size_t original_size = source_layers.size();
+#endif
+
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
           last_plane.ResetLayers(layers, threshold);
@@ -163,11 +167,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 #ifdef SURFACE_TRACING
         ISURFACETRACE(
-            "Layers removed. Threshold: "
+            "Layers removed. Total old Layers: %d Total new Layers: %d "
+            "Threshold: "
             "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
             "%d \n",
-            threshold, index, composition->size(),
-            previous_plane_state_.size());
+            original_size, source_layers.size(), threshold, index,
+            composition->size(), previous_plane_state_.size());
 #endif
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
@@ -185,6 +190,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             ISURFACETRACE("Primary plane is empty forcing full validation. \n");
 #endif
             *force_full_validation = true;
+            *can_ignore_commit = false;
             return;
           }
 
@@ -215,122 +221,111 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (last_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      bool content_changed = false;
       bool update_rect = false;
       bool update_source_rect = false;
+      bool ignore_damage = clear_surface || reset_composition_regions;
+      bool content_changed = ignore_damage;
 
-      if (!clear_surface) {
-        const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-        size_t layers_size = source_layers.size();
+      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+      size_t layers_size = source_layers.size();
 
-        HwcRect<int> display_frame = last_plane.GetDisplayFrame();
-        HwcRect<float> source_crop = last_plane.GetSourceCrop();
+      HwcRect<int> display_frame = last_plane.GetDisplayFrame();
+      HwcRect<float> source_crop = last_plane.GetSourceCrop();
 
-        for (size_t i = 0; i < layers_size; i++) {
-          const size_t& source_index = source_layers.at(i);
-          const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged()) {
-            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
-            update_rect = true;
-          }
-
-          if (layer.HasSourceRectChanged()) {
-            last_plane.UpdateSourceCrop(layer.GetSourceCrop());
-            update_source_rect = true;
-          }
-
-          if (layer.HasLayerContentChanged()) {
-            const HwcRect<int>& damage = layer.GetSurfaceDamage();
-            if (content_changed) {
-              surface_damage.left = std::min(surface_damage.left, damage.left);
-              surface_damage.top = std::min(surface_damage.top, damage.top);
-              surface_damage.right =
-                  std::max(surface_damage.right, damage.right);
-              surface_damage.bottom =
-                  std::max(surface_damage.bottom, damage.bottom);
-            } else {
-              surface_damage = damage;
-            }
-            content_changed = true;
-          }
+      for (size_t i = 0; i < layers_size; i++) {
+        const size_t& source_index = source_layers.at(i);
+        const OverlayLayer& layer = layers.at(source_index);
+        if (layer.HasDimensionsChanged()) {
+          last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
+          update_rect = true;
         }
 
-        if (update_rect || update_source_rect) {
+        if (layer.HasSourceRectChanged()) {
+          last_plane.UpdateSourceCrop(layer.GetSourceCrop());
+          update_source_rect = true;
+        }
+
+        if (ignore_damage) {
+          continue;
+        }
+
+        if (layer.HasLayerContentChanged()) {
+          const HwcRect<int>& damage = layer.GetSurfaceDamage();
+          if (content_changed) {
+            surface_damage.left = std::min(surface_damage.left, damage.left);
+            surface_damage.top = std::min(surface_damage.top, damage.top);
+            surface_damage.right = std::max(surface_damage.right, damage.right);
+            surface_damage.bottom =
+                std::max(surface_damage.bottom, damage.bottom);
+          } else {
+            surface_damage = damage;
+          }
           content_changed = true;
-          // Let's check if we need to check this plane-layer combination.
-          last_plane.ValidateReValidation();
-          if (last_plane.RevalidationType() !=
-              DisplayPlaneState::ReValidationType::kNone) {
-            plane_validation = true;
-          }
+        }
+      }
 
-          bool rect_updated = update_rect;
-          bool source_rect_updated = update_source_rect;
-          if (update_rect && (last_plane.GetDisplayFrame() == display_frame)) {
-            rect_updated = false;
-          }
+      if (update_rect || update_source_rect) {
+        content_changed = true;
+        // Let's check if we need to check this plane-layer combination.
+        last_plane.ValidateReValidation();
+        if (last_plane.RevalidationType() !=
+            DisplayPlaneState::ReValidationType::kNone) {
+          plane_validation = true;
+        }
 
-          if (update_source_rect &&
-              (last_plane.GetSourceCrop() == source_crop)) {
-            source_rect_updated = false;
-          }
+        bool rect_updated = update_rect;
+        bool source_rect_updated = update_source_rect;
+        if (update_rect && (last_plane.GetDisplayFrame() == display_frame)) {
+          rect_updated = false;
+        }
 
-          if (rect_updated) {
-            last_plane.PlaneRectUpdated();
-          }
+        if (update_source_rect && (last_plane.GetSourceCrop() == source_crop)) {
+          source_rect_updated = false;
+        }
 
-          // If reset_composition_regions is true we will mark the whole
-          // plane as damaged below. We can ignore setting the flag here.
-          if (!reset_composition_regions &&
-              (update_rect ||
-               (update_source_rect && last_plane.IsUsingPlaneScalar()))) {
-            last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-            update_rect = true;
-          }
+        if (rect_updated) {
+          last_plane.PlaneRectUpdated();
+        }
+
+        // If reset_composition_regions is true we will mark the whole
+        // plane as damaged below. We can ignore setting the flag here.
+        if (!ignore_damage &&
+            (update_rect ||
+             (update_source_rect && last_plane.IsUsingPlaneScalar()))) {
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+          update_rect = true;
         }
       }
 
       // If surfaces need to be cleared or rect is updated,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
-        content_changed = true;
         last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      }
-
-      // Let's make sure we swap the surface in case content has changed.
-      size_t total_surfaces = last_plane.GetSurfaces().size();
-      if (content_changed && total_surfaces == 3) {
-        last_plane.SwapSurfaceIfNeeded();
-      }
-
-      // Let's get the state from surface if it needs to be cleared.
-      if (!clear_surface) {
+      } else if (reset_composition_regions) {
         // If a rect intersects one of the dedicated layers, we need to remove
         // the layers from the composition region which appear *below* the
         // dedicated
-        // layer. This effectively punches a hole through the composition layer
-        // such that the dedicated layer can be placed below the composition and
+        // layer. This effectively punches a hole through the composition
+        // layer
+        // such that the dedicated layer can be placed below the composition
+        // and
         // not
         // be occluded. Rest composition regions in case
         // reset_composition_regions is true.
-        if (reset_composition_regions) {
-          surface_damage = last_plane.GetDisplayFrame();
-          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-          if (!content_changed && total_surfaces == 3) {
-            last_plane.SwapSurfaceIfNeeded();
-          }
-
-          content_changed = true;
-        }
+        surface_damage = last_plane.GetDisplayFrame();
+        last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
       }
 
       if (content_changed) {
-        if (total_surfaces != 3) {
+        if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        } else {
+          // Let's make sure we swap the surface in case content has changed.
+          last_plane.SwapSurfaceIfNeeded();
         }
 
         // Make sure all rects are correct.
-        if (!clear_surface && !surface_damage.empty()) {
+        if (!ignore_damage && !surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage,
                                   reset_composition_regions || update_rect);
         }
@@ -354,8 +349,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         // whole commit.
         if (buffer->GetFb() == 0) {
           *force_full_validation = true;
-          ignore_commit = false;
-          break;
+          *can_ignore_commit = false;
+          return;
         }
 
         reset_composition_regions = true;
