@@ -72,6 +72,10 @@ class DrmBuffer : public OverlayBuffer {
     return offsets_;
   }
 
+  uint32_t GetTilingMode() const override {
+    return tiling_mode_;
+  }
+
   const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
                                        bool external_import) override;
 
@@ -86,10 +90,11 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
-    void Initialize(const HwcBuffer& bo);
+  void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;
+  uint32_t tiling_mode_ = 0;
   uint32_t frame_buffer_format_ = 0;
   uint32_t pitches_[4];
   uint32_t offsets_[4];
