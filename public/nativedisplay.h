@@ -238,7 +238,8 @@ class NativeDisplay {
   }
 
   // Nested display related.
-  virtual void InitNestedDisplay() {
+  virtual void InitNestedDisplay(uint32_t /*width*/, uint32_t /*height*/,
+                                 uint32_t /*port*/) {
   }
 
   /**
