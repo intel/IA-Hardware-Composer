@@ -30,7 +30,29 @@ class DisplayManager {
   virtual ~DisplayManager() {
   }
 
+  // Initialize things which are critical for
+  // Display Manager. InitializeDisplayResources
+  // is expected to be called to handle things
+  // which can be initialized later to finish
+  // the initialization.
   virtual bool Initialize() = 0;
+
+  // GetAllDisplays is expected to return set
+  // of correct displays after this call is done.
+  virtual void InitializeDisplayResources() = 0;
+
+  // Iniitialize resources to monitor external events.
+  // These can be two types:
+  // 1) We are showing splash screen and another App
+  //    needs to take the control. In this case splash
+  //    is true.
+  // 2) Another app is having control of display and we
+  //    we need to take control.
+  virtual void InitializeExternalLockMonitor(bool splash = false) = 0;
+
+  // Display Manager should initialize resources to start monitoring
+  // for Hotplug events.
+  virtual void StartHotPlugMonitor() = 0;
 
   virtual NativeDisplay *GetVirtualDisplay() = 0;
   virtual NativeDisplay *GetNestedDisplay() = 0;
