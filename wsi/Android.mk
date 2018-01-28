@@ -52,8 +52,7 @@ LOCAL_SRC_FILES := \
         drm/drmbuffer.cpp \
         drm/drmplane.cpp \
         drm/drmdisplaymanager.cpp \
-	drm/drmscopedtypes.cpp \
-	drm/hwclock.cpp
+	drm/drmscopedtypes.cpp
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \
