@@ -5,5 +5,4 @@ wsi_SOURCES =              \
     drm/drmplane.cpp \
     drm/drmdisplaymanager.cpp \
     drm/drmscopedtypes.cpp \
-    drm/hwclock.cpp \
 	$(NULL)

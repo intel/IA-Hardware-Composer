@@ -70,7 +70,9 @@ class GpuDevice : public HWCThread {
 
   void HandleHWCSettings();
   void InitializeHotPlugEvents(bool take_lock = true);
+  void DisableWatch();
   void HandleRoutine() override;
+  void HandleWait() override;
   std::unique_ptr<DisplayManager> display_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
@@ -79,6 +81,8 @@ class GpuDevice : public HWCThread {
   SpinLock initialization_state_lock_;
   SpinLock thread_stage_lock_;
   SpinLock thread_sync_lock_;
+  int lock_fd_ = -1;
+  friend class DrmDisplayManager;
 };
 
 }  // namespace hwcomposer

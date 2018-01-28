@@ -23,9 +23,10 @@
 
 namespace hwcomposer {
 
+class GpuDevice;
 class DisplayManager {
  public:
-  static DisplayManager *CreateDisplayManager();
+  static DisplayManager *CreateDisplayManager(GpuDevice *device);
   DisplayManager() = default;
   virtual ~DisplayManager() {
   }
@@ -41,18 +42,16 @@ class DisplayManager {
   // of correct displays after this call is done.
   virtual void InitializeDisplayResources() = 0;
 
-  // Iniitialize resources to monitor external events.
-  // These can be two types:
-  // 1) We are showing splash screen and another App
-  //    needs to take the control. In this case splash
-  //    is true.
-  // 2) Another app is having control of display and we
-  //    we need to take control.
-  virtual void InitializeExternalLockMonitor(bool splash = false) = 0;
-
   // Display Manager should initialize resources to start monitoring
   // for Hotplug events.
   virtual void StartHotPlugMonitor() = 0;
+
+  // Refresh all displays managed by this display manager.
+  virtual void ForceRefresh() = 0;
+
+  // Ignore updates for all displays managed by this display
+  // manager until ForceRefresh is called.
+  virtual void IgnoreUpdates() = 0;
 
   virtual NativeDisplay *GetVirtualDisplay() = 0;
   virtual NativeDisplay *GetNestedDisplay() = 0;
