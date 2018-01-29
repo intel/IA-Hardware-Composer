@@ -558,13 +558,43 @@ void DisplayPlaneManager::ValidateForDisplayTransform(
       }
 
       last_plane.RevalidationDone(validation_done);
+      SwapSurfaceIfNeeded(&last_plane);
     }
 
     if (original_rotation != last_plane.GetRotationType()) {
       last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      SwapSurfaceIfNeeded(&last_plane);
     }
   }
+}
+
+void DisplayPlaneManager::ValidateForDownScaling(
+    DisplayPlaneState &last_plane,
+    const std::vector<OverlayPlane> &commit_planes) {
+#ifdef ENABLE_DOWNSCALING
+  uint32_t original_downscaling_factor = last_plane.GetDownScalingFactor();
+  if (last_plane.RevalidationType() &
+      DisplayPlaneState::ReValidationType::kDownScaling) {
+    last_plane.SetDisplayDownScalingFactor(1, false);
+    if (!last_plane.IsUsingPlaneScalar() && last_plane.CanUseGPUDownScaling()) {
+      last_plane.SetDisplayDownScalingFactor(4, false);
+      if (!plane_handler_->TestCommit(commit_planes)) {
+        last_plane.SetDisplayDownScalingFactor(1, false);
+      }
+    }
+
+    uint32_t validation_done =
+        DisplayPlaneState::ReValidationType::kDownScaling;
+    last_plane.RevalidationDone(validation_done);
+    SwapSurfaceIfNeeded(&last_plane);
+  }
+
+  if (original_downscaling_factor != last_plane.GetDownScalingFactor()) {
+    last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+  }
+#else
+  HWC_UNUSED(commit_planes);
+  HWC_UNUSED(last_plane);
+#endif
 }
 
 void DisplayPlaneManager::ValidateForDisplayScaling(
@@ -609,8 +639,8 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     last_plane.UsePlaneScalar(false, false);
   }
 
+  SwapSurfaceIfNeeded(&last_plane);
   if (old_state != last_plane.IsUsingPlaneScalar()) {
-    SwapSurfaceIfNeeded(&last_plane);
     last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
   }
 }
@@ -789,19 +819,8 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   ValidateForDisplayTransform(last_plane, commit_planes);
   // Check for any change to scalar usage.
   ValidateForDisplayScaling(last_plane, commit_planes);
-// Check for downscaling.
-#ifdef ENABLE_DOWNSCALING
-  if (!last_plane.IsUsingPlaneScalar() && last_plane.CanUseGPUDownScaling()) {
-    last_plane.SetDisplayDownScalingFactor(4, true);
-    if (!plane_handler_->TestCommit(commit_planes)) {
-      last_plane.SetDisplayDownScalingFactor(1, true);
-    }
-
-    uint32_t validation_done =
-        DisplayPlaneState::ReValidationType::kDownScaling;
-    last_plane.RevalidationDone(validation_done);
-  }
-#endif
+  // Check for Downscaling.
+  ValidateForDownScaling(last_plane, commit_planes);
   // Reset andy Scanout validation state.
   uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
   last_plane.RevalidationDone(validation_done);
@@ -883,8 +902,10 @@ bool DisplayPlaneManager::ReValidatePlanes(
       continue;
     }
 
-    if (reset_composition_region)
-      last_plane.ResetCompositionRegion();
+    if (reset_composition_region) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      SwapSurfaceIfNeeded(&last_plane);
+    }
 
     reset_composition_region = false;
     uint32_t revalidation_type = last_plane.RevalidationType();
@@ -959,11 +980,14 @@ bool DisplayPlaneManager::ReValidatePlanes(
         new_type = DisplayPlaneState::RotationType::kGPURotation;
       }
 
-      // Set new rotation type. Clear surfaces in case type has changed.
-      last_plane.SetRotationType(new_type, new_type != old_type);
+      SwapSurfaceIfNeeded(&last_plane);
+      if (old_type != new_type) {
+        // Set new rotation type. Clear surfaces in case type has changed.
+        last_plane.SetRotationType(new_type, false);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      }
     }
 
-#ifdef ENABLE_DOWNSCALING
     if (revalidation_type & DisplayPlaneState::ReValidationType::kDownScaling) {
       validation_done |= DisplayPlaneState::ReValidationType::kDownScaling;
       // Make sure we are not handling upscaling.
@@ -974,26 +998,11 @@ bool DisplayPlaneManager::ReValidatePlanes(
         if (last_plane.GetDownScalingFactor() > 1)
           last_plane.SetDisplayDownScalingFactor(1, true);
       } else {
-        // Check if we need to enable Downscaling support.
-        if (last_plane.CanUseGPUDownScaling() &&
-            last_plane.GetDownScalingFactor() == 1) {
-          last_plane.SetDisplayDownScalingFactor(4, false);
-          if (!plane_handler_->TestCommit(commit_planes)) {
-            last_plane.SetDisplayDownScalingFactor(1, false);
-          } else {
-            // We need to clear surface as have changed scaling factor.
-            for (NativeSurface *surface : last_plane.GetSurfaces()) {
-              surface->SetClearSurface(NativeSurface::kFullClear);
-            }
-          }
-        } else if (!last_plane.CanUseGPUDownScaling() &&
-                   last_plane.GetDownScalingFactor() > 1) {
-          // Disable Downscaling support.
-          last_plane.SetDisplayDownScalingFactor(1, true);
-        }
+        // Check for Downscaling.
+        ValidateForDownScaling(last_plane, commit_planes);
       }
     }
-#endif
+
     last_plane.RevalidationDone(validation_done);
   }
 
@@ -1023,25 +1032,13 @@ void DisplayPlaneManager::FinalizeValidation(
       plane.ValidateReValidation();
       // Check for Any display transform to be applied.
       ValidateForDisplayTransform(plane, commit_planes);
+
+      // Check for Downscaling.
+      ValidateForDownScaling(plane, commit_planes);
+
       if (!needs_gpu) {
         needs_gpu = !plane.SurfaceRecycled();
       }
-
-#ifdef ENABLE_DOWNSCALING
-      if (!plane.IsUsingPlaneScalar() && plane.CanUseGPUDownScaling() &&
-          (plane.GetDownScalingFactor() == 1)) {
-        plane.SetDisplayDownScalingFactor(4, true);
-        if (!plane_handler_->TestCommit(commit_planes)) {
-          plane.SetDisplayDownScalingFactor(1, true);
-        }
-
-        uint32_t validation_done =
-            DisplayPlaneState::ReValidationType::kDownScaling;
-        plane.RevalidationDone(validation_done);
-      }
-#else
-      HWC_UNUSED(commit_planes);
-#endif
 
       if (plane.RevalidationType() !=
           DisplayPlaneState::ReValidationType::kNone) {

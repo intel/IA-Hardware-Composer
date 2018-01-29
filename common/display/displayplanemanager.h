@@ -115,9 +115,14 @@ class DisplayPlaneManager {
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  std::vector<OverlayPlane> &commit_planes);
 
+  // Checks if we can benefit using display plane rotation.
   void ValidateForDisplayTransform(
       DisplayPlaneState &last_plane,
       const std::vector<OverlayPlane> &commit_planes);
+
+  // Checks if we can benefit by downscaling layer of this plane.
+  void ValidateForDownScaling(DisplayPlaneState &last_plane,
+                              const std::vector<OverlayPlane> &commit_planes);
 
   void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
                             DisplayPlaneStateList &composition,
