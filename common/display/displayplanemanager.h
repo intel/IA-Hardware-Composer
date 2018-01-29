@@ -43,8 +43,8 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
-                      bool disable_overlay, bool idle_frame,
-                      bool *commit_checked, bool *re_validation_needed,
+                      bool disable_overlay, bool *commit_checked,
+                      bool *re_validation_needed,
                       DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);
@@ -113,13 +113,11 @@ class DisplayPlaneManager {
                              bool recycle_resources);
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
-                                 std::vector<OverlayPlane> &commit_planes,
-                                 OverlayLayer *current_layer,
-                                 bool ignore_format = false);
+                                 std::vector<OverlayPlane> &commit_planes);
 
   void ValidateForDisplayTransform(
       DisplayPlaneState &last_plane,
-      const std::vector<OverlayPlane> &commit_planes) const;
+      const std::vector<OverlayPlane> &commit_planes);
 
   void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
                             DisplayPlaneStateList &composition,
