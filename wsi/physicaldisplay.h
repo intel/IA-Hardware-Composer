@@ -207,6 +207,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void HandleLazyInitialization() {
   }
 
+  uint64_t GenerateLayerHash(uint64_t addr) override;
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
@@ -255,6 +257,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
+  uint64_t HashA_, HashB_;
 };
 
 }  // namespace hwcomposer

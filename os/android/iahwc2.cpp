@@ -41,8 +41,9 @@ namespace android {
 
 class IAVsyncCallback : public hwcomposer::VsyncCallback {
  public:
-  IAVsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook)
-      : data_(data), hook_(hook) {
+  IAVsyncCallback(hwc2_callback_data_t data, hwc2_function_pointer_t hook,
+                  IAHWC2::HwcDisplay *display)
+      : data_(data), hook_(hook), display_(display) {
   }
 
   void Callback(uint32_t display, int64_t timestamp) {
@@ -50,11 +51,16 @@ class IAVsyncCallback : public hwcomposer::VsyncCallback {
       auto hook = reinterpret_cast<HWC2_PFN_VSYNC>(hook_);
       hook(data_, display, timestamp);
     }
+
+    if (display_) {
+      display_->SetVBlankTimestamp(timestamp);
+    }
   }
 
  private:
   hwc2_callback_data_t data_;
   hwc2_function_pointer_t hook_;
+  IAHWC2::HwcDisplay *display_ = NULL;
 };
 
 class IARefreshCallback : public hwcomposer::RefreshCallback {
@@ -350,7 +356,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
 HWC2::Error IAHWC2::HwcDisplay::RegisterVsyncCallback(
     hwc2_callback_data_t data, hwc2_function_pointer_t func) {
   supported(__func__);
-  auto callback = std::make_shared<IAVsyncCallback>(data, func);
+  auto callback = std::make_shared<IAVsyncCallback>(data, func, this);
   int ret = display_->RegisterVsyncCallback(std::move(callback),
                                             static_cast<int>(handle_));
   if (ret) {
@@ -395,10 +401,12 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
+  layer_idx_ = display_->GenerateLayerHash(layer_idx_);
+  layer_idx_ += timestamp_;
   layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
   layers_.at(layer_idx_).XTranslateCoordinates(display_->GetXTranslation());
   *layer = static_cast<hwc2_layer_t>(layer_idx_);
-  ++layer_idx_;
+  layer_idx_ = (uint64_t)&layers_.at(layer_idx_);
   return HWC2::Error::None;
 }
 

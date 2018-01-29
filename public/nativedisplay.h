@@ -304,6 +304,10 @@ class NativeDisplay {
   virtual void HotPlugUpdate(bool /*connected*/) {
   }
 
+  virtual uint64_t GenerateLayerHash(uint64_t addr) {
+    return 0;
+  };
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;
@@ -330,6 +334,7 @@ class NativeDisplay {
   // to individual layers shown by this display.
   virtual void RotateDisplay(HWCRotation /*rotation*/) {
   }
+
 };
 
 /**
