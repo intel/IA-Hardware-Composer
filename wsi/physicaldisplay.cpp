@@ -38,7 +38,9 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
       width_(0),
       height_(0),
       gpu_fd_(gpu_fd),
-      power_mode_(kOn) {
+      power_mode_(kOn),
+      HashA_(1),
+      HashB_(0) {
 }
 
 PhysicalDisplay::~PhysicalDisplay() {
@@ -577,6 +579,12 @@ bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   *size = std::min<uint32_t>(static_cast<uint32_t>(length + 1), *size);
   strncpy(name, string.c_str(), *size);
   return true;
+}
+
+uint64_t PhysicalDisplay::GenerateLayerHash(uint64_t addr) {
+  (HashA_ > HashB_) ? HashB_++ : HashA_++;
+
+  return addr + HashA_ + HashB_ + pipe_;
 }
 
 }  // namespace hwcomposer

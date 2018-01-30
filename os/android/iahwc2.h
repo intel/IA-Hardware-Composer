@@ -181,15 +181,19 @@ class IAHWC2 : public hwc2_device_t {
       return layers_.at(layer);
     }
     hwcomposer::NativeDisplay *GetDisplay();
+    void SetVBlankTimestamp(uint64_t timestamp) {
+      timestamp_ = timestamp;
+    }
 
    private:
     hwcomposer::NativeDisplay *display_ = NULL;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
-    int layer_idx_ = 0;
+    uint64_t layer_idx_ = 0;
     std::map<hwc2_layer_t, Hwc2Layer> layers_;
     Hwc2Layer client_layer_;
     int32_t color_mode_;
+    uint64_t timestamp_ = 0;
 
     uint32_t frame_no_ = 0;
     // True after validateDisplay
