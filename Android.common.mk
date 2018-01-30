@@ -40,6 +40,8 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
+        frameworks/native/libs/nativewindow/include \
+        frameworks/native/libs/nativewindow \
 	$(LOCAL_PATH)/public \
 	$(LOCAL_PATH)/common/core \
 	$(LOCAL_PATH)/common/compositor \
