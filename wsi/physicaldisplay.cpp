@@ -579,4 +579,31 @@ bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+int PhysicalDisplay::InitializeLayerHashGenerator(int size) {
+  LayerIds_.clear();
+  for (int i = 0; i < size; i++) {
+    LayerIds_.push_back(i);
+  }
+
+  current_max_layer_ids_ = size;
+  return 0;
+}
+
+uint64_t PhysicalDisplay::AcquireId() {
+  if (LayerIds_.empty())
+    return ++current_max_layer_ids_;
+
+  uint64_t id = LayerIds_.back();
+  LayerIds_.pop_back();
+
+  return id;
+}
+
+void PhysicalDisplay::ReleaseId(uint64_t id) {
+  LayerIds_.push_back(id);
+}
+
+void PhysicalDisplay::ResetLayerHashGenerator() {
+  InitializeLayerHashGenerator(current_max_layer_ids_);
+}
 }  // namespace hwcomposer
