@@ -186,7 +186,6 @@ class IAHWC2 : public hwc2_device_t {
     hwcomposer::NativeDisplay *display_ = NULL;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
-    int layer_idx_ = 0;
     std::map<hwc2_layer_t, Hwc2Layer> layers_;
     Hwc2Layer client_layer_;
     int32_t color_mode_;
