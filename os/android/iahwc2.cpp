@@ -344,6 +344,8 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   if (err != HWC2::Error::None)
     return err;
 
+  display_->InitializeLayerHashGenerator(32);
+
   return SetActiveConfig(default_config);
 }
 
@@ -395,10 +397,10 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
-  layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
-  layers_.at(layer_idx_).XTranslateCoordinates(display_->GetXTranslation());
-  *layer = static_cast<hwc2_layer_t>(layer_idx_);
-  ++layer_idx_;
+  uint64_t id = display_->AcquireId();
+  layers_.emplace(static_cast<hwc2_layer_t>(id), IAHWC2::Hwc2Layer());
+  layers_.at(id).XTranslateCoordinates(display_->GetXTranslation());
+  *layer = static_cast<hwc2_layer_t>(id);
   return HWC2::Error::None;
 }
 
@@ -407,7 +409,9 @@ HWC2::Error IAHWC2::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
   if (layers_.empty())
     return HWC2::Error::None;
 
-  layers_.erase(layer);
+  if(!layers_.erase(layer))
+    display_->ReleaseId(layer);
+
   return HWC2::Error::None;
 }
 
@@ -415,8 +419,8 @@ void IAHWC2::HwcDisplay::FreeAllLayers() {
   if (layers_.empty())
     return;
 
+  display_->ResetLayerHashGenerator();
   std::map<hwc2_layer_t, Hwc2Layer>().swap(layers_);
-  layer_idx_ = 0;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
