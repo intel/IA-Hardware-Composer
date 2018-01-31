@@ -304,6 +304,35 @@ class NativeDisplay {
   virtual void HotPlugUpdate(bool /*connected*/) {
   }
 
+  /**
+   * Use this method to initalize the display's pool of
+   * layer ids. The argument to the method is the
+   * initial size of the pool
+   */
+  virtual int InitializeLayerHashGenerator(int) {
+    return 0;
+  }
+
+  /**
+   * Once the id pool is initialzed, use this to acquire an
+   * unused id for the layer.
+   */
+  virtual uint64_t AcquireId() {
+    return 0;
+  }
+
+  /**
+   * Method to return a destroyed layer's id back into the pool
+   */
+  virtual void ReleaseId(uint64_t) {
+  }
+
+  /**
+   * Call this to reset the id pool back to its initial state.
+   */
+  virtual void ResetLayerHashGenerator() {
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;
