@@ -304,6 +304,20 @@ class NativeDisplay {
   virtual void HotPlugUpdate(bool /*connected*/) {
   }
 
+  virtual int InitializeLayerHashGenerator(int) {
+    return 0;
+  }
+
+  virtual uint64_t AcquireId() {
+    return 0;
+  }
+
+  virtual void ReleaseId(uint64_t) {
+  }
+
+  virtual void ResetLayerHashGenerator() {
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;

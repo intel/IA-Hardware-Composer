@@ -25,6 +25,7 @@ VkFormat NativeToVkFormat(int native_format);
 
 #include <hwcbuffer.h>
 
+#include <cmath>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
