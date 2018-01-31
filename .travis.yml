@@ -3,24 +3,11 @@ sudo: required
 dist: trusty
 install:
 - sudo apt-get update
-- sudo apt-get install automake
-- sudo apt-get install autoconf
-- sudo apt-get install libtool
-- sudo apt-get install xutils-dev
-- sudo apt-get install libpciaccess-dev
-- sudo apt-get install python-mako
-- sudo apt-get install bison
-- sudo apt-get install flex
-- sudo apt-get install libomxil-bellagio-dev
-- sudo apt-get install libexpat1-dev
-- sudo apt-get install clang-format-3.5
-- sudo apt-get install llvm-dev
-- sudo dpkg -s python-mako
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
-- sudo apt-get install gcc-4.9
+- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9
+- sudo dpkg -s python-mako
 - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
-- sudo apt-get install g++-4.9
 - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
 script:
 - export LLVM_CONFIG=/usr/bin/llvm-config
@@ -45,7 +32,7 @@ script:
 #clone and build mesa : dependency
 - git clone https://github.com/intel/external-mesa /tmp/mesa
 - pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --disable-glx --disable-glx-tls --disable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --disable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
 - popd
 
@@ -80,7 +67,7 @@ script:
 
 #Build mesa with gbm and overwrite minigbm
 - pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --enable-texture-float --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
 - popd
 - make distclean
