@@ -76,12 +76,16 @@ class DrmPlane : public DisplayPlane {
     return !(type_ == DRM_PLANE_TYPE_CURSOR);
   }
 
+  // check if modifier is supported for given format
+  bool IsSupportedModifier(uint64_t modifier, uint32_t format);
+
  private:
   struct Property {
     Property();
     bool Initialize(uint32_t fd, const char* name,
                     const ScopedDrmObjectPropertyPtr& plane_properties,
-                    uint32_t* rotation = NULL);
+                    uint32_t* rotation = NULL,
+                    uint64_t* in_formats_prop_value = NULL);
     uint32_t id = 0;
   };
 
@@ -98,6 +102,7 @@ class DrmPlane : public DisplayPlane {
   Property rotation_prop_;
   Property alpha_prop_;
   Property in_fence_fd_prop_;
+  Property in_formats_prop_;
 
   uint32_t id_;
 
@@ -113,6 +118,13 @@ class DrmPlane : public DisplayPlane {
   uint32_t prefered_video_format_ = 0;
   uint32_t prefered_format_ = 0;
   uint32_t rotation_ = 0;
+
+  // keep supported modifiers for each supported format
+  typedef struct format_mods {
+    std::vector<uint64_t> mods;
+    uint32_t format;
+  } format_mods;
+  std::vector<format_mods> formats_modifiers_;
 };
 
 }  // namespace hwcomposer
