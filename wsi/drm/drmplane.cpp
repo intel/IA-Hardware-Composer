@@ -32,7 +32,8 @@ DrmPlane::Property::Property() {
 
 bool DrmPlane::Property::Initialize(
     uint32_t fd, const char* name,
-    const ScopedDrmObjectPropertyPtr& plane_props, uint32_t* rotation) {
+    const ScopedDrmObjectPropertyPtr& plane_props, uint32_t* rotation,
+    uint64_t* in_formats_prop_value) {
   uint32_t count_props = plane_props->count_props;
   for (uint32_t i = 0; i < count_props; i++) {
     ScopedDrmPropertyPtr property(
@@ -56,6 +57,11 @@ bool DrmPlane::Property::Initialize(
         }
 
         *rotation = temp;
+      }
+      if (!strcmp(property->name, "IN_FORMATS")) {
+        if (in_formats_prop_value) {
+          *in_formats_prop_value = plane_props->prop_values[i];
+        }
       }
       break;
     }
@@ -188,6 +194,43 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     in_fence_fd_prop_.id = 0;
   }
 
+  // query and store supported modifiers for format, from in_formats
+  // property
+  uint64_t in_formats_prop_value = 0;
+  ret = in_formats_prop_.Initialize(gpu_fd, "IN_FORMATS", plane_props, NULL,
+                                    &in_formats_prop_value);
+  if (!ret) {
+    ETRACE("Could not get IN_FORMATS property");
+  }
+
+  if (in_formats_prop_value != 0) {
+    drmModePropertyBlobPtr blob =
+        drmModeGetPropertyBlob(gpu_fd, in_formats_prop_value);
+
+    struct drm_format_modifier_blob* m =
+        (struct drm_format_modifier_blob*)(blob->data);
+    struct drm_format_modifier* mod_o =
+        (struct drm_format_modifier*)(void*)(((char*)m) + m->modifiers_offset);
+
+    for (uint32_t j = 0; j < total_size; j++) {
+      uint32_t format = supported_formats_.at(j);
+      format_mods modifiers_obj;
+      modifiers_obj.format = format;
+      uint32_t format_index = j;
+
+      struct drm_format_modifier* mod = mod_o;
+      for (int i = 0; i < (int)m->count_modifiers; i++, mod++) {
+        if (mod->formats & (1ULL << format_index)) {
+          modifiers_obj.mods.emplace_back(mod->modifier);
+        }
+      }
+      if (modifiers_obj.mods.size() == 0) {
+        modifiers_obj.mods.emplace_back(DRM_FORMAT_MOD_NONE);
+      }
+
+      formats_modifiers_.emplace_back(modifiers_obj);
+    }
+  }
   return true;
 }
 
@@ -418,6 +461,21 @@ void DrmPlane::SetInUse(bool in_use) {
   in_use_ = in_use;
 }
 
+bool DrmPlane::IsSupportedModifier(uint64_t modifier, uint32_t format) {
+  uint32_t count = formats_modifiers_.size();
+  for (uint32_t i = 0; i < count; i++) {
+    const format_mods& obj = formats_modifiers_.at(i);
+    if (obj.format == format) {
+      std::vector<uint64_t>::const_iterator it;
+      it = std::find(obj.mods.begin(), obj.mods.end(), modifier);
+      if (it != obj.mods.end()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void DrmPlane::Dump() const {
   DUMPTRACE("Plane Information Starts. -------------");
   DUMPTRACE("Plane ID: %d", id_);
@@ -478,6 +536,9 @@ void DrmPlane::Dump() const {
 
   if (in_fence_fd_prop_.id != 0)
     DUMPTRACE("IN_FENCE_FD is supported.");
+
+  if (in_formats_prop_.id != 0)
+    DUMPTRACE("IN_FORMATS property is supported.");
 
   DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_video_format_));
   DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_format_));
