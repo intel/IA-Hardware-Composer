@@ -166,7 +166,8 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
 #endif
   temp->bo = source->bo;
   temp->total_planes = source->total_planes;
-  temp->gbm_flags  = source->gbm_flags;
+  temp->gbm_flags = source->gbm_flags;
+  temp->use_dumb_buffer_ = source->use_dumb_buffer_;
   *target = temp;
 }
 

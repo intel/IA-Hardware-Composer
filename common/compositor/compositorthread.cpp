@@ -162,6 +162,10 @@ void CompositorThread::HandleReleaseRequest() {
 
     for (size_t i = 0; i < purged_size; i++) {
       const ResourceHandle &handle = purged_gl_resources.at(i);
+      if (handle.dumb_buffer_handle_ > 0) {
+        ReleaseDumbBuffer(gpu_fd_, handle.dumb_buffer_handle_);
+      }
+
       if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
         ETRACE("Failed to remove fb %s", PRINTERROR());
       }

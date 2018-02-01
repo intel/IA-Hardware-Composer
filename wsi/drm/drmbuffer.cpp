@@ -281,9 +281,31 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
 
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
+  int ret = 0;
 
-  int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
-                          gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
+  if (image_.handle_->use_dumb_buffer_) {
+    struct drm_mode_create_dumb request;
+    memset(&request, 0, sizeof(request));
+    request.width = width_;
+    request.height = height_;
+    request.bpp = pitches_[0] / width_;
+    request.flags = 0;
+    if (drmIoctl(gpu_fd, DRM_IOCTL_MODE_CREATE_DUMB, &request) < 0) {
+      ETRACE("Cannot create dumb buffer");
+      return false;
+    }
+
+    image_.dumb_buffer_handle_ = request.handle;
+    uint32_t handles[4] = {0};
+
+    handles[0] = image_.dumb_buffer_handle_;
+
+    ret = drmModeAddFB2(width_, width_, height_, frame_buffer_format_, handles,
+                        pitches_, offsets_, &image_.drm_fd_, 0);
+  } else {
+    ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
+                        gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
+  }
 
   if (ret) {
     ETRACE("drmModeAddFB2 error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",

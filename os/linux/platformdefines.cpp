@@ -70,3 +70,10 @@ VkFormat NativeToVkFormat(int native_format) {
 int ReleaseFrameBuffer(uint32_t gpu_fd, uint32_t fd) {
   return drmModeRmFB(gpu_fd, fd);
 }
+
+void ReleaseDumbBuffer(uint32_t gpu_fd, uint32_t fd) {
+  struct drm_mode_destroy_dumb destroy_request;
+  memset(&destroy_request, 0, sizeof(destroy_request));
+  destroy_request.handle = fd;
+  drmIoctl(gpu_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_request);
+}

@@ -46,6 +46,7 @@ struct gralloc_handle {
   HwcBuffer meta_data_;
   uint64_t gralloc1_buffer_descriptor_t_ = 0;
   bool hwc_buffer_ = false;
+  bool use_dumb_buffer_ = false;
 };
 
 typedef struct gralloc_handle* HWCNativeHandle;

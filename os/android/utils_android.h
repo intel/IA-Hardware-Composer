@@ -208,6 +208,7 @@ static void CopyBufferHandle(HWCNativeHandle source, HWCNativeHandle *target) {
   temp->gralloc1_buffer_descriptor_t_ = 0;
   temp->imported_handle_ = dup_buffer_handle(source->handle_);
   temp->hwc_buffer_ = false;
+  temp->use_dumb_buffer_ = source->use_dumb_buffer_;
   *target = temp;
 }
 
