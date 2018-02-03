@@ -333,6 +333,14 @@ class NativeDisplay {
   virtual void ResetLayerHashGenerator() {
   }
 
+  /**
+   * Call this to set HDCP state for this display. This function
+   * tries to take advantage of any HDCP support advertised by
+   * the Kernel.
+   */
+  virtual void SetHDCPState(HWCContentProtection /*state*/) {
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;

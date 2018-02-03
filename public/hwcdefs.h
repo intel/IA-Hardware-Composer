@@ -37,6 +37,12 @@ enum class HWCBlending : int32_t {
   kBlendingCoverage = 0x0405,
 };
 
+enum HWCContentProtection {
+  kUnSupported = 0,  // Content Protection is not supported.
+  kUnDesired = 1,    // Content Protection is not required.
+  kDesired = 2       // Content Protection is desired.
+};
+
 enum HWCTransform {
   kIdentity = 0,
   kReflectX = 1 << 0,
