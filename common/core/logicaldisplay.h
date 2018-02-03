@@ -119,6 +119,8 @@ class LogicalDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected) override;
 
+  void SetHDCPState(HWCContentProtection state) override;
+
  private:
   LogicalDisplayManager *logical_display_manager_;
   NativeDisplay *physical_display_;

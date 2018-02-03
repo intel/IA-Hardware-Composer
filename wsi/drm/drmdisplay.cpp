@@ -98,12 +98,33 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
     return false;
   }
 
-  // GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
+  int value = -1;
+  GetDrmHDCPObjectProperty("Content Protection", connector, connector_props,
+                           &hdcp_id_prop_, &value);
+
+  if (value >= 0) {
+    switch (value) {
+      case 0:
+        current_protection_support_ = HWCContentProtection::kUnDesired;
+        break;
+      case 1:
+        current_protection_support_ = HWCContentProtection::kDesired;
+        break;
+      default:
+        break;
+    }
+
+    if (desired_protection_support_ == HWCContentProtection::kUnSupported) {
+      desired_protection_support_ = current_protection_support_;
+    }
+  }
+
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
 
   PhysicalDisplay::Connect();
+  SetHDCPState(desired_protection_support_);
 
   drmModePropertyPtr broadcastrgb_props =
       drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
@@ -269,6 +290,29 @@ bool DrmDisplay::SetBroadcastRGB(const char *range_property) {
   return true;
 }
 
+void DrmDisplay::SetHDCPState(HWCContentProtection state) {
+  desired_protection_support_ = state;
+  if (desired_protection_support_ == current_protection_support_)
+    return;
+
+  if (hdcp_id_prop_ <= 0) {
+    ETRACE("Cannot set HDCP state as Connector property is not supported \n");
+    return;
+  }
+
+  if (!(connection_state_ & kConnected)) {
+    return;
+  }
+
+  current_protection_support_ = desired_protection_support_;
+  uint32_t value = 0;
+  if (current_protection_support_ == kDesired) {
+    value = 1;
+  }
+
+  drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
+}
+
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,
@@ -372,6 +416,35 @@ void DrmDisplay::GetDrmObjectProperty(const char *name,
     ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
     if (property && !strcmp(property->name, name)) {
       *id = property->prop_id;
+      break;
+    }
+  }
+  if (!(*id))
+    ETRACE("Could not find property %s", name);
+}
+
+void DrmDisplay::GetDrmHDCPObjectProperty(
+    const char *name, const drmModeConnector *connector,
+    const ScopedDrmObjectPropertyPtr &props, uint32_t *id, int *value) const {
+  uint32_t count_props = props->count_props;
+  for (uint32_t i = 0; i < count_props; i++) {
+    ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
+    if (property && !strcmp(property->name, name)) {
+      *id = property->prop_id;
+      if (value) {
+        for (int prop_idx = 0; prop_idx < connector->count_props; ++prop_idx) {
+          if (connector->props[prop_idx] != property->prop_id)
+            continue;
+
+          for (int enum_idx = 0; enum_idx < property->count_enums; ++enum_idx) {
+            const drm_mode_property_enum &property_enum =
+                property->enums[enum_idx];
+            if (property_enum.value == connector->prop_values[prop_idx]) {
+              *value = property_enum.value;
+            }
+          }
+        }
+      }
       break;
     }
   }

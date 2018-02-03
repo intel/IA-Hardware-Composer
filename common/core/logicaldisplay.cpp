@@ -67,6 +67,10 @@ bool LogicalDisplay::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
+void LogicalDisplay::SetHDCPState(HWCContentProtection state) {
+  logical_display_manager_->SetHDCPState(state);
+}
+
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence, bool handle_constraints) {
   if (power_mode_ != kOn)

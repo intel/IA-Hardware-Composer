@@ -108,6 +108,8 @@ class MosaicDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected);
 
+  void SetHDCPState(HWCContentProtection state) override;
+
  private:
   std::vector<NativeDisplay *> physical_displays_;
   std::vector<NativeDisplay *> connected_displays_;
