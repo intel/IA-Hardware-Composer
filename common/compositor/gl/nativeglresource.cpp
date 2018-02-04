@@ -43,6 +43,20 @@ bool NativeGLResource::PrepareResources(
   return true;
 }
 
+void NativeGLResource::HandleTextureUploads(
+    const std::vector<OverlayBuffer*>& buffers) {
+  EGLDisplay egl_display = eglGetCurrentDisplay();
+  for (auto& buffer : buffers) {
+    // Create EGLImage.
+    const ResourceHandle& import_image =
+        buffer->GetGpuResource(egl_display, true);
+
+    if (import_image.image_ == EGL_NO_IMAGE_KHR) {
+      ETRACE("Failed to make import image when uploading texture data.");
+    }
+  }
+}
+
 NativeGLResource::~NativeGLResource() {
 }
 

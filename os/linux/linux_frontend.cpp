@@ -254,11 +254,12 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
   std::vector<hwcomposer::HwcLayer*> layers;
   hwcomposer::HwcLayer* cursor_layer = NULL;
 
-  for (auto & [ first, second ] : layers_) {
-    if (second.GetLayerUsage() == IAHWC_LAYER_USAGE_CURSOR)
-      cursor_layer = second.GetLayer();
+  for (std::pair<const iahwc_layer_t, IAHWCLayer>& l : layers_) {
+    IAHWCLayer& temp = l.second;
+    if (temp.GetLayer()->IsCursorLayer())
+      cursor_layer = temp.GetLayer();
     else
-      layers.emplace_back(second.GetLayer());
+      layers.emplace_back(temp.GetLayer());
   }
 
   if (cursor_layer)
@@ -332,6 +333,9 @@ int IAHWC::IAHWCLayer::SetAcquireFence(int32_t acquire_fence) {
 
 int IAHWC::IAHWCLayer::SetLayerUsage(int32_t layer_usage) {
   layer_usage_ = layer_usage;
+  if (layer_usage_ == IAHWC_LAYER_USAGE_CURSOR) {
+    iahwc_layer_.MarkAsCursorLayer();
+  }
 
   return IAHWC_ERROR_NONE;
 }

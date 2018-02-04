@@ -516,7 +516,7 @@ static void init_frames(int32_t width, int32_t height) {
 
     switch (layer_parameter.type) {
       case LAYER_TYPE_GL:
-        renderer = new GLCubeLayerRenderer(buffer_handler, false);
+        renderer = new GLCubeLayerRenderer(buffer_handler, true);
         break;
       default:
         printf("un-recognized layer type!\n");

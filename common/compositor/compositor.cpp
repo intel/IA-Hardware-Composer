@@ -49,6 +49,14 @@ bool Compositor::BeginFrame(bool disable_explicit_sync) {
   return true;
 }
 
+void Compositor::UpdateLayerPixelData(std::vector<OverlayLayer> &layers) {
+  thread_->UpdateLayerPixelData(layers);
+}
+
+void Compositor::EnsurePixelDataUpdated() {
+  thread_->EnsurePixelDataUpdated();
+}
+
 void Compositor::Reset() {
   if (thread_)
     thread_->ExitThread();

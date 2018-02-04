@@ -36,6 +36,9 @@ class NativeGLResource : public NativeGpuResource {
 
   void ReleaseGPUResources(const std::vector<ResourceHandle>& handles) override;
 
+  void HandleTextureUploads(
+      const std::vector<OverlayBuffer*>& buffers) override;
+
  private:
   std::vector<GLuint> layer_textures_;
 };
