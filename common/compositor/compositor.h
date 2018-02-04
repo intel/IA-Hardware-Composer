@@ -45,6 +45,12 @@ class Compositor {
   Compositor(const Compositor &) = delete;
 
   bool BeginFrame(bool disable_explicit_sync);
+  // We offload uploading pixel data to compositor thread while
+  // DisplayQueue continues to validate layers.
+  void UpdateLayerPixelData(std::vector<OverlayLayer> &layers);
+  // We are ready to commit ensure any UpdateLayerPixelData requests
+  // are handled.
+  void EnsurePixelDataUpdated();
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,

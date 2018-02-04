@@ -66,7 +66,7 @@ OverlayBuffer* OverlayLayer::GetBuffer() const {
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              ResourceManager* resource_manager,
-                             bool register_buffer) {
+                             bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
   if (resource_manager && register_buffer) {
@@ -75,15 +75,24 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(handle, resource_manager);
+    bool is_cursor_layer = false;
+    if (layer) {
+      is_cursor_layer = layer->IsCursorLayer();
+    }
+    buffer->InitializeFromNativeHandle(handle, resource_manager,
+                                       is_cursor_layer);
     if (register_buffer) {
       resource_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
     }
   }
-  imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
-  if (!register_buffer) {
-    ValidateForOverlayUsage();
+
+  if (register_buffer && handle->is_raw_pixel_ && !surface_damage_.empty()) {
+    buffer->UpdateRawPixelBackingStore(handle->pixel_memory_);
+    state_ |= kRawPixelDataChanged;
   }
+
+  imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
+  ValidateForOverlayUsage();
 }
 
 void OverlayLayer::SetBlending(HWCBlending blending) {
@@ -207,10 +216,9 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
+  surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
-  ValidateForOverlayUsage();
-  surface_damage_ = layer->GetLayerDamage();
 
   if (!handle_constraints) {
     if (previous_layer) {
@@ -405,7 +413,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   if (!layer->HasVisibleRegionChanged() && !content_changed &&
       surface_damage_.empty() && !layer->HasLayerContentChanged() &&
-      !(state_ & kNeedsReValidation)) {
+      !(state_ & kNeedsReValidation) && !(state_ & kRawPixelDataChanged)) {
     state_ &= ~kLayerContentChanged;
   }
 }

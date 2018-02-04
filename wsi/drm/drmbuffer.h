@@ -20,6 +20,8 @@
 
 #include "overlaybuffer.h"
 
+#include "pixelbuffer.h"
+
 namespace hwcomposer {
 
 class NativeBufferHandler;
@@ -34,7 +36,12 @@ class DrmBuffer : public OverlayBuffer {
   ~DrmBuffer() override;
 
   void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  ResourceManager* buffer_manager) override;
+                                  ResourceManager* buffer_manager,
+                                  bool is_cursor_buffer) override;
+
+  void UpdateRawPixelBackingStore(void* addr) override;
+  void RefreshPixelData() override;
+  bool NeedsTextureUpload() const override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -86,7 +93,7 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
-    void Initialize(const HwcBuffer& bo);
+  void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;
@@ -102,6 +109,8 @@ class DrmBuffer : public OverlayBuffer {
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;
+  std::unique_ptr<PixelBuffer> pixel_buffer_;
+  void* data_;
 };
 
 }  // namespace hwcomposer
