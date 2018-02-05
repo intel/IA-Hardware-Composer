@@ -70,6 +70,7 @@ class IAHWC : public iahwc_device {
     int RegisterVsyncCallback(iahwc_callback_data_t data,
                               iahwc_function_ptr_t hook);
     int CreateLayer(uint32_t* layer_handle);
+    int DestroyLayer(uint32_t layer_handle);
     bool IsConnected();
     IAHWCLayer& get_layer(iahwc_layer_t layer) {
       return layers_.at(layer);

@@ -116,6 +116,10 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_CREATE_LAYER>(
           DisplayHook<decltype(&IAHWCDisplay::CreateLayer),
                       &IAHWCDisplay::CreateLayer, uint32_t*>);
+    case IAHWC_FUNC_DISPLAY_DESTROY_LAYER:
+      return ToHook<IAHWC_PFN_DISPLAY_DESTROY_LAYER>(
+          DisplayHook<decltype(&IAHWCDisplay::DestroyLayer),
+                      &IAHWCDisplay::DestroyLayer, uint32_t>);
     case IAHWC_FUNC_LAYER_SET_BO:
       return ToHook<IAHWC_PFN_LAYER_SET_BO>(
           LayerHook<decltype(&IAHWCLayer::SetBo), &IAHWCLayer::SetBo, gbm_bo*>);
@@ -277,6 +281,16 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
 int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
   *layer_handle = native_display_->AcquireId();
   layers_.emplace(*layer_handle, IAHWCLayer());
+
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCDisplay::DestroyLayer(uint32_t layer_handle) {
+  if (layers_.empty())
+    return IAHWC_ERROR_NONE;
+
+  if (layers_.erase(layer_handle))
+    native_display_->ReleaseId(layer_handle);
 
   return IAHWC_ERROR_NONE;
 }
