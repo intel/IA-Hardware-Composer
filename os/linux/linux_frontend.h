@@ -37,6 +37,7 @@ class IAHWC : public iahwc_device {
     IAHWCLayer();
     ~IAHWCLayer();
     int SetBo(gbm_bo* bo);
+    int SetRawPixelData(iahwc_raw_pixel_data bo);
     int SetAcquireFence(int32_t acquire_fence);
     int SetLayerUsage(int32_t layer_usage);
     int32_t GetLayerUsage() {
