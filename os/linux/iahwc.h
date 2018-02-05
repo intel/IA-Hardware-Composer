@@ -42,6 +42,14 @@ typedef struct iahwc_device {
                                          int descriptor);
 } iahwc_device_t;
 
+typedef struct iahwc_raw_pixel_data {
+  void* buffer;
+  uint64_t width;
+  uint64_t height;
+  uint64_t stride;
+  uint32_t format;
+} iahwc_raw_pixel_data;
+
 typedef enum {
   IAHWC_ERROR_NONE = 0,
   IAHWC_ERROR_BAD_CONFIG,
@@ -76,6 +84,7 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_PRESENT_DISPLAY,
   IAHWC_FUNC_CREATE_LAYER,
   IAHWC_FUNC_LAYER_SET_BO,
+  IAHWC_FUNC_LAYER_SET_RAW_PIXEL_DATA,
   IAHWC_FUNC_LAYER_SET_ACQUIRE_FENCE,
   IAHWC_FUNC_LAYER_SET_USAGE,
   IAHWC_FUNC_LAYER_SET_TRANSFORM,
@@ -151,6 +160,9 @@ typedef int (*IAHWC_PFN_LAYER_SET_BO)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t layer_handle,
                                       struct gbm_bo*);
+typedef int (*IAHWC_PFN_LAYER_SET_RAW_PIXEL_DATA)(
+    iahwc_device_t*, iahwc_display_t display_handle, iahwc_layer_t layer_handle,
+    struct iahwc_raw_pixel_data);
 typedef int (*IAHWC_PFN_LAYER_SET_ACQUIRE_FENCE)(iahwc_device_t*,
                                                  iahwc_display_t display_handle,
                                                  iahwc_layer_t layer_handle,
