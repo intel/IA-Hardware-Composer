@@ -37,7 +37,7 @@ libhwcomposer_common_la_LIBADD = \
 	$(EGL_LIBS) \
 	-lm
 
-libhwcomposer_common_la_LTLIBRARIES = libhwcomposer_common.la
+noinst_LTLIBRARIES = libhwcomposer_common.la
 libhwcomposer_common_la_SOURCES = $(common_SOURCES)
 if ENABLE_VULKAN
 libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
@@ -55,7 +55,7 @@ libhwcomposer_common_la_SOURCES += $(va_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/va
 
 libhwcomposer_common_ladir = $(libdir)
-libhwcomposer_common_la_LDFLAGS = -version-number 0:0:1 -no-undefined -static
+libhwcomposer_common_la_LDFLAGS = -version-number 0:0:1 -no-undefined
 
 .PHONY: ChangeLog INSTALL
 
