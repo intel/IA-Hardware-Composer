@@ -202,7 +202,15 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
 void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  CalculateRect(display_frame, target_display_frame);
+  if (!IsVideoPlane())
+    CalculateRect(display_frame, target_display_frame);
+  else {
+    target_display_frame.bounds[0] = display_frame.bounds[0];
+    target_display_frame.bounds[1] = display_frame.bounds[1];
+    target_display_frame.bounds[2] = display_frame.bounds[2];
+    target_display_frame.bounds[3] = display_frame.bounds[3];
+  }
+
   private_data_->rect_updated_ = true;
 }
 
