@@ -346,6 +346,7 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
 int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
   hwc_handle_.meta_data_.width_ = bo.width;
   hwc_handle_.meta_data_.height_ = bo.height;
+  hwc_handle_.meta_data_.pitches_[0] = bo.stride;
   hwc_handle_.meta_data_.format_ = bo.format;
   hwc_handle_.gbm_flags = 0;
   hwc_handle_.is_raw_pixel_ = true;

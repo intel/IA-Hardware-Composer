@@ -46,8 +46,8 @@ class PixelBuffer {
   // call than caller is responsible for uploading the data to respective
   // texture.
   void Initialize(const NativeBufferHandler* buffer_handler, uint32_t width,
-                  uint32_t height, uint32_t format, void* addr,
-                  ResourceHandle& handle);
+                  uint32_t height, uint32_t stride, uint32_t format, void* addr,
+                  ResourceHandle& handle, bool is_cursor_buffer);
 
   // Returns true if this buffer cannot be mapped.
   bool NeedsTextureUpload() const {

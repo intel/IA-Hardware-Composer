@@ -48,6 +48,8 @@ class GbmBufferHandler : public NativeBufferHandler {
  private:
   uint32_t fd_;
   struct gbm_device *device_;
+  uint64_t preferred_cursor_width_;
+  uint64_t preferred_cursor_height_;
 };
 
 }  // namespace hardware

@@ -86,8 +86,8 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
     PixelBuffer* buffer = PixelBuffer::CreatePixelBuffer();
     pixel_buffer_.reset(buffer);
     pixel_buffer_->Initialize(handler, handle->meta_data_.width_,
-                              handle->meta_data_.height_,
-                              handle->meta_data_.format_, data_, image_);
+                              handle->meta_data_.height_, handle->meta_data_.pitches_[0],
+                              handle->meta_data_.format_, data_, image_, is_cursor_buffer);
     if (is_cursor_buffer) {
       image_.handle_->meta_data_.usage_ = hwcomposer::kLayerCursor;
     }
