@@ -181,7 +181,7 @@ void DrmDisplayManager::InitializeDisplayResources() {
   }
 
   virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
-  nested_display_.reset(new NestedDisplay(fd_, buffer_handler_.get()));
+  nested_display_.reset(new NestedDisplay());
 }
 
 void DrmDisplayManager::StartHotPlugMonitor() {

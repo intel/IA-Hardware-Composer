@@ -62,7 +62,6 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   else if (format_ == DRM_FORMAT_YVU420_ANDROID)
     format_ = DRM_FORMAT_YUV420;
 
-  tiling_mode_ = bo.tiling_mode_;
   prime_fd_ = bo.prime_fd_;
   usage_ = bo.usage_;
 
