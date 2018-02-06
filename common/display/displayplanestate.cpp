@@ -202,13 +202,22 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
 void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  CalculateRect(display_frame, target_display_frame);
+  if (private_data_->source_layers_.size() == 1) {
+    target_display_frame = display_frame;
+  } else {
+    CalculateRect(display_frame, target_display_frame);
+  }
+
   private_data_->rect_updated_ = true;
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
   HwcRect<float> &target_source_crop = private_data_->source_crop_;
-  CalculateSourceRect(source_crop, target_source_crop);
+  if (private_data_->source_layers_.size() == 1) {
+    target_source_crop = source_crop;
+  } else {
+    CalculateSourceRect(source_crop, target_source_crop);
+  }
   private_data_->rect_updated_ = true;
 }
 
