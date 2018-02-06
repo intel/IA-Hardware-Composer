@@ -58,6 +58,21 @@ bool GbmBufferHandler::Init() {
     return false;
   }
 
+  uint64_t width = 0, height = 0;
+
+  if (drmGetCap(fd_, DRM_CAP_CURSOR_WIDTH, &width)) {
+    width = 64;
+    ETRACE("could not get cursor width.");
+  }
+
+  if (drmGetCap(fd_, DRM_CAP_CURSOR_HEIGHT, &height)) {
+    height = 64;
+    ETRACE("could not get cursor height.");
+  }
+
+  preferred_cursor_width_ = width;
+  preferred_cursor_height_ = height;
+
   return true;
 }
 
@@ -77,6 +92,14 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING |
               GBM_BO_USE_CAMERA_WRITE | GBM_BO_USE_CAMERA_READ);
 #endif
+  }
+
+  if (layer_type == kLayerCursor) {
+    if (w < preferred_cursor_width_)
+      w = preferred_cursor_width_;
+
+    if (h < preferred_cursor_height_)
+      h = preferred_cursor_height_;
   }
 
   struct gbm_bo *bo = gbm_bo_create(device_, w, h, gbm_format, flags);
