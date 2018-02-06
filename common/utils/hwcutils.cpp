@@ -63,6 +63,15 @@ void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect) {
 }
 
 void CalculateRect(const HwcRect<int>& target_rect, HwcRect<int>& new_rect) {
+  if (new_rect.empty()) {
+    new_rect = target_rect;
+    return;
+  }
+
+  if (target_rect.empty()) {
+    return;
+  }
+
   new_rect.left = std::min(target_rect.left, new_rect.left);
   new_rect.top = std::min(target_rect.top, new_rect.top);
   new_rect.right = std::max(target_rect.right, new_rect.right);
@@ -71,6 +80,15 @@ void CalculateRect(const HwcRect<int>& target_rect, HwcRect<int>& new_rect) {
 
 void CalculateSourceRect(const HwcRect<float>& target_rect,
                          HwcRect<float>& new_rect) {
+  if (new_rect.empty()) {
+    new_rect = target_rect;
+    return;
+  }
+
+  if (target_rect.empty()) {
+    return;
+  }
+
   new_rect.left = std::min(target_rect.left, new_rect.left);
   new_rect.top = std::min(target_rect.top, new_rect.top);
   new_rect.right = std::max(target_rect.right, new_rect.right);
