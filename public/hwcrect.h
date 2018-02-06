@@ -32,6 +32,7 @@ struct Rect {
   };
   typedef TFloat TNum;
   Rect() {
+    reset();
   }
   Rect(TFloat left_, TFloat top_, TFloat right_, TFloat bottom_)
       : left(left_), top(top_), right(right_), bottom(bottom_) {
