@@ -21,19 +21,85 @@
 #include <stdint.h>
 
 #include <memory>
-
 #include <nativedisplay.h>
+#ifdef NESTED_DISPLAY_SUPPORT
+#include <linux/hyper_dmabuf.h>
+#include <map>
+#include "drmbuffer.h"
+#include <utils/threads.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include "hwcthread.h"
+#include "hwctrace.h"
+#include "compositor.h"
+#include "resourcemanager.h"
+
+#define SURFACE_NAME_LENGTH 64
+#define METADATA_BUFFER_SIZE 12000
+#define METADATA_STREAM_START 0xF00D
+#define METADATA_STREAM_END 0xCAFE
+static char buf[METADATA_BUFFER_SIZE];
+#define HYPER_DMABUF_PATH "/dev/hyper_dmabuf"
+#endif
 
 namespace hwcomposer {
 
+struct HwcLayer;
+class NativeBufferHandler;
 class NestedDisplayManager;
+
+#ifdef NESTED_DISPLAY_SUPPORT
+struct vm_header {
+  int32_t version;
+  int32_t output;
+  int32_t counter;
+  int32_t n_buffers;
+  int32_t disp_w;
+  int32_t disp_h;
+};
+
+struct vm_buffer_info {
+  int32_t width, height;
+  int32_t format;
+  int32_t pitch[3];
+  int32_t offset[3];
+  int32_t bpp;
+  int32_t tile_format;
+  int32_t rotation;
+  int32_t status;
+  int32_t counter;
+  union {
+    hyper_dmabuf_id_t hyper_dmabuf_id;
+    unsigned long ggtt_offset;
+  };
+  char surface_name[SURFACE_NAME_LENGTH];
+  uint64_t surface_id;
+  int32_t bbox[4];
+};
+
+class SocketThread : public HWCThread {
+ public:
+  SocketThread(int *client, bool *connection, int server);
+  ~SocketThread();
+  void Initialize();
+  void SetEnabled(bool enabled);
+  void HandleRoutine() override;
+
+ private:
+  bool mEnabled;
+  int *client_sock_fd;
+  bool *connected;
+  int sock_fd;
+};
+#endif
 
 class NestedDisplay : public NativeDisplay {
  public:
-  NestedDisplay();
+  NestedDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler);
   ~NestedDisplay() override;
 
-  void InitNestedDisplay() override;
+  void InitNestedDisplay(uint32_t width, uint32_t height,
+                         uint32_t port) override;
 
   bool Initialize(NativeBufferHandler *buffer_handler) override;
 
@@ -49,7 +115,23 @@ class NestedDisplay : public NativeDisplay {
     return height_;
   }
 
-  uint32_t PowerMode() const override;
+  uint32_t PowerMode() const override {
+    return 0;
+  }
+
+  uint32_t bitsPerPixel(int format) {
+    switch (format) {
+      case HAL_PIXEL_FORMAT_RGBA_8888:
+      case HAL_PIXEL_FORMAT_RGBX_8888:
+      case HAL_PIXEL_FORMAT_BGRA_8888:
+        return 32;
+      case HAL_PIXEL_FORMAT_RGB_888:
+        return 24;
+      case HAL_PIXEL_FORMAT_RGB_565:
+        return 16;
+    }
+    return 0;
+  }
 
   int GetDisplayPipe() override;
   bool SetActiveConfig(uint32_t config) override;
@@ -102,17 +184,34 @@ class NestedDisplay : public NativeDisplay {
   void RefreshUpdate();
 
   void HotPlugUpdate(bool connected);
+#ifdef NESTED_DISPLAY_SUPPORT
+  int StartSockService();
+  int HyperCommunicationNetworkSendData(void *data, int len);
+  static void SignalCallbackHandler(int signum);
+#endif
 
  private:
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   std::shared_ptr<VsyncCallback> vsync_callback_ = NULL;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
-  uint32_t power_mode_ = kOff;
   uint32_t display_id_;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
+  uint32_t port_ = 0;
   bool enable_vsync_ = false;
   uint32_t config_ = 1;
+
+#ifdef NESTED_DISPLAY_SUPPORT
+  int mHyperDmaBuf_Fd = -1;
+  std::map<HWCNativeHandle, vm_buffer_info>
+      mHyperDmaExportedBuffers;  // Track the hyper dmabuf metadata info mapping
+  static std::unique_ptr<SocketThread> st_;
+  int msock_fd = -1;
+  static int mclient_sock_fd;
+  bool mconnected = false;
+  std::unique_ptr<ResourceManager> resource_manager_;
+  Compositor compositor_;
+#endif
 };
 
 }  // namespace hwcomposer
