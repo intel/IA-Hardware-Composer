@@ -37,11 +37,31 @@ static HWCColorControl HWCS2HWC(EHwcsColorControl color) {
       return HWCColorControl::kColorContrast;
     case HWCS_COLOR_SATURATION:
       return HWCColorControl::kColorSaturation;
+    case HWCS_COLOR_SHARP:
+      return HWCColorControl::kColorSharpness;
     case HWCS_COLOR_HUE:
     default:
       return HWCColorControl::kColorHue;
   }
   return HWCColorControl::kColorHue;
+}
+
+static HWCDeinterlaceControl HWCS2HWCDeinterlace(EHwcsDeinterlaceControl mode) {
+  switch (mode) {
+    case HWCS_DEINTERLACE_NONE:
+      return HWCDeinterlaceControl::kDeinterlaceNone;
+    case HWCS_DEINTERLACE_BOB:
+      return HWCDeinterlaceControl::kDeinterlaceBob;
+    case HWCS_DEINTERLACE_WEAVE:
+      return HWCDeinterlaceControl::kDeinterlaceWeave;
+    case HWCS_DEINTERLACE_MOTIONADAPTIVE:
+      return HWCDeinterlaceControl::kDeinterlaceMotionAdaptive;
+    case HWCS_DEINTERLACE_MOTIONCOMPENSATED:
+    default:
+      return HWCDeinterlaceControl::kDeinterlaceMotionCompensated;
+  }
+  return HWCDeinterlaceControl::kDeinterlaceNone;
+  ;
 }
 
 HwcService::HwcService() : mpHwc(NULL), initialized_(false) {
@@ -55,9 +75,6 @@ bool HwcService::Start(IAHWC2 &hwc) {
     return true;
 
   mpHwc = &hwc;
-#ifdef USE_PROCESS_STATE
-  ProcessState::initWithDriver("/dev/vndbinder");
-#endif
   sp<IServiceManager> sm(defaultServiceManager());
   if (sm->addService(String16(IA_HWC_SERVICE_NAME), this, false)) {
     ALOGE("Failed to start %s service", IA_HWC_SERVICE_NAME);
@@ -219,6 +236,18 @@ status_t HwcService::Controls::DisplayRestoreDefaultColorParam(
   return OK;
 }
 
+status_t HwcService::Controls::DisplayRestoreDefaultDeinterlaceParam(
+    uint32_t display) {
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->RestoreVideoDefaultDeinterlace();
+  return OK;
+}
+
 status_t HwcService::Controls::DisplayGetColorParam(uint32_t display,
                                                     EHwcsColorControl color,
                                                     float *value,
@@ -244,6 +273,19 @@ status_t HwcService::Controls::DisplaySetColorParam(uint32_t display,
     phyDisplay = mHwc.GetExtendedDisplay(display - 1);
   }
   phyDisplay->SetVideoColor(HWCS2HWC(color), value);
+  return OK;
+}
+
+status_t HwcService::Controls::DisplaySetDeinterlaceParam(
+    uint32_t display, EHwcsDeinterlaceControl mode) {
+  hwcomposer::NativeDisplay *phyDisplay;
+  if (!display) {
+    phyDisplay = mHwc.GetPrimaryDisplay();
+  } else {
+    phyDisplay = mHwc.GetExtendedDisplay(display - 1);
+  }
+  phyDisplay->SetVideoDeinterlace(HWCDeinterlaceFlag::kDeinterlaceFlagForce,
+                                  HWCS2HWCDeinterlace(mode));
   return OK;
 }
 

@@ -16,6 +16,7 @@
 
 #include "displayplanestate.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -61,24 +62,10 @@ const HwcRect<float> &DisplayPlaneState::GetSourceCrop() const {
 void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
   HwcRect<int> target_display_frame = private_data_->display_frame_;
-  target_display_frame.left =
-      std::min(target_display_frame.left, display_frame.left);
-  target_display_frame.top =
-      std::min(target_display_frame.top, display_frame.top);
-  target_display_frame.right =
-      std::max(target_display_frame.right, display_frame.right);
-  target_display_frame.bottom =
-      std::max(target_display_frame.bottom, display_frame.bottom);
+  CalculateRect(display_frame, target_display_frame);
 
   HwcRect<float> target_source_crop = private_data_->source_crop_;
-  const HwcRect<float> &source_crop = layer->GetSourceCrop();
-  target_source_crop.left = std::min(target_source_crop.left, source_crop.left);
-  target_source_crop.top = std::min(target_source_crop.top, source_crop.top);
-  target_source_crop.right =
-      std::max(target_source_crop.right, source_crop.right);
-  target_source_crop.bottom =
-      std::max(target_source_crop.bottom, source_crop.bottom);
-
+  CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
 
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
@@ -117,6 +104,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   if (re_validate_layer_ & ReValidationType::kScanout)
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
+  ResetCompositionRegion();
   refresh_needed_ = true;
 }
 
@@ -158,21 +146,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
       target_source_crop = source_crop;
       initialized = true;
     } else {
-      target_display_frame.left = std::min(target_display_frame.left, df.left);
-      target_display_frame.top = std::min(target_display_frame.top, df.top);
-      target_display_frame.right =
-          std::max(target_display_frame.right, df.right);
-      target_display_frame.bottom =
-          std::max(target_display_frame.bottom, df.bottom);
-
-      target_source_crop.left =
-          std::min(target_source_crop.left, source_crop.left);
-      target_source_crop.top =
-          std::min(target_source_crop.top, source_crop.top);
-      target_source_crop.right =
-          std::max(target_source_crop.right, source_crop.right);
-      target_source_crop.bottom =
-          std::max(target_source_crop.bottom, source_crop.bottom);
+      CalculateRect(df, target_display_frame);
+      CalculateSourceRect(source_crop, target_source_crop);
     }
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Reset adds index: %d \n", layer.GetZorder());
@@ -221,30 +196,29 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
 
-  std::vector<CompositionRegion>().swap(private_data_->composition_region_);
+  ResetCompositionRegion();
   refresh_needed_ = true;
 }
 
 void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  target_display_frame.left =
-      std::min(target_display_frame.left, display_frame.left);
-  target_display_frame.top =
-      std::min(target_display_frame.top, display_frame.top);
-  target_display_frame.right =
-      std::max(target_display_frame.right, display_frame.right);
-  target_display_frame.bottom =
-      std::max(target_display_frame.bottom, display_frame.bottom);
+  if (private_data_->source_layers_.size() == 1) {
+    target_display_frame = display_frame;
+  } else {
+    CalculateRect(display_frame, target_display_frame);
+  }
+
+  private_data_->rect_updated_ = true;
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
   HwcRect<float> &target_source_crop = private_data_->source_crop_;
-  target_source_crop.left = std::min(target_source_crop.left, source_crop.left);
-  target_source_crop.top = std::min(target_source_crop.top, source_crop.top);
-  target_source_crop.right =
-      std::max(target_source_crop.right, source_crop.right);
-  target_source_crop.bottom =
-      std::max(target_source_crop.bottom, source_crop.bottom);
+  if (private_data_->source_layers_.size() == 1) {
+    target_source_crop = source_crop;
+  } else {
+    CalculateSourceRect(source_crop, target_source_crop);
+  }
+  private_data_->rect_updated_ = true;
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -282,20 +256,9 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
     rotation = kIdentity;
 
   target->SetTransform(rotation);
-
-  target->ResetDisplayFrame(private_data_->display_frame_);
-  if (private_data_->use_plane_scalar_) {
-    target->ResetSourceCrop(private_data_->source_crop_);
-  } else {
-    target->ResetSourceCrop(HwcRect<float>(private_data_->display_frame_));
-  }
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
   refresh_needed_ = true;
-  if (private_data_->surfaces_.size() == 1) {
-    refresh_needed_ = false;
-  }
-
   surface_swapped_ = true;
 }
 
@@ -350,14 +313,12 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
   }
 
   const HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+  HwcRect<float> scaled_rect;
+  CalculateSourceCrop(scaled_rect);
+
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->ResetDisplayFrame(target_display_frame);
-    if (private_data_->use_plane_scalar_) {
-      surface->ResetSourceCrop(target_src_rect);
-    } else {
-      surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
-    }
+    surface->ResetSourceCrop(scaled_rect);
 
     bool clear = surface->ClearSurface();
     bool partial_clear = surface->IsPartialClear();
@@ -371,11 +332,7 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
     }
 
     if (surface->ClearSurface()) {
-      if (private_data_->use_plane_scalar_) {
-        surface->UpdateSurfaceDamage(target_src_rect, true);
-      } else {
-        surface->UpdateSurfaceDamage(target_display_frame, true);
-      }
+      surface->UpdateSurfaceDamage(scaled_rect);
     }
   }
 
@@ -433,21 +390,13 @@ void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
       RefreshSurfaces(NativeSurface::kFullClear, true);
     } else {
       const HwcRect<int> &target_display_frame = private_data_->display_frame_;
-      const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+      HwcRect<float> scaled_rect;
+      CalculateSourceCrop(scaled_rect);
       for (NativeSurface *surface : private_data_->surfaces_) {
         surface->ResetDisplayFrame(target_display_frame);
-        if (private_data_->use_plane_scalar_) {
-          surface->ResetSourceCrop(target_src_rect);
-        } else {
-          surface->ResetSourceCrop(HwcRect<float>(target_display_frame));
-        }
-
+        surface->ResetSourceCrop(scaled_rect);
         if (surface->ClearSurface()) {
-          if (private_data_->use_plane_scalar_) {
-            surface->UpdateSurfaceDamage(target_src_rect, true);
-          } else {
-            surface->UpdateSurfaceDamage(target_display_frame, true);
-          }
+          surface->UpdateSurfaceDamage(scaled_rect);
         }
       }
     }
@@ -468,6 +417,8 @@ void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
         private_data_->type_ != DisplayPlanePrivateState::PlaneType::kVideo) {
       private_data_->apply_effects_ = false;
     }
+
+    ResetCompositionRegion();
   }
 }
 
@@ -507,16 +458,23 @@ uint32_t DisplayPlaneState::RevalidationType() const {
 }
 
 void DisplayPlaneState::RevalidationDone(uint32_t validation_done) {
+  if (validation_done == ReValidationType::kNone)
+    return;
+
   if (validation_done & ReValidationType::kScanout) {
     re_validate_layer_ &= ~ReValidationType::kScanout;
   }
 
-  if (validation_done & ReValidationType::kScalar) {
-    re_validate_layer_ &= ~ReValidationType::kScalar;
+  if (validation_done & ReValidationType::kUpScalar) {
+    re_validate_layer_ &= ~ReValidationType::kUpScalar;
   }
 
   if (validation_done & ReValidationType::kRotation) {
     re_validate_layer_ &= ~ReValidationType::kRotation;
+  }
+
+  if (validation_done & ReValidationType::kDownScaling) {
+    re_validate_layer_ &= ~ReValidationType::kDownScaling;
   }
 }
 
@@ -545,7 +503,12 @@ void DisplayPlaneState::ValidateReValidation() {
   } else {
     bool use_scalar = CanUseDisplayUpScaling();
     if (private_data_->use_plane_scalar_ != use_scalar) {
-      re_validate_layer_ |= ReValidationType::kScalar;
+      re_validate_layer_ |= ReValidationType::kUpScalar;
+    } else {
+      bool down_scale = CanUseGPUDownScaling();
+      if ((private_data_->down_scaling_factor_ > 0) != down_scale) {
+        re_validate_layer_ = ReValidationType::kDownScaling;
+      }
     }
   }
 
@@ -553,68 +516,132 @@ void DisplayPlaneState::ValidateReValidation() {
 }
 
 bool DisplayPlaneState::CanUseDisplayUpScaling() const {
-  // TODO: Handle case where all layers to be compoisted have same scaling
-  // ratio.
-  // We cannot use plane scaling for Layers with different scaling ratio.
-  if (private_data_->source_layers_.size() > 1) {
-    return false;
-  }
-
   if (!private_data_->rect_updated_) {
     return private_data_->can_use_display_scalar_;
   }
 
-  const HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+  bool value = true;
 
-  uint32_t display_frame_width =
-      target_display_frame.right - target_display_frame.left;
-  uint32_t display_frame_height =
-      target_display_frame.bottom - target_display_frame.top;
-  uint32_t source_crop_width = static_cast<uint32_t>(
-      ceilf(target_src_rect.right - target_src_rect.left));
-  uint32_t source_crop_height = static_cast<uint32_t>(
-      ceilf(target_src_rect.bottom - target_src_rect.top));
-  // Source and Display frame width, height are same and scaling is not needed.
-  if ((display_frame_width == source_crop_width) &&
-      (display_frame_height == source_crop_height)) {
-    private_data_->can_use_display_scalar_ = false;
+  // We cannot use plane scaling for Layers with different scaling ratio.
+  if (private_data_->source_layers_.size() > 1) {
+    value = false;
+  } else if (private_data_->use_plane_scalar_ &&
+             !private_data_->can_use_downscaling_) {
+    value = false;
   }
 
-  // Display frame width, height is lesser than Source. Let's downscale
-  // it with our compositor backend.
-  if ((display_frame_width < source_crop_width) &&
-      (display_frame_height < source_crop_height)) {
-    private_data_->can_use_display_scalar_ = false;
-  }
+  if (value) {
+    const HwcRect<int> &target_display_frame = private_data_->display_frame_;
+    const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+    uint32_t display_frame_width =
+        target_display_frame.right - target_display_frame.left;
+    uint32_t display_frame_height =
+        target_display_frame.bottom - target_display_frame.top;
+    uint32_t source_crop_width = static_cast<uint32_t>(
+        ceilf(target_src_rect.right - target_src_rect.left));
+    uint32_t source_crop_height = static_cast<uint32_t>(
+        ceilf(target_src_rect.bottom - target_src_rect.top));
 
-  // Display frame height is less. If the cost of upscaling width is less
-  // than downscaling height, than return.
-  if ((display_frame_width > source_crop_width) &&
-      (display_frame_height < source_crop_height)) {
-    uint32_t width_cost =
-        (display_frame_width - source_crop_width) * display_frame_height;
-    uint32_t height_cost =
-        (source_crop_height - display_frame_height) * display_frame_width;
-    if (height_cost > width_cost) {
-      private_data_->can_use_display_scalar_ = false;
+    if (value) {
+      // Source and Display frame width, height are same and scaling is not
+      // needed.
+      if ((display_frame_width == source_crop_width) &&
+          (display_frame_height == source_crop_height)) {
+        value = false;
+      }
+
+      if (value) {
+        // Display frame width, height is lesser than Source. Let's downscale
+        // it with our compositor backend.
+        if ((display_frame_width < source_crop_width) &&
+            (display_frame_height < source_crop_height)) {
+          value = false;
+        }
+      }
+
+      if (value) {
+        // Display frame height is less. If the cost of upscaling width is less
+        // than downscaling height, than return.
+        if ((display_frame_width > source_crop_width) &&
+            (display_frame_height < source_crop_height)) {
+          uint32_t width_cost =
+              (display_frame_width - source_crop_width) * display_frame_height;
+          uint32_t height_cost =
+              (source_crop_height - display_frame_height) * display_frame_width;
+          if (height_cost > width_cost) {
+            value = false;
+          }
+        }
+      }
+
+      if (value) {
+        // Display frame width is less. If the cost of upscaling height is less
+        // than downscaling width, than return.
+        if ((display_frame_width < source_crop_width) &&
+            (display_frame_height > source_crop_height)) {
+          uint32_t width_cost =
+              (source_crop_width - display_frame_width) * display_frame_height;
+          uint32_t height_cost =
+              (display_frame_height - source_crop_height) * display_frame_width;
+          if (width_cost > height_cost) {
+            value = false;
+          }
+        }
+      }
     }
   }
 
-  // Display frame width is less. If the cost of upscaling height is less
-  // than downscaling width, than return.
-  if ((display_frame_width < source_crop_width) &&
-      (display_frame_height > source_crop_height)) {
-    uint32_t width_cost =
-        (source_crop_width - display_frame_width) * display_frame_height;
-    uint32_t height_cost =
-        (display_frame_height - source_crop_height) * display_frame_width;
-    if (width_cost > height_cost) {
-      private_data_->can_use_display_scalar_ = false;
+  private_data_->can_use_display_scalar_ = value;
+
+  return private_data_->can_use_display_scalar_;
+}
+
+bool DisplayPlaneState::CanUseGPUDownScaling() const {
+#ifndef ENABLE_DOWNSCALING
+  private_data_->can_use_downscaling_ = false;
+  return false;
+#endif
+  if (!private_data_->rect_updated_) {
+    return private_data_->can_use_downscaling_;
+  }
+
+  bool value = false;
+  private_data_->can_use_downscaling_ = false;
+  if (!NeedsOffScreenComposition()) {
+    value = false;
+  } else if (private_data_->use_plane_scalar_ &&
+             private_data_->can_use_display_scalar_) {
+    value = false;
+  } else {
+    const HwcRect<int> &target_display_frame = private_data_->display_frame_;
+    const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+
+    uint32_t display_frame_width =
+        target_display_frame.right - target_display_frame.left;
+    uint32_t display_frame_height =
+        target_display_frame.bottom - target_display_frame.top;
+    uint32_t source_crop_width = static_cast<uint32_t>(
+        ceilf(target_src_rect.right - target_src_rect.left));
+    uint32_t source_crop_height = static_cast<uint32_t>(
+        ceilf(target_src_rect.bottom - target_src_rect.top));
+    if (display_frame_width < 500 || display_frame_height < 500) {
+      // Ignore < 500 pixels.
+      value = false;
+    } else if ((display_frame_width == source_crop_width) &&
+               (display_frame_height == source_crop_height)) {
+      value = true;
+    } else {
+      // If we are already downscaling content by less than 25%, no need
+      // for any further downscaling.
+      if (display_frame_width >
+          (source_crop_width -
+           (source_crop_width / private_data_->down_scaling_factor_))) {
+        value = true;
+      }
     }
   }
 
-  private_data_->can_use_display_scalar_ = true;
+  private_data_->can_use_downscaling_ = value;
 
   return private_data_->can_use_display_scalar_;
 }
@@ -640,8 +667,43 @@ DisplayPlaneState::RotationType DisplayPlaneState::GetRotationType() const {
   return private_data_->rotation_type_;
 }
 
-void DisplayPlaneState::PlaneRectUpdated() {
-  private_data_->rect_updated_ = true;
+void DisplayPlaneState::SetDisplayDownScalingFactor(uint32_t factor,
+                                                    bool clear_surfaces) {
+#ifndef ENABLE_DOWNSCALING
+  HWC_UNUSED(factor);
+  HWC_UNUSED(clear_surfaces);
+  return;
+#endif
+  if (private_data_->down_scaling_factor_ == factor)
+    return;
+
+  private_data_->down_scaling_factor_ = factor;
+  NativeSurface::ClearType type = NativeSurface::kNone;
+
+  if (clear_surfaces) {
+    type = NativeSurface::kFullClear;
+  }
+
+  RefreshSurfaces(type, true);
+}
+
+uint32_t DisplayPlaneState::GetDownScalingFactor() const {
+  return private_data_->down_scaling_factor_;
+}
+
+void DisplayPlaneState::CalculateSourceCrop(HwcRect<float> &scaled_rect) const {
+  if (private_data_->use_plane_scalar_) {
+    scaled_rect = private_data_->source_crop_;
+  } else {
+    scaled_rect = private_data_->display_frame_;
+#ifdef ENABLE_DOWNSCALING
+    if (private_data_->down_scaling_factor_ > 1) {
+      scaled_rect.right =
+          scaled_rect.right -
+          (scaled_rect.right / private_data_->down_scaling_factor_);
+    }
+#endif
+  }
 }
 
 }  // namespace hwcomposer

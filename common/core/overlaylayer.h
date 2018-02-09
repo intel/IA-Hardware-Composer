@@ -101,7 +101,8 @@ struct OverlayLayer {
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
-                 ResourceManager* buffer_manager, bool register_buffer);
+                 ResourceManager* buffer_manager, bool register_buffer,
+                 HwcLayer* layer = NULL);
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
   const HwcRect<float>& GetSourceCrop() const {
@@ -200,6 +201,13 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
+  // Returns true if this layer is backed
+  // by raw pixel data and it has changed
+  // compared to previous frame.
+  bool RawPixelDataChanged() const {
+    return state_ & kRawPixelDataChanged;
+  }
+
   void Dump();
 
  private:
@@ -208,7 +216,8 @@ struct OverlayLayer {
     kDimensionsChanged = 1 << 1,
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
-    kNeedsReValidation = 1 << 4
+    kNeedsReValidation = 1 << 4,
+    kRawPixelDataChanged = 1 << 5
   };
 
   struct ImportedBuffer {

@@ -62,6 +62,9 @@ LOCAL_CPPFLAGS += \
 	-DDISABLE_CURSOR_PLANE
 endif
 
+#LOCAL_CPPFLAGS += \
+#	-DENABLE_DOWNSCALING
+
 LOCAL_SRC_FILES := \
         compositor/compositor.cpp \
         compositor/compositorthread.cpp \

@@ -405,6 +405,10 @@ void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void PhysicalDisplay::SetVideoScalingMode(uint32_t mode) {
+  display_queue_->SetVideoScalingMode(mode);
+}
+
 void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   display_queue_->SetVideoColor(color, value);
 }
@@ -416,6 +420,15 @@ void PhysicalDisplay::GetVideoColor(HWCColorControl color,
 
 void PhysicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   display_queue_->RestoreVideoDefaultColor(color);
+}
+
+void PhysicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                          HWCDeinterlaceControl mode) {
+  display_queue_->SetVideoDeinterlace(flag, mode);
+}
+
+void PhysicalDisplay::RestoreVideoDefaultDeinterlace() {
+  display_queue_->RestoreVideoDefaultDeinterlace();
 }
 
 bool PhysicalDisplay::PopulatePlanes(
@@ -566,4 +579,31 @@ bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+int PhysicalDisplay::InitializeLayerHashGenerator(int size) {
+  LayerIds_.clear();
+  for (int i = 0; i < size; i++) {
+    LayerIds_.push_back(i);
+  }
+
+  current_max_layer_ids_ = size;
+  return 0;
+}
+
+uint64_t PhysicalDisplay::AcquireId() {
+  if (LayerIds_.empty())
+    return ++current_max_layer_ids_;
+
+  uint64_t id = LayerIds_.back();
+  LayerIds_.pop_back();
+
+  return id;
+}
+
+void PhysicalDisplay::ReleaseId(uint64_t id) {
+  LayerIds_.push_back(id);
+}
+
+void PhysicalDisplay::ResetLayerHashGenerator() {
+  InitializeLayerHashGenerator(current_max_layer_ids_);
+}
 }  // namespace hwcomposer

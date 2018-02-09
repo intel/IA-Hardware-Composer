@@ -67,6 +67,10 @@ bool LogicalDisplay::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
+void LogicalDisplay::SetHDCPState(HWCContentProtection state) {
+  logical_display_manager_->SetHDCPState(state);
+}
+
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence, bool handle_constraints) {
   if (power_mode_ != kOn)
@@ -146,6 +150,10 @@ void LogicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   physical_display_->SetExplicitSyncSupport(disable_explicit_sync);
 }
 
+void LogicalDisplay::SetVideoScalingMode(uint32_t mode) {
+  physical_display_->SetVideoScalingMode(mode);
+}
+
 void LogicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   physical_display_->SetVideoColor(color, value);
 }
@@ -157,6 +165,15 @@ void LogicalDisplay::GetVideoColor(HWCColorControl color, float *value,
 
 void LogicalDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   physical_display_->RestoreVideoDefaultColor(color);
+}
+
+void LogicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                         HWCDeinterlaceControl mode) {
+  physical_display_->SetVideoDeinterlace(flag, mode);
+}
+
+void LogicalDisplay::RestoreVideoDefaultDeinterlace() {
+  physical_display_->RestoreVideoDefaultDeinterlace();
 }
 
 void LogicalDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,

@@ -113,13 +113,16 @@ class DisplayPlaneManager {
                              bool recycle_resources);
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
-                                 std::vector<OverlayPlane> &commit_planes,
-                                 OverlayLayer *current_layer,
-                                 bool ignore_format = false);
+                                 std::vector<OverlayPlane> &commit_planes);
 
+  // Checks if we can benefit using display plane rotation.
   void ValidateForDisplayTransform(
       DisplayPlaneState &last_plane,
-      const std::vector<OverlayPlane> &commit_planes) const;
+      const std::vector<OverlayPlane> &commit_planes);
+
+  // Checks if we can benefit by downscaling layer of this plane.
+  void ValidateForDownScaling(DisplayPlaneState &last_plane,
+                              const std::vector<OverlayPlane> &commit_planes);
 
   void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
                             DisplayPlaneStateList &composition,
@@ -138,6 +141,13 @@ class DisplayPlaneManager {
                            bool recycle_resources);
 
   void SwapSurfaceIfNeeded(DisplayPlaneState *plane);
+
+  bool CheckForDownScaling(DisplayPlaneStateList &composition,
+                           std::vector<OverlayPlane> &commit_planes);
+
+  void FinalizeValidation(DisplayPlaneStateList &composition,
+                          std::vector<OverlayPlane> &commit_planes,
+                          bool *render_layers, bool *re_validation_needed);
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;

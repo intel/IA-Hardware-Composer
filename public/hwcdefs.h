@@ -37,6 +37,12 @@ enum class HWCBlending : int32_t {
   kBlendingCoverage = 0x0405,
 };
 
+enum HWCContentProtection {
+  kUnSupported = 0,  // Content Protection is not supported.
+  kUnDesired = 1,    // Content Protection is not required.
+  kDesired = 2       // Content Protection is desired.
+};
+
 enum HWCTransform {
   kIdentity = 0,
   kReflectX = 1 << 0,
@@ -115,6 +121,12 @@ enum class HWCDeinterlaceControl : int32_t {
   kDeinterlaceWeave = 2,
   kDeinterlaceMotionAdaptive = 3,
   kDeinterlaceMotionCompensated = 4
+};
+
+enum class HWCScalingRunTimeSetting : int32_t {
+  kScalingModeNone = 0,        // use default scaling mode.
+  kScalingModeFast = 1,        // use fast scaling mode.
+  kScalingModeHighQuality = 2  // use high quality scaling mode.
 };
 
 struct EnumClassHash {

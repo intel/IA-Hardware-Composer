@@ -37,10 +37,11 @@ typedef std::vector<DisplayPlaneState> DisplayPlaneStateList;
 class DisplayPlaneState {
  public:
   enum ReValidationType {
-    kNone = 0,          // No Revalidation Needed.
-    kScanout = 1 << 0,  // Check if layer can be scanned out directly.
-    kScalar = 1 << 1,   // Check if layer can use plane scalar.
-    kRotation = 1 << 2  // Check if display transform can be supported.
+    kNone = 0,              // No Revalidation Needed.
+    kScanout = 1 << 0,      // Check if layer can be scanned out directly.
+    kUpScalar = 1 << 1,     // Check if layer can use plane scalar.
+    kDownScaling = 1 << 2,  // Check if layer can be downscaled.
+    kRotation = 1 << 3      // Check if display transform can be supported.
   };
 
   enum class RotationType : int32_t {
@@ -119,7 +120,7 @@ class DisplayPlaneState {
   void RefreshSurfaces(NativeSurface::ClearType clear_surface,
                        bool force = false);
 
-  void UpdateDamage(const HwcRect<int> &surface_damage, bool forced);
+  void UpdateDamage(const HwcRect<int> &surface_damage, bool forced = true);
 
   DisplayPlane *GetDisplayPlane() const;
 
@@ -193,6 +194,11 @@ class DisplayPlaneState {
   // This should be used only as a hint.
   bool CanUseDisplayUpScaling() const;
 
+  // Returns true if we can benefit by using gpu for
+  // downscaling content of this plane.
+  // This should be used only as a hint.
+  bool CanUseGPUDownScaling() const;
+
   // Set if Plane rotation needs to be handled
   // using GPU or Display.
   void SetRotationType(RotationType type, bool refresh);
@@ -202,11 +208,13 @@ class DisplayPlaneState {
   // plane is not rotated.
   RotationType GetRotationType() const;
 
-  // Helper to inform that either Display Frame or
-  // Source rect of this plane has changed.
-  void PlaneRectUpdated();
+  void SetDisplayDownScalingFactor(uint32_t factor, bool clear_surfaces);
+
+  uint32_t GetDownScalingFactor() const;
 
  private:
+  void CalculateSourceCrop(HwcRect<float> &source_crop) const;
+
   class DisplayPlanePrivateState {
    public:
     enum class PlaneType : int32_t {
@@ -238,11 +246,18 @@ class DisplayPlaneState {
     bool has_cursor_layer_ = false;
     // Can benefit using display scalar.
     bool can_use_display_scalar_ = false;
+    // Using GPU for downscaling.
+    bool use_down_scaling_ = false;
+    // Can benefit by downscaling using
+    // GPU.
+    bool can_use_downscaling_ = false;
     // Rects(Either Display Frame/Source Rect) have
     // changed.
     bool rect_updated_ = true;
+
     // Display cannot support the required rotation.
     bool unsupported_siplay_rotation_ = false;
+    uint32_t down_scaling_factor_ = 1;
     // Any offscreen surfaces used by this
     // plane.
     std::vector<NativeSurface *> surfaces_;

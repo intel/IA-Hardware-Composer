@@ -49,6 +49,14 @@ bool Compositor::BeginFrame(bool disable_explicit_sync) {
   return true;
 }
 
+void Compositor::UpdateLayerPixelData(std::vector<OverlayLayer> &layers) {
+  thread_->UpdateLayerPixelData(layers);
+}
+
+void Compositor::EnsurePixelDataUpdated() {
+  thread_->EnsurePixelDataUpdated();
+}
+
 void Compositor::Reset() {
   if (thread_)
     thread_->ExitThread();
@@ -78,6 +86,8 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       MediaState &media_state = state.media_state_;
       lock_.lock();
       media_state.colors_ = colors_;
+      media_state.scaling_mode_ = scaling_mode_;
+      media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
@@ -114,9 +124,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         use_plane_transform = true;
       }
 
-      if (!CalculateRenderState(layers, comp_regions, state,
-                                plane.IsUsingPlaneScalar(),
-                                use_plane_transform)) {
+      if (!CalculateRenderState(
+              layers, comp_regions, state, plane.GetDownScalingFactor(),
+              plane.IsUsingPlaneScalar(), use_plane_transform)) {
         ETRACE("Failed to calculate Render state.");
         return false;
       }
@@ -162,7 +172,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
   draw_state.states_.reserve(num_regions);
-  if (!CalculateRenderState(layers, comp_regions, draw_state, false)) {
+  if (!CalculateRenderState(layers, comp_regions, draw_state, 1, false)) {
     ETRACE("Failed to calculate render state.");
     return false;
   }
@@ -192,14 +202,15 @@ void Compositor::FreeResources() {
 bool Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
-    bool uses_display_up_scaling, bool use_plane_transform) {
+    uint32_t downscaling_factor, bool uses_display_up_scaling,
+    bool use_plane_transform) {
   CTRACE();
   size_t num_regions = comp_regions.size();
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(layers, region, uses_display_up_scaling,
-                         use_plane_transform);
+    state.ConstructState(layers, region, downscaling_factor,
+                         uses_display_up_scaling, use_plane_transform);
     if (state.layer_state_.empty()) {
       continue;
     }
@@ -218,6 +229,12 @@ bool Compositor::CalculateRenderState(
   return true;
 }
 
+void Compositor::SetVideoScalingMode(uint32_t mode) {
+  lock_.lock();
+  scaling_mode_ = mode;
+  lock_.unlock();
+}
+
 void Compositor::SetVideoColor(HWCColorControl color, float value) {
   lock_.lock();
   colors_[color].value_ = value;
@@ -233,6 +250,21 @@ void Compositor::GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
 void Compositor::RestoreVideoDefaultColor(HWCColorControl color) {
   lock_.lock();
   colors_[color].use_default_ = true;
+  lock_.unlock();
+}
+
+void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                     HWCDeinterlaceControl mode) {
+  lock_.lock();
+  deinterlace_.flag_ = flag;
+  deinterlace_.mode_ = mode;
+  lock_.unlock();
+}
+
+void Compositor::RestoreVideoDefaultDeinterlace() {
+  lock_.lock();
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
   lock_.unlock();
 }
 

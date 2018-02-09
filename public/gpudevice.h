@@ -25,12 +25,13 @@
 #include "displaymanager.h"
 #include "logicaldisplaymanager.h"
 #include "nativedisplay.h"
+#include "hwcthread.h"
 
 namespace hwcomposer {
 
 class NativeDisplay;
 
-class GpuDevice {
+class GpuDevice : public HWCThread {
  public:
   GpuDevice();
 
@@ -56,11 +57,32 @@ class GpuDevice {
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
 
  private:
+  enum InitializationType {
+    kUnInitialized = 0,               // Nothing Initialized.
+    kHWCSettingsInProgress = 1 << 0,  // Reading HWC Settings is in progress.
+    kHWCSettingsDone = 1 << 1,        // Reading HWC Settings is done.
+    kInitializeHotPlugMonitor =
+        1 << 2,  // Initialize resources to monitor for Hotplug events.
+    kInitializedHotPlugMonitor =
+        1 << 3,  // Initialized resources to monitor for Hotplug events.
+    kInitialized = 1 << 4  // Everything Initialized
+  };
+
+  void HandleHWCSettings();
+  void InitializeHotPlugEvents(bool take_lock = true);
+  void DisableWatch();
+  void HandleRoutine() override;
+  void HandleWait() override;
   std::unique_ptr<DisplayManager> display_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
   std::vector<NativeDisplay*> total_displays_;
-  bool initialized_;
+  uint32_t initialization_state_ = kUnInitialized;
+  SpinLock initialization_state_lock_;
+  SpinLock thread_stage_lock_;
+  SpinLock thread_sync_lock_;
+  int lock_fd_ = -1;
+  friend class DrmDisplayManager;
 };
 
 }  // namespace hwcomposer

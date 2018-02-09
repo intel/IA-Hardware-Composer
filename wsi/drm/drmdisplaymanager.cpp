@@ -32,12 +32,14 @@
 #include <linux/netlink.h>
 
 #include <hwctrace.h>
+#include <gpudevice.h>
 
 #include <nativebufferhandler.h>
 
 namespace hwcomposer {
 
-DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
+DrmDisplayManager::DrmDisplayManager(GpuDevice *device)
+    : HWCThread(-8, "DisplayManager"), device_(device) {
   CTRACE();
 }
 
@@ -72,12 +74,6 @@ bool DrmDisplayManager::Initialize() {
     return false;
   }
 
-  buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
-  if (!buffer_handler_) {
-    ETRACE("Failed to create native buffer handler instance");
-    return false;
-  }
-
   ScopedDrmResourcesPtr res(drmModeGetResources(fd_));
 
   for (int32_t i = 0; i < res->count_crtcs; ++i) {
@@ -89,30 +85,8 @@ bool DrmDisplayManager::Initialize() {
 
     std::unique_ptr<DrmDisplay> display(
         new DrmDisplay(fd_, i, c->crtc_id, this));
-    if (!display->Initialize(buffer_handler_.get())) {
-      ETRACE("Failed to Initialize Display %d", c->crtc_id);
-      return false;
-    }
 
     displays_.emplace_back(std::move(display));
-  }
-
-  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
-  nested_display_.reset(new NestedDisplay());
-
-  hwc_lock_.reset(new HWCLock());
-  if (!hwc_lock_->RegisterCallBack(this)) {
-    hwc_lock_.reset(nullptr);
-  } else {
-    size_t size = displays_.size();
-    for (size_t i = 0; i < size; ++i) {
-      displays_.at(i)->IgnoreUpdates();
-    }
-  }
-
-  if (!UpdateDisplayState()) {
-    ETRACE("Failed to connect display.");
-    return false;
   }
 
 #ifndef DISABLE_HOTPLUG_NOTIFICATION
@@ -136,14 +110,8 @@ bool DrmDisplayManager::Initialize() {
   }
 
   fd_handler_.AddFd(hotplug_fd_);
-
-  if (!InitWorker()) {
-    ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
-           PRINTERROR());
-  }
 #endif
   IHOTPLUGEVENTTRACE("DisplayManager Initialization succeeded.");
-
   return true;
 }
 
@@ -195,6 +163,35 @@ void DrmDisplayManager::HotPlugEventHandler() {
 void DrmDisplayManager::HandleWait() {
   if (fd_handler_.Poll(-1) <= 0) {
     ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+  }
+}
+
+void DrmDisplayManager::InitializeDisplayResources() {
+  buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
+  if (!buffer_handler_) {
+    ETRACE("Failed to create native buffer handler instance");
+    return;
+  }
+
+  int size = displays_.size();
+  for (int i = 0; i < size; ++i) {
+    if (!displays_.at(i)->Initialize(buffer_handler_.get())) {
+      ETRACE("Failed to Initialize Display %d", i);
+    }
+  }
+
+  virtual_display_.reset(new VirtualDisplay(fd_, buffer_handler_.get(), 0, 0));
+  nested_display_.reset(new NestedDisplay());
+}
+
+void DrmDisplayManager::StartHotPlugMonitor() {
+  if (!UpdateDisplayState()) {
+    ETRACE("Failed to connect display.");
+  }
+
+  if (!InitWorker()) {
+    ETRACE("Failed to initalizer thread to monitor Hot Plug events. %s",
+           PRINTERROR());
   }
 }
 
@@ -414,18 +411,24 @@ void DrmDisplayManager::ForceRefresh() {
   spin_lock_.unlock();
 }
 
+void DrmDisplayManager::IgnoreUpdates() {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; ++i) {
+    displays_.at(i)->IgnoreUpdates();
+  }
+}
+
 void DrmDisplayManager::HandleLazyInitialization() {
   spin_lock_.lock();
-  if (release_lock_ && hwc_lock_.get()) {
-    hwc_lock_->DisableWatch();
-    hwc_lock_.reset(nullptr);
+  if (release_lock_) {
+    device_->DisableWatch();
     release_lock_ = false;
   }
   spin_lock_.unlock();
 }
 
-DisplayManager *DisplayManager::CreateDisplayManager() {
-  return new DrmDisplayManager();
+DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {
+  return new DrmDisplayManager(device);
 }
 
 }  // namespace hwcomposer

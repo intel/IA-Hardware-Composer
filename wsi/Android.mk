@@ -48,12 +48,13 @@ LOCAL_SHARED_LIBRARIES += \
 
 LOCAL_SRC_FILES := \
         physicaldisplay.cpp \
+	pixelbuffer.cpp \
         drm/drmdisplay.cpp \
         drm/drmbuffer.cpp \
         drm/drmplane.cpp \
+	drm/drmpixelbuffer.cpp \
         drm/drmdisplaymanager.cpp \
-	drm/drmscopedtypes.cpp \
-	drm/hwclock.cpp
+	drm/drmscopedtypes.cpp
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \

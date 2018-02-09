@@ -45,6 +45,8 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_DISPLAY_RESTORE_DEFAULT_COLOR_PARAM,
     TRANSACT_DISPLAY_GET_COLOR_PARAM,
     TRANSACT_DISPLAY_SET_COLOR_PARAM,
+    TRANSACT_DISPLAY_SET_DEINTERLACE_PARAM,
+    TRANSACT_DISPLAY_RESTORE_DEFAULT_DEINTERLACE_PARAM,
     TRANSACT_DISPLAYMODE_GET_AVAILABLE_MODES,
     TRANSACT_DISPLAYMODE_GET_MODE,
     TRANSACT_DISPLAYMODE_SET_MODE,
@@ -169,6 +171,20 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
+  status_t DisplayRestoreDefaultDeinterlaceParam(uint32_t display) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(getInterfaceDescriptor());
+    data.writeInt32(display);
+    status_t ret = remote()->transact(
+        TRANSACT_DISPLAY_RESTORE_DEFAULT_DEINTERLACE_PARAM, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+      return ret;
+    }
+    return reply.readInt32();
+  }
+
   status_t DisplayGetColorParam(uint32_t display, EHwcsColorControl color,
                                 float *value, float *startvalue,
                                 float *endvalue) override {
@@ -202,6 +218,22 @@ class BpControls : public BpInterface<IControls> {
     data.writeFloat(value);
     status_t ret =
         remote()->transact(TRANSACT_DISPLAY_SET_COLOR_PARAM, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+      return ret;
+    }
+    return reply.readInt32();
+  }
+
+  status_t DisplaySetDeinterlaceParam(uint32_t display,
+                                      EHwcsDeinterlaceControl mode) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(getInterfaceDescriptor());
+    data.writeInt32(display);
+    data.writeInt32(mode);
+    status_t ret = remote()->transact(TRANSACT_DISPLAY_SET_DEINTERLACE_PARAM,
+                                      data, &reply);
     if (ret != NO_ERROR) {
       ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
       return ret;
@@ -477,6 +509,14 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       reply->writeInt32(ret);
       return NO_ERROR;
     }
+    case BpControls::TRANSACT_DISPLAY_RESTORE_DEFAULT_DEINTERLACE_PARAM: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t display = data.readInt32();
+      status_t ret = this->DisplayRestoreDefaultDeinterlaceParam(display);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+
     case BpControls::TRANSACT_DISPLAY_GET_COLOR_PARAM: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();
@@ -501,6 +541,15 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       reply->writeInt32(ret);
       return NO_ERROR;
     }
+    case BpControls::TRANSACT_DISPLAY_SET_DEINTERLACE_PARAM: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t display = data.readInt32();
+      EHwcsDeinterlaceControl mode = (EHwcsDeinterlaceControl)data.readInt32();
+      status_t ret = this->DisplaySetDeinterlaceParam(display, mode);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+
     case BpControls::TRANSACT_DISPLAYMODE_GET_AVAILABLE_MODES: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t display = data.readInt32();

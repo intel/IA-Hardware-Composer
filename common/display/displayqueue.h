@@ -64,11 +64,13 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetVideoScalingMode(uint32_t mode);
   void SetVideoColor(HWCColorControl color, float value);
-  void GetVideoColor(HWCColorControl color,
-                     float* value, float* start, float* end);
+  void GetVideoColor(HWCColorControl color, float* value, float* start,
+                     float* end);
   void RestoreVideoDefaultColor(HWCColorControl color);
-
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
 
@@ -137,21 +139,25 @@ class DisplayQueue {
     };
 
     uint32_t idle_frames_ = 0;
+    bool has_cursor_layer_ = false;
     SpinLock idle_lock_;
     int state_ = kPrepareComposition;
     uint32_t revalidate_frames_counter_ = 0;
-    uint32_t idle_reset_frames_counter_ = 0;
+    size_t total_planes_ = 1;
   };
 
   struct ScopedIdleStateTracker {
     ScopedIdleStateTracker(struct FrameStateTracker& tracker,
                            Compositor& compositor,
-                           ResourceManager* resource_manager)
+                           ResourceManager* resource_manager,
+                           DisplayQueue* queue)
         : tracker_(tracker),
           compositor_(compositor),
-          resource_manager_(resource_manager) {
+          resource_manager_(resource_manager),
+          queue_(queue) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
+      tracker_.has_cursor_layer_ = false;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
         tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
         tracker_.state_ &= ~FrameStateTracker::kPrepareIdleComposition;
@@ -169,8 +175,8 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kRevalidateLayers;
     }
 
-    void PostponeRevalidation() {
-      revalidate_ignored_ = true;
+    bool TrackingFrames() const {
+      return tracker_.state_ & FrameStateTracker::kTrackingFrames;
     }
 
     void ResetTrackerState() {
@@ -187,14 +193,15 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kIgnoreUpdates;
     }
 
+    void FrameHasCursor() {
+      tracker_.has_cursor_layer_ = true;
+    }
+
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
-      tracker_.idle_reset_frames_counter_ = 0;
-      // Reset idle frame count if it's less than
-      // kidleframes. We want that idle frames
+      // Reset idle frame count. We want that idle frames
       // are continuous to detect idle mode scenario.
-      if (tracker_.idle_frames_ < kidleframes)
-        tracker_.idle_frames_ = 0;
+      tracker_.idle_frames_ = 0;
 
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
@@ -209,12 +216,12 @@ class DisplayQueue {
         } else {
           tracker_.revalidate_frames_counter_++;
         }
-      } else if (!revalidate_ignored_ &&
-                 (tracker_.state_ & FrameStateTracker::kRevalidateLayers)) {
+      } else if (tracker_.state_ & FrameStateTracker::kRevalidateLayers) {
         tracker_.state_ &= ~FrameStateTracker::kRevalidateLayers;
         tracker_.revalidate_frames_counter_ = 0;
       }
 
+      tracker_.total_planes_ = queue_->previous_plane_state_.size();
       tracker_.idle_lock_.unlock();
 
       if (resource_manager_->PreparePurgedResources())
@@ -225,7 +232,7 @@ class DisplayQueue {
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
     ResourceManager* resource_manager_;
-    bool revalidate_ignored_ = false;
+    DisplayQueue* queue_;
   };
 
   void HandleExit();
@@ -273,7 +280,7 @@ class DisplayQueue {
   int state_ = kConfigurationChanged;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool handle_display_initializations_ = true;  // to disable hwclock thread.
+  bool handle_display_initializations_ = true;  // to disable hwclock monitoring.
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;

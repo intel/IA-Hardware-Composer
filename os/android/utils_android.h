@@ -35,8 +35,6 @@
 #include "hwctrace.h"
 #include "hwcutils.h"
 
-#define HWC_UNUSED(x) ((void)&(x))
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,6 +56,8 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
       return DRM_FORMAT_ARGB8888;
     case HAL_PIXEL_FORMAT_YV12:
       return DRM_FORMAT_YVU420;
+    case HAL_PIXEL_FORMAT_RGBA_FP16:
+      return DRM_FORMAT_XBGR161616;
     default:
       break;
   }
@@ -165,6 +165,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
     case DRM_FORMAT_P010:
       return HAL_PIXEL_FORMAT_P010_INTEL;
+    case DRM_FORMAT_XBGR161616:
+      return HAL_PIXEL_FORMAT_RGBA_FP16;
     default:
       return 0;
       break;

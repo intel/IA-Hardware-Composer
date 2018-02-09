@@ -169,20 +169,20 @@ class NativeDisplay {
   }
 
   /**
-  * API for setting display color contrast in HWC
-  * @param red valid value is 0 ~ 255, bigger value with stronger contrast
-  * @param green valid value is 0 ~ 255, bigger value with stronger contrast
-  * @param blue valid value is 0 ~ 255, bigger value with stronger contrast
-  */
+   * API for setting display color contrast in HWC
+   * @param red valid value is 0 ~ 255, bigger value with stronger contrast
+   * @param green valid value is 0 ~ 255, bigger value with stronger contrast
+   * @param blue valid value is 0 ~ 255, bigger value with stronger contrast
+   */
   virtual void SetContrast(uint32_t /*red*/, uint32_t /*green*/,
                            uint32_t /*blue*/) {
   }
   /**
-  * API for setting display color brightness in HWC
-  * @param red valid value is 0 ~ 255, bigger value with stronger brightness
-  * @param green valid value is 0 ~ 255, bigger value with stronger brightness
-  * @param blue valid value is 0 ~ 255, bigger value with stronger brightness
-  */
+   * API for setting display color brightness in HWC
+   * @param red valid value is 0 ~ 255, bigger value with stronger brightness
+   * @param green valid value is 0 ~ 255, bigger value with stronger brightness
+   * @param blue valid value is 0 ~ 255, bigger value with stronger brightness
+   */
   virtual void SetBrightness(uint32_t /*red*/, uint32_t /*green*/,
                              uint32_t /*blue*/) {
   }
@@ -203,13 +203,32 @@ class NativeDisplay {
   /**
    * API for restoring video default color in HWC
    */
-   virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
-   }
+  virtual void RestoreVideoDefaultColor(HWCColorControl /*color*/) {
+  }
 
   /**
-  * API for setting display Broadcast RGB range property
-  * @param range_property supported property string, e.g. "Full", "Automatic"
-  */
+   * API for setting video scaling mode in HWC
+   */
+  virtual void SetVideoScalingMode(uint32_t /*mode*/) {
+  }
+
+  /**
+   * API for setting video deinterlace in HWC
+   */
+  virtual void SetVideoDeinterlace(HWCDeinterlaceFlag /*flags*/,
+                                   HWCDeinterlaceControl /*mode*/) {
+  }
+
+  /**
+   * API for restoring video default deinterlace in HWC
+   */
+  virtual void RestoreVideoDefaultDeinterlace() {
+  }
+
+  /**
+   * API for setting display Broadcast RGB range property
+   * @param range_property supported property string, e.g. "Full", "Automatic"
+   */
   virtual bool SetBroadcastRGB(const char * /*range_property*/) {
     return false;
   }
@@ -223,9 +242,9 @@ class NativeDisplay {
   }
 
   /**
-  * API for setting output buffer for virtual display.
-  * @param buffer ownership is taken by display.
-  */
+   * API for setting output buffer for virtual display.
+   * @param buffer ownership is taken by display.
+   */
   virtual void SetOutputBuffer(HWCNativeHandle /*buffer*/,
                                int32_t /*acquire_fence*/) {
   }
@@ -283,6 +302,43 @@ class NativeDisplay {
   }
 
   virtual void HotPlugUpdate(bool /*connected*/) {
+  }
+
+  /**
+   * Use this method to initalize the display's pool of
+   * layer ids. The argument to the method is the
+   * initial size of the pool
+   */
+  virtual int InitializeLayerHashGenerator(int) {
+    return 0;
+  }
+
+  /**
+   * Once the id pool is initialzed, use this to acquire an
+   * unused id for the layer.
+   */
+  virtual uint64_t AcquireId() {
+    return 0;
+  }
+
+  /**
+   * Method to return a destroyed layer's id back into the pool
+   */
+  virtual void ReleaseId(uint64_t) {
+  }
+
+  /**
+   * Call this to reset the id pool back to its initial state.
+   */
+  virtual void ResetLayerHashGenerator() {
+  }
+
+  /**
+   * Call this to set HDCP state for this display. This function
+   * tries to take advantage of any HDCP support advertised by
+   * the Kernel.
+   */
+  virtual void SetHDCPState(HWCContentProtection /*state*/) {
   }
 
  protected:

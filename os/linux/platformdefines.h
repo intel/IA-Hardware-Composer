@@ -17,9 +17,10 @@
 #ifndef OS_LINUX_PLATFORMDEFINES_H_
 #define OS_LINUX_PLATFORMDEFINES_H_
 
-#include <stdio.h>
-#include <stddef.h>
 #include <gbm.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <cmath>
 
 #include <va/va_drm.h>
 
@@ -42,6 +43,11 @@ struct gbm_handle {
   uint32_t total_planes = 0;
   HwcBuffer meta_data_;
   bool hwc_buffer_ = false;
+  // In case this is true, we expect meta_data_
+  // to be filled with correct width, height and
+  // format.
+  bool is_raw_pixel_ = false;
+  void* pixel_memory_ = NULL;
   uint32_t gbm_flags = 0;
 };
 

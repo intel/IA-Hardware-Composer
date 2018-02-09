@@ -76,18 +76,51 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
-                                           ResourceManager* resource_manager) {
+                                           ResourceManager* resource_manager,
+                                           bool is_cursor_buffer) {
+  resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
-      resource_manager->GetNativeBufferHandler();
-  handler->CopyHandle(handle, &image_.handle_);
-  if (!handler->ImportBuffer(image_.handle_)) {
-    ETRACE("Failed to Import buffer.");
-    return;
+      resource_manager_->GetNativeBufferHandler();
+  if (handle->is_raw_pixel_) {
+    data_ = handle->pixel_memory_;
+    PixelBuffer* buffer = PixelBuffer::CreatePixelBuffer();
+    pixel_buffer_.reset(buffer);
+    pixel_buffer_->Initialize(handler, handle->meta_data_.width_,
+                              handle->meta_data_.height_,
+                              handle->meta_data_.format_, data_, image_);
+    if (is_cursor_buffer) {
+      image_.handle_->meta_data_.usage_ = hwcomposer::kLayerCursor;
+    }
+  } else {
+    handler->CopyHandle(handle, &image_.handle_);
+    if (!handler->ImportBuffer(image_.handle_)) {
+      ETRACE("Failed to Import buffer.");
+      return;
+    }
   }
 
-  resource_manager_ = resource_manager;
   media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
+}
+
+void DrmBuffer::UpdateRawPixelBackingStore(void* addr) {
+  if (pixel_buffer_) {
+    data_ = addr;
+  }
+}
+
+void DrmBuffer::RefreshPixelData() {
+  if (pixel_buffer_ && data_) {
+    pixel_buffer_->Refresh(data_, image_);
+  }
+}
+
+bool DrmBuffer::NeedsTextureUpload() const {
+  if (pixel_buffer_) {
+    return pixel_buffer_->NeedsTextureUpload();
+  }
+
+  return false;
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
@@ -194,6 +227,11 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
   if (image_.texture_ != 0) {
     glBindTexture(target, image_.texture_);
+    if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
+      glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
+                   GL_UNSIGNED_BYTE, data_);
+    }
+
     glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
     glBindTexture(target, 0);
   } else {
@@ -202,6 +240,10 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     glBindTexture(target, texture);
     glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
     if (external_import) {
+      if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
+        glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
+                     GL_UNSIGNED_BYTE, data_);
+      }
       glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }

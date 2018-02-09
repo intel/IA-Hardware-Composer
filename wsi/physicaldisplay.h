@@ -84,10 +84,14 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetColorTransform(const float *matrix, HWCColorTransform hint) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetVideoScalingMode(uint32_t mode) override;
   void SetVideoColor(HWCColorControl color, float value) override;
-  void GetVideoColor(HWCColorControl color,
-                     float* value, float* start, float* end) override;
-  void RestoreVideoDefaultColor(HWCColorControl color)override;
+  void GetVideoColor(HWCColorControl color, float *value, float *start,
+                     float *end) override;
+  void RestoreVideoDefaultColor(HWCColorControl color) override;
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                           HWCDeinterlaceControl mode) override;
+  void RestoreVideoDefaultDeinterlace() override;
 
   void Connect() override;
 
@@ -203,10 +207,20 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void HandleLazyInitialization() {
   }
 
+  int InitializeLayerHashGenerator(int) override;
+
+  uint64_t AcquireId() override;
+
+  void ReleaseId(uint64_t) override;
+
+  void ResetLayerHashGenerator() override;
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
   void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
+  std::vector<uint64_t> LayerIds_;
+  uint64_t current_max_layer_ids_;
 
  protected:
   enum DisplayConnectionStatus {

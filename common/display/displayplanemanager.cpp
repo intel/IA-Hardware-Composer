@@ -104,6 +104,9 @@ bool DisplayPlaneManager::ValidateLayers(
                   composition.empty(), add_index <= 0, layers.size());
 #endif
     ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
+
+    *re_validation_needed = false;
+    *commit_checked = true;
     return true;
   }
 
@@ -144,8 +147,7 @@ bool DisplayPlaneManager::ValidateLayers(
       if (previous_layer && !composition.empty()) {
         DisplayPlaneState &last_plane = composition.back();
         if (last_plane.NeedsOffScreenComposition()) {
-          ValidateForDisplayScaling(composition.back(), commit_planes,
-                                    previous_layer);
+          ValidateForDisplayScaling(composition.back(), commit_planes);
         }
       }
 
@@ -229,6 +231,8 @@ bool DisplayPlaneManager::ValidateLayers(
               // other layers in this case.
               ForceGpuForAllLayers(commit_planes, composition, layers,
                                    mark_later, false);
+              *re_validation_needed = false;
+              *commit_checked = true;
               return true;
             }
           } else {
@@ -245,7 +249,7 @@ bool DisplayPlaneManager::ValidateLayers(
               SwapSurfaceIfNeeded(&last_plane);
             }
 
-            ValidateForDisplayTransform(last_plane, commit_planes);
+            last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
           }
         }
       }
@@ -293,7 +297,7 @@ bool DisplayPlaneManager::ValidateLayers(
         }
 
         commit_planes.back().layer = last_plane.GetOverlayLayer();
-        ValidateForDisplayTransform(last_plane, commit_planes);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
       }
     }
   }
@@ -320,25 +324,10 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   bool render_layers = false;
-  bool re_validation = false;
-  for (DisplayPlaneState &plane : composition) {
-    if (plane.NeedsOffScreenComposition()) {
-      plane.RefreshSurfaces(NativeSurface::kFullClear);
-      plane.ValidateReValidation();
-      if (!render_layers) {
-        render_layers = !plane.SurfaceRecycled();
-      }
-
-      if (plane.RevalidationType() !=
-          DisplayPlaneState::ReValidationType::kNone) {
-        re_validation = true;
-      }
-    }
-  }
+  FinalizeValidation(composition, commit_planes, &render_layers,
+                     re_validation_needed);
 
   *commit_checked = test_commit_done;
-  *re_validation_needed = re_validation;
-
   return render_layers;
 }
 
@@ -376,6 +365,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
     SetOffScreenPlaneTarget(*plane);
     *validate_final_layers = true;
   } else {
+    plane->RefreshSurfaces(NativeSurface::kFullClear, true);
     SwapSurfaceIfNeeded(plane);
   }
 }
@@ -502,7 +492,6 @@ void DisplayPlaneManager::ValidateCursorLayer(
       }
 
       last_plane->UsePlaneScalar(false);
-      ValidateForDisplayTransform(*last_plane, commit_planes);
     } else {
       composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder(),
                                display_transform_);
@@ -544,25 +533,22 @@ void DisplayPlaneManager::ValidateCursorLayer(
     PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
                           is_video, recycle_resources);
     last_plane->UsePlaneScalar(false);
-    ValidateForDisplayTransform(*last_plane, commit_planes);
   }
 }
 
 void DisplayPlaneManager::ValidateForDisplayTransform(
     DisplayPlaneState &last_plane,
-    const std::vector<OverlayPlane> &commit_planes) const {
+    const std::vector<OverlayPlane> &commit_planes) {
   if (display_transform_ != kIdentity) {
     // No need for any check if we are relying on rotation during
     // 3D Composition pass.
-    if (last_plane.GetRotationType() ==
-        DisplayPlaneState::RotationType::kGPURotation) {
-      return;
-    }
-
-    last_plane.ValidateReValidation();
+    DisplayPlaneState::RotationType original_rotation =
+        last_plane.GetRotationType();
     if (last_plane.RevalidationType() &
         DisplayPlaneState::ReValidationType::kRotation) {
       uint32_t validation_done = DisplayPlaneState::ReValidationType::kRotation;
+      last_plane.SetRotationType(
+          DisplayPlaneState::RotationType::kDisplayRotation, false);
       // Ensure Rotation doesn't impact the results.
       if (FallbacktoGPU(last_plane.GetDisplayPlane(),
                         last_plane.GetOffScreenTarget()->GetLayer(),
@@ -572,40 +558,67 @@ void DisplayPlaneManager::ValidateForDisplayTransform(
       }
 
       last_plane.RevalidationDone(validation_done);
+      SwapSurfaceIfNeeded(&last_plane);
+    }
+
+    if (original_rotation != last_plane.GetRotationType()) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
     }
   }
 }
 
-void DisplayPlaneManager::ValidateForDisplayScaling(
-    DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes,
-    OverlayLayer *current_layer, bool ignore_format) {
-  if (!ignore_format) {
-    last_plane.ValidateReValidation();
-    if (!(last_plane.RevalidationType() &
-          DisplayPlaneState::ReValidationType::kScalar)) {
-      return;
+void DisplayPlaneManager::ValidateForDownScaling(
+    DisplayPlaneState &last_plane,
+    const std::vector<OverlayPlane> &commit_planes) {
+#ifdef ENABLE_DOWNSCALING
+  uint32_t original_downscaling_factor = last_plane.GetDownScalingFactor();
+  if (last_plane.RevalidationType() &
+      DisplayPlaneState::ReValidationType::kDownScaling) {
+    last_plane.SetDisplayDownScalingFactor(1, false);
+    if (!last_plane.IsUsingPlaneScalar() && last_plane.CanUseGPUDownScaling()) {
+      last_plane.SetDisplayDownScalingFactor(4, false);
+      if (!plane_handler_->TestCommit(commit_planes)) {
+        last_plane.SetDisplayDownScalingFactor(1, false);
+      }
     }
 
-    last_plane.RevalidationDone(DisplayPlaneState::ReValidationType::kScalar);
+    uint32_t validation_done =
+        DisplayPlaneState::ReValidationType::kDownScaling;
+    last_plane.RevalidationDone(validation_done);
+    SwapSurfaceIfNeeded(&last_plane);
   }
+
+  if (original_downscaling_factor != last_plane.GetDownScalingFactor()) {
+    last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+  }
+#else
+  HWC_UNUSED(commit_planes);
+  HWC_UNUSED(last_plane);
+#endif
+}
+
+void DisplayPlaneManager::ValidateForDisplayScaling(
+    DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes) {
+  last_plane.ValidateReValidation();
+  if (!(last_plane.RevalidationType() &
+        DisplayPlaneState::ReValidationType::kUpScalar)) {
+    return;
+  }
+
+  last_plane.RevalidationDone(DisplayPlaneState::ReValidationType::kUpScalar);
 
   bool old_state = last_plane.IsUsingPlaneScalar();
   if (old_state) {
     last_plane.UsePlaneScalar(false, false);
   }
 
-  // Case where we are not rotating the layer and format is supported by the
-  // plane.
-  // If we are here this means the layer cannot be scaled using display, just
-  // return.
-  if (!ignore_format &&
-      (current_layer->GetTransform() == HWCTransform::kIdentity) &&
-      last_plane.GetDisplayPlane()->IsSupportedFormat(
-          current_layer->GetBuffer()->GetFormat())) {
-    return;
-  }
-
   if (!last_plane.CanUseDisplayUpScaling()) {
+    // If we used plane scalar, clear surfaces.
+    if (old_state) {
+      SwapSurfaceIfNeeded(&last_plane);
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+    }
+
     return;
   }
 
@@ -624,6 +637,11 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
                     last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
   if (fall_back) {
     last_plane.UsePlaneScalar(false, false);
+  }
+
+  SwapSurfaceIfNeeded(&last_plane);
+  if (old_state != last_plane.IsUsingPlaneScalar()) {
+    last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
   }
 }
 
@@ -698,6 +716,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   surface->SetPlaneTarget(plane, gpu_fd_);
   plane.SetOffScreenTarget(surface);
+  plane.RefreshSurfaces(NativeSurface::kFullClear);
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
@@ -794,6 +813,18 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
 
   EnsureOffScreenTarget(last_plane);
   current_plane->SetInUse(true);
+  commit_planes.emplace_back(
+      OverlayPlane(last_plane.GetDisplayPlane(), last_plane.GetOverlayLayer()));
+  // Check for Any display transform to be applied.
+  ValidateForDisplayTransform(last_plane, commit_planes);
+  // Check for any change to scalar usage.
+  ValidateForDisplayScaling(last_plane, commit_planes);
+  // Check for Downscaling.
+  ValidateForDownScaling(last_plane, commit_planes);
+  // Reset andy Scanout validation state.
+  uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+  last_plane.RevalidationDone(validation_done);
+  last_plane.ResetCompositionRegion();
 
   if (free_surfaces) {
     ReleaseFreeOffScreenTargets();
@@ -835,6 +866,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
   // Let's first check the current combination works.
   *request_full_validation = false;
   bool render = false;
+  bool reset_composition_region = false;
   std::vector<OverlayPlane> commit_planes;
   for (DisplayPlaneState &temp : composition) {
     commit_planes.emplace_back(
@@ -866,9 +898,16 @@ bool DisplayPlaneManager::ReValidatePlanes(
   for (DisplayPlaneState &last_plane : composition) {
     if (!last_plane.NeedsOffScreenComposition()) {
       index++;
+      reset_composition_region = false;
       continue;
     }
 
+    if (reset_composition_region) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      SwapSurfaceIfNeeded(&last_plane);
+    }
+
+    reset_composition_region = false;
     uint32_t revalidation_type = last_plane.RevalidationType();
 
     if (!revalidation_type) {
@@ -907,16 +946,15 @@ bool DisplayPlaneManager::ReValidatePlanes(
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
 #endif
         MarkSurfacesForRecycling(&last_plane, mark_later, false);
+        reset_composition_region = true;
       }
     }
 
     render = true;
     index++;
-    if (revalidation_type & DisplayPlaneState::ReValidationType::kScalar) {
-      ValidateForDisplayScaling(last_plane, commit_planes,
-                                last_plane.GetOffScreenTarget()->GetLayer(),
-                                true);
-      validation_done |= DisplayPlaneState::ReValidationType::kScalar;
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kUpScalar) {
+      ValidateForDisplayScaling(last_plane, commit_planes);
+      validation_done |= DisplayPlaneState::ReValidationType::kUpScalar;
     }
 
     if (revalidation_type & DisplayPlaneState::ReValidationType::kRotation) {
@@ -942,8 +980,27 @@ bool DisplayPlaneManager::ReValidatePlanes(
         new_type = DisplayPlaneState::RotationType::kGPURotation;
       }
 
-      // Set new rotation type. Clear surfaces in case type has changed.
-      last_plane.SetRotationType(new_type, new_type != old_type);
+      SwapSurfaceIfNeeded(&last_plane);
+      if (old_type != new_type) {
+        // Set new rotation type. Clear surfaces in case type has changed.
+        last_plane.SetRotationType(new_type, false);
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      }
+    }
+
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kDownScaling) {
+      validation_done |= DisplayPlaneState::ReValidationType::kDownScaling;
+      // Make sure we are not handling upscaling.
+      if (last_plane.IsUsingPlaneScalar()) {
+        ETRACE(
+            "We are using upscaling and also trying to validate for "
+            "downscaling \n");
+        if (last_plane.GetDownScalingFactor() > 1)
+          last_plane.SetDisplayDownScalingFactor(1, true);
+      } else {
+        // Check for Downscaling.
+        ValidateForDownScaling(last_plane, commit_planes);
+      }
     }
 
     last_plane.RevalidationDone(validation_done);
@@ -961,6 +1018,40 @@ void DisplayPlaneManager::SwapSurfaceIfNeeded(DisplayPlaneState *plane) {
   } else {
     plane->SwapSurfaceIfNeeded();
   }
+}
+
+void DisplayPlaneManager::FinalizeValidation(
+    DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes, bool *render_layers,
+    bool *re_validation_needed) {
+  bool re_validation = false;
+  bool needs_gpu = false;
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.NeedsOffScreenComposition()) {
+      plane.RefreshSurfaces(NativeSurface::kFullClear);
+      plane.ValidateReValidation();
+      // Check for Any display transform to be applied.
+      ValidateForDisplayTransform(plane, commit_planes);
+
+      // Check for Downscaling.
+      ValidateForDownScaling(plane, commit_planes);
+
+      if (!needs_gpu) {
+        needs_gpu = !plane.SurfaceRecycled();
+      }
+
+      if (plane.RevalidationType() !=
+          DisplayPlaneState::ReValidationType::kNone) {
+        re_validation = true;
+      }
+    }
+  }
+
+  if (re_validation_needed)
+    *re_validation_needed = re_validation;
+
+  if (render_layers)
+    *render_layers = needs_gpu;
 }
 
 }  // namespace hwcomposer

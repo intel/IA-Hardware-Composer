@@ -48,6 +48,8 @@ class DrmDisplay : public PhysicalDisplay {
 
   bool SetBroadcastRGB(const char *range_property) override;
 
+  void SetHDCPState(HWCContentProtection state) override;
+
   bool InitializeDisplay() override;
   void PowerOn() override;
   void UpdateDisplayConfig() override;
@@ -92,6 +94,10 @@ class DrmDisplay : public PhysicalDisplay {
   void GetDrmObjectProperty(const char *name,
                             const ScopedDrmObjectPropertyPtr &props,
                             uint32_t *id) const;
+  void GetDrmHDCPObjectProperty(const char *name,
+                                const drmModeConnector *connector,
+                                const ScopedDrmObjectPropertyPtr &props,
+                                uint32_t *id, int *value = NULL) const;
   float TransformGamma(float value, float gamma) const;
   float TransformContrastBrightness(float value, float brightness,
                                     float contrast) const;
@@ -121,11 +127,16 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t old_blob_id_ = 0;
   uint32_t active_prop_ = 0;
   uint32_t mode_id_prop_ = 0;
+  uint32_t hdcp_id_prop_ = 0;
   uint32_t connector_ = 0;
   uint64_t lut_size_ = 0;
   int64_t broadcastrgb_full_ = -1;
   int64_t broadcastrgb_automatic_ = -1;
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
+  HWCContentProtection current_protection_support_ =
+      HWCContentProtection::kUnSupported;
+  HWCContentProtection desired_protection_support_ =
+      HWCContentProtection::kUnSupported;
   drmModeModeInfo current_mode_;
   std::vector<drmModeModeInfo> modes_;
   SpinLock display_lock_;

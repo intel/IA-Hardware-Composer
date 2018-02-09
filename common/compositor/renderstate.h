@@ -45,7 +45,8 @@ struct RenderState {
 
   void ConstructState(std::vector<OverlayLayer> &layers,
                       const CompositionRegion &region,
-                      bool uses_display_up_scaling, bool use_plane_transform);
+                      uint32_t downscaling_factor, bool uses_display_up_scaling,
+                      bool use_plane_transform);
 
   uint32_t x_;
   uint32_t y_;
@@ -62,6 +63,7 @@ struct MediaState {
   const OverlayLayer *layer_;
   HWCColorMap colors_;
   HWCDeinterlaceProp deinterlace_;
+  uint32_t scaling_mode_;
 };
 
 struct DrawState {

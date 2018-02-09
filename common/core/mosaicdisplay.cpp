@@ -402,6 +402,13 @@ void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void MosaicDisplay::SetVideoScalingMode(uint32_t mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoScalingMode(mode);
+  }
+}
+
 void MosaicDisplay::SetVideoColor(HWCColorControl color, float value) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
@@ -418,6 +425,21 @@ void MosaicDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->RestoreVideoDefaultColor(color);
+  }
+}
+
+void MosaicDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                        HWCDeinterlaceControl mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoDeinterlace(flag, mode);
+  }
+}
+
+void MosaicDisplay::RestoreVideoDefaultDeinterlace() {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RestoreVideoDefaultDeinterlace();
   }
 }
 
@@ -480,6 +502,13 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
   strncpy(name, string.c_str(), *size);
   return true;
+}
+
+void MosaicDisplay::SetHDCPState(HWCContentProtection state) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetHDCPState(state);
+  }
 }
 
 }  // namespace hwcomposer

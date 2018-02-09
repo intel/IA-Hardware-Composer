@@ -219,4 +219,11 @@ void LogicalDisplayManager::GetLogicalDisplays(std::vector<LogicalDisplay*>& dis
     }
 }
 
+void LogicalDisplayManager::SetHDCPState(HWCContentProtection state) {
+  uint32_t size = displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    displays_.at(i)->SetHDCPState(state);
+  }
+}
+
 }  // namespace hwcomposer

@@ -156,17 +156,24 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       const size_t& index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
       if (index >= threshold) {
+#ifdef SURFACE_TRACING
+        size_t original_size = source_layers.size();
+#endif
+
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
-#ifdef SURFACE_TRACING
-          ISURFACETRACE(
-              "Plane has more than one layer, calling Reset Layers. Threshold: "
-              "%d Plane Layer Index: %d Total Planes: %d \n",
-              threshold, index, previous_plane_state_.size());
-#endif
           last_plane.ResetLayers(layers, threshold);
           clear_surface = true;
         }
+#ifdef SURFACE_TRACING
+        ISURFACETRACE(
+            "Layers removed. Total old Layers: %d Total new Layers: %d "
+            "Threshold: "
+            "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
+            "%d \n",
+            original_size, source_layers.size(), threshold, index,
+            composition->size(), previous_plane_state_.size());
+#endif
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
         ignore_commit = false;
@@ -183,11 +190,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             ISURFACETRACE("Primary plane is empty forcing full validation. \n");
 #endif
             *force_full_validation = true;
+            *can_ignore_commit = false;
             return;
           }
 
           last_plane.GetDisplayPlane()->SetInUse(false);
           composition->pop_back();
+#ifdef SURFACE_TRACING
+          ISURFACETRACE(
+              "Plane removed. Total old Layers: %d Total new Layers: %d "
+              "Threshold: "
+              "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
+              "%d \n",
+              original_size, source_layers.size(), threshold, index,
+              composition->size(), previous_plane_state_.size());
+#endif
           continue;
         }
 
@@ -213,17 +230,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (last_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      bool content_changed = false;
       bool update_rect = false;
       bool update_source_rect = false;
+      bool full_reset = clear_surface || reset_composition_regions;
+      bool damage_initialized = false;
 
+      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+      size_t layers_size = source_layers.size();
       if (!clear_surface) {
-        const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-        size_t layers_size = source_layers.size();
-
-        HwcRect<int> display_frame = last_plane.GetDisplayFrame();
-        HwcRect<float> source_crop = last_plane.GetSourceCrop();
-
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
@@ -237,111 +251,74 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             update_source_rect = true;
           }
 
+          if (full_reset) {
+            continue;
+          }
+
           if (layer.HasLayerContentChanged()) {
             const HwcRect<int>& damage = layer.GetSurfaceDamage();
-            if (content_changed) {
-              surface_damage.left = std::min(surface_damage.left, damage.left);
-              surface_damage.top = std::min(surface_damage.top, damage.top);
-              surface_damage.right =
-                  std::max(surface_damage.right, damage.right);
-              surface_damage.bottom =
-                  std::max(surface_damage.bottom, damage.bottom);
+            if (damage_initialized) {
+              CalculateRect(damage, surface_damage);
             } else {
               surface_damage = damage;
             }
-            content_changed = true;
+            damage_initialized = true;
           }
         }
+      }
 
-        if (update_rect || update_source_rect) {
-          content_changed = true;
-          // Let's check if we need to check this plane-layer combination.
-          last_plane.ValidateReValidation();
-          if (last_plane.RevalidationType() !=
-              DisplayPlaneState::ReValidationType::kNone) {
-            plane_validation = true;
-          }
-
-          bool rect_updated = update_rect;
-          bool source_rect_updated = update_source_rect;
-          if (update_rect && (last_plane.GetDisplayFrame() == display_frame)) {
-            rect_updated = false;
-          }
-
-          if (update_source_rect &&
-              (last_plane.GetSourceCrop() == source_crop)) {
-            source_rect_updated = false;
-          }
-
-          if (rect_updated) {
-            last_plane.PlaneRectUpdated();
-          }
-
-          // If reset_composition_regions is true we will mark the whole
-          // plane as damaged below. We can ignore setting the flag here.
-          if (!reset_composition_regions &&
-              (update_rect ||
-               (update_source_rect && last_plane.IsUsingPlaneScalar()))) {
-            last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-            update_rect = true;
-          }
+      // Let's check if we need to check this plane-layer combination.
+      if (update_rect || update_source_rect || clear_surface) {
+        last_plane.ValidateReValidation();
+        if (last_plane.RevalidationType() !=
+            DisplayPlaneState::ReValidationType::kNone) {
+          plane_validation = true;
         }
       }
 
       // If surfaces need to be cleared or rect is updated,
       // let's make sure all surfaces are refreshed.
       if (clear_surface) {
-        content_changed = true;
         last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      }
-
-      // Let's make sure we swap the surface in case content has changed.
-      size_t total_surfaces = last_plane.GetSurfaces().size();
-      if (content_changed && total_surfaces == 3) {
-        last_plane.SwapSurfaceIfNeeded();
-      }
-
-      // Let's get the state from surface if it needs to be cleared.
-      if (!clear_surface) {
+      } else if (reset_composition_regions) {
         // If a rect intersects one of the dedicated layers, we need to remove
         // the layers from the composition region which appear *below* the
         // dedicated
-        // layer. This effectively punches a hole through the composition layer
-        // such that the dedicated layer can be placed below the composition and
+        // layer. This effectively punches a hole through the composition
+        // layer
+        // such that the dedicated layer can be placed below the composition
+        // and
         // not
         // be occluded. Rest composition regions in case
         // reset_composition_regions is true.
-        if (reset_composition_regions) {
-          surface_damage = last_plane.GetDisplayFrame();
-          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-          if (!content_changed && total_surfaces == 3) {
-            last_plane.SwapSurfaceIfNeeded();
-          }
-
-          content_changed = true;
-        }
+        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      } else if (update_rect || update_source_rect) {
+        last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+        // Make sure all rects are correct.
+        last_plane.UpdateDamage(surface_damage);
+      } else if (!surface_damage.empty()) {
+        last_plane.UpdateDamage(surface_damage, false);
       }
 
-      if (content_changed) {
-        if (total_surfaces != 3) {
+      reset_composition_regions = false;
+      if (full_reset || damage_initialized || update_rect ||
+          update_source_rect) {
+        if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        }
-
-        // Make sure all rects are correct.
-        if (!clear_surface && !surface_damage.empty()) {
-          last_plane.UpdateDamage(surface_damage,
-                                  reset_composition_regions || update_rect);
+        } else {
+          // Let's make sure we swap the surface in case content has changed.
+          last_plane.SwapSurfaceIfNeeded();
         }
 
         // We always call this here to handle case where we recycled
         // offscreen surface for last commit.
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
-        reset_composition_regions = false;
       } else {
         last_plane.ReUseOffScreenTarget();
       }
     } else {
+      reset_composition_regions = false;
       const OverlayLayer* layer =
           &(layers.at(last_plane.GetSourceLayers().front()));
       OverlayBuffer* buffer = layer->GetBuffer();
@@ -352,9 +329,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         // whole commit.
         if (buffer->GetFb() == 0) {
           *force_full_validation = true;
-          ignore_commit = false;
-          break;
+          *can_ignore_commit = false;
+          return;
         }
+
+        reset_composition_regions = true;
       }
 
       last_plane.SetOverlayLayer(layer);
@@ -362,7 +341,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
       }
 
-      if (layer->HasDimensionsChanged()) {
+      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation()) {
         ignore_commit = false;
         reset_composition_regions = true;
       }
@@ -388,7 +367,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       DisplayPlaneState& old_plane = composition->at(size - 2);
       DisplayPlaneState& last_overlay = composition->at(size - 1);
       const std::vector<size_t>& source_layers = last_overlay.GetSourceLayers();
-      const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
 
       if (old_plane.CanSquash() && last_overlay.CanSquash() &&
           source_layers.size() == 1) {
@@ -397,7 +375,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             "Moving layer index %d from plane index: %d to plane idex: %d. \n",
             source_layers.at(0), size - 1, size - 2);
 #endif
+        const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
+        old_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
       }
@@ -410,7 +390,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                bool handle_constraints) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
-                                 resource_manager_.get());
+                                 resource_manager_.get(), this);
   if (tracker.IgnoreUpdate()) {
     return true;
   }
@@ -420,15 +400,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   std::vector<OverlayLayer> layers;
   int remove_index = -1;
   int add_index = -1;
-  bool idle_frame = tracker.RenderIdleMode() || idle_update;
   // If last commit failed, lets force full validation as
   // state might be all wrong in our side.
+  bool idle_frame = tracker.RenderIdleMode() || idle_update;
   bool validate_layers =
-      last_commit_failed_update_ || previous_plane_state_.empty() || idle_frame;
+      last_commit_failed_update_ || previous_plane_state_.empty();
   *retire_fence = -1;
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
+  bool handle_raw_pixel_update = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -475,12 +456,22 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       continue;
     }
 
+    if (overlay_layer->RawPixelDataChanged()) {
+      handle_raw_pixel_update = true;
+    }
+
     if (overlay_layer->IsVideoLayer()) {
       has_video_layer = true;
     }
 
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
+    } else if (overlay_layer->HasLayerContentChanged()) {
+      idle_frame = false;
+    }
+
+    if (overlay_layer->IsCursorLayer()) {
+      tracker.FrameHasCursor();
     }
 
     z_order++;
@@ -528,6 +519,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  if (handle_raw_pixel_update) {
+    compositor_.UpdateLayerPixelData(layers);
+  }
+
   // We may have skipped layers which are not visible.
   size = layers.size();
   if ((add_index == 0) || validate_layers) {
@@ -541,12 +536,21 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  if (idle_frame) {
+    if ((add_index != -1) || (remove_index != -1) || re_validate_commit) {
+      idle_frame = false;
+    }
+  }
+
+  if (!validate_layers)
+    validate_layers = idle_frame;
 #ifdef SURFACE_TRACING
   if ((remove_index != -1) || (add_index != -1)) {
     ISURFACETRACE(
         "Remove index For this Frame: %d Add index For this Frame: %d Total "
-        "Layers: %d \n",
-        remove_index, add_index, layers.size());
+        "Layers: %d previous_size %d size %d re_validate_commit %d \n",
+        remove_index, add_index, layers.size(), previous_size, size,
+        re_validate_commit);
   }
 
   if (validate_layers) {
@@ -563,27 +567,23 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool render_layers;
   bool force_media_composition = false;
   bool requested_video_effect = false;
-  video_lock_.lock();
-  if (requested_video_effect_ != applied_video_effect_) {
-    // Let's ensure Media planes take this into account.
-    force_media_composition = true;
-    applied_video_effect_ = requested_video_effect_;
-    requested_video_effect = requested_video_effect_;
+  if (has_video_layer) {
+    video_lock_.lock();
+    if (requested_video_effect_ != applied_video_effect_) {
+      // Let's ensure Media planes take this into account.
+      force_media_composition = true;
+      applied_video_effect_ = requested_video_effect_;
+      requested_video_effect = requested_video_effect_;
+      idle_frame = false;
+      validate_layers = true;
+    }
+    video_lock_.unlock();
   }
-  video_lock_.unlock();
 
   bool composition_passed = true;
   bool disable_ovelays = state_ & kDisableOverlayUsage;
-  // If we are in idle mode, we can postpone re-validation
-  // in case we are only removing layers and no new layers
-  // are being added.
-  if (tracker.RevalidateLayers()) {
-    if (!validate_layers && tracker.RevalidateLayers() &&
-        (add_index != -1 || re_validate_commit)) {
-      validate_layers = true;
-    } else {
-      tracker.PostponeRevalidation();
-    }
+  if (!validate_layers && tracker.RevalidateLayers()) {
+    validate_layers = true;
   }
 
   // Validate Overlays and Layers usage.
@@ -623,10 +623,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       if (force_media_composition) {
         SetMediaEffectsState(requested_video_effect, layers,
                              current_composition_planes);
-        if (requested_video_effect) {
-          render_layers = true;
-        }
-
+        render_layers = true;
         can_ignore_commit = false;
       }
 
@@ -685,6 +682,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         composition_passed = false;
       }
     }
+  } else if (handle_raw_pixel_update) {
+    compositor_.EnsurePixelDataUpdated();
   }
 
   if (!composition_passed) {
@@ -813,7 +812,6 @@ void DisplayQueue::IgnoreUpdates() {
   idle_tracker_.idle_frames_ = 0;
   idle_tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.revalidate_frames_counter_ = 0;
-  idle_tracker_.idle_reset_frames_counter_ = 0;
 }
 
 void DisplayQueue::ReleaseSurfaces() {
@@ -1039,6 +1037,13 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void DisplayQueue::SetVideoScalingMode(uint32_t mode) {
+  video_lock_.lock();
+  // requested_video_effect_ = true;
+  compositor_.SetVideoScalingMode(mode);
+  video_lock_.unlock();
+}
+
 void DisplayQueue::SetVideoColor(HWCColorControl color, float value) {
   video_lock_.lock();
   requested_video_effect_ = true;
@@ -1055,6 +1060,21 @@ void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
   video_lock_.lock();
   requested_video_effect_ = false;
   compositor_.RestoreVideoDefaultColor(color);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                       HWCDeinterlaceControl mode) {
+  video_lock_.lock();
+  requested_video_effect_ = true;
+  compositor_.SetVideoDeinterlace(flag, mode);
+  video_lock_.unlock();
+}
+
+void DisplayQueue::RestoreVideoDefaultDeinterlace() {
+  video_lock_.lock();
+  requested_video_effect_ = false;
+  compositor_.RestoreVideoDefaultDeinterlace();
   video_lock_.unlock();
 }
 
@@ -1082,22 +1102,15 @@ void DisplayQueue::HandleIdleCase() {
     return;
   }
 
-  size_t size = previous_plane_state_.size();
-  if (idle_tracker_.idle_reset_frames_counter_ == 5) {
-    // If we are using more than one plane and have had
-    // 5 continuous idle frames, lets reset our counter
-    // to fallback to single plane composition when possible.
-    if ((idle_tracker_.idle_frames_ > kidleframes) && size > 1)
-      idle_tracker_.idle_frames_ = 0;
-  } else {
-    idle_tracker_.idle_reset_frames_counter_++;
+  if (idle_tracker_.total_planes_ <= 1 ||
+      (idle_tracker_.state_ & FrameStateTracker::kTrackingFrames) ||
+      (idle_tracker_.state_ & FrameStateTracker::kRevalidateLayers) ||
+      idle_tracker_.has_cursor_layer_) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }
 
-  idle_tracker_.revalidate_frames_counter_ = 0;
-
-  if (size <= 1 || (idle_tracker_.idle_frames_ > kidleframes)) {
+  if (idle_tracker_.idle_frames_ > kidleframes) {
     idle_tracker_.idle_lock_.unlock();
     return;
   }

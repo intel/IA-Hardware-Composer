@@ -46,6 +46,11 @@ struct gralloc_handle {
   HwcBuffer meta_data_;
   uint64_t gralloc1_buffer_descriptor_t_ = 0;
   bool hwc_buffer_ = false;
+  // In case this is true, we expect meta_data_
+  // to be filled with correct width, height and
+  // format.
+  bool is_raw_pixel_ = false;
+  void* pixel_memory_ = NULL;
 };
 
 typedef struct gralloc_handle* HWCNativeHandle;
