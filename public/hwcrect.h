@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <cstring>
+
 namespace hwcomposer {
 
 // Some of the structs are adopted from drm_hwcomposer
@@ -66,7 +68,7 @@ struct Rect {
 
   void reset() {
     for (int i = 0; i < 4; i++) {
-      bounds[i] = 0;
+      memset(&bounds, 0, sizeof(bounds));
     }
   }
 };

@@ -60,7 +60,7 @@ void DrmPixelBuffer::Unmap(uint32_t prime_fd, void* addr, size_t size) {
   if (addr) {
     struct dma_buf_sync sync_start = {0};
     sync_start.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW;
-    int rv = ioctl(prime_fd, DMA_BUF_IOCTL_SYNC, &sync_start);
+    ioctl(prime_fd, DMA_BUF_IOCTL_SYNC, &sync_start);
     munmap(addr, size);
     addr = nullptr;
   }
