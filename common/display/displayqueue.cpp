@@ -276,41 +276,25 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      // If surfaces need to be cleared or rect is updated,
-      // let's make sure all surfaces are refreshed.
-      if (clear_surface) {
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      } else if (reset_composition_regions) {
-        // If a rect intersects one of the dedicated layers, we need to remove
-        // the layers from the composition region which appear *below* the
-        // dedicated
-        // layer. This effectively punches a hole through the composition
-        // layer
-        // such that the dedicated layer can be placed below the composition
-        // and
-        // not
-        // be occluded. Rest composition regions in case
-        // reset_composition_regions is true.
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      } else if (update_rect || update_source_rect) {
-        last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-        // Make sure all rects are correct.
-        last_plane.UpdateDamage(surface_damage);
-      } else if (!surface_damage.empty()) {
-        last_plane.UpdateDamage(surface_damage);
-      }
-
-      reset_composition_regions = false;
       if (full_reset || damage_initialized || update_rect ||
           update_source_rect) {
         if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        } else if (full_reset) {
+          last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+        } else if (update_rect || update_source_rect) {
+          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+          // Make sure all rects are correct.
+          last_plane.UpdateDamage(surface_damage);
+        } else if (!surface_damage.empty()) {
+          last_plane.UpdateDamage(surface_damage);
         }
-
-        needs_gpu_composition = true;
-      } else {
-        last_plane.ReUseOffScreenTarget();
       }
+
+      if (!needs_gpu_composition)
+        needs_gpu_composition = !last_plane.SurfaceRecycled();
+
+      reset_composition_regions = false;
     } else {
       reset_composition_regions = false;
       const OverlayLayer* layer =
