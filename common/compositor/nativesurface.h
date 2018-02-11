@@ -65,12 +65,7 @@ class NativeSurface {
 
   void SetNativeFence(int32_t fd);
 
-  void SetInUse(bool inuse);
   void SetClearSurface(NativeSurface::ClearType clear_surface);
-
-  bool InUse() const {
-    return in_use_;
-  }
 
   // Set's the no of frames before this
   // surface goes from offscreen to onscreen
@@ -80,9 +75,10 @@ class NativeSurface {
   // 1 indicates that the surface is now onscreen.
   // 0 indicates that the surface is offscreen
   // and is not yet queued to be presented.
-  void SetSurfaceAge(uint32_t age);
+  // -1 Surface can be deleted or recycled.
+  void SetSurfaceAge(int age);
 
-  uint32_t GetSurfaceAge() const {
+  int GetSurfaceAge() const {
     return surface_age_;
   }
 
@@ -125,9 +121,8 @@ class NativeSurface {
   HWCNativeHandle native_handle_;
   int width_;
   int height_;
-  bool in_use_;
   ClearType clear_surface_;
-  uint32_t surface_age_;
+  int surface_age_;
   HwcRect<int> surface_damage_;
 };
 

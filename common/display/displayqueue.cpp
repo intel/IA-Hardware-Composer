@@ -717,7 +717,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (!mark_not_inuse_.empty()) {
     size_t size = mark_not_inuse_.size();
     for (uint32_t i = 0; i < size; i++) {
-      mark_not_inuse_.at(i)->SetInUse(false);
+      mark_not_inuse_.at(i)->SetSurfaceAge(-1);
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
@@ -742,7 +742,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       if (age > 0) {
         temp.emplace_back(surface);
         surface->SetSurfaceAge(surface->GetSurfaceAge() - 1);
-        surface->SetInUse(true);
       } else {
         mark_not_inuse_.emplace_back(surface);
       }
@@ -868,20 +867,16 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
     if (size == 3) {
       NativeSurface* surface = surfaces.at(1);
       surface->SetSurfaceAge(0);
-      surface->SetInUse(true);
 
       surface = surfaces.at(0);
       surface->SetSurfaceAge(2);
-      surface->SetInUse(true);
 
       surface = surfaces.at(2);
       surface->SetSurfaceAge(1);
-      surface->SetInUse(true);
     } else {
       for (uint32_t i = 0; i < size; i++) {
         NativeSurface* surface = surfaces.at(i);
         surface->SetSurfaceAge(2 - i);
-        surface->SetInUse(true);
       }
     }
 #ifdef COMPOSITOR_TRACING

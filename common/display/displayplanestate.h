@@ -229,6 +229,13 @@ class DisplayPlaneState {
                  // layer before scanning out.
     };
 
+    ~DisplayPlanePrivateState() {
+      for (NativeSurface *surface : surfaces_) {
+        if (surface->GetSurfaceAge() == 0)
+          surface->SetSurfaceAge(-1);
+      }
+    }
+
     State state_ = State::kScanout;
     DisplayPlane *plane_ = NULL;
     const OverlayLayer *layer_ = NULL;
