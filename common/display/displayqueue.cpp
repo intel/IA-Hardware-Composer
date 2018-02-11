@@ -234,6 +234,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       bool update_source_rect = false;
       bool full_reset = clear_surface || reset_composition_regions;
       bool damage_initialized = false;
+      bool only_cursor_rect_changed = true;
 
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
@@ -243,11 +244,18 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           const OverlayLayer& layer = layers.at(source_index);
           if (layer.HasDimensionsChanged()) {
             last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
+            if (!layer.IsCursorLayer()) {
+              only_cursor_rect_changed = false;
+            }
+
             update_rect = true;
           }
 
           if (layer.HasSourceRectChanged()) {
             last_plane.UpdateSourceCrop(layer.GetSourceCrop());
+            if (!layer.IsCursorLayer()) {
+              only_cursor_rect_changed = false;
+            }
             update_source_rect = true;
           }
 
@@ -276,16 +284,15 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (full_reset || damage_initialized || update_rect ||
+      if (full_reset || !surface_damage.empty() || update_rect ||
           update_source_rect) {
         if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else if (full_reset) {
-          last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (update_rect || update_source_rect) {
-          last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
           // Make sure all rects are correct.
-          last_plane.UpdateDamage(surface_damage);
+          last_plane.UpdateDamage(only_cursor_rect_changed
+                                      ? surface_damage
+                                      : last_plane.GetDisplayFrame());
         } else if (!surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }
@@ -355,7 +362,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 #endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
-        old_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
       }
