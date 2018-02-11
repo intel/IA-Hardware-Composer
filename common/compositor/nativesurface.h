@@ -103,8 +103,7 @@ class NativeSurface {
   void ResetSourceCrop(const HwcRect<float>& source_crop);
 
   // Set's Damage rect of this surface.
-  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
-                           bool forced = true);
+  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage);
 
   // Resets damage of this surface to empty.
   void ResetDamage();
@@ -117,10 +116,6 @@ class NativeSurface {
   // Applies rotation transform to this surface.
   void SetTransform(uint32_t transform);
 
-  // Returns true in case damage of this surface has changed
-  // compared to previous frame.
-  bool IsSurfaceDamageChanged() const;
-
  protected:
   OverlayLayer layer_;
   ResourceManager* resource_manager_;
@@ -131,7 +126,6 @@ class NativeSurface {
   int width_;
   int height_;
   bool in_use_;
-  bool damage_changed_;
   ClearType clear_surface_;
   uint32_t surface_age_;
   HwcRect<int> surface_damage_;

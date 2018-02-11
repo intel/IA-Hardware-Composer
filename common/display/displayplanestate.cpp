@@ -349,11 +349,10 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
   SwapSurfaceIfNeeded();
 }
 
-void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage,
-                                     bool forced) {
+void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
   SwapSurfaceIfNeeded();
   for (NativeSurface *surface : private_data_->surfaces_) {
-    surface->UpdateSurfaceDamage(surface_damage, forced);
+    surface->UpdateSurfaceDamage(surface_damage);
   }
 }
 

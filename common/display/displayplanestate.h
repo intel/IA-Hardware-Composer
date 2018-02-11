@@ -116,7 +116,7 @@ class DisplayPlaneState {
   void RefreshSurfaces(NativeSurface::ClearType clear_surface,
                        bool force = false);
 
-  void UpdateDamage(const HwcRect<int> &surface_damage, bool forced = true);
+  void UpdateDamage(const HwcRect<int> &surface_damage);
 
   DisplayPlane *GetDisplayPlane() const;
 
