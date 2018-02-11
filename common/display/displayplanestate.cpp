@@ -107,7 +107,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
   ResetCompositionRegion();
-  refresh_needed_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -198,7 +198,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   }
 
   ResetCompositionRegion();
-  refresh_needed_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
 void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
@@ -210,7 +210,7 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   }
 
   private_data_->rect_updated_ = true;
-  SwapSurfaceIfNeeded();
+  RefreshSurfaces(NativeSurface::kPartialClear);
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
@@ -221,7 +221,7 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
     CalculateSourceRect(source_crop, target_source_crop);
   }
   private_data_->rect_updated_ = true;
-  SwapSurfaceIfNeeded();
+  RefreshSurfaces(NativeSurface::kPartialClear);
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -254,13 +254,7 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
   surface_swapped_ = true;
-
-  HwcRect<float> scaled_rect;
-  CalculateSourceCrop(scaled_rect);
-
-  target->ResetDisplayFrame(private_data_->display_frame_);
-  target->ResetSourceCrop(scaled_rect);
-  target->UpdateSurfaceDamage(scaled_rect);
+  RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -306,7 +300,7 @@ void DisplayPlaneState::ReleaseSurfaces() {
 
 void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
                                         bool force) {
-  if (!refresh_needed_ && !private_data_->rect_updated_ && !force) {
+  if (!private_data_->rect_updated_ && !force) {
     return;
   }
 
@@ -334,7 +328,6 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
     }
   }
 
-  refresh_needed_ = false;
   if (private_data_->rect_updated_) {
     ValidateReValidation();
   }

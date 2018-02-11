@@ -246,8 +246,6 @@ bool DisplayPlaneManager::ValidateLayers(
               ResetPlaneTarget(last_plane, commit_planes.back());
               validate_final_layers = true;
             }
-
-            last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
           }
         }
       }
@@ -293,7 +291,6 @@ bool DisplayPlaneManager::ValidateLayers(
         }
 
         commit_planes.back().layer = last_plane.GetOverlayLayer();
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
       }
     }
   }
@@ -360,8 +357,6 @@ void DisplayPlaneManager::PreparePlaneForCursor(
   if (!surface) {
     SetOffScreenPlaneTarget(*plane);
     *validate_final_layers = true;
-  } else {
-    plane->RefreshSurfaces(NativeSurface::kFullClear, true);
   }
 }
 
@@ -967,8 +962,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
 
       if (old_type != new_type) {
         // Set new rotation type. Clear surfaces in case type has changed.
-        last_plane.SetRotationType(new_type, false);
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+        last_plane.SetRotationType(new_type, true);
       }
     }
 

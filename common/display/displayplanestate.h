@@ -272,7 +272,6 @@ class DisplayPlaneState {
 
   bool recycled_surface_ = true;
   bool surface_swapped_ = false;
-  bool refresh_needed_ = false;
   uint32_t re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };
