@@ -245,8 +245,6 @@ bool DisplayPlaneManager::ValidateLayers(
             if (!last_plane.GetOffScreenTarget()) {
               ResetPlaneTarget(last_plane, commit_planes.back());
               validate_final_layers = true;
-            } else if (add_index > 0) {
-              SwapSurfaceIfNeeded(&last_plane);
             }
 
             last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
@@ -288,8 +286,6 @@ bool DisplayPlaneManager::ValidateLayers(
         if (!last_plane.GetOffScreenTarget() || force_buffer) {
           ResetPlaneTarget(last_plane, commit_planes.back());
           validate_final_layers = true;
-        } else if (add_index > 0) {
-          SwapSurfaceIfNeeded(&last_plane);
         }
 
         if (previous_layer) {
@@ -366,7 +362,6 @@ void DisplayPlaneManager::PreparePlaneForCursor(
     *validate_final_layers = true;
   } else {
     plane->RefreshSurfaces(NativeSurface::kFullClear, true);
-    SwapSurfaceIfNeeded(plane);
   }
 }
 
@@ -558,7 +553,6 @@ void DisplayPlaneManager::ValidateForDisplayTransform(
       }
 
       last_plane.RevalidationDone(validation_done);
-      SwapSurfaceIfNeeded(&last_plane);
     }
 
     if (original_rotation != last_plane.GetRotationType()) {
@@ -585,7 +579,6 @@ void DisplayPlaneManager::ValidateForDownScaling(
     uint32_t validation_done =
         DisplayPlaneState::ReValidationType::kDownScaling;
     last_plane.RevalidationDone(validation_done);
-    SwapSurfaceIfNeeded(&last_plane);
   }
 
   if (original_downscaling_factor != last_plane.GetDownScalingFactor()) {
@@ -615,7 +608,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   if (!last_plane.CanUseDisplayUpScaling()) {
     // If we used plane scalar, clear surfaces.
     if (old_state) {
-      SwapSurfaceIfNeeded(&last_plane);
       last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
     }
 
@@ -639,7 +631,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
     last_plane.UsePlaneScalar(false, false);
   }
 
-  SwapSurfaceIfNeeded(&last_plane);
   if (old_state != last_plane.IsUsingPlaneScalar()) {
     last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
   }
@@ -904,7 +895,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
 
     if (reset_composition_region) {
       last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      SwapSurfaceIfNeeded(&last_plane);
     }
 
     reset_composition_region = false;
@@ -980,7 +970,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
         new_type = DisplayPlaneState::RotationType::kGPURotation;
       }
 
-      SwapSurfaceIfNeeded(&last_plane);
       if (old_type != new_type) {
         // Set new rotation type. Clear surfaces in case type has changed.
         last_plane.SetRotationType(new_type, false);
@@ -1007,17 +996,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
   }
 
   return render;
-}
-
-void DisplayPlaneManager::SwapSurfaceIfNeeded(DisplayPlaneState *plane) {
-  // If Last frame surface is re-cycled and surfaces are
-  // less than 3, make sure we have the offscreen surface
-  // which is not in queued to be onscreen yet.
-  if (plane->SurfaceRecycled() && (plane->GetSurfaces().size() < 3)) {
-    SetOffScreenPlaneTarget(*plane);
-  } else {
-    plane->SwapSurfaceIfNeeded();
-  }
 }
 
 void DisplayPlaneManager::FinalizeValidation(

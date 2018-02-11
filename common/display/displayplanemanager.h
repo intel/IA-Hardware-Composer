@@ -140,8 +140,6 @@ class DisplayPlaneManager {
                            bool *validate_final_layers, bool *test_commit_done,
                            bool recycle_resources);
 
-  void SwapSurfaceIfNeeded(DisplayPlaneState *plane);
-
   bool CheckForDownScaling(DisplayPlaneStateList &composition,
                            std::vector<OverlayPlane> &commit_planes);
 

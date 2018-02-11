@@ -84,10 +84,6 @@ class DisplayPlaneState {
   // Reuses last shown surface for current frame.
   void ReUseOffScreenTarget();
 
-  // Put's current OffscreenSurface to back in the
-  // list if not already done.
-  void SwapSurfaceIfNeeded();
-
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
 
@@ -214,6 +210,10 @@ class DisplayPlaneState {
 
  private:
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
+
+  // Put's current OffscreenSurface to back in the
+  // list if not already done.
+  void SwapSurfaceIfNeeded();
 
   class DisplayPlanePrivateState {
    public:
