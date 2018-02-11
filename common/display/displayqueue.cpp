@@ -297,7 +297,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         // Make sure all rects are correct.
         last_plane.UpdateDamage(surface_damage);
       } else if (!surface_damage.empty()) {
-        last_plane.UpdateDamage(surface_damage, false);
+        last_plane.UpdateDamage(surface_damage);
       }
 
       reset_composition_regions = false;
