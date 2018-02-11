@@ -209,6 +209,7 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   }
 
   private_data_->rect_updated_ = true;
+  SwapSurfaceIfNeeded();
 }
 
 void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
@@ -219,6 +220,7 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
     CalculateSourceRect(source_crop, target_source_crop);
   }
   private_data_->rect_updated_ = true;
+  SwapSurfaceIfNeeded();
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -280,6 +282,8 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
   }
 
   size_t size = private_data_->surfaces_.size();
+  if (size == 0)
+    return;
 
   if (size == 3) {
     std::vector<NativeSurface *> temp;
@@ -341,10 +345,13 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
   if (private_data_->rect_updated_) {
     ValidateReValidation();
   }
+
+  SwapSurfaceIfNeeded();
 }
 
 void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage,
                                      bool forced) {
+  SwapSurfaceIfNeeded();
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->UpdateSurfaceDamage(surface_damage, forced);
   }
@@ -365,6 +372,8 @@ std::vector<CompositionRegion> &DisplayPlaneState::GetCompositionRegion() {
 void DisplayPlaneState::ResetCompositionRegion() {
   if (!private_data_->composition_region_.empty())
     std::vector<CompositionRegion>().swap(private_data_->composition_region_);
+
+  SwapSurfaceIfNeeded();
 }
 
 bool DisplayPlaneState::IsCursorPlane() const {
@@ -399,6 +408,8 @@ void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
           surface->UpdateSurfaceDamage(scaled_rect);
         }
       }
+
+      SwapSurfaceIfNeeded();
     }
   }
 }
@@ -410,7 +421,6 @@ bool DisplayPlaneState::IsUsingPlaneScalar() const {
 void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
   if (private_data_->apply_effects_ != apply_effects) {
     private_data_->apply_effects_ = apply_effects;
-    recycled_surface_ = false;
     // Doesn't have any impact on planes which
     // are not meant for video.
     if (apply_effects &&
@@ -476,6 +486,8 @@ void DisplayPlaneState::RevalidationDone(uint32_t validation_done) {
   if (validation_done & ReValidationType::kDownScaling) {
     re_validate_layer_ &= ~ReValidationType::kDownScaling;
   }
+
+  SwapSurfaceIfNeeded();
 }
 
 bool DisplayPlaneState::CanSquash() const {
@@ -651,6 +663,8 @@ void DisplayPlaneState::SetRotationType(RotationType type, bool refresh) {
     private_data_->rotation_type_ = type;
     if (refresh) {
       RefreshSurfaces(NativeSurface::kFullClear, true);
+    } else {
+      SwapSurfaceIfNeeded();
     }
 
     uint32_t rotation = private_data_->plane_transform_;

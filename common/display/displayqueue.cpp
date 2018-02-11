@@ -305,14 +305,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           update_source_rect) {
         if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else {
-          // Let's make sure we swap the surface in case content has changed.
-          last_plane.SwapSurfaceIfNeeded();
         }
 
-        // We always call this here to handle case where we recycled
-        // offscreen surface for last commit.
-        last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
         last_plane.ReUseOffScreenTarget();
@@ -861,8 +855,6 @@ void DisplayQueue::SetMediaEffectsState(
       const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
-
-    plane.SwapSurfaceIfNeeded();
   }
 }
 
