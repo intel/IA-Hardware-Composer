@@ -298,7 +298,6 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
   surface_swapped_ = true;
   recycled_surface_ = false;
   NativeSurface *surface = private_data_->surfaces_.at(0);
-  surface->SetInUse(true);
   private_data_->layer_ = surface->GetLayer();
 }
 

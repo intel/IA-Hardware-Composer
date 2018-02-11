@@ -658,7 +658,7 @@ void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
 void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
   for (auto &fb : surfaces_) {
-    if (fb->InUse()) {
+    if (fb->GetSurfaceAge() >= 0) {
       surfaces.emplace_back(fb.release());
     }
   }
@@ -682,7 +682,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   for (auto &fb : surfaces_) {
-    if (!fb->InUse()) {
+    if (fb->GetSurfaceAge() == -1) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
       if (preferred_format == surface_format) {
         surface = fb.get();
@@ -833,14 +833,11 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
     // mark_later to be recycled later.
     for (uint32_t i = 0; i < size; i++) {
       NativeSurface *surface = surfaces.at(i);
-      bool in_use = false;
       if (!recycle_resources) {
         if (surface->GetSurfaceAge() > 0) {
-          in_use = true;
           mark_later.emplace_back(surface);
         }
       }
-      surface->SetInUse(in_use);
     }
 
     plane->ReleaseSurfaces();
