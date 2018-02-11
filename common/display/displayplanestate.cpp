@@ -43,6 +43,8 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
+
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
@@ -155,11 +157,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     source_layers.emplace_back(layer.GetZorder());
   }
 
-  if (source_layers.empty()) {
-    private_data_->source_layers_.swap(source_layers);
-    return;
-  }
-
 #ifdef SURFACE_TRACING
   ISURFACETRACE(
       "Reset called has_video: %d Source Layers Size: %d Previous Source "
@@ -169,6 +166,10 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 #endif
 
   private_data_->source_layers_.swap(source_layers);
+  if (private_data_->source_layers_.empty()) {
+    return;
+  }
+
   bool rect_updated = true;
   if ((private_data_->display_frame_ == target_display_frame) &&
       ((private_data_->source_crop_ == target_source_crop))) {
@@ -235,14 +236,6 @@ void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
   private_data_->layer_ = layer;
 }
 
-void DisplayPlaneState::ReUseOffScreenTarget() {
-  if (surface_swapped_) {
-    ETRACE(
-        "Surface has been swapped and being re-used as offscreen target. \n");
-  }
-  recycled_surface_ = true;
-}
-
 bool DisplayPlaneState::SurfaceRecycled() const {
   return recycled_surface_;
 }
@@ -260,8 +253,14 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   target->SetTransform(rotation);
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
-  refresh_needed_ = true;
   surface_swapped_ = true;
+
+  HwcRect<float> scaled_rect;
+  CalculateSourceCrop(scaled_rect);
+
+  target->ResetDisplayFrame(private_data_->display_frame_);
+  target->ResetSourceCrop(scaled_rect);
+  target->UpdateSurfaceDamage(scaled_rect);
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -274,10 +273,6 @@ NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
 
 void DisplayPlaneState::SwapSurfaceIfNeeded() {
   if (surface_swapped_) {
-    if (recycled_surface_) {
-      ETRACE(
-          "Surface has been swapped and being re-used as offscreen target. \n");
-    }
     return;
   }
 
@@ -340,7 +335,6 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
   }
 
   refresh_needed_ = false;
-  recycled_surface_ = false;
   if (private_data_->rect_updated_) {
     ValidateReValidation();
   }
@@ -349,7 +343,9 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
 }
 
 void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
-  SwapSurfaceIfNeeded();
+  if (!surface_damage.empty())
+    SwapSurfaceIfNeeded();
+
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->UpdateSurfaceDamage(surface_damage);
   }
@@ -449,10 +445,6 @@ bool DisplayPlaneState::Scanout() const {
 bool DisplayPlaneState::NeedsOffScreenComposition() const {
   if (private_data_->state_ == DisplayPlanePrivateState::State::kRender)
     return true;
-
-  if (recycled_surface_) {
-    return true;
-  }
 
   if (private_data_->apply_effects_) {
     return true;

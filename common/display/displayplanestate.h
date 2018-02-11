@@ -81,9 +81,6 @@ class DisplayPlaneState {
   // need's to be rendered before being scanned out.
   void SetOverlayLayer(const OverlayLayer *layer);
 
-  // Reuses last shown surface for current frame.
-  void ReUseOffScreenTarget();
-
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
 
@@ -273,7 +270,7 @@ class DisplayPlaneState {
     RotationType rotation_type_ = RotationType::kDisplayRotation;
   };
 
-  bool recycled_surface_ = false;
+  bool recycled_surface_ = true;
   bool surface_swapped_ = false;
   bool refresh_needed_ = false;
   uint32_t re_validate_layer_ = ReValidationType::kNone;

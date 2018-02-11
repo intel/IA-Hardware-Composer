@@ -707,7 +707,6 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   surface->SetPlaneTarget(plane, gpu_fd_);
   plane.SetOffScreenTarget(surface);
-  plane.RefreshSurfaces(NativeSurface::kFullClear);
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
@@ -815,7 +814,6 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   // Reset andy Scanout validation state.
   uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
   last_plane.RevalidationDone(validation_done);
-  last_plane.ResetCompositionRegion();
 
   if (free_surfaces) {
     ReleaseFreeOffScreenTargets();
@@ -834,7 +832,7 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
     for (uint32_t i = 0; i < size; i++) {
       NativeSurface *surface = surfaces.at(i);
       if (!recycle_resources) {
-        if (surface->GetSurfaceAge() > 0) {
+        if (surface->GetSurfaceAge() >= 0) {
           mark_later.emplace_back(surface);
         }
       }
