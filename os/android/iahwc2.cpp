@@ -304,12 +304,24 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
 HWC2::Error IAHWC2::HwcDisplay::InitNestedDisplay(
     hwcomposer::NativeDisplay *display, bool disable_explicit_sync) {
   supported(__func__);
+
+  char value[PROPERTY_VALUE_MAX];
+  uint32_t width, height, port;
+  property_get("debug.hwc.nested-display", value, "0");
+  enable_nested_display_compose_ = atoi(value);
+  property_get("debug.hwc.nested-display.width", value, "1920");
+  width = atoi(value);
+  property_get("debug.hwc.nested-display.height", value, "1080");
+  height = atoi(value);
+  property_get("debug.hwc.nested-display.port", value, "2345");
+  port = atoi(value);
+
   display_ = display;
 #ifdef NESTED_DISPLAY_SUPPORT
   type_ = HWC2::DisplayType::Nested;
   handle_ = HWC_DISPLAY_NESTED;
+  display_->InitNestedDisplay(width, height, port);
 #endif
-  display_->InitNestedDisplay();
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
   return HWC2::Error::None;
@@ -794,6 +806,15 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   *num_requests = 0;
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     IAHWC2::Hwc2Layer &layer = l.second;
+
+#ifdef NESTED_DISPLAY_SUPPORT
+    /*Cluster will leverage surfaceflinger do compostion*/
+    if (handle_ == HWC_DISPLAY_NESTED) {
+      layer.set_validated_type(HWC2::Composition::Client);
+      continue;
+    }
+#endif
+
     switch (layer.sf_type()) {
       case HWC2::Composition::Sideband:
         layer.set_validated_type(HWC2::Composition::Client);
