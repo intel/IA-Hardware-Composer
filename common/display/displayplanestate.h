@@ -67,9 +67,9 @@ class DisplayPlaneState {
 
   // Updates Display frame rect of this plane to include
   // display_frame.
-  void UpdateDisplayFrame(const HwcRect<int> &display_frame);
+  void UpdateDisplayFrame(const HwcRect<int> &display_frame, bool full_clear);
 
-  void UpdateSourceCrop(const HwcRect<float> &source_crop);
+  void UpdateSourceCrop(const HwcRect<float> &source_crop, bool full_clear);
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();

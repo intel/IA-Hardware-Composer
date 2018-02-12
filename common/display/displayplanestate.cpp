@@ -201,7 +201,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
-void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
+void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame,
+                                           bool full_clear) {
   HwcRect<int> &target_display_frame = private_data_->display_frame_;
   if (private_data_->source_layers_.size() == 1) {
     target_display_frame = display_frame;
@@ -210,10 +211,12 @@ void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
   }
 
   private_data_->rect_updated_ = true;
-  RefreshSurfaces(NativeSurface::kPartialClear);
+  RefreshSurfaces(full_clear ? NativeSurface::kFullClear
+                             : NativeSurface::kPartialClear);
 }
 
-void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
+void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop,
+                                         bool full_clear) {
   HwcRect<float> &target_source_crop = private_data_->source_crop_;
   if (private_data_->source_layers_.size() == 1) {
     target_source_crop = source_crop;
@@ -221,7 +224,8 @@ void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
     CalculateSourceRect(source_crop, target_source_crop);
   }
   private_data_->rect_updated_ = true;
-  RefreshSurfaces(NativeSurface::kPartialClear);
+  RefreshSurfaces(full_clear ? NativeSurface::kFullClear
+                             : NativeSurface::kPartialClear);
 }
 
 void DisplayPlaneState::ForceGPURendering() {

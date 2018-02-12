@@ -235,6 +235,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       bool full_reset = clear_surface || reset_composition_regions;
       bool damage_initialized = false;
       bool only_cursor_rect_changed = true;
+      bool refresh_surfaces = reset_composition_regions;
 
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
@@ -243,7 +244,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
           if (layer.HasDimensionsChanged()) {
-            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
+            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame(),
+                                          layer.NeedsFullDraw());
+            // In case of cursor we want to do partial update.
             if (!layer.IsCursorLayer()) {
               only_cursor_rect_changed = false;
             }
@@ -252,7 +255,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           }
 
           if (layer.HasSourceRectChanged()) {
-            last_plane.UpdateSourceCrop(layer.GetSourceCrop());
+            last_plane.UpdateSourceCrop(layer.GetSourceCrop(),
+                                        layer.NeedsFullDraw());
+            // In case of cursor we want to do partial update.
             if (!layer.IsCursorLayer()) {
               only_cursor_rect_changed = false;
             }
@@ -263,6 +268,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             continue;
           }
 
+          if (refresh_surfaces) {
+            continue;
+          }
+
+          refresh_surfaces = layer.NeedsFullDraw();
           if (layer.HasLayerContentChanged()) {
             const HwcRect<int>& damage = layer.GetSurfaceDamage();
             if (damage_initialized) {
@@ -285,14 +295,27 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       if (full_reset || !surface_damage.empty() || update_rect ||
-          update_source_rect) {
+          update_source_rect || refresh_surfaces) {
         if (last_plane.GetSurfaces().size() < 3) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        } else if (refresh_surfaces) {
+          last_plane.UpdateDamage(last_plane.GetDisplayFrame());
+          last_plane.ResetCompositionRegion();
+          if (update_rect || update_source_rect) {
+            // Make sure all rects are correct.
+            if (only_cursor_rect_changed) {
+              last_plane.UpdateDamage(surface_damage);
+            } else {
+              last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+            }
+          }
         } else if (update_rect || update_source_rect) {
           // Make sure all rects are correct.
-          last_plane.UpdateDamage(only_cursor_rect_changed
-                                      ? surface_damage
-                                      : last_plane.GetDisplayFrame());
+          if (only_cursor_rect_changed) {
+            last_plane.UpdateDamage(surface_damage);
+          } else {
+            last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+          }
         } else if (!surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }
@@ -326,7 +349,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
       }
 
-      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation()) {
+      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation() ||
+          layer->NeedsFullDraw()) {
         ignore_commit = false;
         reset_composition_regions = true;
       }
