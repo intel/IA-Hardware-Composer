@@ -220,6 +220,10 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
 
+  if (!layer->IsValidated()) {
+    state_ |= kForceFullDraw;
+  }
+
   if (!handle_constraints) {
     if (previous_layer) {
       ValidatePreviousFrameState(previous_layer, layer);
