@@ -589,7 +589,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       else
         rotation |= DRM_MODE_ROTATE_0;
 
-      if (fence_fd < 0) {
+      if (fence_fd >= 0) {
         int prop_id = plane->in_fence_fd_property().id();
         if (prop_id == 0) {
                 ALOGE("Failed to get IN_FENCE_FD property id");
