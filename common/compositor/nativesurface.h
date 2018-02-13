@@ -112,6 +112,10 @@ class NativeSurface {
   // Applies rotation transform to this surface.
   void SetTransform(uint32_t transform);
 
+  // Returns true in case damage of this surface has changed
+  // compared to previous frame.
+  bool IsSurfaceDamageChanged() const;
+
  protected:
   OverlayLayer layer_;
   ResourceManager* resource_manager_;
@@ -123,6 +127,7 @@ class NativeSurface {
   int height_;
   ClearType clear_surface_;
   int surface_age_;
+  bool damage_changed_ = true;
   HwcRect<int> surface_damage_;
 };
 

@@ -98,7 +98,8 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       bool regions_empty = comp_regions.empty();
       NativeSurface *surface = plane.GetOffScreenTarget();
       if (!regions_empty &&
-          (surface->ClearSurface() || surface->IsPartialClear())) {
+          (surface->ClearSurface() || surface->IsPartialClear() ||
+           surface->IsSurfaceDamageChanged())) {
         plane.ResetCompositionRegion();
         regions_empty = true;
       }
