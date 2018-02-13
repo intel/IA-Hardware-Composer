@@ -207,20 +207,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void HandleLazyInitialization() {
   }
 
-  int InitializeLayerHashGenerator(int) override;
-
-  uint64_t AcquireId() override;
-
-  void ReleaseId(uint64_t) override;
-
-  void ResetLayerHashGenerator() override;
-
  private:
   bool UpdatePowerMode();
   void RefreshClones();
   void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
-  std::vector<uint64_t> LayerIds_;
-  uint64_t current_max_layer_ids_;
 
  protected:
   enum DisplayConnectionStatus {
