@@ -84,7 +84,7 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface) {
+		      NativeSurface *surface) {
   GLuint frame_width = surface->GetWidth();
   GLuint frame_height = surface->GetHeight();
   GLuint left = 0;
@@ -103,19 +103,18 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
 
   glViewport(left, top, frame_width, frame_height);
 
-  if (partial_clear) {
+  if (clear_surface || partial_clear) {
     const HwcRect<int> &damage = surface->GetSurfaceDamage();
     GLuint clear_width = damage.right - damage.left;
     GLuint clear_height = damage.bottom - damage.top;
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(damage.left, damage.top, clear_width, clear_height);
-  } else if (clear_surface) {
-    const HwcRect<int> &display_rect = surface->GetLayer()->GetDisplayFrame();
-    GLuint clear_width = display_rect.right - display_rect.left;
-    GLuint clear_height = display_rect.bottom - display_rect.top;
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(display_rect.left, display_rect.top, clear_width, clear_height);
-    glClear(GL_COLOR_BUFFER_BIT);
+    if ((frame_width != clear_width) || (frame_height != clear_height)) {
+      glEnable(GL_SCISSOR_TEST);
+      glScissor(damage.left, damage.top, clear_width, clear_height);
+      glClear(GL_COLOR_BUFFER_BIT);
+    } else {
+      glClear(GL_COLOR_BUFFER_BIT);
+      glEnable(GL_SCISSOR_TEST);
+    }
   } else {
     glEnable(GL_SCISSOR_TEST);
   }
