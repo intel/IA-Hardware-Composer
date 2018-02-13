@@ -109,7 +109,6 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   if (re_validate_layer_ & ReValidationType::kScanout)
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
-  ResetCompositionRegion();
   RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
@@ -200,7 +199,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
 
-  ResetCompositionRegion();
   RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
