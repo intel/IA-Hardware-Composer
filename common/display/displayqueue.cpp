@@ -296,7 +296,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       if (full_reset || !surface_damage.empty() || update_rect ||
           update_source_rect || refresh_surfaces) {
-        if (last_plane.GetSurfaces().size() < 3) {
+        if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         } else if (refresh_surfaces) {
           last_plane.UpdateDamage(last_plane.GetDisplayFrame());
@@ -386,6 +386,19 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 #endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
+
+        // Let's allocate an offscreen surface if needed.
+        if (old_plane.NeedsSurfaceAllocation()) {
+          display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
+        }
+
+        // If overlay has offscreen surfaces, discard
+        // them.
+        if (last_overlay.GetOffScreenTarget()) {
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &last_overlay, surfaces_not_inuse_, false);
+        }
+
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
       }
