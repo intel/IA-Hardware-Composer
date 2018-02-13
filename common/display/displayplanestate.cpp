@@ -49,6 +49,9 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
   private_data_ = state.private_data_;
+  if (private_data_->surfaces_.size() == 3)
+    needs_surface_allocation_ = false;
+
   // We don't copy recycled_surface_ state as this
   // should be determined in DisplayQueue for every frame.
 }
@@ -259,6 +262,7 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   recycled_surface_ = false;
   surface_swapped_ = true;
   RefreshSurfaces(NativeSurface::kFullClear, true);
+  needs_surface_allocation_ = false;
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -300,6 +304,7 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 
 void DisplayPlaneState::ReleaseSurfaces() {
   std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+  needs_surface_allocation_ = true;
 }
 
 void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
