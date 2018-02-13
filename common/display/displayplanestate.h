@@ -205,12 +205,18 @@ class DisplayPlaneState {
 
   uint32_t GetDownScalingFactor() const;
 
- private:
-  void CalculateSourceCrop(HwcRect<float> &source_crop) const;
+  // Helper to check if we need to allocate
+  // an offscreen surface for this plane.
+  bool NeedsSurfaceAllocation() const {
+    return needs_surface_allocation_;
+  }
 
   // Put's current OffscreenSurface to back in the
   // list if not already done.
   void SwapSurfaceIfNeeded();
+
+ private:
+  void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
   class DisplayPlanePrivateState {
    public:
@@ -272,6 +278,7 @@ class DisplayPlaneState {
 
   bool recycled_surface_ = true;
   bool surface_swapped_ = false;
+  bool needs_surface_allocation_ = true;
   uint32_t re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };

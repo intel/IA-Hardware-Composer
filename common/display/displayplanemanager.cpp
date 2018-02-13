@@ -198,7 +198,9 @@ bool DisplayPlaneManager::ValidateLayers(
             ResetPlaneTarget(last_plane, commit_planes.back());
             validate_final_layers = true;
           }
-          break;
+
+          if (prefer_seperate_plane)
+            break;
         } else {
           if (composition.empty()) {
             bool force_all_layers = true;
@@ -242,10 +244,8 @@ bool DisplayPlaneManager::ValidateLayers(
             ISURFACETRACE("Added Layer: %d \n", layer->GetZorder());
 #endif
             last_plane.AddLayer(layer);
-            if (!last_plane.GetOffScreenTarget()) {
-              ResetPlaneTarget(last_plane, commit_planes.back());
-              validate_final_layers = true;
-            }
+            ResetPlaneTarget(last_plane, commit_planes.back());
+            validate_final_layers = true;
           }
         }
       }
@@ -281,7 +281,7 @@ bool DisplayPlaneManager::ValidateLayers(
           force_buffer = true;
         }
 
-        if (!last_plane.GetOffScreenTarget() || force_buffer) {
+        if (force_buffer || last_plane.NeedsSurfaceAllocation()) {
           ResetPlaneTarget(last_plane, commit_planes.back());
           validate_final_layers = true;
         }
@@ -492,7 +492,6 @@ void DisplayPlaneManager::ValidateCursorLayer(
       plane->SetInUse(true);
       if (fall_back) {
         DisplayPlaneState &temp = composition.back();
-        temp.ForceGPURendering();
         SetOffScreenPlaneTarget(temp);
         cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
       } else {
@@ -633,12 +632,21 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
                                            OverlayPlane &overlay_plane) {
-  SetOffScreenPlaneTarget(plane);
+  if (plane.NeedsSurfaceAllocation()) {
+    SetOffScreenPlaneTarget(plane);
+  } else {
+    plane.SwapSurfaceIfNeeded();
+  }
+
   overlay_plane.layer = plane.GetOverlayLayer();
 }
 
 void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
-  EnsureOffScreenTarget(plane);
+  if (plane.NeedsSurfaceAllocation()) {
+    EnsureOffScreenTarget(plane);
+  } else {
+    plane.SwapSurfaceIfNeeded();
+  }
 
   // Case where we have just one layer which needs to be composited using
   // GPU.
