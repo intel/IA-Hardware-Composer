@@ -296,26 +296,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       if (full_reset || !surface_damage.empty() || update_rect ||
           update_source_rect || refresh_surfaces) {
-        if (last_plane.GetSurfaces().size() < 3) {
+        if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else if (refresh_surfaces) {
-          last_plane.UpdateDamage(last_plane.GetDisplayFrame());
-          last_plane.ResetCompositionRegion();
-          if (update_rect || update_source_rect) {
-            // Make sure all rects are correct.
-            if (only_cursor_rect_changed) {
-              last_plane.UpdateDamage(surface_damage);
-            } else {
-              last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-            }
-          }
+        } else if (full_reset || refresh_surfaces) {
+          last_plane.RefreshSurfaces(NativeSurface::kFullClear,
+                                     refresh_surfaces);
         } else if (update_rect || update_source_rect) {
           // Make sure all rects are correct.
-          if (only_cursor_rect_changed) {
-            last_plane.UpdateDamage(surface_damage);
-          } else {
-            last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-          }
+          last_plane.UpdateDamage(surface_damage);
         } else if (!surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }
@@ -386,6 +374,17 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 #endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
+
+        // Let's allocate an offscreen surface if needed.
+        display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
+
+        // If overlay has offscreen surfaces, discard
+        // them.
+        if (last_overlay.GetOffScreenTarget()) {
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &last_overlay, surfaces_not_inuse_, false);
+        }
+
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
       }
