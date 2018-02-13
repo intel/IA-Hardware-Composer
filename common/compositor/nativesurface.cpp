@@ -72,6 +72,9 @@ void NativeSurface::SetNativeFence(int32_t fd) {
 void NativeSurface::SetClearSurface(ClearType clear_surface) {
   if (clear_surface_ != clear_surface) {
     clear_surface_ = clear_surface;
+    if (clear_surface_ == kFullClear) {
+      damage_changed_ = true;
+    }
   }
 }
 
@@ -83,11 +86,16 @@ void NativeSurface::SetSurfaceAge(int value) {
   surface_age_ = value;
 }
 
+bool NativeSurface::IsSurfaceDamageChanged() const {
+  return damage_changed_;
+}
+
 void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
                                    uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
   clear_surface_ = kFullClear;
+  damage_changed_ = true;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
     layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
@@ -106,6 +114,7 @@ void NativeSurface::UpdateSurfaceDamage(
     const HwcRect<int> &currentsurface_damage) {
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
+    damage_changed_ = true;
     return;
   }
 
@@ -113,11 +122,19 @@ void NativeSurface::UpdateSurfaceDamage(
     return;
   }
 
+  HwcRect<int> temp = surface_damage_;
   CalculateRect(currentsurface_damage, surface_damage_);
+  if (!damage_changed_) {
+    damage_changed_ = true;
+    if (temp == surface_damage_) {
+      damage_changed_ = false;
+    }
+  }
 }
 
 void NativeSurface::ResetDamage() {
   surface_damage_ = HwcRect<int>(0, 0, 0, 0);
+  damage_changed_ = false;
 }
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
