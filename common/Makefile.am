@@ -39,6 +39,9 @@ libhwcomposer_common_la_LIBADD = \
 
 noinst_LTLIBRARIES = libhwcomposer_common.la
 libhwcomposer_common_la_SOURCES = $(common_SOURCES)
+if ENABLE_DUMMY_COMPOSITOR
+
+endif
 if ENABLE_VULKAN
 libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/vk

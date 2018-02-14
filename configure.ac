@@ -42,6 +42,17 @@ AC_PROG_LIBTOOL
 
 AC_SUBST(ASSEMBLER_WARN_CFLAGS)
 
+# For splash screen dummy compositor
+AC_ARG_ENABLE(dummy-compositor,
+  AS_HELP_STRING([--enable-dummy-compositor],
+    [Enable the dummy compositor (EXPERIMENTAL)]),
+[if test x$enableval = xyes; then
+  enable_dummy_compositor=yes
+  AC_DEFINE(ENABLE_DUMMY_COMPOSITOR, 1, [Enable Dummy_Compositor])
+fi])
+
+AM_CONDITIONAL([ENABLE_DUMMY_COMPOSITOR], [test "x$enable_dummy_compositor" = "xyes"])
+
 # For vulkan
 AC_ARG_ENABLE(vulkan,
   AS_HELP_STRING([--enable-vulkan],
@@ -216,6 +227,7 @@ AC_OUTPUT
 echo -e """\nEnabled options """
 
 AC_MSG_RESULT([
+     Dummy compositor         $enable_dummy_compositor
      Vulkan                   $enable_vulkan
      Linux frontend           $enable_linux_frontend
      GBM                      $enable_gbm

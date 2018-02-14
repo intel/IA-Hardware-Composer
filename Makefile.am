@@ -50,6 +50,10 @@ libhwcomposer_ladir = $(libdir)
 libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared
 libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
 
+if ENABLE_DUMMY_COMPOSITOR
+
+endif
+
 if ENABLE_VULKAN
 AM_CPP_INCLUDES += -Icommon/compositor/vk
 AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
