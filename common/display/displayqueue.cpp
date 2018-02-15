@@ -367,6 +367,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
+        *render_layers = true;
+        *can_ignore_commit = false;
       }
     }
   }
