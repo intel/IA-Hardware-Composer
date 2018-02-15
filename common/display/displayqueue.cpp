@@ -205,7 +205,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               original_size, source_layers.size(), threshold, index,
               composition->size(), previous_plane_state_.size());
 #endif
-          continue;
+          break;
         }
 
         last_plane.ValidateReValidation();
@@ -282,8 +282,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         } else if (clear_surface || refresh_surfaces) {
-          last_plane.RefreshSurfaces(NativeSurface::kFullClear,
-                                     refresh_surfaces);
+          last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }
@@ -322,6 +321,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
         reset_composition_regions = true;
       }
+    }
+
+    // This plane had remove_index. Rest of the planes can be
+    // ignored or need to be re-validated.
+    if (clear_surface) {
+      ignore_commit = false;
+      break;
     }
   }
 
@@ -619,7 +625,19 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       if (can_ignore_commit) {
         in_flight_layers_.swap(layers);
         // Free any surfaces.
-        display_plane_manager_->ReleaseFreeOffScreenTargets();
+        if (!mark_not_inuse_.empty()) {
+          size_t size = mark_not_inuse_.size();
+          for (uint32_t i = 0; i < size; i++) {
+            mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+          }
+
+          std::vector<NativeSurface*>().swap(mark_not_inuse_);
+          // Free any surfaces.
+          display_plane_manager_->ReleaseFreeOffScreenTargets(true);
+        } else {
+          display_plane_manager_->ReleaseFreeOffScreenTargets(true);
+        }
+
         return true;
       }
     }
