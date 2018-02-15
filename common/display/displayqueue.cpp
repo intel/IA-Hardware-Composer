@@ -616,6 +616,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       if (can_ignore_commit) {
         in_flight_layers_.swap(layers);
+        // Free any surfaces.
+        display_plane_manager_->ReleaseFreeOffScreenTargets();
         return true;
       }
     }
