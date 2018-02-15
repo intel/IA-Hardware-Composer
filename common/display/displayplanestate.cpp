@@ -94,16 +94,11 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   if (!private_data_->has_cursor_layer_)
     private_data_->has_cursor_layer_ = layer->IsCursorLayer();
 
-  if (private_data_->source_layers_.size() == 1 &&
-      private_data_->has_cursor_layer_) {
-    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
-  } else {
-    // TODO: Add checks for Video type once our
-    // Media backend can support compositing more
-    // than one layer together.
-    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
-    private_data_->apply_effects_ = false;
-  }
+  // TODO: Add checks for Video type once our
+  // Media backend can support compositing more
+  // than one layer together.
+  private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
+  private_data_->apply_effects_ = false;
 
   // Reset Validation state.
   if (re_validate_layer_ & ReValidationType::kScanout)
@@ -116,7 +111,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
                                     size_t remove_index) {
   const std::vector<size_t> &current_layers = private_data_->source_layers_;
   std::vector<size_t> source_layers;
-  bool had_cursor = private_data_->has_cursor_layer_;
   private_data_->has_cursor_layer_ = false;
   bool initialized = false;
   HwcRect<int> target_display_frame;
@@ -133,9 +127,6 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
     const OverlayLayer &layer = layers.at(index);
     bool is_cursor = layer.IsCursorLayer();
-    if (!had_cursor && is_cursor) {
-      continue;
-    }
 
     if (is_cursor) {
       private_data_->has_cursor_layer_ = true;
@@ -202,31 +193,35 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   RefreshSurfaces(NativeSurface::kFullClear, true);
 }
 
-void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame,
-                                           bool full_clear) {
-  HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  if (private_data_->source_layers_.size() == 1) {
-    target_display_frame = display_frame;
-  } else {
-    CalculateRect(display_frame, target_display_frame);
-  }
-
-  private_data_->rect_updated_ = true;
-  RefreshSurfaces(full_clear ? NativeSurface::kFullClear
-                             : NativeSurface::kPartialClear);
-}
-
-void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop,
-                                         bool full_clear) {
-  HwcRect<float> &target_source_crop = private_data_->source_crop_;
-  if (private_data_->source_layers_.size() == 1) {
-    target_source_crop = source_crop;
-  } else {
+void DisplayPlaneState::RefreshLayerRects(
+    const std::vector<OverlayLayer> &layers) {
+  const std::vector<size_t> &current_layers = private_data_->source_layers_;
+  HwcRect<int> target_display_frame;
+  HwcRect<float> target_source_crop;
+  bool full_clear = false;
+  for (const size_t &index : current_layers) {
+    const OverlayLayer &layer = layers.at(index);
+    const HwcRect<int> &df = layer.GetDisplayFrame();
+    const HwcRect<float> &source_crop = layer.GetSourceCrop();
+    CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
+    if (layer.NeedsFullDraw()) {
+      full_clear = true;
+    }
   }
+
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage old and new rects.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_);
+    surface->UpdateSurfaceDamage(target_display_frame);
+  }
+
+  private_data_->display_frame_ = target_display_frame;
+  private_data_->source_crop_ = target_source_crop;
   private_data_->rect_updated_ = true;
-  RefreshSurfaces(full_clear ? NativeSurface::kFullClear
-                             : NativeSurface::kPartialClear);
+  RefreshSurfaces(
+      full_clear ? NativeSurface::kFullClear : NativeSurface::kPartialClear,
+      true);
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -343,9 +338,10 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
 }
 
 void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
-  if (!surface_damage.empty())
-    SwapSurfaceIfNeeded();
+  if (surface_damage.empty())
+    return;
 
+  SwapSurfaceIfNeeded();
   for (NativeSurface *surface : private_data_->surfaces_) {
     surface->UpdateSurfaceDamage(surface_damage);
   }
