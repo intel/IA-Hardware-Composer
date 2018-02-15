@@ -851,6 +851,8 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
 
     plane->ReleaseSurfaces();
   }
+
+  ReleaseFreeOffScreenTargets(true);
 }
 
 bool DisplayPlaneManager::ReValidatePlanes(

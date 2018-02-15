@@ -104,7 +104,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   if (re_validate_layer_ & ReValidationType::kScanout)
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
-  RefreshSurfaces(NativeSurface::kFullClear, true);
+  private_data_->refresh_surface_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear);
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -190,7 +191,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
 
-  RefreshSurfaces(NativeSurface::kFullClear, true);
+  private_data_->refresh_surface_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear);
 }
 
 void DisplayPlaneState::RefreshLayerRects(
@@ -198,15 +200,16 @@ void DisplayPlaneState::RefreshLayerRects(
   const std::vector<size_t> &current_layers = private_data_->source_layers_;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
-  bool full_clear = false;
+  bool only_cursor_layer = true;
   for (const size_t &index : current_layers) {
     const OverlayLayer &layer = layers.at(index);
     const HwcRect<int> &df = layer.GetDisplayFrame();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
     CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
-    if (layer.NeedsFullDraw()) {
-      full_clear = true;
+    if (!layer.IsCursorLayer() &&
+        (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
+      only_cursor_layer = false;
     }
   }
 
@@ -218,10 +221,10 @@ void DisplayPlaneState::RefreshLayerRects(
 
   private_data_->display_frame_ = target_display_frame;
   private_data_->source_crop_ = target_source_crop;
-  private_data_->rect_updated_ = true;
-  RefreshSurfaces(
-      full_clear ? NativeSurface::kFullClear : NativeSurface::kPartialClear,
-      true);
+  private_data_->rect_updated_ = !only_cursor_layer;
+  private_data_->refresh_surface_ = true;
+  RefreshSurfaces(only_cursor_layer ? NativeSurface::kPartialClear
+                                    : NativeSurface::kFullClear);
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -302,7 +305,7 @@ void DisplayPlaneState::ReleaseSurfaces() {
 
 void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
                                         bool force) {
-  if (!private_data_->rect_updated_ && !force) {
+  if (!private_data_->refresh_surface_ && !force) {
     return;
   }
 
@@ -335,6 +338,7 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
   }
 
   SwapSurfaceIfNeeded();
+  private_data_->refresh_surface_ = false;
 }
 
 void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
