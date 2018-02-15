@@ -180,7 +180,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         if (last_plane.GetSourceLayers().empty() || has_one_layer) {
           display_plane_manager_->MarkSurfacesForRecycling(
-              &last_plane, surfaces_not_inuse_, false);
+              &last_plane, surfaces_not_inuse_, true);
           // On some platforms disabling primary disables
           // the whole pipe. Let's revalidate the new layers
           // and ensure primary has a buffer.
@@ -382,7 +382,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         // them.
         if (last_overlay.GetOffScreenTarget()) {
           display_plane_manager_->MarkSurfacesForRecycling(
-              &last_overlay, surfaces_not_inuse_, false);
+              &last_overlay, surfaces_not_inuse_, true);
         }
 
         last_overlay.GetDisplayPlane()->SetInUse(false);
@@ -695,6 +695,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
+    if (validate_layers)
+      HandleCommitFailure(current_composition_planes);
     return false;
   }
 
@@ -719,6 +721,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
+    if (validate_layers)
+      HandleCommitFailure(current_composition_planes);
+
     return false;
   }
 
@@ -734,6 +739,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
+    // Free any surfaces.
+    display_plane_manager_->ReleaseFreeOffScreenTargets(true);
+  } else {
+    // Free any surfaces.
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
   }
 
   in_flight_layers_.swap(layers);
@@ -764,14 +774,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (idle_frame) {
-    ReleaseSurfaces();
     state_ |= kLastFrameIdleUpdate;
     if (state_ & kClonedMode) {
       idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
     }
   } else {
     state_ &= ~kLastFrameIdleUpdate;
-    ReleaseSurfacesAsNeeded(validate_layers);
   }
 
   if (fence > 0) {
@@ -820,26 +828,20 @@ void DisplayQueue::IgnoreUpdates() {
   idle_tracker_.revalidate_frames_counter_ = 0;
 }
 
-void DisplayQueue::ReleaseSurfaces() {
-  display_plane_manager_->ReleaseFreeOffScreenTargets();
-  state_ &= ~kMarkSurfacesForRelease;
-  state_ &= ~kReleaseSurfaces;
+void DisplayQueue::HandleCommitFailure(
+    DisplayPlaneStateList& current_composition_planes) {
+  for (DisplayPlaneState& plane : current_composition_planes) {
+    if (plane.GetSurfaces().empty()) {
+      continue;
+    }
+
+    display_plane_manager_->MarkSurfacesForRecycling(
+        &plane, surfaces_not_inuse_, false);
+  }
 }
 
-void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
-  if (!layers_validated && (state_ & kReleaseSurfaces)) {
-    ReleaseSurfaces();
-  }
-
-  if (state_ & kMarkSurfacesForRelease) {
-    state_ |= kReleaseSurfaces;
-    state_ &= ~kMarkSurfacesForRelease;
-  }
-
-  if (layers_validated) {
-    state_ |= kMarkSurfacesForRelease;
-    state_ &= ~kReleaseSurfaces;
-  }
+void DisplayQueue::ReleaseSurfaces() {
+  display_plane_manager_->ReleaseFreeOffScreenTargets();
 }
 
 void DisplayQueue::SetMediaEffectsState(
@@ -863,7 +865,7 @@ void DisplayQueue::SetMediaEffectsState(
       // offscreen surfaces and set the right overlayer layer to the
       // plane.
       display_plane_manager_->MarkSurfacesForRecycling(
-          &plane, surfaces_not_inuse_, false);
+          &plane, surfaces_not_inuse_, true);
       const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
