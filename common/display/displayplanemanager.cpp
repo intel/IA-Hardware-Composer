@@ -655,7 +655,7 @@ void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
 }
 
 void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
-  if (!release_surfaces_ || forced)
+  if (!release_surfaces_ && !forced)
     return;
 
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
