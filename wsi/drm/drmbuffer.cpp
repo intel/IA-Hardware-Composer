@@ -287,7 +287,11 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   external.width = width_;
   external.height = height_;
   external.num_planes = total_planes_;
+#if VA_MAJOR_VERSION < 1
   unsigned long prime_fd = prime_fd_;
+#else
+  uintptr_t prime_fd = prime_fd_;
+#endif
   for (unsigned int i = 0; i < total_planes_; i++) {
     external.pitches[i] = pitches_[i];
     external.offsets[i] = offsets_[i];

@@ -35,6 +35,4 @@ testlayers
 linux_test
 compile
 !/tests/third_party/json-c/autoconf-archive/m4
-tests/*
-compile
-*swp*
+*.patch
