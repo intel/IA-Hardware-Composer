@@ -263,6 +263,8 @@ class DisplayPlaneState {
     // changed.
     bool rect_updated_ = true;
 
+    bool refresh_surface_ = true;
+
     // Display cannot support the required rotation.
     bool unsupported_siplay_rotation_ = false;
     uint32_t down_scaling_factor_ = 1;
