@@ -231,10 +231,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     if (last_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool update_rect = false;
-      bool update_source_rect = false;
-      bool full_reset = clear_surface || reset_composition_regions;
       bool damage_initialized = false;
-      bool only_cursor_rect_changed = true;
       bool refresh_surfaces = reset_composition_regions;
 
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
@@ -243,29 +240,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged()) {
-            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame(),
-                                          layer.NeedsFullDraw());
-            // In case of cursor we want to do partial update.
-            if (!layer.IsCursorLayer()) {
-              only_cursor_rect_changed = false;
-            }
-
+          if (!layer.IsCursorLayer() &&
+              (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
             update_rect = true;
-          }
-
-          if (layer.HasSourceRectChanged()) {
-            last_plane.UpdateSourceCrop(layer.GetSourceCrop(),
-                                        layer.NeedsFullDraw());
-            // In case of cursor we want to do partial update.
-            if (!layer.IsCursorLayer()) {
-              only_cursor_rect_changed = false;
-            }
-            update_source_rect = true;
-          }
-
-          if (full_reset) {
-            continue;
+            break;
           }
 
           if (refresh_surfaces) {
@@ -285,8 +263,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
+      if (update_rect) {
+        last_plane.RefreshLayerRects(layers);
+        surface_damage.reset();
+      }
+
       // Let's check if we need to check this plane-layer combination.
-      if (update_rect || update_source_rect || clear_surface) {
+      if (update_rect || clear_surface) {
         last_plane.ValidateReValidation();
         if (last_plane.RevalidationType() !=
             DisplayPlaneState::ReValidationType::kNone) {
@@ -294,16 +277,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (full_reset || !surface_damage.empty() || update_rect ||
-          update_source_rect || refresh_surfaces) {
+      if (clear_surface || update_rect || refresh_surfaces ||
+          !surface_damage.empty()) {
         if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else if (full_reset || refresh_surfaces) {
+        } else if (clear_surface || refresh_surfaces) {
           last_plane.RefreshSurfaces(NativeSurface::kFullClear,
                                      refresh_surfaces);
-        } else if (update_rect || update_source_rect) {
-          // Make sure all rects are correct.
-          last_plane.UpdateDamage(surface_damage);
         } else if (!surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }

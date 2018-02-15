@@ -65,11 +65,9 @@ class DisplayPlaneState {
   void ResetLayers(const std::vector<OverlayLayer> &layers,
                    size_t remove_index);
 
-  // Updates Display frame rect of this plane to include
-  // display_frame.
-  void UpdateDisplayFrame(const HwcRect<int> &display_frame, bool full_clear);
-
-  void UpdateSourceCrop(const HwcRect<float> &source_crop, bool full_clear);
+  // Updates display frame and source rects combined region for
+  // this plane.
+  void RefreshLayerRects(const std::vector<OverlayLayer> &layers);
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();
