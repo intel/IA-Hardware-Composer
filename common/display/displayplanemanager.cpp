@@ -188,7 +188,10 @@ bool DisplayPlaneManager::ValidateLayers(
 
       last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
     }
-
+    if (!last_plane.GetOffScreenTarget() || last_plane.GetSurfaces().size() < 3) {
+    SetOffScreenPlaneTarget(last_plane);
+    }
+    last_plane.SwapSurfaceIfNeeded();
     if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
       render_layers = true;
   }
