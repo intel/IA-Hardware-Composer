@@ -70,13 +70,13 @@ bool DisplayPlaneManager::ValidateLayers(
   if (add_index <= 0) {
     if (!previous_composition.empty()) {
       for (DisplayPlaneState &plane : previous_composition) {
-        MarkSurfacesForRecycling(&plane, mark_later, false);
+        MarkSurfacesForRecycling(&plane, mark_later, true);
       }
     }
 
     if (!composition.empty()) {
       for (DisplayPlaneState &plane : previous_composition) {
-        MarkSurfacesForRecycling(&plane, mark_later, false);
+        MarkSurfacesForRecycling(&plane, mark_later, true);
       }
 
       DisplayPlaneStateList().swap(composition);
@@ -277,7 +277,7 @@ bool DisplayPlaneManager::ValidateLayers(
         bool force_buffer = false;
         if (is_video && last_plane.GetSourceLayers().size() > 1 &&
             last_plane.GetOffScreenTarget()) {
-          MarkSurfacesForRecycling(&last_plane, mark_later, false);
+          MarkSurfacesForRecycling(&last_plane, mark_later, true);
           force_buffer = true;
         }
 
@@ -654,7 +654,10 @@ void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
 }
 
-void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
+void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
+  if (!release_surfaces_ || forced)
+    return;
+
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() >= 0) {
@@ -663,6 +666,7 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
   }
 
   surfaces.swap(surfaces_);
+  release_surfaces_ = false;
 }
 
 void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
@@ -824,16 +828,24 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
     bool recycle_resources) {
   const std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
   if (!surfaces.empty()) {
+    release_surfaces_ = true;
     size_t size = surfaces.size();
-    // Make sure we don't mark current on-screen surface or
-    // one in flight. These surfaces will be added as part of
-    // mark_later to be recycled later.
-    for (uint32_t i = 0; i < size; i++) {
-      NativeSurface *surface = surfaces.at(i);
-      if (!recycle_resources) {
+    if (recycle_resources) {
+      // Make sure we don't mark current on-screen surface or
+      // one in flight. These surfaces will be added as part of
+      // mark_later to be recycled later.
+      for (uint32_t i = 0; i < size; i++) {
+        NativeSurface *surface = surfaces.at(i);
         if (surface->GetSurfaceAge() >= 0) {
           mark_later.emplace_back(surface);
+        } else {
+          surface->SetSurfaceAge(-1);
         }
+      }
+    } else {
+      for (uint32_t i = 0; i < size; i++) {
+        NativeSurface *surface = surfaces.at(i);
+        surface->SetSurfaceAge(-1);
       }
     }
 
@@ -929,7 +941,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
 #ifdef SURFACE_TRACING
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
 #endif
-        MarkSurfacesForRecycling(&last_plane, mark_later, false);
+        MarkSurfacesForRecycling(&last_plane, mark_later, true);
         reset_composition_region = true;
       }
     }

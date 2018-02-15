@@ -66,7 +66,7 @@ class DisplayPlaneManager {
 
   void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
 
-  void ReleaseFreeOffScreenTargets();
+  void ReleaseFreeOffScreenTargets(bool forced = false);
 
   void ReleaseAllOffScreenTargets();
 
@@ -158,6 +158,7 @@ class DisplayPlaneManager {
   uint32_t height_;
   uint32_t gpu_fd_;
   uint32_t display_transform_ = kIdentity;
+  bool release_surfaces_ = false;
 };
 
 }  // namespace hwcomposer
