@@ -40,8 +40,8 @@ libhwcomposer_common_la_LIBADD = \
 noinst_LTLIBRARIES = libhwcomposer_common.la
 libhwcomposer_common_la_SOURCES = $(common_SOURCES)
 if ENABLE_DUMMY_COMPOSITOR
-
-endif
+AM_CPPFLAGS += -DUSE_DC
+else
 if ENABLE_VULKAN
 libhwcomposer_common_la_SOURCES += $(vk_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/vk
@@ -56,6 +56,7 @@ endif
 
 libhwcomposer_common_la_SOURCES += $(va_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/va
+endif
 
 libhwcomposer_common_ladir = $(libdir)
 libhwcomposer_common_la_LDFLAGS = -version-number 0:0:1 -no-undefined
