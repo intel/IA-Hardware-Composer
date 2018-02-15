@@ -240,8 +240,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
-          if (!layer.IsCursorLayer() &&
-              (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
+          if (layer.HasDimensionsChanged() || layer.HasSourceRectChanged()) {
             update_rect = true;
             break;
           }
@@ -283,7 +282,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         } else if (clear_surface || refresh_surfaces) {
           last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-        } else if (!surface_damage.empty()) {
+        } else if (!update_rect && !surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
         }
       }
