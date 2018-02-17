@@ -217,12 +217,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
-          if (layer->CanScanOut() && last_plane.NeedsOffScreenComposition()) {
-            plane_validation = true;
-          } else if (source_layers.size() == 1) {
-            check_to_squash = true;
-            last_plane.RevalidationDone(
-                DisplayPlaneState::ReValidationType::kScanout);
+          if (source_layers.size() == 1) {
+            if (layer->CanScanOut() && last_plane.NeedsOffScreenComposition()) {
+              plane_validation = true;
+            } else {
+              check_to_squash = true;
+              last_plane.RevalidationDone(
+                  DisplayPlaneState::ReValidationType::kScanout);
+            }
           }
         }
       }
