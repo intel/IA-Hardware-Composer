@@ -39,7 +39,7 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   if (!private_data_->plane_->IsSupportedTransform(plane_transform)) {
     private_data_->rotation_type_ =
         DisplayPlaneState::RotationType::kGPURotation;
-    private_data_->unsupported_siplay_rotation_ = true;
+    private_data_->unsupported_display_rotation_ = true;
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
@@ -109,20 +109,23 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
-                                    size_t remove_index) {
-  const std::vector<size_t> &current_layers = private_data_->source_layers_;
-  std::vector<size_t> source_layers;
+                                    size_t remove_index, bool *rects_updated) {
+  std::vector<size_t> current_layers = private_data_->source_layers_;
+  std::vector<size_t>().swap(private_data_->source_layers_);
+  std::vector<size_t> &new_layers = private_data_->source_layers_;
+
   private_data_->has_cursor_layer_ = false;
-  bool initialized = false;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   bool has_video = false;
+  bool removed_layer = false;
   for (const size_t &index : current_layers) {
     if (index >= remove_index) {
 #ifdef SURFACE_TRACING
       ISURFACETRACE("Reset breaks index: %d remove_index %d \n", index,
                     remove_index);
 #endif
+      removed_layer = true;
       break;
     }
 
@@ -137,31 +140,30 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
     const HwcRect<int> &df = layer.GetDisplayFrame();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
-    if (!initialized) {
-      target_display_frame = df;
-      target_source_crop = source_crop;
-      initialized = true;
-    } else {
-      CalculateRect(df, target_display_frame);
-      CalculateSourceRect(source_crop, target_source_crop);
-    }
+    CalculateRect(df, target_display_frame);
+    CalculateSourceRect(source_crop, target_source_crop);
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Reset adds index: %d \n", layer.GetZorder());
 #endif
-    source_layers.emplace_back(layer.GetZorder());
+    new_layers.emplace_back(layer.GetZorder());
   }
 
 #ifdef SURFACE_TRACING
   ISURFACETRACE(
       "Reset called has_video: %d Source Layers Size: %d Previous Source "
       "Layers Size: %d Has Cursor: %d Total Layers Size: %d \n",
-      has_video, source_layers.size(), current_layers.size(),
+      has_video, private_data_->source_layers_.size(), current_layers.size(),
       private_data_->has_cursor_layer_, layers.size());
 #endif
 
-  private_data_->source_layers_.swap(source_layers);
   if (private_data_->source_layers_.empty()) {
     return;
+  }
+
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage old and new rects.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_);
+    surface->UpdateSurfaceDamage(target_display_frame);
   }
 
   bool rect_updated = true;
@@ -176,6 +178,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   if (!private_data_->rect_updated_)
     private_data_->rect_updated_ = rect_updated;
 
+  *rects_updated = rect_updated;
+
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
@@ -185,14 +189,24 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }
 
-    if (!has_video)
+    if (!has_video) {
       re_validate_layer_ |= ReValidationType::kScanout;
+    } else {
+      // Reset Validation state.
+      re_validate_layer_ &= ~ReValidationType::kScanout;
+    }
   } else {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
+    // Reset Validation state.
+    re_validate_layer_ &= ~ReValidationType::kScanout;
   }
 
   private_data_->refresh_surface_ = true;
-  RefreshSurfaces(NativeSurface::kFullClear);
+  if (rect_updated || removed_layer) {
+    RefreshSurfaces(NativeSurface::kFullClear);
+  } else {
+    RefreshSurfaces(NativeSurface::kPartialClear);
+  }
 }
 
 void DisplayPlaneState::RefreshLayerRects(
@@ -219,9 +233,18 @@ void DisplayPlaneState::RefreshLayerRects(
     surface->UpdateSurfaceDamage(target_display_frame);
   }
 
-  private_data_->display_frame_ = target_display_frame;
-  private_data_->source_crop_ = target_source_crop;
-  private_data_->rect_updated_ = !only_cursor_layer;
+  bool rect_updated = true;
+  if ((private_data_->display_frame_ == target_display_frame) &&
+      ((private_data_->source_crop_ == target_source_crop))) {
+    rect_updated = false;
+  } else {
+    private_data_->display_frame_ = target_display_frame;
+    private_data_->source_crop_ = target_source_crop;
+  }
+
+  if (!private_data_->rect_updated_)
+    private_data_->rect_updated_ = rect_updated;
+
   private_data_->refresh_surface_ = true;
   RefreshSurfaces(only_cursor_layer ? NativeSurface::kPartialClear
                                     : NativeSurface::kFullClear);
@@ -495,7 +518,7 @@ void DisplayPlaneState::ValidateReValidation() {
     return;
 
   if (private_data_->plane_transform_ != kIdentity &&
-      !private_data_->unsupported_siplay_rotation_) {
+      !private_data_->unsupported_display_rotation_) {
     re_validate_layer_ |= ReValidationType::kRotation;
   }
 
