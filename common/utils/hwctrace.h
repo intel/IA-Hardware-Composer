@@ -243,6 +243,10 @@ class TraceFunc {
   for (DisplayPlaneState & comp_plane : current_composition_planes) {          \
     ITRACE("Composition Plane State for Index: %d", plane_layer_index);        \
     const std::vector<size_t> &source_layers = comp_plane.GetSourceLayers();   \
+    if (!comp_plane.GetDisplayPlane()->InUse()) {                              \
+      ITRACE("ALERT: Plane Disabled");                                         \
+      continue;                                                                \
+    }                                                                          \
     if (comp_plane.NeedsOffScreenComposition()) {                              \
       ITRACE("DisplayPlane state: kRender. Total layers: %lu",                 \
              source_layers.size());                                            \
