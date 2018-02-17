@@ -155,6 +155,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       const size_t& index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
+      bool needs_plane_validation = false;
       if (index >= threshold) {
 #ifdef SURFACE_TRACING
         size_t original_size = source_layers.size();
@@ -162,7 +163,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
-          last_plane.ResetLayers(layers, threshold);
+          last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
           clear_surface = true;
         }
 #ifdef SURFACE_TRACING
@@ -227,7 +228,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
+      } else {
+        // Let's force reset the rects of all layers as layer
+        // might have changed position.
+        last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
       }
+
+      if (needs_plane_validation)
+        plane_validation = true;
     }
 
     if (last_plane.NeedsOffScreenComposition()) {
@@ -238,7 +246,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
-      if (!clear_surface) {
+      if (remove_index == -1) {
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
@@ -251,7 +259,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             continue;
           }
 
-          refresh_surfaces = layer.NeedsFullDraw();
           if (layer.HasLayerContentChanged()) {
             const HwcRect<int>& damage = layer.GetSurfaceDamage();
             if (damage_initialized) {
@@ -278,11 +285,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (clear_surface || update_rect || refresh_surfaces ||
+      if ((remove_index != -1) || update_rect || refresh_surfaces ||
           !surface_damage.empty()) {
         if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else if (clear_surface || refresh_surfaces) {
+        } else if (refresh_surfaces) {
           last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!update_rect && !surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
@@ -317,8 +324,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
       }
 
-      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation() ||
-          layer->NeedsFullDraw()) {
+      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation()) {
         ignore_commit = false;
         reset_composition_regions = true;
       }

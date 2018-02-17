@@ -129,6 +129,7 @@ class NativeSurface {
   int surface_age_;
   bool damage_changed_ = true;
   HwcRect<int> surface_damage_;
+  HwcRect<int> previous_damage_;
 };
 
 }  // namespace hwcomposer

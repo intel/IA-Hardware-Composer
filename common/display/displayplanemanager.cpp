@@ -312,7 +312,6 @@ bool DisplayPlaneManager::ValidateLayers(
 
   if (validate_final_layers) {
     ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
-    validate_final_layers = false;
     test_commit_done = true;
   }
 

@@ -94,6 +94,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
                                    uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
+  previous_damage_ = surface_damage_;
   clear_surface_ = kFullClear;
   damage_changed_ = true;
   surface_age_ = 0;
@@ -115,6 +116,9 @@ void NativeSurface::UpdateSurfaceDamage(
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
     damage_changed_ = true;
+    if (previous_damage_ == surface_damage_)
+      damage_changed_ = false;
+
     return;
   }
 
@@ -122,17 +126,16 @@ void NativeSurface::UpdateSurfaceDamage(
     return;
   }
 
-  HwcRect<int> temp = surface_damage_;
   CalculateRect(currentsurface_damage, surface_damage_);
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (temp == surface_damage_) {
+    if (previous_damage_ == surface_damage_)
       damage_changed_ = false;
-    }
   }
 }
 
 void NativeSurface::ResetDamage() {
+  previous_damage_ = surface_damage_;
   surface_damage_ = HwcRect<int>(0, 0, 0, 0);
   damage_changed_ = false;
 }
