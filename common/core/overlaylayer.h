@@ -208,13 +208,6 @@ struct OverlayLayer {
     return state_ & kRawPixelDataChanged;
   }
 
-  // Returns true if this layer is not
-  // validated and complete re-rendering
-  // of the plane needs to be forced.
-  bool NeedsFullDraw() const {
-    return state_ & kForceFullDraw;
-  }
-
   void Dump();
 
  private:
@@ -224,8 +217,7 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kRawPixelDataChanged = 1 << 5,
-    kForceFullDraw = 1 << 6
+    kRawPixelDataChanged = 1 << 5
   };
 
   struct ImportedBuffer {

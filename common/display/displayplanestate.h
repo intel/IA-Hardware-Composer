@@ -62,8 +62,8 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers,
-                   size_t remove_index);
+  void ResetLayers(const std::vector<OverlayLayer> &layers, size_t remove_index,
+                   bool *rects_updated);
 
   // Updates display frame and source rects combined region for
   // this plane.
@@ -266,7 +266,7 @@ class DisplayPlaneState {
     bool refresh_surface_ = true;
 
     // Display cannot support the required rotation.
-    bool unsupported_siplay_rotation_ = false;
+    bool unsupported_display_rotation_ = false;
     uint32_t down_scaling_factor_ = 1;
     // Any offscreen surfaces used by this
     // plane.
