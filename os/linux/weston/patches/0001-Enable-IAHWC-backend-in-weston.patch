@@ -20,7 +20,7 @@ index 9d99c694..40eac766 100644
 	libweston/compositor.c				\
 	libweston/compositor.h				\
 	libweston/compositor-drm.h			\
-+	iahwc/os/linux/weston/plugin/compositor-iahwc.h			\
++	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h			\
 	libweston/compositor-fbdev.h			\
 	libweston/compositor-headless.h			\
 	libweston/compositor-rdp.h			\
@@ -28,7 +28,7 @@ index 9d99c694..40eac766 100644
 	libweston/version.h			\
 	libweston/compositor.h			\
 	libweston/compositor-drm.h		\
-+	iahwc/os/linux/weston/plugin/compositor-iahwc.h		\
++	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h		\
 	libweston/compositor-fbdev.h		\
 	libweston/compositor-headless.h		\
 	libweston/compositor-rdp.h		\
@@ -53,8 +53,8 @@ index 9d99c694..40eac766 100644
 +	$(IAHWC_COMPOSITOR_CFLAGS)		\
 +	$(AM_CFLAGS)
 +iahwc_backend_la_SOURCES =			\
-+	iahwc/os/linux/weston/plugin/compositor-iahwc.c		\
-+	iahwc/os/linux/weston/plugin/compositor-iahwc.h		\
++	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.c		\
++	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h		\
 +	$(INPUT_BACKEND_SOURCES)		\
 +	shared/helpers.h			\
 +	shared/timespec-util.h			\
@@ -73,7 +73,7 @@ index 9e4451e5..569f8ac8 100644
  #include "weston.h"
 
  #include "compositor-drm.h"
-+#include "iahwc/os/linux/weston/plugin/compositor-iahwc.h"
++#include "IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h"
  #include "compositor-headless.h"
  #include "compositor-rdp.h"
  #include "compositor-fbdev.h"
