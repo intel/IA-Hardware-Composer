@@ -146,10 +146,22 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   // GPU Composition.
   bool reset_composition_regions = false;
   bool reset_plane = remove_index != -1 ? true : false;
+  bool removed_layers = false;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
+    // Mark surfaces of all planes to be released once they are
+    // offline.
+    if (removed_layers) {
+      if (previous_plane.NeedsOffScreenComposition()) {
+        display_plane_manager_->MarkSurfacesForRecycling(
+            &previous_plane, surfaces_not_inuse_, true);
+      }
+
+      previous_plane.GetDisplayPlane()->SetInUse(false);
+      continue;
+    }
+
     composition->emplace_back();
-    bool removed_layers = false;
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(previous_plane);
     if (reset_plane) {
@@ -162,7 +174,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 #ifdef SURFACE_TRACING
         size_t original_size = source_layers.size();
 #endif
-
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
           last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
@@ -207,7 +218,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               original_size, source_layers.size(), threshold, index,
               composition->size(), previous_plane_state_.size());
 #endif
-          break;
+          continue;
         }
 
         last_plane.ValidateReValidation();
@@ -329,13 +340,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
         reset_composition_regions = true;
       }
-    }
-
-    // This plane had remove_index. Rest of the planes can be
-    // ignored or need to be re-validated.
-    if (removed_layers) {
-      ignore_commit = false;
-      break;
     }
   }
 
@@ -845,6 +849,11 @@ void DisplayQueue::HandleCommitFailure(
 
     display_plane_manager_->MarkSurfacesForRecycling(
         &plane, surfaces_not_inuse_, false);
+  }
+
+  // Let's mark all previous planes as in use.
+  for (DisplayPlaneState& previous_plane : previous_plane_state_) {
+    previous_plane.GetDisplayPlane()->SetInUse(true);
   }
 }
 
