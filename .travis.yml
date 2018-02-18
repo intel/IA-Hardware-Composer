@@ -7,7 +7,7 @@ install:
 - sudo apt-get update
 - sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 ninja-build python-pip
 - sudo pip install pathlib
-- sudo pip install meson
+- sudo pip3 install meson
 - sudo dpkg -s python-mako
 - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
 - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
