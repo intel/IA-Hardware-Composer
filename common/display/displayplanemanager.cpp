@@ -179,9 +179,11 @@ bool DisplayPlaneManager::ValidateLayers(
         // If we are able to composite buffer with the given plane, lets use
         // it.
         bool fall_back = FallbacktoGPU(plane, layer, commit_planes);
-        validate_final_layers = false;
         test_commit_done = true;
         if (!fall_back || prefer_seperate_plane) {
+	  if (validate_final_layers)
+	    validate_final_layers = fall_back;
+
           composition.emplace_back(plane, layer, layer->GetZorder(),
                                    display_transform_);
 #ifdef SURFACE_TRACING
@@ -195,12 +197,13 @@ bool DisplayPlaneManager::ValidateLayers(
           }
 
           if (fall_back) {
+            if (!validate_final_layers)
+              validate_final_layers = !(last_plane.GetOffScreenTarget());
+
             ResetPlaneTarget(last_plane, commit_planes.back());
-            validate_final_layers = true;
           }
 
-          if (prefer_seperate_plane)
-            break;
+          break;
         } else {
           if (composition.empty()) {
             bool force_all_layers = true;
@@ -244,8 +247,9 @@ bool DisplayPlaneManager::ValidateLayers(
             ISURFACETRACE("Added Layer: %d \n", layer->GetZorder());
 #endif
             last_plane.AddLayer(layer);
+            if (!validate_final_layers)
+              validate_final_layers = !(last_plane.GetOffScreenTarget());
             ResetPlaneTarget(last_plane, commit_planes.back());
-            validate_final_layers = true;
           }
         }
       }
