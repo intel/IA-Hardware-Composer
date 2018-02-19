@@ -1017,6 +1017,7 @@ void DisplayPlaneManager::FinalizeValidation(
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfaces(NativeSurface::kFullClear);
+      plane.SwapSurfaceIfNeeded();
       plane.ValidateReValidation();
       // Check for Any display transform to be applied.
       ValidateForDisplayTransform(plane, commit_planes);

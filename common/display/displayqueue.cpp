@@ -166,7 +166,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     last_plane.CopyState(previous_plane);
     if (reset_plane) {
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-      const size_t& index = source_layers.at(source_layers.size() - 1);
+      size_t index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
       bool needs_plane_validation = false;
       if (index >= threshold) {
