@@ -5,8 +5,8 @@ install:
 - sudo apt-get update
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
-- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 ninja-build python-pip
-- sudo pip install pathlib
+- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 ninja-build python3-pip libudev-dev libmtdev-dev mtdev-tools
+- sudo pip3 install pathlib
 - sudo pip3 install meson
 - sudo dpkg -s python-mako
 - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
@@ -70,7 +70,7 @@ script:
 # Test Weston plugin
 - git clone git://anongit.freedesktop.org/wayland/wayland /tmp/wayland
 - cd /tmp/wayland
-- ./autogen.sh --prefix=$WLD
+- ./autogen.sh --prefix=$WLD --disable-documentation
 - make && make install
 - popd
 
@@ -97,9 +97,10 @@ script:
 - popd
 
 #Build mesa with gbm and overwrite minigbm
-- git clone https://github.com/intel/external-mesa /tmp/mesa-weston
-- pushd /tmp/mesa-weston
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland,x11 --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel --enable-gbm
+- pushd .
+- cd /tmp/mesa
+- git clean -xfd
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel --enable-gbm
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
 - popd
 
