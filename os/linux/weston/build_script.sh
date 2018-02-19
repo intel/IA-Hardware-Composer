@@ -15,7 +15,7 @@ function print_help() {
 function build_iahwc() {
     # Build IAHWC
     pushd . > /dev/null
-    cd iahwc
+    cd $IAHWC_DIR
     git clean -xfd
     ./autogen.sh $AUTOGEN_CMDLINE --enable-gbm --enable-linux-frontend && \
         make -j$PARALLEL install
@@ -73,13 +73,17 @@ if [ ! -z ${WLD+x} ]; then
     AUTOGEN_CMDLINE="--prefix=$WLD"
 fi
 
+WESTON_DIR=$(readlink -f $WESTON_DIR)
+
 cd $WESTON_DIR
+
+IAHWC_DIR=$(realpath --relative-to $WESTON_DIR $IAHWC_DIR)
 
 PATCHES="$IAHWC_DIR/os/linux/weston/patches/*"
 # checkout to weston best known revision and apply patches
 if [ $APPLY_PATCHES -eq 1 ]; then
     git checkout $BKR
-    sed -i "s/IAHWC_DIR/$IAHWC_DIR/" $PATCHES
+    sed -i "s|IAHWC_DIR|$IAHWC_DIR|" $PATCHES
     git am $PATCHES
 
     # reset patches to use IAHWC_DIR.
