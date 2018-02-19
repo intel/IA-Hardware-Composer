@@ -79,6 +79,11 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   // we shouldn't have done them yet (i.e. Previous state could have
   // been direct scanout.)
   bool rect_updated = true;
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage whole old rect.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_);
+  }
+
   if (private_data_->source_layers_.size() > 2 &&
       (private_data_->display_frame_ == target_display_frame) &&
       ((private_data_->source_crop_ == target_source_crop))) {
@@ -105,7 +110,11 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
   private_data_->refresh_surface_ = true;
-  RefreshSurfaces(NativeSurface::kFullClear);
+  if (rect_updated) {
+    RefreshSurfaces(NativeSurface::kFullClear);
+  } else {
+    RefreshSurfaces(NativeSurface::kPartialClear);
+  }
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -118,14 +127,14 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   bool has_video = false;
-  bool removed_layer = false;
+  bool layer_removed = false;
   for (const size_t &index : current_layers) {
     if (index >= remove_index) {
 #ifdef SURFACE_TRACING
       ISURFACETRACE("Reset breaks index: %d remove_index %d \n", index,
                     remove_index);
 #endif
-      removed_layer = true;
+      layer_removed = true;
       break;
     }
 
@@ -161,9 +170,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   }
 
   for (NativeSurface *surface : private_data_->surfaces_) {
-    // Damage old and new rects.
+    // Damage whole old rect.
     surface->UpdateSurfaceDamage(private_data_->display_frame_);
-    surface->UpdateSurfaceDamage(target_display_frame);
   }
 
   bool rect_updated = true;
@@ -202,7 +210,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   }
 
   private_data_->refresh_surface_ = true;
-  if (rect_updated || removed_layer) {
+  if (layer_removed || rect_updated) {
     RefreshSurfaces(NativeSurface::kFullClear);
   } else {
     RefreshSurfaces(NativeSurface::kPartialClear);
@@ -225,12 +233,19 @@ void DisplayPlaneState::RefreshLayerRects(
         (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
       only_cursor_layer = false;
     }
+
+    if (only_cursor_layer && layer.IsCursorLayer()) {
+      for (NativeSurface *surface : private_data_->surfaces_) {
+        surface->UpdateSurfaceDamage(layer.GetSurfaceDamage());
+      }
+    }
   }
 
-  for (NativeSurface *surface : private_data_->surfaces_) {
-    // Damage old and new rects.
-    surface->UpdateSurfaceDamage(private_data_->display_frame_);
-    surface->UpdateSurfaceDamage(target_display_frame);
+  if (!only_cursor_layer) {
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      // Damage whole old rect.
+      surface->UpdateSurfaceDamage(private_data_->display_frame_);
+    }
   }
 
   bool rect_updated = true;
@@ -246,8 +261,11 @@ void DisplayPlaneState::RefreshLayerRects(
     private_data_->rect_updated_ = rect_updated;
 
   private_data_->refresh_surface_ = true;
-  RefreshSurfaces(only_cursor_layer ? NativeSurface::kPartialClear
-                                    : NativeSurface::kFullClear);
+  if (!only_cursor_layer && rect_updated) {
+    RefreshSurfaces(NativeSurface::kFullClear);
+  } else {
+    RefreshSurfaces(NativeSurface::kPartialClear);
+  }
 }
 
 void DisplayPlaneState::ForceGPURendering() {
