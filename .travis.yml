@@ -5,10 +5,11 @@ install:
 - sudo apt-get update
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
-- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 ninja-build python3-pip libudev-dev libmtdev-dev mtdev-tools
+- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev
 - sudo pip3 install pathlib
 - sudo pip3 install meson
 - sudo dpkg -s python-mako
+- wget https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip -O /tmp/ninja.zip
 - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
 - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
 script:
@@ -16,13 +17,22 @@ script:
 - export HWC_BUILD_DIR=/tmp/
 - export WLD=/tmp/hwc-install
 - export LD_LIBRARY_PATH=$WLD/lib
-- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/share/pkgconfig
+- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/lib/x86_64-linux-gnu/pkgconfig:$WLD/share/pkgconfig
 - export PATH=$WLD/bin:$PATH
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
 - export DRV_I915=1
 - tar -xvf travisci/resources/hwc-install.tar.bz2 -C $HWC_BUILD_DIR
 - mkdir -p $WLD/share/aclocal
+
+#install realpath
+- sudo cp travisci/resources/realpath /usr/bin/
+
+#install ninja
+- pushd /tmp
+- unzip ninja.zip
+- sudo cp ninja /usr/bin/
+- popd
 
 #clone and build libdrm : dependency
 - git clone https://github.com/intel/external-libdrm /tmp/libdrm
@@ -68,7 +78,30 @@ script:
 - make -j5
 
 # Test Weston plugin
+- export WLD=/tmp/wl-install
+- export LD_LIBRARY_PATH=$WLD/lib
+- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/lib/x86_64-linux-gnu/pkgconfig:$WLD/share/pkgconfig
+- export PATH=$WLD/bin:$PATH
+- export ACLOCAL_PATH=$WLD/share/aclocal
+- export ACLOCAL="aclocal -I $ACLOCAL_PATH"
+- export DRV_I915=1
+- mkdir -p $WLD/share/aclocal
+
+#clone and build libdrm : dependency
+- pushd /tmp/libdrm
+- git clean -xfd
+- ./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
+- make -j5 && make install
+- popd
+
+- git clone https://anongit.freedesktop.org/git/libevdev.git /tmp/libevdev
+- pushd /tmp/libevdev
+- ./autogen.sh --prefix=$WLD
+- make && make install
+- popd
+
 - git clone git://anongit.freedesktop.org/wayland/wayland /tmp/wayland
+- pushd .
 - cd /tmp/wayland
 - ./autogen.sh --prefix=$WLD --disable-documentation
 - make && make install
@@ -91,7 +124,7 @@ script:
 - git clone git://anongit.freedesktop.org/git/wayland/libinput /tmp/libinput
 - pushd .
 - cd /tmp/libinput
-- meson --prefix=$WLD builddir/
+- meson --prefix=$WLD -Dlibwacom=false -Ddocumentation=false -Ddebug-gui=false -Dtests=false builddir/
 - ninja -C builddir/
 - ninja -C builddir/ install
 - popd
@@ -100,8 +133,22 @@ script:
 - pushd .
 - cd /tmp/mesa
 - git clean -xfd
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel --enable-gbm
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland,x11 --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
+- popd
+
+#clone and build libva : dependency
+- pushd /tmp/libva
+- git clean -xfd
+- ./autogen.sh --prefix=$WLD
+- make -j5 && make install
+- popd
+
+#clone and build vaapi : dependency
+- pushd /tmp/vaapi
+- git clean -xfd
+- ./autogen.sh --prefix=$WLD
+- make -j5 && make install
 - popd
 
 #Build weston and weston plugin
