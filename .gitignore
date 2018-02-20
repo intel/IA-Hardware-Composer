@@ -31,5 +31,7 @@ TAGS
 *.make
 *.dirstamp
 m4
-testkmscube
+testlayers
+linux_test
+compile
 !/tests/third_party/json-c/autoconf-archive/m4
