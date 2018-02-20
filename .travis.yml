@@ -22,11 +22,11 @@ script:
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
 - export DRV_I915=1
-- tar -xvf travisci/resources/hwc-install.tar.bz2 -C $HWC_BUILD_DIR
+- tar -xvf travisci/resources/hwc-install.tar.xz -C $HWC_BUILD_DIR
 - mkdir -p $WLD/share/aclocal
 
 #install realpath
-- sudo cp travisci/resources/realpath /usr/bin/
+- sudo cp $WLD/realpath /usr/bin/
 
 #install ninja
 - pushd /tmp
