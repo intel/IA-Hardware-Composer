@@ -23,7 +23,6 @@
 
 #include <hwctrace.h>
 #include <hwclayer.h>
-#include "utils_android.h"
 
 namespace hwcomposer {
 #ifdef NESTED_DISPLAY_SUPPORT
