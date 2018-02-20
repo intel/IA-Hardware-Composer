@@ -6,9 +6,70 @@
 # these variables can be changed using --weston-dir and
 # --iahwc-dir options to the script. see --help.
 
+# copied from the grub-mkconfig_lib script
+print_option_help () {
+    if test x$print_option_help_wc = x; then
+        if wc -L  </dev/null > /dev/null 2>&1; then
+            print_option_help_wc=-L
+        elif wc -m  </dev/null > /dev/null 2>&1; then
+            print_option_help_wc=-m
+        else
+            print_option_help_wc=-b
+        fi
+    fi
+    if test x$grub_have_fmt = x; then
+        if fmt -w 40  </dev/null > /dev/null 2>&1; then
+            grub_have_fmt=y;
+        else
+            grub_have_fmt=n;
+        fi
+    fi
+    print_option_help_lead="  $1"
+    print_option_help_lspace="$(echo "$print_option_help_lead" | wc $print_option_help_wc)"
+    print_option_help_fill="$((26 - print_option_help_lspace))"
+    printf "%s" "$print_option_help_lead"
+    if test $print_option_help_fill -le 0; then
+        print_option_help_nl=y
+        echo
+    else
+        print_option_help_i=0;
+        while test $print_option_help_i -lt $print_option_help_fill; do
+            printf " "
+            print_option_help_i=$((print_option_help_i+1))
+        done
+        print_option_help_nl=n
+    fi
+    if test x$grub_have_fmt = xy; then
+        print_option_help_split="$(echo "$2" | fmt -w 50)"
+    else
+        print_option_help_split="$2"
+    fi
+    if test x$print_option_help_nl = xy; then
+        echo "$print_option_help_split" | awk \
+                                              '{ print "                          " $0; }'
+    else
+        echo "$print_option_help_split" | awk 'BEGIN   { n = 0 }
+  { if (n == 1) print "                          " $0; else print $0; n = 1 ; }'
+    fi
+}
+
 function print_help() {
-    #fill in help
-    echo "HELP"
+    self=`basename $0`
+
+    gettext "Usage: ${self} [OPTION]"; echo
+    gettext "Build iahwc and weston"
+    echo
+    print_option_help "--apply-patches" "apply all the required patches on weston"
+    print_option_help "--build-iahwc" "build IAHWC"
+    print_option_help "--build-weston" "build WESTON"
+    print_option_help "--build" "build both"
+    print_option_help "--iahwc-dir=" "path to iahwc source"
+    print_option_help "--weston-dir=" "path to weston source"
+    print_option_help "-j=, --parallel=" "number of threads to be used while building"
+    print_option_help "-h, --help" "print this message and exit"
+    echo
+    gettext "Report issues at https://github.com/intel/IA-Hardware-Composer/issues"; echo
+    echo
     exit;
 }
 
