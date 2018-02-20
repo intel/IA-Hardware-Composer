@@ -1,0 +1,114 @@
+#+TITLE: Building IAHWC backend for weston
+
+* Building the Weston Plugin:
+
+Setting up the env for weston:
+#+BEGIN_SRC bash
+export WLD=$HOME/wl-install   # change this to another location if you prefer
+export LD_LIBRARY_PATH=$WLD/lib
+export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/share/pkgconfig/
+export PATH=$WLD/bin:$PATH
+export ACLOCAL_PATH=$WLD/share/aclocal
+export ACLOCAL="aclocal -I $ACLOCAL_PATH"
+mkdir -p $WLD/share/aclocal # needed by autotools
+#+END_SRC
+
+Source the above env in the shell.
+Dependencies for building weston (to be built in the same order):
+- libdrm
+- Wayland
+- Wayland protocol
+- Mesa
+- Libunwind (needed for debugging)
+- Libinput
+- libva
+- vaapi
+- Hwcomposer
+- Weston
+
+* Building Libdrm
+#+BEGIN_SRC bash
+git clone https://github.com/intel/external-libdrm libdrm
+cd libdrm
+./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
+make -j5 && make install
+cd ..
+#+END_SRC
+
+* Building Wayland
+#+BEGIN_SRC bash
+git clone git://anongit.freedesktop.org/wayland/wayland wayland
+cd wayland
+./autogen.sh --prefix=$WLD --disable-documentation
+make && make install
+cd ..
+#+END_SRC
+
+* Building Wayland-protocols
+#+BEGIN_SRC bash
+git clone git://anongit.freedesktop.org/wayland/wayland-protocols wayland-protocols
+cd wayland-protocols
+./autogen.sh --prefix=$WLD
+make install
+cd ..
+#+END_SRC
+
+* Building libunwind (for debugging only)
+#+BEGIN_SRC bash
+git clone git://git.sv.gnu.org/libunwind libunwind
+cd libunwind
+./autogen.sh --prefix=$WLD
+make && make install
+cd ..
+#+END_SRC
+
+* Building libinput
+#+BEGIN_SRC bash
+git clone git://anongit.freedesktop.org/git/wayland/libinput libinput
+cd libinput
+meson --prefix=$WLD -Dlibwacom=false -Ddocumentation=false -Ddebug-gui=false -Dtests=false builddir/
+ninja -C builddir/
+ninja -C builddir/ install
+cd ..
+#+END_SRC
+
+* Building Mesa
+#+BEGIN_SRC bash
+git clone https://github.com/intel/external-mesa mesa
+cd mesa
+git clean -xfd
+./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland,x11 --disable-dri3\
+ --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm\
+ --without-gallium-drivers --with-dri-drivers=i965
+make -j5 install
+cd ..
+#+END_SRC
+
+* Building libva
+#+BEGIN_SRC bash
+git clone https://github.com/android-ia/libva.git libva
+cd libva
+./autogen.sh --prefix=$WLD
+make -j5 && make install
+cd ..
+#+END_SRC
+
+* Building VA-API
+#+BEGIN_SRC bash
+git clone https://github.com/android-ia/vaapi.git vaapi
+cd vaapi
+./autogen.sh --prefix=$WLD
+make -j5 && make install
+cd ..
+#+END_SRC
+
+* Building Weston and IAHWC
+#+BEGIN_SRC bash
+git clone https://anongit.freedesktop.org/git/wayland/weston.git weston
+git clone https://github.com/intel/IA-Hardware-Composer.git iahwc
+cd iahwc
+os/linux/weston/build_script.sh --apply-patches --weston-dir=/tmp/weston --iahwc-dir=$(pwd) --build
+#+END_SRC
+
+* Using the build_script.sh
+Please run ./build_script.sh --help for more details
