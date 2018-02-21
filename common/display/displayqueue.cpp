@@ -241,11 +241,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             last_damage.bottom =
                 std::max(previous_damage.bottom, last_damage.bottom);
             surfaces.at(0)->UpdateSurfaceDamage(surface_damage, last_damage);
-          }
-        } else {
-          display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        }
-
+	  }
+	}
+        display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
         last_plane.ForceGPURendering();
         needs_gpu_composition = true;
       } else {
