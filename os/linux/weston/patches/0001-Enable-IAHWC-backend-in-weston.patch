@@ -17,25 +17,25 @@ index 9d99c694..40eac766 100644
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -84,6 +84,7 @@ libweston_@LIBWESTON_MAJOR@_la_SOURCES =			\
-	libweston/compositor.c				\
-	libweston/compositor.h				\
-	libweston/compositor-drm.h			\
+ 	libweston/compositor.c				\
+ 	libweston/compositor.h				\
+ 	libweston/compositor-drm.h			\
 +	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h			\
-	libweston/compositor-fbdev.h			\
-	libweston/compositor-headless.h			\
-	libweston/compositor-rdp.h			\
+ 	libweston/compositor-fbdev.h			\
+ 	libweston/compositor-headless.h			\
+ 	libweston/compositor-rdp.h			\
 @@ -294,6 +295,7 @@ libwestoninclude_HEADERS =			\
-	libweston/version.h			\
-	libweston/compositor.h			\
-	libweston/compositor-drm.h		\
+ 	libweston/version.h			\
+ 	libweston/compositor.h			\
+ 	libweston/compositor-drm.h		\
 +	IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h		\
-	libweston/compositor-fbdev.h		\
-	libweston/compositor-headless.h		\
-	libweston/compositor-rdp.h		\
+ 	libweston/compositor-fbdev.h		\
+ 	libweston/compositor-headless.h		\
+ 	libweston/compositor-rdp.h		\
 @@ -400,6 +402,32 @@ drm_backend_la_CFLAGS += $(LIBVA_CFLAGS)
  endif
  endif
-
+ 
 +if ENABLE_IAHWC_COMPOSITOR
 +libweston_module_LTLIBRARIES += iahwc-backend.la
 +iahwc_backend_la_LDFLAGS = -module -avoid-version
@@ -71,7 +71,7 @@ index 9e4451e5..569f8ac8 100644
 +++ b/compositor/main.c
 @@ -58,6 +58,7 @@
  #include "weston.h"
-
+ 
  #include "compositor-drm.h"
 +#include "IAHWC_DIR/os/linux/weston/plugin/compositor-iahwc.h"
  #include "compositor-headless.h"
@@ -79,18 +79,18 @@ index 9e4451e5..569f8ac8 100644
  #include "compositor-fbdev.h"
 @@ -535,6 +536,9 @@ usage(int error_code)
  #if defined(BUILD_DRM_COMPOSITOR)
-			"\t\t\t\tdrm-backend.so\n"
+ 			"\t\t\t\tdrm-backend.so\n"
  #endif
 +#if defined(BUILD_IAHWC_COMPOSITOR)
 +          "\t\t\t\tiahwc-backend.so\n"
 +#endif
  #if defined(BUILD_FBDEV_COMPOSITOR)
-			"\t\t\t\tfbdev-backend.so\n"
+ 			"\t\t\t\tfbdev-backend.so\n"
  #endif
 @@ -1714,6 +1718,88 @@ load_wayland_backend(struct weston_compositor *c,
-	return 0;
+ 	return 0;
  }
-
+ 
 +static void
 +iahwc_backend_output_configure(struct wl_listener *listener, void *data)
 +{
@@ -173,26 +173,26 @@ index 9e4451e5..569f8ac8 100644
 +
 +	return ret;
 +}
-
+ 
  static int
  load_backend(struct weston_compositor *compositor, const char *backend,
 @@ -1727,6 +1813,8 @@ load_backend(struct weston_compositor *compositor, const char *backend,
-		return load_fbdev_backend(compositor, argc, argv, config);
-	else if (strstr(backend, "drm-backend.so"))
-		return load_drm_backend(compositor, argc, argv, config);
+ 		return load_fbdev_backend(compositor, argc, argv, config);
+ 	else if (strstr(backend, "drm-backend.so"))
+ 		return load_drm_backend(compositor, argc, argv, config);
 +	else if (strstr(backend, "iahwc-backend.so"))
 +		return load_iahwc_backend(compositor, argc, argv, config);
-	else if (strstr(backend, "x11-backend.so"))
-		return load_x11_backend(compositor, argc, argv, config);
-	else if (strstr(backend, "wayland-backend.so"))
+ 	else if (strstr(backend, "x11-backend.so"))
+ 		return load_x11_backend(compositor, argc, argv, config);
+ 	else if (strstr(backend, "wayland-backend.so"))
 diff --git a/configure.ac b/configure.ac
 index 5f31bbcb..f5e466bb 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -206,6 +206,16 @@ if test x$enable_drm_compositor = xyes; then
-		    [AC_MSG_WARN([gbm does not support dmabuf import, will omit that capability])])
+ 		    [AC_MSG_WARN([gbm does not support dmabuf import, will omit that capability])])
  fi
-
+ 
 +AC_ARG_ENABLE(iahwc-compositor, [  --enable-iahwc-compositor],,
 +enable_iahwc_compositor=yes)
 +AM_CONDITIONAL(ENABLE_IAHWC_COMPOSITOR, test x$enable_iahwc_compositor = xyes)
@@ -203,40 +203,41 @@ index 5f31bbcb..f5e466bb 100644
 +[AC_DEFINE([HAVE_GBM_FD_IMPORT], 1, [gbm supports dmabuf import])],
 +[AC_MSG_WARN([gbm does not support dmabuf import, will omit that capability])])
 +fi
-
+ 
  PKG_CHECK_MODULES(LIBINPUT_BACKEND, [libinput >= 0.8.0])
  PKG_CHECK_MODULES(COMPOSITOR, [$COMPOSITOR_MODULES])
 @@ -708,6 +718,7 @@ AC_MSG_RESULT([
-	systemd notify support		${enable_systemd_notify}
-
-	DRM Compositor			${enable_drm_compositor}
+ 	systemd notify support		${enable_systemd_notify}
+ 
+ 	DRM Compositor			${enable_drm_compositor}
 +	IAHWC Compositor		${enable_iahwc_compositor}
-	X11 Compositor			${enable_x11_compositor}
-	Wayland Compositor		${enable_wayland_compositor}
-	Headless Compositor		${enable_headless_compositor}
+ 	X11 Compositor			${enable_x11_compositor}
+ 	Wayland Compositor		${enable_wayland_compositor}
+ 	Headless Compositor		${enable_headless_compositor}
 diff --git a/libweston/compositor.c b/libweston/compositor.c
 index 71a9b38c..35f71cb6 100644
 --- a/libweston/compositor.c
 +++ b/libweston/compositor.c
 @@ -5626,6 +5626,7 @@ weston_compositor_get_user_data(struct weston_compositor *compositor)
-
+ 
  static const char * const backend_map[] = {
-	[WESTON_BACKEND_DRM] =		"drm-backend.so",
+ 	[WESTON_BACKEND_DRM] =		"drm-backend.so",
 +	[WESTON_BACKEND_IAHWC] =	"iahwc-backend.so",
-	[WESTON_BACKEND_FBDEV] =	"fbdev-backend.so",
-	[WESTON_BACKEND_HEADLESS] =	"headless-backend.so",
-	[WESTON_BACKEND_RDP] =		"rdp-backend.so",
+ 	[WESTON_BACKEND_FBDEV] =	"fbdev-backend.so",
+ 	[WESTON_BACKEND_HEADLESS] =	"headless-backend.so",
+ 	[WESTON_BACKEND_RDP] =		"rdp-backend.so",
 diff --git a/libweston/compositor.h b/libweston/compositor.h
 index 8b2d2b06..ad640189 100644
 --- a/libweston/compositor.h
 +++ b/libweston/compositor.h
 @@ -1671,6 +1671,7 @@ weston_compositor_create(struct wl_display *display, void *user_data);
-
+ 
  enum weston_compositor_backend {
-	WESTON_BACKEND_DRM,
+ 	WESTON_BACKEND_DRM,
 +	WESTON_BACKEND_IAHWC,
-	WESTON_BACKEND_FBDEV,
-	WESTON_BACKEND_HEADLESS,
-	WESTON_BACKEND_RDP,
---
+ 	WESTON_BACKEND_FBDEV,
+ 	WESTON_BACKEND_HEADLESS,
+ 	WESTON_BACKEND_RDP,
+-- 
 2.16.1
+
