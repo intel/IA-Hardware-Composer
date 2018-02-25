@@ -28,7 +28,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
-	libdrm \
+	libdrm_pri \
 	libEGL \
 	libGLESv2 \
 	libhardware \
