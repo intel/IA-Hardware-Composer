@@ -72,7 +72,7 @@ void NativeSurface::SetNativeFence(int32_t fd) {
 void NativeSurface::SetClearSurface(ClearType clear_surface) {
   if (clear_surface_ != clear_surface) {
     clear_surface_ = clear_surface;
-    if (clear_surface_ == kFullClear) {
+    if (clear_surface_ != kNone) {
       damage_changed_ = true;
     }
   }
@@ -112,11 +112,11 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 }
 
 void NativeSurface::UpdateSurfaceDamage(
-    const HwcRect<int> &currentsurface_damage) {
+    const HwcRect<int> &currentsurface_damage, bool force) {
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
     damage_changed_ = true;
-    if (previous_damage_ == surface_damage_)
+    if (!force && (previous_damage_ == surface_damage_))
       damage_changed_ = false;
 
     return;
@@ -129,7 +129,7 @@ void NativeSurface::UpdateSurfaceDamage(
   CalculateRect(currentsurface_damage, surface_damage_);
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (previous_damage_ == surface_damage_)
+    if (!force && (previous_damage_ == surface_damage_))
       damage_changed_ = false;
   }
 }
