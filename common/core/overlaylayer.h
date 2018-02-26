@@ -208,6 +208,10 @@ struct OverlayLayer {
     return state_ & kRawPixelDataChanged;
   }
 
+  bool LayerOrderChanged() const {
+    return state_ & kLayerOrderChanged;
+  }
+
   void Dump();
 
  private:
@@ -217,7 +221,8 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kRawPixelDataChanged = 1 << 5
+    kRawPixelDataChanged = 1 << 5,
+    kLayerOrderChanged = 1 << 6
   };
 
   struct ImportedBuffer {

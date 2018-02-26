@@ -240,10 +240,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
-      } else {
-        // Let's force reset the rects of all layers as layer
-        // might have changed position.
-        last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
       }
 
       if (needs_plane_validation)
@@ -252,13 +248,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
     if (last_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      bool update_rect = false;
-      bool damage_initialized = false;
+      bool update_rect = reset_plane;
       bool refresh_surfaces = reset_composition_regions;
 
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
-      if (remove_index == -1) {
+      if (!removed_layers) {
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
@@ -272,24 +267,18 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           }
 
           if (layer.HasLayerContentChanged()) {
-            const HwcRect<int>& damage = layer.GetSurfaceDamage();
-            if (damage_initialized) {
-              CalculateRect(damage, surface_damage);
-            } else {
-              surface_damage = damage;
-            }
-            damage_initialized = true;
+            CalculateRect(layer.GetSurfaceDamage(), surface_damage);
           }
         }
       }
 
-      if (update_rect) {
+      if (!removed_layers && update_rect) {
         last_plane.RefreshLayerRects(layers);
         surface_damage.reset();
       }
 
       // Let's check if we need to check this plane-layer combination.
-      if (update_rect || reset_plane) {
+      if (update_rect) {
         last_plane.ValidateReValidation();
         if (last_plane.RevalidationType() !=
             DisplayPlaneState::ReValidationType::kNone) {
@@ -297,11 +286,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (reset_plane || update_rect || refresh_surfaces ||
-          !surface_damage.empty()) {
+      if (update_rect || refresh_surfaces || !surface_damage.empty()) {
         if (last_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else if (refresh_surfaces) {
+        } else if (refresh_surfaces || reset_plane) {
           last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!update_rect && !surface_damage.empty()) {
           last_plane.UpdateDamage(surface_damage);
@@ -316,6 +304,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       reset_composition_regions = false;
       const OverlayLayer* layer =
           &(layers.at(last_plane.GetSourceLayers().front()));
+
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
         buffer->CreateFrameBuffer(gpu_fd_);
@@ -336,9 +325,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
       }
 
-      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation()) {
+      bool needs_revalidation = layer->NeedsRevalidation();
+      if (layer->HasDimensionsChanged() || needs_revalidation) {
         ignore_commit = false;
         reset_composition_regions = true;
+      }
+
+      if (needs_revalidation) {
+        plane_validation = true;
       }
     }
   }
@@ -482,6 +476,31 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     z_order++;
+
+    // This could be optimized in future but for now let's reset
+    // the whole cache in case z_order of any layer has changed.
+    if (add_index != 0 && overlay_layer->LayerOrderChanged()) {
+      add_index = 0;
+      continue;
+    }
+
+    // Handle case where Media layer has been destroyed/created or has changed
+    // z-order.
+    if (add_index != 0 && overlay_layer->IsVideoLayer()) {
+      if ((previous_layer && !previous_layer->IsVideoLayer()) ||
+          !previous_layer) {
+        add_index = 0;
+#ifdef SURFACE_TRACING
+        ISURFACETRACE(
+            "Video layer has changed between frames: remove_index: %d "
+            "add_index: "
+            "%d \n",
+            remove_index, add_index);
+#endif
+        continue;
+      }
+    }
+
     if (add_index == 0 || validate_layers ||
         ((add_index != -1) && (remove_index != -1))) {
       continue;
@@ -502,24 +521,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       ISURFACETRACE(
           "Cursor layer has changed between frames: remove_index: %d "
           "add_index: "
-          "%d \n",
-          remove_index, add_index);
-#endif
-    }
-
-    // Handle case where Media layer has been destroyed/created or has changed
-    // z-order.
-    if (previous_layer &&
-        previous_layer->IsVideoLayer() != overlay_layer->IsVideoLayer()) {
-      if (remove_index == -1)
-        remove_index = previous_layer->GetZorder();
-
-      // Treat this case as if a new layer has been created.
-      if (add_index == -1)
-        add_index = overlay_layer->GetZorder();
-#ifdef SURFACE_TRACING
-      ISURFACETRACE(
-          "Video layer has changed between frames: remove_index: %d add_index: "
           "%d \n",
           remove_index, add_index);
 #endif

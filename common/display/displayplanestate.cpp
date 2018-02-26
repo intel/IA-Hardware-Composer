@@ -81,7 +81,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   bool rect_updated = true;
   for (NativeSurface *surface : private_data_->surfaces_) {
     // Damage whole old rect.
-    surface->UpdateSurfaceDamage(private_data_->display_frame_);
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
   }
 
   if (private_data_->source_layers_.size() > 2 &&
@@ -171,7 +171,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   for (NativeSurface *surface : private_data_->surfaces_) {
     // Damage whole old rect.
-    surface->UpdateSurfaceDamage(private_data_->display_frame_);
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
   }
 
   bool rect_updated = true;
@@ -236,16 +236,14 @@ void DisplayPlaneState::RefreshLayerRects(
 
     if (only_cursor_layer && layer.IsCursorLayer()) {
       for (NativeSurface *surface : private_data_->surfaces_) {
-        surface->UpdateSurfaceDamage(layer.GetSurfaceDamage());
+        surface->UpdateSurfaceDamage(layer.GetSurfaceDamage(), true);
       }
     }
   }
 
-  if (!only_cursor_layer) {
-    for (NativeSurface *surface : private_data_->surfaces_) {
-      // Damage whole old rect.
-      surface->UpdateSurfaceDamage(private_data_->display_frame_);
-    }
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage whole old rect.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
   }
 
   bool rect_updated = true;
@@ -255,6 +253,12 @@ void DisplayPlaneState::RefreshLayerRects(
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
+    if (only_cursor_layer) {
+      for (NativeSurface *surface : private_data_->surfaces_) {
+        // Damage whole old rect.
+        surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+      }
+    }
   }
 
   if (!private_data_->rect_updated_)
@@ -361,16 +365,10 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
     bool clear = surface->ClearSurface();
     bool partial_clear = surface->IsPartialClear();
 
-    if (!clear && !partial_clear) {
-      surface->SetClearSurface(clear_surface);
-    } else if (!clear && clear_surface == NativeSurface::kPartialClear) {
-      surface->SetClearSurface(clear_surface);
-    } else if (partial_clear && clear_surface == NativeSurface::kFullClear) {
+    if (clear_surface == NativeSurface::kFullClear) {
       surface->SetClearSurface(NativeSurface::kFullClear);
-    }
-
-    if (surface->ClearSurface()) {
-      surface->UpdateSurfaceDamage(scaled_rect);
+    } else if (!clear && !partial_clear) {
+      surface->SetClearSurface(clear_surface);
     }
   }
 
@@ -378,7 +376,7 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
     ValidateReValidation();
   }
 
-  SwapSurfaceIfNeeded();
+  recycled_surface_ = false;
   private_data_->refresh_surface_ = false;
 }
 
@@ -386,9 +384,9 @@ void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
   if (surface_damage.empty())
     return;
 
-  SwapSurfaceIfNeeded();
+  recycled_surface_ = false;
   for (NativeSurface *surface : private_data_->surfaces_) {
-    surface->UpdateSurfaceDamage(surface_damage);
+    surface->UpdateSurfaceDamage(surface_damage, false);
   }
 }
 
@@ -408,7 +406,7 @@ void DisplayPlaneState::ResetCompositionRegion() {
   if (!private_data_->composition_region_.empty())
     std::vector<CompositionRegion>().swap(private_data_->composition_region_);
 
-  SwapSurfaceIfNeeded();
+  recycled_surface_ = false;
 }
 
 bool DisplayPlaneState::IsCursorPlane() const {
@@ -440,11 +438,11 @@ void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
         surface->ResetDisplayFrame(target_display_frame);
         surface->ResetSourceCrop(scaled_rect);
         if (surface->ClearSurface()) {
-          surface->UpdateSurfaceDamage(scaled_rect);
+          surface->UpdateSurfaceDamage(scaled_rect, true);
         }
       }
 
-      SwapSurfaceIfNeeded();
+      recycled_surface_ = false;
     }
   }
 }
@@ -518,7 +516,7 @@ void DisplayPlaneState::RevalidationDone(uint32_t validation_done) {
     re_validate_layer_ &= ~ReValidationType::kDownScaling;
   }
 
-  SwapSurfaceIfNeeded();
+  recycled_surface_ = false;
 }
 
 bool DisplayPlaneState::CanSquash() const {
@@ -695,7 +693,7 @@ void DisplayPlaneState::SetRotationType(RotationType type, bool refresh) {
     if (refresh) {
       RefreshSurfaces(NativeSurface::kFullClear, true);
     } else {
-      SwapSurfaceIfNeeded();
+      recycled_surface_ = false;
     }
 
     uint32_t rotation = private_data_->plane_transform_;
@@ -749,6 +747,17 @@ void DisplayPlaneState::CalculateSourceCrop(HwcRect<float> &scaled_rect) const {
     }
 #endif
   }
+}
+
+void DisplayPlaneState::Dump() {
+  HwcRect<float> scaled_rect;
+  CalculateSourceCrop(scaled_rect);
+  DUMPTRACE("SourceWidth: %f", scaled_rect.right - scaled_rect.left);
+  DUMPTRACE("SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
+  DUMPTRACE("DstWidth: %d", private_data_->display_frame_.right -
+                                private_data_->display_frame_.left);
+  DUMPTRACE("DstHeight: %d", private_data_->display_frame_.bottom -
+                                 private_data_->display_frame_.top);
 }
 
 }  // namespace hwcomposer
