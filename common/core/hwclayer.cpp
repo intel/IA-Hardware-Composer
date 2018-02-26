@@ -209,6 +209,7 @@ void HwcLayer::Validate() {
     state_ |= kLayerValidated;
     state_ &= ~kLayerContentChanged;
     state_ &= ~kSurfaceDamageChanged;
+    state_ &= ~kZorderChanged;
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
@@ -242,8 +243,10 @@ void HwcLayer::Validate() {
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
-  if (z_order_ != order) {
+  if (z_order_ != static_cast<int>(order)) {
     z_order_ = order;
+    state_ |= kZorderChanged;
+    UpdateRenderingDamage(display_frame_, visible_rect_, false);
   }
 }
 

@@ -99,7 +99,8 @@ class NativeSurface {
   void ResetSourceCrop(const HwcRect<float>& source_crop);
 
   // Set's Damage rect of this surface.
-  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage);
+  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
+                           bool force);
 
   // Resets damage of this surface to empty.
   void ResetDamage();

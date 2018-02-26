@@ -213,6 +213,8 @@ class DisplayPlaneState {
   // list if not already done.
   void SwapSurfaceIfNeeded();
 
+  void Dump();
+
  private:
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 

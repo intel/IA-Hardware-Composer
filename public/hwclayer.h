@@ -226,6 +226,10 @@ struct HwcLayer {
     return z_order_;
   }
 
+  bool HasZorderChanged() const {
+    return state_ & kZorderChanged;
+  }
+
   void SetLeftConstraint(int32_t left_constraint);
   int32_t GetLeftConstraint();
 
@@ -263,7 +267,8 @@ struct HwcLayer {
     kVisibleRegionChanged = 1 << 2,
     kVisible = 1 << 3,
     kLayerValidated = 1 << 4,
-    kVisibleRegionSet = 1 << 5
+    kVisibleRegionSet = 1 << 5,
+    kZorderChanged = 1 << 6
   };
 
   enum LayerCache {
@@ -291,9 +296,10 @@ struct HwcLayer {
   std::vector<int32_t> right_constraint_;
   std::vector<int32_t> left_source_constraint_;
   std::vector<int32_t> right_source_constraint_;
-  uint32_t z_order_ = 0;
+  int z_order_ = -1;
   uint32_t total_displays_ = 1;
-  int state_ = kVisible | kSurfaceDamageChanged | kVisibleRegionChanged;
+  int state_ =
+      kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
 };
