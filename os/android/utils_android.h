@@ -58,6 +58,8 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
       return DRM_FORMAT_YVU420;
     case HAL_PIXEL_FORMAT_RGBA_FP16:
       return DRM_FORMAT_XBGR161616;
+    case HAL_PIXEL_FORMAT_RGBA_1010102:
+      return DRM_FORMAT_ABGR2101010;
     default:
       break;
   }
@@ -118,12 +120,13 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_RGBX8888:
     case DRM_FORMAT_RGBA8888:
       return 0;
+    case DRM_FORMAT_ABGR2101010:
+      return HAL_PIXEL_FORMAT_RGBA_1010102;
     case DRM_FORMAT_XRGB2101010:
     case DRM_FORMAT_XBGR2101010:
     case DRM_FORMAT_RGBX1010102:
     case DRM_FORMAT_BGRX1010102:
     case DRM_FORMAT_ARGB2101010:
-    case DRM_FORMAT_ABGR2101010:
     case DRM_FORMAT_RGBA1010102:
     case DRM_FORMAT_BGRA1010102:
       return 0;
