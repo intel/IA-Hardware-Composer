@@ -221,21 +221,27 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           continue;
         }
 
-        last_plane.ValidateReValidation();
+        std::vector<OverlayPlane> temp;
+        display_plane_manager_->SquashPlanesAsNeeded(layers, *composition, temp,
+                                                     &plane_validation);
+        DisplayPlaneState& squashed_plane = composition->back();
 
-        if (last_plane.RevalidationType() &
+        squashed_plane.ValidateReValidation();
+
+        if (squashed_plane.RevalidationType() &
             DisplayPlaneState::ReValidationType::kScanout) {
           const std::vector<size_t>& source_layers =
-              last_plane.GetSourceLayers();
+              squashed_plane.GetSourceLayers();
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
           if (source_layers.size() == 1) {
-            if (layer->CanScanOut() && last_plane.NeedsOffScreenComposition()) {
+            if (layer->CanScanOut() &&
+                squashed_plane.NeedsOffScreenComposition()) {
               plane_validation = true;
             } else {
               check_to_squash = true;
-              last_plane.RevalidationDone(
+              squashed_plane.RevalidationDone(
                   DisplayPlaneState::ReValidationType::kScanout);
             }
           }
@@ -246,12 +252,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         plane_validation = true;
     }
 
-    if (last_plane.NeedsOffScreenComposition()) {
+    DisplayPlaneState& target_plane = composition->back();
+    if (target_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool update_rect = reset_plane;
       bool refresh_surfaces = reset_composition_regions;
 
-      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+      const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
       if (!removed_layers) {
         for (size_t i = 0; i < layers_size; i++) {
@@ -273,31 +280,42 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       if (!removed_layers && update_rect) {
-        last_plane.RefreshLayerRects(layers);
+        target_plane.RefreshLayerRects(layers);
         surface_damage.reset();
       }
 
       // Let's check if we need to check this plane-layer combination.
       if (update_rect) {
-        last_plane.ValidateReValidation();
-        if (last_plane.RevalidationType() !=
+        target_plane.ValidateReValidation();
+        if (target_plane.RevalidationType() !=
             DisplayPlaneState::ReValidationType::kNone) {
           plane_validation = true;
         }
       }
 
       if (update_rect || refresh_surfaces || !surface_damage.empty()) {
-        if (last_plane.NeedsSurfaceAllocation()) {
-          display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
+        if (target_plane.NeedsSurfaceAllocation()) {
+          display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
         } else if (refresh_surfaces || reset_plane) {
-          last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+          target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!update_rect && !surface_damage.empty()) {
-          last_plane.UpdateDamage(surface_damage);
+          target_plane.UpdateDamage(surface_damage);
         }
       }
 
       if (!needs_gpu_composition)
-        needs_gpu_composition = !last_plane.SurfaceRecycled();
+        needs_gpu_composition = !target_plane.SurfaceRecycled();
+
+      NativeSurface* surface = target_plane.GetOffScreenTarget();
+      if (surface->ClearSurface() || surface->IsPartialClear()) {
+        std::vector<OverlayPlane> temp;
+        if (display_plane_manager_->SquashPlanesAsNeeded(
+                layers, *composition, temp, &plane_validation)) {
+          *force_full_validation = true;
+          *can_ignore_commit = false;
+          return;
+        }
+      }
 
       reset_composition_regions = false;
     } else {
@@ -856,6 +874,8 @@ void DisplayQueue::HandleCommitFailure(
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     previous_plane.GetDisplayPlane()->SetInUse(true);
   }
+
+  UpdateOnScreenSurfaces();
 }
 
 void DisplayQueue::SetMediaEffectsState(
