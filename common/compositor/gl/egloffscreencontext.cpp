@@ -33,8 +33,9 @@ EGLOffScreenContext::~EGLOffScreenContext() {
 bool EGLOffScreenContext::Init() {
   EGLint num_configs;
   EGLConfig egl_config;
-  static const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
-                                           EGL_NONE};
+  static const EGLint context_attribs[] = {
+      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_CONTEXT_PRIORITY_LEVEL_IMG,
+      EGL_CONTEXT_PRIORITY_HIGH_IMG, EGL_NONE};
 
   static const EGLint config_attribs[] = {EGL_SURFACE_TYPE, EGL_DONT_CARE,
                                           EGL_NONE};
