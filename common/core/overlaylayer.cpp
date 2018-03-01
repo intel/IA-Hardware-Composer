@@ -217,7 +217,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
   if (!layer->IsCursorLayer() && layer->HasZorderChanged() &&
-      (layer->IsValidated() || (previous_layer && !layer->IsValidated()))) {
+      (!previous_layer ||
+       (previous_layer && (previous_layer->z_order_ != z_order)))) {
     state_ |= kLayerOrderChanged;
   }
 
