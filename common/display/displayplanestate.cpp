@@ -68,7 +68,6 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
   HwcRect<int> target_display_frame = private_data_->display_frame_;
   CalculateRect(display_frame, target_display_frame);
-
   HwcRect<float> target_source_crop = private_data_->source_crop_;
   CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
@@ -545,11 +544,13 @@ void DisplayPlaneState::ValidateReValidation() {
     bool use_scalar = CanUseDisplayUpScaling();
     if (private_data_->use_plane_scalar_ != use_scalar) {
       re_validate_layer_ |= ReValidationType::kUpScalar;
+#ifdef ENABLE_DOWNSCALING
     } else {
       bool down_scale = CanUseGPUDownScaling();
       if ((private_data_->down_scaling_factor_ > 0) != down_scale) {
         re_validate_layer_ = ReValidationType::kDownScaling;
       }
+#endif
     }
   }
 

@@ -348,6 +348,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
           region.id_set.subtract(j + layer_offset);
       }
     }
+
     if (!(region.id_set.getBits() >> layer_offset))
       continue;
 

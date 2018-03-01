@@ -86,6 +86,16 @@ class DisplayPlaneManager {
   // with pipe of this displayplanemanager.
   void SetDisplayTransform(uint32_t transform);
 
+  // If we have two planes as follows:
+  // Plane N: Having top and bottom layer and needs 3d rendering.
+  // Plane N-1 covering the middle layer of screen.
+  // In this case we should squash layers of N and N-1 planes into
+  // one, otherwise we will scanout garbage with plane N.
+  bool SquashPlanesAsNeeded(const std::vector<OverlayLayer> &layers,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayPlane> &commit_planes,
+                            bool *validate_final_layers);
+
  private:
   struct LayerResultCache {
     uint32_t last_transform_ = 0;
@@ -133,7 +143,8 @@ class DisplayPlaneManager {
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.
-  void ValidateCursorLayer(std::vector<OverlayPlane> &commit_planes,
+  void ValidateCursorLayer(std::vector<OverlayLayer> &all_layers,
+                           std::vector<OverlayPlane> &commit_planes,
                            std::vector<OverlayLayer *> &cursor_layers,
                            std::vector<NativeSurface *> &mark_later,
                            DisplayPlaneStateList &composition,

@@ -245,66 +245,14 @@ bool DisplayPlaneManager::ValidateLayers(
           } else {
             commit_planes.pop_back();
 #ifdef SURFACE_TRACING
-            ISURFACETRACE("Added Layer: %d \n", layer->GetZorder());
+            ISURFACETRACE("Added Layer: %d %d  \n", layer->GetZorder(),
+                          composition.size());
 #endif
             composition.back().AddLayer(layer);
-            if (composition.size() > 1) {
-              DisplayPlaneState &last_plane = composition.back();
-              DisplayPlaneState &scanout_plane =
-                  composition.at(composition.size() - 2);
-#ifdef SURFACE_TRACING
-              if (!scanout_plane.NeedsOffScreenComposition() &&
-                  !scanout_plane.IsCursorPlane() &&
-                  !scanout_plane.IsVideoPlane()) {
-                ISURFACETRACE("ANALAYZE %d \n",
-                              AnalyseOverlap(scanout_plane.GetDisplayFrame(),
-                                             last_plane.GetDisplayFrame()));
-                ISURFACETRACE("ANALAYZE Scanout Display Rect %d %d %d %d \n",
-                              scanout_plane.GetDisplayFrame().left,
-                              scanout_plane.GetDisplayFrame().top,
-                              scanout_plane.GetDisplayFrame().right,
-                              scanout_plane.GetDisplayFrame().bottom);
-                ISURFACETRACE(
-                    "ANALAYZE Last offscreen plane rect %d %d %d %d \n",
-                    last_plane.GetDisplayFrame().left,
-                    last_plane.GetDisplayFrame().top,
-                    last_plane.GetDisplayFrame().right,
-                    last_plane.GetDisplayFrame().bottom);
-              }
-#endif
-              const HwcRect<int> &display_frame =
-                  scanout_plane.GetDisplayFrame();
-              if (!scanout_plane.NeedsOffScreenComposition() &&
-                  !scanout_plane.IsCursorPlane() &&
-                  !scanout_plane.IsVideoPlane() &&
-                  (AnalyseOverlap(display_frame,
-                                  last_plane.GetDisplayFrame()) != kOutside)) {
-                const std::vector<size_t> &new_layers =
-                    last_plane.GetSourceLayers();
-                bool squash = true;
-                for (const size_t &index : new_layers) {
-                  OverlayLayer &layer = layers.at(index);
-                  if (AnalyseOverlap(layer.GetDisplayFrame(), display_frame) ==
-                      kEnclosed) {
-                    squash = false;
-                    break;
-                  }
-                }
-
-                if (squash) {
-#ifdef SURFACE_TRACING
-                  ISURFACETRACE("Squasing planes. \n");
-#endif
-                  for (const size_t &index : new_layers) {
-                    scanout_plane.AddLayer(&(layers.at(index)));
-                  }
-
-                  composition.pop_back();
-                  j--;
-                  plane = j->get();
-                  plane->SetInUse(false);
-                }
-              }
+            if (SquashPlanesAsNeeded(layers, composition, commit_planes,
+                                     &validate_final_layers)) {
+              j--;
+              plane = j->get();
             }
 
             DisplayPlaneState &last_plane = composition.back();
@@ -317,9 +265,9 @@ bool DisplayPlaneManager::ValidateLayers(
     }
 
     if (layer_begin != layer_end) {
-      DisplayPlaneState &last_plane = composition.back();
-      bool is_video = last_plane.IsVideoPlane();
+      bool is_video = composition.back().IsVideoPlane();
       previous_layer = NULL;
+      DisplayPlaneState &last_plane = composition.back();
       // We dont have any additional planes. Pre composite remaining layers
       // to the last overlay plane.
       for (auto i = layer_begin; i != layer_end; ++i) {
@@ -336,33 +284,37 @@ bool DisplayPlaneManager::ValidateLayers(
         last_plane.AddLayer(previous_layer);
       }
 
-      if (last_plane.NeedsOffScreenComposition()) {
+      if (composition.back().NeedsOffScreenComposition()) {
+        SquashPlanesAsNeeded(layers, composition, commit_planes,
+                             &validate_final_layers);
+        DisplayPlaneState &squashed_plane = composition.back();
         // In this case we need to fallback to 3Dcomposition till Media
         // backend adds support for multiple layers.
         bool force_buffer = false;
-        if (is_video && last_plane.GetSourceLayers().size() > 1 &&
-            last_plane.GetOffScreenTarget()) {
-          MarkSurfacesForRecycling(&last_plane, mark_later, true);
+        if (is_video && squashed_plane.GetSourceLayers().size() > 1 &&
+            squashed_plane.GetOffScreenTarget()) {
+          MarkSurfacesForRecycling(&squashed_plane, mark_later, true);
           force_buffer = true;
         }
 
-        if (force_buffer || last_plane.NeedsSurfaceAllocation()) {
-          ResetPlaneTarget(last_plane, commit_planes.back());
+        if (force_buffer || squashed_plane.NeedsSurfaceAllocation()) {
+          ResetPlaneTarget(squashed_plane, commit_planes.back());
           validate_final_layers = true;
         }
 
         if (previous_layer) {
-          last_plane.UsePlaneScalar(false);
+          squashed_plane.UsePlaneScalar(false);
         }
 
-        commit_planes.back().layer = last_plane.GetOverlayLayer();
+        commit_planes.back().layer = squashed_plane.GetOverlayLayer();
       }
     }
   }
 
   if (!cursor_layers.empty()) {
-    ValidateCursorLayer(commit_planes, cursor_layers, mark_later, composition,
-                        &validate_final_layers, &test_commit_done, false);
+    ValidateCursorLayer(layers, commit_planes, cursor_layers, mark_later,
+                        composition, &validate_final_layers, &test_commit_done,
+                        false);
 
     if (validate_final_layers && add_index > 0 &&
         (composition.size() == (overlay_planes_.size() - 1))) {
@@ -425,6 +377,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
 }
 
 void DisplayPlaneManager::ValidateCursorLayer(
+    std::vector<OverlayLayer> &all_layers,
     std::vector<OverlayPlane> &commit_planes,
     std::vector<OverlayLayer *> &cursor_layers,
     std::vector<NativeSurface *> &mark_later,
@@ -529,12 +482,17 @@ void DisplayPlaneManager::ValidateCursorLayer(
       ISURFACETRACE("Added CursorLayer: %d \n", cursor_layer->GetZorder());
 #endif
       last_plane->AddLayer(cursor_layer);
+      if (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                               validate_final_layers)) {
+        last_plane = GetLastUsedOverlay(composition);
+      }
+
       bool reset_overlay = false;
       if (!last_plane->GetOffScreenTarget() || is_video)
         reset_overlay = true;
 
       PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
-                            is_video, recycle_resources);
+                            last_plane->IsVideoPlane(), recycle_resources);
 
       if (reset_overlay) {
         // Layer for the plane should have changed, reset commit planes.
@@ -580,11 +538,15 @@ void DisplayPlaneManager::ValidateCursorLayer(
     last_plane->AddLayer(cursor_layer);
     cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
     last_layer = cursor_layer;
+    if (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                             validate_final_layers)) {
+      last_plane = GetLastUsedOverlay(composition);
+    }
   }
 
   if (last_layer) {
     PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
-                          is_video, recycle_resources);
+                          last_plane->IsVideoPlane(), recycle_resources);
     last_plane->UsePlaneScalar(false);
   }
 }
@@ -916,7 +878,8 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
     plane->ReleaseSurfaces();
   }
 
-  ReleaseFreeOffScreenTargets(true);
+  if (recycle_resources)
+    ReleaseFreeOffScreenTargets(true);
 }
 
 bool DisplayPlaneManager::ReValidatePlanes(
@@ -1102,6 +1065,94 @@ void DisplayPlaneManager::FinalizeValidation(
 
   if (render_layers)
     *render_layers = needs_gpu;
+}
+
+bool DisplayPlaneManager::SquashPlanesAsNeeded(
+    const std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes, bool *validate_final_layers) {
+  bool status = false;
+  if (composition.size() > 1) {
+    DisplayPlaneState &last_plane = composition.back();
+    DisplayPlaneState &scanout_plane = composition.at(composition.size() - 2);
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("ANALAYZE: %d %d  \n",
+                  scanout_plane.NeedsOffScreenComposition(),
+                  scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
+    if (!scanout_plane.NeedsOffScreenComposition() &&
+        !scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane()) {
+      ISURFACETRACE("ANALAYZE %d \n",
+                    AnalyseOverlap(scanout_plane.GetDisplayFrame(),
+                                   last_plane.GetDisplayFrame()));
+      ISURFACETRACE("ANALAYZE Scanout Display Rect %d %d %d %d \n",
+                    scanout_plane.GetDisplayFrame().left,
+                    scanout_plane.GetDisplayFrame().top,
+                    scanout_plane.GetDisplayFrame().right,
+                    scanout_plane.GetDisplayFrame().bottom);
+      ISURFACETRACE("ANALAYZE Last offscreen plane rect %d %d %d %d \n",
+                    last_plane.GetDisplayFrame().left,
+                    last_plane.GetDisplayFrame().top,
+                    last_plane.GetDisplayFrame().right,
+                    last_plane.GetDisplayFrame().bottom);
+    }
+#endif
+    const HwcRect<int> &display_frame = scanout_plane.GetDisplayFrame();
+    const HwcRect<int> &target_frame = last_plane.GetDisplayFrame();
+    if (!scanout_plane.NeedsOffScreenComposition() &&
+        !scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane() &&
+        (AnalyseOverlap(display_frame, last_plane.GetDisplayFrame()) !=
+         kOutside)) {
+      const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();
+      bool squash = false;
+      uint32_t total_width = 0;
+      uint32_t total_height = 0;
+      for (const size_t &index : new_layers) {
+        const OverlayLayer &layer = layers.at(index);
+        total_width = std::max(total_width, layer.GetDisplayFrameWidth());
+        total_height = std::max(total_height, layer.GetDisplayFrameHeight());
+      }
+
+      const OverlayLayer *target_layer = scanout_plane.GetOverlayLayer();
+      if (((target_frame.left + total_width) <
+           target_layer->GetDisplayFrameWidth()) ||
+          ((target_frame.top + total_height) <
+           target_layer->GetDisplayFrameHeight())) {
+        squash = true;
+      }
+
+      if (squash) {
+#ifdef SURFACE_TRACING
+        ISURFACETRACE("Squasing planes. \n");
+#endif
+        for (const size_t &index : new_layers) {
+          scanout_plane.AddLayer(&(layers.at(index)));
+        }
+
+        last_plane.GetDisplayPlane()->SetInUse(false);
+        composition.pop_back();
+        status = true;
+      }
+    }
+
+    DisplayPlaneState &squashed_plane = composition.back();
+    if (squashed_plane.NeedsSurfaceAllocation()) {
+      if (squashed_plane.NeedsSurfaceAllocation()) {
+        SetOffScreenPlaneTarget(squashed_plane);
+      }
+
+      *validate_final_layers = true;
+    }
+
+    if (!commit_planes.empty()) {
+      // Layer for the plane should have changed, reset commit planes.
+      std::vector<OverlayPlane>().swap(commit_planes);
+      for (DisplayPlaneState &temp : composition) {
+        commit_planes.emplace_back(
+            OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+      }
+    }
+  }
+
+  return status;
 }
 
 }  // namespace hwcomposer
