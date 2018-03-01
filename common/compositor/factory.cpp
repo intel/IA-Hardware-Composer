@@ -17,7 +17,11 @@
 #include "factory.h"
 #include "platformdefines.h"
 
-#ifdef USE_GL
+#ifdef USE_DC
+#include "glrenderer.h"
+#include "glsurface.h"
+#include "nativeglresource.h"
+#elif USE_GL
 #include "glrenderer.h"
 #include "glsurface.h"
 #include "nativeglresource.h"
