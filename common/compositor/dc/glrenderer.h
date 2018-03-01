@@ -22,9 +22,6 @@
 
 #include "renderer.h"
 
-#include "egloffscreencontext.h"
-#include "glprogram.h"
-
 namespace hwcomposer {
 
 class GLRenderer : public Renderer {
@@ -40,14 +37,6 @@ class GLRenderer : public Renderer {
 
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
 
- private:
-  GLProgram *GetProgram(unsigned texture_count);
-
-  EGLOffScreenContext context_;
-
-  std::vector<std::unique_ptr<GLProgram>> programs_;
-  GLuint vertex_array_ = 0;
-  bool disable_explicit_sync_ = false;
 };
 
 }  // namespace hwcomposer
