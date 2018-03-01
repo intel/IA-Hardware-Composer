@@ -214,10 +214,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         if (!clear_surface) {
-          const std::vector<CompositionRegion>& comp_regions =
-              plane.GetCompositionRegion();
-          last_plane.GetCompositionRegion().assign(comp_regions.begin(),
-                                                   comp_regions.end());
+          if(!content_changed){
+            const std::vector<CompositionRegion>& comp_regions =
+                plane.GetCompositionRegion();
+            last_plane.GetCompositionRegion().assign(comp_regions.begin(),
+                                                    comp_regions.end());
+          }
         } else {
           content_changed = true;
         }
