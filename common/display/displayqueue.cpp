@@ -147,8 +147,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool reset_composition_regions = false;
   bool reset_plane = remove_index != -1 ? true : false;
   bool removed_layers = false;
+  size_t previous_size = 0;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
+    previous_size++;
     // Mark surfaces of all planes to be released once they are
     // offline.
     if (removed_layers) {
@@ -306,15 +308,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (!needs_gpu_composition)
         needs_gpu_composition = !target_plane.SurfaceRecycled();
 
-      NativeSurface* surface = target_plane.GetOffScreenTarget();
-      if (surface->ClearSurface() || surface->IsPartialClear()) {
-        std::vector<OverlayPlane> temp;
-        if (display_plane_manager_->SquashPlanesAsNeeded(
-                layers, *composition, temp, &plane_validation)) {
-          *force_full_validation = true;
-          *can_ignore_commit = false;
-          return;
-        }
+      std::vector<OverlayPlane> temp;
+      if (display_plane_manager_->SquashPlanesAsNeeded(
+              layers, *composition, temp, &plane_validation) &&
+          (previous_size != previous_plane_state_.size())) {
+        *force_full_validation = true;
+        *can_ignore_commit = false;
+        return;
       }
 
       reset_composition_regions = false;
