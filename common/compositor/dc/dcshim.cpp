@@ -26,40 +26,7 @@ bool InitializeShims() {
   if (initialized)
     return true;
 
-  #define get_proc(name, proc)                  \
-  do {                                        \
-    name = (proc)eglGetProcAddress(#name); \
-    assert(name);                          \
-  } while (0)
-
-  get_proc(eglCreateImageKHR, PFNEGLCREATEIMAGEKHRPROC);
-  get_proc(eglCreateSyncKHR, PFNEGLCREATESYNCKHRPROC);
-  get_proc(eglDestroySyncKHR, PFNEGLDESTROYSYNCKHRPROC);
-  get_proc(eglWaitSyncKHR, PFNEGLWAITSYNCKHRPROC);
-  get_proc(eglDestroyImageKHR, PFNEGLDESTROYIMAGEKHRPROC);
-  get_proc(glEGLImageTargetTexture2DOES, PFNGLEGLIMAGETARGETTEXTURE2DOESPROC);
-  get_proc(glDeleteVertexArraysOES, PFNGLDELETEVERTEXARRAYSOESPROC);
-  get_proc(glGenVertexArraysOES, PFNGLGENVERTEXARRAYSOESPROC);
-  get_proc(glBindVertexArrayOES, PFNGLBINDVERTEXARRAYOESPROC);
-#ifndef USE_ANDROID_SHIM
-  get_proc(eglDupNativeFenceFDANDROID, PFNEGLDUPNATIVEFENCEFDANDROIDPROC);
-#endif
-
   initialized = true;
-
   return true;
 }
-
-PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR;
-PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR;
-PFNEGLWAITSYNCKHRPROC eglWaitSyncKHR;
-PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-PFNGLDELETEVERTEXARRAYSOESPROC glDeleteVertexArraysOES;
-PFNGLGENVERTEXARRAYSOESPROC glGenVertexArraysOES;
-PFNGLBINDVERTEXARRAYOESPROC glBindVertexArrayOES;
-#ifndef USE_ANDROID_SHIM
-PFNEGLDUPNATIVEFENCEFDANDROIDPROC eglDupNativeFenceFDANDROID;
-#endif
 }

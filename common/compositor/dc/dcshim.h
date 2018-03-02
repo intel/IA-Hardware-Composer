@@ -14,9 +14,6 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_COMPOSITOR_GL_SHIM_H_
-#define COMMON_COMPOSITOR_GL_SHIM_H_
-
 #define EGL_EGLEXT_PROTOTYPES
 
 #include <EGL/egl.h>
@@ -31,19 +28,4 @@
 
 namespace hwcomposer {
 bool InitializeShims();
-
-extern PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-extern PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR;
-extern PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR;
-extern PFNEGLWAITSYNCKHRPROC eglWaitSyncKHR;
-extern PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-extern PFNGLDELETEVERTEXARRAYSOESPROC glDeleteVertexArraysOES;
-extern PFNGLGENVERTEXARRAYSOESPROC glGenVertexArraysOES;
-extern PFNGLBINDVERTEXARRAYOESPROC glBindVertexArrayOES;
-#ifndef USE_ANDROID_SHIM
-extern PFNEGLDUPNATIVEFENCEFDANDROIDPROC eglDupNativeFenceFDANDROID;
-#endif
-}  // namespace hwcomposer
-
-#endif  //  COMMON_COMPOSITOR_GL_SHIM_H_
+}
