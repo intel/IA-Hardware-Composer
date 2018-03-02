@@ -145,25 +145,40 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   // to re-calculate our Composition regions for planes using
   // GPU Composition.
   bool reset_composition_regions = false;
+  bool reset_plane = remove_index != -1 ? true : false;
+  bool removed_layers = false;
+  size_t previous_size = 0;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-    bool clear_surface = false;
+    previous_size++;
+    // Mark surfaces of all planes to be released once they are
+    // offline.
+    if (removed_layers) {
+      if (previous_plane.NeedsOffScreenComposition()) {
+        display_plane_manager_->MarkSurfacesForRecycling(
+            &previous_plane, surfaces_not_inuse_, true);
+      }
+
+      previous_plane.GetDisplayPlane()->SetInUse(false);
+      continue;
+    }
+
     composition->emplace_back();
     DisplayPlaneState& last_plane = composition->back();
     last_plane.CopyState(previous_plane);
-    if (remove_index != -1) {
+    if (reset_plane) {
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-      const size_t& index = source_layers.at(source_layers.size() - 1);
+      size_t index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
+      bool needs_plane_validation = false;
       if (index >= threshold) {
+        removed_layers = true;
 #ifdef SURFACE_TRACING
         size_t original_size = source_layers.size();
 #endif
-
         bool has_one_layer = source_layers.size() == 1 ? true : false;
         if (!has_one_layer) {
-          last_plane.ResetLayers(layers, threshold);
-          clear_surface = true;
+          last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
         }
 #ifdef SURFACE_TRACING
         ISURFACETRACE(
@@ -180,7 +195,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         if (last_plane.GetSourceLayers().empty() || has_one_layer) {
           display_plane_manager_->MarkSurfacesForRecycling(
-              &last_plane, surfaces_not_inuse_, false);
+              &last_plane, surfaces_not_inuse_, true);
           // On some platforms disabling primary disables
           // the whole pipe. Let's revalidate the new layers
           // and ensure primary has a buffer.
@@ -208,119 +223,106 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           continue;
         }
 
-        last_plane.ValidateReValidation();
+        std::vector<OverlayPlane> temp;
+        display_plane_manager_->SquashPlanesAsNeeded(layers, *composition, temp,
+                                                     &plane_validation);
+        DisplayPlaneState& squashed_plane = composition->back();
 
-        if (last_plane.RevalidationType() &
+        squashed_plane.ValidateReValidation();
+
+        if (squashed_plane.RevalidationType() &
             DisplayPlaneState::ReValidationType::kScanout) {
           const std::vector<size_t>& source_layers =
-              last_plane.GetSourceLayers();
+              squashed_plane.GetSourceLayers();
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
-          if (layer->CanScanOut() && last_plane.NeedsOffScreenComposition()) {
-            plane_validation = true;
-          } else if (source_layers.size() == 1) {
-            check_to_squash = true;
-            last_plane.RevalidationDone(
-                DisplayPlaneState::ReValidationType::kScanout);
+          if (source_layers.size() == 1) {
+            if (layer->CanScanOut() &&
+                squashed_plane.NeedsOffScreenComposition()) {
+              plane_validation = true;
+            } else {
+              check_to_squash = true;
+              squashed_plane.RevalidationDone(
+                  DisplayPlaneState::ReValidationType::kScanout);
+            }
           }
         }
       }
+
+      if (needs_plane_validation)
+        plane_validation = true;
     }
 
-    if (last_plane.NeedsOffScreenComposition()) {
+    DisplayPlaneState& target_plane = composition->back();
+    if (target_plane.NeedsOffScreenComposition()) {
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      bool update_rect = false;
-      bool update_source_rect = false;
-      bool full_reset = clear_surface || reset_composition_regions;
-      bool damage_initialized = false;
+      bool update_rect = reset_plane;
+      bool refresh_surfaces = reset_composition_regions;
 
-      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+      const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
-      if (!clear_surface) {
+      if (!removed_layers) {
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged()) {
-            last_plane.UpdateDisplayFrame(layer.GetDisplayFrame());
+          if (layer.HasDimensionsChanged() || layer.HasSourceRectChanged()) {
             update_rect = true;
+            break;
           }
 
-          if (layer.HasSourceRectChanged()) {
-            last_plane.UpdateSourceCrop(layer.GetSourceCrop());
-            update_source_rect = true;
-          }
-
-          if (full_reset) {
+          if (refresh_surfaces) {
             continue;
           }
 
           if (layer.HasLayerContentChanged()) {
-            const HwcRect<int>& damage = layer.GetSurfaceDamage();
-            if (damage_initialized) {
-              CalculateRect(damage, surface_damage);
-            } else {
-              surface_damage = damage;
-            }
-            damage_initialized = true;
+            CalculateRect(layer.GetSurfaceDamage(), surface_damage);
           }
         }
       }
 
+      if (!removed_layers && update_rect) {
+        target_plane.RefreshLayerRects(layers);
+        surface_damage.reset();
+      }
+
       // Let's check if we need to check this plane-layer combination.
-      if (update_rect || update_source_rect || clear_surface) {
-        last_plane.ValidateReValidation();
-        if (last_plane.RevalidationType() !=
+      if (update_rect) {
+        target_plane.ValidateReValidation();
+        if (target_plane.RevalidationType() !=
             DisplayPlaneState::ReValidationType::kNone) {
           plane_validation = true;
         }
       }
 
-      // If surfaces need to be cleared or rect is updated,
-      // let's make sure all surfaces are refreshed.
-      if (clear_surface) {
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      } else if (reset_composition_regions) {
-        // If a rect intersects one of the dedicated layers, we need to remove
-        // the layers from the composition region which appear *below* the
-        // dedicated
-        // layer. This effectively punches a hole through the composition
-        // layer
-        // such that the dedicated layer can be placed below the composition
-        // and
-        // not
-        // be occluded. Rest composition regions in case
-        // reset_composition_regions is true.
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-      } else if (update_rect || update_source_rect) {
-        last_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-        // Make sure all rects are correct.
-        last_plane.UpdateDamage(surface_damage);
-      } else if (!surface_damage.empty()) {
-        last_plane.UpdateDamage(surface_damage, false);
+      if (update_rect || refresh_surfaces || !surface_damage.empty()) {
+        if (target_plane.NeedsSurfaceAllocation()) {
+          display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
+        } else if (refresh_surfaces || reset_plane) {
+          target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+        } else if (!update_rect && !surface_damage.empty()) {
+          target_plane.UpdateDamage(surface_damage);
+        }
+      }
+
+      if (!needs_gpu_composition)
+        needs_gpu_composition = !target_plane.SurfaceRecycled();
+
+      std::vector<OverlayPlane> temp;
+      if (display_plane_manager_->SquashPlanesAsNeeded(
+              layers, *composition, temp, &plane_validation) &&
+          (previous_size != previous_plane_state_.size())) {
+        *force_full_validation = true;
+        *can_ignore_commit = false;
+        return;
       }
 
       reset_composition_regions = false;
-      if (full_reset || damage_initialized || update_rect ||
-          update_source_rect) {
-        if (last_plane.GetSurfaces().size() < 3) {
-          display_plane_manager_->SetOffScreenPlaneTarget(last_plane);
-        } else {
-          // Let's make sure we swap the surface in case content has changed.
-          last_plane.SwapSurfaceIfNeeded();
-        }
-
-        // We always call this here to handle case where we recycled
-        // offscreen surface for last commit.
-        last_plane.ForceGPURendering();
-        needs_gpu_composition = true;
-      } else {
-        last_plane.ReUseOffScreenTarget();
-      }
     } else {
       reset_composition_regions = false;
       const OverlayLayer* layer =
           &(layers.at(last_plane.GetSourceLayers().front()));
+
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
         buffer->CreateFrameBuffer(gpu_fd_);
@@ -341,9 +343,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         ignore_commit = false;
       }
 
-      if (layer->HasDimensionsChanged() || layer->NeedsRevalidation()) {
+      bool needs_revalidation = layer->NeedsRevalidation();
+      if (layer->HasDimensionsChanged() || needs_revalidation) {
         ignore_commit = false;
         reset_composition_regions = true;
+      }
+
+      if (needs_revalidation) {
+        plane_validation = true;
       }
     }
   }
@@ -377,9 +384,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 #endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         old_plane.AddLayer(layer);
-        old_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+
+        // Let's allocate an offscreen surface if needed.
+        display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
+
+        // If overlay has offscreen surfaces, discard
+        // them.
+        if (last_overlay.GetOffScreenTarget()) {
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &last_overlay, surfaces_not_inuse_, true);
+        }
+
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
+        *render_layers = true;
+        *can_ignore_commit = false;
       }
     }
   }
@@ -475,6 +494,31 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     z_order++;
+
+    // This could be optimized in future but for now let's reset
+    // the whole cache in case z_order of any layer has changed.
+    if (add_index != 0 && overlay_layer->LayerOrderChanged()) {
+      add_index = 0;
+      continue;
+    }
+
+    // Handle case where Media layer has been destroyed/created or has changed
+    // z-order.
+    if (add_index != 0 && overlay_layer->IsVideoLayer()) {
+      if ((previous_layer && !previous_layer->IsVideoLayer()) ||
+          !previous_layer) {
+        add_index = 0;
+#ifdef SURFACE_TRACING
+        ISURFACETRACE(
+            "Video layer has changed between frames: remove_index: %d "
+            "add_index: "
+            "%d \n",
+            remove_index, add_index);
+#endif
+        continue;
+      }
+    }
+
     if (add_index == 0 || validate_layers ||
         ((add_index != -1) && (remove_index != -1))) {
       continue;
@@ -495,24 +539,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       ISURFACETRACE(
           "Cursor layer has changed between frames: remove_index: %d "
           "add_index: "
-          "%d \n",
-          remove_index, add_index);
-#endif
-    }
-
-    // Handle case where Media layer has been destroyed/created or has changed
-    // z-order.
-    if (previous_layer &&
-        previous_layer->IsVideoLayer() != overlay_layer->IsVideoLayer()) {
-      if (remove_index == -1)
-        remove_index = previous_layer->GetZorder();
-
-      // Treat this case as if a new layer has been created.
-      if (add_index == -1)
-        add_index = overlay_layer->GetZorder();
-#ifdef SURFACE_TRACING
-      ISURFACETRACE(
-          "Video layer has changed between frames: remove_index: %d add_index: "
           "%d \n",
           remove_index, add_index);
 #endif
@@ -629,6 +655,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
       if (can_ignore_commit) {
         in_flight_layers_.swap(layers);
+        // Free any surfaces.
+        if (!mark_not_inuse_.empty()) {
+          size_t size = mark_not_inuse_.size();
+          for (uint32_t i = 0; i < size; i++) {
+            mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+          }
+
+          std::vector<NativeSurface*>().swap(mark_not_inuse_);
+        }
+
+        // Free any surfaces.
+        display_plane_manager_->ReleaseFreeOffScreenTargets(true);
         return true;
       }
     }
@@ -688,6 +726,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
+    if (validate_layers)
+      HandleCommitFailure(current_composition_planes);
     return false;
   }
 
@@ -712,6 +752,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
+    if (validate_layers)
+      HandleCommitFailure(current_composition_planes);
+
     return false;
   }
 
@@ -723,10 +766,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (!mark_not_inuse_.empty()) {
     size_t size = mark_not_inuse_.size();
     for (uint32_t i = 0; i < size; i++) {
-      mark_not_inuse_.at(i)->SetInUse(false);
+      mark_not_inuse_.at(i)->SetSurfaceAge(-1);
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
+    // Free any surfaces.
+    display_plane_manager_->ReleaseFreeOffScreenTargets(true);
+  } else {
+    // Free any surfaces.
+    display_plane_manager_->ReleaseFreeOffScreenTargets();
   }
 
   in_flight_layers_.swap(layers);
@@ -748,7 +796,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       if (age > 0) {
         temp.emplace_back(surface);
         surface->SetSurfaceAge(surface->GetSurfaceAge() - 1);
-        surface->SetInUse(true);
       } else {
         mark_not_inuse_.emplace_back(surface);
       }
@@ -758,14 +805,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (idle_frame) {
-    ReleaseSurfaces();
     state_ |= kLastFrameIdleUpdate;
     if (state_ & kClonedMode) {
       idle_tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
     }
   } else {
     state_ &= ~kLastFrameIdleUpdate;
-    ReleaseSurfacesAsNeeded(validate_layers);
   }
 
   if (fence > 0) {
@@ -814,26 +859,23 @@ void DisplayQueue::IgnoreUpdates() {
   idle_tracker_.revalidate_frames_counter_ = 0;
 }
 
-void DisplayQueue::ReleaseSurfaces() {
-  display_plane_manager_->ReleaseFreeOffScreenTargets();
-  state_ &= ~kMarkSurfacesForRelease;
-  state_ &= ~kReleaseSurfaces;
-}
+void DisplayQueue::HandleCommitFailure(
+    DisplayPlaneStateList& current_composition_planes) {
+  for (DisplayPlaneState& plane : current_composition_planes) {
+    if (plane.GetSurfaces().empty()) {
+      continue;
+    }
 
-void DisplayQueue::ReleaseSurfacesAsNeeded(bool layers_validated) {
-  if (!layers_validated && (state_ & kReleaseSurfaces)) {
-    ReleaseSurfaces();
+    display_plane_manager_->MarkSurfacesForRecycling(
+        &plane, surfaces_not_inuse_, false);
   }
 
-  if (state_ & kMarkSurfacesForRelease) {
-    state_ |= kReleaseSurfaces;
-    state_ &= ~kMarkSurfacesForRelease;
+  // Let's mark all previous planes as in use.
+  for (DisplayPlaneState& previous_plane : previous_plane_state_) {
+    previous_plane.GetDisplayPlane()->SetInUse(true);
   }
 
-  if (layers_validated) {
-    state_ |= kMarkSurfacesForRelease;
-    state_ &= ~kReleaseSurfaces;
-  }
+  UpdateOnScreenSurfaces();
 }
 
 void DisplayQueue::SetMediaEffectsState(
@@ -857,12 +899,10 @@ void DisplayQueue::SetMediaEffectsState(
       // offscreen surfaces and set the right overlayer layer to the
       // plane.
       display_plane_manager_->MarkSurfacesForRecycling(
-          &plane, surfaces_not_inuse_, false);
+          &plane, surfaces_not_inuse_, true);
       const std::vector<size_t>& source = plane.GetSourceLayers();
       plane.SetOverlayLayer(&(layers.at(source.at(0))));
     }
-
-    plane.SwapSurfaceIfNeeded();
   }
 }
 
@@ -876,20 +916,16 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
     if (size == 3) {
       NativeSurface* surface = surfaces.at(1);
       surface->SetSurfaceAge(0);
-      surface->SetInUse(true);
 
       surface = surfaces.at(0);
       surface->SetSurfaceAge(2);
-      surface->SetInUse(true);
 
       surface = surfaces.at(2);
       surface->SetSurfaceAge(1);
-      surface->SetInUse(true);
     } else {
       for (uint32_t i = 0; i < size; i++) {
         NativeSurface* surface = surfaces.at(i);
         surface->SetSurfaceAge(2 - i);
-        surface->SetInUse(true);
       }
     }
 #ifdef COMPOSITOR_TRACING

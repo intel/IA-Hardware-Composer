@@ -62,14 +62,12 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers,
-                   size_t remove_index);
+  void ResetLayers(const std::vector<OverlayLayer> &layers, size_t remove_index,
+                   bool *rects_updated);
 
-  // Updates Display frame rect of this plane to include
-  // display_frame.
-  void UpdateDisplayFrame(const HwcRect<int> &display_frame);
-
-  void UpdateSourceCrop(const HwcRect<float> &source_crop);
+  // Updates display frame and source rects combined region for
+  // this plane.
+  void RefreshLayerRects(const std::vector<OverlayLayer> &layers);
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();
@@ -80,13 +78,6 @@ class DisplayPlaneState {
   // can be associated with NativeSurface in case the content
   // need's to be rendered before being scanned out.
   void SetOverlayLayer(const OverlayLayer *layer);
-
-  // Reuses last shown surface for current frame.
-  void ReUseOffScreenTarget();
-
-  // Put's current OffscreenSurface to back in the
-  // list if not already done.
-  void SwapSurfaceIfNeeded();
 
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
@@ -120,7 +111,7 @@ class DisplayPlaneState {
   void RefreshSurfaces(NativeSurface::ClearType clear_surface,
                        bool force = false);
 
-  void UpdateDamage(const HwcRect<int> &surface_damage, bool forced = true);
+  void UpdateDamage(const HwcRect<int> &surface_damage);
 
   DisplayPlane *GetDisplayPlane() const;
 
@@ -212,6 +203,18 @@ class DisplayPlaneState {
 
   uint32_t GetDownScalingFactor() const;
 
+  // Helper to check if we need to allocate
+  // an offscreen surface for this plane.
+  bool NeedsSurfaceAllocation() const {
+    return needs_surface_allocation_;
+  }
+
+  // Put's current OffscreenSurface to back in the
+  // list if not already done.
+  void SwapSurfaceIfNeeded();
+
+  void Dump();
+
  private:
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
@@ -228,6 +231,13 @@ class DisplayPlaneState {
       kRender,   // Needs to render the contents to
                  // layer before scanning out.
     };
+
+    ~DisplayPlanePrivateState() {
+      for (NativeSurface *surface : surfaces_) {
+        if (surface->GetSurfaceAge() == 0)
+          surface->SetSurfaceAge(-1);
+      }
+    }
 
     State state_ = State::kScanout;
     DisplayPlane *plane_ = NULL;
@@ -255,8 +265,10 @@ class DisplayPlaneState {
     // changed.
     bool rect_updated_ = true;
 
+    bool refresh_surface_ = true;
+
     // Display cannot support the required rotation.
-    bool unsupported_siplay_rotation_ = false;
+    bool unsupported_display_rotation_ = false;
     uint32_t down_scaling_factor_ = 1;
     // Any offscreen surfaces used by this
     // plane.
@@ -266,9 +278,9 @@ class DisplayPlaneState {
     RotationType rotation_type_ = RotationType::kDisplayRotation;
   };
 
-  bool recycled_surface_ = false;
+  bool recycled_surface_ = true;
   bool surface_swapped_ = false;
-  bool refresh_needed_ = false;
+  bool needs_surface_allocation_ = true;
   uint32_t re_validate_layer_ = ReValidationType::kNone;
   std::shared_ptr<DisplayPlanePrivateState> private_data_;
 };

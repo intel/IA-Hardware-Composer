@@ -58,6 +58,8 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
       return DRM_FORMAT_YVU420;
     case HAL_PIXEL_FORMAT_RGBA_FP16:
       return DRM_FORMAT_XBGR161616;
+    case HAL_PIXEL_FORMAT_RGBA_1010102:
+      return DRM_FORMAT_ABGR2101010;
     default:
       break;
   }
@@ -84,6 +86,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_GR88:
     case DRM_FORMAT_R16:
       return HAL_PIXEL_FORMAT_Y16;
+    case DRM_FORMAT_ABGR8888:
+      return HAL_PIXEL_FORMAT_RGBA_8888;
     case DRM_FORMAT_RGB332:  //('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
       return 0;
     case DRM_FORMAT_BGR233:  //('B', 'G', 'R', '8') /* [7:0] B:G:R 2:3:3 */
@@ -114,15 +118,15 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_XRGB8888:
     case DRM_FORMAT_XBGR8888:
     case DRM_FORMAT_RGBX8888:
-    case DRM_FORMAT_ABGR8888:
     case DRM_FORMAT_RGBA8888:
       return 0;
+    case DRM_FORMAT_ABGR2101010:
+      return HAL_PIXEL_FORMAT_RGBA_1010102;
     case DRM_FORMAT_XRGB2101010:
     case DRM_FORMAT_XBGR2101010:
     case DRM_FORMAT_RGBX1010102:
     case DRM_FORMAT_BGRX1010102:
     case DRM_FORMAT_ARGB2101010:
-    case DRM_FORMAT_ABGR2101010:
     case DRM_FORMAT_RGBA1010102:
     case DRM_FORMAT_BGRA1010102:
       return 0;
@@ -244,6 +248,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   handle->meta_data_.format_ = gr_handle->format;
+  handle->meta_data_.tiling_mode_ = gr_handle->tiling_mode;
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.prime_fd_ = gr_handle->fds[0];

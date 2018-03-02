@@ -29,7 +29,6 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
     : native_handle_(0),
       width_(width),
       height_(height),
-      in_use_(false),
       clear_surface_(kFullClear),
       surface_age_(0) {
 }
@@ -70,14 +69,10 @@ void NativeSurface::SetNativeFence(int32_t fd) {
   layer_.SetAcquireFence(fd);
 }
 
-void NativeSurface::SetInUse(bool inuse) {
-  in_use_ = inuse;
-}
-
 void NativeSurface::SetClearSurface(ClearType clear_surface) {
   if (clear_surface_ != clear_surface) {
     clear_surface_ = clear_surface;
-    if (clear_surface_ == kFullClear) {
+    if (clear_surface_ != kNone) {
       damage_changed_ = true;
     }
   }
@@ -87,7 +82,7 @@ void NativeSurface::SetTransform(uint32_t transform) {
   layer_.SetTransform(transform);
 }
 
-void NativeSurface::SetSurfaceAge(uint32_t value) {
+void NativeSurface::SetSurfaceAge(int value) {
   surface_age_ = value;
 }
 
@@ -99,9 +94,9 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
                                    uint32_t gpu_fd) {
   const HwcRect<int> &display_rect = plane.GetDisplayFrame();
   surface_damage_ = display_rect;
-  damage_changed_ = true;
-  in_use_ = true;
+  previous_damage_ = surface_damage_;
   clear_surface_ = kFullClear;
+  damage_changed_ = true;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
     layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
@@ -117,12 +112,13 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 }
 
 void NativeSurface::UpdateSurfaceDamage(
-    const HwcRect<int> &currentsurface_damage, bool forced) {
-  damage_changed_ = forced;
-
+    const HwcRect<int> &currentsurface_damage, bool force) {
   if (surface_damage_.empty()) {
     surface_damage_ = currentsurface_damage;
     damage_changed_ = true;
+    if (!force && (previous_damage_ == surface_damage_))
+      damage_changed_ = false;
+
     return;
   }
 
@@ -130,17 +126,16 @@ void NativeSurface::UpdateSurfaceDamage(
     return;
   }
 
-  HwcRect<int> temp = surface_damage_;
   CalculateRect(currentsurface_damage, surface_damage_);
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (temp == surface_damage_) {
+    if (!force && (previous_damage_ == surface_damage_))
       damage_changed_ = false;
-    }
   }
 }
 
 void NativeSurface::ResetDamage() {
+  previous_damage_ = surface_damage_;
   surface_damage_ = HwcRect<int>(0, 0, 0, 0);
   damage_changed_ = false;
 }

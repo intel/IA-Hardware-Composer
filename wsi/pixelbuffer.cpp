@@ -27,9 +27,13 @@ PixelBuffer::~PixelBuffer() {
 }
 
 void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
-                             uint32_t width, uint32_t height, uint32_t format,
-                             void *addr, ResourceHandle &resource) {
-  if (!buffer_handler->CreateBuffer(width, height, format, &resource.handle_)) {
+                             uint32_t width, uint32_t height, uint32_t stride, uint32_t format,
+                             void *addr, ResourceHandle &resource, bool is_cursor_buffer) {
+  int i;
+  int layer_type = is_cursor_buffer ? kLayerCursor : kLayerNormal;
+  uint8_t* byteaddr = (uint8_t*) addr;
+
+  if (!buffer_handler->CreateBuffer(width, height, format, &resource.handle_, layer_type)) {
     ETRACE("PixelBuffer: CreateBuffer failed");
     return;
   }
@@ -46,12 +50,16 @@ void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
   }
 
   size_t size = handle->meta_data_.height_ * handle->meta_data_.pitches_[0];
-  void *ptr = Map(handle->meta_data_.prime_fd_, size);
+  uint8_t *ptr = (uint8_t *) Map(handle->meta_data_.prime_fd_, size);
   if (!ptr) {
     return;
   }
 
-  memcpy(ptr, addr, size);
+  for (i = 0; i < height; i++)
+    memcpy(ptr + i * handle->meta_data_.pitches_[0],
+           byteaddr + i * stride,
+           stride);
+
   Unmap(handle->meta_data_.prime_fd_, ptr, size);
   needs_texture_upload_ = false;
 }

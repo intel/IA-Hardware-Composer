@@ -238,7 +238,8 @@ class NativeDisplay {
   }
 
   // Nested display related.
-  virtual void InitNestedDisplay() {
+  virtual void InitNestedDisplay(uint32_t /*width*/, uint32_t /*height*/,
+                                 uint32_t /*port*/) {
   }
 
   /**
@@ -309,7 +310,13 @@ class NativeDisplay {
    * layer ids. The argument to the method is the
    * initial size of the pool
    */
-  virtual int InitializeLayerHashGenerator(int) {
+  virtual int InitializeLayerHashGenerator(int size) {
+    LayerIds_.clear();
+    for (int i = 0; i < size; i++) {
+      LayerIds_.push_back(i);
+    }
+
+    current_max_layer_ids_ = size;
     return 0;
   }
 
@@ -318,19 +325,27 @@ class NativeDisplay {
    * unused id for the layer.
    */
   virtual uint64_t AcquireId() {
-    return 0;
+    if (LayerIds_.empty())
+      return ++current_max_layer_ids_;
+
+    uint64_t id = LayerIds_.back();
+    LayerIds_.pop_back();
+
+    return id;
   }
 
   /**
    * Method to return a destroyed layer's id back into the pool
    */
-  virtual void ReleaseId(uint64_t) {
+  virtual void ReleaseId(uint64_t id) {
+    LayerIds_.push_back(id);
   }
 
   /**
    * Call this to reset the id pool back to its initial state.
    */
   virtual void ResetLayerHashGenerator() {
+    InitializeLayerHashGenerator(current_max_layer_ids_);
   }
 
   /**
@@ -367,6 +382,11 @@ class NativeDisplay {
   // to individual layers shown by this display.
   virtual void RotateDisplay(HWCRotation /*rotation*/) {
   }
+
+private:
+  std::vector<uint64_t> LayerIds_;
+  uint64_t current_max_layer_ids_;
+
 };
 
 /**

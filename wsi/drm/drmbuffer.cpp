@@ -62,6 +62,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   else if (format_ == DRM_FORMAT_YVU420_ANDROID)
     format_ = DRM_FORMAT_YUV420;
 
+  tiling_mode_ = bo.tiling_mode_;
   prime_fd_ = bo.prime_fd_;
   usage_ = bo.usage_;
 
@@ -86,8 +87,8 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
     PixelBuffer* buffer = PixelBuffer::CreatePixelBuffer();
     pixel_buffer_.reset(buffer);
     pixel_buffer_->Initialize(handler, handle->meta_data_.width_,
-                              handle->meta_data_.height_,
-                              handle->meta_data_.format_, data_, image_);
+                              handle->meta_data_.height_, handle->meta_data_.pitches_[0],
+                              handle->meta_data_.format_, data_, image_, is_cursor_buffer);
     if (is_cursor_buffer) {
       image_.handle_->meta_data_.usage_ = hwcomposer::kLayerCursor;
     }
@@ -286,7 +287,11 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   external.width = width_;
   external.height = height_;
   external.num_planes = total_planes_;
+#if VA_MAJOR_VERSION < 1
   unsigned long prime_fd = prime_fd_;
+#else
+  uintptr_t prime_fd = prime_fd_;
+#endif
   for (unsigned int i = 0; i < total_planes_; i++) {
     external.pitches[i] = pitches_[i];
     external.offsets[i] = offsets_[i];

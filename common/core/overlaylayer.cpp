@@ -216,6 +216,12 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
+  if (!layer->IsCursorLayer() && layer->HasZorderChanged() &&
+      (!previous_layer ||
+       (previous_layer && (previous_layer->z_order_ != z_order)))) {
+    state_ |= kLayerOrderChanged;
+  }
+
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);

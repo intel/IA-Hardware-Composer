@@ -312,6 +312,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
       vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
   ret |= vaEndPicture(va_display_, va_context_);
 
+  surface->ResetDamage();
+
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 

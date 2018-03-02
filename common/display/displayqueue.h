@@ -102,13 +102,11 @@ class DisplayQueue {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kPoweredOn = 1 << 2,
-    kDisableOverlayUsage = 1 << 3,     // Disable Overlays.
-    kMarkSurfacesForRelease = 1 << 4,  // Mark surfaces to be released.
-    kReleaseSurfaces = 1 << 5,         // Release Native Surfaces.
+    kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
     kIgnoreIdleRefresh =
-        1 << 6,            // Ignore refresh request during idle callback.
-    kClonedMode = 1 << 7,  // We are in cloned mode.
-    kLastFrameIdleUpdate = 1 << 8  // Last frame was a refresh for Idle state.
+        1 << 4,            // Ignore refresh request during idle callback.
+    kClonedMode = 1 << 5,  // We are in cloned mode.
+    kLastFrameIdleUpdate = 1 << 6  // Last frame was a refresh for Idle state.
   };
 
   struct ScalingTracker {
@@ -250,12 +248,11 @@ class DisplayQueue {
 
   void UpdateOnScreenSurfaces();
 
-  void ReleaseSurfaces();
-  void ReleaseSurfacesAsNeeded(bool layers_validated);
-
   // Re-initialize all state. When we are hearing this means the
   // queue is teraing down or re-started for some reason.
   void ResetQueue();
+
+  void HandleCommitFailure(DisplayPlaneStateList& current_composition_planes);
 
   Compositor compositor_;
   uint32_t gpu_fd_;

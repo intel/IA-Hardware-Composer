@@ -116,9 +116,17 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_CREATE_LAYER>(
           DisplayHook<decltype(&IAHWCDisplay::CreateLayer),
                       &IAHWCDisplay::CreateLayer, uint32_t*>);
+    case IAHWC_FUNC_DISPLAY_DESTROY_LAYER:
+      return ToHook<IAHWC_PFN_DISPLAY_DESTROY_LAYER>(
+          DisplayHook<decltype(&IAHWCDisplay::DestroyLayer),
+                      &IAHWCDisplay::DestroyLayer, uint32_t>);
     case IAHWC_FUNC_LAYER_SET_BO:
       return ToHook<IAHWC_PFN_LAYER_SET_BO>(
           LayerHook<decltype(&IAHWCLayer::SetBo), &IAHWCLayer::SetBo, gbm_bo*>);
+    case IAHWC_FUNC_LAYER_SET_RAW_PIXEL_DATA:
+      return ToHook<IAHWC_PFN_LAYER_SET_RAW_PIXEL_DATA>(
+          LayerHook<decltype(&IAHWCLayer::SetRawPixelData),
+                    &IAHWCLayer::SetRawPixelData, iahwc_raw_pixel_data>);
     case IAHWC_FUNC_LAYER_SET_ACQUIRE_FENCE:
       return ToHook<IAHWC_PFN_LAYER_SET_ACQUIRE_FENCE>(
           LayerHook<decltype(&IAHWCLayer::SetAcquireFence),
@@ -277,6 +285,16 @@ int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
   return IAHWC_ERROR_NONE;
 }
 
+int IAHWC::IAHWCDisplay::DestroyLayer(uint32_t layer_handle) {
+  if (layers_.empty())
+    return IAHWC_ERROR_NONE;
+
+  if (layers_.erase(layer_handle))
+    native_display_->ReleaseId(layer_handle);
+
+  return IAHWC_ERROR_NONE;
+}
+
 int IAHWC::IAHWCDisplay::RegisterVsyncCallback(iahwc_callback_data_t data,
                                                iahwc_function_ptr_t hook) {
   auto callback = std::make_shared<IAHWCVsyncCallback>(data, hook);
@@ -319,6 +337,20 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   hwc_handle_.bo = bo;
   hwc_handle_.hwc_buffer_ = true;
   hwc_handle_.gbm_flags = 0;
+
+  iahwc_layer_.SetNativeHandle(&hwc_handle_);
+
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
+  hwc_handle_.meta_data_.width_ = bo.width;
+  hwc_handle_.meta_data_.height_ = bo.height;
+  hwc_handle_.meta_data_.pitches_[0] = bo.stride;
+  hwc_handle_.meta_data_.format_ = bo.format;
+  hwc_handle_.gbm_flags = 0;
+  hwc_handle_.is_raw_pixel_ = true;
+  hwc_handle_.pixel_memory_ = bo.buffer;
 
   iahwc_layer_.SetNativeHandle(&hwc_handle_);
 

@@ -37,6 +37,7 @@ class IAHWC : public iahwc_device {
     IAHWCLayer();
     ~IAHWCLayer();
     int SetBo(gbm_bo* bo);
+    int SetRawPixelData(iahwc_raw_pixel_data bo);
     int SetAcquireFence(int32_t acquire_fence);
     int SetLayerUsage(int32_t layer_usage);
     int32_t GetLayerUsage() {
@@ -69,6 +70,7 @@ class IAHWC : public iahwc_device {
     int RegisterVsyncCallback(iahwc_callback_data_t data,
                               iahwc_function_ptr_t hook);
     int CreateLayer(uint32_t* layer_handle);
+    int DestroyLayer(uint32_t layer_handle);
     bool IsConnected();
     IAHWCLayer& get_layer(iahwc_layer_t layer) {
       return layers_.at(layer);

@@ -92,6 +92,10 @@ LOCAL_SRC_FILES := \
         utils/hwcutils.cpp \
         utils/disjoint_layers.cpp
 
+ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
+LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+endif
+
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \
         system/core/libsync \

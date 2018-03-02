@@ -84,7 +84,7 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface) {
+		      NativeSurface *surface) {
   GLuint frame_width = surface->GetWidth();
   GLuint frame_height = surface->GetHeight();
   GLuint left = 0;

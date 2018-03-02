@@ -39,14 +39,19 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   if (!private_data_->plane_->IsSupportedTransform(plane_transform)) {
     private_data_->rotation_type_ =
         DisplayPlaneState::RotationType::kGPURotation;
-    private_data_->unsupported_siplay_rotation_ = true;
+    private_data_->unsupported_display_rotation_ = true;
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
+
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
   private_data_ = state.private_data_;
+  if (private_data_->surfaces_.size() == 3)
+    needs_surface_allocation_ = false;
+
   // We don't copy recycled_surface_ state as this
   // should be determined in DisplayQueue for every frame.
 }
@@ -63,7 +68,6 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
   HwcRect<int> target_display_frame = private_data_->display_frame_;
   CalculateRect(display_frame, target_display_frame);
-
   HwcRect<float> target_source_crop = private_data_->source_crop_;
   CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
@@ -74,6 +78,11 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   // we shouldn't have done them yet (i.e. Previous state could have
   // been direct scanout.)
   bool rect_updated = true;
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage whole old rect.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+  }
+
   if (private_data_->source_layers_.size() > 2 &&
       (private_data_->display_frame_ == target_display_frame) &&
       ((private_data_->source_crop_ == target_source_crop))) {
@@ -89,49 +98,47 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   if (!private_data_->has_cursor_layer_)
     private_data_->has_cursor_layer_ = layer->IsCursorLayer();
 
-  if (private_data_->source_layers_.size() == 1 &&
-      private_data_->has_cursor_layer_) {
-    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
-  } else {
-    // TODO: Add checks for Video type once our
-    // Media backend can support compositing more
-    // than one layer together.
-    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
-    private_data_->apply_effects_ = false;
-  }
+  // TODO: Add checks for Video type once our
+  // Media backend can support compositing more
+  // than one layer together.
+  private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
+  private_data_->apply_effects_ = false;
 
   // Reset Validation state.
   if (re_validate_layer_ & ReValidationType::kScanout)
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
-  ResetCompositionRegion();
-  refresh_needed_ = true;
+  private_data_->refresh_surface_ = true;
+  if (rect_updated) {
+    RefreshSurfaces(NativeSurface::kFullClear);
+  } else {
+    RefreshSurfaces(NativeSurface::kPartialClear);
+  }
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
-                                    size_t remove_index) {
-  const std::vector<size_t> &current_layers = private_data_->source_layers_;
-  std::vector<size_t> source_layers;
-  bool had_cursor = private_data_->has_cursor_layer_;
+                                    size_t remove_index, bool *rects_updated) {
+  std::vector<size_t> current_layers = private_data_->source_layers_;
+  std::vector<size_t>().swap(private_data_->source_layers_);
+  std::vector<size_t> &new_layers = private_data_->source_layers_;
+
   private_data_->has_cursor_layer_ = false;
-  bool initialized = false;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   bool has_video = false;
+  bool layer_removed = false;
   for (const size_t &index : current_layers) {
     if (index >= remove_index) {
 #ifdef SURFACE_TRACING
       ISURFACETRACE("Reset breaks index: %d remove_index %d \n", index,
                     remove_index);
 #endif
+      layer_removed = true;
       break;
     }
 
     const OverlayLayer &layer = layers.at(index);
     bool is_cursor = layer.IsCursorLayer();
-    if (!had_cursor && is_cursor) {
-      continue;
-    }
 
     if (is_cursor) {
       private_data_->has_cursor_layer_ = true;
@@ -141,34 +148,31 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
     const HwcRect<int> &df = layer.GetDisplayFrame();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
-    if (!initialized) {
-      target_display_frame = df;
-      target_source_crop = source_crop;
-      initialized = true;
-    } else {
-      CalculateRect(df, target_display_frame);
-      CalculateSourceRect(source_crop, target_source_crop);
-    }
+    CalculateRect(df, target_display_frame);
+    CalculateSourceRect(source_crop, target_source_crop);
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Reset adds index: %d \n", layer.GetZorder());
 #endif
-    source_layers.emplace_back(layer.GetZorder());
-  }
-
-  if (source_layers.empty()) {
-    private_data_->source_layers_.swap(source_layers);
-    return;
+    new_layers.emplace_back(layer.GetZorder());
   }
 
 #ifdef SURFACE_TRACING
   ISURFACETRACE(
       "Reset called has_video: %d Source Layers Size: %d Previous Source "
       "Layers Size: %d Has Cursor: %d Total Layers Size: %d \n",
-      has_video, source_layers.size(), current_layers.size(),
+      has_video, private_data_->source_layers_.size(), current_layers.size(),
       private_data_->has_cursor_layer_, layers.size());
 #endif
 
-  private_data_->source_layers_.swap(source_layers);
+  if (private_data_->source_layers_.empty()) {
+    return;
+  }
+
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage whole old rect.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+  }
+
   bool rect_updated = true;
   if ((private_data_->display_frame_ == target_display_frame) &&
       ((private_data_->source_crop_ == target_source_crop))) {
@@ -181,6 +185,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   if (!private_data_->rect_updated_)
     private_data_->rect_updated_ = rect_updated;
 
+  *rects_updated = rect_updated;
+
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
@@ -190,35 +196,79 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }
 
-    if (!has_video)
+    if (!has_video) {
       re_validate_layer_ |= ReValidationType::kScanout;
+    } else {
+      // Reset Validation state.
+      re_validate_layer_ &= ~ReValidationType::kScanout;
+    }
   } else {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
+    // Reset Validation state.
+    re_validate_layer_ &= ~ReValidationType::kScanout;
   }
 
-  ResetCompositionRegion();
-  refresh_needed_ = true;
-}
-
-void DisplayPlaneState::UpdateDisplayFrame(const HwcRect<int> &display_frame) {
-  HwcRect<int> &target_display_frame = private_data_->display_frame_;
-  if (private_data_->source_layers_.size() == 1) {
-    target_display_frame = display_frame;
+  private_data_->refresh_surface_ = true;
+  if (layer_removed || rect_updated) {
+    RefreshSurfaces(NativeSurface::kFullClear);
   } else {
-    CalculateRect(display_frame, target_display_frame);
+    RefreshSurfaces(NativeSurface::kPartialClear);
   }
-
-  private_data_->rect_updated_ = true;
 }
 
-void DisplayPlaneState::UpdateSourceCrop(const HwcRect<float> &source_crop) {
-  HwcRect<float> &target_source_crop = private_data_->source_crop_;
-  if (private_data_->source_layers_.size() == 1) {
-    target_source_crop = source_crop;
-  } else {
+void DisplayPlaneState::RefreshLayerRects(
+    const std::vector<OverlayLayer> &layers) {
+  const std::vector<size_t> &current_layers = private_data_->source_layers_;
+  HwcRect<int> target_display_frame;
+  HwcRect<float> target_source_crop;
+  bool only_cursor_layer = true;
+  for (const size_t &index : current_layers) {
+    const OverlayLayer &layer = layers.at(index);
+    const HwcRect<int> &df = layer.GetDisplayFrame();
+    const HwcRect<float> &source_crop = layer.GetSourceCrop();
+    CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
+    if (!layer.IsCursorLayer() &&
+        (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
+      only_cursor_layer = false;
+    }
+
+    if (only_cursor_layer && layer.IsCursorLayer()) {
+      for (NativeSurface *surface : private_data_->surfaces_) {
+        surface->UpdateSurfaceDamage(layer.GetSurfaceDamage(), true);
+      }
+    }
   }
-  private_data_->rect_updated_ = true;
+
+  for (NativeSurface *surface : private_data_->surfaces_) {
+    // Damage whole old rect.
+    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+  }
+
+  bool rect_updated = true;
+  if ((private_data_->display_frame_ == target_display_frame) &&
+      ((private_data_->source_crop_ == target_source_crop))) {
+    rect_updated = false;
+  } else {
+    private_data_->display_frame_ = target_display_frame;
+    private_data_->source_crop_ = target_source_crop;
+    if (only_cursor_layer) {
+      for (NativeSurface *surface : private_data_->surfaces_) {
+        // Damage whole old rect.
+        surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+      }
+    }
+  }
+
+  if (!private_data_->rect_updated_)
+    private_data_->rect_updated_ = rect_updated;
+
+  private_data_->refresh_surface_ = true;
+  if (!only_cursor_layer && rect_updated) {
+    RefreshSurfaces(NativeSurface::kFullClear);
+  } else {
+    RefreshSurfaces(NativeSurface::kPartialClear);
+  }
 }
 
 void DisplayPlaneState::ForceGPURendering() {
@@ -231,14 +281,6 @@ void DisplayPlaneState::DisableGPURendering() {
 
 void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
   private_data_->layer_ = layer;
-}
-
-void DisplayPlaneState::ReUseOffScreenTarget() {
-  if (surface_swapped_) {
-    ETRACE(
-        "Surface has been swapped and being re-used as offscreen target. \n");
-  }
-  recycled_surface_ = true;
 }
 
 bool DisplayPlaneState::SurfaceRecycled() const {
@@ -258,8 +300,9 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   target->SetTransform(rotation);
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
-  refresh_needed_ = true;
   surface_swapped_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear, true);
+  needs_surface_allocation_ = false;
 }
 
 NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
@@ -272,14 +315,12 @@ NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
 
 void DisplayPlaneState::SwapSurfaceIfNeeded() {
   if (surface_swapped_) {
-    if (recycled_surface_) {
-      ETRACE(
-          "Surface has been swapped and being re-used as offscreen target. \n");
-    }
     return;
   }
 
   size_t size = private_data_->surfaces_.size();
+  if (size == 0)
+    return;
 
   if (size == 3) {
     std::vector<NativeSurface *> temp;
@@ -294,7 +335,6 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
   surface_swapped_ = true;
   recycled_surface_ = false;
   NativeSurface *surface = private_data_->surfaces_.at(0);
-  surface->SetInUse(true);
   private_data_->layer_ = surface->GetLayer();
 }
 
@@ -304,11 +344,12 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 
 void DisplayPlaneState::ReleaseSurfaces() {
   std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+  needs_surface_allocation_ = true;
 }
 
 void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
                                         bool force) {
-  if (!refresh_needed_ && !private_data_->rect_updated_ && !force) {
+  if (!private_data_->refresh_surface_ && !force) {
     return;
   }
 
@@ -323,30 +364,28 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
     bool clear = surface->ClearSurface();
     bool partial_clear = surface->IsPartialClear();
 
-    if (!clear && !partial_clear) {
-      surface->SetClearSurface(clear_surface);
-    } else if (!clear && clear_surface == NativeSurface::kPartialClear) {
-      surface->SetClearSurface(clear_surface);
-    } else if (partial_clear && clear_surface == NativeSurface::kFullClear) {
+    if (clear_surface == NativeSurface::kFullClear) {
       surface->SetClearSurface(NativeSurface::kFullClear);
-    }
-
-    if (surface->ClearSurface()) {
-      surface->UpdateSurfaceDamage(scaled_rect);
+    } else if (!clear && !partial_clear) {
+      surface->SetClearSurface(clear_surface);
     }
   }
 
-  refresh_needed_ = false;
-  recycled_surface_ = false;
   if (private_data_->rect_updated_) {
     ValidateReValidation();
   }
+
+  recycled_surface_ = false;
+  private_data_->refresh_surface_ = false;
 }
 
-void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage,
-                                     bool forced) {
+void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
+  if (surface_damage.empty())
+    return;
+
+  recycled_surface_ = false;
   for (NativeSurface *surface : private_data_->surfaces_) {
-    surface->UpdateSurfaceDamage(surface_damage, forced);
+    surface->UpdateSurfaceDamage(surface_damage, false);
   }
 }
 
@@ -365,6 +404,8 @@ std::vector<CompositionRegion> &DisplayPlaneState::GetCompositionRegion() {
 void DisplayPlaneState::ResetCompositionRegion() {
   if (!private_data_->composition_region_.empty())
     std::vector<CompositionRegion>().swap(private_data_->composition_region_);
+
+  recycled_surface_ = false;
 }
 
 bool DisplayPlaneState::IsCursorPlane() const {
@@ -396,9 +437,11 @@ void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
         surface->ResetDisplayFrame(target_display_frame);
         surface->ResetSourceCrop(scaled_rect);
         if (surface->ClearSurface()) {
-          surface->UpdateSurfaceDamage(scaled_rect);
+          surface->UpdateSurfaceDamage(scaled_rect, true);
         }
       }
+
+      recycled_surface_ = false;
     }
   }
 }
@@ -410,7 +453,6 @@ bool DisplayPlaneState::IsUsingPlaneScalar() const {
 void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
   if (private_data_->apply_effects_ != apply_effects) {
     private_data_->apply_effects_ = apply_effects;
-    recycled_surface_ = false;
     // Doesn't have any impact on planes which
     // are not meant for video.
     if (apply_effects &&
@@ -442,10 +484,6 @@ bool DisplayPlaneState::NeedsOffScreenComposition() const {
   if (private_data_->state_ == DisplayPlanePrivateState::State::kRender)
     return true;
 
-  if (recycled_surface_) {
-    return true;
-  }
-
   if (private_data_->apply_effects_) {
     return true;
   }
@@ -476,6 +514,8 @@ void DisplayPlaneState::RevalidationDone(uint32_t validation_done) {
   if (validation_done & ReValidationType::kDownScaling) {
     re_validate_layer_ &= ~ReValidationType::kDownScaling;
   }
+
+  recycled_surface_ = false;
 }
 
 bool DisplayPlaneState::CanSquash() const {
@@ -493,7 +533,7 @@ void DisplayPlaneState::ValidateReValidation() {
     return;
 
   if (private_data_->plane_transform_ != kIdentity &&
-      !private_data_->unsupported_siplay_rotation_) {
+      !private_data_->unsupported_display_rotation_) {
     re_validate_layer_ |= ReValidationType::kRotation;
   }
 
@@ -504,11 +544,13 @@ void DisplayPlaneState::ValidateReValidation() {
     bool use_scalar = CanUseDisplayUpScaling();
     if (private_data_->use_plane_scalar_ != use_scalar) {
       re_validate_layer_ |= ReValidationType::kUpScalar;
+#ifdef ENABLE_DOWNSCALING
     } else {
       bool down_scale = CanUseGPUDownScaling();
       if ((private_data_->down_scaling_factor_ > 0) != down_scale) {
         re_validate_layer_ = ReValidationType::kDownScaling;
       }
+#endif
     }
   }
 
@@ -651,6 +693,8 @@ void DisplayPlaneState::SetRotationType(RotationType type, bool refresh) {
     private_data_->rotation_type_ = type;
     if (refresh) {
       RefreshSurfaces(NativeSurface::kFullClear, true);
+    } else {
+      recycled_surface_ = false;
     }
 
     uint32_t rotation = private_data_->plane_transform_;
@@ -704,6 +748,17 @@ void DisplayPlaneState::CalculateSourceCrop(HwcRect<float> &scaled_rect) const {
     }
 #endif
   }
+}
+
+void DisplayPlaneState::Dump() {
+  HwcRect<float> scaled_rect;
+  CalculateSourceCrop(scaled_rect);
+  DUMPTRACE("SourceWidth: %f", scaled_rect.right - scaled_rect.left);
+  DUMPTRACE("SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
+  DUMPTRACE("DstWidth: %d", private_data_->display_frame_.right -
+                                private_data_->display_frame_.left);
+  DUMPTRACE("DstHeight: %d", private_data_->display_frame_.bottom -
+                                 private_data_->display_frame_.top);
 }
 
 }  // namespace hwcomposer

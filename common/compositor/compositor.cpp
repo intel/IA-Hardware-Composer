@@ -93,6 +93,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       media_state.layer_ = &layer;
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
+      plane.SwapSurfaceIfNeeded();
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
       bool regions_empty = comp_regions.empty();
@@ -102,6 +103,10 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
            surface->IsSurfaceDamageChanged())) {
         plane.ResetCompositionRegion();
         regions_empty = true;
+      }
+
+      if (surface->ClearSurface()) {
+        plane.UpdateDamage(plane.GetDisplayFrame());
       }
 
       if (regions_empty) {
@@ -343,6 +348,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
           region.id_set.subtract(j + layer_offset);
       }
     }
+
     if (!(region.id_set.getBits() >> layer_offset))
       continue;
 
