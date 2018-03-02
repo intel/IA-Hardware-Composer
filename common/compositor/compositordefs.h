@@ -20,7 +20,7 @@
 #include <stdint.h>
 
 #ifdef USE_DC
-#include "shim.h"
+#include "dcshim.h"
 #elif USE_GL
 #include "shim.h"
 #elif USE_VK

@@ -19,7 +19,7 @@
 #include "hwctrace.h"
 #include "overlaybuffer.h"
 #include "resourcemanager.h"
-#include "shim.h"
+#include "dcshim.h"
 
 namespace hwcomposer {
 

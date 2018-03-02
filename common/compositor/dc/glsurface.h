@@ -19,7 +19,7 @@
 
 #include "nativesurface.h"
 
-#include "shim.h"
+#include "dcshim.h"
 
 namespace hwcomposer {
 

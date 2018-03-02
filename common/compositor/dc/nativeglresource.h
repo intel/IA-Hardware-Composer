@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "nativegpuresource.h"
-#include "shim.h"
+#include "dcshim.h"
 
 namespace hwcomposer {
 

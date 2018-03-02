@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "shim.h"
+#include "dcshim.h"
 
 #include <assert.h>
 

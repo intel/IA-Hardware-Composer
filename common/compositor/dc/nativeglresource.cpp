@@ -18,7 +18,7 @@
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
-#include "shim.h"
+#include "dcshim.h"
 
 namespace hwcomposer {
 

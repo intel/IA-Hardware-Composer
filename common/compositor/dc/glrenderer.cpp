@@ -20,7 +20,7 @@
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "renderstate.h"
-#include "shim.h"
+#include "dcshim.h"
 #ifdef COMPOSITOR_TRACING
 #include "hwcutils.h"
 #endif
