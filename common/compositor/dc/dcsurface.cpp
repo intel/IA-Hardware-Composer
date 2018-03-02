@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "glsurface.h"
+#include "dcsurface.h"
 
 #include "hwctrace.h"
 #include "overlaybuffer.h"

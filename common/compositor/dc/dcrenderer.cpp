@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "glrenderer.h"
+#include "dcrenderer.h"
 
 #include "glprogram.h"
 #include "hwctrace.h"

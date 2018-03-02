@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-#include "nativeglresource.h"
+#include "nativedcresource.h"
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
