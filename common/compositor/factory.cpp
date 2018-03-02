@@ -18,7 +18,6 @@
 #include "platformdefines.h"
 
 #ifdef USE_DC
-#include "dcrenderer.h"
 #include "dcsurface.h"
 #include "nativedcresource.h"
 #elif USE_GL
