@@ -18,29 +18,10 @@
 #define COMMON_COMPOSITOR_GL_NATIVEGLRESOURCE_H_
 
 #include <vector>
-
 #include "nativegpuresource.h"
-#include "dcshim.h"
 
 namespace hwcomposer {
-
-struct OverlayLayer;
-
 class NativeGLResource : public NativeGpuResource {
- public:
-  NativeGLResource() = default;
-  ~NativeGLResource() override;
-
-  bool PrepareResources(const std::vector<OverlayBuffer*>& buffers) override;
-  GpuResourceHandle GetResourceHandle(uint32_t layer_index) const override;
-
-  void ReleaseGPUResources(const std::vector<ResourceHandle>& handles) override;
-
-  void HandleTextureUploads(
-      const std::vector<OverlayBuffer*>& buffers) override;
-
- private:
-  std::vector<GLuint> layer_textures_;
 };
 
 }  // namespace hwcomposer
