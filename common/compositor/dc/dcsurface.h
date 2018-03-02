@@ -18,22 +18,11 @@
 #define COMMON_COMPOSITOR_GL_GLSURFACE_H_
 
 #include "nativesurface.h"
-
 #include "dcshim.h"
 
 namespace hwcomposer {
 
 class GLSurface : public NativeSurface {
- public:
-  GLSurface() = default;
-  ~GLSurface() override;
-  GLSurface(uint32_t width, uint32_t height);
-
-  bool MakeCurrent() override;
-
- private:
-  bool InitializeGPUResources();
-  GLuint fb_ = 0;
 };
 
 }  // namespace hwcomposer
