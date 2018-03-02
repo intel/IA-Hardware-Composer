@@ -1099,8 +1099,7 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
     const HwcRect<int> &target_frame = last_plane.GetDisplayFrame();
     if (!scanout_plane.NeedsOffScreenComposition() &&
         !scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane() &&
-        (AnalyseOverlap(display_frame, last_plane.GetDisplayFrame()) !=
-         kOutside)) {
+        (AnalyseOverlap(display_frame, target_frame) != kOutside)) {
       const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();
       bool squash = false;
       uint32_t total_width = 0;
@@ -1116,7 +1115,11 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
            target_layer->GetDisplayFrameWidth()) ||
           ((target_frame.top + total_height) <
            target_layer->GetDisplayFrameHeight())) {
-        squash = true;
+        uint32_t target_width = target_frame.right - target_frame.left;
+        uint32_t target_height = target_frame.bottom - target_frame.top;
+        if ((total_width != target_width) || (total_height != target_height)) {
+          squash = true;
+        }
       }
 
       if (squash) {
