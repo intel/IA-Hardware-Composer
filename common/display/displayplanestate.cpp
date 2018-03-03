@@ -666,7 +666,7 @@ bool DisplayPlaneState::CanUseGPUDownScaling() const {
         ceilf(target_src_rect.right - target_src_rect.left));
     uint32_t source_crop_height = static_cast<uint32_t>(
         ceilf(target_src_rect.bottom - target_src_rect.top));
-    if (display_frame_width < 500 || display_frame_height < 500) {
+    if (display_frame_width < 500) {
       // Ignore < 500 pixels.
       value = false;
     } else if ((display_frame_width == source_crop_width) &&
