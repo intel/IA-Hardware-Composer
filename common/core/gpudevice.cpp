@@ -125,9 +125,12 @@ void GpuDevice::HandleHWCSettings() {
   bool use_mosaic = false;
   bool use_cloned = false;
   bool rotate_display = false;
+  bool use_float = false;
   std::vector<uint32_t> logical_displays;
   std::vector<uint32_t> physical_displays;
   std::vector<uint32_t> display_rotation;
+  std::vector<uint32_t> float_display_indices;
+  std::vector<HwcRect<int32_t>> float_displays;
   std::vector<std::vector<uint32_t>> cloned_displays;
   std::vector<std::vector<uint32_t>> mosaic_displays;
   std::ifstream fin(hwc_dp_cfg_path);
@@ -136,11 +139,13 @@ void GpuDevice::HandleHWCSettings() {
   std::string key_mosaic("MOSAIC");
   std::string key_clone("CLONE");
   std::string key_rotate("ROTATION");
+  std::string key_float("FLOAT");
   std::string key_logical_display("LOGICAL_DISPLAY");
   std::string key_mosaic_display("MOSAIC_DISPLAY");
   std::string key_physical_display("PHYSICAL_DISPLAY");
   std::string key_physical_display_rotation("PHYSICAL_DISPLAY_ROTATION");
   std::string key_clone_display("CLONE_DISPLAY");
+  std::string key_float_display("FLOAT_DISPLAY");
   std::vector<uint32_t> mosaic_duplicate_check;
   std::vector<uint32_t> clone_duplicate_check;
   std::vector<uint32_t> physical_duplicate_check;
@@ -178,6 +183,11 @@ void GpuDevice::HandleHWCSettings() {
         } else if (!key.compare(key_rotate)) {
           if (!value.compare(enable_str)) {
             rotate_display = true;
+          }
+	  // Got float switch
+        } else if (!key.compare(key_float)) {
+          if (!value.compare(enable_str)) {
+            use_float = true;
           }
         } else if (!key.compare(key_logical_display)) {
           std::string physical_index_str;
@@ -324,6 +334,43 @@ void GpuDevice::HandleHWCSettings() {
           uint32_t rotation_num = atoi(rotation_str.c_str());
           display_rotation.emplace_back(rotation_num);
           rotation_display_index.emplace_back(physical_index);
+        } else if (!key.compare(key_float_display)) {
+          std::string index_str;
+          std::string float_rect_str;
+          std::vector<int32_t> float_rect;
+          std::istringstream i_value(value);
+
+          // Got display index
+          std::getline(i_value, index_str, ':');
+          if (index_str.empty() || index_str.find_first_not_of("0123456789") !=
+            std::string::npos) {
+            continue;
+          }
+
+          int32_t index = atoi(index_str.c_str());
+
+          // Got rectangle configuration
+          while (std::getline(i_value, float_rect_str, '+')) {
+            if (float_rect_str.empty() ||
+                float_rect_str.find_first_not_of("0123456789") !=
+                    std::string::npos) {
+              continue;
+            }
+            size_t float_rect_val = atoi(float_rect_str.c_str());
+
+            // Save the rectangle - left, top, right & bottom
+            float_rect.emplace_back(float_rect_val);
+          }
+
+          // If entire rect is available, store the parameters
+          // TODO remove hard code
+          if (float_rect.size() == 4) {
+            float_display_indices.emplace_back(index);
+            HwcRect<int32_t> rect =
+                HwcRect<int32_t>(float_rect.at(0), float_rect.at(1),
+                                 float_rect.at(2), float_rect.at(3));
+            float_displays.emplace_back(rect);
+          }
         }
       }
     }
@@ -516,6 +563,26 @@ void GpuDevice::HandleHWCSettings() {
     }
 
     temp_displays.swap(total_displays_);
+  }
+
+  // Now set floating display configuration
+  // Get the floating display index and the respective rectangle
+  // TODO Logical display on & mosaic display on scenario
+  if (use_float && !use_logical && !use_mosaic) {
+    bool ret = false;
+    size_t size = float_display_indices.size();
+    size_t num_displays = total_displays_.size();
+
+    // Set custom resolution to desired display instance
+    for (size_t i = 0; i < size; i++) {
+      int index = float_display_indices.at(i);
+
+      // Ignore float index if out of range of connected displays
+      if (index < num_displays) {
+        const HwcRect<int32_t> &rect = float_displays.at(i);
+        ret = total_displays_.at(index)->SetCustomResolution(rect);
+      }
+    }
   }
 
   initialization_state_lock_.lock();

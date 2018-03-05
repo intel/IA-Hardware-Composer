@@ -162,16 +162,32 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
 
   float refresh;
   bool status = true;
+
   switch (attribute) {
     case HWCDisplayAttribute::kWidth:
-      *value = modes_[config].hdisplay;
+      if (!custom_resolution_) {
+        *value = modes_[config].hdisplay;
+      } else {
+        *value = rect_.right - rect_.left;
+      }
+      IHOTPLUGEVENTTRACE("GetDisplayAttribute: width %d set", *value);
       break;
     case HWCDisplayAttribute::kHeight:
-      *value = modes_[config].vdisplay;
+      if (!custom_resolution_) {
+        *value = modes_[config].vdisplay;
+      } else {
+        *value = rect_.bottom - rect_.top;
+      }
+      IHOTPLUGEVENTTRACE("GetDisplayAttribute: height %d set", *value);
       break;
     case HWCDisplayAttribute::kRefreshRate:
-      refresh = (modes_[config].clock * 1000.0f) /
+      if (!custom_resolution_) {
+        refresh = (modes_[config].clock * 1000.0f) /
                 (modes_[config].htotal * modes_[config].vtotal);
+      } else {
+        refresh = (modes_[config].clock * 1000.0f) /
+                ((rect_.right - rect_.left) * (rect_.bottom - rect_.top));
+      }
 
       if (modes_[config].flags & DRM_MODE_FLAG_INTERLACE)
         refresh *= 2;
@@ -181,18 +197,29 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
 
       if (modes_[config].vscan > 1)
         refresh /= modes_[config].vscan;
+
       // in nanoseconds
       *value = 1e9 / refresh;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches
-      *value =
+      if (!custom_resolution_) {
+        *value =
           mmWidth_ ? (modes_[config].hdisplay * kUmPerInch) / mmWidth_ : -1;
+      } else {
+        *value =
+          mmWidth_ ? ((rect_.right - rect_.left) * kUmPerInch) / mmWidth_ : -1;
+      }
       break;
     case HWCDisplayAttribute::kDpiY:
       // Dots per 1000 inches
-      *value =
+      if (!custom_resolution_) {
+        *value =
           mmHeight_ ? (modes_[config].vdisplay * kUmPerInch) / mmHeight_ : -1;
+      } else {
+        *value =
+          mmHeight_ ? ((rect_.bottom - rect_.top) * kUmPerInch) / mmHeight_ : -1;
+      }
       break;
     default:
       *value = -1;
@@ -403,8 +430,17 @@ void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
 }
 
 void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {
-  width_ = mode_info.hdisplay;
-  height_ = mode_info.vdisplay;
+  // Default resolution of the display
+  if (!custom_resolution_) {
+    width_ = mode_info.hdisplay;
+    height_ = mode_info.vdisplay;
+  } else {
+    width_ = rect_.right - rect_.left;
+    height_ = rect_.bottom - rect_.top;
+  }
+  IHOTPLUGEVENTTRACE("SetDisplayAttribute: width %d, height %d",
+    width_, height_);
+
   current_mode_ = mode_info;
 }
 
