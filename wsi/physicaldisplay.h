@@ -63,6 +63,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
+  bool SetCustomResolution(const HwcRect<int32_t>&) override;
+
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
@@ -240,6 +242,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 #endif
   int32_t width_;
   int32_t height_;
+  HwcRect<int32_t> rect_;
+  int32_t custom_resolution_;
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
   int display_state_ = kNone;
