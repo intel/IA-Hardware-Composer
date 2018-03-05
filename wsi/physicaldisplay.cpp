@@ -37,6 +37,7 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
     : pipe_(pipe_id),
       width_(0),
       height_(0),
+      custom_resolution_(false),
       gpu_fd_(gpu_fd),
       power_mode_(kOn) {
 }
@@ -553,6 +554,27 @@ bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
   }
 
   return true;
+}
+
+/* Setting custom resolution instead of preferred as fetched from display */
+bool PhysicalDisplay::SetCustomResolution(const HwcRect<int32_t> &rect) {
+  if ((rect.right - rect.left) && (rect.bottom - rect.top)) {
+    // Custom rectangle with valid width and height
+    rect_.left = rect.left;
+    rect_.top = rect.top;
+    rect_.right = rect.right;
+    rect_.bottom = rect.bottom;
+    custom_resolution_ = true;
+
+    IHOTPLUGEVENTTRACE("SetCustomResolution: custom width %d, height %d, bool %d",
+      rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
+
+    return true;
+  } else {
+    // Default display rectangle
+    custom_resolution_ = false;
+    return false;
+  }
 }
 
 bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
