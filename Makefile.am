@@ -51,7 +51,6 @@ libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared
 libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
 
 if ENABLE_DUMMY_COMPOSITOR
-AM_CPP_INCLUDES += -Icommon/compositor/dc
 AM_CPPFLAGS += -DUSE_DC
 else
 if ENABLE_VULKAN
