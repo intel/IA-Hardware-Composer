@@ -20,7 +20,7 @@
 #include <stdint.h>
 
 #ifdef USE_DC
-#include "dcshim.h"
+#include "dummycomp.h"
 #elif USE_GL
 #include "shim.h"
 #elif USE_VK
@@ -48,8 +48,6 @@ static float TransformMatrices[] = {
 typedef unsigned GpuResourceHandle;
 typedef struct gl_import {
   EGLImageKHR image_ = 0;
-  GLuint texture_ = 0;
-  GLuint fb_ = 0;
   HWCNativeHandle handle_ = 0;
   uint32_t drm_fd_ = 0;
 } ResourceHandle;

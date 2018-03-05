@@ -18,7 +18,6 @@
 #define COMMON_COMPOSITOR_GL_GLSURFACE_H_
 
 #include "nativesurface.h"
-#include "dcshim.h"
 
 namespace hwcomposer {
 
