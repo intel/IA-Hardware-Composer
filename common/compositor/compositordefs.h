@@ -20,7 +20,8 @@
 #include <stdint.h>
 
 #ifdef USE_DC
-#include "dummycomp.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #elif USE_GL
 #include "shim.h"
 #elif USE_VK
