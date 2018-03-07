@@ -224,7 +224,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true);
+            resource_manager, true, layer);
 
   if (!handle_constraints) {
     if (previous_layer) {
