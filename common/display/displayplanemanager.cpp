@@ -249,8 +249,8 @@ bool DisplayPlaneManager::ValidateLayers(
                           composition.size());
 #endif
             composition.back().AddLayer(layer);
-            if (SquashPlanesAsNeeded(layers, composition, commit_planes,
-                                     &validate_final_layers)) {
+            while (SquashPlanesAsNeeded(layers, composition, commit_planes,
+                                        &validate_final_layers)) {
               j--;
               plane = j->get();
             }
@@ -285,8 +285,10 @@ bool DisplayPlaneManager::ValidateLayers(
       }
 
       if (composition.back().NeedsOffScreenComposition()) {
-        SquashPlanesAsNeeded(layers, composition, commit_planes,
-                             &validate_final_layers);
+        while (SquashPlanesAsNeeded(layers, composition, commit_planes,
+                                    &validate_final_layers)) {
+          continue;
+        }
         DisplayPlaneState &squashed_plane = composition.back();
         // In this case we need to fallback to 3Dcomposition till Media
         // backend adds support for multiple layers.
@@ -482,11 +484,12 @@ void DisplayPlaneManager::ValidateCursorLayer(
       ISURFACETRACE("Added CursorLayer: %d \n", cursor_layer->GetZorder());
 #endif
       last_plane->AddLayer(cursor_layer);
-      if (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
-                               validate_final_layers)) {
-        last_plane = GetLastUsedOverlay(composition);
+      while (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                                  validate_final_layers)) {
+        continue;
       }
 
+      last_plane = GetLastUsedOverlay(composition);
       bool reset_overlay = false;
       if (!last_plane->GetOffScreenTarget() || is_video)
         reset_overlay = true;
@@ -538,10 +541,12 @@ void DisplayPlaneManager::ValidateCursorLayer(
     last_plane->AddLayer(cursor_layer);
     cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
     last_layer = cursor_layer;
-    if (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
-                             validate_final_layers)) {
-      last_plane = GetLastUsedOverlay(composition);
+    while (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                                validate_final_layers)) {
+      continue;
     }
+
+    last_plane = GetLastUsedOverlay(composition);
   }
 
   if (last_layer) {
@@ -1134,23 +1139,23 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
         composition.pop_back();
         status = true;
       }
-    }
 
-    DisplayPlaneState &squashed_plane = composition.back();
-    if (squashed_plane.NeedsSurfaceAllocation()) {
+      DisplayPlaneState &squashed_plane = composition.back();
       if (squashed_plane.NeedsSurfaceAllocation()) {
-        SetOffScreenPlaneTarget(squashed_plane);
+        if (squashed_plane.NeedsSurfaceAllocation()) {
+          SetOffScreenPlaneTarget(squashed_plane);
+        }
+
+        *validate_final_layers = true;
       }
 
-      *validate_final_layers = true;
-    }
-
-    if (!commit_planes.empty()) {
-      // Layer for the plane should have changed, reset commit planes.
-      std::vector<OverlayPlane>().swap(commit_planes);
-      for (DisplayPlaneState &temp : composition) {
-        commit_planes.emplace_back(
-            OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+      if (!commit_planes.empty()) {
+        // Layer for the plane should have changed, reset commit planes.
+        std::vector<OverlayPlane>().swap(commit_planes);
+        for (DisplayPlaneState &temp : composition) {
+          commit_planes.emplace_back(
+              OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+        }
       }
     }
   }
