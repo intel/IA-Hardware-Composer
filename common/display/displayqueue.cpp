@@ -224,8 +224,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         std::vector<OverlayPlane> temp;
-        display_plane_manager_->SquashPlanesAsNeeded(layers, *composition, temp,
-                                                     &plane_validation);
+        while (display_plane_manager_->SquashPlanesAsNeeded(
+            layers, *composition, temp, &plane_validation)) {
+          continue;
+        }
         DisplayPlaneState& squashed_plane = composition->back();
 
         squashed_plane.ValidateReValidation();
@@ -309,8 +311,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         needs_gpu_composition = !target_plane.SurfaceRecycled();
 
       std::vector<OverlayPlane> temp;
-      if (display_plane_manager_->SquashPlanesAsNeeded(
-              layers, *composition, temp, &plane_validation) &&
+      bool planes_squashed = false;
+      while (display_plane_manager_->SquashPlanesAsNeeded(
+          layers, *composition, temp, &plane_validation)) {
+        planes_squashed = true;
+        continue;
+      }
+
+      if (planes_squashed && composition->size() > 1 &&
           (previous_size != previous_plane_state_.size())) {
         *force_full_validation = true;
         *can_ignore_commit = false;
