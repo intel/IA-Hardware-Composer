@@ -94,7 +94,15 @@ class DisplayPlaneManager {
   bool SquashPlanesAsNeeded(const std::vector<OverlayLayer> &layers,
                             DisplayPlaneStateList &composition,
                             std::vector<OverlayPlane> &commit_planes,
+                            std::vector<NativeSurface *> &mark_later,
                             bool *validate_final_layers);
+
+  // Returns true if we want to force target_layer to a separate plane than
+  // adding it to
+  // last_plane.
+  bool ForceSeparatePlane(const std::vector<OverlayLayer> &layers,
+                          const DisplayPlaneState &last_plane,
+                          const OverlayLayer *target_layer);
 
  private:
   struct LayerResultCache {
