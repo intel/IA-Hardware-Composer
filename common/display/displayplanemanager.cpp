@@ -873,7 +873,7 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
       // mark_later to be recycled later.
       for (uint32_t i = 0; i < size; i++) {
         NativeSurface *surface = surfaces.at(i);
-        if (surface->GetSurfaceAge() >= 0) {
+        if (surface->GetSurfaceAge() >= 0 && surface->IsOnScreen()) {
           mark_later.emplace_back(surface);
         } else {
           surface->SetSurfaceAge(-1);
@@ -1063,7 +1063,7 @@ void DisplayPlaneManager::FinalizeValidation(
       ValidateForDownScaling(plane, commit_planes);
 
       if (!needs_gpu) {
-        needs_gpu = !plane.SurfaceRecycled();
+        needs_gpu = !plane.IsSurfaceRecycled();
       }
 
       if (plane.RevalidationType() !=

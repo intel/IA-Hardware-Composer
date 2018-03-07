@@ -86,8 +86,6 @@ class DisplayPlaneState {
 
   const HwcRect<float> &GetSourceCrop() const;
 
-  bool SurfaceRecycled() const;
-
   const OverlayLayer *GetOverlayLayer() const;
 
   NativeSurface *GetOffScreenTarget() const;
@@ -212,6 +210,11 @@ class DisplayPlaneState {
   // Put's current OffscreenSurface to back in the
   // list if not already done.
   void SwapSurfaceIfNeeded();
+
+  // Returns true if OffscreenSurface is recycled.
+  bool IsSurfaceRecycled() const {
+    return recycled_surface_;
+  }
 
   void Dump();
 

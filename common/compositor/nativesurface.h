@@ -117,6 +117,12 @@ class NativeSurface {
   // compared to previous frame.
   bool IsSurfaceDamageChanged() const;
 
+  // Returns true if this surface has been scanned out with the plane
+  // it's associated with currently.
+  bool IsOnScreen() const {
+    return on_screen_;
+  }
+
  protected:
   OverlayLayer layer_;
   ResourceManager* resource_manager_;
@@ -129,6 +135,7 @@ class NativeSurface {
   ClearType clear_surface_;
   int surface_age_;
   bool damage_changed_ = true;
+  bool on_screen_ = false;
   HwcRect<int> surface_damage_;
   HwcRect<int> previous_damage_;
 };
