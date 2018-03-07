@@ -334,7 +334,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         composition->back().SwapSurfaceIfNeeded();
       } else {
         if (!needs_gpu_composition)
-          needs_gpu_composition = !target_plane.SurfaceRecycled();
+          needs_gpu_composition = !target_plane.IsSurfaceRecycled();
       }
 
       reset_composition_regions = false;
@@ -983,7 +983,7 @@ void DisplayQueue::SetReleaseFenceToLayers(
     const std::vector<size_t>& layers = plane.GetSourceLayers();
     size_t size = layers.size();
     int32_t release_fence = -1;
-    if (plane.Scanout() && !plane.SurfaceRecycled()) {
+    if (plane.Scanout() && !plane.IsSurfaceRecycled()) {
       for (size_t layer_index = 0; layer_index < size; layer_index++) {
         OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));

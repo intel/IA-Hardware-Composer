@@ -73,9 +73,11 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
   for (DisplayPlaneState &plane : comp_planes) {
     if (plane.Scanout()) {
-      dedicated_layers.insert(dedicated_layers.end(),
-                              plane.GetSourceLayers().begin(),
-                              plane.GetSourceLayers().end());
+      if (!plane.IsSurfaceRecycled()) {
+        dedicated_layers.insert(dedicated_layers.end(),
+                                plane.GetSourceLayers().begin(),
+                                plane.GetSourceLayers().end());
+      }
     } else if (plane.IsVideoPlane()) {
       dedicated_layers.insert(dedicated_layers.end(),
                               plane.GetSourceLayers().begin(),

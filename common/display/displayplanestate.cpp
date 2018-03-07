@@ -283,10 +283,6 @@ void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
   private_data_->layer_ = layer;
 }
 
-bool DisplayPlaneState::SurfaceRecycled() const {
-  return recycled_surface_;
-}
-
 const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
   return private_data_->layer_;
 }
