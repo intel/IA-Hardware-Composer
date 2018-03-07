@@ -225,7 +225,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
         std::vector<OverlayPlane> temp;
         while (display_plane_manager_->SquashPlanesAsNeeded(
-            layers, *composition, temp, &plane_validation)) {
+            layers, *composition, temp, surfaces_not_inuse_,
+            &plane_validation)) {
           continue;
         }
         DisplayPlaneState& squashed_plane = composition->back();
@@ -298,6 +299,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       if (update_rect || refresh_surfaces || !surface_damage.empty()) {
+        needs_gpu_composition = true;
         if (target_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
         } else if (refresh_surfaces || reset_plane) {
@@ -305,24 +307,34 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         } else if (!update_rect && !surface_damage.empty()) {
           target_plane.UpdateDamage(surface_damage);
         }
-      }
 
-      if (!needs_gpu_composition)
-        needs_gpu_composition = !target_plane.SurfaceRecycled();
+        if (refresh_surfaces || reset_plane || update_rect) {
+          std::vector<OverlayPlane> temp;
+          bool squashed = display_plane_manager_->SquashPlanesAsNeeded(
+              layers, *composition, temp, surfaces_not_inuse_,
+              &plane_validation);
+          if (squashed) {
+            // We squashed planes and it's not the last one.
+            // We might have messed up with plane order, let's
+            // force full validation.
+            if (previous_size != previous_plane_state_.size()) {
+              *force_full_validation = true;
+              *can_ignore_commit = false;
+              return;
+            } else {
+              while (display_plane_manager_->SquashPlanesAsNeeded(
+                  layers, *composition, temp, surfaces_not_inuse_,
+                  &plane_validation)) {
+                continue;
+              }
+            }
+          }
+        }
 
-      std::vector<OverlayPlane> temp;
-      bool planes_squashed = false;
-      while (display_plane_manager_->SquashPlanesAsNeeded(
-          layers, *composition, temp, &plane_validation)) {
-        planes_squashed = true;
-        continue;
-      }
-
-      if (planes_squashed && composition->size() > 1 &&
-          (previous_size != previous_plane_state_.size())) {
-        *force_full_validation = true;
-        *can_ignore_commit = false;
-        return;
+        composition->back().SwapSurfaceIfNeeded();
+      } else {
+        if (!needs_gpu_composition)
+          needs_gpu_composition = !target_plane.SurfaceRecycled();
       }
 
       reset_composition_regions = false;
@@ -391,6 +403,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             source_layers.at(0), size - 1, size - 2);
 #endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
+        if (display_plane_manager_->ForceSeparatePlane(layers, old_plane,
+                                                       layer)) {
+          return;
+        }
+
         old_plane.AddLayer(layer);
 
         // Let's allocate an offscreen surface if needed.
