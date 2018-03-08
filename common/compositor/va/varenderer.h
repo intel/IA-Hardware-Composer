@@ -110,6 +110,7 @@ class VARenderer : public Renderer {
   bool CreateContext();
   void DestroyContext();
   bool UpdateCaps();
+  uint32_t HWCTransformToVA(uint32_t transform);
 
   bool update_caps_ = false;
   void* va_display_ = nullptr;
