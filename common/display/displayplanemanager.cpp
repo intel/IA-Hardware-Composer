@@ -808,9 +808,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
     j->get()->SetInUse(false);
   }
 
-  bool free_surfaces = !composition.empty();
-
-  if (free_surfaces) {
+  if (!composition.empty()) {
     for (DisplayPlaneState &plane : composition) {
       MarkSurfacesForRecycling(&plane, mark_later, recycle_resources);
     }
@@ -854,10 +852,6 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   // Reset andy Scanout validation state.
   uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
   last_plane.RevalidationDone(validation_done);
-
-  if (free_surfaces) {
-    ReleaseFreeOffScreenTargets();
-  }
 }
 
 void DisplayPlaneManager::MarkSurfacesForRecycling(
@@ -888,9 +882,6 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
 
     plane->ReleaseSurfaces();
   }
-
-  if (recycle_resources)
-    ReleaseFreeOffScreenTargets(true);
 }
 
 bool DisplayPlaneManager::ReValidatePlanes(

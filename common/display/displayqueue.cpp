@@ -688,10 +688,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           }
 
           std::vector<NativeSurface*>().swap(mark_not_inuse_);
+          tracker.ForceSurfaceRelease();
         }
 
-        // Free any surfaces.
-        display_plane_manager_->ReleaseFreeOffScreenTargets(true);
         return true;
       }
     }
@@ -795,11 +794,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
-    // Free any surfaces.
-    display_plane_manager_->ReleaseFreeOffScreenTargets(true);
-  } else {
-    // Free any surfaces.
-    display_plane_manager_->ReleaseFreeOffScreenTargets();
+    tracker.ForceSurfaceRelease();
   }
 
   in_flight_layers_.swap(layers);
