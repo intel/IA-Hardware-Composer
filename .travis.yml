@@ -76,6 +76,9 @@ script:
 - make clean
 - ./autogen.sh --prefix=$WLD --disable-hotplug-support
 - make -j5
+- make clean
+- ./autogen.sh --prefix=$WLD --enable-dummy-compositor
+- make -j5
 
 # Test Weston plugin
 - export WLD=/tmp/wl-install
@@ -149,14 +152,6 @@ script:
 - git clean -xfd
 - ./autogen.sh --prefix=$WLD
 - make -j5 && make install
-- popd
-
-#Build hwcomposer with dummy compositor enabled
-- pushd .
-- cd /tmp/common
-- git clean -xfd
-- ./autogen.sh --prefix=$WLD --enable-dummy-compositor
-- make && make install
 - popd
 
 #Build weston and weston plugin
