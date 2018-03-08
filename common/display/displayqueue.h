@@ -195,6 +195,10 @@ class DisplayQueue {
       tracker_.has_cursor_layer_ = true;
     }
 
+    void ForceSurfaceRelease() {
+      forced_ = true;
+    }
+
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
       // Reset idle frame count. We want that idle frames
@@ -222,11 +226,15 @@ class DisplayQueue {
       tracker_.total_planes_ = queue_->previous_plane_state_.size();
       tracker_.idle_lock_.unlock();
 
+      // Free any surfaces.
+      queue_->display_plane_manager_->ReleaseFreeOffScreenTargets(forced_);
+
       if (resource_manager_->PreparePurgedResources())
         compositor_.FreeResources();
     }
 
    private:
+    bool forced_ = false;
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
     ResourceManager* resource_manager_;

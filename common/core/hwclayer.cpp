@@ -113,7 +113,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
       state_ &= ~kSurfaceDamageChanged;
-      UpdateRenderingDamage(surface_damage_, rect, false);
+      UpdateRenderingDamage(rect, rect, true);
       surface_damage_.reset();
       return;
     }
