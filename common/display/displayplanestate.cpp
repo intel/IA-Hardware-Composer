@@ -252,11 +252,9 @@ void DisplayPlaneState::RefreshLayerRects(
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
-    if (only_cursor_layer) {
-      for (NativeSurface *surface : private_data_->surfaces_) {
-        // Damage whole old rect.
-        surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
-      }
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      // Damage whole old rect.
+      surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
     }
   }
 

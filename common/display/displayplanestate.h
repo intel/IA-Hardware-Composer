@@ -237,8 +237,9 @@ class DisplayPlaneState {
 
     ~DisplayPlanePrivateState() {
       for (NativeSurface *surface : surfaces_) {
-        if (surface->GetSurfaceAge() == 0)
+        if ((surface->GetSurfaceAge() == 0) && !surface->IsOnScreen()) {
           surface->SetSurfaceAge(-1);
+        }
       }
     }
 

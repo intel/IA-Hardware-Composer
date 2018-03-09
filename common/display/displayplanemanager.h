@@ -51,7 +51,8 @@ class DisplayPlaneManager {
 
   void MarkSurfacesForRecycling(DisplayPlaneState *plane,
                                 std::vector<NativeSurface *> &mark_later,
-                                bool recycle_resources);
+                                bool recycle_resources,
+                                bool reset_plane_surfaces = true);
 
   // This can be used to quickly check if the new DisplayPlaneStateList
   // can be succefully commited before doing a full re-validation.

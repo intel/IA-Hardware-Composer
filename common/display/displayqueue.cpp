@@ -887,7 +887,7 @@ void DisplayQueue::HandleCommitFailure(
     }
 
     display_plane_manager_->MarkSurfacesForRecycling(
-        &plane, surfaces_not_inuse_, false);
+        &plane, surfaces_not_inuse_, false, false);
   }
 
   // Let's mark all previous planes as in use.
