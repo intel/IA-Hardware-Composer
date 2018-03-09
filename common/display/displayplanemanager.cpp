@@ -856,7 +856,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
 
 void DisplayPlaneManager::MarkSurfacesForRecycling(
     DisplayPlaneState *plane, std::vector<NativeSurface *> &mark_later,
-    bool recycle_resources) {
+    bool recycle_resources, bool reset_plane_surfaces) {
   const std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
   if (!surfaces.empty()) {
     release_surfaces_ = true;
@@ -880,7 +880,8 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
       }
     }
 
-    plane->ReleaseSurfaces();
+    if (reset_plane_surfaces)
+      plane->ReleaseSurfaces();
   }
 }
 
@@ -889,7 +890,10 @@ bool DisplayPlaneManager::ReValidatePlanes(
     std::vector<NativeSurface *> &mark_later, bool *request_full_validation,
     bool needs_revalidation_checks, bool re_validate_commit) {
 #ifdef SURFACE_TRACING
-  ISURFACETRACE("ReValidatePlanes called \n");
+  ISURFACETRACE(
+      "ReValidatePlanes called needs_revalidation_checks %d re_validate_commit "
+      "%d  \n",
+      needs_revalidation_checks, re_validate_commit);
 #endif
   // Let's first check the current combination works.
   *request_full_validation = false;
@@ -968,6 +972,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
         last_plane.ForceGPURendering();
         layer->SetLayerComposition(OverlayLayer::kGpu);
         last_plane.SetOverlayLayer(current_layer);
+        commit_planes.at(index).layer = last_plane.GetOverlayLayer();
         if (uses_scalar)
           last_plane.UsePlaneScalar(true, false);
       } else {
