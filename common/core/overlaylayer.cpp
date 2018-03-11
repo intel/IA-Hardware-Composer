@@ -69,9 +69,10 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
-  if (resource_manager && register_buffer) {
+  // FIXME: Enable cache again.
+  /*if (resource_manager && register_buffer) {
     buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
-  }
+  }*/
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
