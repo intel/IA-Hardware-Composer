@@ -697,7 +697,7 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
 
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
   for (auto &fb : surfaces_) {
-    if (fb->GetSurfaceAge() >= 0) {
+    if ((fb->GetSurfaceAge() >= 0) && fb->IsOnScreen()) {
       surfaces.emplace_back(fb.release());
     }
   }
@@ -1050,7 +1050,6 @@ void DisplayPlaneManager::FinalizeValidation(
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition()) {
       plane.RefreshSurfaces(NativeSurface::kFullClear);
-      plane.SwapSurfaceIfNeeded();
       plane.ValidateReValidation();
       // Check for Any display transform to be applied.
       ValidateForDisplayTransform(plane, commit_planes);
@@ -1122,6 +1121,8 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
           scanout_plane.AddLayer(&(layers.at(index)));
         }
 
+        scanout_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+
         last_plane.GetDisplayPlane()->SetInUse(false);
         MarkSurfacesForRecycling(&last_plane, mark_later, true);
         composition.pop_back();
@@ -1129,10 +1130,7 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
 
         DisplayPlaneState &squashed_plane = composition.back();
         if (squashed_plane.NeedsSurfaceAllocation()) {
-          if (squashed_plane.NeedsSurfaceAllocation()) {
-            SetOffScreenPlaneTarget(squashed_plane);
-          }
-
+          SetOffScreenPlaneTarget(squashed_plane);
           *validate_final_layers = true;
         }
 

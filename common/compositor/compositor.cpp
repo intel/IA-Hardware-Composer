@@ -93,6 +93,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
+      plane.SwapSurfaceIfNeeded();
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       plane.SwapSurfaceIfNeeded();

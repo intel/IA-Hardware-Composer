@@ -211,6 +211,9 @@ class DisplayPlaneState {
   // list if not already done.
   void SwapSurfaceIfNeeded();
 
+  // Reset's surface age and surface order as previous frame.
+  void HandleCommitFailure();
+
   // Returns true if OffscreenSurface is recycled.
   bool IsSurfaceRecycled() const {
     return recycled_surface_;
