@@ -171,6 +171,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       size_t index = source_layers.at(source_layers.size() - 1);
       size_t threshold = static_cast<size_t>(remove_index);
       bool needs_plane_validation = false;
+
       if (index >= threshold) {
         removed_layers = true;
 #ifdef SURFACE_TRACING
@@ -196,6 +197,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         if (last_plane.GetSourceLayers().empty() || has_one_layer) {
           display_plane_manager_->MarkSurfacesForRecycling(
               &last_plane, surfaces_not_inuse_, true);
+
           // On some platforms disabling primary disables
           // the whole pipe. Let's revalidate the new layers
           // and ensure primary has a buffer.
@@ -265,7 +267,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
-      if (!removed_layers) {
+      if (!removed_layers && !update_rect) {
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
@@ -330,12 +332,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             }
           }
         }
-
-        composition->back().SwapSurfaceIfNeeded();
-      } else {
-        if (!needs_gpu_composition)
-          needs_gpu_composition = !target_plane.IsSurfaceRecycled();
       }
+
+      DisplayPlaneState& squashed_plane = composition->back();
+      squashed_plane.RefreshSurfaces(NativeSurface::kFullClear);
+
+      if (!needs_gpu_composition)
+        needs_gpu_composition = !(squashed_plane.IsSurfaceRecycled());
 
       reset_composition_regions = false;
     } else {
@@ -409,9 +412,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         old_plane.AddLayer(layer);
-
-        // Let's allocate an offscreen surface if needed.
-        display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
+        old_plane.ResetCompositionRegion();
 
         // If overlay has offscreen surfaces, discard
         // them.
@@ -419,6 +420,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           display_plane_manager_->MarkSurfacesForRecycling(
               &last_overlay, surfaces_not_inuse_, true);
         }
+
+        // Let's allocate an offscreen surface if needed.
+        display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
 
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (size - 1));
@@ -749,7 +753,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (!composition_passed) {
-    last_commit_failed_update_ = true;
     if (validate_layers)
       HandleCommitFailure(current_composition_planes);
     return false;
@@ -893,9 +896,8 @@ void DisplayQueue::HandleCommitFailure(
   // Let's mark all previous planes as in use.
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     previous_plane.GetDisplayPlane()->SetInUse(true);
+    previous_plane.HandleCommitFailure();
   }
-
-  UpdateOnScreenSurfaces();
 }
 
 void DisplayQueue::SetMediaEffectsState(
@@ -933,20 +935,9 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
       continue;
 
     size_t size = surfaces.size();
-    if (size == 3) {
-      NativeSurface* surface = surfaces.at(1);
-      surface->SetSurfaceAge(0);
-
-      surface = surfaces.at(0);
-      surface->SetSurfaceAge(2);
-
-      surface = surfaces.at(2);
-      surface->SetSurfaceAge(1);
-    } else {
-      for (uint32_t i = 0; i < size; i++) {
-        NativeSurface* surface = surfaces.at(i);
-        surface->SetSurfaceAge(2 - i);
-      }
+    for (uint32_t i = 0; i < size; i++) {
+      NativeSurface* surface = surfaces.at(i);
+      surface->SetSurfaceAge(2 - i);
     }
 #ifdef COMPOSITOR_TRACING
     // Swap any surfaces which are to be marked as not in
@@ -975,10 +966,13 @@ void DisplayQueue::UpdateOnScreenSurfaces() {
 void DisplayQueue::SetReleaseFenceToLayers(
     int32_t fence, std::vector<HwcLayer*>& source_layers) {
   for (const DisplayPlaneState& plane : previous_plane_state_) {
+    if (plane.IsSurfaceRecycled())
+      continue;
+
     const std::vector<size_t>& layers = plane.GetSourceLayers();
     size_t size = layers.size();
     int32_t release_fence = -1;
-    if (plane.Scanout() && !plane.IsSurfaceRecycled()) {
+    if (plane.Scanout()) {
       for (size_t layer_index = 0; layer_index < size; layer_index++) {
         OverlayLayer& overlay_layer =
             in_flight_layers_.at(layers.at(layer_index));
@@ -998,8 +992,9 @@ void DisplayQueue::SetReleaseFenceToLayers(
           layer->SetReleaseFence(dup(release_fence));
         } else {
           int32_t temp = overlay_layer.ReleaseAcquireFence();
-          if (temp > 0)
+          if (temp > 0) {
             layer->SetReleaseFence(temp);
+          }
         }
       }
 
