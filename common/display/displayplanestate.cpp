@@ -114,6 +114,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   } else {
     RefreshSurfaces(NativeSurface::kPartialClear);
   }
+
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
@@ -209,9 +211,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   }
 
   private_data_->refresh_surface_ = true;
-  if (layer_removed || rect_updated) {
-    RefreshSurfaces(NativeSurface::kFullClear);
-  } else {
+  recycled_surface_ = false;
+  if (!layer_removed && !rect_updated) {
     RefreshSurfaces(NativeSurface::kPartialClear);
   }
 }
@@ -262,23 +263,25 @@ void DisplayPlaneState::RefreshLayerRects(
     private_data_->rect_updated_ = rect_updated;
 
   private_data_->refresh_surface_ = true;
-  if (!only_cursor_layer && rect_updated) {
-    RefreshSurfaces(NativeSurface::kFullClear);
-  } else {
+  recycled_surface_ = false;
+  if (!rect_updated) {
     RefreshSurfaces(NativeSurface::kPartialClear);
   }
 }
 
 void DisplayPlaneState::ForceGPURendering() {
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::DisableGPURendering() {
   private_data_->state_ = DisplayPlanePrivateState::State::kScanout;
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
   private_data_->layer_ = layer;
+  recycled_surface_ = false;
 }
 
 const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
@@ -295,7 +298,8 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
   recycled_surface_ = false;
   surface_swapped_ = true;
-  RefreshSurfaces(NativeSurface::kFullClear, true);
+  private_data_->refresh_surface_ = true;
+  RefreshSurfaces(NativeSurface::kFullClear);
   needs_surface_allocation_ = false;
 }
 
@@ -320,9 +324,9 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
     std::vector<NativeSurface *> temp;
     temp.reserve(size);
     // Lets make sure front buffer is now back in the list.
-    temp.emplace_back(private_data_->surfaces_.at(1));
     temp.emplace_back(private_data_->surfaces_.at(2));
     temp.emplace_back(private_data_->surfaces_.at(0));
+    temp.emplace_back(private_data_->surfaces_.at(1));
     private_data_->surfaces_.swap(temp);
   }
 
@@ -332,6 +336,33 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
   private_data_->layer_ = surface->GetLayer();
 }
 
+void DisplayPlaneState::HandleCommitFailure() {
+  size_t size = private_data_->surfaces_.size();
+  if (size == 0)
+    return;
+
+  if (surface_swapped_) {
+    if (size == 3) {
+      std::vector<NativeSurface *> temp;
+      temp.reserve(size);
+      // Lets make sure we restore the buffer queue.
+      temp.emplace_back(private_data_->surfaces_.at(1));
+      temp.emplace_back(private_data_->surfaces_.at(2));
+      temp.emplace_back(private_data_->surfaces_.at(0));
+      private_data_->surfaces_.swap(temp);
+    }
+
+    NativeSurface *surface = private_data_->surfaces_.at(0);
+    private_data_->layer_ = surface->GetLayer();
+  }
+
+  for (uint32_t i = 0; i < size; i++) {
+    NativeSurface *surface = private_data_->surfaces_.at(i);
+    surface->SetSurfaceAge(2 - i);
+    surface->SetClearSurface(NativeSurface::kFullClear);
+  }
+}
+
 const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
   return private_data_->surfaces_;
 }
@@ -339,6 +370,7 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 void DisplayPlaneState::ReleaseSurfaces() {
   std::vector<NativeSurface *>().swap(private_data_->surfaces_);
   needs_surface_allocation_ = true;
+  recycled_surface_ = false;
 }
 
 void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
@@ -455,6 +487,7 @@ void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
     }
 
     ResetCompositionRegion();
+    recycled_surface_ = false;
   }
 }
 

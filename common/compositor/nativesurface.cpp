@@ -86,6 +86,8 @@ void NativeSurface::SetSurfaceAge(int value) {
   surface_age_ = value;
   if (surface_age_ >= 0) {
     on_screen_ = true;
+  } else {
+    on_screen_ = false;
   }
 }
 

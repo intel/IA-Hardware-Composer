@@ -255,7 +255,7 @@ class TraceFunc {
         ITRACE("index: %d", primary_index);                                    \
       }                                                                        \
     } else if (comp_plane.Scanout()) {                                         \
-      if (source_layers.size() > 1 && !comp_plane.SurfaceRecycled())           \
+      if (source_layers.size() > 1 && !comp_plane.IsSurfaceRecycled())         \
         ITRACE(                                                                \
             "Plane has more than one layer associated when its type is "       \
             "kScanout. This needs to be fixed.");                              \
