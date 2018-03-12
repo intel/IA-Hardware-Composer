@@ -50,6 +50,10 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_DISPLAYMODE_GET_AVAILABLE_MODES,
     TRANSACT_DISPLAYMODE_GET_MODE,
     TRANSACT_DISPLAYMODE_SET_MODE,
+    TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY,
+    TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_ALL_DISPLAYS,
+    TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY,
+    TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS,
     TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS,
@@ -302,6 +306,62 @@ class BpControls : public BpInterface<IControls> {
     if (ret != NO_ERROR) {
       ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
       return ret;
+    }
+    return reply.readInt32();
+  }
+
+  status_t EnableHDCPSessionForDisplay(uint32_t display,
+                                       EHwcsContentType content_type) {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(display);
+    data.writeInt32(content_type);
+    status_t ret = remote()->transact(
+        TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+      return ret;
+    }
+    return reply.readInt32();
+  }
+
+  status_t EnableHDCPSessionForAllDisplays(EHwcsContentType content_type) {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(content_type);
+    status_t ret = remote()->transact(
+        TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_ALL_DISPLAYS, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+      return ret;
+    }
+    return reply.readInt32();
+  }
+
+  status_t DisableHDCPSessionForDisplay(uint32_t display) {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(display);
+    status_t ret = remote()->transact(
+        TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+      return ret;
+    }
+    return reply.readInt32();
+  }
+
+  status_t DisableHDCPSessionForAllDisplays() {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    status_t ret = remote()->transact(
+        TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
     }
     return reply.readInt32();
   }
@@ -584,6 +644,34 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t display = data.readInt32();
       uint32_t config = data.readInt32();
       status_t ret = this->DisplayModeSetMode(display, config);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t display = data.readInt32();
+      EHwcsContentType content_type = (EHwcsContentType)data.readInt32();
+      status_t ret = this->EnableHDCPSessionForDisplay(display, content_type);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_ALL_DISPLAYS: {
+      CHECK_INTERFACE(IControls, data, reply);
+      EHwcsContentType content_type = (EHwcsContentType)data.readInt32();
+      status_t ret = this->EnableHDCPSessionForAllDisplays(content_type);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t display = data.readInt32();
+      status_t ret = this->DisableHDCPSessionForDisplay(display);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS: {
+      CHECK_INTERFACE(IControls, data, reply);
+      status_t ret = this->DisableHDCPSessionForAllDisplays();
       reply->writeInt32(ret);
       return NO_ERROR;
     }

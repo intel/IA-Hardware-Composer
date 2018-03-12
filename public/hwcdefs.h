@@ -37,10 +37,17 @@ enum class HWCBlending : int32_t {
   kBlendingCoverage = 0x0405,
 };
 
+// Enumerations for content protection.
 enum HWCContentProtection {
   kUnSupported = 0,  // Content Protection is not supported.
   kUnDesired = 1,    // Content Protection is not required.
   kDesired = 2       // Content Protection is desired.
+};
+
+enum HWCContentType {
+  kInvalid,        // Used when disabling HDCP.
+  kCONTENT_TYPE0,  // Can support any HDCP specifiction.
+  kCONTENT_TYPE1,  // Can support only HDCP 2.2 and higher specification.
 };
 
 enum HWCTransform {

@@ -364,6 +364,28 @@ status_t HwcService::Controls::DisplayModeSetMode(uint32_t display,
   return OK;
 }
 
+status_t HwcService::Controls::EnableHDCPSessionForDisplay(
+    uint32_t display, EHwcsContentType content_type) {
+  mHwc.EnableHDCPSessionForDisplay(display, content_type);
+  return OK;
+}
+
+status_t HwcService::Controls::EnableHDCPSessionForAllDisplays(
+    EHwcsContentType content_type) {
+  mHwc.EnableHDCPSessionForAllDisplays(content_type);
+  return OK;
+}
+
+status_t HwcService::Controls::DisableHDCPSessionForDisplay(uint32_t display) {
+  mHwc.DisableHDCPSessionForDisplay(display);
+  return OK;
+}
+
+status_t HwcService::Controls::DisableHDCPSessionForAllDisplays() {
+  mHwc.DisableHDCPSessionForAllDisplays();
+  return OK;
+}
+
 status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
   // TO DO
