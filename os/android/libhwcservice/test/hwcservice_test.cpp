@@ -28,6 +28,10 @@ using namespace hwcomposer;
 static void usage() {
   aout << "Usage: hwcservice_test \n"
           "\t-g: Get current display mode\n"
+          "\t-h: Enable HDCP support for a given Display. \n"
+          "\t-i: Disable HDCP support for a given Display. \n"
+          "\t-j: Enable HDCP support for all displays. \n"
+          "\t-k: Disable HDCP support for all displays. \n"
           "\t-s: Set display mode\n"
           "\t-p: Print all available display modes\n"
           "\t-u: Set Hue\n"
@@ -52,9 +56,13 @@ int main(int argc, char** argv) {
   bool set_contrast = false;
   bool set_deinterlace = false;
   bool set_sharpness = false;
+  bool set_hdcp_for_display = false;
+  bool set_hdcp_for_all_display = false;
+  bool disable_hdcp_for_display = false;
+  bool disable_hdcp_for_all_display = false;
   bool restore = false;
   int ch;
-  while ((ch = getopt(argc, argv, "gsphurabcde")) != -1) {
+  while ((ch = getopt(argc, argv, "gsphijkurabcde")) != -1) {
     switch (ch) {
       case 'g':
         get_mode = true;
@@ -88,6 +96,17 @@ int main(int argc, char** argv) {
         set_deinterlace = true;
         break;
       case 'h':
+        set_hdcp_for_display = true;
+        break;
+      case 'i':
+        disable_hdcp_for_display = true;
+        break;
+      case 'j':
+        set_hdcp_for_all_display = true;
+        break;
+      case 'k':
+        disable_hdcp_for_all_display = true;
+        break;
       default:
         usage();
     }
@@ -184,6 +203,39 @@ int main(int argc, char** argv) {
     HwcService_Display_RestoreDefaultColorParam(hwcs, display,
                                                 HWCS_COLOR_SHARP);
     HwcService_Display_RestoreDefaultDeinterlaceParam(hwcs, display);
+  }
+
+  if (set_hdcp_for_display) {
+    aout << "Set HDCP For Display: " << atoi(argv[0]) << endl;
+    if (atoi(argv[0]) == 0) {
+      HwcService_Video_EnableHDCPSession_ForDisplay(hwcs, atoi(argv[0]),
+                                                    HWCS_CP_CONTENT_TYPE0);
+    } else {
+      HwcService_Video_EnableHDCPSession_ForDisplay(hwcs, atoi(argv[0]),
+                                                    HWCS_CP_CONTENT_TYPE1);
+    }
+  }
+
+  if (disable_hdcp_for_display) {
+    aout << "Disabling HDCP For Display: " << atoi(argv[0]) << endl;
+    HwcService_Video_DisableHDCPSession_ForDisplay(hwcs, atoi(argv[0]));
+  }
+
+  if (set_hdcp_for_all_display) {
+    aout << "Set HDCP For All Displays Using Fallback: " << atoi(argv[0])
+         << endl;
+    if (atoi(argv[0]) == 0) {
+      HwcService_Video_EnableHDCPSession_AllDisplays(hwcs,
+                                                     HWCS_CP_CONTENT_TYPE0);
+    } else {
+      HwcService_Video_EnableHDCPSession_AllDisplays(hwcs,
+                                                     HWCS_CP_CONTENT_TYPE1);
+    }
+  }
+
+  if (disable_hdcp_for_all_display) {
+    aout << "Disabling HDCP For All Displays. " << endl;
+    HwcService_Video_DisableHDCPSession_AllDisplays(hwcs);
   }
 
   HwcService_Disconnect(hwcs);
