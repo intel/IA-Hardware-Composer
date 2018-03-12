@@ -364,7 +364,8 @@ class NativeDisplay {
    * tries to take advantage of any HDCP support advertised by
    * the Kernel.
    */
-  virtual void SetHDCPState(HWCContentProtection /*state*/) {
+  virtual void SetHDCPState(HWCContentProtection /*state*/,
+                            HWCContentType /*content_type*/) {
   }
 
  protected:

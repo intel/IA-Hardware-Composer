@@ -591,6 +591,44 @@ void GpuDevice::HandleHWCSettings() {
   initialization_state_lock_.unlock();
 }
 
+void GpuDevice::EnableHDCPSessionForDisplay(uint32_t display,
+                                            HWCContentType content_type) {
+  if (total_displays_.size() <= display) {
+    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
+    return;
+  }
+
+  NativeDisplay *native_display = total_displays_.at(display);
+  native_display->SetHDCPState(HWCContentProtection::kDesired, content_type);
+}
+
+void GpuDevice::EnableHDCPSessionForAllDisplays(HWCContentType content_type) {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    total_displays_.at(i)
+        ->SetHDCPState(HWCContentProtection::kDesired, content_type);
+  }
+}
+
+void GpuDevice::DisableHDCPSessionForDisplay(uint32_t display) {
+  if (total_displays_.size() <= display) {
+    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
+    return;
+  }
+
+  NativeDisplay *native_display = total_displays_.at(display);
+  native_display->SetHDCPState(HWCContentProtection::kUnDesired,
+                               HWCContentType::kInvalid);
+}
+
+void GpuDevice::DisableHDCPSessionForAllDisplays() {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    total_displays_.at(i)->SetHDCPState(HWCContentProtection::kUnDesired,
+                                        HWCContentType::kInvalid);
+  }
+}
+
 void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
   initialization_state_lock_.lock();
   if ((initialization_state_ & kInitializeHotPlugMonitor) ||

@@ -1242,6 +1242,32 @@ hwcomposer::NativeDisplay *IAHWC2::HwcDisplay::GetDisplay() {
   return display_;
 }
 
+void IAHWC2::EnableHDCPSessionForDisplay(uint32_t display,
+                                         EHwcsContentType content_type) {
+  HWCContentType type = kCONTENT_TYPE0;
+  if (content_type == HWCS_CP_CONTENT_TYPE1) {
+    type = kCONTENT_TYPE1;
+  }
+
+  device_.EnableHDCPSessionForDisplay(display, type);
+}
+
+void IAHWC2::EnableHDCPSessionForAllDisplays(EHwcsContentType content_type) {
+  HWCContentType type = kCONTENT_TYPE0;
+  if (content_type == HWCS_CP_CONTENT_TYPE1) {
+    type = kCONTENT_TYPE1;
+  }
+  device_.EnableHDCPSessionForAllDisplays(type);
+}
+
+void IAHWC2::DisableHDCPSessionForDisplay(uint32_t display) {
+  device_.DisableHDCPSessionForDisplay(display);
+}
+
+void IAHWC2::DisableHDCPSessionForAllDisplays() {
+  device_.DisableHDCPSessionForAllDisplays();
+}
+
 }  // namespace android
 
 static struct hw_module_methods_t hwc2_module_methods = {

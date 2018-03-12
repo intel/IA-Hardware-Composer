@@ -504,10 +504,11 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-void MosaicDisplay::SetHDCPState(HWCContentProtection state) {
+void MosaicDisplay::SetHDCPState(HWCContentProtection state,
+                                 HWCContentType content_type) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
-    physical_displays_.at(i)->SetHDCPState(state);
+    physical_displays_.at(i)->SetHDCPState(state, content_type);
   }
 }
 
