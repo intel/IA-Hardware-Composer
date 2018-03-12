@@ -55,6 +55,16 @@ class IControls : public android::IInterface {
   virtual status_t DisplayModeSetMode(uint32_t display,
                                       const uint32_t config) = 0;
 
+  virtual status_t EnableHDCPSessionForDisplay(
+      uint32_t display, EHwcsContentType content_type) = 0;
+
+  virtual status_t EnableHDCPSessionForAllDisplays(
+      EHwcsContentType content_type) = 0;
+
+  virtual status_t DisableHDCPSessionForDisplay(uint32_t display) = 0;
+
+  virtual status_t DisableHDCPSessionForAllDisplays() = 0;
+
   virtual status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                                uint32_t instanceID) = 0;
   virtual status_t VideoDisableAllEncryptedSessions(uint32_t sessionID) = 0;

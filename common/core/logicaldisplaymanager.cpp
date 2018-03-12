@@ -219,10 +219,11 @@ void LogicalDisplayManager::GetLogicalDisplays(std::vector<LogicalDisplay*>& dis
     }
 }
 
-void LogicalDisplayManager::SetHDCPState(HWCContentProtection state) {
+void LogicalDisplayManager::SetHDCPState(HWCContentProtection state,
+                                         HWCContentType content_type) {
   uint32_t size = displays_.size();
   for (uint32_t i = 0; i < size; i++) {
-    displays_.at(i)->SetHDCPState(state);
+    displays_.at(i)->SetHDCPState(state, content_type);
   }
 }
 

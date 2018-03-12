@@ -111,6 +111,12 @@ typedef enum _EHwcsDeinterlaceControl {
   HWCS_DEINTERLACE_MOTIONCOMPENSATED,
 } EHwcsDeinterlaceControl;
 
+// Enumerations for content type.
+typedef enum _EHwcsContentType {
+  HWCS_CP_CONTENT_TYPE0,  // Can support any HDCP specifiction.
+  HWCS_CP_CONTENT_TYPE1,  // Can support only HDCP 2.2 and higher specification.
+} EHwcsContentType;
+
 status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
                                                      uint32_t display,
                                                      EHwcsColorControl color);
@@ -168,6 +174,31 @@ status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
                                         const uint32_t config);
 
 // VideoControl
+
+// The control enables the usage of HDCP for all planes supporting this feature
+// on display. Some displays can support latest HDCP specification and also
+// have ability to fallback to older specifications i.e. HDCP 2.2 and 1.4
+// in case latest specification cannot be supported for some reason. Type
+// of content can be set by content_type.
+status_t HwcService_Video_EnableHDCPSession_ForDisplay(
+    HWCSHANDLE hwcs, uint32_t display, EHwcsContentType content_type);
+
+// The control enables the usage of HDCP for all planes supporting this
+// feature on all connected displays. Some displays can support latest HDCP
+// specification and also have ability to fallback to older specifications
+// i.e. HDCP 2.2 and 1.4 in case latest specification cannot be supported
+// for some reason. Type of content can be set by content_type.
+status_t HwcService_Video_EnableHDCPSession_AllDisplays(
+    HWCSHANDLE hwcs, EHwcsContentType content_type);
+
+// The control disables the usage of HDCP for all planes supporting this feature
+// on display.
+status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
+                                                        uint32_t display);
+
+// The control disables the usage of HDCP for all planes supporting this feature
+// on all connected displays.
+status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs);
 
 // The control enables a the protected video subsystem to control when to
 // replace any
