@@ -84,6 +84,11 @@ void NativeSurface::SetTransform(uint32_t transform) {
 
 void NativeSurface::SetSurfaceAge(int value) {
   surface_age_ = value;
+  if (surface_age_ >= 0) {
+    on_screen_ = true;
+  } else {
+    on_screen_ = false;
+  }
 }
 
 bool NativeSurface::IsSurfaceDamageChanged() const {
@@ -97,6 +102,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
   previous_damage_ = surface_damage_;
   clear_surface_ = kFullClear;
   damage_changed_ = true;
+  on_screen_ = false;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
     layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);

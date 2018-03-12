@@ -69,9 +69,10 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
-  if (resource_manager && register_buffer) {
+  // FIXME: Enable cache again.
+  /*if (resource_manager && register_buffer) {
     buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
-  }
+  }*/
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
@@ -224,7 +225,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true);
+            resource_manager, true, layer);
 
   if (!handle_constraints) {
     if (previous_layer) {

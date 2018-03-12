@@ -86,8 +86,6 @@ class DisplayPlaneState {
 
   const HwcRect<float> &GetSourceCrop() const;
 
-  bool SurfaceRecycled() const;
-
   const OverlayLayer *GetOverlayLayer() const;
 
   NativeSurface *GetOffScreenTarget() const;
@@ -213,6 +211,14 @@ class DisplayPlaneState {
   // list if not already done.
   void SwapSurfaceIfNeeded();
 
+  // Reset's surface age and surface order as previous frame.
+  void HandleCommitFailure();
+
+  // Returns true if OffscreenSurface is recycled.
+  bool IsSurfaceRecycled() const {
+    return recycled_surface_;
+  }
+
   void Dump();
 
  private:
@@ -234,8 +240,9 @@ class DisplayPlaneState {
 
     ~DisplayPlanePrivateState() {
       for (NativeSurface *surface : surfaces_) {
-        if (surface->GetSurfaceAge() == 0)
+        if ((surface->GetSurfaceAge() == 0) && !surface->IsOnScreen()) {
           surface->SetSurfaceAge(-1);
+        }
       }
     }
 
