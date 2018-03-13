@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#ifdef USE_GL
+#if USE_GL
 #include "shim.h"
 #elif USE_VK
 #include "vkshim.h"
@@ -42,7 +42,15 @@ static float TransformMatrices[] = {
 };
 // clang-format on
 
-#ifdef USE_GL
+#ifdef USE_DC
+typedef unsigned GpuResourceHandle;
+typedef struct gl_import {
+  void* image_ = 0;
+  HWCNativeHandle handle_ = 0;
+  uint32_t drm_fd_ = 0;
+} ResourceHandle;
+typedef void* GpuDisplay;
+#elif USE_GL
 typedef unsigned GpuResourceHandle;
 typedef struct gl_import {
   EGLImageKHR image_ = 0;
