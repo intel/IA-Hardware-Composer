@@ -14,28 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_PLATFORM_DRM_GENERIC_H_
-#define ANDROID_PLATFORM_DRM_GENERIC_H_
+#ifndef ANDROID_PLATFORM_HISI_H_
+#define ANDROID_PLATFORM_HISI_H_
 
 #include "drmresources.h"
 #include "platform.h"
+#include "platformdrmgeneric.h"
+
+#include <stdatomic.h>
 
 #include <hardware/gralloc.h>
 
 namespace android {
 
-class DrmGenericImporter : public Importer {
+class HisiImporter : public DrmGenericImporter {
  public:
-  DrmGenericImporter(DrmResources *drm);
-  ~DrmGenericImporter() override;
+  HisiImporter(DrmResources *drm);
+  ~HisiImporter() override;
 
   int Init();
 
   EGLImageKHR ImportImage(EGLDisplay egl_display, buffer_handle_t handle) override;
   int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
-  int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
-  uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
  private:
 
   DrmResources *drm_;
