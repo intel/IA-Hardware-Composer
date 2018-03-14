@@ -59,7 +59,9 @@ class DrmBuffer : public OverlayBuffer {
     return usage_;
   }
 
-  uint32_t GetFb() const override {
+  const uint32_t GetFb()    override {
+    //ResetAge();
+    age_ = 0;
     return image_.drm_fd_;
   }
 
@@ -96,6 +98,14 @@ class DrmBuffer : public OverlayBuffer {
 
   void Dump() override;
 
+  void  const ResetAge() override {
+  	age_ =0;
+  }
+  uint32_t GetIncreasedAge() {
+    age_++;
+	return age_;
+  }
+
  private:
   void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
@@ -116,6 +126,7 @@ class DrmBuffer : public OverlayBuffer {
   MediaResourceHandle media_image_;
   std::unique_ptr<PixelBuffer> pixel_buffer_;
   void* data_;
+  uint32_t age_ = 0;
 };
 
 }  // namespace hwcomposer

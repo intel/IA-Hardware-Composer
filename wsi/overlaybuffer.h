@@ -66,7 +66,7 @@ class OverlayBuffer {
 
   virtual HWCLayerType GetUsage() const = 0;
 
-  virtual uint32_t GetFb() const = 0;
+  virtual const uint32_t GetFb() = 0;
 
   virtual uint32_t GetPrimeFD() const = 0;
 
@@ -96,6 +96,9 @@ class OverlayBuffer {
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
 
   virtual void Dump() = 0;
+
+  virtual void const ResetAge() =0;
+  virtual uint32_t GetIncreasedAge() = 0;
 };
 
 }  // namespace hwcomposer

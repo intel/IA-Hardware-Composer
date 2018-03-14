@@ -20,8 +20,6 @@ namespace hwcomposer {
 
 ResourceManager::ResourceManager(NativeBufferHandler* buffer_handler)
     : buffer_handler_(buffer_handler) {
-  for (size_t i = 0; i < BUFFER_CACHE_LENGTH; i++)
-    cached_buffers_.emplace_back();
 }
 
 ResourceManager::~ResourceManager() {
@@ -39,10 +37,7 @@ ResourceManager::~ResourceManager() {
 }
 
 void ResourceManager::PurgeBuffer() {
-  for (auto& map : cached_buffers_) {
-    map.clear();
-  }
-
+  cached_buffers_.clear();
   PreparePurgedResources();
 }
 
@@ -51,25 +46,16 @@ void ResourceManager::Dump() {
 
 std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
     const HWCNativeBuffer& native_buffer) {
-  BUFFER_MAP& first_map = cached_buffers_[0];
+
   static std::shared_ptr<OverlayBuffer> pBufNull = nullptr;
-  for (auto& map : cached_buffers_) {
-    if (map.empty()) {
-      continue;
-    }
 
-    BUFFER_MAP::iterator it = map.find(native_buffer);
-
-    if (it != map.end()) {
+  BUFFER_MAP::iterator it = cached_buffers_.find(native_buffer);
+  if (it != cached_buffers_.end()) {
       std::shared_ptr<OverlayBuffer>& pBuf = it->second;
-      if (&map != &first_map) {
-        first_map.emplace(std::make_pair(native_buffer, pBuf));
-      }
 #ifdef RESOURCE_CACHE_TRACING
       hit_count_++;
 #endif
       return pBuf;
-    }
   }
 
 #ifdef RESOURCE_CACHE_TRACING
@@ -84,8 +70,8 @@ std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
 
 void ResourceManager::RegisterBuffer(const HWCNativeBuffer& native_buffer,
                                      std::shared_ptr<OverlayBuffer>& pBuffer) {
-  BUFFER_MAP& first_map = cached_buffers_[0];
-  first_map.emplace(std::make_pair(native_buffer, pBuffer));
+  if(cached_buffers_.find(native_buffer) == cached_buffers_.end())
+      cached_buffers_.emplace(std::make_pair(native_buffer, pBuffer));
 }
 
 void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle,
@@ -139,13 +125,26 @@ void ResourceManager::GetPurgedResources(
 }
 
 void ResourceManager::RefreshBufferCache() {
-  auto begin = cached_buffers_.begin();
-  cached_buffers_.emplace(begin);
+
+}
+
+void ResourceManager::RemoveAgedBuffer()
+{
+  auto end = cached_buffers_.end();
+  for(auto it=cached_buffers_.begin(); it != end;)
+  {
+    while (it->second->GetIncreasedAge() == BUFFER_AGE_LIMIT) {
+		  it = cached_buffers_.erase(it);
+		  if(it == cached_buffers_.end())
+        break;
+    }
+    if(it != end)
+      it++;
+  }
 }
 
 bool ResourceManager::PreparePurgedResources() {
-  if (cached_buffers_.size() > 4)
-    cached_buffers_.pop_back();
+  RemoveAgedBuffer();
 
   if (purged_resources_.empty() && purged_media_resources_.empty())
     return false;

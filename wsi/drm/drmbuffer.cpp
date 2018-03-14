@@ -74,6 +74,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   }
 
   total_planes_ = GetTotalPlanesForFormat(format_);
+  ResetAge();
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
@@ -102,6 +103,7 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
 
   media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
+  ResetAge();
 }
 
 void DrmBuffer::UpdateRawPixelBackingStore(void* addr) {
@@ -126,6 +128,7 @@ bool DrmBuffer::NeedsTextureUpload() const {
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
                                                 bool external_import) {
+   ResetAge();
   if (image_.image_ == 0) {
 #ifdef USE_GL
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
@@ -266,6 +269,8 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
                                                        uint32_t width,
                                                        uint32_t height) {
+
+  ResetAge();
   if (media_image_.surface_ != VA_INVALID_ID) {
     if ((previous_width_ == width) && (previous_height_ == height)) {
       return media_image_;
@@ -318,6 +323,7 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource() {
+  ResetAge();
   return image_;
 }
 

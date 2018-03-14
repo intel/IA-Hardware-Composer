@@ -84,10 +84,12 @@ class ResourceManager {
   }
 
  private:
-#define BUFFER_CACHE_LENGTH 4
+  void RemoveAgedBuffer();
+
+#define BUFFER_AGE_LIMIT 6
   typedef std::unordered_map<HWCNativeBuffer, std::shared_ptr<OverlayBuffer>,
                              BufferHash, BufferEqual> BUFFER_MAP;
-  std::vector<BUFFER_MAP> cached_buffers_;
+  BUFFER_MAP cached_buffers_;
   // This should be used in same thread handling
   // Present in NativeDisplay.
   std::vector<ResourceHandle> purged_resources_;
