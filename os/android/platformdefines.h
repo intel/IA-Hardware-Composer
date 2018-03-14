@@ -62,7 +62,7 @@ struct BufferHash {
   size_t operator()(HWCNativeBuffer const& buffer) const {
     const native_handle_t & p = buffer.base;
     std::size_t seed = 0;
-    for (int i = 0; i < p.numFds + p.numInts; i++) {
+    for (int i = 0; i < p.numFds; i++) {
       hash_combine_hwc(seed, (const size_t)p.data[i]);
     }
     return seed;
@@ -71,17 +71,41 @@ struct BufferHash {
 
 struct BufferEqual {
   bool operator()(const HWCNativeBuffer& buffer1, const HWCNativeBuffer& buffer2) const {
+    //FIXME: to enable cache again. current it cause flicker
+	  return false;
+	/*
     const native_handle_t &p1 = buffer1.base;
     const native_handle_t &p2 = buffer2.base;
     bool equal = (p1.numFds == p2.numFds) && (p1.numInts ==  p2.numInts);
     if (equal) {
-      for (int i = 0; i < p1.numFds + p1.numInts; i++) {
+      for (int i = 0; i< p1.numFds; i++) {
+        equal = equal && (buffer1.fds[i] == buffer2.fds[i]);
+        if (!equal)
+          break;
+      }
+    }
+    if (equal) {
+      for (int i = 0; i< p1.numFds; i++) {
+        equal = equal && (buffer1.strides[i] == buffer2.strides[i]);
+		equal = equal && (buffer1.offsets[i] == buffer2.offsets[i]);
+	    equal = equal && (buffer1.sizes[i] == buffer2.sizes[i]);
+        if (!equal)
+          break;
+      }
+    }
+	if(equal)
+		equal = equal && (buffer1.width == buffer2.width) && (buffer1.height == buffer2.height) && (buffer1.format == buffer2.format);
+	*/
+	/*
+	if(equal) {
+	for (int i = 4; i < p1.numFds+p1.numInts; i++) {
         equal = equal && (p1.data[i] == p2.data[i]);
         if (!equal)
           break;
       }
     }
-    return equal;
+    */
+    //return equal;
   }
 };
 
