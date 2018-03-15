@@ -242,8 +242,9 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   const HwcRect<int>& display_frame = layer->GetDisplayFrame();
   const HwcRect<float>& source_crop = layer->GetSourceCrop();
   int fence = kms_fence_;
-  if (test_commit)
+  if (test_commit) {
     fence = layer->GetAcquireFence();
+  }
 
   if (layer->GetBlending() == HWCBlending::kBlendingPremult)
     alpha = layer->GetAlpha();
@@ -338,6 +339,10 @@ void DrmPlane::SetNativeFence(int32_t fd) {
   kms_fence_ = fd;
 }
 
+void DrmPlane::SetBuffer(std::shared_ptr<OverlayBuffer>& buffer) {
+  buffer_ = buffer;
+}
+
 bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
   in_use_ = false;
   int success =
@@ -362,6 +367,7 @@ bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
   }
 
   SetNativeFence(-1);
+  buffer_.reset();
 
   return true;
 }
