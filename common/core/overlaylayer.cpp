@@ -61,7 +61,12 @@ int32_t OverlayLayer::ReleaseAcquireFence() const {
 OverlayBuffer* OverlayLayer::GetBuffer() const {
   if (imported_buffer_->buffer_.get() == NULL)
     ETRACE("hwc layer get NullBuffer");
+
   return imported_buffer_->buffer_.get();
+}
+
+std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
+  return imported_buffer_->buffer_;
 }
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
@@ -69,10 +74,9 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
-  // FIXME: Enable cache again.
-  /*if (resource_manager && register_buffer) {
+  if (resource_manager && register_buffer) {
     buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
-  }*/
+  }
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
@@ -87,7 +91,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
   }
 
-  if (register_buffer && handle->is_raw_pixel_ && !surface_damage_.empty()) {
+  if (handle->is_raw_pixel_ && !surface_damage_.empty()) {
     buffer->UpdateRawPixelBackingStore(handle->pixel_memory_);
     state_ |= kRawPixelDataChanged;
   }
@@ -225,7 +229,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+            resource_manager, false, layer);
 
   if (!handle_constraints) {
     if (previous_layer) {
