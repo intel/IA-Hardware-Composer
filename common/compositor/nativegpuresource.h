@@ -39,8 +39,12 @@ class NativeGpuResource {
   NativeGpuResource& operator=(NativeGpuResource&& rhs) = delete;
 
   virtual bool PrepareResources(const std::vector<OverlayBuffer*>& buffers) = 0;
+  // Handle any texture upload requests for these buffers.
+  virtual void HandleTextureUploads(
+      const std::vector<OverlayBuffer*>& buffers) = 0;
   virtual GpuResourceHandle GetResourceHandle(uint32_t layer_index) const = 0;
-  virtual void ReleaseGPUResources() = 0;
+  virtual void ReleaseGPUResources(
+      const std::vector<ResourceHandle>& handles) = 0;
 };
 
 }  // namespace hwcomposer

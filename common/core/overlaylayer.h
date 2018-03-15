@@ -29,9 +29,15 @@ namespace hwcomposer {
 
 struct HwcLayer;
 class OverlayBuffer;
-class NativeBufferHandler;
+class ResourceManager;
 
 struct OverlayLayer {
+  enum LayerComposition {
+    kGpu = 1 << 0,      // Needs GPU Composition.
+    kDisplay = 1 << 1,  // Display Can scanout the layer directly.
+    kAll = kGpu | kDisplay
+  };
+
   OverlayLayer() = default;
   void SetAcquireFence(int32_t acquire_fence);
 
@@ -40,18 +46,17 @@ struct OverlayLayer {
   int32_t ReleaseAcquireFence() const;
 
   // Initialize OverlayLayer from layer.
-  void InitializeFromHwcLayer(HwcLayer* layer,
-                              NativeBufferHandler* buffer_handler,
+  void InitializeFromHwcLayer(HwcLayer* layer, ResourceManager* buffer_manager,
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
-                              HWCRotation rotation, bool handle_constraints);
+                              uint32_t rotation, bool handle_constraints);
 
   void InitializeFromScaledHwcLayer(HwcLayer* layer,
-                                    NativeBufferHandler* buffer_handler,
+                                    ResourceManager* buffer_manager,
                                     OverlayLayer* previous_layer,
                                     uint32_t z_order, uint32_t layer_index,
                                     const HwcRect<int>& display_frame,
-                                    uint32_t max_height, HWCRotation rotation,
+                                    uint32_t max_height, uint32_t rotation,
                                     bool handle_constraints);
   // Get z order of this layer.
   uint32_t GetZorder() const {
@@ -74,6 +79,10 @@ struct OverlayLayer {
     return blending_;
   }
 
+  // This represents the transform to
+  // be applied to this layer without taking
+  // into account any Display transform i.e.
+  // GetPlaneTransform()
   uint32_t GetTransform() const {
     return transform_;
   }
@@ -86,11 +95,16 @@ struct OverlayLayer {
     return plane_transform_;
   }
 
+  // Applies transform to this layer before scanout.
+  void SetTransform(uint32_t transform);
+
   OverlayBuffer* GetBuffer() const;
 
-  void SetBuffer(NativeBufferHandler* buffer_handler, HWCNativeHandle handle,
-                 int32_t acquire_fence);
-  void ResetBuffer();
+  void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
+                 ResourceManager* buffer_manager, bool register_buffer,
+                 HwcLayer* layer = NULL);
+
+  std::shared_ptr<OverlayBuffer>& GetSharedBuffer() const;
 
   void SetSourceCrop(const HwcRect<float>& source_crop);
   const HwcRect<float>& GetSourceCrop() const {
@@ -122,13 +136,6 @@ struct OverlayLayer {
     return display_frame_height_;
   }
 
-  // Returns true if any other attribute of layer
-  // other than psotion has changed from previous
-  // frame.
-  bool HasLayerAttributesChanged() const {
-    return state_ & kLayerAttributesChanged;
-  }
-
   // Returns true if content of the layer has
   // changed.
   bool HasLayerContentChanged() const {
@@ -140,8 +147,22 @@ struct OverlayLayer {
     return !(state_ & kInvisible);
   }
 
-  void GPURendered() {
-    gpu_rendered_ = true;
+  // Value is the actual composition (i.e. GPU/Display)
+  // being used for this layer ir-respective of the
+  // actual supported composition.
+  void SetLayerComposition(OverlayLayer::LayerComposition value) {
+    actual_composition_ = value;
+  }
+
+  // value should indicate if the layer can be scanned out
+  // by display directly or needs to go through gpu
+  // composition pass or can handle both.
+  void SupportedDisplayComposition(OverlayLayer::LayerComposition value) {
+    supported_composition_ = value;
+  }
+
+  bool CanScanOut() const {
+    return supported_composition_ & kDisplay;
   }
 
   bool IsCursorLayer() const {
@@ -150,10 +171,6 @@ struct OverlayLayer {
 
   bool IsVideoLayer() const {
     return type_ == kLayerVideo;
-  }
-
-  bool IsGpuRendered() const {
-    return gpu_rendered_;
   }
 
   // Returns true if we should prefer
@@ -171,31 +188,52 @@ struct OverlayLayer {
     return state_ & kDimensionsChanged;
   }
 
-  /**
-   * API for querying if Layer source position has
-   * changed from last Present call to NativeDisplay.
-   */
-  bool NeedsToClearSurface() const {
-    return state_ & kClearSurface;
+  // Returns true if source rect has changed
+  // from previous frame.
+  bool HasSourceRectChanged() const {
+    return state_ & kSourceRectChanged;
+  }
+
+  // Returns true if this layer attributes
+  // have changed compared to last frame
+  // and needs to be re-tested to ensure
+  // we are able to show the layer on screen
+  // correctly.
+  bool NeedsRevalidation() const {
+    return state_ & kNeedsReValidation;
+  }
+
+  // Returns true if this layer is backed
+  // by raw pixel data and it has changed
+  // compared to previous frame.
+  bool RawPixelDataChanged() const {
+    return state_ & kRawPixelDataChanged;
+  }
+
+  bool LayerOrderChanged() const {
+    return state_ & kLayerOrderChanged;
   }
 
   void Dump();
 
  private:
   enum LayerState {
-    kLayerAttributesChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1,
-    kDimensionsChanged = 1 << 2,
-    kClearSurface = 1 << 3,
-    kInvisible = 1 << 4
+    kLayerContentChanged = 1 << 0,
+    kDimensionsChanged = 1 << 1,
+    kInvisible = 1 << 2,
+    kSourceRectChanged = 1 << 3,
+    kNeedsReValidation = 1 << 4,
+    kRawPixelDataChanged = 1 << 5,
+    kLayerOrderChanged = 1 << 6
   };
 
   struct ImportedBuffer {
    public:
-    ImportedBuffer(OverlayBuffer* buffer, int32_t acquire_fence);
+    ImportedBuffer(std::shared_ptr<OverlayBuffer>& buffer,
+                   int32_t acquire_fence);
     ~ImportedBuffer();
 
-    std::unique_ptr<OverlayBuffer> buffer_;
+    std::shared_ptr<OverlayBuffer> buffer_;
     int32_t acquire_fence_ = -1;
   };
 
@@ -207,16 +245,12 @@ struct OverlayLayer {
   // layer.
   void ValidateForOverlayUsage();
 
-  OverlayBuffer* ReleaseBuffer();
-
   void ValidateTransform(uint32_t transform, uint32_t display_transform);
 
-  void UpdateSurfaceDamage(HwcLayer* layer);
-
-  void InitializeState(HwcLayer* layer, NativeBufferHandler* buffer_handler,
+  void InitializeState(HwcLayer* layer, ResourceManager* buffer_manager,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
-                       HWCRotation rotation, bool handle_constraints);
+                       uint32_t rotation, bool handle_constraints);
 
   uint32_t transform_ = 0;
   uint32_t plane_transform_ = 0;
@@ -231,10 +265,10 @@ struct OverlayLayer {
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
-  uint32_t state_ =
-      kLayerAttributesChanged | kLayerContentChanged | kDimensionsChanged;
+  uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  bool gpu_rendered_ = false;
+  LayerComposition supported_composition_;
+  LayerComposition actual_composition_;
   HWCLayerType type_ = kLayerNormal;
 };
 

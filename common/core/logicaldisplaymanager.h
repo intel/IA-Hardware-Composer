@@ -52,11 +52,14 @@ class LogicalDisplayManager {
 
   void GetLogicalDisplays(std::vector<LogicalDisplay*>& displays);
 
+  void SetHDCPState(HWCContentProtection state);
+
  private:
   NativeDisplay* physical_display_;
   std::vector<std::unique_ptr<LogicalDisplay>> displays_;
-  std::vector<std::vector<HwcLayer*>> layers_;
-  uint32_t maximum_size_;
+  std::vector<HwcLayer*> layers_;
+  std::vector<HwcLayer*> cursor_layers_;
+  uint32_t queued_displays_ = 0;
   bool hot_plug_registered_ = false;
   bool handle_hoplug_notifications_ = false;
 };

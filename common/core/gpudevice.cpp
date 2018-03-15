@@ -16,11 +16,15 @@
 
 #include <gpudevice.h>
 
+#include <sys/file.h>
+
 #include "mosaicdisplay.h"
+
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
-GpuDevice::GpuDevice() : initialized_(false) {
+GpuDevice::GpuDevice() : HWCThread(-8, "GpuDevice") {
 }
 
 GpuDevice::~GpuDevice() {
@@ -28,21 +32,89 @@ GpuDevice::~GpuDevice() {
 }
 
 bool GpuDevice::Initialize() {
-  if (initialized_)
+  if (initialization_state_ & kInitialized)
     return true;
 
-  initialized_ = true;
-  display_manager_.reset(DisplayManager::CreateDisplayManager());
+  bool use_thread = true;
+  if (!InitWorker()) {
+    ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
+    use_thread = false;
+  }
+
+  thread_stage_lock_.lock();
+  display_manager_.reset(DisplayManager::CreateDisplayManager(this));
 
   bool success = display_manager_->Initialize();
   if (!success) {
+    thread_stage_lock_.unlock();
     return false;
   }
 
-  std::vector<NativeDisplay *> unordered_displays =
-      display_manager_->GetAllDisplays();
-  size_t size = unordered_displays.size();
+  thread_stage_lock_.unlock();
+  HandleHWCSettings();
+  InitializeHotPlugEvents(false);
 
+  // Take the lock to ensure everything is initilized in
+  // Handle Routine.
+  thread_sync_lock_.lock();
+  initialization_state_ |= kInitialized;
+  initialization_state_ &= ~kHWCSettingsDone;
+  thread_sync_lock_.unlock();
+
+  if (use_thread && lock_fd_ == -1) {
+    // Exit thread as we don't need worker thread after
+    // Initialization.
+    HWCThread::Exit();
+  }
+
+  return true;
+}
+
+NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
+  if (total_displays_.size() > display_id)
+    return total_displays_.at(display_id);
+
+  return NULL;
+}
+
+NativeDisplay *GpuDevice::GetVirtualDisplay() {
+  return display_manager_->GetVirtualDisplay();
+}
+
+// It's for nested display
+NativeDisplay *GpuDevice::GetNestedDisplay() {
+  return display_manager_->GetNestedDisplay();
+}
+
+void GpuDevice::GetConnectedPhysicalDisplays(
+    std::vector<NativeDisplay *> &displays) {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (total_displays_.at(i)->IsConnected()) {
+      displays.emplace_back(total_displays_.at(i));
+    }
+  }
+}
+
+std::vector<NativeDisplay *> GpuDevice::GetAllDisplays() {
+  return total_displays_;
+}
+
+void GpuDevice::RegisterHotPlugEventCallback(
+    std::shared_ptr<DisplayHotPlugEventCallback> callback) {
+  display_manager_->RegisterHotPlugEventCallback(callback);
+}
+
+void GpuDevice::HandleHWCSettings() {
+  initialization_state_lock_.lock();
+  if ((initialization_state_ & kHWCSettingsInProgress) ||
+      (initialization_state_ & kHWCSettingsDone)) {
+    initialization_state_lock_.unlock();
+    return;
+  }
+
+  initialization_state_ |= kHWCSettingsInProgress;
+  initialization_state_lock_.unlock();
   // Handle config file reading
   const char *hwc_dp_cfg_path = std::getenv("HWC_DISPLAY_CONFIG");
   if (!hwc_dp_cfg_path) {
@@ -184,9 +256,7 @@ bool GpuDevice::Initialize() {
               }
             }
             if (!skip_duplicate_display) {
-              if (physical_split_num < size) {
-                physical_displays.emplace_back(physical_split_num);
-              }
+              physical_displays.emplace_back(physical_split_num);
               physical_duplicate_check.emplace_back(physical_split_num);
             }
           }
@@ -259,7 +329,12 @@ bool GpuDevice::Initialize() {
     }
   };
 
+  InitializeHotPlugEvents();
   std::vector<NativeDisplay *> displays;
+  std::vector<NativeDisplay *> unordered_displays =
+      display_manager_->GetAllDisplays();
+  size_t size = unordered_displays.size();
+
   if (physical_displays.empty()) {
     displays.swap(unordered_displays);
   } else {
@@ -443,37 +518,72 @@ bool GpuDevice::Initialize() {
     temp_displays.swap(total_displays_);
   }
 
-  return true;
+  initialization_state_lock_.lock();
+  initialization_state_ &= ~kHWCSettingsInProgress;
+  initialization_state_ |= kHWCSettingsDone;
+  initialization_state_lock_.unlock();
 }
 
-NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
-  if (total_displays_.size() > display_id)
-    return total_displays_.at(display_id);
+void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
+  initialization_state_lock_.lock();
+  if ((initialization_state_ & kInitializeHotPlugMonitor) ||
+      (initialization_state_ & kInitializedHotPlugMonitor)) {
+    initialization_state_lock_.unlock();
+    return;
+  }
 
-  return NULL;
+  initialization_state_ |= kInitializeHotPlugMonitor;
+  if (take_lock) {
+    // Take a lock to ensure displaymanager is all initialized.
+    thread_stage_lock_.lock();
+  }
+  display_manager_->InitializeDisplayResources();
+  display_manager_->StartHotPlugMonitor();
+  if (take_lock)
+    thread_stage_lock_.unlock();
+
+  initialization_state_ |= kInitializedHotPlugMonitor;
+  initialization_state_lock_.unlock();
 }
 
-NativeDisplay *GpuDevice::GetVirtualDisplay() {
-  return display_manager_->GetVirtualDisplay();
+void GpuDevice::HandleRoutine() {
+  thread_sync_lock_.lock();
+  HandleHWCSettings();
+
+  // Iniitialize resources to monitor external events.
+  // These can be two types:
+  // 1) We are showing splash screen and another App
+  //    needs to take the control. In this case splash
+  //    is true.
+  // 2) Another app is having control of display and we
+  //    we need to take control.
+  // TODO: Add splash screen support.
+  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
+  if (lock_fd_ == -1) {
+    thread_sync_lock_.unlock();
+    return;
+  }
+
+  thread_sync_lock_.unlock();
+  display_manager_->IgnoreUpdates();
+
+  if (flock(lock_fd_, LOCK_EX) != 0)
+    ETRACE("Failed to wait on hwc lock.");
+
+  close(lock_fd_);
+  lock_fd_ = -1;
+
+  display_manager_->ForceRefresh();
 }
 
-void GpuDevice::GetConnectedPhysicalDisplays(
-    std::vector<NativeDisplay *> &displays) {
-  size_t size = total_displays_.size();
-  for (size_t i = 0; i < size; i++) {
-    if (total_displays_.at(i)->IsConnected()) {
-      displays.emplace_back(total_displays_.at(i));
-    }
+void GpuDevice::HandleWait() {
+  if (lock_fd_ == -1) {
+    HWCThread::HandleWait();
   }
 }
 
-std::vector<NativeDisplay *> GpuDevice::GetAllDisplays() {
-  return total_displays_;
-}
-
-void GpuDevice::RegisterHotPlugEventCallback(
-    std::shared_ptr<DisplayHotPlugEventCallback> callback) {
-  display_manager_->RegisterHotPlugEventCallback(callback);
+void GpuDevice::DisableWatch() {
+  HWCThread::Exit();
 }
 
 }  // namespace hwcomposer

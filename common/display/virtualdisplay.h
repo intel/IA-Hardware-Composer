@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "compositor.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 struct HwcLayer;
@@ -81,12 +82,12 @@ class VirtualDisplay : public NativeDisplay {
  private:
   HWCNativeHandle output_handle_;
   int32_t acquire_fence_ = -1;
-  NativeBufferHandler *buffer_handler_;
   Compositor compositor_;
   uint32_t width_ = 1;
   uint32_t height_ = 1;
   std::vector<OverlayLayer> in_flight_layers_;
   HWCNativeHandle handle_ = 0;
+  std::unique_ptr<ResourceManager> resource_manager_;
 };
 
 }  // namespace hwcomposer

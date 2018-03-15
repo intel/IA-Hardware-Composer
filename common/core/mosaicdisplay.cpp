@@ -119,6 +119,7 @@ bool MosaicDisplay::SetActiveConfig(uint32_t config) {
   }
 
   uint32_t avg = 0;
+  int32_t previous_refresh = 0;
   for (uint32_t i = 0; i < size; i++) {
     int32_t dpix = 0;
     int32_t dpiy = 0;
@@ -134,6 +135,9 @@ bool MosaicDisplay::SetActiveConfig(uint32_t config) {
     dpix_ += dpix;
     dpiy_ += dpiy;
     refresh_ += refresh;
+    if (previous_refresh < refresh)
+      preferred_display_index_ = i;
+
     avg++;
   }
 
@@ -174,9 +178,17 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   if (update_connected_displays_) {
     std::vector<NativeDisplay *>().swap(connected_displays_);
     uint32_t size = physical_displays_.size();
+    int32_t previous_refresh = 0;
     for (uint32_t i = 0; i < size; i++) {
       if (physical_displays_.at(i)->IsConnected()) {
         connected_displays_.emplace_back(physical_displays_.at(i));
+	for (uint32_t i = 0; i < size; i++) {
+	  int32_t refresh = 0;
+	  physical_displays_.at(i)->GetDisplayAttribute(
+	      config_, HWCDisplayAttribute::kRefreshRate, &refresh);
+	  if (previous_refresh < refresh)
+	    preferred_display_index_ = i;
+	}
       }
     }
     update_connected_displays_ = false;
@@ -185,6 +197,7 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   uint32_t size = connected_displays_.size();
   int32_t left_constraint = 0;
   size_t total_layers = source_layers.size();
+  int32_t fence = -1;
   for (uint32_t i = 0; i < size; i++) {
     NativeDisplay *display = connected_displays_.at(i);
     int32_t right_constraint = left_constraint + display->Width();
@@ -196,8 +209,8 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
     IMOSAICDISPLAYTRACE("drconstraint %d \n", drconstraint);
     IMOSAICDISPLAYTRACE("right_constraint %d \n", right_constraint);
     IMOSAICDISPLAYTRACE("left_constraint %d \n", left_constraint);
-    for (size_t i = 0; i < total_layers; i++) {
-      HwcLayer *layer = source_layers.at(i);
+    for (size_t j = 0; j < total_layers; j++) {
+      HwcLayer *layer = source_layers.at(j);
       const HwcRect<int> &frame_Rect = layer->GetDisplayFrame();
       if ((frame_Rect.right < left_constraint) ||
           (frame_Rect.left > right_constraint)) {
@@ -208,6 +221,8 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
       layer->SetRightConstraint(drconstraint);
       layer->SetLeftSourceConstraint(left_constraint);
       layer->SetRightSourceConstraint(right_constraint);
+      layer->SetTotalDisplays(size - i);
+
       layers.emplace_back(layer);
     }
 
@@ -215,10 +230,12 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    display->Present(layers, retire_fence, true);
+    display->Present(layers, &fence, true);
     IMOSAICDISPLAYTRACE("Present called for Display index %d \n", i);
-    if (*retire_fence > 0 && (i < (size - 1))) {
-      close(*retire_fence);
+    if (fence > 0 && (i != preferred_display_index_)) {
+      close(fence);
+    } else {
+      *retire_fence = fence;
     }
 
     left_constraint = right_constraint;
@@ -385,6 +402,13 @@ void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
   }
 }
 
+void MosaicDisplay::SetVideoScalingMode(uint32_t mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoScalingMode(mode);
+  }
+}
+
 void MosaicDisplay::SetVideoColor(HWCColorControl color, float value) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
@@ -401,6 +425,21 @@ void MosaicDisplay::RestoreVideoDefaultColor(HWCColorControl color) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.at(i)->RestoreVideoDefaultColor(color);
+  }
+}
+
+void MosaicDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                        HWCDeinterlaceControl mode) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetVideoDeinterlace(flag, mode);
+  }
+}
+
+void MosaicDisplay::RestoreVideoDefaultDeinterlace() {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RestoreVideoDefaultDeinterlace();
   }
 }
 
@@ -463,6 +502,13 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
   strncpy(name, string.c_str(), *size);
   return true;
+}
+
+void MosaicDisplay::SetHDCPState(HWCContentProtection state) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetHDCPState(state);
+  }
 }
 
 }  // namespace hwcomposer

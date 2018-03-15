@@ -40,14 +40,14 @@ libhwcomposer_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
 	$(EGL_LIBS) \
-        $(top_builddir)/common/libhwcomposer_common.la \
-        $(top_builddir)/wsi/libhwcomposer_wsi.la \
+	$(top_builddir)/common/libhwcomposer_common.la \
+	$(top_builddir)/wsi/libhwcomposer_wsi.la \
 	-lm
 
 libhwcomposer_la_LTLIBRARIES = libhwcomposer.la
 libhwcomposer_la_SOURCES = $(hwc_SOURCES)
 libhwcomposer_ladir = $(libdir)
-libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared -Wl,-whole-archive,common/.libs/libhwcomposer_common.a,wsi/.libs/libhwcomposer_wsi.a,-no-whole-archive
+libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared
 libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
 
 if ENABLE_VULKAN
@@ -60,9 +60,15 @@ AM_CPPFLAGS += -DUSE_GL
 libhwcomposer_la_LIBADD += $(GLES2_LIBS)
 endif
 
+if ENABLE_LINUX_FRONTEND
+libhwcomposer_la_SOURCES += \
+	os/linux/iahwc.h \
+	os/linux/linux_frontend.h \
+	os/linux/linux_frontend.cpp
+endif
 
-libhwcincdir = $(includedir)/libhwc
-libhwcinc_HEADERS =	\
+libiahwcincdir = $(includedir)/libiahwc
+libiahwcinc_HEADERS =	\
 	$(top_srcdir)/public/gpudevice.h	\
 	$(top_srcdir)/public/hwcbuffer.h	\
 	$(top_srcdir)/public/hwcdefs.h	\
@@ -70,7 +76,12 @@ libhwcinc_HEADERS =	\
 	$(top_srcdir)/public/hwcrect.h	\
 	$(top_srcdir)/public/nativebufferhandler.h	\
 	$(top_srcdir)/public/nativedisplay.h	\
-	$(top_srcdir)/public/spinlock.h
+	$(top_srcdir)/public/spinlock.h \
+	$(top_srcdir)/os/linux/iahwc.h
+
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = iahwc.pc
 
 .PHONY: ChangeLog INSTALL
 

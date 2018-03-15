@@ -18,15 +18,20 @@
 
 #include <platformdefines.h>
 
+#include <memory>
+
 #include "compositordefs.h"
+
+#include "hwcdefs.h"
 
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class ResourceManager;
 
 class OverlayBuffer {
  public:
-  static OverlayBuffer* CreateOverlayBuffer();
+  static std::shared_ptr<OverlayBuffer> CreateOverlayBuffer();
 
   OverlayBuffer(OverlayBuffer&& rhs) = default;
   OverlayBuffer& operator=(OverlayBuffer&& other) = default;
@@ -35,8 +40,23 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
-  virtual void InitializeFromNativeHandle(
-      HWCNativeHandle handle, NativeBufferHandler* buffer_handler) = 0;
+  virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
+                                          ResourceManager* buffer_manager,
+                                          bool is_cursor_buffer) = 0;
+
+  // If this buffer is backed by raw pixel data, we refresh the contents
+  // in this case. Expectation is that when InitializeFromNativeHandle
+  // is called we already know if this is backed by pixel data or
+  // not.
+  virtual void RefreshPixelData() = 0;
+
+  // If this buffer is backed by raw pixel data, we update the pixel data
+  // pointer in this case. Expectation is that when InitializeFromNativeHandle
+  // is called we already know if this is backed by pixel data or
+  // not.
+  virtual void UpdateRawPixelBackingStore(void* addr) = 0;
+
+  virtual bool NeedsTextureUpload() const = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
@@ -44,7 +64,7 @@ class OverlayBuffer {
 
   virtual uint32_t GetFormat() const = 0;
 
-  virtual uint32_t GetUsage() const = 0;
+  virtual HWCLayerType GetUsage() const = 0;
 
   virtual uint32_t GetFb() const = 0;
 
@@ -56,15 +76,24 @@ class OverlayBuffer {
 
   virtual const uint32_t* GetOffsets() const = 0;
 
-  virtual GpuImage ImportImage(GpuDisplay egl_display) = 0;
+  virtual uint32_t GetTilingMode() const = 0;
+
+  // external_import should be true if this resource is not owned by HWC.
+  // If resource is owned by HWC, than the implementation needs to create
+  // frame buffer for this buffer.
+  virtual const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
+                                               bool external_import) = 0;
+
+  virtual const ResourceHandle& GetGpuResource() = 0;
+
+  // Returns Media resource for this buffer which can be used by compositor.
+  // Surface will be clipped to width, height even if buffer size is
+  // greater than these values.
+  virtual const MediaResourceHandle& GetMediaResource(MediaDisplay display,
+                                                      uint32_t width,
+                                                      uint32_t height) = 0;
 
   virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
-
-  virtual void ReleaseFrameBuffer() = 0;
-
-  virtual void SetRecommendedFormat(uint32_t format) = 0;
-
-  virtual bool IsVideoBuffer() const = 0;
 
   virtual void Dump() = 0;
 };

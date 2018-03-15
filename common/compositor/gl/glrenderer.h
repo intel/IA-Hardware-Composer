@@ -33,8 +33,8 @@ class GLRenderer : public Renderer {
   ~GLRenderer();
 
   bool Init() override;
-  bool Draw(const std::vector<RenderState> &commands, NativeSurface *surface,
-            bool clear_surface) override;
+  bool Draw(const std::vector<RenderState> &commands,
+            NativeSurface *surface) override;
 
   void InsertFence(int32_t kms_fence) override;
 

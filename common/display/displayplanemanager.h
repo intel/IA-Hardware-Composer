@@ -30,43 +30,49 @@ namespace hwcomposer {
 class DisplayPlane;
 class DisplayPlaneState;
 class GpuDevice;
-class NativeBufferHandler;
+class ResourceManager;
 struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
-  DisplayPlaneManager(int gpu_fd, NativeBufferHandler *buffer_handler,
-                      DisplayPlaneHandler *plane_handler);
+  DisplayPlaneManager(int gpu_fd, DisplayPlaneHandler *plane_handler,
+                      ResourceManager *resource_manager);
 
   virtual ~DisplayPlaneManager();
 
   bool Initialize(uint32_t width, uint32_t height);
 
-  bool ValidateLayers(std::vector<OverlayLayer> &layers,
-                      std::vector<OverlayLayer *> &cursor_layers,
-                      bool pending_modeset, bool disable_overlay,
+  bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
+                      bool disable_overlay, bool *commit_checked,
+                      bool *re_validation_needed,
                       DisplayPlaneStateList &composition,
-                      bool request_video_effect);
+                      DisplayPlaneStateList &previous_composition,
+                      std::vector<NativeSurface *> &mark_later);
 
-  // This should be called only in case of a new cursor layer
-  // being added and all other layers are same as previous
-  // frame.
-  bool ValidateCursorLayer(std::vector<OverlayLayer *> &cursor_layers,
-                           DisplayPlaneStateList &composition);
+  void MarkSurfacesForRecycling(DisplayPlaneState *plane,
+                                std::vector<NativeSurface *> &mark_later,
+                                bool recycle_resources,
+                                bool reset_plane_surfaces = true);
+
+  // This can be used to quickly check if the new DisplayPlaneStateList
+  // can be succefully commited before doing a full re-validation.
+  bool ReValidatePlanes(DisplayPlaneStateList &list,
+                        std::vector<OverlayLayer> &layers,
+                        std::vector<NativeSurface *> &mark_later,
+                        bool *request_full_validation,
+                        bool needs_revalidation_checks,
+                        bool re_validate_commit);
 
   bool CheckPlaneFormat(uint32_t format);
 
   void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
 
-  void SetOffScreenCursorPlaneTarget(DisplayPlaneState &plane, uint32_t width,
-                                     uint32_t height);
-
-  void ReleaseFreeOffScreenTargets();
+  void ReleaseFreeOffScreenTargets(bool forced = false);
 
   void ReleaseAllOffScreenTargets();
 
   bool HasSurfaces() const {
-    return !surfaces_.empty() || !cursor_surfaces_.empty();
+    return !surfaces_.empty();
   }
 
   uint32_t GetGpuFd() const {
@@ -77,31 +83,102 @@ class DisplayPlaneManager {
     return height_;
   }
 
- protected:
+  // Transform to be applied to all planes associated
+  // with pipe of this displayplanemanager.
+  void SetDisplayTransform(uint32_t transform);
+
+  // If we have two planes as follows:
+  // Plane N: Having top and bottom layer and needs 3d rendering.
+  // Plane N-1 covering the middle layer of screen.
+  // In this case we should squash layers of N and N-1 planes into
+  // one, otherwise we will scanout garbage with plane N.
+  bool SquashPlanesAsNeeded(const std::vector<OverlayLayer> &layers,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayPlane> &commit_planes,
+                            std::vector<NativeSurface *> &mark_later,
+                            bool *validate_final_layers);
+
+  // Returns true if we want to force target_layer to a separate plane than
+  // adding it to
+  // last_plane.
+  bool ForceSeparatePlane(const std::vector<OverlayLayer> &layers,
+                          const DisplayPlaneState &last_plane,
+                          const OverlayLayer *target_layer);
+
+ private:
+  struct LayerResultCache {
+    uint32_t last_transform_ = 0;
+    uint32_t last_failed_transform_ = 0;
+    DisplayPlane *plane_;
+  };
+
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
 
-  void ValidateFinalLayers(DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> &layers);
+  void ValidateFinalLayers(std::vector<OverlayPlane> &commit_planes,
+                           DisplayPlaneStateList &list,
+                           std::vector<OverlayLayer> &layers,
+                           std::vector<NativeSurface *> &mark_later,
+                           bool recycle_resources);
 
   void ResetPlaneTarget(DisplayPlaneState &plane, OverlayPlane &overlay_plane);
 
   void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
-  void PreparePlaneForCursor(DisplayPlaneState *plane);
+  void PreparePlaneForCursor(DisplayPlaneState *plane,
+                             std::vector<NativeSurface *> &mark_later,
+                             bool *validate_final_layers, bool reset_buffer,
+                             bool recycle_resources);
 
-  NativeBufferHandler *buffer_handler_;
+  void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
+                                 std::vector<OverlayPlane> &commit_planes);
+
+  // Checks if we can benefit using display plane rotation.
+  void ValidateForDisplayTransform(
+      DisplayPlaneState &last_plane,
+      const std::vector<OverlayPlane> &commit_planes);
+
+  // Checks if we can benefit by downscaling layer of this plane.
+  void ValidateForDownScaling(DisplayPlaneState &last_plane,
+                              const std::vector<OverlayPlane> &commit_planes);
+
+  void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayLayer> &layers,
+                            std::vector<NativeSurface *> &mark_later,
+                            bool recycle_resources);
+
+  // This should be called only in case of a new cursor layer
+  // being added and all other layers are same as previous
+  // frame.
+  void ValidateCursorLayer(std::vector<OverlayLayer> &all_layers,
+                           std::vector<OverlayPlane> &commit_planes,
+                           std::vector<OverlayLayer *> &cursor_layers,
+                           std::vector<NativeSurface *> &mark_later,
+                           DisplayPlaneStateList &composition,
+                           bool *validate_final_layers, bool *test_commit_done,
+                           bool recycle_resources);
+
+  bool CheckForDownScaling(DisplayPlaneStateList &composition,
+                           std::vector<OverlayPlane> &commit_planes);
+
+  void FinalizeValidation(DisplayPlaneStateList &composition,
+                          std::vector<OverlayPlane> &commit_planes,
+                          bool *render_layers, bool *re_validation_needed);
+
   DisplayPlaneHandler *plane_handler_;
+  ResourceManager *resource_manager_;
   DisplayPlane *cursor_plane_;
-  DisplayPlane *primary_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
-  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces_;
+  std::vector<LayerResultCache> results_cache_;
 
   uint32_t width_;
   uint32_t height_;
   uint32_t gpu_fd_;
+  uint32_t display_transform_ = kIdentity;
+  bool release_surfaces_ = false;
 };
 
 }  // namespace hwcomposer

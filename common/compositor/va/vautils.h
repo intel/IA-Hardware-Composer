@@ -14,21 +14,14 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_COMPOSITOR_VA_VASURFACE_H_
-#define COMMON_COMPOSITOR_VA_VASURFACE_H_
-
-#include "nativesurface.h"
+#ifndef COMMON_COMPOSITOR_VA_VAUTILS_H_
+#define COMMON_COMPOSITOR_VA_VAUTILS_H_
 
 namespace hwcomposer {
 
-class VASurface : public NativeSurface {
- public:
-  VASurface() = default;
-  ~VASurface() override;
-  VASurface(uint32_t width, uint32_t height);
-
-  bool MakeCurrent() override;
-};
+int DrmFormatToVAFormat(int format);
+int DrmFormatToRTFormat(int format);
 
 }  // namespace hwcomposer
-#endif  // COMMON_COMPOSITOR_VA_VASURFACE_H_
+
+#endif  // COMMON_COMPOSITOR_VA_VAUTILS_H_

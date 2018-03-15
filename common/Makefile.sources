@@ -5,13 +5,16 @@ common_SOURCES =              \
     compositor/nativesurface.cpp \
     compositor/renderstate.cpp \
     core/hwclayer.cpp \
+    core/resourcemanager.cpp \
     core/overlaylayer.cpp \
     core/gpudevice.cpp \
     core/logicaldisplay.cpp \
     core/logicaldisplaymanager.cpp \
     core/mosaicdisplay.cpp \
+    core/nesteddisplay.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
+    display/displayplanestate.cpp \
     display/vblankeventhandler.cpp \
     display/virtualdisplay.cpp \
     utils/fdhandler.cpp \
@@ -39,6 +42,6 @@ vk_SOURCES =\
         $(NULL)
 
 va_SOURCES =\
-    compositor/va/vasurface.cpp \
     compositor/va/varenderer.cpp \
+    compositor/va/vautils.cpp \
 	$(NULL)

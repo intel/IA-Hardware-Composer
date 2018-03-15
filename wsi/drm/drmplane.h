@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "displayplane.h"
+#include "drmbuffer.h"
 
 namespace hwcomposer {
 
@@ -47,6 +48,8 @@ class DrmPlane : public DisplayPlane {
 
   void SetNativeFence(int32_t fd);
 
+  void SetBuffer(std::shared_ptr<OverlayBuffer>& buffer);
+
   bool Disable(drmModeAtomicReqPtr property_set);
 
   bool GetCrtcSupported(uint32_t pipe_id) const;
@@ -59,7 +62,8 @@ class DrmPlane : public DisplayPlane {
 
   bool IsSupportedFormat(uint32_t format) override;
 
-  uint32_t GetFormatForFrameBuffer(uint32_t format) override;
+  bool IsSupportedTransform(uint32_t transform) const override;
+
   uint32_t GetPreferredVideoFormat() const override;
   uint32_t GetPreferredFormat() const override;
 
@@ -75,11 +79,16 @@ class DrmPlane : public DisplayPlane {
     return !(type_ == DRM_PLANE_TYPE_CURSOR);
   }
 
+  // check if modifier is supported for given format
+  bool IsSupportedModifier(uint64_t modifier, uint32_t format);
+
  private:
   struct Property {
     Property();
     bool Initialize(uint32_t fd, const char* name,
-                    const ScopedDrmObjectPropertyPtr& plane_properties);
+                    const ScopedDrmObjectPropertyPtr& plane_properties,
+                    uint32_t* rotation = NULL,
+                    uint64_t* in_formats_prop_value = NULL);
     uint32_t id = 0;
   };
 
@@ -96,6 +105,7 @@ class DrmPlane : public DisplayPlane {
   Property rotation_prop_;
   Property alpha_prop_;
   Property in_fence_fd_prop_;
+  Property in_formats_prop_;
 
   uint32_t id_;
 
@@ -110,6 +120,15 @@ class DrmPlane : public DisplayPlane {
   int32_t kms_fence_ = 0;
   uint32_t prefered_video_format_ = 0;
   uint32_t prefered_format_ = 0;
+  uint32_t rotation_ = 0;
+
+  // keep supported modifiers for each supported format
+  typedef struct format_mods {
+    std::vector<uint64_t> mods;
+    uint32_t format;
+  } format_mods;
+  std::vector<format_mods> formats_modifiers_;
+  std::shared_ptr<OverlayBuffer> buffer_ = NULL;
 };
 
 }  // namespace hwcomposer

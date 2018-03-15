@@ -21,6 +21,8 @@
 
 #include <hardware/gralloc1.h>
 
+#include <i915_private_android_types.h>
+
 namespace hwcomposer {
 
 class GpuDevice;
@@ -33,16 +35,17 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   bool Init();
 
   bool CreateBuffer(uint32_t w, uint32_t h, int format, HWCNativeHandle *handle,
-                    uint32_t layer_type) override;
-  bool ReleaseBuffer(HWCNativeHandle handle) override;
-  void DestroyHandle(HWCNativeHandle handle) override;
-  bool ImportBuffer(HWCNativeHandle handle) override;
-  void CopyHandle(HWCNativeHandle source, HWCNativeHandle *target) override;
-  uint32_t GetTotalPlanes(HWCNativeHandle handle) override;
+                    uint32_t layer_type) const override;
+  bool ReleaseBuffer(HWCNativeHandle handle) const override;
+  void DestroyHandle(HWCNativeHandle handle) const override;
+  bool ImportBuffer(HWCNativeHandle handle) const override;
+  void CopyHandle(HWCNativeHandle source,
+                  HWCNativeHandle *target) const override;
+  uint32_t GetTotalPlanes(HWCNativeHandle handle) const override;
   void *Map(HWCNativeHandle handle, uint32_t x, uint32_t y, uint32_t width,
             uint32_t height, uint32_t *stride, void **map_data,
-            size_t plane) override;
-  int32_t UnMap(HWCNativeHandle handle, void *map_data) override;
+            size_t plane) const override;
+  int32_t UnMap(HWCNativeHandle handle, void *map_data) const override;
 
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
@@ -54,6 +57,13 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   GRALLOC1_PFN_GET_DIMENSIONS dimensions_;
   GRALLOC1_PFN_LOCK lock_;
   GRALLOC1_PFN_UNLOCK unlock_;
+  GRALLOC1_PFN_CREATE_DESCRIPTOR create_descriptor_;
+  GRALLOC1_PFN_DESTROY_DESCRIPTOR destroy_descriptor_;
+  GRALLOC1_PFN_SET_CONSUMER_USAGE set_consumer_usage_;
+  GRALLOC1_PFN_SET_DIMENSIONS set_dimensions_;
+  GRALLOC1_PFN_SET_FORMAT set_format_;
+  GRALLOC1_PFN_SET_PRODUCER_USAGE set_producer_usage_;
+  GRALLOC1_PFN_ALLOCATE allocate_;
 };
 
 }  // namespace hwcomposer

@@ -23,16 +23,38 @@
 
 namespace hwcomposer {
 
+class GpuDevice;
 class DisplayManager {
  public:
-  static DisplayManager *CreateDisplayManager();
+  static DisplayManager *CreateDisplayManager(GpuDevice *device);
   DisplayManager() = default;
   virtual ~DisplayManager() {
   }
 
+  // Initialize things which are critical for
+  // Display Manager. InitializeDisplayResources
+  // is expected to be called to handle things
+  // which can be initialized later to finish
+  // the initialization.
   virtual bool Initialize() = 0;
 
+  // GetAllDisplays is expected to return set
+  // of correct displays after this call is done.
+  virtual void InitializeDisplayResources() = 0;
+
+  // Display Manager should initialize resources to start monitoring
+  // for Hotplug events.
+  virtual void StartHotPlugMonitor() = 0;
+
+  // Refresh all displays managed by this display manager.
+  virtual void ForceRefresh() = 0;
+
+  // Ignore updates for all displays managed by this display
+  // manager until ForceRefresh is called.
+  virtual void IgnoreUpdates() = 0;
+
   virtual NativeDisplay *GetVirtualDisplay() = 0;
+  virtual NativeDisplay *GetNestedDisplay() = 0;
 
   virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 

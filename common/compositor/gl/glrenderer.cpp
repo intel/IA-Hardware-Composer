@@ -21,10 +21,18 @@
 #include "nativesurface.h"
 #include "renderstate.h"
 #include "shim.h"
+#ifdef COMPOSITOR_TRACING
+#include "hwcutils.h"
+#endif
 
 namespace hwcomposer {
 
 GLRenderer::~GLRenderer() {
+  if (!context_.MakeCurrent()) {
+    ETRACE("Failed make current context.");
+    return;
+  }
+
   if (vertex_array_)
     glDeleteVertexArraysOES(1, &vertex_array_);
 }
@@ -76,24 +84,54 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-                      NativeSurface *surface, bool clear_surface) {
-  GLuint frame_width(surface->GetWidth());
-  GLuint frame_height(surface->GetHeight());
-  GLuint left(0);
-  GLuint top(0);
+		      NativeSurface *surface) {
+  GLuint frame_width = surface->GetWidth();
+  GLuint frame_height = surface->GetHeight();
+  GLuint left = 0;
+  GLuint top = 0;
 
   if (!surface->MakeCurrent())
     return false;
+#ifdef COMPOSITOR_TRACING
+  ICOMPOSITORTRACE("Draw starts \n");
+#endif
 
-  surface->SetClearSurface(false);
+  bool clear_surface = surface->ClearSurface();
+  bool partial_clear = surface->IsPartialClear();
+
+  surface->SetClearSurface(NativeSurface::kNone);
 
   glViewport(left, top, frame_width, frame_height);
 
-  if (clear_surface)
-    glClear(GL_COLOR_BUFFER_BIT);
+  if (clear_surface || partial_clear) {
+    const HwcRect<int> &damage = surface->GetSurfaceDamage();
+    GLuint clear_width = damage.right - damage.left;
+    GLuint clear_height = damage.bottom - damage.top;
+    if (surface->IsOnScreen() &&
+        ((frame_width != clear_width) || (frame_height != clear_height))) {
+      glEnable(GL_SCISSOR_TEST);
+      glScissor(damage.left, damage.top, clear_width, clear_height);
+      glClear(GL_COLOR_BUFFER_BIT);
+    } else {
+      glClear(GL_COLOR_BUFFER_BIT);
+      glEnable(GL_SCISSOR_TEST);
+    }
+  } else {
+    glEnable(GL_SCISSOR_TEST);
+  }
 
-  glEnable(GL_SCISSOR_TEST);
-
+#ifdef COMPOSITOR_TRACING
+  const HwcRect<int> &damage = surface->GetSurfaceDamage();
+  uint32_t total_width = 0;
+  uint32_t total_height = 0;
+  ICOMPOSITORTRACE(
+      "Full clear: %d Partial clear: %d Skipped clear: %d damage.left: %d "
+      "damage.right: %d damage.right - "
+      "damage.left %d damage.bottom - damage.top %d \n",
+      clear_surface, partial_clear, !(clear_surface || partial_clear),
+      damage.left, damage.top, damage.right - damage.left,
+      damage.bottom - damage.top);
+#endif
   for (const RenderState &state : render_states) {
     unsigned size = state.layer_state_.size();
     GLProgram *program = GetProgram(size);
@@ -101,6 +139,23 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
+#ifdef COMPOSITOR_TRACING
+    ICOMPOSITORTRACE(
+        "scissor_x_: %d state.scissor_y_: %d scissor_width_: %d "
+        "scissor_height_: %d \n",
+        state.scissor_x_, state.scissor_y_, state.scissor_width_,
+        state.scissor_height_);
+    total_width += std::max(total_width, state.scissor_width_);
+    total_height += state.scissor_height_;
+    const HwcRect<int> &damage = surface->GetSurfaceDamage();
+    if (AnalyseOverlap(
+            damage, HwcRect<int>(state.scissor_x_, state.scissor_y_,
+                                 state.scissor_x_ + state.scissor_width_,
+                                 state.scissor_y_ + state.scissor_height_)) ==
+        kOutside) {
+      ICOMPOSITORTRACE("ALERT: Rendering Layer outside Damaged Region. \n");
+    }
+#endif
     glScissor(state.scissor_x_, state.scissor_y_, state.scissor_width_,
               state.scissor_height_);
 
@@ -117,6 +172,20 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   if (!disable_explicit_sync_)
     surface->SetNativeFence(context_.GetSyncFD());
 
+  surface->ResetDamage();
+#ifdef COMPOSITOR_TRACING
+  if ((clear_surface || partial_clear) &&
+      ((total_width != surface->GetLayer()->GetDisplayFrameWidth()) ||
+       (total_height != surface->GetLayer()->GetDisplayFrameHeight()))) {
+    ICOMPOSITORTRACE(
+        "Alert Wong composition total_width: %d "
+        "surface->GetLayer()->GetDisplayFrameWidth() %d total_height %d "
+        "surface->GetLayer()->GetDisplayFrameHeight() %d. \n",
+        total_width, surface->GetLayer()->GetDisplayFrameWidth(), total_height,
+        surface->GetLayer()->GetDisplayFrameHeight());
+  }
+  ICOMPOSITORTRACE("Draw Ends. \n");
+#endif
   return true;
 }
 

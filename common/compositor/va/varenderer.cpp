@@ -17,100 +17,22 @@
 #include "varenderer.h"
 #include "platformdefines.h"
 
-#include <drm_fourcc.h>
-#include <va/va_drmcommon.h>
 #include <xf86drm.h>
-#ifdef ANDROID
-#include <va/va_android.h>
-#else
-#include <va/va_drm.h>
-#endif
+#include <drm_fourcc.h>
 
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "overlaybuffer.h"
 #include "renderstate.h"
 
+#ifdef ANDROID
+#include <va/va_android.h>
+#endif
+
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
 #define UNUSED(x) (void*)(&x)
 
 namespace hwcomposer {
-
-class ScopedVASurfaceID {
- public:
-  ScopedVASurfaceID(VADisplay display) : display_(display) {
-  }
-
-  ~ScopedVASurfaceID() {
-    if (surface_ != VA_INVALID_ID) {
-      vaDestroySurfaces(display_, &surface_, 1);
-    }
-  }
-
-  bool CreateSurface(int format, VASurfaceAttribExternalBuffers& external) {
-    CTRACE();
-    VASurfaceAttrib attribs[2];
-    attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
-    attribs[0].type = VASurfaceAttribMemoryType;
-    attribs[0].value.type = VAGenericValueTypeInteger;
-    attribs[0].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME;
-
-    attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
-    attribs[1].type = VASurfaceAttribExternalBufferDescriptor;
-    attribs[1].value.type = VAGenericValueTypePointer;
-    attribs[1].value.value.p = &external;
-
-    VAStatus ret = vaCreateSurfaces(display_, format, external.width,
-                                    external.height, &surface_, 1, attribs, 2);
-    return ret == VA_STATUS_SUCCESS ? true : false;
-  }
-
-  operator VASurfaceID() const {
-    return surface_;
-  }
-
-  VASurfaceID surface() const {
-    return surface_;
-  }
-
- private:
-  VADisplay display_;
-  VASurfaceID surface_ = VA_INVALID_ID;
-};
-
-class ScopedVABufferID {
- public:
-  ScopedVABufferID(VADisplay display) : display_(display) {
-  }
-  ~ScopedVABufferID() {
-    if (buffer_ != VA_INVALID_ID)
-      vaDestroyBuffer(display_, buffer_);
-  }
-
-  bool CreateBuffer(VAContextID context, VABufferType type, uint32_t size,
-                    uint32_t num, void* data) {
-    CTRACE();
-    VAStatus ret =
-        vaCreateBuffer(display_, context, type, size, num, data, &buffer_);
-    return ret == VA_STATUS_SUCCESS ? true : false;
-  }
-
-  operator VABufferID() const {
-    return buffer_;
-  }
-
-  VABufferID buffer() const {
-    return buffer_;
-  }
-
-  VABufferID& buffer() {
-    return buffer_;
-  }
-
- private:
-  VADisplay display_;
-  VABufferID buffer_ = VA_INVALID_ID;
-};
 
 VARenderer::~VARenderer() {
   DestroyContext();
@@ -174,86 +96,144 @@ bool VARenderer::SetVAProcFilterColorDefaultValue(
   HWCColorControl mode;
   for (int i = 0; i < VAProcColorBalanceCount; i++) {
     if (MapVAProcFilterColorModetoHwc(mode, caps[i].type)) {
-      caps_[mode].caps = caps[i];
-      caps_[mode].value = caps[i].range.default_value;
+      colorbalance_caps_[mode].caps_ = caps[i];
+      colorbalance_caps_[mode].value_ = caps[i].range.default_value;
     }
+  }
+  sharp_caps_.value_ = sharp_caps_.caps_.range.default_value;
+  update_caps_ = true;
+  return true;
+}
+
+bool VARenderer::SetVAProcFilterDeinterlaceDefaultMode() {
+  if (deinterlace_caps_.mode_ != VAProcDeinterlacingNone) {
+    deinterlace_caps_.mode_ = VAProcDeinterlacingNone;
+    update_caps_ = true;
   }
   return true;
 }
 
-bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode, float value) {
-  if (value > caps_[mode].caps.range.max_value ||
-      value < caps_[mode].caps.range.min_value) {
-    ETRACE("VAlue Filter value out of range\n");
+bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
+                                           const HWCColorProp& prop) {
+  if (mode == HWCColorControl::kColorHue ||
+      mode == HWCColorControl::kColorSaturation ||
+      mode == HWCColorControl::kColorBrightness ||
+      mode == HWCColorControl::kColorContrast) {
+    if (prop.use_default_) {
+      if (!colorbalance_caps_[mode].use_default_) {
+        colorbalance_caps_[mode].use_default_ = true;
+        update_caps_ = true;
+      }
+    } else if (prop.value_ != colorbalance_caps_[mode].value_) {
+      if (prop.value_ > colorbalance_caps_[mode].caps_.range.max_value ||
+          prop.value_ < colorbalance_caps_[mode].caps_.range.min_value) {
+        ETRACE("VA Filter value out of range\n");
+        return false;
+      }
+      colorbalance_caps_[mode].value_ = prop.value_;
+      colorbalance_caps_[mode].use_default_ = false;
+      update_caps_ = true;
+    }
+    return true;
+  } else if (mode == HWCColorControl::kColorSharpness) {
+    if (prop.use_default_) {
+      if (!sharp_caps_.use_default_) {
+        sharp_caps_.use_default_ = true;
+        update_caps_ = true;
+      }
+    } else if (prop.value_ != sharp_caps_.value_) {
+      if (prop.value_ > sharp_caps_.caps_.range.max_value ||
+          prop.value_ < sharp_caps_.caps_.range.min_value) {
+        ETRACE("VA Filter sharp value out of range\n");
+        return false;
+      }
+      sharp_caps_.value_ = prop.value_;
+      sharp_caps_.use_default_ = false;
+      update_caps_ = true;
+    }
+    return true;
+  } else {
+    ETRACE("VA Filter undefined color mode\n");
     return false;
   }
-  caps_[mode].value = value;
+}
+
+bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag) {
+  if (flag != HWCDeinterlaceFlag::kDeinterlaceFlagAuto) {
+    return false;
+  } else {
+    // TODO:Need video buffer meta data to judge if the frame really need
+    // Deinterlace.
+  }
+  return false;
+}
+bool VARenderer::SetVAProcFilterDeinterlaceMode(
+    const HWCDeinterlaceProp& prop) {
+  VAProcDeinterlacingType mode;
+  if (prop.flag_ == HWCDeinterlaceFlag::kDeinterlaceFlagNone) {
+    SetVAProcFilterDeinterlaceDefaultMode();
+    return true;
+  } else if (prop.flag_ == HWCDeinterlaceFlag::kDeinterlaceFlagForce ||
+             GetVAProcDeinterlaceFlagFromVideo(prop.flag_)) {
+    switch (prop.mode_) {
+      case HWCDeinterlaceControl::kDeinterlaceNone:
+        mode = VAProcDeinterlacingNone;
+        break;
+      case HWCDeinterlaceControl::kDeinterlaceBob:
+        mode = VAProcDeinterlacingBob;
+        break;
+      case HWCDeinterlaceControl::kDeinterlaceWeave:
+        mode = VAProcDeinterlacingWeave;
+        break;
+      case HWCDeinterlaceControl::kDeinterlaceMotionAdaptive:
+        mode = VAProcDeinterlacingMotionAdaptive;
+        break;
+      case HWCDeinterlaceControl::kDeinterlaceMotionCompensated:
+        mode = VAProcDeinterlacingMotionCompensated;
+        break;
+      default:
+        ETRACE("Hwc unsupport deinterlace mode\n");
+        return false;
+    }
+    for (int i = 0; i < VAProcDeinterlacingCount; i++) {
+      if (deinterlace_caps_.caps_[i].type == mode &&
+          deinterlace_caps_.mode_ != mode) {
+        deinterlace_caps_.mode_ = mode;
+        update_caps_ = true;
+        return true;
+      }
+    }
+    ETRACE("VA Filter unsupport deinterlace mode\n");
+    return false;
+  }
+  return false;
+}
+
+bool VARenderer::SetVAProcFilterScalingMode(uint32_t mode) {
+  switch (mode) {
+    case 0:
+      filter_flags_ = VA_FILTER_SCALING_DEFAULT;
+      break;
+    case 1:
+      filter_flags_ = VA_FILTER_SCALING_FAST;
+      break;
+    case 2:
+      filter_flags_ = VA_FILTER_SCALING_HQ;
+      break;
+    default:
+      filter_flags_ = VA_FILTER_SCALING_DEFAULT;
+      break;
+  }
   return true;
 }
 
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
-  VASurfaceAttribExternalBuffers external_in;
-  memset(&external_in, 0, sizeof(external_in));
-  const OverlayBuffer* buffer_in = state.layer_->GetBuffer();
-#if VA_MAJOR_VERSION < 1
-  unsigned long prime_fd_in = buffer_in->GetPrimeFD();
-#else
-  uintptr_t prime_fd_in = buffer_in->GetPrimeFD();
-#endif
-  int rt_format = DrmFormatToRTFormat(buffer_in->GetFormat());
-  external_in.pixel_format = DrmFormatToVAFormat(buffer_in->GetFormat());
-  external_in.width = buffer_in->GetWidth();
-  external_in.height = buffer_in->GetHeight();
-  external_in.num_planes = buffer_in->GetTotalPlanes();
-  const uint32_t* pitches = buffer_in->GetPitches();
-  const uint32_t* offsets = buffer_in->GetOffsets();
-  for (unsigned int i = 0; i < external_in.num_planes; i++) {
-    external_in.pitches[i] = pitches[i];
-    external_in.offsets[i] = offsets[i];
-  }
-  external_in.num_buffers = 1;
-  external_in.buffers = &prime_fd_in;
-
-  ScopedVASurfaceID surface_in(va_display_);
-  if (!surface_in.CreateSurface(rt_format, external_in)) {
-    DTRACE("Create Input surface failed\n");
-    return false;
-  }
-
-  VASurfaceAttribExternalBuffers external_out;
-  memset(&external_out, 0, sizeof(external_out));
+  // TODO: Clear surface ?
+  surface->SetClearSurface(NativeSurface::kNone);
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
-  int dest_width = buffer_out->GetWidth();
-  int dest_height = buffer_out->GetHeight();
-#if VA_MAJOR_VERSION < 1
-  unsigned long prime_fd_out = buffer_out->GetPrimeFD();
-#else
-  uintptr_t prime_fd_out = buffer_out->GetPrimeFD();
-#endif
-  rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
-  external_out.pixel_format = DrmFormatToVAFormat(buffer_out->GetFormat());
-  external_out.width = dest_width;
-  external_out.height = dest_height;
-  external_out.num_planes = buffer_out->GetTotalPlanes();
-  pitches = buffer_out->GetPitches();
-  offsets = buffer_out->GetOffsets();
-  for (unsigned int i = 0; i < external_out.num_planes; i++) {
-    external_out.pitches[i] = pitches[i];
-    external_out.offsets[i] = offsets[i];
-  }
-  external_out.num_buffers = 1;
-  external_out.buffers = &prime_fd_out;
-
-  ScopedVASurfaceID surface_out(va_display_);
-  if (!surface_out.CreateSurface(rt_format, external_out)) {
-    DTRACE("Create Output surface failed, pixel_format:%4.4s w/h: %dx%d\n",
-           (char*)&external_out.pixel_format, dest_width, dest_height);
-    return false;
-  }
-
+  int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
-    DTRACE("to create VA context\n");
     render_target_format_ = rt_format;
     if (!CreateContext()) {
       ETRACE("Create VA context failed\n");
@@ -261,89 +241,73 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     }
   }
 
-  VAProcPipelineParameterBuffer param;
-  memset(&param, 0, sizeof(VAProcPipelineParameterBuffer));
+  // Get Input Surface.
+  OverlayBuffer* buffer_in = state.layer_->GetBuffer();
+  const MediaResourceHandle& resource = buffer_in->GetMediaResource(
+      va_display_, state.layer_->GetSourceCropWidth(),
+      state.layer_->GetSourceCropHeight());
+  VASurfaceID surface_in = resource.surface_;
+  if (surface_in == VA_INVALID_ID) {
+    ETRACE("Failed to create Va Input Surface. \n");
+    return false;
+  }
 
-  VARectangle surface_region, output_region;
-  HwcRect<float> source_crop = state.layer_->GetSourceCrop();
-  surface_region.x = source_crop.left;
-  surface_region.y = source_crop.top;
-  surface_region.width = source_crop.right - source_crop.left;
-  surface_region.height = source_crop.bottom - source_crop.top;
-  param.surface_region = &surface_region;
+  // Get Output Surface.
+  const OverlayLayer* layer_out = surface->GetLayer();
+  const MediaResourceHandle& out_resource =
+      layer_out->GetBuffer()->GetMediaResource(
+          va_display_, layer_out->GetSourceCropWidth(),
+          layer_out->GetSourceCropHeight());
+  VASurfaceID surface_out = out_resource.surface_;
+  if (surface_out == VA_INVALID_ID) {
+    ETRACE("Failed to create Va Output Surface. \n");
+    return false;
+  }
 
-  HwcRect<int> display_frame = state.layer_->GetDisplayFrame();
-  output_region.x = display_frame.left;
-  output_region.y = display_frame.top;
-  output_region.width = display_frame.right - display_frame.left;
-  output_region.height = display_frame.bottom - display_frame.top;
-  param.output_region = &output_region;
+  VARectangle surface_region;
+  const OverlayLayer* layer_in = state.layer_;
+  const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
+  surface_region.x = static_cast<int>(source_crop.left);
+  surface_region.y = static_cast<int>(source_crop.top);
+  surface_region.width = layer_in->GetSourceCropWidth();
+  surface_region.height = layer_in->GetSourceCropHeight();
 
-  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n",
-             surface_region.x, surface_region.y,
-             surface_region.width, surface_region.height);
-  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n",
-             display_frame.left, display_frame.top,
-             display_frame.right, display_frame.bottom);
+  VARectangle output_region;
+  const HwcRect<float>& source_crop_out = layer_out->GetSourceCrop();
+  output_region.x = static_cast<int>(source_crop_out.left);
+  output_region.y = static_cast<int>(source_crop_out.top);
+  output_region.width = layer_out->GetSourceCropWidth();
+  output_region.height = layer_out->GetSourceCropHeight();
 
-  param.surface = surface_in;
-  param.surface_color_standard = VAProcColorStandardBT601;
-  param.output_color_standard = VAProcColorStandardBT601;
-  param.num_filters = 0;
-  param.filters = nullptr;
-  param.filter_flags = VA_FRAME_PICTURE;
+  param_.surface = surface_in;
+  param_.surface_region = &surface_region;
+  param_.output_region = &output_region;
+
+  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
+            surface_region.y, surface_region.width, surface_region.height);
+  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
+            output_region.y, output_region.width, output_region.height);
+
+  for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
+    SetVAProcFilterColorValue(itr->first, itr->second);
+  }
+  SetVAProcFilterDeinterlaceMode(state.deinterlace_);
+  SetVAProcFilterScalingMode(state.scaling_mode_);
+
+  if (!UpdateCaps()) {
+    ETRACE("Failed to update capabailities. \n");
+    return false;
+  }
 
   // currently rotation is only supported by VA on Android.
 #ifdef DISABLE_CURSOR_PLANE
-  param.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
+  param_.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
 #endif
-  VAProcFilterCapColorBalance vacaps[VAProcColorBalanceCount];
-  uint32_t vacaps_num = VAProcColorBalanceCount;
-
-  if (caps_.empty()) {
-    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance, vacaps,
-                               &vacaps_num)) {
-      return false;
-    } else {
-      SetVAProcFilterColorDefaultValue(&vacaps[0]);
-    }
-  }
-
-  for (HWCColorMap::const_iterator itr = state.colors_.begin();
-       itr != state.colors_.end(); itr++) {
-    SetVAProcFilterColorValue(itr->first, itr->second);
-  }
-
-  std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
-                                            va_display_);
-  std::vector<VABufferID> filters;
-  VAProcFilterParameterBufferColorBalance cbparam;
-  cbparam.type = VAProcFilterColorBalance;
-  cbparam.attrib = VAProcColorBalanceNone;
-
-  for (ColorBalanceCapMapItr itr = caps_.begin(); itr != caps_.end(); itr++) {
-    if (fabs(itr->second.value - itr->second.caps.range.default_value) >=
-        itr->second.caps.range.step) {
-      cbparam.value = itr->second.value;
-      cbparam.attrib = itr->second.caps.type;
-      if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
-              va_context_, VAProcFilterParameterBufferType,
-              sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
-        return false;
-      }
-      filters.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
-    }
-  }
-
-  if (filters.size()) {
-    param.filters = &filters[0];
-    param.num_filters = static_cast<unsigned int>(filters.size());
-  }
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
           va_context_, VAProcPipelineParameterBufferType,
-          sizeof(VAProcPipelineParameterBuffer), 1, &param)) {
+          sizeof(VAProcPipelineParameterBuffer), 1, &param_)) {
     return false;
   }
 
@@ -353,69 +317,22 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
       vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
   ret |= vaEndPicture(va_display_, va_context_);
 
+  surface->ResetDamage();
+
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
-int VARenderer::DrmFormatToVAFormat(int format) {
-  switch (format) {
-    case DRM_FORMAT_NV12:
-      return VA_FOURCC_NV12;
-    case DRM_FORMAT_YVU420:
-      return VA_FOURCC_YV12;
-    case DRM_FORMAT_YUV420:
-      return VA_FOURCC('I', '4', '2', '0');
-    case DRM_FORMAT_YUV422:
-      return VA_FOURCC_YUY2;
-    case DRM_FORMAT_UYVY:
-      return VA_FOURCC_UYVY;
-    case DRM_FORMAT_YUYV:
-      return VA_FOURCC_YUY2;
-    case DRM_FORMAT_P010:
-      return VA_FOURCC_P010;
-    case DRM_FORMAT_YVYU:
-    case DRM_FORMAT_VYUY:
-    case DRM_FORMAT_YUV444:
-    case DRM_FORMAT_AYUV:
-    default:
-      break;
+bool VARenderer::DestroyMediaResources(
+    std::vector<struct media_import>& resources) {
+  size_t purged_size = resources.size();
+  for (size_t i = 0; i < purged_size; i++) {
+    MediaResourceHandle& handle = resources.at(i);
+    if (handle.surface_ != VA_INVALID_ID) {
+      vaDestroySurfaces(va_display_, &handle.surface_, 1);
+    }
   }
-  return 0;
-}
 
-int VARenderer::DrmFormatToRTFormat(int format) {
-  switch (format) {
-    case DRM_FORMAT_NV12:
-    case DRM_FORMAT_YVU420:
-    case DRM_FORMAT_YUV420:
-    case DRM_FORMAT_UYVY:
-    case DRM_FORMAT_YUYV:
-    case DRM_FORMAT_YVYU:
-    case DRM_FORMAT_VYUY:
-      return VA_RT_FORMAT_YUV420;
-    case DRM_FORMAT_YUV422:
-      return VA_RT_FORMAT_YUV422;
-    case DRM_FORMAT_YUV444:
-      return VA_RT_FORMAT_YUV444;
-    case DRM_FORMAT_P010:
-      return VA_RT_FORMAT_YUV420_10BPP;
-    default:
-      break;
-  }
-  return 0;
-}
-
-uint32_t VARenderer::HWCTransformToVA(uint32_t transform) {
-  switch (transform) {
-    case kTransform270:
-      return VA_ROTATION_270;
-    case kTransform180:
-      return VA_ROTATION_180;
-    case kTransform90:
-      return VA_ROTATION_90;
-    default:
-      break;
-  }
-  return VA_ROTATION_NONE;
+  return true;
 }
 
 bool VARenderer::CreateContext() {
@@ -438,6 +355,8 @@ bool VARenderer::CreateContext() {
   int height = 1;
   ret = vaCreateContext(va_display_, va_config_, width, height, 0x00, nullptr,
                         0, &va_context_);
+
+  update_caps_ = true;
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
@@ -450,6 +369,141 @@ void VARenderer::DestroyContext() {
     vaDestroyConfig(va_display_, va_config_);
     va_config_ = VA_INVALID_ID;
   }
+
+  std::vector<VABufferID>().swap(filters_);
+  std::vector<ScopedVABufferID>().swap(cb_elements_);
+  std::vector<ScopedVABufferID>().swap(sharp_);
+}
+
+bool VARenderer::UpdateCaps() {
+  if (!update_caps_) {
+    return true;
+  }
+
+  update_caps_ = false;
+
+  VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
+  uint32_t colorbalance_num = VAProcColorBalanceCount;
+  uint32_t sharp_num = 1;
+  uint32_t deinterlace_num = VAProcDeinterlacingCount;
+
+  if (colorbalance_caps_.empty()) {
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
+                               colorbalancecaps, &colorbalance_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
+                               &sharp_caps_.caps_, &sharp_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
+                               &deinterlace_caps_.caps_, &deinterlace_num)) {
+      return false;
+    }
+
+    SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
+    SetVAProcFilterDeinterlaceDefaultMode();
+
+  } else {
+    std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
+                                              va_display_);
+    std::vector<ScopedVABufferID> sharp(1, va_display_);
+    std::vector<ScopedVABufferID> deinterlace(1, va_display_);
+
+    std::vector<VABufferID>().swap(filters_);
+    std::vector<ScopedVABufferID>().swap(cb_elements_);
+    std::vector<ScopedVABufferID>().swap(sharp_);
+    std::vector<ScopedVABufferID>().swap(deinterlace_);
+
+    VAProcFilterParameterBufferColorBalance cbparam;
+    VAProcFilterParameterBuffer sharpparam;
+    VAProcFilterParameterBufferDeinterlacing deinterlaceparam;
+
+    for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
+         itr++) {
+      bool use_default =
+          itr->second.use_default_ &&
+          itr->second.value_ != itr->second.caps_.range.default_value;
+      if (fabs(itr->second.value_ - itr->second.caps_.range.default_value) >=
+              itr->second.caps_.range.step ||
+          use_default) {
+        if (use_default) {
+          itr->second.value_ = itr->second.caps_.range.default_value;
+        }
+        cbparam.type = VAProcFilterColorBalance;
+        cbparam.value = itr->second.value_;
+        cbparam.attrib = itr->second.caps_.type;
+        if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
+                va_context_, VAProcFilterParameterBufferType,
+                sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
+          return false;
+        }
+        filters_.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
+      }
+    }
+
+    cb_elements_.swap(cb_elements);
+
+    bool sharp_use_default =
+        sharp_caps_.use_default_ &&
+        sharp_caps_.value_ != sharp_caps_.caps_.range.default_value;
+    if (fabs(sharp_caps_.value_ - sharp_caps_.caps_.range.default_value) >=
+            sharp_caps_.caps_.range.step ||
+        sharp_use_default) {
+      if (sharp_use_default) {
+        sharp_caps_.value_ = sharp_caps_.caps_.range.default_value;
+      }
+      sharpparam.value = sharp_caps_.value_;
+      sharpparam.type = VAProcFilterSharpening;
+      if (!sharp[0].CreateBuffer(va_context_, VAProcFilterParameterBufferType,
+                                 sizeof(VAProcFilterParameterBuffer), 1,
+                                 &sharpparam)) {
+        return false;
+      }
+      filters_.push_back(sharp[0].buffer());
+    }
+    sharp_.swap(sharp);
+
+    if (deinterlace_caps_.mode_ != VAProcDeinterlacingNone) {
+      deinterlaceparam.algorithm = deinterlace_caps_.mode_;
+      deinterlaceparam.type = VAProcFilterDeinterlacing;
+      if (!deinterlace[0].CreateBuffer(
+              va_context_, VAProcFilterParameterBufferType,
+              sizeof(VAProcFilterParameterBufferDeinterlacing), 1,
+              &deinterlaceparam)) {
+        return false;
+      }
+      filters_.push_back(deinterlace[0].buffer());
+    }
+    deinterlace_.swap(deinterlace);
+  }
+
+  memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
+  param_.surface_color_standard = VAProcColorStandardBT601;
+  param_.output_color_standard = VAProcColorStandardBT601;
+  param_.num_filters = 0;
+  param_.filters = nullptr;
+  param_.filter_flags = filter_flags_;
+  if (filters_.size()) {
+    param_.filters = &filters_[0];
+    param_.num_filters = static_cast<unsigned int>(filters_.size());
+  }
+
+  return true;
+}
+
+uint32_t VARenderer::HWCTransformToVA(uint32_t transform) {
+    switch (transform) {
+        case kTransform270:
+            return VA_ROTATION_270;
+        case kTransform180:
+            return VA_ROTATION_180;
+        case kTransform90:
+            return VA_ROTATION_90;
+        default:
+            break;
+    }
+    return VA_ROTATION_NONE;
 }
 
 }  // namespace hwcomposer

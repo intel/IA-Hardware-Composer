@@ -28,7 +28,6 @@
 #endif
 
 #include "va/varenderer.h"
-#include "va/vasurface.h"
 
 namespace hwcomposer {
 
@@ -43,7 +42,7 @@ NativeSurface* Create3DBuffer(uint32_t width, uint32_t height) {
 }
 
 NativeSurface* CreateVideoBuffer(uint32_t width, uint32_t height) {
-  return new VASurface(width, height);
+  return new NativeSurface(width, height);
 }
 
 Renderer* Create3DRenderer() {

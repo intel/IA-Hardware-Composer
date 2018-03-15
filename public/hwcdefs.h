@@ -37,6 +37,12 @@ enum class HWCBlending : int32_t {
   kBlendingCoverage = 0x0405,
 };
 
+enum HWCContentProtection {
+  kUnSupported = 0,  // Content Protection is not supported.
+  kUnDesired = 1,    // Content Protection is not required.
+  kDesired = 2       // Content Protection is desired.
+};
+
 enum HWCTransform {
   kIdentity = 0,
   kReflectX = 1 << 0,
@@ -72,7 +78,14 @@ enum class HWCDisplayAttribute : int32_t {
   kDpiY = 5
 };
 
-enum class DisplayType : int32_t { kInternal = 0, kExternal = 1, kVirtual = 2, kLogical = 3, kMosaic = 4 };
+enum class DisplayType : int32_t {
+  kInternal = 0,
+  kExternal = 1,
+  kVirtual = 2,
+  kLogical = 3,
+  kMosaic = 4,
+  kNested = 5
+};
 
 enum DisplayPowerMode {
   kOff = 0,         // Display is off
@@ -92,7 +105,28 @@ enum class HWCColorControl : int32_t {
   kColorHue = 0,
   kColorSaturation = 1,
   kColorBrightness = 2,
-  kColorContrast = 3
+  kColorContrast = 3,
+  kColorSharpness = 4
+};
+
+enum class HWCDeinterlaceFlag : int32_t {
+  kDeinterlaceFlagNone = 0,
+  kDeinterlaceFlagForce = 1,
+  kDeinterlaceFlagAuto = 2
+};
+
+enum class HWCDeinterlaceControl : int32_t {
+  kDeinterlaceNone = 0,
+  kDeinterlaceBob = 1,
+  kDeinterlaceWeave = 2,
+  kDeinterlaceMotionAdaptive = 3,
+  kDeinterlaceMotionCompensated = 4
+};
+
+enum class HWCScalingRunTimeSetting : int32_t {
+  kScalingModeNone = 0,        // use default scaling mode.
+  kScalingModeFast = 1,        // use fast scaling mode.
+  kScalingModeHighQuality = 2  // use high quality scaling mode.
 };
 
 struct EnumClassHash {
@@ -102,7 +136,18 @@ struct EnumClassHash {
   }
 };
 
-using HWCColorMap = std::unordered_map<HWCColorControl, float, EnumClassHash>;
+struct HWCColorProp {
+  float value_ = 0.0;
+  bool use_default_ = true;
+};
+
+struct HWCDeinterlaceProp {
+  HWCDeinterlaceFlag flag_;
+  HWCDeinterlaceControl mode_;
+};
+
+using HWCColorMap =
+    std::unordered_map<HWCColorControl, HWCColorProp, EnumClassHash>;
 
 }  // namespace hwcomposer
 #endif  // PUBLIC_HWCDEFS_H_

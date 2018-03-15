@@ -23,6 +23,7 @@
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -31,13 +32,37 @@ DrmPlane::Property::Property() {
 
 bool DrmPlane::Property::Initialize(
     uint32_t fd, const char* name,
-    const ScopedDrmObjectPropertyPtr& plane_props) {
+    const ScopedDrmObjectPropertyPtr& plane_props, uint32_t* rotation,
+    uint64_t* in_formats_prop_value) {
   uint32_t count_props = plane_props->count_props;
   for (uint32_t i = 0; i < count_props; i++) {
     ScopedDrmPropertyPtr property(
         drmModeGetProperty(fd, plane_props->props[i]));
     if (property && !strcmp(property->name, name)) {
       id = property->prop_id;
+      if (rotation) {
+        uint32_t temp = 0;
+        for (int enum_index = 0; enum_index < property->count_enums;
+             enum_index++) {
+          struct drm_mode_property_enum* penum = &(property->enums[enum_index]);
+          if (!strcmp(penum->name, "rotate-90")) {
+            temp |= DRM_MODE_ROTATE_90;
+          }
+          if (!strcmp(penum->name, "rotate-180"))
+            temp |= DRM_MODE_ROTATE_180;
+          else if (!strcmp(penum->name, "rotate-270"))
+            temp |= DRM_MODE_ROTATE_270;
+          else if (!strcmp(penum->name, "rotate-0"))
+            temp |= DRM_MODE_ROTATE_0;
+        }
+
+        *rotation = temp;
+      }
+      if (!strcmp(property->name, "IN_FORMATS")) {
+        if (in_formats_prop_value) {
+          *in_formats_prop_value = plane_props->prop_values[i];
+        }
+      }
       break;
     }
   }
@@ -66,30 +91,32 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   uint32_t total_size = supported_formats_.size();
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
-    switch (format) {
-      case DRM_FORMAT_NV12:
-      case DRM_FORMAT_YVU420:  // YV12
-      case DRM_FORMAT_YUV420:  // I420
-      case DRM_FORMAT_YUV422:
-      case DRM_FORMAT_YUV444:
-      case DRM_FORMAT_YUYV:  // YUY2
-        prefered_video_format_ = format;
-        break;
+    if (IsSupportedMediaFormat(format)) {
+      prefered_video_format_ = format;
+      break;
     }
   }
 
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
     switch (format) {
+      case DRM_FORMAT_BGRA8888:
+      case DRM_FORMAT_RGBA8888:
+      case DRM_FORMAT_ABGR8888:
+      case DRM_FORMAT_ARGB8888:
       case DRM_FORMAT_RGB888:
       case DRM_FORMAT_XRGB8888:
       case DRM_FORMAT_XBGR8888:
       case DRM_FORMAT_RGBX8888:
-      case DRM_FORMAT_ABGR8888:
-      case DRM_FORMAT_RGBA8888:
-      case DRM_FORMAT_BGRA8888:
         prefered_format_ = format;
         break;
+    }
+  }
+
+  if (type_ == DRM_PLANE_TYPE_PRIMARY) {
+    if (prefered_format_ != DRM_FORMAT_XBGR8888 &&
+        IsSupportedFormat(DRM_FORMAT_XBGR8888)) {
+      prefered_format_ = DRM_FORMAT_XBGR8888;
     }
   }
 
@@ -153,7 +180,7 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   if (!ret)
     return false;
 
-  ret = rotation_prop_.Initialize(gpu_fd, "rotation", plane_props);
+  ret = rotation_prop_.Initialize(gpu_fd, "rotation", plane_props, &rotation_);
   if (!ret)
     ETRACE("Could not get rotation property");
 
@@ -167,6 +194,43 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     in_fence_fd_prop_.id = 0;
   }
 
+  // query and store supported modifiers for format, from in_formats
+  // property
+  uint64_t in_formats_prop_value = 0;
+  ret = in_formats_prop_.Initialize(gpu_fd, "IN_FORMATS", plane_props, NULL,
+                                    &in_formats_prop_value);
+  if (!ret) {
+    ETRACE("Could not get IN_FORMATS property");
+  }
+
+  if (in_formats_prop_value != 0) {
+    drmModePropertyBlobPtr blob =
+        drmModeGetPropertyBlob(gpu_fd, in_formats_prop_value);
+
+    struct drm_format_modifier_blob* m =
+        (struct drm_format_modifier_blob*)(blob->data);
+    struct drm_format_modifier* mod_o =
+        (struct drm_format_modifier*)(void*)(((char*)m) + m->modifiers_offset);
+
+    for (uint32_t j = 0; j < total_size; j++) {
+      uint32_t format = supported_formats_.at(j);
+      format_mods modifiers_obj;
+      modifiers_obj.format = format;
+      uint32_t format_index = j;
+
+      struct drm_format_modifier* mod = mod_o;
+      for (int i = 0; i < (int)m->count_modifiers; i++, mod++) {
+        if (mod->formats & (1ULL << format_index)) {
+          modifiers_obj.mods.emplace_back(mod->modifier);
+        }
+      }
+      if (modifiers_obj.mods.size() == 0) {
+        modifiers_obj.mods.emplace_back(DRM_FORMAT_MOD_NONE);
+      }
+
+      formats_modifiers_.emplace_back(modifiers_obj);
+    }
+  }
   return true;
 }
 
@@ -178,8 +242,9 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   const HwcRect<int>& display_frame = layer->GetDisplayFrame();
   const HwcRect<float>& source_crop = layer->GetSourceCrop();
   int fence = kms_fence_;
-  if (test_commit)
+  if (test_commit) {
     fence = layer->GetAcquireFence();
+  }
 
   if (layer->GetBlending() == HWCBlending::kBlendingPremult)
     alpha = layer->GetAlpha();
@@ -195,7 +260,7 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   success |= drmModeAtomicAddProperty(property_set, id_, crtc_y_prop_.id,
                                       display_frame.top) < 0;
 
-  if (type_ == DRM_PLANE_TYPE_CURSOR) {
+  if (layer->IsCursorLayer()) {
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_w_prop_.id,
                                         buffer->GetWidth()) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, crtc_h_prop_.id,
@@ -229,13 +294,13 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
   if (rotation_prop_.id) {
     uint32_t rotation = 0;
     uint32_t transform = layer->GetPlaneTransform();
-    if (transform & kReflectX)
-      rotation |= DRM_MODE_REFLECT_X;
-    if (transform & kReflectY)
-      rotation |= DRM_MODE_REFLECT_Y;
-    if (transform & kTransform90)
+    if (transform & kTransform90) {
       rotation |= DRM_MODE_ROTATE_90;
-    else if (transform & kTransform180)
+      if (transform & kReflectX)
+        rotation |= DRM_MODE_REFLECT_X;
+      if (transform & kReflectY)
+        rotation |= DRM_MODE_REFLECT_Y;
+    } else if (transform & kTransform180)
       rotation |= DRM_MODE_ROTATE_180;
     else if (transform & kTransform270)
       rotation |= DRM_MODE_ROTATE_270;
@@ -274,6 +339,10 @@ void DrmPlane::SetNativeFence(int32_t fd) {
   kms_fence_ = fd;
 }
 
+void DrmPlane::SetBuffer(std::shared_ptr<OverlayBuffer>& buffer) {
+  buffer_ = buffer;
+}
+
 bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
   in_use_ = false;
   int success =
@@ -298,6 +367,7 @@ bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
   }
 
   SetNativeFence(-1);
+  buffer_.reset();
 
   return true;
 }
@@ -346,7 +416,7 @@ bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
     return false;
   }
 
-  return true;
+  return IsSupportedTransform(transform);
 }
 
 bool DrmPlane::IsSupportedFormat(uint32_t format) {
@@ -363,23 +433,26 @@ bool DrmPlane::IsSupportedFormat(uint32_t format) {
   return false;
 }
 
-uint32_t DrmPlane::GetFormatForFrameBuffer(uint32_t format) {
-  if (IsSupportedFormat(format))
-    return format;
-
-  if (type_ == DRM_PLANE_TYPE_PRIMARY) {
-    // In case of alpha, fall back to XRGB.
-    switch (format) {
-      case DRM_FORMAT_ABGR8888:
-        return DRM_FORMAT_XBGR8888;
-      case DRM_FORMAT_ARGB8888:
-        return DRM_FORMAT_XRGB8888;
-      default:
-        break;
+bool DrmPlane::IsSupportedTransform(uint32_t transform) const {
+  if (transform & kTransform90) {
+    if (!(rotation_ & DRM_MODE_ROTATE_90)) {
+      return false;
+    }
+  } else if (transform & kTransform180) {
+    if (!(rotation_ & DRM_MODE_ROTATE_180)) {
+      return false;
+    }
+  } else if (transform & kTransform270) {
+    if (!(rotation_ & DRM_MODE_ROTATE_270)) {
+      return false;
+    }
+  } else {
+    if (!(rotation_ & DRM_MODE_ROTATE_0)) {
+      return false;
     }
   }
 
-  return format;
+  return true;
 }
 
 uint32_t DrmPlane::GetPreferredVideoFormat() const {
@@ -392,6 +465,21 @@ uint32_t DrmPlane::GetPreferredFormat() const {
 
 void DrmPlane::SetInUse(bool in_use) {
   in_use_ = in_use;
+}
+
+bool DrmPlane::IsSupportedModifier(uint64_t modifier, uint32_t format) {
+  uint32_t count = formats_modifiers_.size();
+  for (uint32_t i = 0; i < count; i++) {
+    const format_mods& obj = formats_modifiers_.at(i);
+    if (obj.format == format) {
+      std::vector<uint64_t>::const_iterator it;
+      it = std::find(obj.mods.begin(), obj.mods.end(), modifier);
+      if (it != obj.mods.end()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void DrmPlane::Dump() const {
@@ -454,6 +542,9 @@ void DrmPlane::Dump() const {
 
   if (in_fence_fd_prop_.id != 0)
     DUMPTRACE("IN_FENCE_FD is supported.");
+
+  if (in_formats_prop_.id != 0)
+    DUMPTRACE("IN_FORMATS property is supported.");
 
   DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_video_format_));
   DUMPTRACE("Preferred Video Format: %4.4s", (char*)&(prefered_format_));

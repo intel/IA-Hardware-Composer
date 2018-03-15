@@ -20,6 +20,8 @@
 
 #include "overlaybuffer.h"
 
+#include "pixelbuffer.h"
+
 namespace hwcomposer {
 
 class NativeBufferHandler;
@@ -33,10 +35,13 @@ class DrmBuffer : public OverlayBuffer {
 
   ~DrmBuffer() override;
 
-  void Initialize(const HwcBuffer& bo);
-
   void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  NativeBufferHandler* buffer_handler) override;
+                                  ResourceManager* buffer_manager,
+                                  bool is_cursor_buffer) override;
+
+  void UpdateRawPixelBackingStore(void* addr) override;
+  void RefreshPixelData() override;
+  bool NeedsTextureUpload() const override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -50,12 +55,12 @@ class DrmBuffer : public OverlayBuffer {
     return format_;
   }
 
-  uint32_t GetUsage() const override {
+  HWCLayerType GetUsage() const override {
     return usage_;
   }
 
   uint32_t GetFb() const override {
-    return fb_id_;
+    return image_.drm_fd_;
   }
 
   uint32_t GetPrimeFD() const override {
@@ -74,36 +79,43 @@ class DrmBuffer : public OverlayBuffer {
     return offsets_;
   }
 
-  GpuImage ImportImage(GpuDisplay egl_display) override;
+  uint32_t GetTilingMode() const override {
+    return tiling_mode_;
+  }
+
+  const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
+                                       bool external_import) override;
+
+  const ResourceHandle& GetGpuResource() override;
+
+  const MediaResourceHandle& GetMediaResource(MediaDisplay display,
+                                              uint32_t width,
+                                              uint32_t height) override;
 
   bool CreateFrameBuffer(uint32_t gpu_fd) override;
-
-  void ReleaseFrameBuffer() override;
-
-  void SetRecommendedFormat(uint32_t format) override;
-
-  bool IsVideoBuffer() const override {
-    return is_yuv_;
-  }
 
   void Dump() override;
 
  private:
+  void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;
+  uint32_t tiling_mode_ = 0;
   uint32_t frame_buffer_format_ = 0;
   uint32_t pitches_[4];
   uint32_t offsets_[4];
   uint32_t gem_handles_[4];
-  uint32_t fb_id_ = 0;
   uint32_t prime_fd_ = 0;
-  uint32_t usage_ = 0;
-  uint32_t gpu_fd_ = 0;
+  HWCLayerType usage_ = kLayerNormal;
   uint32_t total_planes_ = 0;
-  bool is_yuv_ = false;
-  HWCNativeHandle handle_ = 0;
-  NativeBufferHandler* buffer_handler_ = 0;
+  uint32_t previous_width_ = 0;   // For Media usage.
+  uint32_t previous_height_ = 0;  // For Media usage.
+  ResourceManager* resource_manager_ = 0;
+  ResourceHandle image_;
+  MediaResourceHandle media_image_;
+  std::unique_ptr<PixelBuffer> pixel_buffer_;
+  void* data_;
 };
 
 }  // namespace hwcomposer

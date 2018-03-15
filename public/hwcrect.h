@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <cstring>
+
 namespace hwcomposer {
 
 // Some of the structs are adopted from drm_hwcomposer
@@ -32,6 +34,7 @@ struct Rect {
   };
   typedef TFloat TNum;
   Rect() {
+    reset();
   }
   Rect(TFloat left_, TFloat top_, TFloat right_, TFloat bottom_)
       : left(left_), top(top_), right(right_), bottom(bottom_) {
@@ -53,6 +56,20 @@ struct Rect {
         return false;
     }
     return true;
+  }
+
+  bool empty() const {
+    for (int i = 0; i < 4; i++) {
+      if (bounds[i] != 0)
+        return false;
+    }
+    return true;
+  }
+
+  void reset() {
+    for (int i = 0; i < 4; i++) {
+      memset(&bounds, 0, sizeof(bounds));
+    }
   }
 };
 

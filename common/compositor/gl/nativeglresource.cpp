@@ -24,48 +24,75 @@ namespace hwcomposer {
 
 bool NativeGLResource::PrepareResources(
     const std::vector<OverlayBuffer*>& buffers) {
-  Reset();
   std::vector<GLuint>().swap(layer_textures_);
   layer_textures_.reserve(buffers.size());
   EGLDisplay egl_display = eglGetCurrentDisplay();
   for (auto& buffer : buffers) {
     // Create EGLImage.
-    EGLImageKHR egl_image = buffer->ImportImage(egl_display);
+    const ResourceHandle& import_image =
+        buffer->GetGpuResource(egl_display, true);
 
-    if (egl_image == EGL_NO_IMAGE_KHR) {
+    if (import_image.image_ == EGL_NO_IMAGE_KHR) {
       ETRACE("Failed to make import image.");
       return false;
     }
 
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
-                                 (GLeglImageOES)egl_image);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    layer_textures_.emplace_back(texture);
-    eglDestroyImageKHR(egl_display, egl_image);
+    layer_textures_.emplace_back(import_image.texture_);
   }
 
   return true;
 }
 
+void NativeGLResource::HandleTextureUploads(
+    const std::vector<OverlayBuffer*>& buffers) {
+  EGLDisplay egl_display = eglGetCurrentDisplay();
+  for (auto& buffer : buffers) {
+    // Create EGLImage.
+    const ResourceHandle& import_image =
+        buffer->GetGpuResource(egl_display, true);
+
+    if (import_image.image_ == EGL_NO_IMAGE_KHR) {
+      ETRACE("Failed to make import image when uploading texture data.");
+    }
+  }
+}
+
 NativeGLResource::~NativeGLResource() {
-  Reset();
 }
 
-void NativeGLResource::ReleaseGPUResources() {
-  Reset();
-}
+void NativeGLResource::ReleaseGPUResources(
+    const std::vector<ResourceHandle>& handles) {
+  size_t purged_size = handles.size();
+  EGLDisplay egl_display = eglGetCurrentDisplay();
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+  std::vector<GLuint> textures;
+  std::vector<GLuint> fbs;
 
-void NativeGLResource::Reset() {
-  GLuint texture_id = 0;
-  size_t size = layer_textures_.size();
-  for (size_t i = 0; i < size; i++) {
-    texture_id = layer_textures_.at(i);
-    glDeleteTextures(1, &texture_id);
+  for (size_t i = 0; i < purged_size; i++) {
+    const ResourceHandle& handle = handles.at(i);
+    if (handle.image_) {
+      eglDestroyImageKHR(egl_display, handle.image_);
+    }
+
+    if (handle.texture_) {
+      textures.emplace_back(handle.texture_);
+    }
+
+    if (handle.fb_) {
+      fbs.emplace_back(handle.fb_);
+    }
+  }
+
+  uint32_t textures_size = textures.size();
+  if (textures_size > 0) {
+    glDeleteTextures(textures_size, textures.data());
+  }
+
+  uint32_t fb_size = fbs.size();
+
+  if (fb_size > 0) {
+    glDeleteFramebuffers(fb_size, fbs.data());
   }
 }
 

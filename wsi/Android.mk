@@ -34,21 +34,31 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../common/core \
         $(LOCAL_PATH)/../common/compositor \
         $(LOCAL_PATH)/../common/compositor/gl \
+	$(LOCAL_PATH)/../common/compositor/va \
         $(LOCAL_PATH)/../common/display \
         $(LOCAL_PATH)/../common/utils \
         $(LOCAL_PATH)/../os \
         $(LOCAL_PATH)/../os/android \
         $(LOCAL_PATH)/../wsi \
-        $(LOCAL_PATH)/../wsi/drm
+	$(LOCAL_PATH)/../wsi/drm \
+	$(TARGET_OUT_HEADERS)/libva
+
+LOCAL_SHARED_LIBRARIES += \
+	libva
 
 LOCAL_SRC_FILES := \
         physicaldisplay.cpp \
+	pixelbuffer.cpp \
         drm/drmdisplay.cpp \
         drm/drmbuffer.cpp \
         drm/drmplane.cpp \
+	drm/drmpixelbuffer.cpp \
         drm/drmdisplaymanager.cpp \
-	drm/drmscopedtypes.cpp \
-	drm/hwclock.cpp
+	drm/drmscopedtypes.cpp
+
+ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
+LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+endif
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \

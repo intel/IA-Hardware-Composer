@@ -33,8 +33,7 @@
 
 #include <hwcdefs.h>
 #include "hwctrace.h"
-
-#define HWC_UNUSED(x) ((void)&(x))
+#include "hwcutils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +56,10 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
       return DRM_FORMAT_ARGB8888;
     case HAL_PIXEL_FORMAT_YV12:
       return DRM_FORMAT_YVU420;
+    case HAL_PIXEL_FORMAT_RGBA_FP16:
+      return DRM_FORMAT_XBGR161616;
+    case HAL_PIXEL_FORMAT_RGBA_1010102:
+      return DRM_FORMAT_ABGR2101010;
     default:
       break;
   }
@@ -83,6 +86,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_GR88:
     case DRM_FORMAT_R16:
       return HAL_PIXEL_FORMAT_Y16;
+    case DRM_FORMAT_ABGR8888:
+      return HAL_PIXEL_FORMAT_RGBA_8888;
     case DRM_FORMAT_RGB332:  //('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
       return 0;
     case DRM_FORMAT_BGR233:  //('B', 'G', 'R', '8') /* [7:0] B:G:R 2:3:3 */
@@ -113,15 +118,15 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_XRGB8888:
     case DRM_FORMAT_XBGR8888:
     case DRM_FORMAT_RGBX8888:
-    case DRM_FORMAT_ABGR8888:
     case DRM_FORMAT_RGBA8888:
       return 0;
+    case DRM_FORMAT_ABGR2101010:
+      return HAL_PIXEL_FORMAT_RGBA_1010102;
     case DRM_FORMAT_XRGB2101010:
     case DRM_FORMAT_XBGR2101010:
     case DRM_FORMAT_RGBX1010102:
     case DRM_FORMAT_BGRX1010102:
     case DRM_FORMAT_ARGB2101010:
-    case DRM_FORMAT_ABGR2101010:
     case DRM_FORMAT_RGBA1010102:
     case DRM_FORMAT_BGRA1010102:
       return 0;
@@ -131,6 +136,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_UYVY:
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_AYUV:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_NV12:
       return HAL_PIXEL_FORMAT_NV12;
@@ -143,6 +149,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YVU410:
     case DRM_FORMAT_YUV411:
     case DRM_FORMAT_YVU411:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_YUV420:
       return HAL_PIXEL_FORMAT_YCbCr_420_888;
@@ -151,15 +158,19 @@ static uint32_t DrmFormatToHALFormat(int format) {
     case DRM_FORMAT_YUV422:
       return HAL_PIXEL_FORMAT_YCbCr_422_888;
     case DRM_FORMAT_YVU422:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_YUV444:
       return HAL_PIXEL_FORMAT_YCbCr_444_888;
     case DRM_FORMAT_YVU444:
+      ETRACE("YUV format using RGB buffer \n");
       return 0;
     case DRM_FORMAT_NV12_Y_TILED_INTEL:
       return HAL_PIXEL_FORMAT_NV12_Y_TILED_INTEL;
     case DRM_FORMAT_P010:
       return HAL_PIXEL_FORMAT_P010_INTEL;
+    case DRM_FORMAT_XBGR161616:
+      return HAL_PIXEL_FORMAT_RGBA_FP16;
     default:
       return 0;
       break;
@@ -198,9 +209,9 @@ static void free_buffer_handle(native_handle_t *handle) {
 static void CopyBufferHandle(HWCNativeHandle source, HWCNativeHandle *target) {
   struct gralloc_handle *temp = new struct gralloc_handle();
   temp->handle_ = source->handle_;
-  temp->buffer_ = source->buffer_;
+  temp->gralloc1_buffer_descriptor_t_ = 0;
   temp->imported_handle_ = dup_buffer_handle(source->handle_);
-  temp->hwc_buffer_ = source->hwc_buffer_;
+  temp->hwc_buffer_ = false;
   *target = temp;
 }
 
@@ -212,62 +223,23 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 
-static bool CreateGraphicsBuffer(uint32_t w, uint32_t h, int format,
-                                 HWCNativeHandle *handle, uint32_t layer_type) {
-  struct gralloc_handle *temp = new struct gralloc_handle();
-  uint32_t usage = 0;
-  uint32_t pixel_format = 0;
-  if (format != 0) {
-    pixel_format = DrmFormatToHALFormat(format);
-  }
-
-  if (pixel_format == 0) {
-    pixel_format = android::PIXEL_FORMAT_RGBA_8888;
-  }
-
-  if (layer_type == hwcomposer::kLayerNormal) {
-    usage |= GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
-             GRALLOC_USAGE_HW_COMPOSER;
-  } else if (layer_type == hwcomposer::kLayerVideo) {
-    switch (pixel_format) {
-      case HAL_PIXEL_FORMAT_YCbCr_422_I:
-      case HAL_PIXEL_FORMAT_Y8:
-        usage |= GRALLOC_USAGE_HW_TEXTURE;
-        break;
-      default:
-        usage |= GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_HW_CAMERA_READ |
-                 GRALLOC_USAGE_HW_TEXTURE;
-    }
-  } else if (layer_type == hwcomposer::kLayerCursor) {
-    usage |= GRALLOC_USAGE_CURSOR;
-  }
-
-  temp->buffer_ = new android::GraphicBuffer(w, h, pixel_format, usage);
-  temp->handle_ = temp->buffer_->handle;
-  temp->hwc_buffer_ = true;
-  *handle = temp;
-
-  return true;
-}
-
 static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (!handle)
     return false;
 
-  if (handle->buffer_.get() && handle->hwc_buffer_) {
-    handle->buffer_.clear();
-  }
-
-  if (handle->gem_handle_ > 0) {
+  uint32_t gem_handle = handle->meta_data_.gem_handles_[0];
+  if (gem_handle > 0) {
     struct drm_gem_close gem_close;
     memset(&gem_close, 0, sizeof(gem_close));
-    gem_close.handle = handle->gem_handle_;
+    gem_close.handle = gem_handle;
     int ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
-    if (ret)
-      ETRACE("Failed to close gem handle %d", ret);
+    if (ret) {
+      ETRACE(
+          "Failed to close gem handle ErrorCode: %d PrimeFD: %d HWCBuffer: %d "
+          "GemHandle: %d  \n",
+          ret, handle->meta_data_.prime_fd_, handle->hwc_buffer_, gem_handle);
+    }
   }
-
-  handle->gem_handle_ = 0;
 
   return true;
 }
@@ -276,6 +248,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   handle->meta_data_.format_ = gr_handle->format;
+  handle->meta_data_.tiling_mode_ = gr_handle->tiling_mode;
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.prime_fd_ = gr_handle->fds[0];
@@ -293,17 +266,17 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
     handle->meta_data_.gem_handles_[p] = id;
   }
 
-  if (gr_handle->usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerProtected;
-  } else if (gr_handle->usage & GRALLOC1_CONSUMER_USAGE_CURSOR) {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerCursor;
+  if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerProtected;
+  } else if (gr_handle->consumer_usage & GRALLOC1_CONSUMER_USAGE_CURSOR) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerCursor;
     // We support DRM_FORMAT_ARGB8888 for cursor.
     handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
+  } else if (hwcomposer::IsSupportedMediaFormat(handle->meta_data_.format_)) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerVideo;
   } else {
-    handle->meta_data_.usage_ |= hwcomposer::kLayerNormal;
+    handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
   }
-
-  handle->gem_handle_ = id;
 
   // switch minigbm specific enum to a standard one
   if (handle->meta_data_.format_ == DRM_FORMAT_YVU420_ANDROID)

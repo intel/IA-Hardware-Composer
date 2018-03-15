@@ -18,6 +18,7 @@
 
 #include "hwctrace.h"
 #include "overlaybuffer.h"
+#include "resourcemanager.h"
 #include "shim.h"
 
 namespace hwcomposer {
@@ -27,43 +28,26 @@ GLSurface::GLSurface(uint32_t width, uint32_t height)
 }
 
 GLSurface::~GLSurface() {
-  if (fb_) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDeleteFramebuffers(1, &fb_);
-  }
-  if (tex_) {
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDeleteTextures(1, &tex_);
-  }
 }
 
 bool GLSurface::InitializeGPUResources() {
   EGLDisplay egl_display = eglGetCurrentDisplay();
   // Create EGLImage.
-  EGLImageKHR image = layer_.GetBuffer()->ImportImage(egl_display);
+  const ResourceHandle& import =
+      layer_.GetBuffer()->GetGpuResource(egl_display, false);
 
-  if (image == EGL_NO_IMAGE_KHR) {
+  if (import.image_ == EGL_NO_IMAGE_KHR) {
     ETRACE("Failed to make EGL image.");
     return false;
   }
 
-  GLuint texture;
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
-  glBindTexture(GL_TEXTURE_2D, 0);
-
-  tex_ = texture;
-  eglDestroyImageKHR(egl_display, image);
-
-  // Create Fb.
-  GLuint gl_fb;
-  glGenFramebuffers(1, &gl_fb);
-  glBindFramebuffer(GL_FRAMEBUFFER, gl_fb);
+  // Bind Fb.
+  fb_ = import.fb_;
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                         texture, 0);
+                         import.texture_, 0);
 
-  fb_ = gl_fb;
+  fb_ = import.fb_;
   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
   if (status != GL_FRAMEBUFFER_COMPLETE) {
     switch (status) {
@@ -80,7 +64,7 @@ bool GLSurface::InitializeGPUResources() {
         break;
     }
 
-    ETRACE("GL Framebuffer is not complete %d.", texture);
+    ETRACE("GL Framebuffer is not complete %d.", import.texture_);
     return false;
   }
 

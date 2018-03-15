@@ -31,14 +31,16 @@
 
 namespace hwcomposer {
 
-VirtualDisplay::VirtualDisplay(uint32_t /*gpu_fd*/,
+VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
                                uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
-    : output_handle_(0),
-      acquire_fence_(-1),
-      buffer_handler_(buffer_handler),
-      width_(0),
-      height_(0) {
+    : output_handle_(0), acquire_fence_(-1), width_(0), height_(0) {
+  resource_manager_.reset(new ResourceManager(buffer_handler));
+  if (!resource_manager_) {
+    ETRACE("Failed to construct hwc layer buffer manager");
+  }
+
+  compositor_.Init(resource_manager_.get(), gpu_fd);
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -47,14 +49,19 @@ VirtualDisplay::~VirtualDisplay() {
   }
 
   if (handle_) {
-    buffer_handler_->DestroyHandle(handle_);
+    ResourceHandle temp;
+    temp.handle_ = handle_;
+    resource_manager_->MarkResourceForDeletion(temp, false);
   }
 
   delete output_handle_;
+  std::vector<OverlayLayer>().swap(in_flight_layers_);
+
+  resource_manager_->PurgeBuffer();
+  compositor_.Reset();
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
-  compositor_.Init(nullptr);
   width_ = width;
   height_ = height;
 }
@@ -85,8 +92,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
   *retire_fence = -1;
   uint32_t z_order = 0;
 
+  resource_manager_->RefreshBufferCache();
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
-    HwcLayer* layer = source_layers.at(layer_index);
+    HwcLayer *layer = source_layers.at(layer_index);
     layer->SetReleaseFence(-1);
     if (!layer->IsVisible())
       continue;
@@ -98,9 +106,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       previous_layer = &(in_flight_layers_.at(z_order));
     }
 
-    overlay_layer.InitializeFromHwcLayer(layer, buffer_handler_, previous_layer,
-                                         z_order, layer_index, width_,
-                                         kRotateNone, handle_constraints);
+    overlay_layer.InitializeFromHwcLayer(layer, resource_manager_.get(),
+                                         previous_layer, z_order, layer_index,
+                                         width_, kIdentity, handle_constraints);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -110,7 +118,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    if (overlay_layer.HasLayerAttributesChanged() ||
+    if (!previous_layer ||
         overlay_layer.HasLayerContentChanged() ||
         overlay_layer.HasDimensionsChanged()) {
       layers_changed = true;
@@ -126,9 +134,9 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
 
     // Prepare for final composition.
-    if (!compositor_.DrawOffscreen(layers, layers_rects, index, buffer_handler_,
-                                   width_, height_, output_handle_,
-                                   acquire_fence_, retire_fence)) {
+    if (!compositor_.DrawOffscreen(
+            layers, layers_rects, index, resource_manager_.get(), width_,
+            height_, output_handle_, acquire_fence_, retire_fence)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
       return false;
     }
@@ -154,14 +162,21 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     }
   }
 
+  compositor_.FreeResources();
+
   return true;
 }
 
 void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
   if (!output_handle_ || output_handle_ != buffer) {
+    const NativeBufferHandler *handler =
+        resource_manager_->GetNativeBufferHandler();
+
     if (handle_) {
-      buffer_handler_->DestroyHandle(handle_);
+      ResourceHandle temp;
+      temp.handle_ = handle_;
+      resource_manager_->MarkResourceForDeletion(temp, false);
     }
 
     delete output_handle_;
@@ -169,7 +184,7 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
     handle_ = 0;
 
     if (output_handle_) {
-      buffer_handler_->CopyHandle(output_handle_, &handle_);
+      handler->CopyHandle(output_handle_, &handle_);
     }
   }
 

@@ -17,9 +17,12 @@
 #ifndef OS_LINUX_PLATFORMDEFINES_H_
 #define OS_LINUX_PLATFORMDEFINES_H_
 
-#include <stdio.h>
-#include <stddef.h>
 #include <gbm.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <cmath>
+
+#include <va/va_drm.h>
 
 #include <cstring>
 #include <algorithm>
@@ -40,10 +43,73 @@ struct gbm_handle {
   uint32_t total_planes = 0;
   HwcBuffer meta_data_;
   bool hwc_buffer_ = false;
+  // In case this is true, we expect meta_data_
+  // to be filled with correct width, height and
+  // format.
+  bool is_raw_pixel_ = false;
+  void* pixel_memory_ = NULL;
   uint32_t gbm_flags = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;
+#define GETNATIVEBUFFER(handle) (handle->import_data)
+
+#ifdef USE_MINIGBM
+typedef gbm_import_fd_planar_data HWCNativeBuffer;
+struct BufferHash {
+  size_t operator()(gbm_import_fd_planar_data const& p) const {
+    std::size_t seed = 0;
+    for (int i = 0; i < GBM_MAX_PLANES; i++) {
+      hash_combine_hwc(seed, (const size_t)p.fds[i]);
+    }
+    // avoid to consider next information?
+    hash_combine_hwc(seed, p.width);
+    hash_combine_hwc(seed, p.height);
+    hash_combine_hwc(seed, p.format);
+    return seed;
+  }
+};
+
+struct BufferEqual {
+  bool operator()(const gbm_import_fd_planar_data& p1,
+                  const gbm_import_fd_planar_data& p2) const {
+    bool equal = true;
+    for (int i = 0; i < GBM_MAX_PLANES; i++) {
+      equal = equal && (p1.fds[i] == p2.fds[i]);
+      if (!equal)
+        break;
+    }
+    if (equal)
+      equal = equal && (p1.width == p2.width) && (p1.height == p2.height) &&
+              (p1.format == p2.format);
+    return equal;
+  }
+};
+#else
+
+typedef gbm_import_fd_data HWCNativeBuffer;
+struct BufferHash {
+  size_t operator()(gbm_import_fd_data const& p) const {
+    std::size_t seed = 0;
+    hash_combine_hwc(seed, p.fd);
+    hash_combine_hwc(seed, p.width);
+    hash_combine_hwc(seed, p.height);
+    hash_combine_hwc(seed, p.stride);
+    hash_combine_hwc(seed, p.format);
+    return seed;
+  }
+};
+struct BufferEqual {
+  bool operator()(const gbm_import_fd_data& p1,
+                  const gbm_import_fd_data& p2) const {
+    bool equal = (p1.fd == p2.fd) && (p1.width == p2.width) &&
+                 (p1.height == p2.height) && (p1.stride == p2.stride) &&
+                 (p1.format == p2.format);
+    return equal;
+  }
+};
+
+#endif
 
 #ifdef _cplusplus
 extern "C" {

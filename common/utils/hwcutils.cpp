@@ -20,6 +20,8 @@
 
 #include "hwctrace.h"
 
+#include <drm_fourcc.h>
+
 namespace hwcomposer {
 
 int HWCPoll(int fd, int timeout) {
@@ -58,6 +60,88 @@ void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect) {
     rect.right = std::max(rect.right, temp.right);
     rect.bottom = std::max(rect.bottom, temp.bottom);
   }
+}
+
+void CalculateRect(const HwcRect<int>& target_rect, HwcRect<int>& new_rect) {
+  if (new_rect.empty()) {
+    new_rect = target_rect;
+    return;
+  }
+
+  if (target_rect.empty()) {
+    return;
+  }
+
+  new_rect.left = std::min(target_rect.left, new_rect.left);
+  new_rect.top = std::min(target_rect.top, new_rect.top);
+  new_rect.right = std::max(target_rect.right, new_rect.right);
+  new_rect.bottom = std::max(target_rect.bottom, new_rect.bottom);
+}
+
+void CalculateSourceRect(const HwcRect<float>& target_rect,
+                         HwcRect<float>& new_rect) {
+  if (new_rect.empty()) {
+    new_rect = target_rect;
+    return;
+  }
+
+  if (target_rect.empty()) {
+    return;
+  }
+
+  new_rect.left = std::min(target_rect.left, new_rect.left);
+  new_rect.top = std::min(target_rect.top, new_rect.top);
+  new_rect.right = std::max(target_rect.right, new_rect.right);
+  new_rect.bottom = std::max(target_rect.bottom, new_rect.bottom);
+}
+
+bool IsSupportedMediaFormat(uint32_t format) {
+  switch (format) {
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_P010:
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+    case DRM_FORMAT_NV12_Y_TILED_INTEL:
+    case DRM_FORMAT_NV21:
+    case DRM_FORMAT_YVU420_ANDROID:
+      return true;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+uint32_t GetTotalPlanesForFormat(uint32_t format) {
+  switch (format) {
+    case DRM_FORMAT_NV12:
+    case DRM_FORMAT_NV16:
+    case DRM_FORMAT_P010:
+      return 2;
+    case DRM_FORMAT_YVU420:
+    case DRM_FORMAT_YUV420:
+    case DRM_FORMAT_YUV422:
+    case DRM_FORMAT_YUV444:
+      return 3;
+    case DRM_FORMAT_UYVY:
+    case DRM_FORMAT_YUYV:
+    case DRM_FORMAT_YVYU:
+    case DRM_FORMAT_VYUY:
+    case DRM_FORMAT_AYUV:
+      return 1;
+    default:
+      break;
+  }
+
+  return 1;
 }
 
 }  // namespace hwcomposer

@@ -27,54 +27,33 @@ namespace hwcomposer {
 
 void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
                                  const CompositionRegion &region,
-                                 const HwcRect<int> &damage,
-                                 bool clear_surface) {
+                                 uint32_t downscaling_factor,
+                                 bool uses_display_up_scaling,
+                                 bool use_plane_transform) {
   float bounds[4];
   std::copy_n(region.frame.bounds, 4, bounds);
   x_ = bounds[0];
   y_ = bounds[1];
   width_ = bounds[2] - bounds[0];
   height_ = bounds[3] - bounds[1];
-  uint32_t width = damage.right - damage.left;
-  uint32_t height = damage.bottom - damage.top;
-  uint32_t top = damage.top;
-  uint32_t left = damage.left;
-  if (!clear_surface) {
-    // If viewport and layer doesn't interact we can avoid re-rendering
-    // this state.
-    if (AnalyseOverlap(region.frame, damage) == kOutside) {
-      return;
-    }
-
-    scissor_x_ = std::max(x_, left);
-    scissor_y_ = std::max(y_, top);
-    scissor_width_ = std::min(width_, width);
-    scissor_height_ = std::min(height_, height);
-  } else {
-    scissor_x_ = x_;
-    scissor_y_ = y_;
-    scissor_width_ = width_;
-    scissor_height_ = height_;
-  }
-
+  scissor_x_ = x_;
+  scissor_y_ = y_;
+  scissor_width_ = width_;
+  scissor_height_ = height_;
   const std::vector<size_t> &source = region.source_layers;
   for (size_t texture_index : source) {
     OverlayLayer &layer = layers.at(texture_index);
-    if (!clear_surface) {
-      // If viewport and layer doesn't interact we can avoid re-rendering
-      // this state.
-      const HwcRect<int> &layer_damage = layer.GetDisplayFrame();
-      if (AnalyseOverlap(layer_damage, damage) == kOutside) {
-	continue;
-      }
-    }
-
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.layer_index_ = texture_index;
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
-    switch (layer.GetTransform()) {
+    uint32_t transform = layer.GetTransform();
+    if (use_plane_transform) {
+      transform = layer.GetPlaneTransform();
+    }
+
+    switch (transform) {
       case HWCTransform::kTransform180: {
         swap_xy = false;
         flip_xy[0] = true;
@@ -89,10 +68,10 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       }
       case HWCTransform::kTransform90: {
         swap_xy = true;
-        if (layer.GetTransform() & HWCTransform::kReflectX) {
+        if (transform & HWCTransform::kReflectX) {
           flip_xy[0] = true;
           flip_xy[1] = true;
-        } else if (layer.GetTransform() & HWCTransform::kReflectY) {
+        } else if (transform & HWCTransform::kReflectY) {
           flip_xy[0] = false;
           flip_xy[1] = false;
         } else {
@@ -114,11 +93,34 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     else
       std::copy_n(&TransformMatrices[0], 4, src.texture_matrix_);
 
-    HwcRect<float> display_rect(layer.GetDisplayFrame());
-    float display_size[2] = {static_cast<float>(layer.GetDisplayFrameWidth()),
-                             static_cast<float>(layer.GetDisplayFrameHeight())};
-    float tex_width = layer.GetBuffer()->GetWidth();
-    float tex_height = layer.GetBuffer()->GetHeight();
+    HwcRect<float> display_rect;
+    float display_size[2];
+
+    if (uses_display_up_scaling) {
+      display_rect = layer.GetSourceCrop();
+      display_size[0] = static_cast<float>(layer.GetSourceCropWidth());
+      display_size[1] = static_cast<float>(layer.GetSourceCropHeight());
+    } else {
+      const HwcRect<int> &display_Rect = layer.GetDisplayFrame();
+      display_rect.left = static_cast<float>(display_Rect.left);
+      display_rect.right = static_cast<float>(display_Rect.right);
+      display_rect.top = static_cast<float>(display_Rect.top);
+      display_rect.bottom = static_cast<float>(display_Rect.bottom);
+      if (downscaling_factor > 1) {
+        display_rect.right =
+            display_rect.right -
+            ((display_rect.right - display_rect.left) / downscaling_factor);
+
+        display_size[0] = display_rect.right - display_rect.left;
+        display_size[1] = display_rect.bottom - display_rect.top;
+      } else {
+        display_size[0] = static_cast<float>(layer.GetDisplayFrameWidth());
+        display_size[1] = static_cast<float>(layer.GetDisplayFrameHeight());
+      }
+    }
+
+    float tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
+    float tex_height = static_cast<float>(layer.GetBuffer()->GetHeight());
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
 
     HwcRect<float> crop_rect(

@@ -66,3 +66,7 @@ VkFormat NativeToVkFormat(int native_format) {
   }
 }
 #endif
+
+int ReleaseFrameBuffer(uint32_t gpu_fd, uint32_t fd) {
+  return drmModeRmFB(gpu_fd, fd);
+}

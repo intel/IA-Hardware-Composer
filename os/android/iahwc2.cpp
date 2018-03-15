@@ -140,6 +140,20 @@ HWC2::Error IAHWC2::Init() {
   else
     ALOGI("EXPLICIT SYNC support is enabled");
 
+  property_get("board.hwc.scaling.mode", value, "0");
+  scaling_mode_ = atoi(value);
+  switch (scaling_mode_) {
+    case 1:
+      ALOGI("HWC Scaling Mode Fast");
+      break;
+    case 2:
+      ALOGI("HWC Scaling Mode High Quality");
+      break;
+    default:
+      ALOGI("HWC Scaling Mode None");
+      break;
+  }
+
   if (!device_.Initialize()) {
     ALOGE("Can't initialize drm object.");
     return HWC2::Error::NoResources;
@@ -148,8 +162,15 @@ HWC2::Error IAHWC2::Init() {
   std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
   NativeDisplay *primary_display = displays.at(0);
   uint32_t external_display_id = 1;
-  primary_display_.Init(primary_display, 0, disable_explicit_sync_);
+  primary_display_.Init(primary_display, 0, disable_explicit_sync_,
+                        scaling_mode_);
   size_t size = displays.size();
+
+  // Add nested display which is expected to use the output of this display and
+  // show it himself. Nested display can be implemented with real HW display.
+  // It's different from virtual display.
+  nested_display_.InitNestedDisplay(device_.GetNestedDisplay(),
+                                    disable_explicit_sync_);
 
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
@@ -157,10 +178,12 @@ HWC2::Error IAHWC2::Init() {
       continue;
 
     std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
-    temp->Init(display, external_display_id, disable_explicit_sync_);
+    temp->Init(display, external_display_id, disable_explicit_sync_,
+               scaling_mode_);
     extended_displays_.emplace_back(std::move(temp));
     external_display_id++;
-// Let's not confuse things with Virtual Display.
+
+    // Let's not confuse things with Virtual Display.
     if (external_display_id == HWC_DISPLAY_VIRTUAL)
       external_display_id = HWC_DISPLAY_VIRTUAL + 1;
   }
@@ -219,10 +242,14 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   supported(__func__);
   auto callback = static_cast<HWC2::Callback>(descriptor);
   size_t size = extended_displays_.size();
+  HWC2::Error error = HWC2::Error::None;
 
   switch (callback) {
     case HWC2::Callback::Hotplug: {
       primary_display_.RegisterHotPlugCallback(data, function);
+#ifdef NESTED_DISPLAY_SUPPORT
+      nested_display_.RegisterHotPlugCallback(data, function);
+#endif
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
@@ -249,9 +276,10 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
       break;
     }
     default:
+      error = HWC2::Error::BadParameter;
       break;
   }
-  return HWC2::Error::None;
+  return error;
 }
 
 IAHWC2::HwcDisplay::HwcDisplay() {
@@ -272,9 +300,37 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   return HWC2::Error::None;
 }
 
+// This function will be called only for Nested Display Init
+HWC2::Error IAHWC2::HwcDisplay::InitNestedDisplay(
+    hwcomposer::NativeDisplay *display, bool disable_explicit_sync) {
+  supported(__func__);
+
+  char value[PROPERTY_VALUE_MAX];
+  uint32_t width, height, port;
+  property_get("debug.hwc.nested-display", value, "0");
+  enable_nested_display_compose_ = atoi(value);
+  property_get("debug.hwc.nested-display.width", value, "1920");
+  width = atoi(value);
+  property_get("debug.hwc.nested-display.height", value, "1080");
+  height = atoi(value);
+  property_get("debug.hwc.nested-display.port", value, "2345");
+  port = atoi(value);
+
+  display_ = display;
+#ifdef NESTED_DISPLAY_SUPPORT
+  type_ = HWC2::DisplayType::Nested;
+  handle_ = HWC_DISPLAY_NESTED;
+  display_->InitNestedDisplay(width, height, port);
+#endif
+  disable_explicit_sync_ = disable_explicit_sync;
+  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  return HWC2::Error::None;
+}
+
 HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
                                      int display_index,
-                                     bool disable_explicit_sync) {
+                                     bool disable_explicit_sync,
+                                     uint32_t scaling_mode) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Physical;
@@ -282,6 +338,8 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
 
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_->SetVideoScalingMode(scaling_mode_);
+
   if (!display_->IsConnected()) {
     return HWC2::Error::None;
   }
@@ -297,6 +355,8 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   err = GetDisplayConfigs(&num_configs, &default_config);
   if (err != HWC2::Error::None)
     return err;
+
+  display_->InitializeLayerHashGenerator(32);
 
   return SetActiveConfig(default_config);
 }
@@ -349,10 +409,10 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
-  layers_.emplace(static_cast<hwc2_layer_t>(layer_idx_), IAHWC2::Hwc2Layer());
-  layers_.at(layer_idx_).XTranslateCoordinates(display_->GetXTranslation());
-  *layer = static_cast<hwc2_layer_t>(layer_idx_);
-  ++layer_idx_;
+  uint64_t id = display_->AcquireId();
+  layers_.emplace(static_cast<hwc2_layer_t>(id), IAHWC2::Hwc2Layer());
+  layers_.at(id).XTranslateCoordinates(display_->GetXTranslation());
+  *layer = static_cast<hwc2_layer_t>(id);
   return HWC2::Error::None;
 }
 
@@ -361,7 +421,9 @@ HWC2::Error IAHWC2::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
   if (layers_.empty())
     return HWC2::Error::None;
 
-  layers_.erase(layer);
+  if (layers_.erase(layer))
+    display_->ReleaseId(layer);
+
   return HWC2::Error::None;
 }
 
@@ -369,8 +431,8 @@ void IAHWC2::HwcDisplay::FreeAllLayers() {
   if (layers_.empty())
     return;
 
+  display_->ResetLayerHashGenerator();
   std::map<hwc2_layer_t, Hwc2Layer>().swap(layers_);
-  layer_idx_ = 0;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::GetActiveConfig(hwc2_config_t *config) {
@@ -723,7 +785,17 @@ HWC2::Error IAHWC2::HwcDisplay::SetPowerMode(int32_t mode_in) {
 
 HWC2::Error IAHWC2::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
   supported(__func__);
-  display_->VSyncControl(enabled);
+  switch (enabled) {
+    case HWC2_VSYNC_ENABLE:
+      display_->VSyncControl(true);
+      break;
+    case HWC2_VSYNC_DISABLE:
+      display_->VSyncControl(false);
+      break;
+    default:
+      ALOGE("SetVsyncEnabled called with invalid parameter");
+      return HWC2::Error::BadParameter;
+  }
   return HWC2::Error::None;
 }
 
@@ -734,6 +806,15 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   *num_requests = 0;
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     IAHWC2::Hwc2Layer &layer = l.second;
+
+#ifdef NESTED_DISPLAY_SUPPORT
+    /*Cluster will leverage surfaceflinger do compostion*/
+    if (handle_ == HWC_DISPLAY_NESTED) {
+      layer.set_validated_type(HWC2::Composition::Client);
+      continue;
+    }
+#endif
+
     switch (layer.sf_type()) {
       case HWC2::Composition::Sideband:
         layer.set_validated_type(HWC2::Composition::Client);
@@ -813,7 +894,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
   sf_type_ = static_cast<HWC2::Composition>(type);
   if (sf_type_ == HWC2::Composition::Cursor) {
-    is_cursor_layer_ = true;
+    hwc_layer_.MarkAsCursorLayer();
   }
 
   return HWC2::Error::None;

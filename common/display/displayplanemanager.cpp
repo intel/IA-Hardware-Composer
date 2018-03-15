@@ -22,13 +22,15 @@
 #include "nativesurface.h"
 #include "overlaylayer.h"
 
+#include "hwcutils.h"
+
 namespace hwcomposer {
 
 DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
-                                         NativeBufferHandler *buffer_handler,
-                                         DisplayPlaneHandler *plane_handler)
-    : buffer_handler_(buffer_handler),
-      plane_handler_(plane_handler),
+                                         DisplayPlaneHandler *plane_handler,
+                                         ResourceManager *resource_manager)
+    : plane_handler_(plane_handler),
+      resource_manager_(resource_manager),
       width_(0),
       height_(0),
       gpu_fd_(gpu_fd) {
@@ -54,165 +56,295 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
         cursor_plane_ = NULL;
       }
     }
-
-    primary_plane_ = overlay_planes_.at(0).get();
   }
 
   return status;
 }
 
 bool DisplayPlaneManager::ValidateLayers(
-    std::vector<OverlayLayer> &layers,
-    std::vector<OverlayLayer *> &cursor_layers, bool pending_modeset,
-    bool disable_overlay, DisplayPlaneStateList &composition,
-    bool request_video_effect) {
+    std::vector<OverlayLayer> &layers, int add_index, bool disable_overlay,
+    bool *commit_checked, bool *re_validation_needed,
+    DisplayPlaneStateList &composition,
+    DisplayPlaneStateList &previous_composition,
+    std::vector<NativeSurface *> &mark_later) {
   CTRACE();
-  // Let's mark all planes as free to be used.
-  for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
-    j->get()->SetInUse(false);
+
+  if (add_index <= 0) {
+    if (!previous_composition.empty()) {
+      for (DisplayPlaneState &plane : previous_composition) {
+        MarkSurfacesForRecycling(&plane, mark_later, true);
+      }
+    }
+
+    if (!composition.empty()) {
+      for (DisplayPlaneState &plane : previous_composition) {
+        MarkSurfacesForRecycling(&plane, mark_later, true);
+      }
+
+      DisplayPlaneStateList().swap(composition);
+    }
+
+#ifdef SURFACE_TRACING
+    if (add_index <= 0) {
+      ISURFACETRACE("Full validation being performed. \n");
+    }
+#endif
   }
 
   std::vector<OverlayPlane> commit_planes;
+
+  for (DisplayPlaneState &temp : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+  }
+
+  // In case we are forcing GPU composition for all layers and using a single
+  // plane.
+  if (disable_overlay) {
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("Forcing GPU For all layers %d %d %d %d \n", disable_overlay,
+                  composition.empty(), add_index <= 0, layers.size());
+#endif
+    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
+
+    *re_validation_needed = false;
+    *commit_checked = true;
+    return true;
+  }
+
+  auto overlay_begin = overlay_planes_.begin();
+  if (!composition.empty()) {
+    overlay_begin = overlay_planes_.begin() + composition.size();
+  }
+
+  // Let's mark all planes as free to be used.
+  for (auto j = overlay_begin; j != overlay_planes_.end(); ++j) {
+    j->get()->SetInUse(false);
+  }
+
+  std::vector<OverlayLayer *> cursor_layers;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
-  bool render_layers = false;
-  // We start off with Primary plane.
-  DisplayPlane *current_plane = primary_plane_;
-  OverlayLayer *primary_layer = &(*(layers.begin()));
-  commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
-  composition.emplace_back(current_plane, primary_layer,
-                           primary_layer->GetZorder());
-  current_plane->SetInUse(true);
-  ++layer_begin;
-  // Lets ensure we fall back to GPU composition in case
-  // primary layer cannot be scanned out directly.
-  bool prefer_seperate_plane = primary_layer->PreferSeparatePlane();
-  bool force_gpu = (pending_modeset && layers.size() > 1) || disable_overlay;
-  bool force_va = false;
+  bool validate_final_layers = false;
+  bool test_commit_done = false;
+  OverlayLayer *previous_layer = NULL;
 
-  // If request video effect we have to use VA to process the video layer
-  if (request_video_effect && primary_layer->IsVideoLayer()) {
-    force_va = true;
-  }
-
-  if (force_gpu || force_va ||
-      FallbacktoGPU(current_plane, primary_layer, commit_planes)) {
-    render_layers = true;
-    if (force_gpu || !prefer_seperate_plane) {
-      DisplayPlaneState &last_plane = composition.back();
-      for (auto i = layer_begin; i != layer_end; ++i) {
-        last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                            i->IsCursorLayer());
-        i->GPURendered();
-      }
-
-      ResetPlaneTarget(last_plane, commit_planes.back());
-      // We need to composite primary using GPU, lets use this for
-      // all layers in this case.
-      return render_layers;
-    } else {
-      DisplayPlaneState &last_plane = composition.back();
-      if (primary_layer->IsVideoLayer())
-        last_plane.SetVideoPlane();
-
-      ResetPlaneTarget(last_plane, commit_planes.back());
-    }
-  }
-
-  // We are just compositing Primary layer and nothing else.
-  if (layers.size() == 1) {
-    return render_layers;
+  if (add_index > 0) {
+    layer_begin = layers.begin() + add_index;
   }
 
   if (layer_begin != layer_end) {
-    // Handle layers for overlay
-    uint32_t index = 0;
-    for (auto j = overlay_planes_.begin() + 1; j != overlay_planes_.end();
-         ++j) {
-      DisplayPlaneState &last_plane = composition.back();
+    auto overlay_end = overlay_planes_.end();
 #ifdef DISABLE_CURSOR_PLANE
-      if (cursor_plane_ == j->get())
-        continue;
+    overlay_end = overlay_planes_.end() - 1;
+#else
+    if (!cursor_plane_->IsUniversal()) {
+      overlay_end = overlay_planes_.end() - 1;
+    }
 #endif
+
+    // Handle layers for overlays.
+    for (auto j = overlay_begin; j != overlay_end; ++j) {
+      DisplayPlane *plane = j->get();
+      if (previous_layer && !composition.empty()) {
+        DisplayPlaneState &last_plane = composition.back();
+        if (last_plane.NeedsOffScreenComposition()) {
+          ValidateForDisplayScaling(composition.back(), commit_planes);
+        }
+      }
+
+      // Let's break in case we have already mapped all our
+      // layers.
+      if (layer_begin == layer_end)
+        break;
 
       // Handle remaining overlay planes.
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
+        ++layer_begin;
+        // Ignore cursor layer as it will handled separately.
         if (layer->IsCursorLayer()) {
+          cursor_layers.emplace_back(layer);
           continue;
         }
 
-        commit_planes.emplace_back(OverlayPlane(j->get(), layer));
-        index = i->GetZorder();
-        ++layer_begin;
+        bool prefer_seperate_plane = layer->PreferSeparatePlane();
+        if (!prefer_seperate_plane && previous_layer) {
+          prefer_seperate_plane = previous_layer->PreferSeparatePlane();
+        }
+
+        // Previous layer should not be used anywhere below, so can be
+        // safely reset to current layer.
+        previous_layer = layer;
+
+        commit_planes.emplace_back(OverlayPlane(plane, layer));
         // If we are able to composite buffer with the given plane, lets use
         // it.
-        bool fall_back = FallbacktoGPU(j->get(), layer, commit_planes);
-        if (request_video_effect && layer->IsVideoLayer()) {
-          fall_back = true;
+        bool fall_back = FallbacktoGPU(plane, layer, commit_planes);
+        test_commit_done = true;
+        bool force_separate = false;
+        if (fall_back && !prefer_seperate_plane && !composition.empty()) {
+          force_separate =
+              ForceSeparatePlane(layers, composition.back(), layer);
         }
 
-        if (!fall_back || prefer_seperate_plane ||
-            layer->PreferSeparatePlane()) {
-          composition.emplace_back(j->get(), layer, index);
-          j->get()->SetInUse(true);
-          if (fall_back) {
-            DisplayPlaneState &last_plane = composition.back();
-            if (layer->IsVideoLayer()) {
-              last_plane.SetVideoPlane();
-            }
+        if (!fall_back || prefer_seperate_plane || force_separate) {
+          if (validate_final_layers)
+            validate_final_layers = fall_back;
 
-            ResetPlaneTarget(last_plane, commit_planes.back());
-            render_layers = true;
+          composition.emplace_back(plane, layer, layer->GetZorder(),
+                                   display_transform_);
+#ifdef SURFACE_TRACING
+          ISURFACETRACE("Added Layer for direct Scanout: %d \n",
+                        layer->GetZorder());
+#endif
+          plane->SetInUse(true);
+          DisplayPlaneState &last_plane = composition.back();
+          if (layer->IsVideoLayer()) {
+            last_plane.SetVideoPlane();
           }
 
-          prefer_seperate_plane = layer->PreferSeparatePlane();
+          if (fall_back) {
+            if (!validate_final_layers)
+              validate_final_layers = !(last_plane.GetOffScreenTarget());
+
+            ResetPlaneTarget(last_plane, commit_planes.back());
+          }
+
           break;
         } else {
-          last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
-          commit_planes.pop_back();
+          if (composition.empty()) {
+            bool force_all_layers = true;
+            if (display_transform_ != kIdentity) {
+              composition.emplace_back(plane, layer, layer->GetZorder(),
+                                       display_transform_);
+              DisplayPlaneState &last_plane = composition.back();
+              ResetPlaneTarget(last_plane, commit_planes.back());
+              // If DisplayTransform is not supported, let's check if
+              // we can fallback to GPU rotation for this plane.
+              if (last_plane.GetRotationType() ==
+                  DisplayPlaneState::RotationType::kDisplayRotation) {
+                last_plane.SetRotationType(
+                    DisplayPlaneState::RotationType::kGPURotation, false);
+
+                // Check if we can rotate using Display plane.
+                if (!FallbacktoGPU(last_plane.GetDisplayPlane(),
+                                   last_plane.GetOffScreenTarget()->GetLayer(),
+                                   commit_planes)) {
+                  force_all_layers = false;
+                  validate_final_layers = true;
+                }
+              }
+            }
+
+            if (force_all_layers) {
+              // If we are here, it means the layer failed with
+              // Primary. Let's force GPU for all layers.
+              // FIXME: We should try to use overlay for
+              // other layers in this case.
+              ForceGpuForAllLayers(commit_planes, composition, layers,
+                                   mark_later, false);
+              *re_validation_needed = false;
+              *commit_checked = true;
+              return true;
+            }
+          } else {
+            commit_planes.pop_back();
+#ifdef SURFACE_TRACING
+            ISURFACETRACE("Added Layer: %d %d  \n", layer->GetZorder(),
+                          composition.size());
+#endif
+            composition.back().AddLayer(layer);
+            while (SquashPlanesAsNeeded(layers, composition, commit_planes,
+                                        mark_later, &validate_final_layers)) {
+              j--;
+              plane = j->get();
+            }
+
+            DisplayPlaneState &last_plane = composition.back();
+            if (!validate_final_layers)
+              validate_final_layers = !(last_plane.GetOffScreenTarget());
+            ResetPlaneTarget(last_plane, commit_planes.back());
+          }
         }
       }
-
-      if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
-        render_layers = true;
     }
 
-    DisplayPlaneState &last_plane = composition.back();
-    // We dont have any additional planes. Pre composite remaining layers
-    // to the last overlay plane.
-    for (auto i = layer_begin; i != layer_end; ++i) {
-      if (i->IsCursorLayer()) {
-        continue;
-      }
-
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(), false);
-    }
-
-    if (last_plane.GetCompositionState() == DisplayPlaneState::State::kRender)
-      render_layers = true;
-  }
-
-  bool render_cursor_layer = ValidateCursorLayer(cursor_layers, composition);
-  if (!render_layers) {
-    render_layers = render_cursor_layer;
-  }
-
-  if (render_layers) {
-    ValidateFinalLayers(composition, layers);
-    for (DisplayPlaneState &plane : composition) {
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
-        const std::vector<size_t> &source_layers = plane.source_layers();
-        size_t layers_size = source_layers.size();
-        for (size_t i = 0; i < layers_size; i++) {
-          size_t source_index = source_layers.at(i);
-          OverlayLayer &layer = layers.at(source_index);
-          layer.GPURendered();
+    if (layer_begin != layer_end) {
+      bool is_video = composition.back().IsVideoPlane();
+      previous_layer = NULL;
+      DisplayPlaneState &last_plane = composition.back();
+      // We dont have any additional planes. Pre composite remaining layers
+      // to the last overlay plane.
+      for (auto i = layer_begin; i != layer_end; ++i) {
+        previous_layer = &(*(i));
+        // Ignore cursor layer as it will handled separately.
+        if (previous_layer->IsCursorLayer()) {
+          cursor_layers.emplace_back(previous_layer);
+          previous_layer = NULL;
+          continue;
         }
+#ifdef SURFACE_TRACING
+        ISURFACETRACE("Added Layer: %d \n", previous_layer->GetZorder());
+#endif
+        last_plane.AddLayer(previous_layer);
+      }
+
+      if (composition.back().NeedsOffScreenComposition()) {
+        while (SquashPlanesAsNeeded(layers, composition, commit_planes,
+                                    mark_later, &validate_final_layers)) {
+          continue;
+        }
+        DisplayPlaneState &squashed_plane = composition.back();
+        // In this case we need to fallback to 3Dcomposition till Media
+        // backend adds support for multiple layers.
+        bool force_buffer = false;
+        if (is_video && squashed_plane.GetSourceLayers().size() > 1 &&
+            squashed_plane.GetOffScreenTarget()) {
+          MarkSurfacesForRecycling(&squashed_plane, mark_later, true);
+          force_buffer = true;
+        }
+
+        if (force_buffer || squashed_plane.NeedsSurfaceAllocation()) {
+          ResetPlaneTarget(squashed_plane, commit_planes.back());
+          validate_final_layers = true;
+        }
+
+        if (previous_layer) {
+          squashed_plane.UsePlaneScalar(false);
+        }
+
+        commit_planes.back().layer = squashed_plane.GetOverlayLayer();
       }
     }
   }
 
+  if (!cursor_layers.empty()) {
+    ValidateCursorLayer(layers, commit_planes, cursor_layers, mark_later,
+                        composition, &validate_final_layers, &test_commit_done,
+                        false);
+
+    if (validate_final_layers && add_index > 0 &&
+        (composition.size() == (overlay_planes_.size() - 1))) {
+      // If commit failed here and we are doing incremental validation,
+      // something might be wrong with other layer+plane combinations.
+      // Let's ensure DisplayQueue, checks final combination again and
+      // request full validation if needed.
+      *commit_checked = false;
+      return true;
+    }
+  }
+
+  if (validate_final_layers) {
+    ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
+    test_commit_done = true;
+  }
+
+  bool render_layers = false;
+  FinalizeValidation(composition, commit_planes, &render_layers,
+                     re_validation_needed);
+
+  *commit_checked = test_commit_done;
   return render_layers;
 }
 
@@ -224,7 +356,8 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   size_t size = composition.size();
   for (size_t i = size; i > 0; i--) {
     DisplayPlaneState &plane = composition.at(i - 1);
-    if ((cursor_plane_ == plane.plane()) && (!cursor_plane_->IsUniversal()))
+    if ((cursor_plane_ == plane.GetDisplayPlane()) &&
+        (!cursor_plane_->IsUniversal()))
       continue;
 
     last_plane = &plane;
@@ -234,75 +367,170 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   return last_plane;
 }
 
-void DisplayPlaneManager::PreparePlaneForCursor(DisplayPlaneState *plane) {
-  if (!plane->GetOffScreenTarget()) {
+void DisplayPlaneManager::PreparePlaneForCursor(
+    DisplayPlaneState *plane, std::vector<NativeSurface *> &mark_later,
+    bool *validate_final_layers, bool reset_buffer, bool recycle_resources) {
+  NativeSurface *surface = NULL;
+  if (reset_buffer) {
+    MarkSurfacesForRecycling(plane, mark_later, recycle_resources);
+    surface = NULL;
+  } else {
+    surface = plane->GetOffScreenTarget();
+  }
+
+  if (!surface) {
     SetOffScreenPlaneTarget(*plane);
+    *validate_final_layers = true;
   }
-
-  std::vector<CompositionRegion> &comp_regions = plane->GetCompositionRegion();
-  std::vector<CompositionRegion>().swap(comp_regions);
-  std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
-  size_t size = surfaces.size();
-  const HwcRect<int> &current_rect = plane->GetDisplayFrame();
-  for (size_t i = 0; i < size; i++) {
-    surfaces.at(i)->ResetDisplayFrame(current_rect);
-  }
-
-  plane->SwapSurfaceIfNeeded();
 }
 
-bool DisplayPlaneManager::ValidateCursorLayer(
+void DisplayPlaneManager::ValidateCursorLayer(
+    std::vector<OverlayLayer> &all_layers,
+    std::vector<OverlayPlane> &commit_planes,
     std::vector<OverlayLayer *> &cursor_layers,
-    DisplayPlaneStateList &composition) {
+    std::vector<NativeSurface *> &mark_later,
+    DisplayPlaneStateList &composition, bool *validate_final_layers,
+    bool *test_commit_done, bool recycle_resources) {
   CTRACE();
   if (cursor_layers.empty()) {
-    return false;
+    return;
   }
 
-  std::vector<OverlayPlane> commit_planes;
   DisplayPlaneState *last_plane = GetLastUsedOverlay(composition);
-  for (DisplayPlaneState &temp : composition) {
-    commit_planes.emplace_back(
-        OverlayPlane(temp.plane(), temp.GetOverlayLayer()));
-  }
+  bool is_video = last_plane->IsVideoPlane();
 
   uint32_t total_size = cursor_layers.size();
-  bool gpu_rendered = false;
-  bool status = false;
   uint32_t cursor_index = 0;
-  for (auto j = overlay_planes_.rbegin(); j != overlay_planes_.rend(); ++j) {
+  auto overlay_end = overlay_planes_.end();
+  auto overlay_begin = overlay_planes_.begin() + composition.size();
+#ifdef DISABLE_CURSOR_PLANE
+  overlay_end = overlay_planes_.end() - 1;
+#endif
+  for (auto j = overlay_begin; j != overlay_end; ++j) {
     if (cursor_index == total_size)
       break;
 
     DisplayPlane *plane = j->get();
-    if (plane->InUse())
-      break;
+    if (plane->InUse()) {
+      ETRACE("Trying to use a plane for cursor which is already in use. \n");
+    }
 
-#ifdef DISABLE_CURSOR_PLANE
-    if (cursor_plane_ == plane)
-      continue;
-#endif
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
     commit_planes.emplace_back(OverlayPlane(plane, cursor_layer));
-    // Lets ensure we fall back to GPU composition in case
-    // cursor layer cannot be scanned out directly.
-    if (FallbacktoGPU(plane, cursor_layer, commit_planes)) {
-      commit_planes.pop_back();
-      cursor_layer->GPURendered();
-      last_plane->AddLayer(cursor_layer->GetZorder(),
-                           cursor_layer->GetDisplayFrame(),
-                           cursor_layer->IsCursorLayer());
-      gpu_rendered = true;
-      status = true;
-    } else {
-      if (gpu_rendered) {
-        PreparePlaneForCursor(last_plane);
-        gpu_rendered = false;
+    bool fall_back = true;
+    LayerResultCache *cached_plane = NULL;
+    if (!results_cache_.empty()) {
+      size_t size = results_cache_.size();
+      for (size_t i = 0; i < size; i++) {
+        LayerResultCache &cache = results_cache_.at(i);
+        if (cache.plane_ != plane)
+          continue;
+
+        uint32_t layer_transform = cursor_layer->GetPlaneTransform();
+        bool cached = false;
+        if (cache.last_transform_ == layer_transform) {
+          cached = true;
+        }
+
+        if (cached) {
+          fall_back = false;
+          cursor_layer->SupportedDisplayComposition(OverlayLayer::kAll);
+          if (cursor_layer->GetBuffer()->GetFb() == 0) {
+            if (!cursor_layer->GetBuffer()->CreateFrameBuffer(gpu_fd_)) {
+              fall_back = true;
+            }
+          }
+
+          if (!fall_back) {
+            *validate_final_layers = false;
+          }
+        } else {
+          if (cache.last_failed_transform_ == layer_transform) {
+            cached = true;
+          }
+
+          if (cached) {
+            fall_back = true;
+            *validate_final_layers = true;
+            cursor_layer->SupportedDisplayComposition(OverlayLayer::kGpu);
+          }
+        }
+
+        cached_plane = &(results_cache_.at(i));
+        break;
+      }
+    }
+
+    // We don't have this in cache.
+    if (fall_back && !(*validate_final_layers)) {
+      fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
+      *test_commit_done = true;
+      if (!cached_plane) {
+        results_cache_.emplace_back();
+        cached_plane = &(results_cache_.back());
+        cached_plane->plane_ = plane;
       }
 
-      composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder());
-      plane->SetInUse(true);
+      if (!fall_back) {
+        cached_plane->last_transform_ = cursor_layer->GetPlaneTransform();
+        *validate_final_layers = false;
+      } else {
+        cached_plane->last_failed_transform_ =
+            cursor_layer->GetPlaneTransform();
+        *validate_final_layers = true;
+      }
+    }
+
+    // Lets ensure we fall back to GPU composition in case
+    // cursor layer cannot be scanned out directly.
+    if (fall_back && !is_video) {
+      commit_planes.pop_back();
+      cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
+#ifdef SURFACE_TRACING
+      ISURFACETRACE("Added CursorLayer: %d \n", cursor_layer->GetZorder());
+#endif
+      last_plane->AddLayer(cursor_layer);
+      while (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                                  mark_later, validate_final_layers)) {
+        continue;
+      }
+
       last_plane = GetLastUsedOverlay(composition);
+      bool reset_overlay = false;
+      if (!last_plane->GetOffScreenTarget() || is_video)
+        reset_overlay = true;
+
+      PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
+                            last_plane->IsVideoPlane(), recycle_resources);
+
+      if (reset_overlay) {
+        // Layer for the plane should have changed, reset commit planes.
+        std::vector<OverlayPlane>().swap(commit_planes);
+        for (DisplayPlaneState &temp : composition) {
+          commit_planes.emplace_back(
+              OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+        }
+      }
+
+      last_plane->UsePlaneScalar(false);
+    } else {
+      composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder(),
+                               display_transform_);
+#ifdef SURFACE_TRACING
+      ISURFACETRACE("Added CursorLayer for direct scanout: %d \n",
+                    cursor_layer->GetZorder());
+#endif
+      plane->SetInUse(true);
+      if (fall_back) {
+        DisplayPlaneState &temp = composition.back();
+        SetOffScreenPlaneTarget(temp);
+        cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
+      } else {
+        cursor_layer->SetLayerComposition(OverlayLayer::kDisplay);
+      }
+
+      last_plane = GetLastUsedOverlay(composition);
+      is_video = last_plane->IsVideoPlane();
     }
 
     cursor_index++;
@@ -310,99 +538,191 @@ bool DisplayPlaneManager::ValidateCursorLayer(
 
   // We dont have any additional planes. Pre composite remaining cursor layers
   // to the last overlay plane.
+  OverlayLayer *last_layer = NULL;
   for (uint32_t i = cursor_index; i < total_size; i++) {
     OverlayLayer *cursor_layer = cursor_layers.at(i);
-    last_plane->AddLayer(cursor_layer->GetZorder(),
-                         cursor_layer->GetDisplayFrame(), true);
-    cursor_layer->GPURendered();
-    gpu_rendered = true;
-    status = true;
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("Added CursorLayer: %d \n", cursor_layer->GetZorder());
+#endif
+    last_plane->AddLayer(cursor_layer);
+    cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
+    last_layer = cursor_layer;
+    while (SquashPlanesAsNeeded(all_layers, composition, commit_planes,
+                                mark_later, validate_final_layers)) {
+      continue;
+    }
+
+    last_plane = GetLastUsedOverlay(composition);
   }
 
-  if (gpu_rendered) {
-    PreparePlaneForCursor(last_plane);
+  if (last_layer) {
+    PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
+                          last_plane->IsVideoPlane(), recycle_resources);
+    last_plane->UsePlaneScalar(false);
+  }
+}
+
+void DisplayPlaneManager::ValidateForDisplayTransform(
+    DisplayPlaneState &last_plane,
+    const std::vector<OverlayPlane> &commit_planes) {
+  if (display_transform_ != kIdentity) {
+    // No need for any check if we are relying on rotation during
+    // 3D Composition pass.
+    DisplayPlaneState::RotationType original_rotation =
+        last_plane.GetRotationType();
+    if (last_plane.RevalidationType() &
+        DisplayPlaneState::ReValidationType::kRotation) {
+      uint32_t validation_done = DisplayPlaneState::ReValidationType::kRotation;
+      last_plane.SetRotationType(
+          DisplayPlaneState::RotationType::kDisplayRotation, false);
+      // Ensure Rotation doesn't impact the results.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                        last_plane.GetOffScreenTarget()->GetLayer(),
+                        commit_planes)) {
+        last_plane.SetRotationType(
+            DisplayPlaneState::RotationType::kGPURotation, false);
+      }
+
+      last_plane.RevalidationDone(validation_done);
+    }
+
+    if (original_rotation != last_plane.GetRotationType()) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+    }
+  }
+}
+
+void DisplayPlaneManager::ValidateForDownScaling(
+    DisplayPlaneState &last_plane,
+    const std::vector<OverlayPlane> &commit_planes) {
+#ifdef ENABLE_DOWNSCALING
+  uint32_t original_downscaling_factor = last_plane.GetDownScalingFactor();
+  if (last_plane.RevalidationType() &
+      DisplayPlaneState::ReValidationType::kDownScaling) {
+    last_plane.SetDisplayDownScalingFactor(1, false);
+    if (!last_plane.IsUsingPlaneScalar() && last_plane.CanUseGPUDownScaling()) {
+      last_plane.SetDisplayDownScalingFactor(4, false);
+      if (!plane_handler_->TestCommit(commit_planes)) {
+        last_plane.SetDisplayDownScalingFactor(1, false);
+      }
+    }
+
+    uint32_t validation_done =
+        DisplayPlaneState::ReValidationType::kDownScaling;
+    last_plane.RevalidationDone(validation_done);
   }
 
-  return status;
+  if (original_downscaling_factor != last_plane.GetDownScalingFactor()) {
+    last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+  }
+#else
+  HWC_UNUSED(commit_planes);
+  HWC_UNUSED(last_plane);
+#endif
+}
+
+void DisplayPlaneManager::ValidateForDisplayScaling(
+    DisplayPlaneState &last_plane, std::vector<OverlayPlane> &commit_planes) {
+  last_plane.ValidateReValidation();
+  if (!(last_plane.RevalidationType() &
+        DisplayPlaneState::ReValidationType::kUpScalar)) {
+    return;
+  }
+
+  last_plane.RevalidationDone(DisplayPlaneState::ReValidationType::kUpScalar);
+
+  bool old_state = last_plane.IsUsingPlaneScalar();
+  if (old_state) {
+    last_plane.UsePlaneScalar(false, false);
+  }
+
+  if (!last_plane.CanUseDisplayUpScaling()) {
+    // If we used plane scalar, clear surfaces.
+    if (old_state) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+    }
+
+    return;
+  }
+
+  // TODO: Scalars are limited in HW. Determine scaling ratio
+  // which would really benefit vs doing it in GPU side.
+
+  // Display frame and Source rect are different, let's check if
+  // we can take advantage of scalars attached to this plane.
+  last_plane.UsePlaneScalar(true, false);
+
+  OverlayPlane &last_overlay_plane = commit_planes.back();
+  last_overlay_plane.layer = last_plane.GetOverlayLayer();
+
+  bool fall_back =
+      FallbacktoGPU(last_plane.GetDisplayPlane(),
+                    last_plane.GetOffScreenTarget()->GetLayer(), commit_planes);
+  if (fall_back) {
+    last_plane.UsePlaneScalar(false, false);
+  }
+
+  if (old_state != last_plane.IsUsingPlaneScalar()) {
+    last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+  }
 }
 
 void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
                                            OverlayPlane &overlay_plane) {
-  SetOffScreenPlaneTarget(plane);
+  if (plane.NeedsSurfaceAllocation()) {
+    SetOffScreenPlaneTarget(plane);
+  }
+
   overlay_plane.layer = plane.GetOverlayLayer();
 }
 
 void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
-  EnsureOffScreenTarget(plane);
+  if (plane.NeedsSurfaceAllocation()) {
+    EnsureOffScreenTarget(plane);
+  }
 
   // Case where we have just one layer which needs to be composited using
   // GPU.
   plane.ForceGPURendering();
 }
 
-void DisplayPlaneManager::SetOffScreenCursorPlaneTarget(
-    DisplayPlaneState &plane, uint32_t width, uint32_t height) {
-  NativeSurface *surface = NULL;
-  uint32_t preferred_format = plane.plane()->GetPreferredFormat();
-  for (auto &fb : cursor_surfaces_) {
-    if (!fb->InUse()) {
-      uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
-      if (preferred_format == surface_format) {
-        surface = fb.get();
-        break;
-      }
-    }
-  }
-
-  if (!surface) {
-    NativeSurface *new_surface = Create3DBuffer(width, height);
-    new_surface->Init(buffer_handler_, preferred_format, true);
-    cursor_surfaces_.emplace_back(std::move(new_surface));
-    surface = cursor_surfaces_.back().get();
-  }
-
-  surface->SetPlaneTarget(plane, gpu_fd_);
-  plane.SetOffScreenTarget(surface);
-  plane.ForceGPURendering();
-}
-
 void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
   CTRACE();
   std::vector<std::unique_ptr<NativeSurface>>().swap(surfaces_);
-  std::vector<std::unique_ptr<NativeSurface>>().swap(cursor_surfaces_);
 }
 
-void DisplayPlaneManager::ReleaseFreeOffScreenTargets() {
+void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
+  if (!release_surfaces_ && !forced)
+    return;
+
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
-  std::vector<std::unique_ptr<NativeSurface>> cursor_surfaces;
   for (auto &fb : surfaces_) {
-    if (fb->InUse()) {
+    if ((fb->GetSurfaceAge() >= 0) && fb->IsOnScreen()) {
       surfaces.emplace_back(fb.release());
     }
   }
 
-  for (auto &cursor_fb : cursor_surfaces_) {
-    if (cursor_fb->InUse()) {
-      cursor_surfaces.emplace_back(cursor_fb.release());
-    }
-  }
-
   surfaces.swap(surfaces_);
-  cursor_surfaces.swap(cursor_surfaces_);
+  release_surfaces_ = false;
+}
+
+void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
+  display_transform_ = transform;
 }
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
   bool video_separate = plane.IsVideoPlane();
   uint32_t preferred_format = 0;
+  uint32_t usage = hwcomposer::kLayerNormal;
   if (video_separate) {
-    preferred_format = plane.plane()->GetPreferredVideoFormat();
+    preferred_format = plane.GetDisplayPlane()->GetPreferredVideoFormat();
   } else {
-    preferred_format = plane.plane()->GetPreferredFormat();
+    preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
   }
 
   for (auto &fb : surfaces_) {
-    if (!fb->InUse()) {
+    if (fb->GetSurfaceAge() == -1) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
       if (preferred_format == surface_format) {
         surface = fb.get();
@@ -415,11 +735,12 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
       new_surface = CreateVideoBuffer(width_, height_);
+      usage = hwcomposer::kLayerVideo;
     } else {
       new_surface = Create3DBuffer(width_, height_);
     }
 
-    new_surface->Init(buffer_handler_, preferred_format);
+    new_surface->Init(resource_manager_, preferred_format, usage);
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }
@@ -429,52 +750,32 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 }
 
 void DisplayPlaneManager::ValidateFinalLayers(
-    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers) {
-  std::vector<OverlayPlane> commit_planes;
+    std::vector<OverlayPlane> &commit_planes,
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
+    std::vector<NativeSurface *> &mark_later, bool recycle_resources) {
   for (DisplayPlaneState &plane : composition) {
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kRender &&
-        !plane.GetOffScreenTarget()) {
+    if (plane.NeedsOffScreenComposition() && !plane.GetOffScreenTarget()) {
       EnsureOffScreenTarget(plane);
     }
-
-    commit_planes.emplace_back(
-        OverlayPlane(plane.plane(), plane.GetOverlayLayer()));
   }
 
   // If this combination fails just fall back to 3D for all layers.
   if (!plane_handler_->TestCommit(commit_planes)) {
-    // We start off with Primary plane.
-    DisplayPlane *current_plane = primary_plane_;
-    for (DisplayPlaneState &plane : composition) {
-      if (plane.GetCompositionState() == DisplayPlaneState::State::kRender) {
-        plane.GetOffScreenTarget()->SetInUse(false);
-      }
-    }
-
-    DisplayPlaneStateList().swap(composition);
-    auto layer_begin = layers.begin();
-    OverlayLayer *primary_layer = &(*(layer_begin));
-    commit_planes.emplace_back(OverlayPlane(current_plane, primary_layer));
-    composition.emplace_back(current_plane, primary_layer,
-                             primary_layer->GetZorder());
-    current_plane->SetInUse(true);
-    DisplayPlaneState &last_plane = composition.back();
-    last_plane.ForceGPURendering();
-    ++layer_begin;
-
-    for (auto i = layer_begin; i != layers.end(); ++i) {
-      last_plane.AddLayer(i->GetZorder(), i->GetDisplayFrame(),
-                          i->IsCursorLayer());
-    }
-
-    EnsureOffScreenTarget(last_plane);
-    ReleaseFreeOffScreenTargets();
+    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
+                         recycle_resources);
   }
 }
 
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
+  // For Video, we always want to support Display Composition.
+  if (layer->IsVideoLayer()) {
+    layer->SupportedDisplayComposition(OverlayLayer::kAll);
+  } else {
+    layer->SupportedDisplayComposition(OverlayLayer::kGpu);
+  }
+
   if (!target_plane->ValidateLayer(layer))
     return true;
 
@@ -486,16 +787,399 @@ bool DisplayPlaneManager::FallbacktoGPU(
 
   // TODO(kalyank): Take relevant factors into consideration to determine if
   // Plane Composition makes sense. i.e. layer size etc
-
   if (!plane_handler_->TestCommit(commit_planes)) {
     return true;
   }
 
+  layer->SupportedDisplayComposition(OverlayLayer::kAll);
   return false;
 }
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {
-  return primary_plane_->IsSupportedFormat(format);
+  return overlay_planes_.at(0)->IsSupportedFormat(format);
+}
+
+void DisplayPlaneManager::ForceGpuForAllLayers(
+    std::vector<OverlayPlane> &commit_planes,
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
+    std::vector<NativeSurface *> &mark_later, bool recycle_resources) {
+  // Let's mark all planes as free to be used.
+  for (auto j = overlay_planes_.begin(); j != overlay_planes_.end(); ++j) {
+    j->get()->SetInUse(false);
+  }
+
+  if (!composition.empty()) {
+    for (DisplayPlaneState &plane : composition) {
+      MarkSurfacesForRecycling(&plane, mark_later, recycle_resources);
+    }
+  }
+
+  auto layer_begin = layers.begin();
+  auto layer_end = layers.end();
+  DisplayPlaneStateList().swap(composition);
+  std::vector<OverlayPlane>().swap(commit_planes);
+  OverlayLayer *primary_layer = &(*(layers.begin()));
+  DisplayPlane *current_plane = overlay_planes_.at(0).get();
+
+  composition.emplace_back(current_plane, primary_layer,
+                           primary_layer->GetZorder(), display_transform_);
+  DisplayPlaneState &last_plane = composition.back();
+  last_plane.ForceGPURendering();
+  layer_begin++;
+#ifdef SURFACE_TRACING
+  ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
+                primary_layer->GetZorder());
+#endif
+
+  for (auto i = layer_begin; i != layer_end; ++i) {
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n", i->GetZorder());
+#endif
+    last_plane.AddLayer(&(*(i)));
+    i->SetLayerComposition(OverlayLayer::kGpu);
+  }
+
+  EnsureOffScreenTarget(last_plane);
+  current_plane->SetInUse(true);
+  commit_planes.emplace_back(
+      OverlayPlane(last_plane.GetDisplayPlane(), last_plane.GetOverlayLayer()));
+  // Check for Any display transform to be applied.
+  ValidateForDisplayTransform(last_plane, commit_planes);
+  // Check for any change to scalar usage.
+  ValidateForDisplayScaling(last_plane, commit_planes);
+  // Check for Downscaling.
+  ValidateForDownScaling(last_plane, commit_planes);
+  // Reset andy Scanout validation state.
+  uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+  last_plane.RevalidationDone(validation_done);
+}
+
+void DisplayPlaneManager::MarkSurfacesForRecycling(
+    DisplayPlaneState *plane, std::vector<NativeSurface *> &mark_later,
+    bool recycle_resources, bool reset_plane_surfaces) {
+  const std::vector<NativeSurface *> &surfaces = plane->GetSurfaces();
+  if (!surfaces.empty()) {
+    release_surfaces_ = true;
+    size_t size = surfaces.size();
+    if (recycle_resources) {
+      // Make sure we don't mark current on-screen surface or
+      // one in flight. These surfaces will be added as part of
+      // mark_later to be recycled later.
+      for (uint32_t i = 0; i < size; i++) {
+        NativeSurface *surface = surfaces.at(i);
+        if (surface->GetSurfaceAge() >= 0 && surface->IsOnScreen()) {
+          mark_later.emplace_back(surface);
+        } else {
+          surface->SetSurfaceAge(-1);
+        }
+      }
+    } else {
+      for (uint32_t i = 0; i < size; i++) {
+        NativeSurface *surface = surfaces.at(i);
+        surface->SetSurfaceAge(-1);
+      }
+    }
+
+    if (reset_plane_surfaces)
+      plane->ReleaseSurfaces();
+  }
+}
+
+bool DisplayPlaneManager::ReValidatePlanes(
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
+    std::vector<NativeSurface *> &mark_later, bool *request_full_validation,
+    bool needs_revalidation_checks, bool re_validate_commit) {
+#ifdef SURFACE_TRACING
+  ISURFACETRACE(
+      "ReValidatePlanes called needs_revalidation_checks %d re_validate_commit "
+      "%d  \n",
+      needs_revalidation_checks, re_validate_commit);
+#endif
+  // Let's first check the current combination works.
+  *request_full_validation = false;
+  bool render = false;
+  bool reset_composition_region = false;
+  std::vector<OverlayPlane> commit_planes;
+  for (DisplayPlaneState &temp : composition) {
+    commit_planes.emplace_back(
+        OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+
+    if (temp.Scanout()) {
+      continue;
+    }
+
+    render = true;
+  }
+
+  if (re_validate_commit) {
+    // If this combination fails just fall back to full validation.
+    if (!plane_handler_->TestCommit(commit_planes)) {
+#ifdef SURFACE_TRACING
+      ISURFACETRACE(
+          "ReValidatePlanes Test commit failed. Forcing full validation. \n");
+#endif
+      *request_full_validation = true;
+      return render;
+    }
+  }
+
+  if (!needs_revalidation_checks) {
+    return render;
+  }
+
+  uint32_t index = 0;
+
+  for (DisplayPlaneState &last_plane : composition) {
+    if (!last_plane.NeedsOffScreenComposition()) {
+      index++;
+      reset_composition_region = false;
+      continue;
+    }
+
+    if (reset_composition_region) {
+      last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+    }
+
+    reset_composition_region = false;
+    uint32_t revalidation_type = last_plane.RevalidationType();
+
+    if (!revalidation_type) {
+      render = true;
+      index++;
+      continue;
+    }
+
+    uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kScanout) {
+      const std::vector<size_t> &source_layers = last_plane.GetSourceLayers();
+      bool uses_scalar = last_plane.IsUsingPlaneScalar();
+      // Store current layer to re-set in case commit fails.
+      const OverlayLayer *current_layer = last_plane.GetOverlayLayer();
+      OverlayLayer *layer = &(layers.at(source_layers.at(0)));
+      last_plane.SetOverlayLayer(layer);
+      // Disable GPU Rendering.
+      last_plane.DisableGPURendering();
+      if (uses_scalar)
+        last_plane.UsePlaneScalar(false, false);
+
+      layer->SetLayerComposition(OverlayLayer::kDisplay);
+
+      commit_planes.at(index).layer = last_plane.GetOverlayLayer();
+
+      // If this combination fails just fall back to original state.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(), layer, commit_planes)) {
+        // Reset to old state.
+        last_plane.ForceGPURendering();
+        layer->SetLayerComposition(OverlayLayer::kGpu);
+        last_plane.SetOverlayLayer(current_layer);
+        commit_planes.at(index).layer = last_plane.GetOverlayLayer();
+        if (uses_scalar)
+          last_plane.UsePlaneScalar(true, false);
+      } else {
+#ifdef SURFACE_TRACING
+        ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
+#endif
+        MarkSurfacesForRecycling(&last_plane, mark_later, true);
+        reset_composition_region = true;
+      }
+    }
+
+    render = true;
+    index++;
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kUpScalar) {
+      ValidateForDisplayScaling(last_plane, commit_planes);
+      validation_done |= DisplayPlaneState::ReValidationType::kUpScalar;
+    }
+
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kRotation) {
+      validation_done |= DisplayPlaneState::ReValidationType::kRotation;
+      // Save old rotation type.
+      DisplayPlaneState::RotationType old_type = last_plane.GetRotationType();
+      DisplayPlaneState::RotationType new_type = old_type;
+      if (old_type == DisplayPlaneState::RotationType::kGPURotation) {
+        last_plane.SetRotationType(
+            DisplayPlaneState::RotationType::kDisplayRotation, false);
+      } else if (re_validate_commit) {
+        // We should have already done a full commit check above.
+        // As their is no state change we can avoid another test
+        // commit here.
+        last_plane.RevalidationDone(validation_done);
+        continue;
+      }
+
+      // Check if we can rotate using Display plane.
+      if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                        last_plane.GetOffScreenTarget()->GetLayer(),
+                        commit_planes)) {
+        new_type = DisplayPlaneState::RotationType::kGPURotation;
+      }
+
+      if (old_type != new_type) {
+        // Set new rotation type. Clear surfaces in case type has changed.
+        last_plane.SetRotationType(new_type, true);
+      }
+    }
+
+    if (revalidation_type & DisplayPlaneState::ReValidationType::kDownScaling) {
+      validation_done |= DisplayPlaneState::ReValidationType::kDownScaling;
+      // Make sure we are not handling upscaling.
+      if (last_plane.IsUsingPlaneScalar()) {
+        ETRACE(
+            "We are using upscaling and also trying to validate for "
+            "downscaling \n");
+        if (last_plane.GetDownScalingFactor() > 1)
+          last_plane.SetDisplayDownScalingFactor(1, true);
+      } else {
+        // Check for Downscaling.
+        ValidateForDownScaling(last_plane, commit_planes);
+      }
+    }
+
+    last_plane.RevalidationDone(validation_done);
+  }
+
+  return render;
+}
+
+void DisplayPlaneManager::FinalizeValidation(
+    DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes, bool *render_layers,
+    bool *re_validation_needed) {
+  bool re_validation = false;
+  bool needs_gpu = false;
+  for (DisplayPlaneState &plane : composition) {
+    if (plane.NeedsOffScreenComposition()) {
+      plane.RefreshSurfaces(NativeSurface::kFullClear);
+      plane.ValidateReValidation();
+      // Check for Any display transform to be applied.
+      ValidateForDisplayTransform(plane, commit_planes);
+
+      // Check for Downscaling.
+      ValidateForDownScaling(plane, commit_planes);
+
+      if (!needs_gpu) {
+        needs_gpu = !plane.IsSurfaceRecycled();
+      }
+
+      if (plane.RevalidationType() !=
+          DisplayPlaneState::ReValidationType::kNone) {
+        re_validation = true;
+      }
+    }
+  }
+
+  if (re_validation_needed)
+    *re_validation_needed = re_validation;
+
+  if (render_layers)
+    *render_layers = needs_gpu;
+}
+
+bool DisplayPlaneManager::SquashPlanesAsNeeded(
+    const std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes,
+    std::vector<NativeSurface *> &mark_later, bool *validate_final_layers) {
+  bool status = false;
+  if (composition.size() > 1) {
+    DisplayPlaneState &last_plane = composition.back();
+    DisplayPlaneState &scanout_plane = composition.at(composition.size() - 2);
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("ANALAYZE scanout_plane: %d %d  \n",
+                  scanout_plane.NeedsOffScreenComposition(),
+                  scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
+
+    ISURFACETRACE("ANALAYZE last_plane: %d %d  \n",
+                  last_plane.NeedsOffScreenComposition(),
+                  last_plane.IsCursorPlane(), last_plane.IsVideoPlane());
+
+    if (!scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane()) {
+      ISURFACETRACE("ANALAYZE %d \n",
+                    AnalyseOverlap(scanout_plane.GetDisplayFrame(),
+                                   last_plane.GetDisplayFrame()));
+      ISURFACETRACE("ANALAYZE Scanout Display Rect %d %d %d %d \n",
+                    scanout_plane.GetDisplayFrame().left,
+                    scanout_plane.GetDisplayFrame().top,
+                    scanout_plane.GetDisplayFrame().right,
+                    scanout_plane.GetDisplayFrame().bottom);
+      ISURFACETRACE("ANALAYZE Last offscreen plane rect %d %d %d %d \n",
+                    last_plane.GetDisplayFrame().left,
+                    last_plane.GetDisplayFrame().top,
+                    last_plane.GetDisplayFrame().right,
+                    last_plane.GetDisplayFrame().bottom);
+    }
+#endif
+    const HwcRect<int> &display_frame = scanout_plane.GetDisplayFrame();
+    const HwcRect<int> &target_frame = last_plane.GetDisplayFrame();
+    if (!scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane() &&
+        (AnalyseOverlap(display_frame, target_frame) != kOutside)) {
+      if (ForceSeparatePlane(layers, last_plane, NULL)) {
+#ifdef SURFACE_TRACING
+        ISURFACETRACE("Squasing planes. \n");
+#endif
+        const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();
+        for (const size_t &index : new_layers) {
+          scanout_plane.AddLayer(&(layers.at(index)));
+        }
+
+        scanout_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+
+        last_plane.GetDisplayPlane()->SetInUse(false);
+        MarkSurfacesForRecycling(&last_plane, mark_later, true);
+        composition.pop_back();
+        status = true;
+
+        DisplayPlaneState &squashed_plane = composition.back();
+        if (squashed_plane.NeedsSurfaceAllocation()) {
+          SetOffScreenPlaneTarget(squashed_plane);
+          *validate_final_layers = true;
+        }
+
+        if (!commit_planes.empty()) {
+          // Layer for the plane should have changed, reset commit planes.
+          std::vector<OverlayPlane>().swap(commit_planes);
+          for (DisplayPlaneState &temp : composition) {
+            commit_planes.emplace_back(
+                OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+          }
+        }
+      }
+    }
+  }
+
+  return status;
+}
+
+bool DisplayPlaneManager::ForceSeparatePlane(
+    const std::vector<OverlayLayer> &layers,
+    const DisplayPlaneState &last_plane, const OverlayLayer *target_layer) {
+  const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();
+  const HwcRect<int> &display_frame = last_plane.GetDisplayFrame();
+  HwcRect<int> target_display_frame = display_frame;
+  uint32_t total_width = 0;
+  uint32_t total_height = 0;
+  if (target_layer) {
+    total_width = target_layer->GetDisplayFrameWidth();
+    total_height = target_layer->GetDisplayFrameHeight();
+    target_display_frame = target_layer->GetDisplayFrame();
+    CalculateRect(display_frame, target_display_frame);
+  }
+
+  bool force_separate = false;
+  for (const size_t &index : new_layers) {
+    const OverlayLayer &layer = layers.at(index);
+    total_width = std::max(total_width, layer.GetDisplayFrameWidth());
+    total_height = std::max(total_height, layer.GetDisplayFrameHeight());
+  }
+
+  uint32_t target_width =
+      target_display_frame.right - target_display_frame.left;
+  uint32_t target_height =
+      target_display_frame.bottom - target_display_frame.top;
+  if ((total_width != target_width) || (total_height != target_height)) {
+    force_separate = true;
+  }
+
+  return force_separate;
 }
 
 }  // namespace hwcomposer

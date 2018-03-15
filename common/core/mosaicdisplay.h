@@ -68,10 +68,14 @@ class MosaicDisplay : public NativeDisplay {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetVideoScalingMode(uint32_t mode) override;
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                           HWCDeinterlaceControl mode) override;
+  void RestoreVideoDefaultDeinterlace() override;
 
   bool IsConnected() const override;
 
@@ -104,6 +108,8 @@ class MosaicDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected);
 
+  void SetHDCPState(HWCContentProtection state) override;
+
  private:
   std::vector<NativeDisplay *> physical_displays_;
   std::vector<NativeDisplay *> connected_displays_;
@@ -120,6 +126,7 @@ class MosaicDisplay : public NativeDisplay {
   uint32_t config_ = 0;
   uint32_t vsync_counter_ = 0;
   uint32_t vsync_divisor_ = 0;
+  uint32_t preferred_display_index_ = 0;
   int64_t vsync_timestamp_ = 0;
   bool enable_vsync_ = false;
   bool connected_ = false;

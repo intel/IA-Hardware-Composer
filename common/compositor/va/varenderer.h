@@ -17,25 +17,69 @@
 #ifndef COMMON_COMPOSITOR_VA_VARENDERER_H_
 #define COMMON_COMPOSITOR_VA_VARENDERER_H_
 
-#include <va/va.h>
-#include <va/va_vpp.h>
 #include <map>
 
-#include "hwcdefs.h"
 #include "renderer.h"
+#include "hwcdefs.h"
+
+#include "vautils.h"
+
+#include <va/va.h>
 
 namespace hwcomposer {
 
 struct OverlayLayer;
 class NativeSurface;
 
-typedef struct _VppColorBalanceCap {
-  VAProcFilterCapColorBalance caps;
-  float value;
-} VppColorBalanceCap;
+class ScopedVABufferID {
+ public:
+  ScopedVABufferID(VADisplay display) : display_(display) {
+  }
+  ~ScopedVABufferID() {
+    if (buffer_ != VA_INVALID_ID)
+      vaDestroyBuffer(display_, buffer_);
+  }
 
-typedef std::map<HWCColorControl, VppColorBalanceCap> ColorBalanceCapMap;
-typedef ColorBalanceCapMap::iterator ColorBalanceCapMapItr;
+  bool CreateBuffer(VAContextID context, VABufferType type, uint32_t size,
+                    uint32_t num, void* data) {
+    VAStatus ret =
+        vaCreateBuffer(display_, context, type, size, num, data, &buffer_);
+    return ret == VA_STATUS_SUCCESS ? true : false;
+  }
+
+  operator VABufferID() const {
+    return buffer_;
+  }
+
+  VABufferID buffer() const {
+    return buffer_;
+  }
+
+  VABufferID& buffer() {
+    return buffer_;
+  }
+
+ private:
+  VADisplay display_;
+  VABufferID buffer_ = VA_INVALID_ID;
+};
+
+struct HwcColorBalanceCap {
+  VAProcFilterCapColorBalance caps_;
+  float value_;
+  bool use_default_ = true;
+};
+
+struct HwcFilterCap {
+  VAProcFilterCap caps_;
+  float value_;
+  bool use_default_ = true;
+};
+
+typedef struct _HwcDeinterlaceCap {
+  VAProcFilterCapDeinterlacing caps_[VAProcDeinterlacingCount];
+  VAProcDeinterlacingType mode_;
+} HwcDeinterlaceCap;
 
 class VARenderer : public Renderer {
  public:
@@ -49,24 +93,39 @@ class VARenderer : public Renderer {
   void SetExplicitSyncSupport(bool /*disable_explicit_sync*/) override {
   }
 
+  bool DestroyMediaResources(std::vector<struct media_import>&) override;
+
  private:
-  int DrmFormatToVAFormat(int format);
-  int DrmFormatToRTFormat(int format);
   bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
                              void* caps, uint32_t* num);
-  bool SetVAProcFilterColorValue(HWCColorControl type, float value);
+  bool SetVAProcFilterColorValue(HWCColorControl type,
+                                 const HWCColorProp& prop);
+  bool SetVAProcFilterDeinterlaceMode(const HWCDeinterlaceProp& prop);
+  bool SetVAProcFilterScalingMode(uint32_t mode);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
+  bool SetVAProcFilterDeinterlaceDefaultMode();
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
                                      VAProcColorBalanceType vamode);
+  bool GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag);
   bool CreateContext();
   void DestroyContext();
+  bool UpdateCaps();
   uint32_t HWCTransformToVA(uint32_t transform);
 
+  bool update_caps_ = false;
   void* va_display_ = nullptr;
-  ColorBalanceCapMap caps_;
+  std::vector<VABufferID> filters_;
+  std::vector<ScopedVABufferID> cb_elements_;
+  std::vector<ScopedVABufferID> sharp_;
+  std::vector<ScopedVABufferID> deinterlace_;
+  std::map<HWCColorControl, HwcColorBalanceCap> colorbalance_caps_;
+  HwcFilterCap sharp_caps_;
+  HwcDeinterlaceCap deinterlace_caps_;
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;
   VAConfigID va_config_ = VA_INVALID_ID;
+  VAProcPipelineParameterBuffer param_;
+  uint32_t filter_flags_ = 0;
 };
 
 }  // namespace hwcomposer

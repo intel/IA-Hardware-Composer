@@ -22,6 +22,13 @@
 
 namespace hwcomposer {
 
+// Minimum threshold before we take advantage of
+// Surface damage for this layer. This should not
+// be needed ideally but we seem to run into problems
+// when using Surface Damage for layers having damage
+// rect less than 1000.
+static uint32_t DAMAGE_THRESHOLD = 1000;
+
 HwcLayer::~HwcLayer() {
   if (release_fd_ > 0) {
     close(release_fd_);
@@ -40,20 +47,21 @@ void HwcLayer::SetTransform(int32_t transform) {
   if (transform != transform_) {
     layer_cache_ |= kLayerAttributesChanged;
     transform_ = transform;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
 void HwcLayer::SetAlpha(uint8_t alpha) {
   if (alpha_ != alpha) {
-    layer_cache_ |= kDIsplayContentAttributesChanged;
     alpha_ = alpha;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
 void HwcLayer::SetBlending(HWCBlending blending) {
   if (blending != blending_) {
-    layer_cache_ |= kDIsplayContentAttributesChanged;
     blending_ = blending;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
@@ -63,6 +71,8 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
       (source_crop.top != source_crop_.top) ||
       (source_crop.bottom != source_crop_.bottom)) {
     layer_cache_ |= kSourceRectChanged;
+    UpdateRenderingDamage(HwcRect<int>(source_crop), HwcRect<int>(source_crop_),
+                          false);
     source_crop_ = source_crop;
     source_crop_width_ =
         static_cast<int>(ceilf(source_crop.right - source_crop.left));
@@ -72,16 +82,17 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
 }
 
 void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
-                               uint32_t translate_x_pos) {
-  HwcRect<int> frame = display_frame;
-  frame.left += translate_x_pos;
-  frame.right += translate_x_pos;
-
-  if ((frame.left != display_frame_.left) ||
-      (frame.right != display_frame_.right) ||
-      (frame.top != display_frame_.top) ||
-      (frame.bottom != display_frame_.bottom)) {
+                               int translate_x_pos) {
+  if (((display_frame.left + translate_x_pos) != display_frame_.left) ||
+      ((display_frame.right + translate_x_pos) != display_frame_.right) ||
+      (display_frame.top != display_frame_.top) ||
+      (display_frame.bottom != display_frame_.bottom)) {
     layer_cache_ |= kDisplayFrameRectChanged;
+    HwcRect<int> frame = display_frame;
+    frame.left += translate_x_pos;
+    frame.right += translate_x_pos;
+    UpdateRenderingDamage(display_frame_, frame, false);
+
     display_frame_ = frame;
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
@@ -101,19 +112,14 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
-      state_ &= ~kSurfaceDamaged;
-      surface_damage_ = rect;
+      state_ &= ~kSurfaceDamageChanged;
+      UpdateRenderingDamage(rect, rect, true);
+      surface_damage_.reset();
       return;
     }
   } else if (rects == 0) {
     rect = display_frame_;
   }
-
-  // Lets clip surface damage to display frame rect.
-  rect.left = std::max(display_frame_.left, rect.left);
-  rect.top = std::max(display_frame_.top, rect.top);
-  rect.right = std::min(display_frame_.right, rect.right);
-  rect.bottom = std::min(display_frame_.bottom, rect.bottom);
 
   if ((surface_damage_.left == rect.left) &&
       (surface_damage_.top == rect.top) &&
@@ -122,7 +128,14 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     return;
   }
 
-  state_ |= kSurfaceDamaged;
+  state_ |= kSurfaceDamageChanged;
+  if (display_frame_width_ < DAMAGE_THRESHOLD &&
+      display_frame_height_ < DAMAGE_THRESHOLD) {
+    UpdateRenderingDamage(visible_rect_, visible_rect_, true);
+  } else {
+    UpdateRenderingDamage(surface_damage_, rect, false);
+  }
+
   surface_damage_ = rect;
 }
 
@@ -149,6 +162,7 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
   }
 
   state_ |= kVisibleRegionChanged;
+  UpdateRenderingDamage(visible_rect_, new_visible_rect, false);
   visible_rect_ = new_visible_rect;
 
   if ((visible_rect_.top == 0) && (visible_rect_.bottom == 0) &&
@@ -190,13 +204,24 @@ int32_t HwcLayer::GetAcquireFence() {
 }
 
 void HwcLayer::Validate() {
-  state_ &= ~kVisibleRegionChanged;
-  state_ |= kLayerValidated;
-  state_ &= ~kLayerContentChanged;
-  layer_cache_ &= ~kLayerAttributesChanged;
-  layer_cache_ &= ~kDisplayFrameRectChanged;
-  layer_cache_ &= ~kDIsplayContentAttributesChanged;
-  layer_cache_ &= ~kSourceRectChanged;
+  if (total_displays_ == 1) {
+    state_ &= ~kVisibleRegionChanged;
+    state_ |= kLayerValidated;
+    state_ &= ~kLayerContentChanged;
+    state_ &= ~kSurfaceDamageChanged;
+    state_ &= ~kZorderChanged;
+    layer_cache_ &= ~kLayerAttributesChanged;
+    layer_cache_ &= ~kDisplayFrameRectChanged;
+    layer_cache_ &= ~kSourceRectChanged;
+    if (!surface_damage_.empty() &&
+        (display_frame_width_ < DAMAGE_THRESHOLD &&
+         display_frame_height_ < DAMAGE_THRESHOLD)) {
+      current_rendering_damage_ = visible_rect_;
+    } else {
+      current_rendering_damage_ = surface_damage_;
+    }
+  }
+
   if (left_constraint_.empty() && left_source_constraint_.empty())
     return;
 
@@ -218,9 +243,10 @@ void HwcLayer::Validate() {
 }
 
 void HwcLayer::SetLayerZOrder(uint32_t order) {
-  if (z_order_ != order) {
-    state_ |= kSurfaceDamaged;
+  if (z_order_ != static_cast<int>(order)) {
     z_order_ = order;
+    state_ |= kZorderChanged;
+    UpdateRenderingDamage(display_frame_, visible_rect_, false);
   }
 }
 
@@ -310,6 +336,37 @@ int32_t HwcLayer::GetRightSourceConstraint() {
   uint32_t value = right_source_constraint_.at(0);
   right_source_constraint_.swap(temp);
   return value;
+}
+
+void HwcLayer::MarkAsCursorLayer() {
+  is_cursor_layer_ = true;
+}
+
+bool HwcLayer::IsCursorLayer() const {
+  return is_cursor_layer_;
+}
+
+void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
+                                     const HwcRect<int>& newrect,
+                                     bool same_rect) {
+  if (current_rendering_damage_.empty()) {
+    current_rendering_damage_ = old_rect;
+  } else {
+    CalculateRect(old_rect, current_rendering_damage_);
+  }
+
+  if (same_rect)
+    return;
+
+  CalculateRect(newrect, current_rendering_damage_);
+}
+
+const HwcRect<int>& HwcLayer::GetLayerDamage() {
+  return current_rendering_damage_;
+}
+
+void HwcLayer::SetTotalDisplays(uint32_t total_displays) {
+  total_displays_ = total_displays;
 }
 
 }  // namespace hwcomposer

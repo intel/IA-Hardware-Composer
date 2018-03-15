@@ -29,8 +29,9 @@
 #include "compositor.h"
 #include "displayplanemanager.h"
 #include "hwcthread.h"
-#include "vblankeventhandler.h"
 #include "platformdefines.h"
+#include "resourcemanager.h"
+#include "vblankeventhandler.h"
 
 namespace hwcomposer {
 struct gamma_colors {
@@ -63,11 +64,13 @@ class DisplayQueue {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetVideoScalingMode(uint32_t mode);
   void SetVideoColor(HWCColorControl color, float value);
-  void GetVideoColor(HWCColorControl color,
-                     float* value, float* start, float* end);
+  void GetVideoColor(HWCColorControl color, float* value, float* start,
+                     float* end);
   void RestoreVideoDefaultColor(HWCColorControl color);
-
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
 
@@ -99,23 +102,11 @@ class DisplayQueue {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kPoweredOn = 1 << 2,
-    kDisableOverlayUsage = 1 << 3,     // Disable Overlays.
-    kMarkSurfacesForRelease = 1 << 4,  // Mark surfaces to be released.
-    kReleaseSurfaces = 1 << 5,         // Release Native Surfaces.
+    kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
     kIgnoreIdleRefresh =
-        1 << 6,            // Ignore refresh request during idle callback.
-    kClonedMode = 1 << 7,  // We are in cloned mode.
-    kLastFrameIdleUpdate = 1 << 8  // Last frame was a refresh for Idle state.
-  };
-
-  enum CursorState {
-    kNoCursorState = 1 << 0,        // No state
-    kFrameHasCursor = 1 << 1,       // Current Frame has Cursor.
-    kCursorIsGpuRendered = 1 << 2,  // Current Frame Cursor is Gpu Rendered
-    kIgnoredCursorLayer = 1 << 3,   // CursorLayer was ignored last frame.
-                                    // This is useful when we need to remove
-                                    // cursor layer from cache when previous
-                                    // frame commit was ignored.
+        1 << 4,            // Ignore refresh request during idle callback.
+    kClonedMode = 1 << 5,  // We are in cloned mode.
+    kLastFrameIdleUpdate = 1 << 6  // Last frame was a refresh for Idle state.
   };
 
   struct ScalingTracker {
@@ -146,22 +137,31 @@ class DisplayQueue {
     };
 
     uint32_t idle_frames_ = 0;
+    bool has_cursor_layer_ = false;
     SpinLock idle_lock_;
     int state_ = kPrepareComposition;
     uint32_t revalidate_frames_counter_ = 0;
-    uint32_t idle_reset_frames_counter_ = 0;
+    size_t total_planes_ = 1;
   };
 
   struct ScopedIdleStateTracker {
-    ScopedIdleStateTracker(struct FrameStateTracker& tracker)
-        : tracker_(tracker) {
+    ScopedIdleStateTracker(struct FrameStateTracker& tracker,
+                           Compositor& compositor,
+                           ResourceManager* resource_manager,
+                           DisplayQueue* queue)
+        : tracker_(tracker),
+          compositor_(compositor),
+          resource_manager_(resource_manager),
+          queue_(queue) {
       tracker_.idle_lock_.lock();
       tracker_.state_ |= FrameStateTracker::kPrepareComposition;
+      tracker_.has_cursor_layer_ = false;
       if (tracker_.state_ & FrameStateTracker::kPrepareIdleComposition) {
         tracker_.state_ |= FrameStateTracker::kRenderIdleDisplay;
         tracker_.state_ &= ~FrameStateTracker::kPrepareIdleComposition;
       }
 
+      resource_manager_->RefreshBufferCache();
       tracker_.idle_lock_.unlock();
     }
 
@@ -173,11 +173,15 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kRevalidateLayers;
     }
 
+    bool TrackingFrames() const {
+      return tracker_.state_ & FrameStateTracker::kTrackingFrames;
+    }
+
     void ResetTrackerState() {
       if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-	tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+        tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
       } else {
-	tracker_.state_ = 0;
+        tracker_.state_ = 0;
       }
 
       tracker_.revalidate_frames_counter_ = 0;
@@ -187,14 +191,19 @@ class DisplayQueue {
       return tracker_.state_ & FrameStateTracker::kIgnoreUpdates;
     }
 
+    void FrameHasCursor() {
+      tracker_.has_cursor_layer_ = true;
+    }
+
+    void ForceSurfaceRelease() {
+      forced_ = true;
+    }
+
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
-      tracker_.idle_reset_frames_counter_ = 0;
-      // Reset idle frame count if it's less than
-      // kidleframes. We want that idle frames
+      // Reset idle frame count. We want that idle frames
       // are continuous to detect idle mode scenario.
-      if (tracker_.idle_frames_ < kidleframes)
-        tracker_.idle_frames_ = 0;
+      tracker_.idle_frames_ = 0;
 
       tracker_.state_ &= ~FrameStateTracker::kPrepareComposition;
       if (tracker_.state_ & FrameStateTracker::kRenderIdleDisplay) {
@@ -214,44 +223,58 @@ class DisplayQueue {
         tracker_.revalidate_frames_counter_ = 0;
       }
 
+      tracker_.total_planes_ = queue_->previous_plane_state_.size();
       tracker_.idle_lock_.unlock();
+
+      // Free any surfaces.
+      queue_->display_plane_manager_->ReleaseFreeOffScreenTargets(forced_);
+
+      if (resource_manager_->PreparePurgedResources())
+        compositor_.FreeResources();
     }
 
    private:
+    bool forced_ = false;
     struct FrameStateTracker& tracker_;
+    Compositor& compositor_;
+    ResourceManager* resource_manager_;
+    DisplayQueue* queue_;
   };
 
   void HandleExit();
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       bool cursor_layer_removed,
-                       DisplayPlaneStateList* composition, bool* render_layers,
-                       bool* can_ignore_commit);
+                       int remove_index, DisplayPlaneStateList* composition,
+                       bool* render_layers, bool* can_ignore_commit,
+                       bool* needs_plane_validation,
+                       bool* force_full_validation);
   void SetReleaseFenceToLayers(int32_t fence,
-                               std::vector<HwcLayer*>& source_layers) const;
-  void UpdateSurfaceInUse(bool in_use,
-                          DisplayPlaneStateList& current_composition_planes);
-  void RecyclePreviousPlaneSurfaces();
+                               std::vector<HwcLayer*>& source_layers);
 
-  void HandleCommitIgnored(DisplayPlaneStateList& current_composition_planes);
+  void SetMediaEffectsState(bool apply_effects,
+                            const std::vector<OverlayLayer>& layers,
+                            DisplayPlaneStateList& current_composition_planes);
 
-  void ReleaseSurfaces();
-  void ReleaseSurfacesAsNeeded(bool layers_validated);
+  void UpdateOnScreenSurfaces();
+
+  // Re-initialize all state. When we are hearing this means the
+  // queue is teraing down or re-started for some reason.
+  void ResetQueue();
+
+  void HandleCommitFailure(DisplayPlaneStateList& current_composition_planes);
 
   Compositor compositor_;
-  uint32_t frame_;
   uint32_t gpu_fd_;
   uint32_t brightness_;
   float color_transform_matrix_[16];
   HWCColorTransform color_transform_hint_;
   uint32_t contrast_;
-  uint32_t total_cursor_layers_ = 0;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
+  std::unique_ptr<ResourceManager> resource_manager_;
   std::vector<OverlayLayer> in_flight_layers_;
   DisplayPlaneStateList previous_plane_state_;
-  NativeBufferHandler* buffer_handler_;
   FrameStateTracker idle_tracker_;
   ScalingTracker scaling_tracker_;
   // shared_ptr since we need to use this outside of the thread lock (to
@@ -260,15 +283,23 @@ class DisplayQueue {
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   uint32_t refrsh_display_id_ = 0;
   int state_ = kConfigurationChanged;
-  uint32_t cursor_state_ = kNoCursorState;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool sync_ = false;  // Synchronize with compositor thread.
-  bool handle_display_initializations_ = true;  // to disable hwclock thread.
-  HWCRotation rotation_ = kRotateNone;
+  bool handle_display_initializations_ = true;  // to disable hwclock monitoring.
+  uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
-  bool validated_for_video_effect_ = false;
+  bool applied_video_effect_ = false;
+  // Set to true when layers are validated and commit fails.
+  bool last_commit_failed_update_ = false;
+  // Surfaces to be marked as not in use. These
+  // are surfaces which are added to surfaces_not_inuse_
+  // below.
+  std::vector<NativeSurface*> mark_not_inuse_;
+  // Surfaces which are currently on screen and
+  // need to be marked as not in use during next
+  // frame.
+  std::vector<NativeSurface*> surfaces_not_inuse_;
 };
 
 }  // namespace hwcomposer

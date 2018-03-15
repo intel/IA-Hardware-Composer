@@ -62,21 +62,27 @@ LOCAL_CPPFLAGS += \
 	-DDISABLE_CURSOR_PLANE
 endif
 
+#LOCAL_CPPFLAGS += \
+#	-DENABLE_DOWNSCALING
+
 LOCAL_SRC_FILES := \
         compositor/compositor.cpp \
         compositor/compositorthread.cpp \
         compositor/factory.cpp \
         compositor/nativesurface.cpp \
         compositor/renderstate.cpp \
-	compositor/va/vasurface.cpp \
 	compositor/va/varenderer.cpp \
+	compositor/va/vautils.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
+	core/resourcemanager.cpp \
 	core/logicaldisplay.cpp \
 	core/logicaldisplaymanager.cpp \
 	core/mosaicdisplay.cpp \
         core/overlaylayer.cpp \
+	core/nesteddisplay.cpp \
         display/displayplanemanager.cpp \
+	display/displayplanestate.cpp \
         display/displayqueue.cpp \
         display/vblankeventhandler.cpp \
         display/virtualdisplay.cpp \
@@ -85,6 +91,10 @@ LOCAL_SRC_FILES := \
         utils/hwcthread.cpp \
         utils/hwcutils.cpp \
         utils/disjoint_layers.cpp
+
+ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
+LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+endif
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \

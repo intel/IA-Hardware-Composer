@@ -34,21 +34,24 @@ namespace hwcomposer {
 
 class OverlayBuffer;
 class DisplayPlaneManager;
+class ResourceManager;
+class NativeBufferHandler;
 
 class CompositorThread : public HWCThread {
  public:
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(DisplayPlaneManager* plane_manager);
+  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd);
 
-  void Draw(std::vector<DrawState>& states,
+  bool Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
             const std::vector<OverlayLayer>& layers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
-  void FreeResources(bool all_resources);
-  void EnsureTasksAreDone();
+  void UpdateLayerPixelData(std::vector<OverlayLayer>& layers);
+  void EnsurePixelDataUpdated();
+  void FreeResources();
 
   void HandleRoutine() override;
   void HandleExit() override;
@@ -60,27 +63,32 @@ class CompositorThread : public HWCThread {
     kRender3D = 1 << 1,  // Render content.
     kRenderMedia = 1 << 2,
     kReleaseResources = 1 << 3,  // Release surfaces from plane manager.
+    kRefreshRawPixelData = 1 << 4
   };
 
-  void ReleaseGpuResources();
   void Handle3DDrawRequest();
   void HandleMediaDrawRequest();
   void HandleReleaseRequest();
+  void HandleRawPixelUpdate();
   void Wait();
   void Ensure3DRenderer();
   void EnsureMediaRenderer();
 
   SpinLock tasks_lock_;
+  SpinLock pixel_data_lock_;
   std::unique_ptr<Renderer> gl_renderer_;
   std::unique_ptr<Renderer> media_renderer_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
   std::vector<OverlayBuffer*> buffers_;
+  std::vector<OverlayBuffer*> pixel_data_;
   std::vector<DrawState> states_;
   std::vector<DrawState> media_states_;
+  std::vector<ResourceHandle> purged_resources_;
   bool disable_explicit_sync_;
-  bool release_all_resources_;
-  DisplayPlaneManager* plane_manager_ = NULL;
+  bool draw_succeeded_ = false;
+  ResourceManager* resource_manager_ = NULL;
   uint32_t tasks_ = kNone;
+  uint32_t gpu_fd_ = 0;
   FDHandler fd_chandler_;
   HWCEvent cevent_;
 };

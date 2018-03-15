@@ -88,7 +88,7 @@ class IAHWC2 : public hwc2_device_t {
     }
 
     bool IsCursorLayer() const {
-      return is_cursor_layer_;
+      return hwc_layer_.IsCursorLayer();
     }
 
     // Layer hooks
@@ -112,7 +112,6 @@ class IAHWC2 : public hwc2_device_t {
     // validated_type_ stores the type after running ValidateDisplay
     HWC2::Composition sf_type_ = HWC2::Composition::Invalid;
     HWC2::Composition validated_type_ = HWC2::Composition::Invalid;
-    bool is_cursor_layer_ = false;
     android_dataspace_t dataspace_ = HAL_DATASPACE_UNKNOWN;
     hwcomposer::HwcLayer hwc_layer_;
     struct gralloc_handle native_handle_;
@@ -124,10 +123,12 @@ class IAHWC2 : public hwc2_device_t {
     HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
-                     bool disable_explicit_sync);
+                     bool disable_explicit_sync, uint32_t scaling_mode);
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
                                    uint32_t width, uint32_t height,
                                    bool disable_explicit_sync);
+    HWC2::Error InitNestedDisplay(hwcomposer::NativeDisplay *display,
+                                  bool disable_explicit_sync);
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
@@ -185,7 +186,6 @@ class IAHWC2 : public hwc2_device_t {
     hwcomposer::NativeDisplay *display_ = NULL;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
-    int layer_idx_ = 0;
     std::map<hwc2_layer_t, Hwc2Layer> layers_;
     Hwc2Layer client_layer_;
     int32_t color_mode_;
@@ -194,6 +194,8 @@ class IAHWC2 : public hwc2_device_t {
     // True after validateDisplay
     bool checkValidateDisplay = false;
     bool disable_explicit_sync_ = false;
+    bool enable_nested_display_compose_ = false;
+    uint32_t scaling_mode_ = 0;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
@@ -225,7 +227,12 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>(
           (hwc->virtual_display_.*func)(std::forward<Args>(args)...));
     }
-
+#ifdef NESTED_DISPLAY_SUPPORT
+    if (display_handle == HWC_DISPLAY_NESTED) {
+      return static_cast<int32_t>(
+          (hwc->nested_display_.*func)(std::forward<Args>(args)...));
+    }
+#endif
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       return static_cast<int32_t>(
@@ -250,7 +257,12 @@ class IAHWC2 : public hwc2_device_t {
       Hwc2Layer &layer = hwc->virtual_display_.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
-
+#ifdef NESTED_DISPLAY_SUPPORT
+    if (display_handle == HWC_DISPLAY_NESTED) {
+      Hwc2Layer &layer = hwc->nested_display_.get_layer(layer_handle);
+      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+    }
+#endif
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       Hwc2Layer &layer = display->get_layer(layer_handle);
@@ -282,9 +294,11 @@ class IAHWC2 : public hwc2_device_t {
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
   HwcDisplay virtual_display_;
+  HwcDisplay nested_display_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;
+  uint32_t scaling_mode_ = 0;
 };
 }  // namespace android
 

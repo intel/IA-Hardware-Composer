@@ -69,6 +69,10 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
 
+ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
+LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+endif
+
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
 
 LOCAL_CPPFLAGS += \
@@ -119,7 +123,6 @@ LOCAL_C_INCLUDES += \
 
 ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow
-LOCAL_CFLAGS += -DUSE_PROCESS_STATE
 endif
 
 ifeq ($(strip $(BOARD_CURSOR_WA)), true)

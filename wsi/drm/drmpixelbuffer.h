@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,22 +14,24 @@
 // limitations under the License.
 */
 
-#include "vasurface.h"
+#ifndef WSI_DRM_PIXELBUFFER_H_
+#define WSI_DRM_PIXELBUFFER_H_
 
-#include "hwctrace.h"
-#include "overlaybuffer.h"
+#include "pixelbuffer.h"
 
 namespace hwcomposer {
 
-VASurface::VASurface(uint32_t width, uint32_t height)
-    : NativeSurface(width, height) {
-}
+class ResourceManager;
 
-VASurface::~VASurface() {
-}
+class DrmPixelBuffer : public PixelBuffer {
+ public:
+  DrmPixelBuffer();
+  ~DrmPixelBuffer() override;
 
-bool VASurface::MakeCurrent() {
-  return true;
-}
+  void* Map(uint32_t prime_fd, size_t size) override;
+
+  void Unmap(uint32_t prime_fd, void* addr, size_t size) override;
+};
 
 }  // namespace hwcomposer
+#endif

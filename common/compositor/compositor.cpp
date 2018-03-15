@@ -37,20 +37,24 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(DisplayPlaneManager *plane_manager) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(plane_manager);
-}
-
-void Compositor::EnsureTasksAreDone() {
-  thread_->EnsureTasksAreDone();
+  thread_->Initialize(resource_manager, gpu_fd);
 }
 
 bool Compositor::BeginFrame(bool disable_explicit_sync) {
   thread_->SetExplicitSyncSupport(disable_explicit_sync);
   return true;
+}
+
+void Compositor::UpdateLayerPixelData(std::vector<OverlayLayer> &layers) {
+  thread_->UpdateLayerPixelData(layers);
+}
+
+void Compositor::EnsurePixelDataUpdated() {
+  thread_->EnsurePixelDataUpdated();
 }
 
 void Compositor::Reset() {
@@ -68,31 +72,49 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   std::vector<DrawState> media_state;
 
   for (DisplayPlaneState &plane : comp_planes) {
-    if (plane.GetCompositionState() == DisplayPlaneState::State::kScanout) {
-      dedicated_layers.insert(dedicated_layers.end(),
-                              plane.source_layers().begin(),
-                              plane.source_layers().end());
+    if (plane.Scanout()) {
+      if (!plane.IsSurfaceRecycled()) {
+        dedicated_layers.insert(dedicated_layers.end(),
+                                plane.GetSourceLayers().begin(),
+                                plane.GetSourceLayers().end());
+      }
     } else if (plane.IsVideoPlane()) {
       dedicated_layers.insert(dedicated_layers.end(),
-                              plane.source_layers().begin(),
-                              plane.source_layers().end());
+                              plane.GetSourceLayers().begin(),
+                              plane.GetSourceLayers().end());
       media_state.emplace_back();
       DrawState &state = media_state.back();
       state.surface_ = plane.GetOffScreenTarget();
       MediaState &media_state = state.media_state_;
       lock_.lock();
       media_state.colors_ = colors_;
+      media_state.scaling_mode_ = scaling_mode_;
+      media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
-      const OverlayLayer &layer = layers[plane.source_layers().at(0)];
+      const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
-    } else if (plane.GetCompositionState() ==
-               DisplayPlaneState::State::kRender) {
+      plane.SwapSurfaceIfNeeded();
+    } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
+      plane.SwapSurfaceIfNeeded();
       std::vector<CompositionRegion> &comp_regions =
           plane.GetCompositionRegion();
-      if (comp_regions.empty()) {
-        SeparateLayers(dedicated_layers, comp->source_layers(), display_frame,
-                       comp_regions);
+      bool regions_empty = comp_regions.empty();
+      NativeSurface *surface = plane.GetOffScreenTarget();
+      if (!regions_empty &&
+          (surface->ClearSurface() || surface->IsPartialClear() ||
+           surface->IsSurfaceDamageChanged())) {
+        plane.ResetCompositionRegion();
+        regions_empty = true;
+      }
+
+      if (surface->ClearSurface()) {
+        plane.UpdateDamage(plane.GetDisplayFrame());
+      }
+
+      if (regions_empty) {
+        SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
+                       surface->GetSurfaceDamage(), comp_regions);
       }
 
       std::vector<size_t>().swap(dedicated_layers);
@@ -101,10 +123,18 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
       draw_state.emplace_back();
       DrawState &state = draw_state.back();
-      state.surface_ = plane.GetOffScreenTarget();
+      state.surface_ = surface;
       size_t num_regions = comp_regions.size();
       state.states_.reserve(num_regions);
-      if (!CalculateRenderState(layers, comp_regions, state)) {
+      bool use_plane_transform = false;
+      if (plane.GetRotationType() ==
+          DisplayPlaneState::RotationType::kGPURotation) {
+        use_plane_transform = true;
+      }
+
+      if (!CalculateRenderState(
+              layers, comp_regions, state, plane.GetDownScalingFactor(),
+              plane.IsUsingPlaneScalar(), use_plane_transform)) {
         ETRACE("Failed to calculate Render state.");
         return false;
       }
@@ -115,22 +145,23 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
     }
   }
 
+  bool status = true;
   if (!draw_state.empty() || !media_state.empty())
-    thread_->Draw(draw_state, media_state, layers);
+    status = thread_->Draw(draw_state, media_state, layers);
 
-  return true;
+  return status;
 }
 
 bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
-                               NativeBufferHandler *buffer_handler,
+                               ResourceManager *resource_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {
   std::vector<CompositionRegion> comp_regions;
   SeparateLayers(std::vector<size_t>(), source_layers, display_frame,
-                 comp_regions);
+                 HwcRect<int>(0, 0, width, height), comp_regions);
   if (comp_regions.empty()) {
     ETRACE(
         "Failed to prepare offscreen buffer. "
@@ -140,7 +171,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   }
 
   NativeSurface *surface = Create3DBuffer(width, height);
-  surface->InitializeForOffScreenRendering(buffer_handler, output_handle);
+  surface->InitializeForOffScreenRendering(output_handle, resource_manager);
   std::vector<DrawState> draw;
   std::vector<DrawState> media;
   draw.emplace_back();
@@ -149,7 +180,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
   draw_state.states_.reserve(num_regions);
-  if (!CalculateRenderState(layers, comp_regions, draw_state)) {
+  if (!CalculateRenderState(layers, comp_regions, draw_state, 1, false)) {
     ETRACE("Failed to calculate render state.");
     return false;
   }
@@ -162,27 +193,32 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     draw_state.acquire_fences_.emplace_back(acquire_fence);
   }
 
-  thread_->Draw(draw, media, layers);
-  *retire_fence = draw_state.retire_fence_;
+  bool status = thread_->Draw(draw, media, layers);
+  if (status) {
+    *retire_fence = draw_state.retire_fence_;
+  } else {
+    *retire_fence = -1;
+  }
 
-  return true;
+  return status;
 }
 
-void Compositor::FreeResources(bool all_resources) {
-  thread_->FreeResources(all_resources);
+void Compositor::FreeResources() {
+  thread_->FreeResources();
 }
 
 bool Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
-    const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state) {
+    const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
+    uint32_t downscaling_factor, bool uses_display_up_scaling,
+    bool use_plane_transform) {
   CTRACE();
   size_t num_regions = comp_regions.size();
   for (size_t region_index = 0; region_index < num_regions; region_index++) {
     const CompositionRegion &region = comp_regions.at(region_index);
     RenderState state;
-    state.ConstructState(layers, region,
-                         draw_state.surface_->GetSurfaceDamage(),
-                         draw_state.surface_->ClearSurface());
+    state.ConstructState(layers, region, downscaling_factor,
+                         uses_display_up_scaling, use_plane_transform);
     if (state.layer_state_.empty()) {
       continue;
     }
@@ -201,9 +237,16 @@ bool Compositor::CalculateRenderState(
   return true;
 }
 
+void Compositor::SetVideoScalingMode(uint32_t mode) {
+  lock_.lock();
+  scaling_mode_ = mode;
+  lock_.unlock();
+}
+
 void Compositor::SetVideoColor(HWCColorControl color, float value) {
   lock_.lock();
-  colors_[color] = value;
+  colors_[color].value_ = value;
+  colors_[color].use_default_ = false;
   lock_.unlock();
 }
 
@@ -212,8 +255,25 @@ void Compositor::GetVideoColor(HWCColorControl /*color*/, float * /*value*/,
   // TODO
 }
 
-void Compositor::RestoreVideoDefaultColor(HWCColorControl /*color*/) {
-  // TODO
+void Compositor::RestoreVideoDefaultColor(HWCColorControl color) {
+  lock_.lock();
+  colors_[color].use_default_ = true;
+  lock_.unlock();
+}
+
+void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
+                                     HWCDeinterlaceControl mode) {
+  lock_.lock();
+  deinterlace_.flag_ = flag;
+  deinterlace_.mode_ = mode;
+  lock_.unlock();
+}
+
+void Compositor::RestoreVideoDefaultDeinterlace() {
+  lock_.lock();
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
+  lock_.unlock();
 }
 
 // Below code is taken from drm_hwcomposer adopted to our needs.
@@ -231,6 +291,7 @@ static std::vector<size_t> SetBitsToVector(
 void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
                                 const std::vector<size_t> &source_layers,
                                 const std::vector<HwcRect<int>> &display_frame,
+                                const HwcRect<int> &damage_region,
                                 std::vector<CompositionRegion> &comp_regions) {
   CTRACE();
   if (source_layers.size() > 64) {
@@ -264,7 +325,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
   });
 
   std::vector<RectSet<int>> separate_regions;
-  get_draw_regions(layer_rects, &separate_regions);
+  get_draw_regions(layer_rects, damage_region, &separate_regions);
   uint64_t exclude_mask = ((uint64_t)1 << num_exclude_rects) - 1;
   uint64_t dedicated_mask = (((uint64_t)1 << dedicated_layers.size()) - 1)
                             << num_exclude_rects;
@@ -290,6 +351,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
           region.id_set.subtract(j + layer_offset);
       }
     }
+
     if (!(region.id_set.getBits() >> layer_offset))
       continue;
 

@@ -25,6 +25,7 @@
 #include <hwctrace.h>
 
 #include "commondrmutils.h"
+#include "hwcutils.h"
 #include "utils_android.h"
 
 namespace hwcomposer {
@@ -81,31 +82,116 @@ bool Gralloc1BufferHandler::Init() {
       reinterpret_cast<GRALLOC1_PFN_GET_DIMENSIONS>(gralloc1_dvc->getFunction(
           gralloc1_dvc, GRALLOC1_FUNCTION_GET_DIMENSIONS));
 
+  create_descriptor_ = reinterpret_cast<GRALLOC1_PFN_CREATE_DESCRIPTOR>(
+      gralloc1_dvc->getFunction(gralloc1_dvc,
+                                GRALLOC1_FUNCTION_CREATE_DESCRIPTOR));
+  destroy_descriptor_ = reinterpret_cast<GRALLOC1_PFN_DESTROY_DESCRIPTOR>(
+      gralloc1_dvc->getFunction(gralloc1_dvc,
+                                GRALLOC1_FUNCTION_DESTROY_DESCRIPTOR));
+
+  set_consumer_usage_ = reinterpret_cast<GRALLOC1_PFN_SET_CONSUMER_USAGE>(
+      gralloc1_dvc->getFunction(gralloc1_dvc,
+                                GRALLOC1_FUNCTION_SET_CONSUMER_USAGE));
+  set_dimensions_ =
+      reinterpret_cast<GRALLOC1_PFN_SET_DIMENSIONS>(gralloc1_dvc->getFunction(
+          gralloc1_dvc, GRALLOC1_FUNCTION_SET_DIMENSIONS));
+  set_format_ = reinterpret_cast<GRALLOC1_PFN_SET_FORMAT>(
+      gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_SET_FORMAT));
+  set_producer_usage_ = reinterpret_cast<GRALLOC1_PFN_SET_PRODUCER_USAGE>(
+      gralloc1_dvc->getFunction(gralloc1_dvc,
+                                GRALLOC1_FUNCTION_SET_PRODUCER_USAGE));
+  allocate_ = reinterpret_cast<GRALLOC1_PFN_ALLOCATE>(
+      gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_ALLOCATE));
+
   return true;
 }
 
 bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
-                                         uint32_t layer_type) {
-  return CreateGraphicsBuffer(w, h, format, handle, layer_type);
-}
-
-bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) {
-  if (!ReleaseGraphicsBuffer(handle, fd_))
-    return false;
-
+                                         uint32_t layer_type) const {
+  struct gralloc_handle *temp = new struct gralloc_handle();
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
-  release_(gralloc1_dvc, handle->imported_handle_);
+
+  create_descriptor_(gralloc1_dvc, &temp->gralloc1_buffer_descriptor_t_);
+  uint32_t usage = 0;
+  uint32_t pixel_format = 0;
+  bool force_normal_usage = false;
+  if (format != 0) {
+    pixel_format = DrmFormatToHALFormat(format);
+  }
+
+  if (pixel_format == 0) {
+    pixel_format = HAL_PIXEL_FORMAT_RGBA_8888;
+  }
+
+  set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
+
+  if ((layer_type == hwcomposer::kLayerVideo) &&
+      !IsSupportedMediaFormat(format)) {
+    ETRACE("Forcing normal usage for Video Layer. \n");
+    force_normal_usage = true;
+  }
+
+  if ((layer_type == hwcomposer::kLayerNormal) || force_normal_usage) {
+    usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER |
+             GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET |
+             GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
+  } else if (layer_type == hwcomposer::kLayerVideo) {
+    switch (pixel_format) {
+      case HAL_PIXEL_FORMAT_YCbCr_422_I:
+      case HAL_PIXEL_FORMAT_Y8:
+        usage |= GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE |
+                 GRALLOC1_PRODUCER_USAGE_VIDEO_DECODER;
+        break;
+      default:
+        usage |= GRALLOC1_PRODUCER_USAGE_CAMERA |
+                 GRALLOC1_CONSUMER_USAGE_CAMERA |
+                 GRALLOC1_PRODUCER_USAGE_VIDEO_DECODER |
+                 GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
+    }
+  } else if (layer_type == hwcomposer::kLayerCursor) {
+    usage |= GRALLOC1_CONSUMER_USAGE_CURSOR;
+  }
+
+  set_consumer_usage_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, usage);
+  set_producer_usage_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, usage);
+  set_dimensions_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, w, h);
+  allocate_(gralloc1_dvc, 1, &temp->gralloc1_buffer_descriptor_t_,
+            &temp->handle_);
+
+  if (!temp->handle_) {
+    ETRACE("Failed to allocate buffer \n");
+  }
+
+  temp->hwc_buffer_ = true;
+  *handle = temp;
 
   return true;
 }
 
-void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) {
+bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
+  gralloc1_device_t *gralloc1_dvc =
+      reinterpret_cast<gralloc1_device_t *>(device_);
+
+  if (handle->hwc_buffer_) {
+    release_(gralloc1_dvc, handle->handle_);
+  } else if (handle->imported_handle_) {
+    ReleaseGraphicsBuffer(handle, fd_);
+    release_(gralloc1_dvc, handle->imported_handle_);
+  }
+
+  if (handle->gralloc1_buffer_descriptor_t_ > 0)
+    destroy_descriptor_(gralloc1_dvc, handle->gralloc1_buffer_descriptor_t_);
+
+  return true;
+}
+
+void Gralloc1BufferHandler::DestroyHandle(HWCNativeHandle handle) const {
   DestroyBufferHandle(handle);
 }
 
-bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) {
+bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   if (!handle->imported_handle_) {
     ETRACE("could not find gralloc drm handle");
     return false;
@@ -117,7 +203,7 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) {
   return ImportGraphicsBuffer(handle, fd_);
 }
 
-uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
+uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
@@ -128,14 +214,14 @@ uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) {
 }
 
 void Gralloc1BufferHandler::CopyHandle(HWCNativeHandle source,
-                                       HWCNativeHandle *target) {
+                                       HWCNativeHandle *target) const {
   CopyBufferHandle(source, target);
 }
 
-void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x,
-                                 uint32_t y, uint32_t width,
-                                 uint32_t height, uint32_t * /*stride*/,
-                                 void ** map_data, size_t /*plane*/) {
+void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
+                                 uint32_t width, uint32_t height,
+                                 uint32_t * /*stride*/, void **map_data,
+                                 size_t /*plane*/) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");
@@ -151,14 +237,15 @@ void *Gralloc1BufferHandler::Map(HWCNativeHandle handle, uint32_t x,
 
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
-  uint32_t status = lock_(
-      gralloc1_dvc, handle->handle_, GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN,
-      GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN, &rect, map_data, acquireFence);
+  uint32_t status = lock_(gralloc1_dvc, handle->imported_handle_,
+                          GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN,
+                          GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN, &rect,
+                          map_data, acquireFence);
   return (GRALLOC1_ERROR_NONE == status) ? *map_data : NULL;
 }
 
 int32_t Gralloc1BufferHandler::UnMap(HWCNativeHandle handle,
-                                  void * /*map_data*/) {
+                                     void * /*map_data*/) const {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   if (!gr_handle) {
     ETRACE("could not find gralloc drm handle");

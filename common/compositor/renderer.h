@@ -18,6 +18,7 @@
 #define COMMON_COMPOSITOR_RENDERER_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include <vector>
 
@@ -26,6 +27,7 @@ namespace hwcomposer {
 class NativeSurface;
 struct RenderState;
 struct MediaState;
+struct media_import;
 
 class Renderer {
  public:
@@ -39,14 +41,20 @@ class Renderer {
   virtual bool Init() {
     return false;
   }
+
   virtual bool Draw(const std::vector<RenderState>& /*commands*/,
-                    NativeSurface* /*surface*/, bool /*clear_surface*/) {
+                    NativeSurface* /*surface*/) {
     return false;
   }
 
   // Needs to be implemented for Media Renderer's only.
   virtual bool Init(int /*gpu_fd*/) {
     return false;
+  }
+
+  virtual bool DestroyMediaResources(
+      std::vector<struct media_import>& /*resources*/) {
+    return true;
   }
 
   virtual bool Draw(const MediaState& /*state*/, NativeSurface* /*surface*/) {

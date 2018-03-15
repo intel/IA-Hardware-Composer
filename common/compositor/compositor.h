@@ -30,8 +30,8 @@
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
 class DisplayPlaneManager;
+class ResourceManager;
 struct OverlayLayer;
 
 class Compositor {
@@ -39,40 +39,54 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(DisplayPlaneManager *plane_manager);
+  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
   void Reset();
 
   Compositor(const Compositor &) = delete;
 
-  void EnsureTasksAreDone();
   bool BeginFrame(bool disable_explicit_sync);
+  // We offload uploading pixel data to compositor thread while
+  // DisplayQueue continues to validate layers.
+  void UpdateLayerPixelData(std::vector<OverlayLayer> &layers);
+  // We are ready to commit ensure any UpdateLayerPixelData requests
+  // are handled.
+  void EnsurePixelDataUpdated();
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     NativeBufferHandler *buffer_handler, uint32_t width,
+                     ResourceManager *resource_manager, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t acquire_fence, int32_t *retire_fence);
-  void FreeResources(bool all_resources);
+  void FreeResources();
 
- void SetVideoColor(HWCColorControl color, float value);
- void GetVideoColor(HWCColorControl color,
-                    float* value, float* start, float* end);
- void RestoreVideoDefaultColor(HWCColorControl color);
+  void SetVideoScalingMode(uint32_t);
+  void SetVideoColor(HWCColorControl color, float value);
+  void GetVideoColor(HWCColorControl color, float *value, float *start,
+                     float *end);
+  void RestoreVideoDefaultColor(HWCColorControl color);
+
+  void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
+  void RestoreVideoDefaultDeinterlace();
 
  private:
   bool CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
-                            DrawState &state);
+                            DrawState &state, uint32_t downscaling_factor,
+                            bool uses_display_up_scaling,
+                            bool use_plane_transform = false);
   void SeparateLayers(const std::vector<size_t> &dedicated_layers,
                       const std::vector<size_t> &source_layers,
                       const std::vector<HwcRect<int>> &display_frame,
+                      const HwcRect<int> &damage_region,
                       std::vector<CompositionRegion> &comp_regions);
 
   std::unique_ptr<CompositorThread> thread_;
   SpinLock lock_;
   HWCColorMap colors_;
+  uint32_t scaling_mode_;
+  HWCDeinterlaceProp deinterlace_;
 };
 
 }  // namespace hwcomposer

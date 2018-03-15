@@ -21,8 +21,11 @@
 #include "nativegpuresource.h"
 #include "overlaylayer.h"
 #include "renderer.h"
+#include "resourcemanager.h"
 #include "displayplanemanager.h"
 #include "nativesurface.h"
+
+#include <nativebufferhandler.h>
 
 namespace hwcomposer {
 
@@ -36,12 +39,14 @@ CompositorThread::CompositorThread() : HWCThread(-8, "CompositorThread") {
 CompositorThread::~CompositorThread() {
 }
 
-void CompositorThread::Initialize(DisplayPlaneManager *plane_manager) {
+void CompositorThread::Initialize(ResourceManager *resource_manager,
+                                  uint32_t gpu_fd) {
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
     gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
 
-  plane_manager_ = plane_manager;
+  resource_manager_ = resource_manager;
+  gpu_fd_ = gpu_fd;
   tasks_lock_.unlock();
   if (!InitWorker()) {
     ETRACE("Failed to initalize CompositorThread. %s", PRINTERROR());
@@ -52,13 +57,30 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
-void CompositorThread::EnsureTasksAreDone() {
-  tasks_lock_.lock();
-  tasks_lock_.unlock();
+void CompositorThread::UpdateLayerPixelData(std::vector<OverlayLayer> &layers) {
+  if (!layers.empty()) {
+    pixel_data_lock_.lock();
+    std::vector<OverlayBuffer *>().swap(pixel_data_);
+    for (auto &layer : layers) {
+      if (layer.RawPixelDataChanged()) {
+        pixel_data_.emplace_back(layer.GetBuffer());
+      }
+    }
+
+    tasks_ |= kRefreshRawPixelData;
+  }
+
+  if (!pixel_data_.empty()) {
+    Resume();
+  }
 }
 
-void CompositorThread::FreeResources(bool all_resources) {
-  release_all_resources_ = all_resources;
+void CompositorThread::EnsurePixelDataUpdated() {
+  pixel_data_lock_.lock();
+  pixel_data_lock_.unlock();
+}
+
+void CompositorThread::FreeResources() {
   tasks_lock_.lock();
   tasks_ |= kReleaseResources;
   tasks_lock_.unlock();
@@ -78,7 +100,7 @@ void CompositorThread::Wait() {
   }
 }
 
-void CompositorThread::Draw(std::vector<DrawState> &states,
+bool CompositorThread::Draw(std::vector<DrawState> &states,
                             std::vector<DrawState> &media_states,
                             const std::vector<OverlayLayer> &layers) {
   states_.swap(states);
@@ -99,25 +121,25 @@ void CompositorThread::Draw(std::vector<DrawState> &states,
     tasks_ |= kRenderMedia;
   }
 
+  // We start of assuming that the draw calls
+  // succeed.
+  draw_succeeded_ = true;
   tasks_lock_.unlock();
   Resume();
   Wait();
+  return draw_succeeded_;
 }
 
 void CompositorThread::ExitThread() {
-  FreeResources(true);
   HWCThread::Exit();
   std::vector<DrawState>().swap(states_);
   std::vector<OverlayBuffer *>().swap(buffers_);
-  release_all_resources_ = false;
-}
-
-void CompositorThread::ReleaseGpuResources() {
-  gpu_resource_handler_->ReleaseGPUResources();
 }
 
 void CompositorThread::HandleExit() {
+  HandleReleaseRequest();
   gl_renderer_.reset(nullptr);
+  gpu_resource_handler_.reset(nullptr);
 }
 
 void CompositorThread::HandleRoutine() {
@@ -136,6 +158,10 @@ void CompositorThread::HandleRoutine() {
     HandleReleaseRequest();
   }
 
+  if (tasks_ & kRefreshRawPixelData) {
+    HandleRawPixelUpdate();
+  }
+
   if (signal) {
     cevent_.Signal();
   }
@@ -145,21 +171,82 @@ void CompositorThread::HandleReleaseRequest() {
   ScopedSpinLock lock(tasks_lock_);
   tasks_ &= ~kReleaseResources;
 
-  if (!plane_manager_)
-    return;
+  std::vector<ResourceHandle> purged_gl_resources;
+  std::vector<MediaResourceHandle> purged_media_resources;
+  bool has_gpu_resource = false;
+  resource_manager_->GetPurgedResources(
+      purged_gl_resources, purged_media_resources, &has_gpu_resource);
+  size_t purged_size = purged_gl_resources.size();
 
-  if (!plane_manager_->HasSurfaces())
-    return;
+  if (purged_size != 0) {
+    if (has_gpu_resource) {
+      Ensure3DRenderer();
+      gpu_resource_handler_->ReleaseGPUResources(purged_gl_resources);
+    }
 
-  Ensure3DRenderer();
+    const NativeBufferHandler *handler =
+        resource_manager_->GetNativeBufferHandler();
 
-  if (release_all_resources_) {
-    gpu_resource_handler_->ReleaseGPUResources();
-    plane_manager_->ReleaseAllOffScreenTargets();
-    gpu_resource_handler_.reset(nullptr);
-  } else {
-    plane_manager_->ReleaseFreeOffScreenTargets();
+    for (size_t i = 0; i < purged_size; i++) {
+      const ResourceHandle &handle = purged_gl_resources.at(i);
+      if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
+        ETRACE("Failed to remove fb %s", PRINTERROR());
+      }
+
+      if (!handle.handle_) {
+        continue;
+      }
+
+      handler->ReleaseBuffer(handle.handle_);
+      handler->DestroyHandle(handle.handle_);
+    }
   }
+
+  purged_size = purged_media_resources.size();
+
+  if (purged_size != 0) {
+    EnsureMediaRenderer();
+    media_renderer_->DestroyMediaResources(purged_media_resources);
+
+    const NativeBufferHandler *handler =
+        resource_manager_->GetNativeBufferHandler();
+
+    for (size_t i = 0; i < purged_size; i++) {
+      const MediaResourceHandle &handle = purged_media_resources.at(i);
+      if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
+        ETRACE("Failed to remove fb %s", PRINTERROR());
+      }
+
+      if (!handle.handle_) {
+        continue;
+      }
+
+      handler->ReleaseBuffer(handle.handle_);
+      handler->DestroyHandle(handle.handle_);
+    }
+  }
+}
+
+void CompositorThread::HandleRawPixelUpdate() {
+  tasks_lock_.lock();
+  tasks_ &= ~kRefreshRawPixelData;
+  tasks_lock_.unlock();
+
+  std::vector<OverlayBuffer *> texture_uploads;
+  for (auto &buffer : pixel_data_) {
+    if (buffer->NeedsTextureUpload()) {
+      texture_uploads.emplace_back(buffer);
+    } else {
+      buffer->RefreshPixelData();
+    }
+  }
+
+  if (!texture_uploads.empty()) {
+    Ensure3DRenderer();
+    gpu_resource_handler_->HandleTextureUploads(texture_uploads);
+  }
+
+  pixel_data_lock_.unlock();
 }
 
 void CompositorThread::Handle3DDrawRequest() {
@@ -169,6 +256,7 @@ void CompositorThread::Handle3DDrawRequest() {
 
   Ensure3DRenderer();
   if (!gl_renderer_) {
+    draw_succeeded_ = false;
     return;
   }
 
@@ -179,7 +267,7 @@ void CompositorThread::Handle3DDrawRequest() {
         "Failed to prepare GPU resources for compositing the frame, "
         "error: %s",
         PRINTERROR());
-    ReleaseGpuResources();
+    draw_succeeded_ = false;
     return;
   }
 
@@ -203,18 +291,21 @@ void CompositorThread::Handle3DDrawRequest() {
 
     std::vector<int32_t>().swap(draw_state.acquire_fences_);
 
-    if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_,
-                            draw_state.surface_->ClearSurface())) {
+    if (!gl_renderer_->Draw(draw_state.states_, draw_state.surface_)) {
       ETRACE(
-          "Failed to prepare GPU resources for compositing the frame, "
+          "Failed to Draw: "
           "error: %s",
           PRINTERROR());
+      draw_succeeded_ = false;
       break;
     }
 
     if (draw_state.destroy_surface_) {
-      draw_state.retire_fence_ =
-          draw_state.surface_->GetLayer()->ReleaseAcquireFence();
+      if (draw_succeeded_) {
+        draw_state.retire_fence_ =
+            draw_state.surface_->GetLayer()->ReleaseAcquireFence();
+      }
+
       delete draw_state.surface_;
     }
   }
@@ -230,6 +321,7 @@ void CompositorThread::HandleMediaDrawRequest() {
 
   EnsureMediaRenderer();
   if (!media_renderer_) {
+    draw_succeeded_ = false;
     return;
   }
 
@@ -241,6 +333,7 @@ void CompositorThread::HandleMediaDrawRequest() {
           "Failed to render the frame by VA, "
           "error: %s\n",
           PRINTERROR());
+      draw_succeeded_ = false;
       break;
     }
   }
@@ -259,7 +352,7 @@ void CompositorThread::Ensure3DRenderer() {
 void CompositorThread::EnsureMediaRenderer() {
   if (!media_renderer_) {
     media_renderer_.reset(CreateMediaRenderer());
-    if (!media_renderer_->Init(plane_manager_->GetGpuFd())) {
+    if (!media_renderer_->Init(gpu_fd_)) {
       ETRACE("Failed to initialize Media Renderer %s", PRINTERROR());
       media_renderer_.reset(nullptr);
     }

@@ -59,8 +59,7 @@ struct HwcLayer {
     return source_crop_;
   }
 
-  void SetDisplayFrame(const HwcRect<int>& display_frame,
-                       uint32_t translate_x_pos);
+  void SetDisplayFrame(const HwcRect<int>& display_frame, int translate_x_pos);
   const HwcRect<int>& GetDisplayFrame() const {
     return display_frame_;
   }
@@ -100,11 +99,12 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if layer has been damaged
-   * from last Present call to NativeDisplay.
+   * API for querying damage region of this layer
+   * has changed from last Present call to
+   * NativeDisplay.
    */
   bool HasSurfaceDamageRegionChanged() const {
-    return state_ & kSurfaceDamaged;
+    return state_ & kSurfaceDamageChanged;
   }
 
   /**
@@ -173,16 +173,6 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying if layer attributes has
-   * changed from last Present call to NativeDisplay.
-   * This takes into consideration any changes to
-   * alpha and blending.
-   */
-  bool HasContentAttributesChanged() const {
-    return layer_cache_ & kDIsplayContentAttributesChanged;
-  }
-
-  /**
    * API for setting release fence for this layer.
    * @param fd will be populated with Native Fence object.
    *        When fd is signalled, any previous frame
@@ -236,6 +226,10 @@ struct HwcLayer {
     return z_order_;
   }
 
+  bool HasZorderChanged() const {
+    return state_ & kZorderChanged;
+  }
+
   void SetLeftConstraint(int32_t left_constraint);
   int32_t GetLeftConstraint();
 
@@ -248,25 +242,39 @@ struct HwcLayer {
   void SetRightSourceConstraint(int32_t right_constraint);
   int32_t GetRightSourceConstraint();
 
+  void MarkAsCursorLayer();
+  bool IsCursorLayer() const;
+
+  /**
+   * API for getting damage area caused by this layer for current
+   * frame update.
+   */
+  const HwcRect<int>& GetLayerDamage();
+
  private:
   void Validate();
+  void UpdateRenderingDamage(const HwcRect<int>& old_rect,
+                             const HwcRect<int>& newrect, bool same_rect);
+
+  void SetTotalDisplays(uint32_t total_displays);
   friend class VirtualDisplay;
   friend class PhysicalDisplay;
+  friend class MosaicDisplay;
 
   enum LayerState {
-    kSurfaceDamaged = 1 << 0,
+    kSurfaceDamageChanged = 1 << 0,
     kLayerContentChanged = 1 << 1,
     kVisibleRegionChanged = 1 << 2,
     kVisible = 1 << 3,
     kLayerValidated = 1 << 4,
-    kVisibleRegionSet = 1 << 5
+    kVisibleRegionSet = 1 << 5,
+    kZorderChanged = 1 << 6
   };
 
   enum LayerCache {
     kLayerAttributesChanged = 1 << 0,
     kDisplayFrameRectChanged = 1 << 1,
-    kDIsplayContentAttributesChanged = 1 << 2,
-    kSourceRectChanged = 1 << 3
+    kSourceRectChanged = 1 << 2
   };
 
   int32_t transform_ = 0;
@@ -279,6 +287,7 @@ struct HwcLayer {
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
   HwcRect<int> visible_rect_;
+  HwcRect<int> current_rendering_damage_;
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   HWCNativeHandle sf_handle_ = 0;
   int32_t release_fd_ = -1;
@@ -287,10 +296,12 @@ struct HwcLayer {
   std::vector<int32_t> right_constraint_;
   std::vector<int32_t> left_source_constraint_;
   std::vector<int32_t> right_source_constraint_;
-  uint32_t z_order_ = 0;
-  int state_ = kVisible | kSurfaceDamaged | kVisibleRegionChanged;
-  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged |
-                     kDIsplayContentAttributesChanged;
+  int z_order_ = -1;
+  uint32_t total_displays_ = 1;
+  int state_ =
+      kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
+  int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
+  bool is_cursor_layer_ = false;
 };
 
 }  // namespace hwcomposer

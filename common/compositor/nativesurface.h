@@ -19,17 +19,22 @@
 
 #include <memory>
 
-#include "overlaybuffer.h"
 #include "overlaylayer.h"
 #include "platformdefines.h"
 
 namespace hwcomposer {
 
-class NativeBufferHandler;
+class ResourceManager;
 class DisplayPlaneState;
 
 class NativeSurface {
  public:
+  enum ClearType {
+    kNone = 0,         // No need to clear the buffer.
+    kFullClear = 1,    // Clear the whole buffer.
+    kPartialClear = 2  // Clear rect equal to SurfaceDamage of this layer.
+  };
+
   NativeSurface() = default;
   NativeSurface(uint32_t width, uint32_t height);
   NativeSurface(const NativeSurface& rhs) = delete;
@@ -37,13 +42,14 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(NativeBufferHandler* buffer_handler, uint32_t format,
-            bool cursor_layer = false);
+  bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage);
 
-  bool InitializeForOffScreenRendering(NativeBufferHandler* buffer_handler,
-                                       HWCNativeHandle native_handle);
+  bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
+                                       ResourceManager* resource_manager);
 
-  virtual bool MakeCurrent() = 0;
+  virtual bool MakeCurrent() {
+    return false;
+  }
 
   int GetWidth() const {
     return width_;
@@ -59,46 +65,79 @@ class NativeSurface {
 
   void SetNativeFence(int32_t fd);
 
-  void SetInUse(bool inuse);
-  void SetClearSurface(bool clear_surface);
+  void SetClearSurface(NativeSurface::ClearType clear_surface);
 
-  bool InUse() const {
-    return in_use_;
+  // Set's the no of frames before this
+  // surface goes from offscreen to onscreen
+  // and than offscreen.
+  // 2 indicates that the surface is in queue to
+  // be updated during next vblank.
+  // 1 indicates that the surface is now onscreen.
+  // 0 indicates that the surface is offscreen
+  // and is not yet queued to be presented.
+  // -1 Surface can be deleted or recycled.
+  void SetSurfaceAge(int age);
+
+  int GetSurfaceAge() const {
+    return surface_age_;
   }
 
   bool ClearSurface() const {
-    return clear_surface_;
+    return clear_surface_ == kFullClear;
   }
 
-  void SetPlaneTarget(DisplayPlaneState& plane, uint32_t gpu_fd);
+  bool IsPartialClear() const {
+    return clear_surface_ == kPartialClear;
+  }
+
+  void SetPlaneTarget(const DisplayPlaneState& plane, uint32_t gpu_fd);
 
   // Resets DisplayFrame, SurfaceDamage to display_frame.
   void ResetDisplayFrame(const HwcRect<int>& display_frame);
-  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
-                           const HwcRect<int>& last_surface_damage);
 
-  const HwcRect<int>& GetLastSurfaceDamage() const {
-    return last_surface_damage_;
-  }
+  // Resets Source Crop to source_crop.
+  void ResetSourceCrop(const HwcRect<float>& source_crop);
+
+  // Set's Damage rect of this surface.
+  void UpdateSurfaceDamage(const HwcRect<int>& currentsurface_damage,
+                           bool force);
+
+  // Resets damage of this surface to empty.
+  void ResetDamage();
+
+  // Return's damage area of this surface.
   const HwcRect<int>& GetSurfaceDamage() const {
     return surface_damage_;
   }
 
+  // Applies rotation transform to this surface.
+  void SetTransform(uint32_t transform);
+
+  // Returns true in case damage of this surface has changed
+  // compared to previous frame.
+  bool IsSurfaceDamageChanged() const;
+
+  // Returns true if this surface has been scanned out with the plane
+  // it's associated with currently.
+  bool IsOnScreen() const {
+    return on_screen_;
+  }
+
  protected:
   OverlayLayer layer_;
+  ResourceManager* resource_manager_;
 
  private:
-  void InitializeLayer(NativeBufferHandler* buffer_handler,
-                       HWCNativeHandle native_handle);
+  void InitializeLayer(HWCNativeHandle native_handle);
   HWCNativeHandle native_handle_;
-  NativeBufferHandler* buffer_handler_;
   int width_;
   int height_;
-  bool in_use_;
-  bool clear_surface_;
-  uint32_t framebuffer_format_;
+  ClearType clear_surface_;
+  int surface_age_;
+  bool damage_changed_ = true;
+  bool on_screen_ = false;
   HwcRect<int> surface_damage_;
-  HwcRect<int> last_surface_damage_;
+  HwcRect<int> previous_damage_;
 };
 
 }  // namespace hwcomposer

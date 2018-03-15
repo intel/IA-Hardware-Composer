@@ -34,10 +34,12 @@ class NativeGLResource : public NativeGpuResource {
   bool PrepareResources(const std::vector<OverlayBuffer*>& buffers) override;
   GpuResourceHandle GetResourceHandle(uint32_t layer_index) const override;
 
-  void ReleaseGPUResources() override;
+  void ReleaseGPUResources(const std::vector<ResourceHandle>& handles) override;
+
+  void HandleTextureUploads(
+      const std::vector<OverlayBuffer*>& buffers) override;
 
  private:
-  void Reset();
   std::vector<GLuint> layer_textures_;
 };
 
