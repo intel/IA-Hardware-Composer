@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "displayplane.h"
+#include "drmbuffer.h"
 
 namespace hwcomposer {
 
@@ -46,6 +47,8 @@ class DrmPlane : public DisplayPlane {
                         bool test_commit = false) const;
 
   void SetNativeFence(int32_t fd);
+
+  void SetBuffer(std::shared_ptr<OverlayBuffer>& buffer);
 
   bool Disable(drmModeAtomicReqPtr property_set);
 
@@ -125,6 +128,7 @@ class DrmPlane : public DisplayPlane {
     uint32_t format;
   } format_mods;
   std::vector<format_mods> formats_modifiers_;
+  std::shared_ptr<OverlayBuffer> buffer_ = NULL;
 };
 
 }  // namespace hwcomposer
