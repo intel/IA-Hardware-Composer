@@ -104,6 +104,8 @@ struct OverlayLayer {
                  ResourceManager* buffer_manager, bool register_buffer,
                  HwcLayer* layer = NULL);
 
+  std::shared_ptr<OverlayBuffer>& GetSharedBuffer() const;
+
   void SetSourceCrop(const HwcRect<float>& source_crop);
   const HwcRect<float>& GetSourceCrop() const {
     return source_crop_;
