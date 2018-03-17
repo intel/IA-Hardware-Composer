@@ -38,8 +38,6 @@ DrmBuffer::~DrmBuffer() {
     resource_manager_->MarkResourceForDeletion(image_, image_.texture_ > 0);
   } else {
     if (image_.texture_ > 0) {
-      image_.handle_ = 0;
-      image_.drm_fd_ = 0;
       resource_manager_->MarkResourceForDeletion(image_, true);
     }
 

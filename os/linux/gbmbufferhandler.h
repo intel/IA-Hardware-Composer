@@ -44,6 +44,9 @@ class GbmBufferHandler : public NativeBufferHandler {
             uint32_t height, uint32_t *stride, void **map_data,
             size_t plane) const override;
   int32_t UnMap(HWCNativeHandle handle, void *map_data) const override;
+  uint32_t GetFd( ) const override {
+  	return fd_;
+  }
 
  private:
   uint32_t fd_;
