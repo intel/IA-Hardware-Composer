@@ -61,8 +61,8 @@ class ResourceManager {
   ~ResourceManager();
   void Dump();
   std::shared_ptr<OverlayBuffer>& FindCachedBuffer(
-      const HWCNativeBuffer& native_buffer);
-  void RegisterBuffer(const HWCNativeBuffer& native_buffer,
+      const uint32_t& native_buffer);
+  void RegisterBuffer(const uint32_t& native_buffer,
                       std::shared_ptr<OverlayBuffer>& pBuffer);
   void MarkResourceForDeletion(const ResourceHandle& handle,
                                bool has_valid_gpu_resources);
@@ -85,8 +85,7 @@ class ResourceManager {
 
  private:
 #define BUFFER_CACHE_LENGTH 4
-  typedef std::unordered_map<HWCNativeBuffer, std::shared_ptr<OverlayBuffer>,
-                             BufferHash, BufferEqual> BUFFER_MAP;
+  typedef std::unordered_map<uint32_t, std::shared_ptr<OverlayBuffer>> BUFFER_MAP;
   std::vector<BUFFER_MAP> cached_buffers_;
   // This should be used in same thread handling
   // Present in NativeDisplay.
