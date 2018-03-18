@@ -81,19 +81,57 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   eglMakeCurrent(gl_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, gl_->context);
 
-  const EGLint image_attrs[] = {
-      EGL_WIDTH,                     (EGLint)width,
-      EGL_HEIGHT,                    (EGLint)height,
-      EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_XRGB8888,
-      EGL_DMA_BUF_PLANE0_FD_EXT,     (EGLint)fd_,
-      EGL_DMA_BUF_PLANE0_PITCH_EXT,  (EGLint)stride_,
-      EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-      EGL_NONE,
-  };
+  if (!handle_->meta_data_.modifier) {
+    const EGLint image_attrs[] = {
+        EGL_WIDTH,                     (EGLint)width,
+        EGL_HEIGHT,                    (EGLint)height,
+        EGL_LINUX_DRM_FOURCC_EXT,      DRM_FORMAT_XRGB8888,
+        EGL_DMA_BUF_PLANE0_FD_EXT,     (EGLint)fd_,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT,  (EGLint)stride_,
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+        EGL_NONE,
+    };
+    egl_image_ = gl_->eglCreateImageKHR(gl_->display, EGL_NO_CONTEXT,
+                                        EGL_LINUX_DMA_BUF_EXT,
+                                        (EGLClientBuffer)NULL, image_attrs);
+  } else {
+    uint64_t modifier = handle_->meta_data_.modifier;
+    EGLint modifier_low = (EGLint)modifier;
+    EGLint modifier_high = (EGLint)(modifier >> 32);
+    const EGLint image_attrs[] = {
+        EGL_WIDTH,
+        (EGLint)width,
+        EGL_HEIGHT,
+        (EGLint)height,
+        EGL_LINUX_DRM_FOURCC_EXT,
+        DRM_FORMAT_XRGB8888,
+        EGL_DMA_BUF_PLANE0_FD_EXT,
+        (EGLint)fd_,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT,
+        (EGLint)handle_->meta_data_.pitches_[0],
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+        (EGLint)handle_->meta_data_.offsets_[0],
+        EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+        modifier_low,
+        EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
+        modifier_high,
+        EGL_DMA_BUF_PLANE1_FD_EXT,
+        (EGLint)fd_,
+        EGL_DMA_BUF_PLANE1_PITCH_EXT,
+        (EGLint)handle_->meta_data_.pitches_[1],
+        EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+        (EGLint)handle_->meta_data_.offsets_[1],
+        EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT,
+        modifier_low,
+        EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT,
+        modifier_high,
+        EGL_NONE,
+    };
+    egl_image_ = gl_->eglCreateImageKHR(gl_->display, EGL_NO_CONTEXT,
+                                        EGL_LINUX_DMA_BUF_EXT,
+                                        (EGLClientBuffer)NULL, image_attrs);
+  }
 
-  egl_image_ = gl_->eglCreateImageKHR(gl_->display, EGL_NO_CONTEXT,
-                                      EGL_LINUX_DMA_BUF_EXT,
-                                      (EGLClientBuffer)NULL, image_attrs);
   if (!egl_image_) {
     printf("failed to create EGLImage from gbm_bo\n");
     return false;

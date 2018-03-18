@@ -36,6 +36,11 @@ if !ENABLE_GBM
 AM_CPPFLAGS += -DUSE_MINIGBM
 endif
 
+
+if !ENABLE_VULKAN
+AM_CPPFLAGS += -DENABLE_RBC
+endif
+
 libhwcomposer_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
