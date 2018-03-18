@@ -47,7 +47,7 @@ bool LayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
   width_ = handle_->meta_data_.width_;
   height_ = handle_->meta_data_.height_;
   stride_ = handle_->meta_data_.pitches_[0];
-  fd_ = handle_->meta_data_.prime_fd_;
+  fd_ = handle_->meta_data_.prime_fds_[0];
   planes_ = buffer_handler_->GetTotalPlanes(handle_);
   format_ = format;
 

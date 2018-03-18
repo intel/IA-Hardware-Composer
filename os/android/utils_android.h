@@ -227,17 +227,29 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (!handle)
     return false;
 
-  uint32_t gem_handle = handle->meta_data_.gem_handles_[0];
-  if (gem_handle > 0) {
-    struct drm_gem_close gem_close;
+  uint32_t total_planes = handle->meta_data_.num_planes_;
+  struct drm_gem_close gem_close;
+  int ret = 0;
+  int last_gem_handle = -1;
+
+  for (uint32_t plane = 0; plane < total_planes; plane++) {
+    uint32_t current_gem_handle = handle->meta_data_.gem_handles_[plane];
+    if ((last_gem_handle != -1) &&
+        (current_gem_handle == static_cast<uint32_t>(last_gem_handle))) {
+      break;
+    }
+
     memset(&gem_close, 0, sizeof(gem_close));
-    gem_close.handle = gem_handle;
-    int ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+    last_gem_handle = current_gem_handle;
+    gem_close.handle = current_gem_handle;
+
+    ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
     if (ret) {
       ETRACE(
           "Failed to close gem handle ErrorCode: %d PrimeFD: %d HWCBuffer: %d "
           "GemHandle: %d  \n",
-          ret, handle->meta_data_.prime_fd_, handle->hwc_buffer_, gem_handle);
+          ret, handle->meta_data_.prime_fds_[plane], handle->hwc_buffer_,
+          current_gem_handle);
     }
   }
 
@@ -251,19 +263,20 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   handle->meta_data_.tiling_mode_ = gr_handle->tiling_mode;
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;
-  handle->meta_data_.prime_fd_ = gr_handle->fds[0];
   handle->meta_data_.native_format_ = gr_handle->droid_format;
 
-  uint32_t id = 0;
-  if (drmPrimeFDToHandle(fd, handle->meta_data_.prime_fd_, &id)) {
-    ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
-    return false;
-  }
+  int32_t numplanes = gr_handle->base.numFds;
+  handle->meta_data_.num_planes_ = numplanes;
 
-  for (size_t p = 0; p < DRV_MAX_PLANES; p++) {
+  for (int32_t p = 0; p < numplanes; p++) {
     handle->meta_data_.offsets_[p] = gr_handle->offsets[p];
     handle->meta_data_.pitches_[p] = gr_handle->strides[p];
-    handle->meta_data_.gem_handles_[p] = id;
+    handle->meta_data_.prime_fds_[p] = gr_handle->fds[p];
+    if (drmPrimeFDToHandle(fd, gr_handle->fds[p],
+                           &handle->meta_data_.gem_handles_[p])) {
+      ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
+      return false;
+    }
   }
 
   if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {

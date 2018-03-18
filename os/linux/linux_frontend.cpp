@@ -332,8 +332,6 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   hwc_handle_.import_data.format = gbm_bo_get_format(bo);
   hwc_handle_.import_data.fd = gbm_bo_get_fd(bo);
   hwc_handle_.import_data.stride = gbm_bo_get_stride(bo);
-  hwc_handle_.total_planes =
-      drm_bo_get_num_planes(hwc_handle_.import_data.format);
   hwc_handle_.bo = bo;
   hwc_handle_.hwc_buffer_ = true;
   hwc_handle_.gbm_flags = 0;

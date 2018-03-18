@@ -70,8 +70,6 @@ class OverlayBuffer {
 
   virtual uint32_t GetPrimeFD() const = 0;
 
-  virtual uint32_t GetTotalPlanes() const = 0;
-
   virtual const uint32_t* GetPitches() const = 0;
 
   virtual const uint32_t* GetOffsets() const = 0;
