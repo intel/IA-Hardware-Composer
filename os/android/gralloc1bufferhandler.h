@@ -47,6 +47,10 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
             size_t plane) const override;
   int32_t UnMap(HWCNativeHandle handle, void *map_data) const override;
 
+  uint32_t GetFd() const override {
+    return fd_;
+  }
+
  private:
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
   uint32_t fd_;
