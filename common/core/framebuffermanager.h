@@ -82,7 +82,7 @@ class FrameBufferManager {
   void RegisterGemHandles(const uint32_t &num_planes,
                           const uint32_t (&igem_handles)[4]);
   uint32_t FindFB(const uint32_t &iwidth, const uint32_t &iheight,
-                  const uint32_t &modifier,
+                  const uint64_t &modifier,
                   const uint32_t &iframe_buffer_format,
                   const uint32_t &num_planes, const uint32_t (&igem_handles)[4],
                   const uint32_t (&ipitches)[4], const uint32_t (&ioffsets)[4]);

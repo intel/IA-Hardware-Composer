@@ -18,32 +18,39 @@
 
 #include <drm_fourcc.h>
 
-int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,
-                      const uint32_t &modifier,
-                      const uint32_t &iframe_buffer_format,
-                      const uint32_t (&igem_handles)[4],
-                      const uint32_t (&ipitches)[4],
-                      const uint32_t (&ioffsets)[4], uint32_t gpu_fd,
-                      uint32_t *fb_id) {
+int CreateFrameBuffer(
+    const uint32_t &iwidth, const uint32_t &iheight, const uint64_t &modifier,
+    const uint32_t &iframe_buffer_format, const uint32_t &num_planes,
+    const uint32_t (&igem_handles)[4], const uint32_t (&ipitches)[4],
+    const uint32_t (&ioffsets)[4], uint32_t gpu_fd, uint32_t *fb_id) {
   int ret = 0;
+  uint32_t *m_igem_handles = (uint32_t *)igem_handles;
+  uint32_t *m_ipitches = (uint32_t *)ipitches;
+  uint32_t *m_ioffsets = (uint32_t *)ioffsets;
   if (modifier > 0) {
     uint64_t modifiers[4];
-    modifiers[1] = modifiers[0] = modifier;
-    modifiers[2] = modifiers[3] = DRM_FORMAT_MOD_NONE;
+    for (uint32_t i = 0; i < num_planes; i++) {
+      modifiers[i] = modifier;
+    }
+
+    for (uint32_t i = num_planes; i < 4; i++) {
+      modifiers[i] = DRM_FORMAT_MOD_NONE;
+    }
+
     ret = drmModeAddFB2WithModifiers(
-        gpu_fd, iwidth, iheight, iframe_buffer_format, igem_handles, ipitches,
-        ioffsets, modifiers, fb_id, DRM_MODE_FB_MODIFIERS);
+        gpu_fd, iwidth, iheight, iframe_buffer_format, m_igem_handles,
+        m_ipitches, m_ioffsets, modifiers, fb_id, DRM_MODE_FB_MODIFIERS);
   } else {
     ret = drmModeAddFB2(gpu_fd, iwidth, iheight, iframe_buffer_format,
-                        igem_handles, ipitches, ioffsets, fb_id, 0);
+                        m_igem_handles, m_ipitches, m_ioffsets, fb_id, 0);
   }
 
   if (ret) {
     ETRACE("%s error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",
-	   (modifier == 0) ? "drmModeAddFB2" : "drmModeAddFB2WithModifiers",
-	   iwidth, iheight, iframe_buffer_format, iframe_buffer_format >> 8,
-	   iframe_buffer_format >> 16, iframe_buffer_format >> 24,
-	   igem_handles[0], ipitches[0], strerror(-ret));
+           (modifier == 0) ? "drmModeAddFB2" : "drmModeAddFB2WithModifiers",
+           iwidth, iheight, iframe_buffer_format, iframe_buffer_format >> 8,
+           iframe_buffer_format >> 16, iframe_buffer_format >> 24,
+           m_igem_handles[0], m_ipitches[0], strerror(-ret));
     *fb_id = 0;
   }
 

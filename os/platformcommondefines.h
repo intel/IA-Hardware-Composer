@@ -52,13 +52,11 @@ typedef struct FBKey {
   }
 } FBKey;
 
-int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,
-                      const uint32_t &modifier,
-                      const uint32_t &iframe_buffer_format,
-                      const uint32_t (&igem_handles)[4],
-                      const uint32_t (&ipitches)[4],
-                      const uint32_t (&ioffsets)[4], uint32_t gpu_fd,
-                      uint32_t *fb_id);
+int CreateFrameBuffer(
+    const uint32_t &iwidth, const uint32_t &iheight, const uint64_t &modifier,
+    const uint32_t &iframe_buffer_format, const uint32_t &num_planes,
+    const uint32_t (&igem_handles)[4], const uint32_t (&ipitches)[4],
+    const uint32_t (&ioffsets)[4], uint32_t gpu_fd, uint32_t *fb_id);
 
 int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd);
 

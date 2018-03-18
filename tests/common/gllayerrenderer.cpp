@@ -81,7 +81,7 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
 
   eglMakeCurrent(gl_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, gl_->context);
 
-  if (!handle_->meta_data_.modifier) {
+  if (!handle_->meta_data_.fb_modifiers_[0]) {
     const EGLint image_attrs[] = {
         EGL_WIDTH,                     (EGLint)width,
         EGL_HEIGHT,                    (EGLint)height,
@@ -95,9 +95,10 @@ bool GLLayerRenderer::Init(uint32_t width, uint32_t height, uint32_t format,
                                         EGL_LINUX_DMA_BUF_EXT,
                                         (EGLClientBuffer)NULL, image_attrs);
   } else {
-    uint64_t modifier = handle_->meta_data_.modifier;
-    EGLint modifier_low = (EGLint)modifier;
-    EGLint modifier_high = (EGLint)(modifier >> 32);
+    EGLint modifier_low =
+        static_cast<EGLint>(handle_->meta_data_.fb_modifiers_[1]);
+    EGLint modifier_high =
+        static_cast<EGLint>(handle_->meta_data_.fb_modifiers_[0]);
     const EGLint image_attrs[] = {
         EGL_WIDTH,
         (EGLint)width,
