@@ -52,6 +52,7 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/wsi/drm
 
 LOCAL_SRC_FILES := \
+	os/platformcommondrmdefines.cpp \
 	os/android/platformdefines.cpp
 
 ifeq ($(strip $(TARGET_USES_HWC2)), true)
@@ -68,6 +69,8 @@ LOCAL_SHARED_LIBRARIES += \
 
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
+
+LOCAL_CPPFLAGS += -DUSE_GRALLOC1
 
 ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
 LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
@@ -108,7 +111,8 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../mesa/include
 else
 LOCAL_CPPFLAGS += \
-	-DUSE_GL
+	-DUSE_GL \
+	-DENABLE_RBC
 endif
 
 LOCAL_C_INCLUDES += \

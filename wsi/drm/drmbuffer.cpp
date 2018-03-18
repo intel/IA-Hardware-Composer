@@ -32,6 +32,22 @@
 
 #include <va/va_drmcommon.h>
 
+#ifndef EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT
+#define EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT 0x3443
+#endif
+
+#ifndef EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT
+#define EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT 0x3444
+#endif
+
+#ifndef EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT
+#define EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT 0x3445
+#endif
+
+#ifndef EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT
+#define EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT 0x3446
+#endif
+
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
@@ -160,6 +176,43 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
             egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
             static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
       }
+    } else if (modifier_ && total_planes == 2) {
+      uint64_t modifier = modifier_;
+      EGLint modifier_low = static_cast<EGLint>(modifier);
+      EGLint modifier_high = static_cast<EGLint>(modifier >> 32);
+      const EGLint image_attrs[] = {
+          EGL_WIDTH,
+          static_cast<EGLint>(width_),
+          EGL_HEIGHT,
+          static_cast<EGLint>(height_),
+          EGL_LINUX_DRM_FOURCC_EXT,
+          static_cast<EGLint>(format_),
+          EGL_DMA_BUF_PLANE0_FD_EXT,
+          static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[0]),
+          EGL_DMA_BUF_PLANE0_PITCH_EXT,
+          static_cast<EGLint>(pitches_[0]),
+          EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+          static_cast<EGLint>(offsets_[0]),
+          EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+          modifier_low,
+          EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
+          modifier_high,
+          EGL_DMA_BUF_PLANE1_FD_EXT,
+          static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[1]),
+          EGL_DMA_BUF_PLANE1_PITCH_EXT,
+          static_cast<EGLint>(pitches_[1]),
+          EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+          static_cast<EGLint>(offsets_[1]),
+          EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT,
+          modifier_low,
+          EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT,
+          modifier_high,
+          EGL_NONE,
+      };
+
+      image =
+          eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                            static_cast<EGLClientBuffer>(nullptr), image_attrs);
     } else {
       const EGLint attr_list[] = {
           EGL_WIDTH,
@@ -326,7 +379,7 @@ bool DrmBuffer::CreateFrameBuffer() {
   media_image_.drm_fd_ = 0;
 
   image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
-      width_, height_, frame_buffer_format_,
+      width_, height_, modifier_, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;

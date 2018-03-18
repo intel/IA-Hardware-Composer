@@ -98,6 +98,7 @@ class DrmBuffer : public OverlayBuffer {
   HWCLayerType usage_ = kLayerNormal;
   uint32_t previous_width_ = 0;   // For Media usage.
   uint32_t previous_height_ = 0;  // For Media usage.
+  uint64_t modifier_ = 0;
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;

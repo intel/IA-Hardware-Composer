@@ -102,7 +102,10 @@ bool Gralloc1BufferHandler::Init() {
                                 GRALLOC1_FUNCTION_SET_PRODUCER_USAGE));
   allocate_ = reinterpret_cast<GRALLOC1_PFN_ALLOCATE>(
       gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_ALLOCATE));
-
+#ifdef USE_GRALLOC1
+  set_modifier_ = reinterpret_cast<GRALLOC1_PFN_SET_MODIFIER>(
+      gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_SET_MODIFIER));
+#endif
   return true;
 }
 
@@ -126,6 +129,17 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
+
+#ifdef ENABLE_RBC
+  // These formats are RBC supported in i915 driver
+  if ((format == DRM_FORMAT_XRGB8888) || (format == DRM_FORMAT_XBGR8888) ||
+      (format == DRM_FORMAT_ARGB8888) || (format == DRM_FORMAT_ABGR8888)) {
+#ifdef USE_GRALLOC1
+    uint64_t modifier = I915_FORMAT_MOD_Y_TILED_CCS;
+    set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, modifier);
+#endif
+  }
+#endif
 
   if ((layer_type == hwcomposer::kLayerVideo) &&
       !IsSupportedMediaFormat(format)) {
@@ -199,17 +213,15 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
   register_(gralloc1_dvc, handle->imported_handle_);
-  return ImportGraphicsBuffer(handle, fd_);
-}
-
-uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
-  auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
-  if (!gr_handle) {
-    ETRACE("could not find gralloc drm handle");
+  if (!ImportGraphicsBuffer(handle, fd_)) {
     return false;
   }
 
-  return drm_bo_get_num_planes(gr_handle->format);
+  return true;
+}
+
+uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
+  return handle->meta_data_.num_planes_;
 }
 
 void Gralloc1BufferHandler::CopyHandle(HWCNativeHandle source,
