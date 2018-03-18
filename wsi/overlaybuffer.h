@@ -78,6 +78,9 @@ class OverlayBuffer {
 
   virtual bool CreateFrameBuffer() = 0;
 
+  // Creates Framebuffer taking into account any Modifiers.
+  virtual bool CreateFrameBufferWithModifier(uint64_t modifier) = 0;
+
   virtual void Dump() = 0;
 };
 

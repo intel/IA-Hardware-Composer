@@ -86,4 +86,21 @@ static size_t drm_bo_get_num_planes(uint32_t format) {
   return 0;
 }
 
+static uint64_t drm_get_modifier(uint32_t format) {
+#ifdef ENABLE_RBC
+  switch (format) {
+    case DRM_FORMAT_XRGB8888:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_ABGR8888:
+      // FIXME: When to choose I915_FORMAT_MOD_Yf_TILED_CCS?
+      return I915_FORMAT_MOD_Y_TILED_CCS;
+    default:
+      return DRM_FORMAT_MOD_NONE;
+  }
+#else
+  return DRM_FORMAT_MOD_NONE;
+#endif
+}
+
 #endif  // WSI_COMMONDRMUTILS_H_

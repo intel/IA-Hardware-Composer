@@ -233,6 +233,8 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
       ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
       return false;
     }
+
+    handle->meta_data_.fb_modifiers_[p] = gr_handle->format_modifiers[p];
   }
 
   if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {

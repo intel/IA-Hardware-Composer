@@ -212,6 +212,9 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     struct drm_format_modifier* mod_o =
         (struct drm_format_modifier*)(void*)(((char*)m) + m->modifiers_offset);
 
+    bool y_tiled_ccs_supported = false;
+    bool y_tiled_yf_ccs_supported = false;
+
     for (uint32_t j = 0; j < total_size; j++) {
       uint32_t format = supported_formats_.at(j);
       format_mods modifiers_obj;
@@ -222,10 +225,25 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
       for (int i = 0; i < (int)m->count_modifiers; i++, mod++) {
         if (mod->formats & (1ULL << format_index)) {
           modifiers_obj.mods.emplace_back(mod->modifier);
+          if (mod->modifier == I915_FORMAT_MOD_Y_TILED_CCS) {
+            y_tiled_ccs_supported = true;
+          } else if (mod->modifier == I915_FORMAT_MOD_Yf_TILED_CCS) {
+            y_tiled_yf_ccs_supported = true;
+          }
         }
       }
+
       if (modifiers_obj.mods.size() == 0) {
         modifiers_obj.mods.emplace_back(DRM_FORMAT_MOD_NONE);
+        prefered_modifier_ = DRM_FORMAT_MOD_NONE;
+      } else {
+        if (y_tiled_ccs_supported) {
+          prefered_modifier_ = I915_FORMAT_MOD_Y_TILED_CCS;
+        } else if (y_tiled_yf_ccs_supported) {
+          prefered_modifier_ = I915_FORMAT_MOD_Yf_TILED_CCS;
+        } else {
+          prefered_modifier_ = modifiers_obj.mods.at(0);
+        }
       }
 
       formats_modifiers_.emplace_back(modifiers_obj);
@@ -341,6 +359,15 @@ void DrmPlane::SetNativeFence(int32_t fd) {
 
 void DrmPlane::SetBuffer(std::shared_ptr<OverlayBuffer>& buffer) {
   buffer_ = buffer;
+}
+
+void DrmPlane::BlackListPreferredFormatModifier() {
+  if (!prefered_modifier_succeeded_)
+    prefered_modifier_ = 0;
+}
+
+void DrmPlane::PreferredFormatModifierValidated() {
+  prefered_modifier_succeeded_ = true;
 }
 
 bool DrmPlane::Disable(drmModeAtomicReqPtr property_set) {
@@ -461,6 +488,10 @@ uint32_t DrmPlane::GetPreferredVideoFormat() const {
 
 uint32_t DrmPlane::GetPreferredFormat() const {
   return prefered_format_;
+}
+
+uint64_t DrmPlane::GetPreferredFormatModifier() const {
+  return prefered_modifier_;
 }
 
 void DrmPlane::SetInUse(bool in_use) {

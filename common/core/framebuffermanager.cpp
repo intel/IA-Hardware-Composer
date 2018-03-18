@@ -50,7 +50,7 @@ void FrameBufferManager::RegisterGemHandles(const uint32_t &num_planes,
 }
 
 uint32_t FrameBufferManager::FindFB(
-    const uint32_t &iwidth, const uint32_t &iheight, const uint32_t &modifier,
+    const uint32_t &iwidth, const uint32_t &iheight, const uint64_t &modifier,
     const uint32_t &iframe_buffer_format, const uint32_t &num_planes,
     const uint32_t (&igem_handles)[4], const uint32_t (&ipitches)[4],
     const uint32_t (&ioffsets)[4]) {
@@ -62,7 +62,7 @@ uint32_t FrameBufferManager::FindFB(
     if (!it->second.fb_created) {
       it->second.fb_created = true;
       CreateFrameBuffer(iwidth, iheight, modifier, iframe_buffer_format,
-                        igem_handles, ipitches, ioffsets, gpu_fd_,
+                        num_planes, igem_handles, ipitches, ioffsets, gpu_fd_,
                         &it->second.fb_id);
     }
 

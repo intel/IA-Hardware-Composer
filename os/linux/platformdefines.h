@@ -54,7 +54,6 @@ struct gbm_handle {
   void* pixel_memory_ = NULL;
   uint32_t gbm_flags = 0;
   uint32_t layer_type_ = hwcomposer::kLayerNormal;
-  uint64_t modifier = 0;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;

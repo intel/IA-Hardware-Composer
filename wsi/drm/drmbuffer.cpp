@@ -176,10 +176,12 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
             egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
             static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
       }
-    } else if (modifier_ && total_planes == 2) {
-      uint64_t modifier = modifier_;
-      EGLint modifier_low = static_cast<EGLint>(modifier);
-      EGLint modifier_high = static_cast<EGLint>(modifier >> 32);
+    } else if (image_.handle_->meta_data_.fb_modifiers_[0] > 0 &&
+               total_planes == 2) {
+      EGLint modifier_low =
+          static_cast<EGLint>(image_.handle_->meta_data_.fb_modifiers_[1]);
+      EGLint modifier_high =
+          static_cast<EGLint>(image_.handle_->meta_data_.fb_modifiers_[0]);
       const EGLint image_attrs[] = {
           EGL_WIDTH,
           static_cast<EGLint>(width_),
@@ -379,7 +381,22 @@ bool DrmBuffer::CreateFrameBuffer() {
   media_image_.drm_fd_ = 0;
 
   image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
-      width_, height_, modifier_, frame_buffer_format_,
+      width_, height_, 0, frame_buffer_format_,
+      image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
+  media_image_.drm_fd_ = image_.drm_fd_;
+  return true;
+}
+
+bool DrmBuffer::CreateFrameBufferWithModifier(uint64_t modifier) {
+  if (image_.drm_fd_) {
+    return true;
+  }
+
+  image_.drm_fd_ = 0;
+  media_image_.drm_fd_ = 0;
+
+  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
+      width_, height_, modifier, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;

@@ -33,7 +33,9 @@ class NativeBufferHandler {
 
   virtual bool CreateBuffer(uint32_t w, uint32_t h, int format,
                             HWCNativeHandle *handle = NULL,
-                            uint32_t layer_type = kLayerNormal) const = 0;
+                            uint32_t layer_type = kLayerNormal,
+                            bool *modifier_used = NULL,
+                            int64_t modifier = -1) const = 0;
 
   virtual bool ReleaseBuffer(HWCNativeHandle handle) const = 0;
 
