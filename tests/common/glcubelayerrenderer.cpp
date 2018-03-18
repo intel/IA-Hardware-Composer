@@ -82,7 +82,7 @@ class StreamTextureImpl {
     }
 
     dimension_.stride = handle_->meta_data_.pitches_[0];
-    fd_ = handle_->meta_data_.prime_fd_;
+    fd_ = handle_->meta_data_.prime_fds_[0];
     EGLint offset = 0;
     const EGLint khr_image_attrs[] = {
         EGL_DMA_BUF_PLANE0_FD_EXT,     fd_,

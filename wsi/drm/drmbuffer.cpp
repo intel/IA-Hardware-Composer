@@ -63,7 +63,6 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
     format_ = DRM_FORMAT_YUV420;
 
   tiling_mode_ = bo.tiling_mode_;
-  prime_fd_ = bo.prime_fd_;
   usage_ = bo.usage_;
 
   if (usage_ == hwcomposer::kLayerCursor) {
@@ -72,8 +71,6 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   } else {
     frame_buffer_format_ = format_;
   }
-
-  total_planes_ = GetTotalPlanesForFormat(format_);
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
@@ -129,52 +126,83 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
   if (image_.image_ == 0) {
 #ifdef USE_GL
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
+    uint32_t total_planes = image_.handle_->meta_data_.num_planes_;
     // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
     // target, the EGL will take a reference to the dma_buf.
-    if ((usage_ == kLayerVideo) && total_planes_ > 1) {
-      if (total_planes_ == 2) {
+    if ((usage_ == kLayerVideo) && total_planes > 1) {
+      if (total_planes == 2) {
         const EGLint attr_list_nv12[] = {
-            EGL_WIDTH,                     static_cast<EGLint>(width_),
-            EGL_HEIGHT,                    static_cast<EGLint>(height_),
-            EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-            EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-            EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-            EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
-            EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
-            EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
-            EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
-            EGL_NONE,                      0};
+            EGL_WIDTH,
+            static_cast<EGLint>(width_),
+            EGL_HEIGHT,
+            static_cast<EGLint>(height_),
+            EGL_LINUX_DRM_FOURCC_EXT,
+            static_cast<EGLint>(format_),
+            EGL_DMA_BUF_PLANE0_FD_EXT,
+            static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[0]),
+            EGL_DMA_BUF_PLANE0_PITCH_EXT,
+            static_cast<EGLint>(pitches_[0]),
+            EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+            static_cast<EGLint>(offsets_[0]),
+            EGL_DMA_BUF_PLANE1_FD_EXT,
+            static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[1]),
+            EGL_DMA_BUF_PLANE1_PITCH_EXT,
+            static_cast<EGLint>(pitches_[1]),
+            EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+            static_cast<EGLint>(offsets_[1]),
+            EGL_NONE,
+            0};
         image = eglCreateImageKHR(
             egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
             static_cast<EGLClientBuffer>(nullptr), attr_list_nv12);
       } else {
         const EGLint attr_list_yv12[] = {
-            EGL_WIDTH,                     static_cast<EGLint>(width_),
-            EGL_HEIGHT,                    static_cast<EGLint>(height_),
-            EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-            EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-            EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-            EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(offsets_[0]),
-            EGL_DMA_BUF_PLANE1_FD_EXT,     static_cast<EGLint>(prime_fd_),
-            EGL_DMA_BUF_PLANE1_PITCH_EXT,  static_cast<EGLint>(pitches_[1]),
-            EGL_DMA_BUF_PLANE1_OFFSET_EXT, static_cast<EGLint>(offsets_[1]),
-            EGL_DMA_BUF_PLANE2_FD_EXT,     static_cast<EGLint>(prime_fd_),
-            EGL_DMA_BUF_PLANE2_PITCH_EXT,  static_cast<EGLint>(pitches_[2]),
-            EGL_DMA_BUF_PLANE2_OFFSET_EXT, static_cast<EGLint>(offsets_[2]),
-            EGL_NONE,                      0};
+            EGL_WIDTH,
+            static_cast<EGLint>(width_),
+            EGL_HEIGHT,
+            static_cast<EGLint>(height_),
+            EGL_LINUX_DRM_FOURCC_EXT,
+            static_cast<EGLint>(format_),
+            EGL_DMA_BUF_PLANE0_FD_EXT,
+            static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[0]),
+            EGL_DMA_BUF_PLANE0_PITCH_EXT,
+            static_cast<EGLint>(pitches_[0]),
+            EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+            static_cast<EGLint>(offsets_[0]),
+            EGL_DMA_BUF_PLANE1_FD_EXT,
+            static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[1]),
+            EGL_DMA_BUF_PLANE1_PITCH_EXT,
+            static_cast<EGLint>(pitches_[1]),
+            EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+            static_cast<EGLint>(offsets_[1]),
+            EGL_DMA_BUF_PLANE2_FD_EXT,
+            static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[2]),
+            EGL_DMA_BUF_PLANE2_PITCH_EXT,
+            static_cast<EGLint>(pitches_[2]),
+            EGL_DMA_BUF_PLANE2_OFFSET_EXT,
+            static_cast<EGLint>(offsets_[2]),
+            EGL_NONE,
+            0};
         image = eglCreateImageKHR(
             egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
             static_cast<EGLClientBuffer>(nullptr), attr_list_yv12);
       }
     } else {
       const EGLint attr_list[] = {
-          EGL_WIDTH,                     static_cast<EGLint>(width_),
-          EGL_HEIGHT,                    static_cast<EGLint>(height_),
-          EGL_LINUX_DRM_FOURCC_EXT,      static_cast<EGLint>(format_),
-          EGL_DMA_BUF_PLANE0_FD_EXT,     static_cast<EGLint>(prime_fd_),
-          EGL_DMA_BUF_PLANE0_PITCH_EXT,  static_cast<EGLint>(pitches_[0]),
-          EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-          EGL_NONE,                      0};
+          EGL_WIDTH,
+          static_cast<EGLint>(width_),
+          EGL_HEIGHT,
+          static_cast<EGLint>(height_),
+          EGL_LINUX_DRM_FOURCC_EXT,
+          static_cast<EGLint>(format_),
+          EGL_DMA_BUF_PLANE0_FD_EXT,
+          static_cast<EGLint>(image_.handle_->meta_data_.prime_fds_[0]),
+          EGL_DMA_BUF_PLANE0_PITCH_EXT,
+          static_cast<EGLint>(pitches_[0]),
+          EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+          0,
+          EGL_NONE,
+          0};
       image =
           eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
                             static_cast<EGLClientBuffer>(nullptr), attr_list);
@@ -208,7 +236,8 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     VkDmaBufImageCreateInfo image_create = {};
     image_create.sType =
         (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
-    image_create.fd = static_cast<int>(prime_fd_);
+    image_create.fd =
+        static_cast<int>(image_.handle_->meta_data_.prime_fds_[0]);
     image_create.format = vk_format;
     image_create.extent = image_extent;
     image_create.strideInBytes = pitches_[0];
@@ -283,22 +312,24 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   VASurfaceAttribExternalBuffers external;
   memset(&external, 0, sizeof(external));
   uint32_t rt_format = DrmFormatToRTFormat(format_);
+  uint32_t total_planes = image_.handle_->meta_data_.num_planes_;
   external.pixel_format = DrmFormatToVAFormat(format_);
   external.width = width_;
   external.height = height_;
-  external.num_planes = total_planes_;
+  external.num_planes = total_planes;
 #if VA_MAJOR_VERSION < 1
-  unsigned long prime_fd = prime_fd_;
+  unsigned long prime_fds[total_planes];
 #else
-  uintptr_t prime_fd = prime_fd_;
+  uintptr_t prime_fds[total_planes];
 #endif
-  for (unsigned int i = 0; i < total_planes_; i++) {
+  for (unsigned int i = 0; i < total_planes; i++) {
     external.pitches[i] = pitches_[i];
     external.offsets[i] = offsets_[i];
+    prime_fds[i] = image_.handle_->meta_data_.prime_fds_[i];
   }
 
-  external.num_buffers = 1;
-  external.buffers = &prime_fd;
+  external.num_buffers = total_planes;
+  external.buffers = prime_fds;
 
   VASurfaceAttrib attribs[2];
   attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
@@ -359,7 +390,7 @@ void DrmBuffer::Dump() {
   DUMPTRACE("Width: %d", width_);
   DUMPTRACE("Height: %d", height_);
   DUMPTRACE("Fb: %d", image_.drm_fd_);
-  DUMPTRACE("Prime Handle: %d", prime_fd_);
+  DUMPTRACE("Prime Handle: %d", image_.handle_->meta_data_.prime_fds_[0]);
   DUMPTRACE("Format: %4.4s", (char*)&format_);
   for (uint32_t i = 0; i < 4; i++) {
     DUMPTRACE("Pitch:%d value:%d", i, pitches_[i]);
