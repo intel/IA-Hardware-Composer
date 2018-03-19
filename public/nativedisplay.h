@@ -395,10 +395,9 @@ class NativeDisplay {
   virtual void RotateDisplay(HWCRotation /*rotation*/) {
   }
 
-private:
+ private:
   std::vector<uint64_t> LayerIds_;
-  uint64_t current_max_layer_ids_;
-
+  uint64_t current_max_layer_ids_ = 0;
 };
 
 /**

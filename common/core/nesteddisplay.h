@@ -195,7 +195,7 @@ class NestedDisplay : public NativeDisplay {
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   std::shared_ptr<VsyncCallback> vsync_callback_ = NULL;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
-  uint32_t display_id_;
+  uint32_t display_id_ = 0;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t port_ = 0;

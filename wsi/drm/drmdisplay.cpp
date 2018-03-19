@@ -604,8 +604,10 @@ void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
   }
 
   struct drm_color_ctm_post_offset *ctm_post_offset =
-    (struct drm_color_ctm_post_offset *)malloc(sizeof(struct drm_color_ctm_post_offset));
+      (struct drm_color_ctm_post_offset *)malloc(
+          sizeof(struct drm_color_ctm_post_offset));
   if (!ctm_post_offset) {
+    free(ctm);
     ETRACE("Cannot allocate ctm_post_offset memory");
     return;
   }
