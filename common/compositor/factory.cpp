@@ -58,7 +58,11 @@ Renderer* Create3DRenderer() {
 }
 
 Renderer* CreateMediaRenderer() {
+#ifdef USE_DC
+  return NULL;
+#else
   return new VARenderer();
+#endif
 }
 
 NativeGpuResource* CreateNativeGpuResourceHandler() {
