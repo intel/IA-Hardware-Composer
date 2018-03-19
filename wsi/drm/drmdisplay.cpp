@@ -124,7 +124,7 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
 
   PhysicalDisplay::Connect();
-  SetHDCPState(desired_protection_support_);
+  SetHDCPState(desired_protection_support_, content_type_);
 
   drmModePropertyPtr broadcastrgb_props =
       drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
@@ -290,8 +290,10 @@ bool DrmDisplay::SetBroadcastRGB(const char *range_property) {
   return true;
 }
 
-void DrmDisplay::SetHDCPState(HWCContentProtection state) {
+void DrmDisplay::SetHDCPState(HWCContentProtection state,
+                              HWCContentType content_type) {
   desired_protection_support_ = state;
+  content_type_ = content_type;
   if (desired_protection_support_ == current_protection_support_)
     return;
 
@@ -311,6 +313,7 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state) {
   }
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
+  ETRACE("Ignored Content type. \n");
 }
 
 bool DrmDisplay::Commit(
@@ -370,6 +373,10 @@ bool DrmDisplay::CommitFrame(
     } else {
       plane->SetNativeFence(-1);
     }
+
+    if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled())
+      plane->SetBuffer(layer->GetSharedBuffer());
+
     if (!plane->UpdateProperties(pset, crtc_id_, layer))
       return false;
   }

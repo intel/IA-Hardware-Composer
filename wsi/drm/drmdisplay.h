@@ -48,7 +48,8 @@ class DrmDisplay : public PhysicalDisplay {
 
   bool SetBroadcastRGB(const char *range_property) override;
 
-  void SetHDCPState(HWCContentProtection state) override;
+  void SetHDCPState(HWCContentProtection state,
+                    HWCContentType content_type) override;
 
   bool InitializeDisplay() override;
   void PowerOn() override;
@@ -138,6 +139,7 @@ class DrmDisplay : public PhysicalDisplay {
   HWCContentProtection desired_protection_support_ =
       HWCContentProtection::kUnSupported;
   drmModeModeInfo current_mode_;
+  HWCContentType content_type_ = kCONTENT_TYPE0;
   std::vector<drmModeModeInfo> modes_;
   SpinLock display_lock_;
   DrmDisplayManager *manager_;

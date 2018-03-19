@@ -54,37 +54,6 @@ struct gralloc_handle {
 };
 
 typedef struct gralloc_handle* HWCNativeHandle;
-typedef struct cros_gralloc_handle HWCNativeBuffer;
-#define GETNATIVEBUFFER(handle) (*(cros_gralloc_handle*)(handle->handle_))
-
-
-struct BufferHash {
-  size_t operator()(HWCNativeBuffer const& buffer) const {
-    const native_handle_t & p = buffer.base;
-    std::size_t seed = 0;
-    for (int i = 0; i < p.numFds + p.numInts; i++) {
-      hash_combine_hwc(seed, (const size_t)p.data[i]);
-    }
-    return seed;
-  }
-};
-
-struct BufferEqual {
-  bool operator()(const HWCNativeBuffer& buffer1, const HWCNativeBuffer& buffer2) const {
-    const native_handle_t &p1 = buffer1.base;
-    const native_handle_t &p2 = buffer2.base;
-    bool equal = (p1.numFds == p2.numFds) && (p1.numInts ==  p2.numInts);
-    if (equal) {
-      for (int i = 0; i < p1.numFds + p1.numInts; i++) {
-        equal = equal && (p1.data[i] == p2.data[i]);
-        if (!equal)
-          break;
-      }
-    }
-    return equal;
-  }
-};
-
 
 #define VTRACE(fmt, ...) ALOGV("%s: " fmt, __func__, ##__VA_ARGS__)
 #define DTRACE(fmt, ...) ALOGD("%s: " fmt, __func__, ##__VA_ARGS__)
@@ -92,6 +61,16 @@ struct BufferEqual {
 #define WTRACE(fmt, ...) ALOGW("%s: " fmt, __func__, ##__VA_ARGS__)
 #define ETRACE(fmt, ...) ALOGE("%s: " fmt, __func__, ##__VA_ARGS__)
 #define STRACE() ATRACE_CALL()
+
+inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
+  uint32_t id = 0;
+  uint32_t prime_fd = handle->handle_->data[0];
+  if (drmPrimeFDToHandle(gpu_fd, prime_fd, &id)) {
+    ETRACE("Error generate handle from prime fd %d", prime_fd);
+  }
+  return id;
+}
+
 // _cplusplus
 #ifdef _cplusplus
 }

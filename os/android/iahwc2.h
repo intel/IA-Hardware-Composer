@@ -46,6 +46,15 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::NativeDisplay *GetPrimaryDisplay();
   hwcomposer::NativeDisplay *GetExtendedDisplay(uint32_t);
 
+  void EnableHDCPSessionForDisplay(uint32_t display,
+                                   EHwcsContentType content_type);
+
+  void EnableHDCPSessionForAllDisplays(EHwcsContentType content_type);
+
+  void DisableHDCPSessionForDisplay(uint32_t display);
+
+  void DisableHDCPSessionForAllDisplays();
+
  public:
   class Hwc2Layer {
    public:
