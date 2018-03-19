@@ -64,7 +64,7 @@ class MDHotPlugCallback : public hwcomposer::HotPlugCallback {
   MosaicDisplay *display_;
 };
 
-MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> displays)
+MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> &displays)
     : dpix_(0), dpiy_(0) {
   uint32_t size = displays.size();
   physical_displays_.reserve(size);

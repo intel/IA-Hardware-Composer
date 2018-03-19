@@ -84,7 +84,7 @@ class CompositorThread : public HWCThread {
   std::vector<DrawState> states_;
   std::vector<DrawState> media_states_;
   std::vector<ResourceHandle> purged_resources_;
-  bool disable_explicit_sync_;
+  bool disable_explicit_sync_ = false;
   bool draw_succeeded_ = false;
   ResourceManager* resource_manager_ = NULL;
   uint32_t tasks_ = kNone;

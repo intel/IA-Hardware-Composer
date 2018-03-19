@@ -85,7 +85,7 @@ class Compositor {
   std::unique_ptr<CompositorThread> thread_;
   SpinLock lock_;
   HWCColorMap colors_;
-  uint32_t scaling_mode_;
+  uint32_t scaling_mode_ = 0;
   HWCDeinterlaceProp deinterlace_;
 };
 

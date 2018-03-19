@@ -43,7 +43,11 @@ NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
   return handler;
 }
 
-GbmBufferHandler::GbmBufferHandler(uint32_t fd) : fd_(fd), device_(0) {
+GbmBufferHandler::GbmBufferHandler(uint32_t fd)
+    : fd_(fd),
+      device_(0),
+      preferred_cursor_width_(0),
+      preferred_cursor_height_(0) {
 }
 
 GbmBufferHandler::~GbmBufferHandler() {

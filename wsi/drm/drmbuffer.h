@@ -108,8 +108,8 @@ class DrmBuffer : public OverlayBuffer {
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;
-  std::unique_ptr<PixelBuffer> pixel_buffer_;
-  void* data_;
+  std::unique_ptr<PixelBuffer> pixel_buffer_ = NULL;
+  void* data_ = NULL;
 };
 
 }  // namespace hwcomposer
