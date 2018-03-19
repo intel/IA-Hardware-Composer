@@ -447,8 +447,7 @@ bool DisplayPlaneState::IsVideoPlane() const {
 }
 
 void DisplayPlaneState::SetVideoPlane() {
-  // FIXME: This causes flicker when playing Videos.
-  // private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
+  private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
 }
 
 void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {
