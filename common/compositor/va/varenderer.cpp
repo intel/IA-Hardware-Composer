@@ -335,6 +335,36 @@ bool VARenderer::DestroyMediaResources(
   return true;
 }
 
+bool VARenderer::LoadCaps()
+{
+    VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
+    uint32_t colorbalance_num = VAProcColorBalanceCount;
+    uint32_t sharp_num = 1;
+    uint32_t deinterlace_num = VAProcDeinterlacingCount;
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
+                               colorbalancecaps, &colorbalance_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
+                               &sharp_caps_.caps_, &sharp_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
+                               &deinterlace_caps_.caps_, &deinterlace_num)) {
+      return false;
+    }
+
+    SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
+    SetVAProcFilterDeinterlaceDefaultMode();
+
+    memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
+    param_.surface_color_standard = VAProcColorStandardBT601;
+    param_.output_color_standard = VAProcColorStandardBT601;
+    param_.num_filters = 0;
+    param_.filters = nullptr;
+    return true;
+}
+
 bool VARenderer::CreateContext() {
   DestroyContext();
 
@@ -357,6 +387,10 @@ bool VARenderer::CreateContext() {
                         0, &va_context_);
 
   update_caps_ = true;
+  if (ret == VA_STATUS_SUCCESS) {
+    if (!LoadCaps() || !UpdateCaps())
+        return false;
+  }
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
@@ -382,29 +416,9 @@ bool VARenderer::UpdateCaps() {
 
   update_caps_ = false;
 
-  VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
-  uint32_t colorbalance_num = VAProcColorBalanceCount;
-  uint32_t sharp_num = 1;
-  uint32_t deinterlace_num = VAProcDeinterlacingCount;
 
-  if (colorbalance_caps_.empty()) {
-    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
-                               colorbalancecaps, &colorbalance_num)) {
-      return false;
-    }
-    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
-                               &sharp_caps_.caps_, &sharp_num)) {
-      return false;
-    }
-    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
-                               &deinterlace_caps_.caps_, &deinterlace_num)) {
-      return false;
-    }
 
-    SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
-    SetVAProcFilterDeinterlaceDefaultMode();
 
-  } else {
     std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
                                               va_display_);
     std::vector<ScopedVABufferID> sharp(1, va_display_);
@@ -476,13 +490,7 @@ bool VARenderer::UpdateCaps() {
       filters_.push_back(deinterlace[0].buffer());
     }
     deinterlace_.swap(deinterlace);
-  }
 
-  memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
-  param_.surface_color_standard = VAProcColorStandardBT601;
-  param_.output_color_standard = VAProcColorStandardBT601;
-  param_.num_filters = 0;
-  param_.filters = nullptr;
   param_.filter_flags = filter_flags_;
   if (filters_.size()) {
     param_.filters = &filters_[0];
