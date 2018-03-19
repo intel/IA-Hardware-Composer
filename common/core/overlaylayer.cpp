@@ -24,7 +24,6 @@
 #include "hwcutils.h"
 
 #include "resourcemanager.h"
-#include "nativebufferhandler.h"
 
 namespace hwcomposer {
 
@@ -75,12 +74,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
-  uint32_t id;
-
   if (resource_manager && register_buffer) {
-    uint32_t gpu_fd = resource_manager->GetNativeBufferHandler()->GetFd();
-    id = GetNativeBuffer(gpu_fd, handle);
-    buffer = resource_manager->FindCachedBuffer(id);
+    buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
   }
 
   if (buffer == NULL) {
@@ -91,8 +86,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
     buffer->InitializeFromNativeHandle(handle, resource_manager,
                                        is_cursor_layer);
-    if (resource_manager && register_buffer) {
-      resource_manager->RegisterBuffer(id, buffer);
+    if (register_buffer) {
+      resource_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
     }
   }
 
@@ -234,7 +229,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+            resource_manager, false, layer);
 
   if (!handle_constraints) {
     if (previous_layer) {

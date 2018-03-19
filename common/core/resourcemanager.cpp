@@ -50,7 +50,7 @@ void ResourceManager::Dump() {
 }
 
 std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
-    const uint32_t& native_buffer) {
+    const HWCNativeBuffer& native_buffer) {
   BUFFER_MAP& first_map = cached_buffers_[0];
   static std::shared_ptr<OverlayBuffer> pBufNull = nullptr;
   for (auto& map : cached_buffers_) {
@@ -82,7 +82,7 @@ std::shared_ptr<OverlayBuffer>& ResourceManager::FindCachedBuffer(
   return pBufNull;
 }
 
-void ResourceManager::RegisterBuffer(const uint32_t& native_buffer,
+void ResourceManager::RegisterBuffer(const HWCNativeBuffer& native_buffer,
                                      std::shared_ptr<OverlayBuffer>& pBuffer) {
   BUFFER_MAP& first_map = cached_buffers_[0];
   first_map.emplace(std::make_pair(native_buffer, pBuffer));
