@@ -267,8 +267,8 @@ struct OverlayLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  LayerComposition supported_composition_;
-  LayerComposition actual_composition_;
+  LayerComposition supported_composition_ = kAll;
+  LayerComposition actual_composition_ = kAll;
   HWCLayerType type_ = kLayerNormal;
 };
 

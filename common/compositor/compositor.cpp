@@ -28,10 +28,13 @@
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "hwcutils.h"
+#include "hwcdefs.h"
 
 namespace hwcomposer {
 
 Compositor::Compositor() {
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
 }
 
 Compositor::~Compositor() {

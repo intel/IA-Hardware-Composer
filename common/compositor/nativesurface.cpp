@@ -26,7 +26,8 @@
 namespace hwcomposer {
 
 NativeSurface::NativeSurface(uint32_t width, uint32_t height)
-    : native_handle_(0),
+    : resource_manager_(NULL),
+      native_handle_(0),
       width_(width),
       height_(height),
       clear_surface_(kFullClear),
@@ -133,6 +134,7 @@ void NativeSurface::UpdateSurfaceDamage(
   }
 
   CalculateRect(currentsurface_damage, surface_damage_);
+
   if (!damage_changed_) {
     damage_changed_ = true;
     if (!force && (previous_damage_ == surface_damage_))
