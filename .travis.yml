@@ -76,6 +76,9 @@ script:
 - make clean
 - ./autogen.sh --prefix=$WLD --disable-hotplug-support
 - make -j5
+- make clean
+- ./autogen.sh --prefix=$WLD --enable-dummy-compositor
+- make -j5
 
 # Test Weston plugin
 - export WLD=/tmp/wl-install
