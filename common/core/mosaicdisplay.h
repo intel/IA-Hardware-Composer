@@ -29,7 +29,7 @@ namespace hwcomposer {
 
 class MosaicDisplay : public NativeDisplay {
  public:
-  MosaicDisplay(const std::vector<NativeDisplay *> displays);
+  MosaicDisplay(const std::vector<NativeDisplay *> &displays);
   ~MosaicDisplay() override;
 
   bool Initialize(NativeBufferHandler *buffer_handler) override;

@@ -31,6 +31,7 @@ DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
                                          ResourceManager *resource_manager)
     : plane_handler_(plane_handler),
       resource_manager_(resource_manager),
+      cursor_plane_(NULL),
       width_(0),
       height_(0),
       gpu_fd_(gpu_fd) {
@@ -144,7 +145,7 @@ bool DisplayPlaneManager::ValidateLayers(
 #endif
 
     // Handle layers for overlays.
-    for (auto j = overlay_begin; j != overlay_end; ++j) {
+    for (auto j = overlay_begin; j < overlay_end; ++j) {
       DisplayPlane *plane = j->get();
       if (previous_layer && !composition.empty()) {
         DisplayPlaneState &last_plane = composition.back();

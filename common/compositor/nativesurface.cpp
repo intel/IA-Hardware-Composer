@@ -30,6 +30,7 @@ NativeSurface::NativeSurface(uint32_t width, uint32_t height)
       width_(width),
       height_(height),
       clear_surface_(kFullClear),
+      resource_manager_(NULL),
       surface_age_(0) {
 }
 
