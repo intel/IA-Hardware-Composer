@@ -19,12 +19,16 @@
 
 #ifndef HAVE_DECL_INFINITY
 #include <float.h>
+#ifndef INFINITY
 #define INFINITY (DBL_MAX + DBL_MAX)
+#endif
 #define HAVE_DECL_INFINITY
 #endif
 
 #ifndef HAVE_DECL_NAN
+#ifndef NAN
 #define NAN (INFINITY - INFINITY)
+#endif
 #define HAVE_DECL_NAN
 #endif
 
