@@ -81,13 +81,10 @@ class DrmHwcNativeHandle {
  public:
   DrmHwcNativeHandle() = default;
 
-  DrmHwcNativeHandle(const gralloc_module_t *gralloc, native_handle_t *handle)
-      : gralloc_(gralloc), handle_(handle) {
+  DrmHwcNativeHandle(native_handle_t *handle) : handle_(handle) {
   }
 
   DrmHwcNativeHandle(DrmHwcNativeHandle &&rhs) {
-    gralloc_ = rhs.gralloc_;
-    rhs.gralloc_ = NULL;
     handle_ = rhs.handle_;
     rhs.handle_ = NULL;
   }
@@ -96,14 +93,12 @@ class DrmHwcNativeHandle {
 
   DrmHwcNativeHandle &operator=(DrmHwcNativeHandle &&rhs) {
     Clear();
-    gralloc_ = rhs.gralloc_;
-    rhs.gralloc_ = NULL;
     handle_ = rhs.handle_;
     rhs.handle_ = NULL;
     return *this;
   }
 
-  int CopyBufferHandle(buffer_handle_t handle, const gralloc_module_t *gralloc);
+  int CopyBufferHandle(buffer_handle_t handle);
 
   void Clear();
 
@@ -112,7 +107,6 @@ class DrmHwcNativeHandle {
   }
 
  private:
-  const gralloc_module_t *gralloc_ = NULL;
   native_handle_t *handle_ = NULL;
 };
 
@@ -148,7 +142,7 @@ struct DrmHwcLayer {
   UniqueFd acquire_fence;
   OutputFd release_fence;
 
-  int ImportBuffer(Importer *importer, const gralloc_module_t *gralloc);
+  int ImportBuffer(Importer *importer);
 
   void SetTransform(int32_t sf_transform);
   void SetSourceCrop(hwc_frect_t const &crop);

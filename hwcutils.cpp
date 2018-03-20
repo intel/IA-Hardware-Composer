@@ -21,6 +21,7 @@
 #include "platform.h"
 
 #include <log/log.h>
+#include <ui/GraphicBufferMapper.h>
 
 namespace android {
 
@@ -58,51 +59,18 @@ int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
   return 0;
 }
 
-static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
-  native_handle_t *new_handle =
-      native_handle_create(handle->numFds, handle->numInts);
-  if (new_handle == NULL)
-    return NULL;
-
-  const int *old_data = handle->data;
-  int *new_data = new_handle->data;
-  for (int i = 0; i < handle->numFds; i++) {
-    *new_data = dup(*old_data);
-    old_data++;
-    new_data++;
-  }
-  memcpy(new_data, old_data, sizeof(int) * handle->numInts);
-
-  return new_handle;
-}
-
-static void free_buffer_handle(native_handle_t *handle) {
-  int ret = native_handle_close(handle);
-  if (ret)
-    ALOGE("Failed to close native handle %d", ret);
-  ret = native_handle_delete(handle);
-  if (ret)
-    ALOGE("Failed to delete native handle %d", ret);
-}
-
-int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle,
-                                         const gralloc_module_t *gralloc) {
-  native_handle_t *handle_copy = dup_buffer_handle(handle);
-  if (handle_copy == NULL) {
-    ALOGE("Failed to duplicate handle");
-    return -ENOMEM;
-  }
-
-  int ret = gralloc->registerBuffer(gralloc, handle_copy);
+int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle) {
+  native_handle_t *handle_copy;
+  GraphicBufferMapper &gm(GraphicBufferMapper::get());
+  int ret =
+      gm.importBuffer(handle, const_cast<buffer_handle_t *>(&handle_copy));
   if (ret) {
-    ALOGE("Failed to register buffer handle %d", ret);
-    free_buffer_handle(handle_copy);
+    ALOGE("Failed to import buffer handle %d", ret);
     return ret;
   }
 
   Clear();
 
-  gralloc_ = gralloc;
   handle_ = handle_copy;
 
   return 0;
@@ -113,21 +81,22 @@ DrmHwcNativeHandle::~DrmHwcNativeHandle() {
 }
 
 void DrmHwcNativeHandle::Clear() {
-  if (gralloc_ != NULL && handle_ != NULL) {
-    gralloc_->unregisterBuffer(gralloc_, handle_);
-    free_buffer_handle(handle_);
-    gralloc_ = NULL;
+  if (handle_ != NULL) {
+    GraphicBufferMapper &gm(GraphicBufferMapper::get());
+    int ret = gm.freeBuffer(handle_);
+    if (ret) {
+      ALOGE("Failed to free buffer handle %d", ret);
+    }
     handle_ = NULL;
   }
 }
 
-int DrmHwcLayer::ImportBuffer(Importer *importer,
-                              const gralloc_module_t *gralloc) {
+int DrmHwcLayer::ImportBuffer(Importer *importer) {
   int ret = buffer.ImportBuffer(sf_handle, importer);
   if (ret)
     return ret;
 
-  ret = handle.CopyBufferHandle(sf_handle, gralloc);
+  ret = handle.CopyBufferHandle(sf_handle);
   if (ret)
     return ret;
 
