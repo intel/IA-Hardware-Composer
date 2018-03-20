@@ -90,18 +90,22 @@ void ResourceManager::RegisterBuffer(const uint32_t& native_buffer,
 
 void ResourceManager::MarkResourceForDeletion(const ResourceHandle& handle,
                                               bool has_valid_gpu_resources) {
+  lock_.lock();
   purged_resources_.emplace_back();
   ResourceHandle& temp = purged_resources_.back();
   std::memcpy(&temp, &handle, sizeof temp);
   if (!has_purged_gpu_resources_)
     has_purged_gpu_resources_ = has_valid_gpu_resources;
+  lock_.unlock();
 }
 
 void ResourceManager::MarkMediaResourceForDeletion(
     const MediaResourceHandle& handle) {
+  lock_.lock();
   purged_media_resources_.emplace_back();
   MediaResourceHandle& temp = purged_media_resources_.back();
   std::memcpy(&temp, &handle, sizeof temp);
+  lock_.unlock();
 }
 
 void ResourceManager::GetPurgedResources(
