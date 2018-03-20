@@ -21,6 +21,9 @@
 #  SOFTWARE.
 #
 
+if ENABLE_DUMMY_COMPOSITOR
+    AM_CPPFLAGS = -DUSE_DC
+else
 bin_PROGRAMS = testlayers \
 	       linux_test
 
@@ -94,3 +97,4 @@ linux_test_SOURCES = \
     ./common/esTransform.cpp \
     ./common/jsonhandlers.cpp \
     ./apps/linux_frontend_test.cpp
+endif
