@@ -113,10 +113,10 @@ enum iahwc_layer_transform {
 };
 
 typedef struct iahwc_rect {
-  int left;
-  int top;
-  int right;
-  int bottom;
+  uint32_t left;
+  uint32_t top;
+  uint32_t right;
+  uint32_t bottom;
 } iahwc_rect_t;
 
 typedef struct iahwc_region {
