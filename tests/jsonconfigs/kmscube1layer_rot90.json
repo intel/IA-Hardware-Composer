@@ -1,0 +1,26 @@
+{
+  "layers_parameters": [
+    {
+      "format": 25,
+      "frame": {
+        "height": 1080,
+        "width": 1920,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "",
+      "source": {
+        "crop": {
+          "height": 1080,
+          "width": 1920,
+          "x": 0,
+          "y": 0
+        },
+        "height": 1080,
+        "width": 1920
+      },
+      "transform": 4,
+      "type": 0
+    }
+  ]
+}
