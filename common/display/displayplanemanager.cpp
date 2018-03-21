@@ -980,6 +980,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
 #endif
         MarkSurfacesForRecycling(&last_plane, mark_later, true);
+        last_plane.SetOverlayLayer(layer);
         reset_composition_region = true;
       }
     }
