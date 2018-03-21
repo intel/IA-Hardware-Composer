@@ -788,6 +788,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     HandleCommitFailure(current_composition_planes);
+    last_commit_failed_update_ = true;
     return false;
   }
 

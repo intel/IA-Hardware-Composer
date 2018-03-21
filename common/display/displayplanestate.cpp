@@ -368,7 +368,11 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 }
 
 void DisplayPlaneState::ReleaseSurfaces() {
-  std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+  if (!private_data_->surfaces_.empty()) {
+    std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+    private_data_->layer_ = NULL;
+  }
+
   needs_surface_allocation_ = true;
   recycled_surface_ = false;
 }
