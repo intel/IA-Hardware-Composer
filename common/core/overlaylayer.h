@@ -214,6 +214,10 @@ struct OverlayLayer {
     return state_ & kLayerOrderChanged;
   }
 
+  bool NeedsPartialClear() const {
+    return state_ & kForcePartialClear;
+  }
+
   void Dump();
 
  private:
@@ -224,7 +228,8 @@ struct OverlayLayer {
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
     kRawPixelDataChanged = 1 << 5,
-    kLayerOrderChanged = 1 << 6
+    kLayerOrderChanged = 1 << 6,
+    kForcePartialClear = 1 << 7
   };
 
   struct ImportedBuffer {
@@ -267,8 +272,8 @@ struct OverlayLayer {
   HWCBlending blending_ = HWCBlending::kBlendingNone;
   uint32_t state_ = kLayerContentChanged | kDimensionsChanged;
   std::unique_ptr<ImportedBuffer> imported_buffer_;
-  LayerComposition supported_composition_;
-  LayerComposition actual_composition_;
+  LayerComposition supported_composition_ = kAll;
+  LayerComposition actual_composition_ = kAll;
   HWCLayerType type_ = kLayerNormal;
 };
 

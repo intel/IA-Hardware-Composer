@@ -353,7 +353,8 @@ class NativeDisplay {
    * tries to take advantage of any HDCP support advertised by
    * the Kernel.
    */
-  virtual void SetHDCPState(HWCContentProtection /*state*/) {
+  virtual void SetHDCPState(HWCContentProtection /*state*/,
+                            HWCContentType /*content_type*/) {
   }
 
  protected:
@@ -383,10 +384,9 @@ class NativeDisplay {
   virtual void RotateDisplay(HWCRotation /*rotation*/) {
   }
 
-private:
+ private:
   std::vector<uint64_t> LayerIds_;
-  uint64_t current_max_layer_ids_;
-
+  uint64_t current_max_layer_ids_ = 0;
 };
 
 /**

@@ -50,6 +50,9 @@ libhwcomposer_ladir = $(libdir)
 libhwcomposer_la_LDFLAGS = -version-number 0:0:1 -no-undefined -shared
 libhwcomposer_la_LDFLAGS += -Wl,--no-as-needed,-lva,-lva-drm,--as-needed
 
+if ENABLE_DUMMY_COMPOSITOR
+AM_CPPFLAGS += -DUSE_DC
+else
 if ENABLE_VULKAN
 AM_CPP_INCLUDES += -Icommon/compositor/vk
 AM_CPPFLAGS += -Icommon/compositor/vk -DUSE_VK -DDISABLE_EXPLICIT_SYNC
@@ -58,6 +61,7 @@ else
 AM_CPP_INCLUDES += -Icommon/compositor/gl
 AM_CPPFLAGS += -DUSE_GL
 libhwcomposer_la_LIBADD += $(GLES2_LIBS)
+endif
 endif
 
 if ENABLE_LINUX_FRONTEND

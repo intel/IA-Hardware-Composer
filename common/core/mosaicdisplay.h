@@ -29,7 +29,7 @@ namespace hwcomposer {
 
 class MosaicDisplay : public NativeDisplay {
  public:
-  MosaicDisplay(const std::vector<NativeDisplay *> displays);
+  MosaicDisplay(const std::vector<NativeDisplay *> &displays);
   ~MosaicDisplay() override;
 
   bool Initialize(NativeBufferHandler *buffer_handler) override;
@@ -108,7 +108,8 @@ class MosaicDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected);
 
-  void SetHDCPState(HWCContentProtection state) override;
+  void SetHDCPState(HWCContentProtection state,
+                    HWCContentType content_type) override;
 
  private:
   std::vector<NativeDisplay *> physical_displays_;
@@ -120,7 +121,7 @@ class MosaicDisplay : public NativeDisplay {
   int32_t dpiy_;
   uint32_t refresh_ = 0;
   uint32_t power_mode_ = kOff;
-  uint32_t display_id_;
+  uint32_t display_id_ = 0;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t config_ = 0;

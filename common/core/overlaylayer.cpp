@@ -24,6 +24,7 @@
 #include "hwcutils.h"
 
 #include "resourcemanager.h"
+#include "nativebufferhandler.h"
 
 namespace hwcomposer {
 
@@ -74,8 +75,12 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              bool register_buffer, HwcLayer* layer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
+  uint32_t id;
+
   if (resource_manager && register_buffer) {
-    buffer = resource_manager->FindCachedBuffer(GETNATIVEBUFFER(handle));
+    uint32_t gpu_fd = resource_manager->GetNativeBufferHandler()->GetFd();
+    id = GetNativeBuffer(gpu_fd, handle);
+    buffer = resource_manager->FindCachedBuffer(id);
   }
 
   if (buffer == NULL) {
@@ -86,8 +91,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
     buffer->InitializeFromNativeHandle(handle, resource_manager,
                                        is_cursor_layer);
-    if (register_buffer) {
-      resource_manager->RegisterBuffer(GETNATIVEBUFFER(handle), buffer);
+    if (resource_manager && register_buffer) {
+      resource_manager->RegisterBuffer(id, buffer);
     }
   }
 
@@ -228,8 +233,17 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   surface_damage_ = layer->GetLayerDamage();
+  // In case of layer using blening we need to force partial clear. Otherwise
+  // we see content not getting updated correctly. For example:
+  // on Android enable, settings put system user_rotation 1 and
+  // navigate to settings on Android.
+  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
+    state_ |= kForcePartialClear;
+    surface_damage_ = layer->GetDisplayFrame();
+  }
+
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, false, layer);
+            resource_manager, true, layer);
 
   if (!handle_constraints) {
     if (previous_layer) {

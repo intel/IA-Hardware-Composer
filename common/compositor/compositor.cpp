@@ -28,10 +28,13 @@
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "hwcutils.h"
+#include "hwcdefs.h"
 
 namespace hwcomposer {
 
 Compositor::Compositor() {
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
 }
 
 Compositor::~Compositor() {
@@ -83,6 +86,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                               plane.GetSourceLayers().begin(),
                               plane.GetSourceLayers().end());
       media_state.emplace_back();
+      plane.SwapSurfaceIfNeeded();
       DrawState &state = media_state.back();
       state.surface_ = plane.GetOffScreenTarget();
       MediaState &media_state = state.media_state_;
@@ -93,7 +97,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
-      plane.SwapSurfaceIfNeeded();
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       plane.SwapSurfaceIfNeeded();

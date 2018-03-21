@@ -201,7 +201,7 @@ bool DisplayPlaneManager::ValidateLayers(
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
           if (layer->IsVideoLayer()) {
-            last_plane.SetVideoPlane();
+            last_plane.SetVideoPlane(true);
           }
 
           if (fall_back) {
@@ -980,6 +980,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
         ISURFACETRACE("ReValidatePlanes called: moving to scan \n");
 #endif
         MarkSurfacesForRecycling(&last_plane, mark_later, true);
+        last_plane.SetOverlayLayer(layer);
         reset_composition_region = true;
       }
     }

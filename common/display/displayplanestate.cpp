@@ -368,7 +368,11 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 }
 
 void DisplayPlaneState::ReleaseSurfaces() {
-  std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+  if (!private_data_->surfaces_.empty()) {
+    std::vector<NativeSurface *>().swap(private_data_->surfaces_);
+    private_data_->layer_ = NULL;
+  }
+
   needs_surface_allocation_ = true;
   recycled_surface_ = false;
 }
@@ -446,9 +450,13 @@ bool DisplayPlaneState::IsVideoPlane() const {
   return private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo;
 }
 
-void DisplayPlaneState::SetVideoPlane() {
-  // FIXME: This causes flicker when playing Videos.
-  // private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
+void DisplayPlaneState::SetVideoPlane(bool enable_video) {
+  if (enable_video) {
+    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
+    private_data_->supports_video_ = true;
+  } else {
+    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
+  }
 }
 
 void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {

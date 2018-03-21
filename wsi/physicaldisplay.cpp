@@ -537,7 +537,7 @@ bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
       break;
     case HWCDisplayAttribute::kRefreshRate:
       // in nanoseconds
-      *value = 60;
+      *value = 16666666;
       break;
     case HWCDisplayAttribute::kDpiX:
       // Dots per 1000 inches

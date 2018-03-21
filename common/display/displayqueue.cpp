@@ -264,6 +264,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool update_rect = reset_plane;
       bool refresh_surfaces = reset_composition_regions;
+      bool force_partial_clear = false;
 
       const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
@@ -280,9 +281,35 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             continue;
           }
 
+          if (layer.NeedsPartialClear()) {
+            force_partial_clear = true;
+          }
+
           if (layer.HasLayerContentChanged()) {
             CalculateRect(layer.GetSurfaceDamage(), surface_damage);
           }
+        }
+      }
+
+      // If this is a video plane, ensure that buffer format
+      // is still related to Video/Camera. Handle buffer format
+      // changes in this case.
+      if (target_plane.IsVideoPlane()) {
+        const OverlayLayer& layer = layers.at(source_layers.at(0));
+        if (!layer.IsVideoLayer()) {
+          target_plane.SetVideoPlane(false);
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &target_plane, surfaces_not_inuse_, true);
+          refresh_surfaces = true;
+        }
+      } else if ((layers_size == 1) && target_plane.CanSupportVideo() &&
+                 !target_plane.IsVideoPlane()) {
+        const OverlayLayer& layer = layers.at(source_layers.at(0));
+        if (layer.IsVideoLayer()) {
+          target_plane.SetVideoPlane(true);
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &target_plane, surfaces_not_inuse_, true);
+          refresh_surfaces = true;
         }
       }
 
@@ -300,14 +327,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (update_rect || refresh_surfaces || !surface_damage.empty()) {
+      if (update_rect || refresh_surfaces || !surface_damage.empty() ||
+          force_partial_clear) {
         needs_gpu_composition = true;
         if (target_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
         } else if (refresh_surfaces || reset_plane) {
           target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-        } else if (!update_rect && !surface_damage.empty()) {
-          target_plane.UpdateDamage(surface_damage);
+        } else if (!update_rect) {
+          if (force_partial_clear) {
+            target_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
+          }
+
+          if (!surface_damage.empty()) {
+            target_plane.UpdateDamage(surface_damage);
+          }
         }
 
         if (refresh_surfaces || reset_plane || update_rect) {
@@ -754,6 +788,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!composition_passed) {
     HandleCommitFailure(current_composition_planes);
+    last_commit_failed_update_ = true;
     return false;
   }
 

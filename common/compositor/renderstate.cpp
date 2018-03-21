@@ -68,16 +68,20 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       }
       case HWCTransform::kTransform90: {
         swap_xy = true;
-        if (transform & HWCTransform::kReflectX) {
-          flip_xy[0] = true;
-          flip_xy[1] = true;
-        } else if (transform & HWCTransform::kReflectY) {
-          flip_xy[0] = false;
-          flip_xy[1] = false;
-        } else {
-          flip_xy[0] = false;
-          flip_xy[1] = true;
-        }
+        flip_xy[0] = false;
+        flip_xy[1] = true;
+        break;
+      }
+      case HWCTransform::kTransform90 | HWCTransform::kReflectX: {
+        swap_xy = true;
+        flip_xy[0] = true;
+        flip_xy[1] = true;
+        break;
+      }
+      case HWCTransform::kTransform90 | HWCTransform::kReflectY: {
+        swap_xy = true;
+        flip_xy[0] = false;
+        flip_xy[1] = false;
         break;
       }
       default: {

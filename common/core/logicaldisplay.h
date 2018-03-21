@@ -119,7 +119,8 @@ class LogicalDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected) override;
 
-  void SetHDCPState(HWCContentProtection state) override;
+  void SetHDCPState(HWCContentProtection state,
+                    HWCContentType content_type) override;
 
  private:
   LogicalDisplayManager *logical_display_manager_;
@@ -128,7 +129,7 @@ class LogicalDisplay : public NativeDisplay {
   std::shared_ptr<VsyncCallback> vsync_callback_ = NULL;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
   uint32_t power_mode_ = kOff;
-  uint32_t display_id_;
+  uint32_t display_id_ = 0;
   uint32_t index_ = 0;
   uint32_t width_ = 0;
   uint32_t total_divisions_ = 1;

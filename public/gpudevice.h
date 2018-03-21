@@ -56,6 +56,30 @@ class GpuDevice : public HWCThread {
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
 
+  // Enables the usage of HDCP for all planes supporting this feature
+  // on display. Some displays can support latest HDCP specification and also
+  // have ability to fallback to older specifications i.e. HDCP 2.2 and 1.4
+  // in case latest speicification cannot be supported for some reason.
+  // Content type is defined by content_type.
+  void EnableHDCPSessionForDisplay(uint32_t display,
+                                   HWCContentType content_type);
+
+  // Enables the usage of HDCP for all planes supporting this feature
+  // on all connected displays. Some displays can support latest HDCP
+  // specification and also have ability to fallback to older
+  // specifications i.e. HDCP 2.2 and 1.4 in case latest speicification
+  // cannot be supported for some reason. Content type is defined by
+  // content_type.
+  void EnableHDCPSessionForAllDisplays(HWCContentType content_type);
+
+  // The control disables the usage of HDCP for all planes supporting this
+  // feature on display.
+  void DisableHDCPSessionForDisplay(uint32_t display);
+
+  // The control disables the usage of HDCP for all planes supporting this
+  // feature on all connected displays.
+  void DisableHDCPSessionForAllDisplays();
+
  private:
   enum InitializationType {
     kUnInitialized = 0,               // Nothing Initialized.

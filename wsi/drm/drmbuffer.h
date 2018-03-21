@@ -64,11 +64,7 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   uint32_t GetPrimeFD() const override {
-    return prime_fd_;
-  }
-
-  uint32_t GetTotalPlanes() const override {
-    return total_planes_;
+    return image_.handle_->meta_data_.prime_fds_[0];
   }
 
   const uint32_t* GetPitches() const override {
@@ -106,16 +102,14 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t pitches_[4];
   uint32_t offsets_[4];
   uint32_t gem_handles_[4];
-  uint32_t prime_fd_ = 0;
   HWCLayerType usage_ = kLayerNormal;
-  uint32_t total_planes_ = 0;
   uint32_t previous_width_ = 0;   // For Media usage.
   uint32_t previous_height_ = 0;  // For Media usage.
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;
-  std::unique_ptr<PixelBuffer> pixel_buffer_;
-  void* data_;
+  std::unique_ptr<PixelBuffer> pixel_buffer_ = NULL;
+  void* data_ = NULL;
 };
 
 }  // namespace hwcomposer

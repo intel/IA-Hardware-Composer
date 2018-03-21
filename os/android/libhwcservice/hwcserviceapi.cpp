@@ -221,6 +221,46 @@ status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
   return pContext->mControls->DisplayModeSetMode(display, config);
 }
 
+status_t HwcService_Video_EnableHDCPSession_ForDisplay(
+    HWCSHANDLE hwcs, uint32_t display, EHwcsContentType content_type) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+
+  return pContext->mControls->EnableHDCPSessionForDisplay(display,
+                                                          content_type);
+}
+
+status_t HwcService_Video_EnableHDCPSession_AllDisplays(
+    HWCSHANDLE hwcs, EHwcsContentType content_type) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+
+  return pContext->mControls->EnableHDCPSessionForAllDisplays(content_type);
+}
+
+status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
+                                                        uint32_t display) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+
+  return pContext->mControls->DisableHDCPSessionForDisplay(display);
+}
+
+status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return -1;
+  }
+
+  return pContext->mControls->DisableHDCPSessionForAllDisplays();
+}
+
 status_t HwcService_Video_EnableEncryptedSession(HWCSHANDLE hwcs,
                                                  uint32_t sessionID,
                                                  uint32_t instanceID) {
