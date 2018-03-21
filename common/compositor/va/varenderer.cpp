@@ -302,6 +302,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     ETRACE("Failed to update capabailities. \n");
     return false;
   }
+  param_.filter_flags = filter_flags_;
 
   // currently rotation is only supported by VA on Android.
 #ifdef DISABLE_CURSOR_PLANE
@@ -491,7 +492,6 @@ bool VARenderer::UpdateCaps() {
   }
   deinterlace_.swap(deinterlace);
 
-  param_.filter_flags = filter_flags_;
   if (filters_.size()) {
     param_.filters = &filters_[0];
     param_.num_filters = static_cast<unsigned int>(filters_.size());
