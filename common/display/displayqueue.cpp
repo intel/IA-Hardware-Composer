@@ -291,6 +291,28 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
+      // If this is a video plane, ensure that buffer format
+      // is still related to Video/Camera. Handle buffer format
+      // changes in this case.
+      if (target_plane.IsVideoPlane()) {
+        const OverlayLayer& layer = layers.at(source_layers.at(0));
+        if (!layer.IsVideoLayer()) {
+          target_plane.SetVideoPlane(false);
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &target_plane, surfaces_not_inuse_, true);
+          refresh_surfaces = true;
+        }
+      } else if ((layers_size == 1) && target_plane.CanSupportVideo() &&
+                 !target_plane.IsVideoPlane()) {
+        const OverlayLayer& layer = layers.at(source_layers.at(0));
+        if (layer.IsVideoLayer()) {
+          target_plane.SetVideoPlane(true);
+          display_plane_manager_->MarkSurfacesForRecycling(
+              &target_plane, surfaces_not_inuse_, true);
+          refresh_surfaces = true;
+        }
+      }
+
       if (!removed_layers && update_rect) {
         target_plane.RefreshLayerRects(layers);
         surface_damage.reset();

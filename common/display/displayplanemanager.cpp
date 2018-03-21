@@ -201,7 +201,7 @@ bool DisplayPlaneManager::ValidateLayers(
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
           if (layer->IsVideoLayer()) {
-            last_plane.SetVideoPlane();
+            last_plane.SetVideoPlane(true);
           }
 
           if (fall_back) {
