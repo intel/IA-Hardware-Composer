@@ -62,6 +62,14 @@ std::tuple<int, int> DrmDevice::Init(const char *path, int num_displays) {
     return std::make_tuple(ret, 0);
   }
 
+#ifdef DRM_CLIENT_CAP_WRITEBACK_CONNECTORS
+  ret = drmSetClientCap(fd(), DRM_CLIENT_CAP_WRITEBACK_CONNECTORS, 1);
+  if (ret) {
+    ALOGI("Failed to set writeback cap %d", ret);
+    ret = 0;
+  }
+#endif
+
   drmModeResPtr res = drmModeGetResources(fd());
   if (!res) {
     ALOGE("Failed to get DrmDevice resources");
@@ -159,7 +167,10 @@ std::tuple<int, int> DrmDevice::Init(const char *path, int num_displays) {
       break;
     }
 
-    connectors_.emplace_back(std::move(conn));
+    if (conn->writeback())
+      writeback_connectors_.emplace_back(std::move(conn));
+    else
+      connectors_.emplace_back(std::move(conn));
   }
 
   // First look for primary amongst internal connectors
@@ -239,6 +250,9 @@ std::tuple<int, int> DrmDevice::Init(const char *path, int num_displays) {
       ALOGE("Failed CreateDisplayPipe %d with %d", conn->id(), ret);
       return std::make_tuple(ret, 0);
     }
+    if (!AttachWriteback(conn.get())) {
+      ALOGI("Display %d has writeback attach to it", conn->display());
+    }
   }
   return std::make_tuple(ret, displays_.size());
 }
@@ -249,6 +263,14 @@ bool DrmDevice::HandlesDisplay(int display) const {
 
 DrmConnector *DrmDevice::GetConnectorForDisplay(int display) const {
   for (auto &conn : connectors_) {
+    if (conn->display() == display)
+      return conn.get();
+  }
+  return NULL;
+}
+
+DrmConnector *DrmDevice::GetWritebackConnectorForDisplay(int display) const {
+  for (auto &conn : writeback_connectors_) {
     if (conn->display() == display)
       return conn.get();
   }
@@ -331,6 +353,34 @@ int DrmDevice::CreateDisplayPipe(DrmConnector *connector) {
   ALOGE("Could not find a suitable encoder/crtc for display %d",
         connector->display());
   return -ENODEV;
+}
+
+// Attach writeback connector to the CRTC linked to the display_conn
+int DrmDevice::AttachWriteback(DrmConnector *display_conn) {
+  DrmCrtc *display_crtc = display_conn->encoder()->crtc();
+  if (GetWritebackConnectorForDisplay(display_crtc->display()) != NULL) {
+    ALOGE("Display already has writeback attach to it");
+    return -EINVAL;
+  }
+  for (auto &writeback_conn : writeback_connectors_) {
+    if (writeback_conn->display() >= 0)
+      continue;
+    for (DrmEncoder *writeback_enc : writeback_conn->possible_encoders()) {
+      for (DrmCrtc *possible_crtc : writeback_enc->possible_crtcs()) {
+        if (possible_crtc != display_crtc)
+          continue;
+        // Use just encoders which had not been bound already
+        if (writeback_enc->can_bind(display_crtc->display())) {
+          writeback_enc->set_crtc(display_crtc);
+          writeback_conn->set_encoder(writeback_enc);
+          writeback_conn->set_display(display_crtc->display());
+          writeback_conn->UpdateModes();
+          return 0;
+        }
+      }
+    }
+  }
+  return -EINVAL;
 }
 
 int DrmDevice::CreatePropertyBlob(void *data, size_t length,

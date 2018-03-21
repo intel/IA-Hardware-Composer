@@ -57,6 +57,7 @@ class DrmDevice {
   }
 
   DrmConnector *GetConnectorForDisplay(int display) const;
+  DrmConnector *GetWritebackConnectorForDisplay(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
   DrmEventListener *event_listener();
@@ -81,11 +82,13 @@ class DrmDevice {
                   DrmProperty *property);
 
   int CreateDisplayPipe(DrmConnector *connector);
+  int AttachWriteback(DrmConnector *display_conn);
 
   UniqueFd fd_;
   uint32_t mode_id_ = 0;
 
   std::vector<std::unique_ptr<DrmConnector>> connectors_;
+  std::vector<std::unique_ptr<DrmConnector>> writeback_connectors_;
   std::vector<std::unique_ptr<DrmEncoder>> encoders_;
   std::vector<std::unique_ptr<DrmCrtc>> crtcs_;
   std::vector<std::unique_ptr<DrmPlane>> planes_;
