@@ -128,7 +128,10 @@ class DisplayPlaneState {
 
   bool IsVideoPlane() const;
 
-  void SetVideoPlane();
+  // Set true if this Plane State is handling Video layer and
+  // needs to go through the Media Compositor for any
+  // offscreen composition usage.
+  void SetVideoPlane(bool enable);
 
   // Updates plane state to using plane scalar if enable is
   // true. Forces clearing all offscreen surfaces if force_refresh
@@ -219,6 +222,12 @@ class DisplayPlaneState {
     return recycled_surface_;
   }
 
+  // Returns true in case the associated DisplayPlaneState
+  // can support Video.
+  bool CanSupportVideo() const {
+    return private_data_->supports_video_;
+  }
+
   void Dump();
 
  private:
@@ -273,6 +282,8 @@ class DisplayPlaneState {
     bool rect_updated_ = true;
 
     bool refresh_surface_ = true;
+
+    bool supports_video_ = false;
 
     // Display cannot support the required rotation.
     bool unsupported_display_rotation_ = false;
