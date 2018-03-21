@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# Usage: valexport <destination> [hwc]
+#
+# Export all required binaries for harness, tests and shims
+# along with the necessary scripts to  <destination>.gz file
+#
+# A temporary <destination> directory will be created in order to do this.
+#
+# If the optional hwc argument is specified, then HWC and its dependencies
+# in gralloc will also be exported.
+#
+
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+if [ "$HWCVAL_ROOT" = "" ]
+then
+  echo "HWCVAL_ROOT not defined"
+  exit
+fi
+
+if [[ $1 == "" ]]
+then
+    OUTPUT="artifacts"
+else
+    OUTPUT=$1
+fi
+
+# Make directories
+ROOT_DIR=${OUTPUT}/val_hwc
+rm -rf $ROOT_DIR
+mkdir -p $ROOT_DIR
+mkdir ${ROOT_DIR}/bin
+mkdir ${ROOT_DIR}/lib
+mkdir ${ROOT_DIR}/lib64
+mkdir ${ROOT_DIR}/lib/hw
+mkdir ${ROOT_DIR}/lib64/hw
+
+# Copy val directories wholesale
+cp -r $HWCVAL_ROOT/client_scripts ${ROOT_DIR}
+cp -r $HWCVAL_ROOT/host_scripts ${ROOT_DIR}
+cp -r $HWCVAL_ROOT/images ${ROOT_DIR}
+cp -r $HWCVAL_ROOT/configs ${ROOT_DIR}
+
+# Copy Android tree binaries by searching for them
+get_binary_file_lists target
+FILELIST="$HWC_BINARY_FILES $ADDITIONAL_BINARY_FILES $HWCVAL_BINARY_FILES"
+for FILE in $FILELIST;
+do
+    SRC=""
+
+    if [ -e $ANDROID_PRODUCT_OUT/vendor/$FILE ]
+    then
+        SRC=$ANDROID_PRODUCT_OUT/vendor/$FILE
+        if [ -e $ANDROID_PRODUCT_OUT/system/$FILE ]
+        then
+            rm $ANDROID_PRODUCT_OUT/system/$FILE
+        fi
+    else
+        if [ -e $ANDROID_PRODUCT_OUT/system/vendor/$FILE ]
+        then
+            SRC=$ANDROID_PRODUCT_OUT/system/vendor/$FILE
+        else
+            if [ -e $ANDROID_PRODUCT_OUT/system/$FILE ]
+            then
+                SRC=$ANDROID_PRODUCT_OUT/system/$FILE
+            fi
+        fi
+    fi
+
+    if [ "$SRC" != "" ]
+    then
+        cp $SRC ${ROOT_DIR}/$FILE
+    else
+        echo "!!! WARNING valexport no such file ${VENDOR_BASE}/$FILE !!!"
+    fi
+done
+
+# Create the tar file
+tar cz -C $OUTPUT -f $OUTPUT.gz val_hwc
+rm -rf $OUTPUT
+

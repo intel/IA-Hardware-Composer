@@ -1,0 +1,135 @@
+#!/bin/bash
+#
+# valsmoke
+#
+# Easy script for developers to run smoke tests.
+# Use on its own, or with one or more of the optional arguments, "prot".
+#
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+############################################################################################################################
+# Functions ################################################################################################################
+############################################################################################################################
+#
+source ${proc_dir}/valsmoke_funcs
+
+process_args $@
+runner_init
+
+#######################################################################################################################################
+# Run the tests #######################################################################################################################
+#######################################################################################################################################
+if [ $RUN_gta -eq 1 ]
+then
+    run_gta_testset
+fi
+
+if [ $RUN_main -eq 1 ]
+then
+    run_main_testset
+fi
+
+# Main nightly test
+if [ $RUN_full -eq 1 ]
+then
+    run_full_testset
+fi
+
+# Always run this, it performs many if checks for various full_subset tests
+run_full_subset
+
+if [ $RUN_weekly -eq 1 ]
+then
+    run_weekly_testset
+fi
+
+if [ $RUN_default -eq 1 ]
+then
+    run_default_testset
+fi
+
+#######################################################################################################################################
+# Print Summary #######################################################################################################################
+#######################################################################################################################################
+
+# Calculate how many tests were attempted
+TESTS_ATTEMPTED=`grep "RUNNING TESTS:" $TMPFILE | cut -f3- --delimiter=" " | wc -w`
+TESTS_PASSED=`grep -c "\*\*\* Test PASSED:" $TMPFILE`
+TESTS_FAILED=`grep -c "\*\*\* Test FAILED:" $TMPFILE`
+
+# Number of tests which should have been run but for which no pass or fail was reported
+let TESTS_NOT_STARTED=(${TESTS_ATTEMPTED}-${TESTS_PASSED})-${TESTS_FAILED}
+
+# Number of times valhwch detected a test abort
+TESTS_REPORTED_ABORTED=`grep -c "\*\*\* Test ABORTED" $TMPFILE`
+
+# Combined abort count.
+# We use one or the other of the above two statistics, to avoid double counting.
+# $TESTS_NOT_STARTED will give us an accurate number if the test got far enough to report how many tests it was going to run.
+# Otherwise, $TESTS_REPORTED_ABORTED will really give us the number of test sets that died
+# But all that really matters is that the result is non-zero if there was any failure.
+if [[ $TESTS_REPORTED_ABORTED -gt -$TESTS_NOT_STARTED ]]
+then
+    TESTS_ABORTED=$TESTS_REPORTED_ABORTED
+else
+    TESTS_ABORTED=$TESTS_NOT_STARTED
+fi
+
+# If nothing happened, and even valhwch failed to detect an abort, the test must have aborted
+if [[ $TESTS_ATTEMPTED -eq 0 && $TESTS_ABORTED -eq 0 ]]
+then
+    TESTS_ABORTED=1
+fi
+
+# Provide totals and print test output (if required)
+if [[ $TESTS_PASSED -gt 0 ]] && [[ $TESTS_FAILED -eq 0 ]] && [[ $TESTS_ABORTED -eq 0 ]]
+then
+    echo    "==================================================="
+    echo    "==  VALSMOKE TEST SUMMARY                        =="
+    echo -e "==  ${TARGET_DEVICE} TESTS PASSED:$TESTS_PASSED failed:$TESTS_FAILED aborted:$TESTS_ABORTED"
+    echo    "==================================================="
+else
+    echo    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo    "!!  VALSMOKE TEST SUMMARY                        !!"
+    echo -e "!!  ${TARGET_DEVICE} TESTS passed:$TESTS_PASSED FAILED:$TESTS_FAILED ABORTED:$TESTS_ABORTED"
+    echo    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
+if [[ $JENKINS_PLATFORM != "" ]]
+then
+    if [[ $TESTS_ABORTED -gt 0 ]]
+    then
+        # When one or more tests has aborted, we include passed tests in the output to give us a better idea of how far we got.
+        echo
+        echo " DETAIL (in full because of aborted tests):"
+        echo " =========================================="
+        grep -v "Copying \|KB/s\|remount succeeded\|Android is OFF\|Stopping Android...\|Screen Off - Waking Up\|is already shim\|hwc/results.csv\|libpng warning:" $TMPFILE \
+          | dos2unix | fmt -sw 110 \
+          | sed -e 's/^/ /' -e 's/[ \t\r\n]*$//'
+    elif [[ $TESTS_PASSED -ne $TESTS_ATTEMPTED ]]
+    then
+        echo
+        echo " DETAIL:"
+        echo " ======="
+        grep -v "Copying \|KB/s\|remount succeeded\|Android is OFF\|Stopping Android...\|Screen Off - Waking Up\|is already shim\|hwc/results.csv\|*** Test PASSED:\|RUNNING TESTS:\|libpng warning:" $TMPFILE \
+          | dos2unix | fmt -sw 110 \
+          | sed -e 's/^/ /' -e 's/[ \t\r\n]*$//'
+    else
+        # Always log the HWC/HWC validation version information.
+        grep "HWC version\|HWCVAL version"  $TMPFILE \
+          | dos2unix | fmt -sw 110 \
+          | sed -e 's/^/ /' -e 's/[ \t\r\n]*$//'
+    fi
+fi
+
+echo -e "DISABLED CHECKS: $HWCVAL_LOG_SETWARNING\n"
+
+# Provide a link to the results matrix
+$ADB pull ${HWCVAL_TARGET_DIR}/resultscombined.csv $CLIENT_LOGS > /dev/null
+TestCheckMatrix.py ${CLIENT_LOGS}/resultscombined.csv /dev/null ${CLIENT_LOGS}/results_final.csv
+link_to_log "RESULTS MATRIX" "results_final.csv"
+
+rm -f $TMPFILE

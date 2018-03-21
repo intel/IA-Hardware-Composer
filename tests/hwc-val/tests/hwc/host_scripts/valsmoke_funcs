@@ -1,0 +1,653 @@
+#!/bin/bash
+#
+# valsmoke_funcs
+# Functions used by valsmoke
+# Separated for clarity
+#
+
+
+############################################################################################################################
+# Functions ################################################################################################################
+############################################################################################################################
+#
+# Function to provide a link to log files. Parameters are:
+#   $1 - label text to print
+#   $2 - log filename
+#
+link_to_log()
+{
+  # Check if we are Jenkins
+  if [[ "$UPSTREAM_BUILD_NUMBER" != "" ]]
+  then
+      # We are Jenkins
+      link="${UPSTREAM_JOB_URL%?}/ws/${UPSTREAM_BUILD_NUMBER}/$2"
+  else
+      # Running on the command line / Pave etc.
+      link="${CLIENT_LOGS}/$2"
+  fi
+  echo -e "$1:\n  $link" >> $TMPFILE
+}
+
+#
+# Function to submit test set $2... to target $1 for Jenkins build and execution
+#
+run_job()
+{
+    java_command="java -jar /user/rbpinske/jenkins/jenkins-cli.jar -s $JENKINS_HOST build"
+    eval "BUILDER=\$$1_BUILDER"
+    full_command="$java_command $BUILDER $JENKINS_PARAMETERS -p TEST_SET=\"${@:2}\" -p BUILD_DESCRIPTION=\"${@:2}\""
+    echo "valsmoke running: $full_command"
+    eval "$full_command"
+}
+
+#
+# Function to submit test set $2... as new Jenkins jobs on one or more targets as indicated by $1
+#    $1 = ALL: Both BYT and CHT (in future, BXT also).
+#    $1 = BYT: Baytrail target only
+#    $1 = CHT: Cherrytrail target only.
+#
+# If we are running as a Jenkins job ourselves, functionality will be as above.
+#
+# If we have not been started by Jenkins (e.g. we have been started interactively from a command prompt),
+# then the function does not start any Jenkins jobs but instead runs the job directly from this script.
+# In this case, the $1 option is used only for filtering purposes (e.g. if $1 = BYT but we are CHT, then
+# the test will be skipped).
+#
+run_test_set()
+{
+    if [[ "$GERRIT_REFSPEC" != "" || "$JENKINS_HOST" != "" ]]
+    then
+        echo "valsmoke run_test_set $@"
+        # We are jenkins, submit the tests as separate jobs
+        # (but only if we are BYT, we don't want this to happen twice).
+        if [[ $TARGET_DEVICE == *byt* ]]
+        then
+            if [ "$1" == "ALL" ]
+            then
+                run_job BYT "${@:2}"
+                run_job CHT "${@:2}"
+                run_job BXT "${@:2}"
+            else
+                run_job $1 "${@:2}"
+            fi
+        fi
+    else
+        # We are not Jenkins, just enable the running of the test within this context
+        # (Provided we are on the right target).
+        if [ "$1" == "BYT" ]
+        then
+            if [[ $TARGET_DEVICE != *byt* ]]
+            then
+                return
+            fi
+        elif  [ "$1" == "CHT" ]
+        then
+            if [[ $TARGET_DEVICE != *cht* ]]
+            then
+                return
+            fi
+        elif  [ "$1" == "BXT" ]
+        then
+            if [[ $TARGET_DEVICE != *bxt* ]]
+            then
+                return
+            fi
+        fi
+
+        for OPTION in ${@:2}
+        do
+            if [[ "${OPTION:0:2}" == "no" ]]
+            then
+                NAME="${OPTION:2}"
+                VALUE=0
+            else
+                NAME="$OPTION"
+                VALUE=1
+            fi
+
+            eval "RUN_${NAME}=$VALUE"
+        done
+    fi
+}
+###########################################################################################################################
+# Initialization ##########################################################################################################
+###########################################################################################################################
+#
+runner_init()
+{
+    TMPFILE=`mktemp`
+    COMMON_SUFFIX="-backlight=255"
+    #if a jenkins platform is defined, this is a jenkins run
+    if [[ $JENKINS_PLATFORM != "" ]]
+    then
+        COMMON_SUFFIX="$COMMON_SUFFIX -brief"
+    fi
+
+    if [[ "$GERRIT_REFSPEC" != "" ]]
+    then
+        if [[ "$HWC_REFSPEC" != "" ]]
+        then
+            JENKINS_PARAMETERS="-p GERRIT_REFSPEC=$GERRIT_REFSPEC -p HWC_REFSPEC=$HWC_REFSPEC"
+            CHT_BUILDER="Hardware_Composer_Validation_Builder_CHT"
+        elif [[ "$HWCVAL_REFSPEC" != "" ]]
+        then
+            JENKINS_PARAMETERS="-p GERRIT_REFSPEC=$GERRIT_REFSPEC -p HWCVAL_REFSPEC=$HWCVAL_REFSPEC"
+            CHT_BUILDER="Hardware_Composer_Builder_CHT"
+        fi
+    fi
+
+    if [[ "$JENKINS_HOST" == "" ]]
+    then
+        JENKINS_HOST="http://localhost:8080"
+    fi
+
+    # Work out what checks to disable
+    if [[ "$UPSTREAM_BUILD_NUMBER" != "" ]]
+    then
+        # Jenkins run. git log has been saved for us in the upstream workspace.
+        export HWCVAL_HWC_GIT_LOGFILE=$UPSTREAM_WORKSPACE/$UPSTREAM_BUILD_NUMBER/hwc.gitlog
+    else
+        # Local run. Run git log wherever HWC was built from.
+        awk_command="awk '{print \$2}' < ${ANDROID_PRODUCT_OUT}/obj/SHARED_LIBRARIES/libhwcservice_intermediates/export_includes | xargs dirname"
+        HWC_SOURCE_DIR=`eval $awk_command`
+        export HWCVAL_HWC_GIT_LOGFILE=`mktemp`
+        pushd $ANDROID_BUILD_TOP >& /dev/null
+        git -C $HWC_SOURCE_DIR log > $HWCVAL_HWC_GIT_LOGFILE
+        popd >& /dev/null
+    fi
+
+    #Enable warnings instead of errors, generally as a workaround
+    export HWCVAL_LOG_SETWARNING=`awk -f $HWCVAL_ROOT/host_scripts/DetermineCheckDisables.awk < $HWCVAL_HWC_GIT_LOGFILE`
+    # https://jira01.devtools.intel.com/browse/VAH-394
+    export HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckRCNormalBufSentToRCPlane"
+
+    if [[ "$NO_TARGET_DEVICE" == "" ]]
+    then
+        TARGET_DEVICE=`$ADB shell getprop ro.product.device | dos2unix`
+        echo "valsmoke TARGET_DEVICE set to $TARGET_DEVICE from adb cmd, ro.product.device"
+    else
+        TARGET_DEVICE=$NO_TARGET_DEVICE
+        echo "valsmoke TARGET_DEVICE set to $TARGET_DEVICE from NO_TARGET_DEVICE"
+    fi
+
+    # Setup platform specific overrides
+    if [[ $TARGET_DEVICE == *byt* ]]
+    then
+        echo "valsmoke Enter BYT target overrides"
+
+        API_TEST_OPTIONS="-min_display_frame_size=16 "
+        API_TEST_OPTIONS_2="$API_TEST_OPTIONS"
+    elif [[ $TARGET_DEVICE == *bxt* ]]
+    then
+        echo "valsmoke Enter BXT target overrides"
+        export HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eLogVBlank "
+        API_TEST_OPTIONS="-min_display_frame_size=64 -crop_alignment=1 "
+        API_TEST_OPTIONS="$API_TEST_OPTIONS -min_NV12_crop_size=128 -min_NV12_display_frame_size=128 -NV12_crop_alignment=2 -NV12_display_frame_alignment=2"
+        API_TEST_OPTIONS="$API_TEST_OPTIONS -min_YUY2_crop_size=128 -min_YUY2_display_frame_size=128 -YUY2_crop_alignment=2 -YUY2_display_frame_alignment=2"
+        API_TEST_OPTIONS_2="$API_TEST_OPTIONS"
+    else
+        echo "valsmoke Enter CHT target overrides"
+        # CHT
+        # iVP may hang if small crops or display frames are used with 422 buffers.
+        API_TEST_OPTIONS="-min_display_frame_size=16 -min_NV12_display_frame_size=32 -min_YUY2_display_frame_size=32 -min_YUY2_crop_size=4 "
+
+        # hwc-next build
+        # Enable MDS using service calls to control it
+        # TODO: Find a way to detect this automatically (more difficult than you would think).
+        export HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eOptNewMds"
+        API_TEST_OPTIONS_2="$API_TEST_OPTIONS "
+
+
+    fi
+
+    # Enable contextual logging to kmsg
+    HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eOptKmsgLogging"
+
+    if [ "$NO_TARGET_DEVICE" == "" ]
+    then
+        # Clear results files from the target
+        $ADB root>/dev/null
+        $ADB shell rm -f ${HWCVAL_TARGET_DIR}/results*.csv
+        $ADB shell rm -f ${HWCVAL_TARGET_DIR}/dump/* ${HWCVAL_TARGET_DIR}/dump.tgz
+        rm -f ${CLIENT_LOGS}/dump.tgz
+    fi
+
+}
+
+###########################################################################################################################
+# Determine tests to be run ###############################################################################################
+###########################################################################################################################
+#
+# Establish Default tests to be run
+# Default set will be run by Jenkins on every push, so don't make it run for too long.
+#
+process_args()
+{
+    RUN_default=0
+    RUN_main=0
+    RUN_prot=0
+    RUN_full=0
+    RUN_gta=0
+
+    # Subsets of "full" which can be requested separately
+    RUN_full_api1=0
+    RUN_full_api2=0
+    RUN_full_randommodes1=0
+    RUN_full_randommodes2=0
+    RUN_full_randommodes3=0
+    RUN_full_randommodes4=0
+    RUN_full_randommodes5=0
+    RUN_full_videomodes_nomodechange=0
+    RUN_full_mosaic=0
+
+    RUN_weekly=0
+    RUN_weekly1=0
+    RUN_weekly2=0
+    RUN_weekly3=0
+    RUN_weekly4=0
+    RUN_weekly5=0
+
+    # Process the arguments
+    for i in $@
+    do
+        OPTION=`echo ${i} | tr '[:upper:]' '[:lower:]'`
+        if [[ "$OPTION" == "usage" || "$OPTION" == "-usage" || "$OPTION" == "-h" ]]
+        then
+            echo 'Usage: valsmoke \{ usage | prot | all | comp \}'
+            echo '    usage: Print this message.'
+            echo '    [no]default : Include default smoke tests (Smoke and one Api test).'
+            echo '    [no]main    : Include all main tests in default mode (includes protected content).'
+            echo '    [no]full    : Include comprehensive random Api testing [This is very agressive. Some chance of HWC or kernel crash].'
+            echo '    [no]prot    : Include protected video tests, and protected video modes on Api tests.'
+            echo 'Default: valsmoke default prot'
+            exit
+        fi
+
+        if [[ "${OPTION:0:2}" == "no" ]]
+        then
+            NAME="${OPTION:2}"
+            VALUE=0
+        else
+            NAME="$OPTION"
+            VALUE=1
+        fi
+
+        echo "valsmoke setting RUN_${NAME}=$VALUE"
+        eval "RUN_${NAME}=$VALUE"
+    done
+}
+
+###########################################################################################################################
+# Define the GTA test set #################################################################################################
+###########################################################################################################################
+#
+#  Used for GFT cycles and for baseline validation
+#
+run_gta_testset()
+{
+    # Normal focus tests
+    valhwch -logname=Camera -t Camera $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Dialog -t Dialog $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Flicker1 -t Flicker1 $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Flicker2 -t Flicker2 $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Flicker3 -t Flicker3 $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=FlipRot -t FlipRot $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Gallery -t Gallery $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Game -t Game $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Home -t Home $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=MovieStudio -t MovieStudio $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NetflixStepped -t NetflixStepped $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Notification -t Notification $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NV12FullVideo -t NV12FullVideo $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NV12FullVideo2 -t NV12FullVideo2 $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NV12PartVideo -t NV12PartVideo $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NV12PartVideo2 -t NV12PartVideo2 $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=PanelFitter -t PanelFitter $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=PartComp -t PartComp $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Png -t Png $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=RandomModes -t RandomModes $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Skip -t Skip $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Smoke -t Smoke $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=TransparencyComposition -t TransparencyComposition $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=VideoModes -t VideoModes $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+    # Composition tests
+    valhwch -logname=FlipRot_comp -t FlipRot -val_hwc_composition -no_val_hwc $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=NV12PartVideo2_comp -t NV12PartVideo2 -val_hwc_composition -no_val_hwc $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=Smoke_comp -t Smoke -val_hwc_composition -no_val_hwc $COMMON_SUFFIX |& vallogadd $TMPFILE
+    valhwch -logname=TransparencyComposition_comp -t TransparencyComposition -val_hwc_composition -no_val_hwc $COMMON_SUFFIX |& vallogadd $TMPFILE
+}
+
+###########################################################################################################################
+# Define the MAIN test set ################################################################################################
+###########################################################################################################################
+#
+#  Used for primary jenkins validation +1
+#
+run_main_testset()
+{
+    if [[ $TARGET_DEVICE == *cht* ]]
+    then
+        valhwch -logname=main_all -all -version \
+            -avoid NetflixScaled -avoid RandomModes \
+            $AVOID_PROT \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # At present we see onSet sometimes taking a long time due to waiting for buffers to unblock.
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=main_randommodes -t RandomModes -screen_disable_period=100  -hot_plug_period=100 -extended_mode_period=10 \
+           $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # This sometimes results in display hang:
+        # valhwch -logname=main_randommodes_2 -t RandomModes -screen_disable_period=10  -hot_plug_period=10 -mode_change_period=100 -extended_mode_period=10
+        # So reduce this to:
+        #
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=main_randommodes_2 -t RandomModes -mode_change_period=100 -extended_mode_period=10 \
+           -test_iterations=10 \
+           $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Proxy display testing
+        #HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckCompToDisplayedBuf eCheckHotPlugTimeout" \
+        #HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eOptSpoofNoPanel" \
+        #valhwch -logname=main_proxydisplay -t RandomModes -screen_disable_period=100  -hot_plug_period=40 -mode_change_period=100 \
+        #   $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        valhwch -logname=main_comp -t TransparencyComposition -val_hwc_composition -no_val_hwc \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Aggressive buffer manager test: reduce number of buffer queue buffers to 3 to expose buffer exhaution cases
+        # All we expect here is that the test does not abort - we turn off all validation failures.
+        setprop intel.hwc.cbcount 3
+        valhwch -logname=main_bufmgr -t Api -max_frames_per_iteration=10 -test_iterations=5 -no_val_hwc -no_val_displays \
+            $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+        setprop intel.hwc.cbcount ""
+
+    elif [[ $TARGET_DEVICE == *bxt* ]]
+    then
+        # DDRMode testing turned off in most tests because of VAH-257
+        # Only place where is makes sense is in VideoModes and RandomModes tests until this is fixed.
+        # RandomModes test executed separately below.
+        # DirectPlanes test has not been updated to suit BXT.
+        # InvalidProtectedVideo: debug needed
+        # When testing with HDMI enabled, avoid  tests which do a lot of DPMS stuff
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckUnblankingLatency" \
+        valhwch -logname=main_all -all -version \
+            -avoid VideoModes -avoid Smoke -avoid NV12FullVideo -avoid NV12FullVideo2 -avoid RotationAnimation \
+            -avoid RandomModes -avoid DirectPlanes  -t RotationAnimation \
+            $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        if [ $RUN_prot -eq 1 ]
+        then
+            valhwch -logname=main_prot \
+                -no_hdmi \
+                $COMMON_SUFFIX |& vallogadd $TMPFILE
+        fi
+
+        # Now run some of the missing tests with HDMI disabled
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckUnblankingLatency" \
+        valhwch -logname=main_dpms \
+            -t VideoModes -t Smoke -t NV12FullVideo -t NV12FullVideo2 \
+            -no_hdmi \
+            $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # On BXT-T, DPMS Enable/disable and extended mode tends to cause display hangs and/or crashes.
+        # So these options are disabled for now. Please experiment with turning them back on when you have a stable BXT-P build.
+        # valhwch -logname=main_randommodes -t RandomModes -screen_disable_period=100  -hot_plug_period=100 -extended_mode_period=10
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckRetireFenceSignalledPromptly eCheckDPMSLockup" \
+        valhwch -logname=main_randommodes -t RandomModes -screen_disable_period=100 -no_hdmi \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckHotPlugTimeout eCheckRetireFenceSignalledPromptly eCheckDPMSLockup eCheckDisplayMode" \
+        valhwch -logname=main_randommodes_2 -t RandomModes -screen_disable_period=10  -hot_plug_period=10 -mode_change_period=100 \
+            -test_iterations=10 -no_hdmi \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # DRRS validation
+        # Not currently supported on BXT
+        # Requires atomic mode changes to be supported, both in HWC and in validation.
+        #HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eOptSpoofDRRS" \
+        #valhwch -logname=main_randommodes_3 -t RandomModes -extended_mode_period=30 -no_hdmi \
+        #    $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Proxy display testing
+        #HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckCompToDisplayedBuf" \
+        #HWCVAL_LOG_ENABLE="$HWCVAL_LOG_ENABLE eOptSpoofNoPanel" \
+        #valhwch -logname=main_proxydisplay -t RandomModes -screen_disable_period=100  -hot_plug_period=40 -mode_change_period=100 \
+        #   $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        valhwch -logname=main_comp -t TransparencyComposition -val_hwc_composition -no_val_hwc \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Aggressive buffer manager test: reduce number of buffer queue buffers to 3 to expose buffer exhaution cases
+        # All we expect here is that the test does not abort - we turn off all validation failures.
+        setprop intel.hwc.cbcount 3
+        valhwch -logname=main_bufmgr -t Api -max_frames_per_iteration=10 -test_iterations=5 -no_val_hwc -no_val_displays \
+            $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+        setprop intel.hwc.cbcount ""
+
+        # Test the two stage fallback composer
+        valhwch -t Api -logname=main_twostagefbcomp -max_frames_per_iteration=10 -test_iterations=100 \
+            -no_NV12 \
+            $API_TEST_OPTIONS \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    else
+        valhwch -logname=main_all -all -version \
+            -avoid RandomModes \
+            $AVOID_PROT \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # At present we see onSet sometimes taking a long time due to waiting for buffers to unblock.
+        # Also, because HWC often ends up blocking all its composition buffers (VAH-229), we sometimes see
+        # the error "HWC composed to on-screen buffer".
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckCompToDisplayedBuf eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=main_randommodes -t RandomModes -screen_disable_period=100  -hot_plug_period=100 -extended_mode_period=10 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency eCheckCompToDisplayedBuf eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=main_randommodes_2 -t RandomModes -screen_disable_period=10  -hot_plug_period=10 -mode_change_period=100 -extended_mode_period=10 \
+            -test_iterations=10 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        valhwch -logname=main_comp -t TransparencyComposition -val_hwc_composition -no_val_hwc \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Aggressive buffer manager test: reduce number of buffer queue buffers to 3 to expose buffer exhaution cases
+        # All we expect here is that the test does not abort - we turn off all validation failures.
+        setprop intel.hwc.cbcount 3
+        valhwch -logname=main_bufmgr -t Api -max_frames_per_iteration=10 -no_val_hwc -no_val_displays \
+            $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+        setprop intel.hwc.cbcount ""
+
+        # Extra test for mosaic displays
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency" \
+        valhwch -t Api -logname=main_mosaic -max_frames_per_iteration=10 -test_iterations=100 \
+            -hwc_config=$HWCVAL_ROOT/configs/mosaic1to2.txt \
+            -allow_transform_errors=8 \
+            -render_compression=hint \
+            $API_TEST_OPTIONS $PROT \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    # Always run default if we run main
+    RUN_default=1
+}
+
+###########################################################################################################################
+# Define the WEEKLY test set ##############################################################################################
+###########################################################################################################################
+#
+#  Basic functionality - always run from MAIN
+#
+run_weekly_testset()
+{
+    valhwch -logname=weekly_api1 -t Api -test_iterations=200 -panel_fitter -hot_plug_period=30 -val_hwc_composition -no_val_hwc \
+        $API_TEST_OPTIONS $COMMON_SUFFIX |& vallogadd $TMPFILE
+}
+
+###########################################################################################################################
+# Define the DEFAULT test set #############################################################################################
+###########################################################################################################################
+#
+#  Basic functionality - always run from MAIN
+#
+run_default_testset()
+{
+    if [[ $TARGET_DEVICE == *bxt* ]]
+    then
+        # DPMS off/on is causing kernel crash : OAM-19042
+        #  -screen_disable_period=50
+        #
+        # Test does not work with hardware rotation enabled. OAM-15913
+        # Also iteration count had to be reduvced to avoid crash.
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency" \
+        # Temp change to remove hot_plug
+        #valhwch -t Api -logname=default -max_frames_per_iteration=10 -test_iterations=80 -hot_plug_period=50 \
+        #    -max_layers=10 -watchdog_fps=2 -skip_percent=2 -render_compression=hint -no_hdmi -allow_transform_errors=8 \
+        #    $API_TEST_OPTIONS $PROT $COMMON_SUFFIX |& vallogadd $TMPFILE
+        valhwch -t Api -logname=default -max_frames_per_iteration=10 -test_iterations=80 \
+            -max_layers=10 -watchdog_fps=2 -skip_percent=2 -render_compression=hint -allow_transform_errors=8 \
+            $API_TEST_OPTIONS $PROT $COMMON_SUFFIX |& vallogadd $TMPFILE
+
+        # Run a longer test without hot plugs but WITH HDMI
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckOnSetLatency" \
+        valhwch -t Api -logname=default_2 -max_frames_per_iteration=10 -test_iterations=500 -allow_transform_errors=8 \
+            -render_compression=hint $API_TEST_OPTIONS $PROT $COMMON_SUFFIX |& vallogadd $TMPFILE
+    else
+        # Occasionally get one instance of "Protected layer with invalid session/instance should not be displayed" so have disabled this error.
+        # TODO: investigate. What I can see so far is that the disable protected session call is not blocking until the protected buffer is removed
+        # from the screen. This may be something to do with the fact that smart composition was in use in this case.
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckInvProtDisp" \
+        valhwch -t Api -logname=default -max_frames_per_iteration=10 -test_iterations=500 -transparency_filter -hot_plug_period=50 \
+            -screen_disable_period=50 -video_optimization_mode_period=50 -skip_percent=2 -allow_transform_errors=8 $API_TEST_OPTIONS $PROT \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    # 1. HWC does not rotate a direct-mapped buffer that has already been pushed to the screen.
+    #    This means that sometimes, when the Api test requests this, we get an error.
+    #    Jason found that fixing this issue in HWC then causes a much worse problem on CHV - buffer allocation failures and eventual lockup - probably due to a kernel bug.
+}
+
+###########################################################################################################################
+# Define the FULL test set ################################################################################################
+###########################################################################################################################
+#
+#  Legacy and likely broken...
+#
+run_full_testset()
+{
+    # Trigger additional nightly tests as separate Jenkins runs
+    if [[ "$NO_TARGET_DEVICE" == "" ]]
+    then
+        RUN_full_api1=1
+    else
+        RUN_test_set BYT full_api1
+    fi
+
+    # Currently locking up CHT
+    run_test_set BXT full_api1
+
+    run_test_set ALL full_api2
+    run_test_set ALL full_randommodes1
+    run_test_set ALL full_randommodes2
+    run_test_set ALL full_randommodes3
+    run_test_set ALL full_randommodes4
+
+    # BYT does not have DDR modes
+    run_test_set CHT full_randommodes5
+
+    # Test video modes with the modechange option turned off
+    run_test_set ALL full_videomodes_nomodechange
+
+    # Extra test for mosaic displays
+    run_test_set ALL full_mosaic
+
+}
+
+###########################################################################################################################
+# Define the FULL subsets #################################################################################################
+###########################################################################################################################
+#
+#  Legacy and likely broken...
+#  This is run always as a sub section of valsmoke.
+#  Moved here to avoid clutter in the main script
+#
+run_full_subset()
+{
+    if [ $RUN_full_api1 -eq 1 ]
+    then
+        valhwch -logname=full_api1 -t Api -max_frames_per_iteration=9 -test_iterations=2000 -panel_fitter -hot_plug_period=50 -screen_disable_period=50 \
+            $API_TEST_OPTIONS \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_api2 -eq 1 ]
+    then
+        valhwch -logname=full_api2 -t Api -max_frames_per_iteration=12 -test_iterations=200 -panel_fitter -screen_disable_period=50 -max_buffer_width=512 -max_buffer_height=512 \
+            -max_layers=63 -watchdog_fps=5 \
+            $API_TEST_OPTIONS \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_randommodes1 -eq 1 ]
+    then
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=full_randommodes1 -t RandomModes \
+            -test_iterations=1000 -screen_disable_period=50 -hot_plug_period=50 -mode_change_period=100 -extended_mode_period=50 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_randommodes2 -eq 1 ]
+    then
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=full_randommodes2 -t RandomModes \
+            -test_iterations=200 -screen_disable_period=5 -hot_plug_period=5 -mode_change_period=100 -extended_mode_period=5 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_randommodes3 -eq 1 ]
+    then
+        # Tests with continuous hotplug and mode randomization
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=full_randommodes3 -t RandomModes \
+            -mode_change_period=100 -hot_plug_period=0 -randomize_modes -log_pri=V -test_iterations=500 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_randommodes4 -eq 1 ]
+    then
+        HWCVAL_LOG_SETWARNING="$HWCVAL_LOG_SETWARNING eCheckRetireFenceSignalledPromptly" \
+        valhwch -logname=full_randommodes4 -t RandomModes \
+            -extended_mode_period=20 -mode_change_period=100 -screen_disable_period=10 -hot_plug_period=0 -randomize_modes \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+    if [ $RUN_full_randommodes5 -eq 1 ]
+    then
+        # Auto DDR mode testing
+        setprop intel.hwc.autovideoddr 1
+        valhwch -logname=full_randommodes5 -t RandomModes \
+            -extended_mode_period=30 -hot_plug_period=50 -mode_change_period=100 -randomize_modes -test_iterations=100 \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+        setprop intel.hwc.autovideoddr ""
+    fi
+
+    if [ $RUN_full_videomodes_nomodechange -eq 1 ]
+    then
+        # Video Modes testing with mode change option disabled.
+        setprop intel.hwc.modechange 0
+        valhwch -logname=full_videomodes_nomodechange -t VideoModes \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+        setprop intel.hwc.modechange ""
+    fi
+
+    if [ $RUN_full_mosaic -eq 1 ]
+    then
+        valhwch -logname=full_mosaic \
+            -hwc_config=$HWCVAL_ROOT/configs/mosaic1to2.txt \
+          -t TransparencyComposition -t Png \
+            -t Smoke -t FlipRot -t -t Notification -t Home -t Game -t Gallery -t Dialog -t Camera -t Basic \
+            $COMMON_SUFFIX |& vallogadd $TMPFILE
+    fi
+
+}

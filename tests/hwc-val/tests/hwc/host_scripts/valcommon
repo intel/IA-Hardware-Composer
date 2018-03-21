@@ -1,0 +1,290 @@
+#!/bin/bash
+#
+# Contains library functions and global variables to be used in the host scripts
+
+
+# Detection of target type - keep this check in sync with client_scripts/valhwc_common
+function define_target()
+{
+    $ADB wait-for-device >& /dev/null
+    TARGETSHIM=`($ADB shell getprop ro.board.platform) | tr -d '\r'`
+    if [[ $TARGETSHIM == *coho ]]
+    then
+        TARGETSHIM=coho
+    fi
+}
+
+if [ "$ADB" == "" ]
+then
+    export ADB=`which adb`
+fi
+
+if [[ $JENKINS_PLATFORM == "" ]]
+then
+    ECHOS_ON=1
+else
+    ECHOS_ON=0
+fi
+
+HWCVAL_ESCAPE_SETPROP_DETECTED=0
+
+SYSTRACE_SECONDS_TOTAL=11
+SYSTRACE_SECONDS_PER_TRACE=15
+SYSTRACE_MAX_FILE_SIZE=130000000
+SYSTRACE_HOME_TRACE=$CLIENT_LOGS
+
+function runsystrace()
+{
+    if (( $SYSTRACE_SECONDS_TOTAL > $SYSTRACE_SECONDS_PER_TRACE ))
+    then
+        let TRACES_TO_MAKE=$((($SYSTRACE_SECONDS_TOTAL + $SYSTRACE_SECONDS_PER_TRACE - 1) / $SYSTRACE_SECONDS_PER_TRACE))
+    else
+        SYSTRACE_SECONDS_PER_TRACE=$SYSTRACE_SECONDS_TOTAL
+        TRACES_TO_MAKE=1
+    fi
+    printf "Running %d second systrace (%d traces)...\n" $SYSTRACE_SECONDS_TOTAL $TRACES_TO_MAKE
+
+    pushd $ANDROID_BUILD_TOP/external/chromium-trace
+
+    trace_i=1;
+    while [ ${trace_i} -le ${TRACES_TO_MAKE} ] ; do
+        echo "Recording trace ${trace_i}/${TRACES_TO_MAKE}"
+        $ADB  shell ps -t -p > "trace${trace_i}_ps.txt"
+        ./systrace.py "$@" --buf-size=32768 --time=${SYSTRACE_SECONDS_PER_TRACE} -o "$SYSTRACE_HOME_TRACE/trace${trace_i}_systr.html" \
+            gfx input view webview wm am sync audio video camera hal app res dalvik rs bionic power sched irq freq idle mmc load workq memreclaim
+        #sync gfx camera video input webview audio am wm view sched freq
+
+        #  --ktrace="" --app=""
+
+        # --cpu-freq --cpu-load --workqueue
+
+        #--no-cpu-sched
+
+        actualsize=$(du -b "$SYSTRACE_HOME_TRACE/trace${trace_i}_systr.html" | cut -f 1)
+        if [ -n "$actualsize" ]; then
+            if [ $actualsize -ge $SYSTRACE_MAX_FILE_SIZE ]; then
+                echo "Trace file too large, reducing length of next trace"
+                SYSTRACE_SECONDS_PER_TRACE=$(($SYSTRACE_SECONDS_PER_TRACE/2 + 1))
+            fi
+        fi
+        trace_i=$[trace_i + 1]
+    done
+
+    popd
+}
+
+function runIceStorm()
+{
+    echo "*** 3DMark(IceStorm) started ***"
+    $ADB shell /system/xbin/date -u -s $(date -u +%Y%m%d%H%M.%S)
+
+    $ADB shell am start -W com.futuremark.dmandroid.application/.activity.MainActivity
+    sleep 4
+
+    # select the 3DMARK tab
+    if [[ $TARGET_PRODUCT == baylake ]]
+    then
+        $ADB shell input touchscreen tap 80 80
+    else
+        echo "Target $TARGET_PRODUCT not tested, guessing position of 3DMARK tab"
+        $ADB shell input touchscreen tap 80 80
+    fi
+
+    sleep 2
+
+    # launch the Ice Storm benchmark
+    if [[ $TARGET_PRODUCT == baylake ]]
+    then
+        $ADB shell input touchscreen tap 1320 490
+    else
+        echo "Target $TARGET_PRODUCT not tested, guessing position of Ice Storm button"
+        $ADB shell input touchscreen tap 1320 490
+    fi
+
+    sleep 6
+    echo "Waiting for 3DMark benchmark to finish..."
+    finished=0
+    while [[ $finished == 0 ]]
+    do
+        # we'll say it's finished if we get 5 consecutive results saying it's
+        # finished, this is because each scenario in the benchmark seems to
+        # kill and then restart the workload thread
+        fc=0
+        finished=1
+        sleep 1
+        while [[ $finished == 1 && $fc < 5 ]]
+        do
+            $ADB shell 'ps' > /tmp/adbps
+            grep -q "com.futuremark.dmandroid.application:workload" /tmp/adbps
+            finished=$?
+            if [[ $finished == 1 ]]
+            then
+                let fc+=1
+                sleep 1
+            fi
+        done
+    done
+    echo "3DMark finished"
+    sleep 5
+    echo "Closing benchmark..."
+    # kill the results page
+    $ADB shell 'ps | grep com.futuremark.dmandroid.application | grep -v grep | while read arg1 arg2 otherargs; do kill $arg2; done'
+    sleep 3
+    # kill the app
+    $ADB shell 'ps | grep com.futuremark.dmandroid.application | grep -v grep | while read arg1 arg2 otherargs; do kill $arg2; done'
+    sleep 3
+    echo "3DMark(IceStorm) finished"
+    $ADB shell 'ps | grep "com.futuremark.dmandroid.application"'
+}
+
+function runSynMark2()
+{
+    echo "*** SynMark2 started ***"
+    $ADB shell /system/xbin/date -u -s $(date -u +%Y%m%d%H%M.%S)
+
+    $ADB shell am start -W com.intel.synmark2/android.app.NativeActivity
+
+    sleep 2
+    echo "Waiting for SynMark2 benchmark to finish..."
+    finished=0
+    while [[ $finished == 0 ]]
+    do
+        # SynMark2 places itself in the background when it's finished
+        sleep 1
+        $ADB shell dumpsys activity | grep mFocusedActivity > /tmp/adbdumpsys
+        grep -Fq "com.intel.synmark2/android.app.NativeActivity" /tmp/adbdumpsys
+        finished=$?
+    done
+    echo "SynMark2 finished"
+    sleep 2
+    echo "Closing benchmark..."
+    # kill the app
+    $ADB shell 'ps | grep com.intel.synmark2 | grep -v grep | while read arg1 arg2 otherargs; do kill $arg2; done'
+    sleep 2
+    echo "SynMark2 finished"
+    $ADB shell 'ps | grep "com.intel.synmark2"'
+}
+
+function removePersistentProperties()
+{
+    # Remove any persistent properties
+    # We do this at the end of the test, in case user really wanted to test persistent properties
+    PERSISTENT_PROPERTIES_SCRIPT=`mktemp`
+    $ADB shell getprop | awk '/persist.sys.hwc/ {printf("setprop %s \"\"\n",substr($1,2,length($1)-3));}' > $PERSISTENT_PROPERTIES_SCRIPT
+    source $PERSISTENT_PROPERTIES_SCRIPT
+    rm $PERSISTENT_PROPERTIES_SCRIPT
+
+    $ADB shell rm -f /cache/hwc.reg
+}
+
+function setprop()
+{
+    # Detect whether we need:
+    #     $ADB shell setprop "one two"
+    # or:
+    #     $ADB shell setprop \"one two\"
+    #
+    if [[ $HWCVAL_ESCAPE_SETPROP_DETECTED -eq 0 ]]
+    then
+        export HWCVAL_ESCAPE_SETPROP=`$ADB shell setprop hwcval.test "" |& grep -c usage`
+        export HWCVAL_ESCAPE_SETPROP_DETECTED=1
+    fi
+
+    if [[ $HWCVAL_ESCAPE_SETPROP -gt 0 ]]
+    then
+        $ADB shell setprop $1 \"$2\"
+    else
+        $ADB shell setprop $1 "$2"
+    fi
+}
+
+function setlongprop()
+{
+    # Special for HWCVAL_LOG_ENABLE etc.
+    # Splits into multiple properties hwcval.log.enable, hwcval.log.enable_2, etc.
+    lines=`echo "$2" | fmt -w 90`
+    i=0
+    while read -r line
+    do
+        propname=$1
+        if [[ $i -gt 0 ]]
+        then
+            propname="${1}_${i}"
+        fi
+
+        setprop $propname "$line"
+        let i=$i+1
+    done <<< "$lines"
+
+    while [[ $i -le 10 ]]
+    do
+        propname="${1}_${i}"
+
+        if [[ "`$ADB shell getprop $propname`" == "" ]]
+        then
+            return
+        fi
+
+        setprop $propname ""
+        let i=$i+1
+    done
+}
+
+function setprops()
+{
+    setprop hwcval.default_log_priority "$LOG_PRI"
+    setlongprop hwcval.log.disable "$HWCVAL_LOG_DISABLE"
+    setlongprop hwcval.log.enable "$HWCVAL_LOG_ENABLE"
+    setlongprop hwcval.log.setwarning "$HWCVAL_LOG_SETWARNING"
+}
+
+function get_binary_file_lists()
+{
+    if [ "$1" == "host" ]
+    then
+        TARGETSHIM="*"
+    else
+        define_target
+    fi
+
+    #TODO Add bin/hwclogviewer once hwclogviewer is enabled
+    HWC_BINARY_FILES="
+        lib/libhwcservice.so
+        lib/hw/hwcomposer.$TARGETSHIM.so
+    "
+
+    ADDITIONAL_BINARY_FILES="
+        lib/libdrm.so
+    "
+
+    HWCVAL_BINARY_FILES="
+        bin/valhwcharness
+        bin/valhwc_util
+        bin/valhwc_camera_test
+        bin/valhwc_crc_test
+        bin/valhwc_dialog_test
+        bin/valhwc_gallery_test
+        bin/valhwc_game_test
+        bin/valhwc_home_test
+        bin/valhwc_lock_test
+        bin/valhwc_monitor_test
+        bin/valhwc_notification_test
+        bin/valhwc_nv12_video_full_test
+        bin/valhwc_nv12_video_part_test
+        bin/valhwc_recent_apps_test
+    "
+
+    HWC_BINARY_FILES="$HWC_BINARY_FILES
+        lib64/libhwcservice.so
+        lib64/hw/hwcomposer.$TARGETSHIM.so
+    "
+    HWCVAL_BINARY_FILES="$HWCVAL_BINARY_FILES
+        lib64/libvalhwccommon.so
+        lib64/libvalhwc_drmshim.so
+        lib64/valhwc_composershim.so
+    "
+
+    ADDITIONAL_BINARY_FILES="$ADDITIONAL_BINARY_FILES
+        lib64/libdrm.so
+    "
+}

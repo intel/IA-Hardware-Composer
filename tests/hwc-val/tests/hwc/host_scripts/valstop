@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Terminate the Android test session (though not Android itself).
+# This collects the test results from the shim and terminates
+# the hwclogviewer process.
+#
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+now=$(date +"%T")
+
+$ADB shell /vendor/bin/valhwc_util stop
+sleep 1
+`ps -ef |grep "$ADB shell" | grep -v grep | awk '{print "kill", $2;}' `
+
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_killapp.sh hwclogviewer
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_killapp.sh logcat
+
+#valdpst status
+#valdpst on  # if running with -crc, DPST will have been turned off, assume it needs re-enabling
+
+$ADB pull ${HWCVAL_TARGET_DIR}/hwclog_start_android.log $CLIENT_LOGS
+#cp $CLIENT_LOGS/hwclog_start_android.log $CLIENT_LOGS/hwclog_start_android_$now.log
+
+$ADB pull ${HWCVAL_TARGET_SCRIPT_DIR}/logcat_start_android.log $CLIENT_LOGS
+

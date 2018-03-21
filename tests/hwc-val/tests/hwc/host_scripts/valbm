@@ -1,0 +1,182 @@
+#!/bin/bash
+#
+
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+red='\033[0;31m'
+green='\033[0;32m'
+dgrey='\033[1;30m'
+yellow='\033[1;33m'
+NC='\033[0m' # No Color
+
+crc_testing=0
+sys_trace=0
+crc_errors=0
+crc_warnings=0
+syntax_error=0
+valstart_args=
+times=0
+test=
+
+
+########################################
+### Check the command line arguments ###
+########################################
+
+if [[ $# == 0 || "$1" == "help" || "$1" == "-h" || "$1" == "--h" || "$1" == "-help" || "$1" == "--help" ]]
+then
+    syntax_error=1
+else
+    for i in `seq 1 $#`
+    do
+        if [[ ${1:0:1} == "-" ]]
+        then
+            if [[ $1 == *crc* ]]
+            then
+                crc_testing=1
+            fi
+            if [[ $1 == *systrace* ]]
+            then
+                sys_trace=1
+            fi
+            valstart_args="$valstart_args $1"
+            shift
+        fi
+    done
+
+    times=$1
+    test=$2
+
+    if (( $times < 1 ))
+    then
+        echo "ERROR: can't run the test $times times"
+        syntax_error=1
+    fi
+
+    if [[ $test != "3dice" &&
+          $test != "synm2"
+       ]]
+    then
+        echo "ERROR: unrecognised benchmark <$test>"
+        syntax_error=1
+    fi
+fi
+
+if [[ $syntax_error == 1 ]]
+then
+    echo "Command Syntax:-"
+    echo "valbm [<valstart_flags>] <iterations> <test>"
+    echo
+    echo -e "\t<iterations>::= <integer>"
+    echo
+    echo -e "\t<test> ::=    3dice    |           # 3DMark IceStorm"
+    echo -e "\t              synm2                # Intel SynMark2"
+    echo
+    echo -e "\te.g. valbm -log_pri=I -crc 10 3dice"
+    echo
+    exit
+fi
+
+
+#########################
+### run the benchmark ###
+#########################
+
+echo
+echo "*******************************"
+echo "************ valbm ************"
+echo "*******************************"
+echo
+echo "Running \"$test\" $times times"
+echo
+
+rm -rf $CLIENT_LOGS/valbm/
+mkdir -p $CLIENT_LOGS/valbm
+
+for iter in `seq 1 $times`
+do
+    echo "Run $iter of $times - Enabling the shim: valstart $valstart_args..."
+    (echo -e "${dgrey}"; valstart $valstart_args) &  # start it in the background, because otherwise the -systrace arg would stall here
+    echo -e "${NC}"
+
+    if [[ $sys_trace == 1 ]]
+    then
+        sleep 10 # enough time for DPST to be turned off
+    else
+        wait # wait for valstart to complete before starting the benchmark
+        sleep 5
+    fi
+
+    echo "Running \"$test\"..."
+    echo -e "${green}"
+    if [[ $test == "3dice" ]]
+    then
+        runIceStorm
+    elif [[ $test == "synm2" ]]
+    then
+        runSynMark2
+    fi
+    echo -e "${NC}"
+
+    if [[ $sys_trace == 1 ]]
+    then
+
+        wait # if valstart is still going, it needs to complete before we continue
+    fi
+
+    sleep 5
+    echo "Disabling the shim - Getting the test results for run $iter..."
+    echo -e "${dgrey}"
+    valstop > /tmp/testres
+    echo -e "${NC}"
+
+    sleep 5
+    echo "Results for run $iter..."
+    echo -e "${red}"
+    while read line
+    do
+        if [[ $line == *UX:\ Display\ CRC* ]]
+        then
+            echo -e "${yellow}${line}${red}"
+            let crc_errors+=1
+        elif [[ $line == *CRCERROR* ]]
+        then
+            echo -e "${yellow}${line}${red}"
+            let crc_errors+=1
+        elif [[ $line == *CRCWARNING* ]]
+        then
+            echo -e "${yellow}${line}${red}"
+            let crc_warnings+=1
+        else
+            echo "$line"
+        fi
+    done < /tmp/testres
+    echo -e "${NC}"
+    echo "Run $iter complete"
+
+    mkdir $CLIENT_LOGS/valbm/$iter
+
+    mv $CLIENT_LOGS/runandroid.log $CLIENT_LOGS/valbm/$iter/runandroid_$iter.log
+    mv $CLIENT_LOGS/logcat_start_android.log $CLIENT_LOGS/valbm/$iter/logcat_$iter.log
+    mv $CLIENT_LOGS/hwclog_start_android.log $CLIENT_LOGS/valbm/$iter/hwclog_$iter.log
+    if [[ $sys_trace == 1 ]]
+    then
+        mv $CLIENT_LOGS/trace*.html $CLIENT_LOGS/valbm/$iter/
+    fi
+done
+
+echo
+echo "*****************************************"
+echo "************* valbm:  done **************"
+if [[ $crc_testing == 1 ]]
+then
+    echo "***** ran $times iterations of benchmark *****"
+    echo "** crc errors occurred in $crc_errors iterations **"
+    echo "* crc warnings occurred in $crc_warnings iterations *"
+fi
+echo "*****************************************"
+echo
+
+

@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+
+# if not a jenkins run, just print the output
+if [[ $JENKINS_PLATFORM == "" ]]
+then
+    tee -a $1
+    exit
+fi
+
+# If this is jenkins
+# buffer the output and filter it to the screen.
+TMPFILE="vallogadd.tmp"
+tee $TMPFILE | grep --line-buffered "\*\*\* " | sed 's/\*\*\*/\*/g'
+
+# Test to see if this test failed or aborted
+TESTS_FAILED=`grep -c "\*\*\* Test FAILED:" $TMPFILE`
+TESTS_ABORTED=`grep -c "\*\*\* Test ABORTED" $TMPFILE`
+
+if [[ $TESTS_FAILED -gt 0 || $TESTS_ABORTED -gt 0 ]]
+then
+    # Copy everything to file w/ append write
+    cat $TMPFILE >> $1
+else
+    # Filter output to file
+    # NOTE: Must keep track of running tests for valsmoke counting.
+    cat $TMPFILE | grep --line-buffered "\*\*\* \|RUNNING TESTS:" >> $1
+fi
+
+rm -f $TMPFILE

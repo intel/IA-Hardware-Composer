@@ -1,0 +1,259 @@
+#!/bin/bash
+#
+
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+ETM_TEST_OUTPUT=/tmp/etm_testresults
+HWCVAL_TEST_OUTPUT=/tmp/etm_valresults
+ETM_RESULTS_LOG=~/client_logs/etm_results.log
+
+function install_mxplayer()
+{
+    printf "valetm - Installing MX Player"
+    ($ADB shell 'pm list packages -f | grep -c com.mxtech.videoplayer.ad') | grep -q "1"
+    if [[ $? == 0 ]]
+    then
+        printf "...Skipping install, already installed\n"
+    else
+        printf "...\n"
+        $ADB install /user/johnelli/Android/apks/com.mxtech.videoplayer.ad-1.7.38-APK4Fun.com.apk &
+        sleep 10
+        $ADB shell $shellcmd -c com.intel.hwcval.androidDialogs#checkActivity
+    fi
+}
+
+function install_rescan_sd()
+{
+    printf "valetm - Installing Rescan SD"
+    ($ADB shell 'pm list packages -f | grep -c com.uberullu.rescansd') | grep -q "1"
+    if [[ $? == 0 ]]
+    then
+        printf "...Skipping install, already installed\n"
+    else
+        printf "...\n"
+        $ADB install /user/johnelli/Android/apks//com.uberullu.rescansd_1.4_free-www.apkhere.com.apk &
+        sleep 10
+        $ADB shell $shellcmd -c com.intel.hwcval.androidDialogs#checkActivity
+    fi
+    printf "valetm - Starting Rescan SD"
+    $ADB shell monkey -p com.uberullu.rescansd -c android.intent.category.LAUNCHER 1
+    sleep 10
+}
+
+
+function install_amazon_video()
+{
+    printf "valetm - Installing Amazon video"
+    ($ADB shell 'if [ -s  /sdcard/Download/Amazon_1080.wmv ]; then echo 1; else echo 0; fi') | grep -q "1"
+    if [[ $? == 0 ]]
+    then
+        printf "...Skipping push, already installed\n"
+    else
+        printf "...\n"
+       $ADB push /user/johnelli/Android/Videos/Amazon_1080.wmv /sdcard/download/
+       sdcard_updated=1
+    fi
+}
+
+function install_panoramas_photo()
+{
+    printf "valetm - Installing panoramas photo"
+    ($ADB shell 'if [ -s  /sdcard/Download/panoramas_4af80603e03ed_hires.jpg ]; then echo 1; else echo 0; fi') | grep -q "1"
+    if [[ $? == 0 ]]
+    then
+        printf "...Skipping push, already installed\n"
+    else
+        printf "...\n"
+       $ADB push /user/johnelli/Android/Photos/panoramas_4af80603e03ed_hires.jpg /sdcard/download/
+       sdcard_updated=1
+    fi
+}
+
+function run_test()
+{
+    printf "valetm - Running test(class=$HWCVAL_ETM_CLASS, method=$HWCVAL_ETM_METHOD)\n"
+    install_mxplayer=0
+    install_amazon_video=0
+    install_panoramas_photo=0
+    sdcard_updated=0
+    if [[ "$HWCVAL_ETM_CLASS" == "" || "$HWCVAL_ETM_CLASS" == "mxplayerApp" ]]
+    then
+        install_mxplayer=1
+        install_amazon_video=1
+    fi
+    if [[ "$HWCVAL_ETM_CLASS" == "" || "$HWCVAL_ETM_CLASS" == "photos" ]]
+    then
+        install_panoramas_photo=1
+    fi
+
+    if [[ $install_mxplayer == 1 ]]
+    then
+        install_mxplayer
+    fi
+
+    if [[ $install_amazon_video == 1 ]]
+    then
+        install_amazon_video
+    fi
+
+    if [[ $install_panoramas_photo == 1 ]]
+    then
+        install_panoramas_photo
+    fi
+
+    if [[ $sdcard_updated == 1 ]]
+    then
+        install_rescan_sd
+    fi
+
+    valstart $@
+
+    shellcmd='uiautomator runtest ${HWCVAL_TARGET_DIR}/etm.jar'
+    if [[ "$HWCVAL_ETM_CLASS" != "" ]]
+    then
+        if [[ "$HWCVAL_ETM_METHOD" != "" ]]
+        then
+            shellcmd=$shellcmd' -c com.intel.hwcval.'$HWCVAL_ETM_CLASS'#'$HWCVAL_ETM_METHOD
+            printf "calling class#method '$shellcmd ${!HWCVAL_ETM_ARGS}'...\n"
+        else
+            shellcmd=$shellcmd' -c com.intel.hwcval.'$HWCVAL_ETM_CLASS
+            printf "valetm - calling class '$shellcmd ${!HWCVAL_ETM_ARGS}'...\n"
+        fi
+    fi
+    ($ADB shell $shellcmd ${!HWCVAL_ETM_ARGS}) | tee $ETM_TEST_OUTPUT
+
+     valstop | tee $HWCVAL_TEST_OUTPUT
+     printf "valetm - Test completed\n\n"
+}
+
+function process_results()
+{
+    printf "valetm - processing test results...\n"
+    echo " "  >> $ETM_RESULTS_LOG
+
+    test_string='ETM Test('$HWCVAL_ETM_METHOD')'
+
+    # get the UiAutomator results...
+    #
+    test_not_run=0
+    grep "$test_string" $ETM_TEST_OUTPUT | grep -q "not run"
+    if [[ $? == 0 ]]
+    then
+        test_not_run=1
+    fi
+    test_ran_ok=0
+    grep "$test_string" $ETM_TEST_OUTPUT | grep -q "completed successfully"
+    if [[ $? == 0 ]]
+    then
+        test_ran_ok=1
+    fi
+
+    if [[ $test_ran_ok == 1 ]]
+    then
+        grep -o "$test_string" $ETM_TEST_OUTPUT >> $ETM_RESULTS_LOG
+    elif [[ $test_not_run == 1 ]]
+    then
+        grep -o "$test_string" $ETM_TEST_OUTPUT >> $ETM_RESULTS_LOG
+        echo "   ===== ETM test not run ====="  >> $ETM_RESULTS_LOG
+    else
+        # test failed
+        grep -o "$test_string" $ETM_TEST_OUTPUT >> $ETM_RESULTS_LOG
+        if [[ $? == 1 ]]
+        then
+            # the test name wasn't logged - understandable if the test crashed
+            echo $test_string' - appears to have crashed' >> $ETM_RESULTS_LOG
+        fi
+        echo " "  >> $ETM_RESULTS_LOG
+        echo "   ===== ETM Test failed ====="  >> $ETM_RESULTS_LOG
+        while read line
+        do
+            echo "    " $line >> $ETM_RESULTS_LOG
+        done<$ETM_TEST_OUTPUT
+    fi
+    if [[ $test_ran_ok == 1 ]]
+    then
+        echo " "  >> $ETM_RESULTS_LOG
+        echo "   ===== HWCVAL results =====" >> $ETM_RESULTS_LOG
+        in_preamble=1
+        while read line
+        do
+            if [[ $line =~ .*SHIMS\ NOT\ INSTALLED ]]
+            then
+                echo "    " $line >> $ETM_RESULTS_LOG
+                break;
+            fi
+            if [[ $in_preamble == 1 ]]
+            then
+                if [[ $line =~ .*Stopping\ checks ]]
+                then
+                    in_preamble=0
+                fi
+            else
+                if [[ $line =~ .*Test\ hwc_util ]]
+                then
+                    break
+                elif [[ $line =~ .*Restarting\ checks ]]
+                then
+                    : # ignore it, it's an extra line of preamble
+                else
+                    echo "    " $line >> $ETM_RESULTS_LOG
+                fi
+            fi
+        done<$HWCVAL_TEST_OUTPUT
+    fi
+    echo " "  >> $ETM_RESULTS_LOG
+}
+
+test_classes="mxplayerApp \
+              notificationShade \
+              rotation \
+              camera
+             "
+mxplayerApp_methods="testMXPlayer \
+                     testMXPlayerMultiRes \
+                     testMXPlayerLock \
+                     testMXPlayerLockMultiRes \
+                    "
+mxplayerApp_arguments="-e video Amazon_1080"
+
+notificationShade_methods="testNotification \
+                           testNotificationMultiRes \
+                          "
+rotation_methods="testRotation \
+                  testRotationMultiRes \
+                 "
+camera_methods="testBasicCamera \
+                testBasicCameraMultiRes \
+               "
+
+rm -f $ETM_RESULTS_LOG
+if [[ "$HWCVAL_ETM_CLASS" != "" ]]
+then
+    HWCVAL_ETM_ARGS=${HWCVAL_ETM_CLASS}_arguments
+    if [[ "$HWCVAL_ETM_METHOD" != "" ]]
+    then
+        run_test
+        process_results
+    else
+        m_list=${HWCVAL_ETM_CLASS}_methods
+        for HWCVAL_ETM_METHOD in ${!m_list}
+        do
+            run_test
+            process_results
+        done
+    fi
+else
+    for HWCVAL_ETM_CLASS in $test_classes
+    do
+        HWCVAL_ETM_ARGS=${HWCVAL_ETM_CLASS}_arguments
+        m_list=${HWCVAL_ETM_CLASS}_methods
+        for HWCVAL_ETM_METHOD in ${!m_list}
+        do
+            run_test
+            process_results
+        done
+    done
+fi
+printf "valetm - exiting\n"

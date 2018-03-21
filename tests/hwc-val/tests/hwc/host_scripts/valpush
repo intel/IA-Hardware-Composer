@@ -1,0 +1,199 @@
+#!/bin/bash
+#
+# Copy all scripts from client scripts directory to the shadow directory
+# for the HWC validation tests, then sync to Android.
+#
+# By default this script performs a full ADB sync, if you only want to copy
+# HWC binaries and/or hwcval binaries and scripts then add either (or both)
+# of the following command line switches -
+#
+# hwc           # copies HWC binaries
+# hwcval        # copies hwcval binaries and scripts
+#
+
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+define_target
+
+if [ "$HWCVAL_ROOT" = "" ]
+then
+  echo "HWCVAL_ROOT not defined"
+  exit
+fi
+
+if [ "$TARGETSHIM" == "" ]
+then
+  echo "Failed to detect TARGETSHIM"
+  exit
+fi
+
+pushdir()
+{
+    # This is a adb-version-independent function to push the contents of directory $1 on the host to $2 on the target.
+    # if you use adb "push a/b c", some versions will push all files in a/b to c, some will push all files in a/b to c/b.
+    if [[ "$ECHOS_ON" -eq 1 ]]
+    then
+        echo "Pushing directory $1 to target $2"
+    fi
+    SAVED_DIR=$PWD
+    cd $1
+    $ADB shell mkdir -p $2
+    $ADB push . $2
+    cd $SAVED_DIR
+}
+
+pushbin()
+{
+    # $1 is list of target file paths
+    for FILE in $1;
+    do
+        local SRC=""
+
+        if [ -e $ANDROID_PRODUCT_OUT/vendor/$FILE ]
+        then
+            SRC=$ANDROID_PRODUCT_OUT/vendor/$FILE
+            if [ -e $ANDROID_PRODUCT_OUT/system/$FILE ]
+            then
+                rm $ANDROID_PRODUCT_OUT/system/$FILE
+            fi
+        else
+            if [ -e $ANDROID_PRODUCT_OUT/system/vendor/$FILE ]
+            then
+                SRC=$ANDROID_PRODUCT_OUT/system/vendor/$FILE
+            else
+                if [ -e $ANDROID_PRODUCT_OUT/system/$FILE ]
+                then
+                    SRC=$ANDROID_PRODUCT_OUT/system/$FILE
+                fi
+            fi
+        fi
+
+        if [ "$SRC" != "" ]
+        then
+            install_adb $SRC $FILE
+        else
+            echo "Unable to find $FILE in host source tree"
+        fi
+    done
+
+
+}
+
+install_adb ()
+{
+    local src=$1
+    local dst=/vendor/$2
+    local dst_date=`adb shell test -e $dst \&\& stat -c \"\%s \%Y\" $dst | tr -d '\r'`
+    local src_date=`stat -L -c "%s %Y" $src`
+
+    adb shell test -e /system/$2 \&\& rm /system/$2 \&\& echo "rm /system/$2"
+    if [ "$dst_date" != "$src_date" ]
+    then
+        if [[ "$ECHOS_ON" -eq 1 ]]
+        then
+            echo "adb push $src $dst"
+        fi
+        adb push $src $dst
+    fi
+}
+
+
+# Clean up old copies of scripts in host product directories
+if [${HWCVAL_TARGET_DIR} != ""]
+then
+    echo $HWCVAL_TARGET_DIR
+    rm -rf $ANDROID_PRODUCT_OUT${HWCVAL_TARGET_DIR}
+fi
+
+$ADB root>/dev/null
+$ADB wait-for-device >& /dev/null
+$ADB remount
+$ADB shell mkdir -p /data/validation/hwc
+
+etm=0
+hwcval=0
+hwc=0
+all=1
+PUSH_SCRIPTS=0
+
+for i in $@
+do
+    if [ "$i" = "etm" ]
+    then
+        etm=1
+        all=0
+    elif [ "$i" = "hwcval" ]
+    then
+        hwcval=1
+        all=0
+    elif [ "$i" = "hwc" ]
+    then
+        hwc=1
+        all=0
+    else
+        echo "valpush - unrecognised parameter: " $i
+        exit 1
+    fi
+done
+
+if [ "$all" = "1" ]
+then
+    if [ "$HWCVAL_DISABLE_PUSH_ALL" != "" ]
+    then
+        echo "valpush forbidden - use valpush [hwc] hwcval."
+        echo "Or, unset HWCVAL_DISABLE_PUSH_ALL to enable global valpush."
+        exit
+    fi
+fi
+
+if [[ "$P4_ROOT" == "" ]]
+then
+    P4_ROOT=${ANDROID_BUILD_TOP}/hardware/intel/ufo/ufo
+fi
+
+# Set the environment variables containing the file lists
+get_binary_file_lists
+
+# Push anything the user requested
+if [ "$etm" = "1" ]
+then
+    $ADB push $HWCVAL_ROOT/etm/bin/etm.jar ${HWCVAL_TARGET_DIR}
+fi
+
+if [ "$hwcval" = "1" ]
+then
+    # Remove any old target-specific config files from the device
+    $ADB shell rm -f ${HWCVAL_TARGET_DIR}/valhwc_*_config.sh
+
+    pushbin "$HWCVAL_BINARY_FILES"
+    PUSH_SCRIPTS=1
+fi
+
+if [ "$hwc" = "1" ]
+then
+    pushbin "$HWC_BINARY_FILES"
+    pushbin "$ADDITIONAL_BINARY_FILES"
+fi
+
+# If no specific push requested, just sync everything
+if [ "$all" = "1" ]
+then
+    # Remove any old target-specific config files from the device
+    $ADB shell rm -f ${HWCVAL_TARGET_DIR}/valhwc_*_config.sh
+
+    $ADB sync
+    PUSH_SCRIPTS=1
+fi
+
+if [ $PUSH_SCRIPTS -eq 1 ]
+then
+    pushdir $HWCVAL_ROOT/client_scripts ${HWCVAL_TARGET_DIR}
+    pushdir $HWCVAL_ROOT/images ${HWCVAL_TARGET_DIR}/images
+fi
+
+$ADB shell chmod 777 /vendor/bin/*
+$ADB shell chmod 777 ${HWCVAL_TARGET_DIR}/*.sh
+$ADB shell mkdir -p ${HWCVAL_TARGET_DIR}/dump

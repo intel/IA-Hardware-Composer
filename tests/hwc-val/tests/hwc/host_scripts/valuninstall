@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Kill surfaceflinger and all logging on the client and restart android
+#
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+$ADB root>/dev/null
+$ADB remount >& /dev/null
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_unins.sh
+$ADB shell start

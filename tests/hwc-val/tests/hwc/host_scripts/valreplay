@@ -1,0 +1,106 @@
+#!/bin/bash
+#
+# This script takes as argument the whole path&name of the log file to be used
+# in compressed (.gz) or uncompressed format and replays that on the target.
+
+
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+systrace=0
+LOG_PRI="W"
+LOGNAME=""
+
+REPLAY_PATH=${HWCVAL_TARGET_DIR}/replay
+
+replay_file_host=$1
+replay_file_name=`basename $1`
+replay_file_dir=`dirname $1`
+
+
+# Install shim layers
+valinstall
+
+# Create replay dir on target
+$ADB shell mkdir -p ${REPLAY_PATH}
+
+
+# Push file to target
+$ADB push $replay_file_host ${REPLAY_PATH}
+
+
+# If file is in .gz format, unzip on target.
+if [[ $replay_file_name == *.gz ]]
+then
+    $ADB shell /system/bin/gzip -d ${REPLAY_PATH}/$replay_file_name
+    replay_file_name_unzipped=${replay_file_name%.*}
+else
+    replay_file_name_unzipped=$replay_file_name
+fi
+
+
+# Set valhwcharness args
+harness_args="-replay_hwcl ${REPLAY_PATH}/$replay_file_name_unzipped"
+
+for i in ${@:2}
+do
+    if [[ "${i:0:9}" == "-systrace" ]]
+    then
+        systrace=1
+        if [[ ${i:9:1} == "=" ]]
+        then
+            SYSTRACE_SECONDS_TOTAL=${i:10}
+        fi
+    elif [[ "${i:0:9}" == "-logname=" ]]
+    then
+        LOGNAME=${i:9}
+        # This argument is also needed by the harness
+        harness_args="$harness_args $i"
+    elif [[ "${i:0:9}" == "-log_pri=" ]]
+    then
+        LOG_PRI=${i:9:1}
+    else
+        harness_args="$harness_args $i"
+    fi
+done
+
+# Set target run configuration
+setprops
+
+# Set systrace
+if [ $systrace == 1 ]
+then
+    echo
+    runsystrace &
+    sleep 2
+    echo
+fi
+
+
+# Run harness
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_run_harness.sh $harness_args
+
+
+if [ $systrace == 1 ]
+then
+    wait
+fi
+
+
+# Manage csv files
+if [[ "$LOGNAME" == "" ]]
+then
+    CSV_NAME="results.csv"
+else
+    CSV_NAME="results_${LOGNAME}.csv"
+fi
+
+
+# HWC log viewer output being collected into $CLIENT_LOGS/hwclog_hwch.txt
+mkdir -p $CLIENT_LOGS
+$ADB pull ${HWCVAL_TARGET_DIR}/hwclog_hwch.log $CLIENT_LOGS >& /dev/null
+$ADB pull ${HWCVAL_TARGET_DIR}/logcat_hwch.log $CLIENT_LOGS >& /dev/null
+$ADB pull ${HWCVAL_TARGET_DIR}/kmsg_hwch.log $CLIENT_LOGS >& /dev/null
+$ADB pull ${HWCVAL_TARGET_DIR}/$CSV_NAME $CLIENT_LOGS >& /dev/null
+

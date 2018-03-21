@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Install the shims on the client - they must already have been pushed
+#
+
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+#echo Remount, and keep trying until it works
+attempts=0
+while [ `$ADB remount |& grep -c "error: device"` -gt 0 ]
+do
+    sleep 10
+    let "attempts+=1"
+    if [ $attempts -gt 20 ]
+    then
+        echo "Failed to remount"
+        exit
+    fi
+done
+
+$ADB root>/dev/null
+
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_install_shims.sh $1
+$ADB wait-for-device >& /dev/null

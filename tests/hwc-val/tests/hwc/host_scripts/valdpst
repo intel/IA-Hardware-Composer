@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_dpstcfg.sh $@
+
+

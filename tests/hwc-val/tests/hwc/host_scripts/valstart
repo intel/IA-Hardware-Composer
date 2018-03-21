@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+##############################################################################
+# Check if shims installed on client. If not, install them and start Android.
+# Start the checks and collect hwclogviewer output
+# into the host file $CLIENT_LOGS/runandroid.log
+#
+# Current status of checks can be obtained by running valstatus or, when
+# finished, valstop.
+#
+# Arguments:
+#   -h/--h/help/-help/--help::= helper function
+#   <arg>                   ::= <loglevel> | <systrace> | <crcvalidation>\n"
+#   <loglevel>              ::= -log_pri={E|W|I|D|V}\n"
+#   <systrace>              ::= -systrace[=<seconds>]\n"
+#   <crcvalidation>         ::= {<hwcval> | <drmval>}"
+#   <drmval>                ::= -crc\n"
+# Returns:
+#   None
+##############################################################################
+
+# Libraries and global variables
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+# Define Help
+if [[ "$1" == "help" || "$1" == "-h" || "$1" == "--h" || "$1" == "-help" || "$1" == "--help" ]]
+then
+    printf "Usage -\n"
+    printf "valstart [<arg>...]\n"
+    printf "   <arg>           ::= <loglevel> | <systrace> | <crcvalidation>\n"
+    printf "   <loglevel>      ::= -log_pri={E|W|I|D|V}\n"
+    printf "   <systrace>      ::= -systrace[=<seconds>]\n"
+    printf "   <crcvalidation> ::= {<hwcval> | <drmval>}"
+    printf "   <drmval>        ::= -crc\n"
+    exit 0
+fi
+
+$ADB wait-for-device
+$ADB root>/dev/null
+$ADB wait-for-device
+$ADB remount
+
+# Handle input parameters
+framectl=0
+systrace=0
+LOG_PRI=W
+for i in $@
+do
+    if [[ $i == *crc* ]]
+    then
+        framectl=1
+    fi
+    if [[ "${i:0:9}" == "-systrace" ]]
+    then
+        systrace=1
+        if [[ ${i:9:1} == "=" ]]
+        then
+            SYSTRACE_SECONDS_TOTAL=${i:10}
+        fi
+    elif [[ "${i:0:9}" == "-log_pri=" ]]
+    then
+        LOG_PRI=${i:9:1}
+    fi
+done
+
+# Create directory where to store the logs and clean up old logs if present
+mkdir -p $CLIENT_LOGS
+`ps -ef |grep "$ADB shell" | grep -v grep | awk '{print "kill", $2;}' `
+rm -f $CLIENT_LOGS/runandroid.log
+
+# Set target run configuration
+setprops
+
+# Launch script to install the shims and start Android
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_remote_start_android.sh
+
+# this was for CRC stuff
+#if [ $framectl == 1 ]
+#then
+#    sleep 3
+#    echo "Turning off DPST..."
+#    valdpst off
+#    valdpst status
+#    valdpst dump
+#fi
+
+# Launch script to collect logs and start the Android test session (= shims checks)
+($ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_remote_start_checks.sh $@ > $CLIENT_LOGS/runandroid.log) &
+disown $!
+
+if [ $systrace == 1 ]
+then
+    runsystrace
+fi
