@@ -29,7 +29,6 @@ PixelBuffer::~PixelBuffer() {
 void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
                              uint32_t width, uint32_t height, uint32_t stride, uint32_t format,
                              void *addr, ResourceHandle &resource, bool is_cursor_buffer) {
-  int i;
   int layer_type = is_cursor_buffer ? kLayerCursor : kLayerNormal;
   uint8_t* byteaddr = (uint8_t*) addr;
 
@@ -55,7 +54,7 @@ void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
     return;
   }
 
-  for (i = 0; i < height; i++)
+  for (uint32_t i = 0; i < height; i++)
     memcpy(ptr + i * handle->meta_data_.pitches_[0], byteaddr + i * stride,
            stride);
 
