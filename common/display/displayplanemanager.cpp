@@ -270,7 +270,7 @@ bool DisplayPlaneManager::ValidateLayers(
       }
     }
 
-    if (layer_begin != layer_end) {
+    if ((layer_begin != layer_end) && (!composition.empty())) {
       bool is_video = composition.back().IsVideoPlane();
       previous_layer = NULL;
       DisplayPlaneState &last_plane = composition.back();
@@ -335,6 +335,12 @@ bool DisplayPlaneManager::ValidateLayers(
     }
   }
 
+  if (composition.empty()) {
+    *re_validation_needed = false;
+    *commit_checked = true;
+    return true;
+  }
+
   if (validate_final_layers) {
     ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
     test_commit_done = true;
@@ -397,7 +403,9 @@ void DisplayPlaneManager::ValidateCursorLayer(
   }
 
   DisplayPlaneState *last_plane = GetLastUsedOverlay(composition);
-  bool is_video = last_plane->IsVideoPlane();
+  bool is_video = false;
+  if (last_plane)
+    is_video = last_plane->IsVideoPlane();
 
   uint32_t total_size = cursor_layers.size();
   uint32_t cursor_index = 0;
@@ -483,7 +491,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
 
     // Lets ensure we fall back to GPU composition in case
     // cursor layer cannot be scanned out directly.
-    if (fall_back && !is_video) {
+    if (fall_back && !is_video && last_plane) {
       commit_planes.pop_back();
       cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
 #ifdef SURFACE_TRACING
@@ -497,7 +505,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
 
       last_plane = GetLastUsedOverlay(composition);
       bool reset_overlay = false;
-      if (!last_plane->GetOffScreenTarget() || is_video)
+      if (!last_plane->GetOffScreenTarget())
         reset_overlay = true;
 
       PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
