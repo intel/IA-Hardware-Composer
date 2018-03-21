@@ -60,11 +60,11 @@ struct vm_header {
 };
 
 struct vm_buffer_info {
+  int32_t surf_index;
   int32_t width, height;
   int32_t format;
   int32_t pitch[3];
   int32_t offset[3];
-  int32_t bpp;
   int32_t tile_format;
   int32_t rotation;
   int32_t status;
@@ -117,20 +117,6 @@ class NestedDisplay : public NativeDisplay {
   }
 
   uint32_t PowerMode() const override {
-    return 0;
-  }
-
-  uint32_t bitsPerPixel(int format) {
-    switch (format) {
-      case DRM_FORMAT_BGRX8888:
-      case DRM_FORMAT_BGRA8888:
-      case DRM_FORMAT_ARGB8888:
-        return 32;
-      case DRM_FORMAT_BGR888:
-        return 24;
-      case DRM_FORMAT_BGR565:
-        return 16;
-    }
     return 0;
   }
 
