@@ -197,21 +197,24 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
   const uint32_t *offsets;
   HWCNativeHandle sf_handle;
   size_t buffer_number = 0;
+  bool is_cursor_layer = false;
   size_t info_size = sizeof(vm_buffer_info);
   size_t header_size = sizeof(vm_header);
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
+    uint32_t surf_index = 0;
     HwcLayer *layer = source_layers.at(layer_index);
     if (!layer->IsVisible())
       continue;
 
     const HwcRect<int> &display_frame = layer->GetDisplayFrame();
     sf_handle = layer->GetNativeHandle();
+    is_cursor_layer = layer->IsCursorLayer();
     auto search = mHyperDmaExportedBuffers.find(sf_handle);
     if (search == mHyperDmaExportedBuffers.end()) {
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       buffer = OverlayBuffer::CreateOverlayBuffer();
-      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
+      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(), is_cursor_layer);
 
       if (mHyperDmaBuf_Fd > 0 && buffer->GetPrimeFD() > 0) {
         struct ioctl_hyper_dmabuf_export_remote msg;
@@ -229,25 +232,10 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
         } else {
           ETRACE("Hyper DmaBuf: Exporting hyper_dmabuf Done! 0x%x\n",
                  msg.hid.id);
-          uint32_t HalFormat = buffer->GetFormat();
-
+          mHyperDmaExportedBuffers[sf_handle].surf_index = surf_index++;
           mHyperDmaExportedBuffers[sf_handle].width = buffer->GetWidth();
           mHyperDmaExportedBuffers[sf_handle].height = buffer->GetHeight();
-          switch (HalFormat) {
-            case DRM_FORMAT_BGRX8888:
-            case DRM_FORMAT_BGR888:
-            case DRM_FORMAT_BGR565:
-              mHyperDmaExportedBuffers[sf_handle].format = EGL_TEXTURE_RGB;
-              break;
-            case DRM_FORMAT_BGRA8888:
-            case DRM_FORMAT_ARGB8888:
-              mHyperDmaExportedBuffers[sf_handle].format = EGL_TEXTURE_RGBA;
-              break;
-            case DRM_FORMAT_NV12_Y_TILED_INTEL:
-              mHyperDmaExportedBuffers[sf_handle].format =
-                  0x31D8;  // this wayland specified format, hardcode here.
-              break;
-          }
+          mHyperDmaExportedBuffers[sf_handle].format = buffer->GetFormat();
           pitches = buffer->GetPitches();
           offsets = buffer->GetOffsets();
           mHyperDmaExportedBuffers[sf_handle].pitch[0] = pitches[0];
@@ -256,11 +244,9 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
           mHyperDmaExportedBuffers[sf_handle].offset[0] = offsets[0];
           mHyperDmaExportedBuffers[sf_handle].offset[1] = offsets[1];
           mHyperDmaExportedBuffers[sf_handle].offset[2] = offsets[2];
-          mHyperDmaExportedBuffers[sf_handle].bpp = bitsPerPixel(HalFormat);
           mHyperDmaExportedBuffers[sf_handle].tile_format =
               buffer->GetTilingMode();
           mHyperDmaExportedBuffers[sf_handle].rotation = 0;
-          ;
           mHyperDmaExportedBuffers[sf_handle].status = 0;
           mHyperDmaExportedBuffers[sf_handle].counter = 0;
           mHyperDmaExportedBuffers[sf_handle].hyper_dmabuf_id = msg.hid;
@@ -282,7 +268,7 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
   *stream_start = METADATA_STREAM_START;
   vm_header *header = reinterpret_cast<vm_header *>(buf + sizeof(int));
   header->n_buffers = buffer_number;
-  header->version = 2;
+  header->version = 3;
   header->output = 0;   // need clarify meaning
   header->counter = 0;  // add later
   header->disp_w = width_;
