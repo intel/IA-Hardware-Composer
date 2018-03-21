@@ -277,6 +277,7 @@ int DrmDevice::TryEncoderForDisplay(int display, DrmEncoder *enc) {
   DrmCrtc *crtc = enc->crtc();
   if (crtc && crtc->can_bind(display)) {
     crtc->set_display(display);
+    enc->set_crtc(crtc);
     return 0;
   }
 
@@ -287,8 +288,8 @@ int DrmDevice::TryEncoderForDisplay(int display, DrmEncoder *enc) {
       continue;
 
     if (crtc->can_bind(display)) {
-      enc->set_crtc(crtc);
       crtc->set_display(display);
+      enc->set_crtc(crtc);
       return 0;
     }
   }

@@ -36,6 +36,8 @@ class DrmEncoder {
 
   DrmCrtc *crtc() const;
   void set_crtc(DrmCrtc *crtc);
+  bool can_bind(int display) const;
+  int display() const;
 
   const std::vector<DrmCrtc *> &possible_crtcs() const {
     return possible_crtcs_;
@@ -44,6 +46,7 @@ class DrmEncoder {
  private:
   uint32_t id_;
   DrmCrtc *crtc_;
+  int display_;
 
   std::vector<DrmCrtc *> possible_crtcs_;
 };

@@ -27,6 +27,7 @@ DrmEncoder::DrmEncoder(drmModeEncoderPtr e, DrmCrtc *current_crtc,
                        const std::vector<DrmCrtc *> &possible_crtcs)
     : id_(e->encoder_id),
       crtc_(current_crtc),
+      display_(-1),
       possible_crtcs_(possible_crtcs) {
 }
 
@@ -40,5 +41,14 @@ DrmCrtc *DrmEncoder::crtc() const {
 
 void DrmEncoder::set_crtc(DrmCrtc *crtc) {
   crtc_ = crtc;
+  display_ = crtc->display();
+}
+
+int DrmEncoder::display() const {
+  return display_;
+}
+
+bool DrmEncoder::can_bind(int display) const {
+  return display_ == -1 || display_ == display;
 }
 }
