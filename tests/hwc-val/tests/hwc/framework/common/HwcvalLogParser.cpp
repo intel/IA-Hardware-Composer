@@ -169,11 +169,11 @@ bool Hwcval::LogParser::ParseCommonExit(const char* str, const char* fn,
   std::string regex_ok("HwcService_" + std::string(fn) + " OK <--");
   if (MatchRegex(regex_ok.c_str(), str)) {
     if (ret) {
-      *ret = OK;
+      *ret = 0;
     }
 
     HWCLOGD_COND(eLogParse, "PARSED MATCHED %s - %s exit (return code: %d)",
-                 str, fn, OK);
+                 str, fn, 0);
     return true;
   }
 
@@ -328,7 +328,7 @@ bool Hwcval::LogParser::ParseDisplayModeSetModeExit(pid_t pid,
   HWCVAL_UNUSED(pid);
   HWCVAL_UNUSED(timestamp);
 
-  int ret_val = BAD_VALUE;
+  int ret_val = -1;
 
   if (ParseCommonExit(str, "DisplayMode_SetMode", &ret_val)) {
     HWCVAL_LOCK(_l, mTestKernel->GetMutex());

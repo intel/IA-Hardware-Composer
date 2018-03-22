@@ -18,14 +18,14 @@
 
 namespace Hwcval {
 
-Mutex::Mutex() : mbInit(1), mTid(0), mAcqTime(0), mWaiters(0) {
+Mutex::Mutex() : mbInit(1), mTid(0),  mWaiters(0) {
 }
 
 Mutex::Mutex(const char* name)
-    : mbInit(1), mMutex(name), mTid(0), mAcqTime(0), mWaiters(0) {
+    : mbInit(1), mTid(0), mWaiters(0) {
 }
 Mutex::Mutex(int type, const char* name)
-    : mbInit(1), mMutex(name), mTid(0), mAcqTime(0), mWaiters(0) {
+    : mbInit(1), mTid(0), mWaiters(0) {
   type = 0;  // remove compiler warning.
 }
 
@@ -45,17 +45,20 @@ int Mutex::lock() {
   }
   ATRACE_INT_IF(MUTEX_CONDITION_DEBUG,
                 (std::string("W-Mutex-") + std::to_string((long long) this)).c_str(), 1);
-  nsecs_t timeStart = systemTime(SYSTEM_TIME_MONOTONIC);
-  uint64_t timeNow, timeEla, timecount;
+  timespec timeStart;
+  clock_gettime(CLOCK_REALTIME, &timeStart);
+  timespec timeNow, timeEla;
+  int timecount;
   for (timecount = 0;; timecount++) {
-    timeNow = systemTime(SYSTEM_TIME_MONOTONIC);
-    if (mMutex.tryLock() == 0)
-      break;
+    timespec timeNow;
+    clock_gettime(CLOCK_REALTIME, &timeNow);
+    mspinlock.lock();
     ALOGD_IF((MUTEX_CONDITION_DEBUG && timecount == 0),
              "Blocking on mutex %p thread %u", this, gettid());
     usleep(mSpinWait);
-    timeEla = (uint64_t)int64_t(timeNow - timeStart);
-    if (timeEla > mLongTime) {
+    timeEla.tv_sec = timeNow.tv_sec - timeStart.tv_sec;
+    timeEla.tv_nsec = timeNow.tv_nsec - timeStart.tv_nsec;
+    if (timeEla.tv_nsec > mLongTime) {
       ALOGE("Thread %u blocked by thread %u waiting for mutex %p", gettid(),
             mTid, this);
       timeStart = timeNow;
@@ -86,32 +89,24 @@ int Mutex::unlock() {
           mTid);
     ALOG_ASSERT(0);
   }
-  uint64_t timeNow = systemTime(SYSTEM_TIME_MONOTONIC);
-  uint64_t timeEla = (uint64_t)int64_t(timeNow - mAcqTime);
+  timespec timeNow;
+  clock_gettime(CLOCK_REALTIME, &timeNow);
+  uint64_t timeEla = (uint64_t)int64_t(timeNow.tv_nsec - mAcqTime.tv_nsec);
   ALOGE_IF(timeEla > mLongTime, "Thread %u held mutex %p for %" PRIu64 "ms",
            mTid, this, timeEla / 1000000);
   mTid = 0;
   ATRACE_INT_IF(MUTEX_CONDITION_DEBUG,
                 (std::string("A-Mutex-") + std::to_string((long long) this)).c_str(), 0);
-  mMutex.unlock();
+  mspinlock.unlock();
   ALOGD_IF(MUTEX_CONDITION_DEBUG, "Released mutex %p thread %u", this,
            gettid());
   return 0;
 }
 
-status_t Mutex::tryLock() {
+bool Mutex::tryLock() {
   ALOGD_IF(MUTEX_CONDITION_DEBUG, "Testing mutex %p thread %u", this, gettid());
-  status_t ret = mMutex.tryLock();
-  // Android returns 0 as success status
-  if (ret == 0) {
-    nsecs_t timeStart = systemTime(SYSTEM_TIME_MONOTONIC);
-    mTid = gettid();
-    mAcqTime = timeStart;
-  }
-  ALOGD_IF(MUTEX_CONDITION_DEBUG,
-           "Function tryLock() returned %d mutex %p thread %u", ret, this,
-           gettid());
-  return ret;
+  mspinlock.lock();
+  return true;
 }
 
 bool Mutex::isHeld(void) {
@@ -134,11 +129,11 @@ uint32_t Mutex::getWaiters(void) {
   return mWaiters;
 }
 
-Mutex::Autolock::Autolock(Mutex& m) : mMutex(m) {
-  mMutex.lock();
+Mutex::Autolock::Autolock(Mutex& m) : spinlock_(m.mspinlock) {
+  m.mspinlock.lock();
 }
 Mutex::Autolock::~Autolock() {
-  mMutex.unlock();
+  spinlock_.unlock();
 }
 
 Condition::Condition() : mbInit(1), mWaiters(0) {
@@ -148,8 +143,8 @@ Condition::~Condition() {
   mbInit = 0;
   ALOG_ASSERT(!mWaiters);
 }
-
-int Condition::waitRelative(Mutex& mutex, nsecs_t timeout) {
+#if 0
+int Condition::waitRelative(Mutex& mutex, unsigned long timeout) {
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p waitRelative Enter mutex %p mTid/tid %d/%d", this,
            &mutex, mutex.mTid, gettid());
@@ -161,16 +156,18 @@ int Condition::waitRelative(Mutex& mutex, nsecs_t timeout) {
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p waitRelative on mutex %p waiters %u/%u", this, &mutex,
            mWaiters, mutex.getWaiters());
-  int ret = mCondition.waitRelative(mutex.mMutex, timeout);
+  mutex.lock();
+  int ret = HWCPoll(hwcevent.get_fd(), timeout);
   mutex.decWaiter();
   mWaiters--;
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p re-acquired mutex %p waiters %u/%u", this, &mutex,
            mWaiters, mutex.getWaiters());
   mutex.mTid = gettid();
-  mutex.mAcqTime = systemTime(SYSTEM_TIME_MONOTONIC);
+  clock_gettime(CLOCK_REALTIME, &mutex.mAcqTime);
   return ret;
 }
+#endif
 int Condition::wait(Mutex& mutex) {
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p wait Enter mutex %p mTid/tid %d/%d", this, &mutex,
@@ -183,27 +180,27 @@ int Condition::wait(Mutex& mutex) {
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p wait on mutex %p waiters %u/%u mTid/tid %d/%d", this,
            &mutex, mWaiters, mutex.getWaiters(), mutex.mTid, gettid());
-  int ret = mCondition.wait(mutex.mMutex);
+  mutex.lock();
+  int ret = hwcevent.Wait();
   mutex.decWaiter();
   mWaiters--;
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p re-acquired mutex %p waiters %u/%u mTid/tid %d/%d",
            this, &mutex, mWaiters, mutex.getWaiters(), mutex.mTid, gettid());
   mutex.mTid = gettid();
-  mutex.mAcqTime = systemTime(SYSTEM_TIME_MONOTONIC);
+  clock_gettime(CLOCK_REALTIME, &mutex.mAcqTime);
   return ret;
 }
 void Condition::signal() {
   ALOGD_IF(MUTEX_CONDITION_DEBUG, "Condition %p signalled [waiters:%u]", this,
            mWaiters);
   ALOG_ASSERT(mbInit);
-  mCondition.signal();
+  hwcevent.Signal();
 }
 void Condition::broadcast() {
   ALOGD_IF(MUTEX_CONDITION_DEBUG, "Condition %p broadcast [waiters:%u]", this,
            mWaiters);
   ALOG_ASSERT(mbInit);
-  mCondition.broadcast();
 }
 
 };  // namespace Hwcval
