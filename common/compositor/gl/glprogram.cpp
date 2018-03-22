@@ -152,7 +152,7 @@ static GLint GenerateProgram(unsigned num_textures,
   if (shader_prog_fp) {
     /* check the size of file */
     fseek(shader_prog_fp, 0, SEEK_END);
-    int binary_sz = ftell(shader_prog_fp);
+    long binary_sz = ftell(shader_prog_fp);
     rewind(shader_prog_fp);
 
     char *binary_prog = (char *)malloc(binary_sz);
