@@ -22,7 +22,7 @@
 
 #include <utils/Thread.h>
 
-Hwch::BufferAllocator::BufferAllocator(): hwcomposer::HWCThread(android::PRIORITY_NORMAL, \
+Hwch::BufferAllocator::BufferAllocator(): hwcomposer::HWCThread(0, \
                                           "Hwch::BufferAllocator"){
 
 }

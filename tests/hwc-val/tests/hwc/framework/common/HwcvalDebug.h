@@ -24,21 +24,15 @@
 
 // Trace support
 #include <utils/Trace.h>
-
-// Mutex support
-#include <utils/Mutex.h>
-#include <utils/Condition.h>
-
-namespace android {
-class Mutex;
-class Condition;
-};
+#include "public/spinlock.h"
+#include "public/hwcutils.h"
+#include "common/utils/hwcevent.h"
+#include <sys/time.h>
+using namespace hwcomposer;
 
 namespace Hwcval {
 
 #define MUTEX_CONDITION_DEBUG 0  // Debug mutex/conditions.
-
-using namespace android;
 
 // This ScopedTrace function compiles away properly when disabled. Android's one
 // doesnt, it
@@ -93,18 +87,18 @@ class Mutex {
     ~Autolock();
 
    private:
-    Mutex& mMutex;
+    SpinLock& spinlock_;
   };
 
   // lock if possible; returns 0 on success, error otherwise
-  status_t tryLock();
+  bool tryLock();
 
  private:
   friend class Condition;
   bool mbInit : 1;
-  android::Mutex mMutex;
+  SpinLock mspinlock;
   pid_t mTid;
-  nsecs_t mAcqTime;
+  timespec mAcqTime;
   uint32_t mWaiters;
 };
 
@@ -112,7 +106,29 @@ class Condition {
  public:
   Condition();
   ~Condition();
-  int waitRelative(Mutex& mutex, nsecs_t timeout);
+  int waitRelative(Mutex& mutex, unsigned long timeout) {
+  ALOGD_IF(MUTEX_CONDITION_DEBUG,
+           "Condition %p waitRelative Enter mutex %p mTid/tid %d/%d", this,
+           &mutex, mutex.mTid, gettid());
+  ALOG_ASSERT(mbInit);
+  ALOG_ASSERT(mutex.mTid == gettid());
+  mutex.mTid = 0;
+  mutex.incWaiter();
+  mWaiters++;
+  ALOGD_IF(MUTEX_CONDITION_DEBUG,
+           "Condition %p waitRelative on mutex %p waiters %u/%u", this, &mutex,
+           mWaiters, mutex.getWaiters());
+  mutex.lock();
+  int ret = HWCPoll(hwcevent.get_fd(), timeout);
+  mutex.decWaiter();
+  mWaiters--;
+  ALOGD_IF(MUTEX_CONDITION_DEBUG,
+           "Condition %p re-acquired mutex %p waiters %u/%u", this, &mutex,
+           mWaiters, mutex.getWaiters());
+  mutex.mTid = gettid();
+  clock_gettime(CLOCK_REALTIME, &mutex.mAcqTime);
+  return ret;
+}
   int wait(Mutex& mutex);
   void signal();
   void broadcast();
@@ -120,7 +136,7 @@ class Condition {
  private:
   bool mbInit : 1;
   uint32_t mWaiters;
-  android::Condition mCondition;
+  HWCEvent hwcevent;
 };
 
 };  // namespace Hwcval
