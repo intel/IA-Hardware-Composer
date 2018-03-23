@@ -209,6 +209,9 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
                             static_cast<EGLClientBuffer>(nullptr), attr_list);
     }
 
+    if (image == EGL_NO_IMAGE_KHR) {
+      ETRACE("eglCreateKHR failed to create image for DrmBuffer");
+    }
     image_.image_ = image;
 #elif USE_VK
     struct vk_import import;
@@ -343,8 +346,11 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   attribs[1].value.type = VAGenericValueTypePointer;
   attribs[1].value.value.p = &external;
 
-  vaCreateSurfaces(display, rt_format, external.width, external.height,
-                   &media_image_.surface_, 1, attribs, 2);
+  VAStatus ret =
+      vaCreateSurfaces(display, rt_format, external.width, external.height,
+                       &media_image_.surface_, 1, attribs, 2);
+  if (ret != VA_STATUS_SUCCESS)
+    ETRACE("Failed to create VASurface from drmbuffer with ret %x", ret);
 
   return media_image_;
 }

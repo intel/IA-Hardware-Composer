@@ -26,7 +26,7 @@
 #endif
 
 #include <utils/Trace.h>
-#include <cutils/log.h>
+#include <android/log.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
