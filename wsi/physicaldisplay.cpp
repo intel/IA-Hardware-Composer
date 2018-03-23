@@ -128,6 +128,20 @@ void PhysicalDisplay::Connect() {
   SPIN_LOCK(modeset_lock_);
 
   connection_state_ &= ~kDisconnectionInProgress;
+
+  SPIN_UNLOCK(modeset_lock_);
+
+  if (source_display_) {
+    // Current display is a cloned display, set the source_display_'s
+    // k_RefreshClonedDisplays flag. This makes clone parent have a
+    // chance to update it's cloned display list
+    PhysicalDisplay* p_clone_parent = (PhysicalDisplay*) source_display_;
+    SPIN_LOCK(p_clone_parent->modeset_lock_);
+    p_clone_parent->display_state_ |= kRefreshClonedDisplays;
+    SPIN_UNLOCK(p_clone_parent->modeset_lock_);
+  }
+
+  SPIN_LOCK(modeset_lock_);
   if (connection_state_ & kConnected) {
     SPIN_UNLOCK(modeset_lock_);
     return;
