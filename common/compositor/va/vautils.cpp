@@ -20,6 +20,8 @@
 
 #include <drm_fourcc.h>
 
+#include <hwctrace.h>
+
 namespace hwcomposer {
 
 int DrmFormatToVAFormat(int format) {
@@ -43,6 +45,7 @@ int DrmFormatToVAFormat(int format) {
     case DRM_FORMAT_YUV444:
     case DRM_FORMAT_AYUV:
     default:
+      ETRACE("Unable to convert to VAFormat from format %x", format);
       break;
   }
   return 0;
@@ -65,6 +68,7 @@ int DrmFormatToRTFormat(int format) {
     case DRM_FORMAT_P010:
       return VA_RT_FORMAT_YUV420_10BPP;
     default:
+      ETRACE("Unable to convert to RTFormat from format %x", format);
       break;
   }
   return 0;
