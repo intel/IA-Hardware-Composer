@@ -190,7 +190,9 @@ bool NestedDisplay::SetPowerMode(uint32_t /*power_mode*/) {
 bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t * /*retire_fence*/,
                             bool /*handle_constraints*/) {
-#ifdef NESTED_DISPLAY_SUPPORT
+#ifndef NESTED_DISPLAY_SUPPORT
+  return true;
+#else
   int ret = 0;
   size_t size = source_layers.size();
   const uint32_t *pitches;
@@ -284,8 +286,8 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
     } while (rc != msg_size && rc >= 0);
   }
   memset(buf, 0, METADATA_BUFFER_SIZE);
-#endif
   return true;
+#endif
 }
 
 bool NestedDisplay::PresentClone(NativeDisplay * /*display*/) {
