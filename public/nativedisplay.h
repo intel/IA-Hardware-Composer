@@ -377,8 +377,7 @@ class NativeDisplay {
   virtual void DisOwnPresentation(NativeDisplay * /*clone*/) {
   }
 
-  virtual bool PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                            int32_t * /*retire_fence*/, bool /*idle_frame*/) {
+  virtual bool PresentClone(NativeDisplay * /*display*/) {
     return false;
   }
 

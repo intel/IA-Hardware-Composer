@@ -457,6 +457,21 @@ void OverlayLayer::ValidateForOverlayUsage() {
   type_ = buffer->GetUsage();
 }
 
+void OverlayLayer::CloneLayer(const OverlayLayer* layer,
+                              const HwcRect<int>& display_frame) {
+  int32_t fence = layer->GetAcquireFence();
+  if (fence > 0) {
+    fence = dup(fence);
+  }
+
+  SetDisplayFrame(display_frame);
+  SetSourceCrop(layer->GetSourceCrop());
+  imported_buffer_.reset(new ImportedBuffer(layer->GetSharedBuffer(), fence));
+  ValidateForOverlayUsage();
+  surface_damage_ = display_frame;
+  transform_ = 0;
+}
+
 void OverlayLayer::Dump() {
   DUMPTRACE("OverlayLayer Information Starts. -------------");
   switch (blending_) {
