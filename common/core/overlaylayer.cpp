@@ -238,7 +238,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+            resource_manager, false, layer);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
