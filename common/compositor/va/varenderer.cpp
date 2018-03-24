@@ -335,35 +335,6 @@ bool VARenderer::DestroyMediaResources(
   return true;
 }
 
-bool VARenderer::LoadCaps() {
-  VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
-  uint32_t colorbalance_num = VAProcColorBalanceCount;
-  uint32_t sharp_num = 1;
-  uint32_t deinterlace_num = VAProcDeinterlacingCount;
-  if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
-                             colorbalancecaps, &colorbalance_num)) {
-    return false;
-  }
-  if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
-                             &sharp_caps_.caps_, &sharp_num)) {
-    return false;
-  }
-  if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
-                             &deinterlace_caps_.caps_, &deinterlace_num)) {
-    return false;
-  }
-
-  SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
-  SetVAProcFilterDeinterlaceDefaultMode();
-
-  memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
-  param_.surface_color_standard = VAProcColorStandardBT601;
-  param_.output_color_standard = VAProcColorStandardBT601;
-  param_.num_filters = 0;
-  param_.filters = nullptr;
-  return true;
-}
-
 bool VARenderer::CreateContext() {
   DestroyContext();
 
@@ -386,10 +357,6 @@ bool VARenderer::CreateContext() {
                         0, &va_context_);
 
   update_caps_ = true;
-  if (ret == VA_STATUS_SUCCESS) {
-    if (!LoadCaps() || !UpdateCaps())
-      return false;
-  }
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 
@@ -415,78 +382,107 @@ bool VARenderer::UpdateCaps() {
 
   update_caps_ = false;
 
-  std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
-                                            va_display_);
-  std::vector<ScopedVABufferID> sharp(1, va_display_);
-  std::vector<ScopedVABufferID> deinterlace(1, va_display_);
+  VAProcFilterCapColorBalance colorbalancecaps[VAProcColorBalanceCount];
+  uint32_t colorbalance_num = VAProcColorBalanceCount;
+  uint32_t sharp_num = 1;
+  uint32_t deinterlace_num = VAProcDeinterlacingCount;
 
-  std::vector<VABufferID>().swap(filters_);
-  std::vector<ScopedVABufferID>().swap(cb_elements_);
-  std::vector<ScopedVABufferID>().swap(sharp_);
-  std::vector<ScopedVABufferID>().swap(deinterlace_);
+  if (colorbalance_caps_.empty()) {
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
+                               colorbalancecaps, &colorbalance_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterSharpening,
+                               &sharp_caps_.caps_, &sharp_num)) {
+      return false;
+    }
+    if (!QueryVAProcFilterCaps(va_context_, VAProcFilterDeinterlacing,
+                               &deinterlace_caps_.caps_, &deinterlace_num)) {
+      return false;
+    }
 
-  VAProcFilterParameterBufferColorBalance cbparam;
-  VAProcFilterParameterBuffer sharpparam;
-  VAProcFilterParameterBufferDeinterlacing deinterlaceparam;
+    SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
+    SetVAProcFilterDeinterlaceDefaultMode();
 
-  for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
-       itr++) {
-    bool use_default =
-        itr->second.use_default_ &&
-        itr->second.value_ != itr->second.caps_.range.default_value;
-    if (fabs(itr->second.value_ - itr->second.caps_.range.default_value) >=
-            itr->second.caps_.range.step ||
-        use_default) {
-      if (use_default) {
-        itr->second.value_ = itr->second.caps_.range.default_value;
+  } else {
+    std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
+                                              va_display_);
+    std::vector<ScopedVABufferID> sharp(1, va_display_);
+    std::vector<ScopedVABufferID> deinterlace(1, va_display_);
+
+    std::vector<VABufferID>().swap(filters_);
+    std::vector<ScopedVABufferID>().swap(cb_elements_);
+    std::vector<ScopedVABufferID>().swap(sharp_);
+    std::vector<ScopedVABufferID>().swap(deinterlace_);
+
+    VAProcFilterParameterBufferColorBalance cbparam;
+    VAProcFilterParameterBuffer sharpparam;
+    VAProcFilterParameterBufferDeinterlacing deinterlaceparam;
+
+    for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
+         itr++) {
+      bool use_default =
+          itr->second.use_default_ &&
+          itr->second.value_ != itr->second.caps_.range.default_value;
+      if (fabs(itr->second.value_ - itr->second.caps_.range.default_value) >=
+              itr->second.caps_.range.step ||
+          use_default) {
+        if (use_default) {
+          itr->second.value_ = itr->second.caps_.range.default_value;
+        }
+        cbparam.type = VAProcFilterColorBalance;
+        cbparam.value = itr->second.value_;
+        cbparam.attrib = itr->second.caps_.type;
+        if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
+                va_context_, VAProcFilterParameterBufferType,
+                sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
+          return false;
+        }
+        filters_.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
       }
-      cbparam.type = VAProcFilterColorBalance;
-      cbparam.value = itr->second.value_;
-      cbparam.attrib = itr->second.caps_.type;
-      if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
-              va_context_, VAProcFilterParameterBufferType,
-              sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
+    }
+
+    cb_elements_.swap(cb_elements);
+
+    bool sharp_use_default =
+        sharp_caps_.use_default_ &&
+        sharp_caps_.value_ != sharp_caps_.caps_.range.default_value;
+    if (fabs(sharp_caps_.value_ - sharp_caps_.caps_.range.default_value) >=
+            sharp_caps_.caps_.range.step ||
+        sharp_use_default) {
+      if (sharp_use_default) {
+        sharp_caps_.value_ = sharp_caps_.caps_.range.default_value;
+      }
+      sharpparam.value = sharp_caps_.value_;
+      sharpparam.type = VAProcFilterSharpening;
+      if (!sharp[0].CreateBuffer(va_context_, VAProcFilterParameterBufferType,
+                                 sizeof(VAProcFilterParameterBuffer), 1,
+                                 &sharpparam)) {
         return false;
       }
-      filters_.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
+      filters_.push_back(sharp[0].buffer());
     }
+    sharp_.swap(sharp);
+
+    if (deinterlace_caps_.mode_ != VAProcDeinterlacingNone) {
+      deinterlaceparam.algorithm = deinterlace_caps_.mode_;
+      deinterlaceparam.type = VAProcFilterDeinterlacing;
+      if (!deinterlace[0].CreateBuffer(
+              va_context_, VAProcFilterParameterBufferType,
+              sizeof(VAProcFilterParameterBufferDeinterlacing), 1,
+              &deinterlaceparam)) {
+        return false;
+      }
+      filters_.push_back(deinterlace[0].buffer());
+    }
+    deinterlace_.swap(deinterlace);
   }
 
-  cb_elements_.swap(cb_elements);
-
-  bool sharp_use_default =
-      sharp_caps_.use_default_ &&
-      sharp_caps_.value_ != sharp_caps_.caps_.range.default_value;
-  if (fabs(sharp_caps_.value_ - sharp_caps_.caps_.range.default_value) >=
-          sharp_caps_.caps_.range.step ||
-      sharp_use_default) {
-    if (sharp_use_default) {
-      sharp_caps_.value_ = sharp_caps_.caps_.range.default_value;
-    }
-    sharpparam.value = sharp_caps_.value_;
-    sharpparam.type = VAProcFilterSharpening;
-    if (!sharp[0].CreateBuffer(va_context_, VAProcFilterParameterBufferType,
-                               sizeof(VAProcFilterParameterBuffer), 1,
-                               &sharpparam)) {
-      return false;
-    }
-    filters_.push_back(sharp[0].buffer());
-  }
-  sharp_.swap(sharp);
-
-  if (deinterlace_caps_.mode_ != VAProcDeinterlacingNone) {
-    deinterlaceparam.algorithm = deinterlace_caps_.mode_;
-    deinterlaceparam.type = VAProcFilterDeinterlacing;
-    if (!deinterlace[0].CreateBuffer(
-            va_context_, VAProcFilterParameterBufferType,
-            sizeof(VAProcFilterParameterBufferDeinterlacing), 1,
-            &deinterlaceparam)) {
-      return false;
-    }
-    filters_.push_back(deinterlace[0].buffer());
-  }
-  deinterlace_.swap(deinterlace);
-
+  memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
+  param_.surface_color_standard = VAProcColorStandardBT601;
+  param_.output_color_standard = VAProcColorStandardBT601;
+  param_.num_filters = 0;
+  param_.filters = nullptr;
   param_.filter_flags = filter_flags_;
   if (filters_.size()) {
     param_.filters = &filters_[0];
