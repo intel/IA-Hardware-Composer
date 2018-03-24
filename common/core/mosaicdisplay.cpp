@@ -244,9 +244,7 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   return true;
 }
 
-bool MosaicDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                                 int32_t * /*retire_fence*/,
-                                 bool /*idle_frame*/) {
+bool MosaicDisplay::PresentClone(NativeDisplay * /*display*/) {
   return false;
 }
 

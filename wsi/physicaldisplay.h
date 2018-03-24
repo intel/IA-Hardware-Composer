@@ -111,8 +111,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   void CloneDisplay(NativeDisplay *source_display) override;
 
-  bool PresentClone(std::vector<HwcLayer *> &source_layers,
-                    int32_t *retire_fence, bool idle_frame) override;
+  bool PresentClone(NativeDisplay * /*display*/) override;
 
   bool GetDisplayAttribute(uint32_t /*config*/, HWCDisplayAttribute attribute,
                            int32_t *value) override;
@@ -212,7 +211,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
  private:
   bool UpdatePowerMode();
   void RefreshClones();
-  void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
+  void HandleClonedDisplays(NativeDisplay *display);
 
  protected:
   enum DisplayConnectionStatus {

@@ -302,9 +302,7 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
   return true;
 }
 
-bool NestedDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                                 int32_t * /*retire_fence*/,
-                                 bool /*idle_frame*/) {
+bool NestedDisplay::PresentClone(NativeDisplay * /*display*/) {
   return false;
 }
 

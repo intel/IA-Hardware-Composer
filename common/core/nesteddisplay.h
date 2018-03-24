@@ -167,8 +167,7 @@ class NestedDisplay : public NativeDisplay {
 
   void CloneDisplay(NativeDisplay *source_display) override;
 
-  bool PresentClone(std::vector<HwcLayer *> &source_layers,
-                    int32_t *retire_fence, bool idle_frame) override;
+  bool PresentClone(NativeDisplay * /*display*/) override;
 
   bool GetDisplayAttribute(uint32_t /*config*/, HWCDisplayAttribute attribute,
                            int32_t *value) override;

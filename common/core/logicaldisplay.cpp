@@ -81,9 +81,7 @@ bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                                            handle_constraints);
 }
 
-bool LogicalDisplay::PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                                  int32_t * /*retire_fence*/,
-                                  bool /*idle_frame*/) {
+bool LogicalDisplay::PresentClone(NativeDisplay * /*display*/) {
   return false;
 }
 

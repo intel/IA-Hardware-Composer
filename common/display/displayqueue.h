@@ -56,7 +56,7 @@ class DisplayQueue {
                   DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
-                   bool idle_update, bool handle_constraints);
+                   bool* ignore_clone_update, bool handle_constraints);
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
@@ -90,23 +90,27 @@ class DisplayQueue {
 
   void SetCloneMode(bool cloned);
 
-  bool WasLastFrameIdleUpdate() {
-    return state_ & kLastFrameIdleUpdate;
-  }
-
   void RotateDisplay(HWCRotation rotation);
 
   void IgnoreUpdates();
+
+  void PresentClonedCommit(DisplayQueue* queue);
+
+  const DisplayPlaneStateList& GetCurrentCompositionPlanes() const {
+    return previous_plane_state_;
+  }
+
+  bool NeedsCloneValidation() const {
+    return needs_clone_validation_;
+  }
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kPoweredOn = 1 << 2,
     kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
-    kIgnoreIdleRefresh =
-        1 << 4,            // Ignore refresh request during idle callback.
-    kClonedMode = 1 << 5,  // We are in cloned mode.
-    kLastFrameIdleUpdate = 1 << 6  // Last frame was a refresh for Idle state.
+    kIgnoreIdleRefresh = 1 << 4  // Ignore refresh request during idle callback.
   };
 
   struct ScalingTracker {
@@ -292,6 +296,11 @@ class DisplayQueue {
   bool applied_video_effect_ = false;
   // Set to true when layers are validated and commit fails.
   bool last_commit_failed_update_ = false;
+  // Set to true if cloned display needs to be validated.
+  bool needs_clone_validation_ = false;
+  bool clone_mode_ = false;
+  // Set to true if this queue needs to render the offscreen surfaces.
+  bool clone_rendered_ = false;
   // Surfaces to be marked as not in use. These
   // are surfaces which are added to surfaces_not_inuse_
   // below.
