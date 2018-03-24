@@ -293,10 +293,11 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     IHOTPLUGEVENTTRACE("Handle_hoplug_notifications done. %p \n", this);
   }
 
-  bool success = display_queue_->QueueUpdate(source_layers, retire_fence, false,
-                                             handle_constraints);
-  if (success && !clones_.empty()) {
-    HandleClonedDisplays(source_layers);
+  bool ignore_clone_update = false;
+  bool success = display_queue_->QueueUpdate(
+      source_layers, retire_fence, &ignore_clone_update, handle_constraints);
+  if (success && !clones_.empty() && !ignore_clone_update) {
+    HandleClonedDisplays(this);
   }
 
   size_t size = source_layers.size();
@@ -311,8 +312,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   return success;
 }
 
-bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
-                                   int32_t *retire_fence, bool idle_frame) {
+bool PhysicalDisplay::PresentClone(NativeDisplay *display) {
   CTRACE();
   SPIN_LOCK(modeset_lock_);
 
@@ -321,21 +321,18 @@ bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
   }
   SPIN_UNLOCK(modeset_lock_);
 
-  bool success = display_queue_->QueueUpdate(source_layers, retire_fence,
-                                             idle_frame, false);
-  HandleClonedDisplays(source_layers);
-  return success;
+  display_queue_->PresentClonedCommit(
+      static_cast<PhysicalDisplay *>(display)->display_queue_.get());
+  HandleClonedDisplays(display);
+  return true;
 }
 
-void PhysicalDisplay::HandleClonedDisplays(
-    std::vector<HwcLayer *> &source_layers) {
+void PhysicalDisplay::HandleClonedDisplays(NativeDisplay *display) {
   if (clones_.empty())
     return;
 
-  int32_t fence = -1;
-  for (auto display : clones_) {
-    display->PresentClone(source_layers, &fence,
-                          display_queue_->WasLastFrameIdleUpdate());
+  for (auto clone_display : clones_) {
+    clone_display->PresentClone(display);
   }
 }
 
