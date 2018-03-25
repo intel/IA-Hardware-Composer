@@ -264,7 +264,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool update_rect = reset_plane;
       bool refresh_surfaces = reset_composition_regions;
-      bool force_partial_clear = false;
 
       const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
@@ -279,10 +278,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           if (refresh_surfaces) {
             continue;
-          }
-
-          if (layer.NeedsPartialClear()) {
-            force_partial_clear = true;
           }
 
           if (layer.HasLayerContentChanged()) {
@@ -329,21 +324,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (update_rect || refresh_surfaces || !surface_damage.empty() ||
-          force_partial_clear) {
+      if (update_rect || refresh_surfaces || !surface_damage.empty()) {
         needs_gpu_composition = true;
         if (target_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
         } else if (refresh_surfaces || reset_plane) {
           target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-        } else if (!update_rect) {
-          if (force_partial_clear) {
-            target_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-          }
-
-          if (!surface_damage.empty()) {
-            target_plane.UpdateDamage(surface_damage);
-          }
+        } else if (!update_rect && !surface_damage.empty()) {
+          target_plane.UpdateDamage(surface_damage);
         }
 
         if (refresh_surfaces || reset_plane || update_rect) {
