@@ -150,7 +150,8 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   return true;
 }
 
-bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
+bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle,
+                                     bool releasehandle) const {
   if (handle->bo || handle->imported_bo) {
     if (handle->bo && handle->hwc_buffer_) {
       gbm_bo_destroy(handle->bo);

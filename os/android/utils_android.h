@@ -223,7 +223,8 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 
-static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
+static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd,
+                                  bool releasehandle) {
   if (!handle)
     return false;
 
@@ -243,13 +244,15 @@ static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
     last_gem_handle = current_gem_handle;
     gem_close.handle = current_gem_handle;
 
-    ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
-    if (ret) {
-      ETRACE(
-          "Failed to close gem handle ErrorCode: %d PrimeFD: %d HWCBuffer: %d "
-          "GemHandle: %d  \n",
-          ret, handle->meta_data_.prime_fds_[plane], handle->hwc_buffer_,
-          current_gem_handle);
+    if (releasehandle) {
+      ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+      if (ret) {
+        ETRACE("Failed to close gem handle ErrorCode: %d PrimeFD: %d "
+               "HWCBuffer: %d "
+               "GemHandle: %d  \n",
+               ret, handle->meta_data_.prime_fds_[plane], handle->hwc_buffer_,
+               current_gem_handle);
+      }
     }
   }
 

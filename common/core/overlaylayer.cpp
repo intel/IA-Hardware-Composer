@@ -80,6 +80,9 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
   if (resource_manager && register_buffer) {
     uint32_t gpu_fd = resource_manager->GetNativeBufferHandler()->GetFd();
     id = GetNativeBuffer(gpu_fd, handle);
+    uint32_t id2 = GetNativeBuffer(gpu_fd, handle);
+    if (id2 != id)
+      ETRACE("Import id not equal %d vs %d !", id, id2);
     buffer = resource_manager->FindCachedBuffer(id);
   }
 
