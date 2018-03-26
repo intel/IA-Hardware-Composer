@@ -127,7 +127,9 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
     } else if (prop.value_ != colorbalance_caps_[mode].value_) {
       if (prop.value_ > colorbalance_caps_[mode].caps_.range.max_value ||
           prop.value_ < colorbalance_caps_[mode].caps_.range.min_value) {
-        ETRACE("VA Filter value out of range\n");
+        ETRACE("VA Filter value out of range. Mode %d range shoud be %f~%f\n",
+               mode, colorbalance_caps_[mode].caps_.range.min_value,
+               colorbalance_caps_[mode].caps_.range.max_value);
         return false;
       }
       colorbalance_caps_[mode].value_ = prop.value_;
@@ -144,7 +146,9 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
     } else if (prop.value_ != sharp_caps_.value_) {
       if (prop.value_ > sharp_caps_.caps_.range.max_value ||
           prop.value_ < sharp_caps_.caps_.range.min_value) {
-        ETRACE("VA Filter sharp value out of range\n");
+        ETRACE("VA Filter sharp value out of range. should be %f~%f\n",
+               sharp_caps_.caps_.range.min_value,
+               sharp_caps_.caps_.range.max_value);
         return false;
       }
       sharp_caps_.value_ = prop.value_;
@@ -298,8 +302,9 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     ETRACE("Failed to update capabailities. \n");
     return false;
   }
+  param_.filter_flags = filter_flags_;
 
-  // currently rotation is only supported by VA on Android.
+// currently rotation is only supported by VA on Android.
 #ifdef DISABLE_CURSOR_PLANE
   param_.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
 #endif
@@ -340,6 +345,8 @@ bool VARenderer::LoadCaps() {
   uint32_t colorbalance_num = VAProcColorBalanceCount;
   uint32_t sharp_num = 1;
   uint32_t deinterlace_num = VAProcDeinterlacingCount;
+  memset(colorbalancecaps, 0,
+         sizeof(VAProcFilterCapColorBalance) * VAProcColorBalanceCount);
   if (!QueryVAProcFilterCaps(va_context_, VAProcFilterColorBalance,
                              colorbalancecaps, &colorbalance_num)) {
     return false;
@@ -415,8 +422,7 @@ bool VARenderer::UpdateCaps() {
 
   update_caps_ = false;
 
-  std::vector<ScopedVABufferID> cb_elements(VAProcColorBalanceCount,
-                                            va_display_);
+  std::vector<ScopedVABufferID> cb_elements(1, va_display_);
   std::vector<ScopedVABufferID> sharp(1, va_display_);
   std::vector<ScopedVABufferID> deinterlace(1, va_display_);
 
@@ -425,10 +431,12 @@ bool VARenderer::UpdateCaps() {
   std::vector<ScopedVABufferID>().swap(sharp_);
   std::vector<ScopedVABufferID>().swap(deinterlace_);
 
-  VAProcFilterParameterBufferColorBalance cbparam;
+  VAProcFilterParameterBufferColorBalance cbparam[VAProcColorBalanceCount];
   VAProcFilterParameterBuffer sharpparam;
   VAProcFilterParameterBufferDeinterlacing deinterlaceparam;
-
+  memset(cbparam, 0, VAProcColorBalanceCount *
+                         sizeof(VAProcFilterParameterBufferColorBalance));
+  int index = 0;
   for (auto itr = colorbalance_caps_.begin(); itr != colorbalance_caps_.end();
        itr++) {
     bool use_default =
@@ -440,18 +448,33 @@ bool VARenderer::UpdateCaps() {
       if (use_default) {
         itr->second.value_ = itr->second.caps_.range.default_value;
       }
-      cbparam.type = VAProcFilterColorBalance;
-      cbparam.value = itr->second.value_;
-      cbparam.attrib = itr->second.caps_.type;
-      if (!cb_elements[static_cast<int>(itr->first)].CreateBuffer(
-              va_context_, VAProcFilterParameterBufferType,
-              sizeof(VAProcFilterParameterBufferColorBalance), 1, &cbparam)) {
-        return false;
-      }
-      filters_.push_back(cb_elements[static_cast<int>(itr->first)].buffer());
+      cbparam[index].type = VAProcFilterColorBalance;
+      cbparam[index].value = itr->second.value_;
+      cbparam[index].attrib = itr->second.caps_.type;
+      index++;
     }
   }
 
+  // workarround if filter num is 0, then set HSBC/Deinterlace will meet green
+  // screen.
+  if (!index) {
+    cbparam[index].type = VAProcFilterColorBalance;
+    cbparam[index].value = colorbalance_caps_[HWCColorControl::kColorHue]
+                               .caps_.range.default_value;
+    cbparam[index].attrib =
+        colorbalance_caps_[HWCColorControl::kColorHue].caps_.type;
+    index++;
+  }
+
+  if (index) {
+    if (!cb_elements[0].CreateBuffer(
+            va_context_, VAProcFilterParameterBufferType,
+            sizeof(VAProcFilterParameterBufferColorBalance), index, cbparam)) {
+      ETRACE("Create color fail\n");
+      return false;
+    }
+    filters_.push_back(cb_elements[0].buffer());
+  }
   cb_elements_.swap(cb_elements);
 
   bool sharp_use_default =
@@ -487,7 +510,6 @@ bool VARenderer::UpdateCaps() {
   }
   deinterlace_.swap(deinterlace);
 
-  param_.filter_flags = filter_flags_;
   if (filters_.size()) {
     param_.filters = &filters_[0];
     param_.num_filters = static_cast<unsigned int>(filters_.size());

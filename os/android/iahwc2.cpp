@@ -337,6 +337,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   handle_ = display_index;
 
   disable_explicit_sync_ = disable_explicit_sync;
+  scaling_mode_ = scaling_mode;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
   display_->SetVideoScalingMode(scaling_mode_);
 
