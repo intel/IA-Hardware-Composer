@@ -22,6 +22,7 @@
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "resourcemanager.h"
+#include "framebuffermanager.h"
 #include "displayplanemanager.h"
 #include "nativesurface.h"
 
@@ -178,6 +179,8 @@ void CompositorThread::HandleReleaseRequest() {
       purged_gl_resources, purged_media_resources, &has_gpu_resource);
   size_t purged_size = purged_gl_resources.size();
 
+  FrameBufferManager *pFBManager = FrameBufferManager::GetInstance();
+
   if (purged_size != 0) {
     if (has_gpu_resource) {
       Ensure3DRenderer();
@@ -188,8 +191,9 @@ void CompositorThread::HandleReleaseRequest() {
         resource_manager_->GetNativeBufferHandler();
 
     for (size_t i = 0; i < purged_size; i++) {
+      bool realrm = false;
       const ResourceHandle &handle = purged_gl_resources.at(i);
-      if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
+      if (handle.drm_fd_ && pFBManager->RemoveFB(handle.drm_fd_, realrm)) {
         ETRACE("Failed to remove fb %s", PRINTERROR());
       }
 
@@ -197,7 +201,7 @@ void CompositorThread::HandleReleaseRequest() {
         continue;
       }
 
-      handler->ReleaseBuffer(handle.handle_);
+      handler->ReleaseBuffer(handle.handle_, realrm);
       handler->DestroyHandle(handle.handle_);
     }
   }
@@ -212,8 +216,9 @@ void CompositorThread::HandleReleaseRequest() {
         resource_manager_->GetNativeBufferHandler();
 
     for (size_t i = 0; i < purged_size; i++) {
+      bool realrm = false;
       const MediaResourceHandle &handle = purged_media_resources.at(i);
-      if (handle.drm_fd_ && ReleaseFrameBuffer(gpu_fd_, handle.drm_fd_)) {
+      if (handle.drm_fd_ && pFBManager->RemoveFB(handle.drm_fd_, realrm)) {
         ETRACE("Failed to remove fb %s", PRINTERROR());
       }
 
@@ -221,7 +226,7 @@ void CompositorThread::HandleReleaseRequest() {
         continue;
       }
 
-      handler->ReleaseBuffer(handle.handle_);
+      handler->ReleaseBuffer(handle.handle_, realrm);
       handler->DestroyHandle(handle.handle_);
     }
   }

@@ -170,14 +170,15 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   return true;
 }
 
-bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
+bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle,
+                                          bool releasehandle) const {
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
 
   if (handle->hwc_buffer_) {
     release_(gralloc1_dvc, handle->handle_);
   } else if (handle->imported_handle_) {
-    ReleaseGraphicsBuffer(handle, fd_);
+    ReleaseGraphicsBuffer(handle, fd_, releasehandle);
     release_(gralloc1_dvc, handle->imported_handle_);
   }
 

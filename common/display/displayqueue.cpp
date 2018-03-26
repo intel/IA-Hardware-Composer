@@ -930,6 +930,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 }
 
 void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
+
+  ETRACE("PresentClonedCommit called!");
   const DisplayPlaneStateList& source_planes =
       queue->GetCurrentCompositionPlanes();
   if (source_planes.empty()) {
