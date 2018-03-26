@@ -83,6 +83,10 @@ class DisplayPlaneManager {
     return height_;
   }
 
+  uint32_t GetTotalOverlays() const {
+    return total_overlays_;
+  }
+
   // Transform to be applied to all planes associated
   // with pipe of this displayplanemanager.
   void SetDisplayTransform(uint32_t transform);
@@ -177,6 +181,7 @@ class DisplayPlaneManager {
   uint32_t width_;
   uint32_t height_;
   uint32_t gpu_fd_;
+  uint32_t total_overlays_ = 0;
   uint32_t display_transform_ = kIdentity;
   bool release_surfaces_ = false;
 };
