@@ -250,7 +250,7 @@ class DisplayQueue {
                        int remove_index, DisplayPlaneStateList* composition,
                        bool* render_layers, bool* can_ignore_commit,
                        bool* needs_plane_validation,
-                       bool* force_full_validation);
+                       bool* force_full_validation, int* add_index);
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers);
 
