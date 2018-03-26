@@ -88,6 +88,17 @@ class NativeDisplay {
   virtual bool SetActiveConfig(uint32_t config) = 0;
   virtual bool GetActiveConfig(uint32_t *config) = 0;
 
+  /**
+  * API for setting custom resolution. By default the resolution is set as per
+  * the display hardware capability. This API sets the resolution from
+  * the configuration file.
+  * @param rectangle as per the resolution required
+  * @return true if set passes, false otherwise
+  */
+  virtual bool SetCustomResolution(const HwcRect<int32_t> &) {
+    return false;
+  }
+
   virtual bool SetPowerMode(uint32_t power_mode) = 0;
 
   /**
@@ -366,8 +377,7 @@ class NativeDisplay {
   virtual void DisOwnPresentation(NativeDisplay * /*clone*/) {
   }
 
-  virtual bool PresentClone(std::vector<HwcLayer *> & /*source_layers*/,
-                            int32_t * /*retire_fence*/, bool /*idle_frame*/) {
+  virtual bool PresentClone(NativeDisplay * /*display*/) {
     return false;
   }
 

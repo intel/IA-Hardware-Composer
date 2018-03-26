@@ -63,6 +63,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
+  bool SetCustomResolution(const HwcRect<int32_t>&) override;
+
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
@@ -109,8 +111,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   void CloneDisplay(NativeDisplay *source_display) override;
 
-  bool PresentClone(std::vector<HwcLayer *> &source_layers,
-                    int32_t *retire_fence, bool idle_frame) override;
+  bool PresentClone(NativeDisplay * /*display*/) override;
 
   bool GetDisplayAttribute(uint32_t /*config*/, HWCDisplayAttribute attribute,
                            int32_t *value) override;
@@ -210,7 +211,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
  private:
   bool UpdatePowerMode();
   void RefreshClones();
-  void HandleClonedDisplays(std::vector<HwcLayer *> &source_layers);
+  void HandleClonedDisplays(NativeDisplay *display);
 
  protected:
   enum DisplayConnectionStatus {
@@ -240,6 +241,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 #endif
   int32_t width_;
   int32_t height_;
+  HwcRect<int32_t> rect_;
+  int32_t custom_resolution_;
   uint32_t gpu_fd_;
   uint32_t power_mode_ = kOn;
   int display_state_ = kNone;

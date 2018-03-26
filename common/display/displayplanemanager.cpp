@@ -44,7 +44,8 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
   height_ = height;
   bool status = plane_handler_->PopulatePlanes(overlay_planes_);
   if (!overlay_planes_.empty()) {
-    if (overlay_planes_.size() > 1) {
+    total_overlays_ = overlay_planes_.size();
+    if (total_overlays_ > 1) {
       cursor_plane_ = overlay_planes_.back().get();
       bool needs_cursor_wa = false;
 #ifdef DISABLE_CURSOR_PLANE
@@ -54,6 +55,10 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
       // cursor usage only.
       if (!needs_cursor_wa && cursor_plane_->IsUniversal()) {
         cursor_plane_ = NULL;
+      }
+
+      if (needs_cursor_wa || (cursor_plane_ && !cursor_plane_->IsUniversal())) {
+        total_overlays_--;
       }
     }
   }
@@ -135,16 +140,18 @@ bool DisplayPlaneManager::ValidateLayers(
 
   if (layer_begin != layer_end) {
     auto overlay_end = overlay_planes_.end();
+    if (cursor_plane_) {
 #ifdef DISABLE_CURSOR_PLANE
-    overlay_end = overlay_planes_.end() - 1;
-#else
-    if (!cursor_plane_->IsUniversal()) {
       overlay_end = overlay_planes_.end() - 1;
-    }
+#else
+      if (!cursor_plane_->IsUniversal()) {
+        overlay_end = overlay_planes_.end() - 1;
+      }
 #endif
+    }
 
     // Handle layers for overlays.
-    for (auto j = overlay_begin; j != overlay_end; ++j) {
+    for (auto j = overlay_begin; j < overlay_end; ++j) {
       DisplayPlane *plane = j->get();
       if (previous_layer && !composition.empty()) {
         DisplayPlaneState &last_plane = composition.back();
@@ -362,7 +369,7 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   size_t size = composition.size();
   for (size_t i = size; i > 0; i--) {
     DisplayPlaneState &plane = composition.at(i - 1);
-    if ((cursor_plane_ == plane.GetDisplayPlane()) &&
+    if (cursor_plane_ && (cursor_plane_ == plane.GetDisplayPlane()) &&
         (!cursor_plane_->IsUniversal()))
       continue;
 
@@ -414,7 +421,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
 #ifdef DISABLE_CURSOR_PLANE
   overlay_end = overlay_planes_.end() - 1;
 #endif
-  for (auto j = overlay_begin; j != overlay_end; ++j) {
+  for (auto j = overlay_begin; j < overlay_end; ++j) {
     if (cursor_index == total_size)
       break;
 
@@ -547,6 +554,9 @@ void DisplayPlaneManager::ValidateCursorLayer(
   // We dont have any additional planes. Pre composite remaining cursor layers
   // to the last overlay plane.
   OverlayLayer *last_layer = NULL;
+  if (!last_plane && (cursor_index < total_size))
+    last_plane = GetLastUsedOverlay(composition);
+
   for (uint32_t i = cursor_index; i < total_size; i++) {
     OverlayLayer *cursor_layer = cursor_layers.at(i);
 #ifdef SURFACE_TRACING

@@ -90,6 +90,9 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+    }
   }
 
   if (!private_data_->rect_updated_)
@@ -109,11 +112,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
     re_validate_layer_ &= ~ReValidationType::kScanout;
 
   private_data_->refresh_surface_ = true;
-  if (rect_updated) {
-    RefreshSurfaces(NativeSurface::kFullClear);
-  } else {
-    RefreshSurfaces(NativeSurface::kPartialClear);
-  }
+  RefreshSurfaces(NativeSurface::kPartialClear);
 
   recycled_surface_ = false;
 }
@@ -182,6 +181,9 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+    }
   }
 
   if (!private_data_->rect_updated_)
@@ -212,9 +214,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   private_data_->refresh_surface_ = true;
   recycled_surface_ = false;
-  if (!layer_removed && !rect_updated) {
-    RefreshSurfaces(NativeSurface::kPartialClear);
-  }
+  RefreshSurfaces(NativeSurface::kPartialClear);
 }
 
 void DisplayPlaneState::RefreshLayerRects(
@@ -222,6 +222,7 @@ void DisplayPlaneState::RefreshLayerRects(
   const std::vector<size_t> &current_layers = private_data_->source_layers_;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
+  HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
   bool only_cursor_layer = true;
   for (const size_t &index : current_layers) {
     const OverlayLayer &layer = layers.at(index);
@@ -234,16 +235,13 @@ void DisplayPlaneState::RefreshLayerRects(
       only_cursor_layer = false;
     }
 
-    if (only_cursor_layer && layer.IsCursorLayer()) {
-      for (NativeSurface *surface : private_data_->surfaces_) {
-        surface->UpdateSurfaceDamage(layer.GetSurfaceDamage(), true);
-      }
+    if (layer.HasLayerContentChanged()) {
+      CalculateRect(layer.GetSurfaceDamage(), surface_damage);
     }
   }
 
-  for (NativeSurface *surface : private_data_->surfaces_) {
-    // Damage whole old rect.
-    surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+  if (!only_cursor_layer) {
+    CalculateRect(private_data_->display_frame_, surface_damage);
   }
 
   bool rect_updated = true;
@@ -253,9 +251,8 @@ void DisplayPlaneState::RefreshLayerRects(
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
-    for (NativeSurface *surface : private_data_->surfaces_) {
-      // Damage whole old rect.
-      surface->UpdateSurfaceDamage(private_data_->display_frame_, true);
+    if (!only_cursor_layer) {
+      CalculateRect(private_data_->display_frame_, surface_damage);
     }
   }
 
@@ -264,7 +261,11 @@ void DisplayPlaneState::RefreshLayerRects(
 
   private_data_->refresh_surface_ = true;
   recycled_surface_ = false;
-  if (!rect_updated) {
+  if (!surface_damage.empty()) {
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->UpdateSurfaceDamage(surface_damage, true);
+    }
+
     RefreshSurfaces(NativeSurface::kPartialClear);
   }
 }
@@ -410,12 +411,15 @@ void DisplayPlaneState::RefreshSurfaces(NativeSurface::ClearType clear_surface,
 }
 
 void DisplayPlaneState::UpdateDamage(const HwcRect<int> &surface_damage) {
-  if (surface_damage.empty())
-    return;
-
-  recycled_surface_ = false;
-  for (NativeSurface *surface : private_data_->surfaces_) {
-    surface->UpdateSurfaceDamage(surface_damage, false);
+  if (surface_damage.empty()) {
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->ResetDamage();
+    }
+  } else {
+    recycled_surface_ = false;
+    for (NativeSurface *surface : private_data_->surfaces_) {
+      surface->UpdateSurfaceDamage(surface_damage, false);
+    }
   }
 }
 

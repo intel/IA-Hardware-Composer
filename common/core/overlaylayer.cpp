@@ -232,18 +232,32 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     state_ |= kLayerOrderChanged;
   }
 
-  surface_damage_ = layer->GetLayerDamage();
-  // In case of layer using blening we need to force partial clear. Otherwise
-  // we see content not getting updated correctly. For example:
-  // on Android enable, settings put system user_rotation 1 and
-  // navigate to settings on Android.
-  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
+  if (layer->ForceClear()) {
     state_ |= kForcePartialClear;
-    surface_damage_ = layer->GetDisplayFrame();
   }
 
+  surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+            resource_manager, false, layer);
+
+  if (!surface_damage_.empty()) {
+    if (type_ == kLayerCursor) {
+      const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
+      surface_damage_.right = surface_damage_.left + buffer->GetWidth();
+      surface_damage_.bottom = surface_damage_.top + buffer->GetHeight();
+    } else {
+      switch (plane_transform_) {
+        case HWCTransform::kTransform270:
+        case HWCTransform::kTransform90: {
+          std::swap(surface_damage_.left, surface_damage_.top);
+          std::swap(surface_damage_.right, surface_damage_.bottom);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  }
 
   if (!handle_constraints) {
     if (previous_layer) {
@@ -455,6 +469,21 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 void OverlayLayer::ValidateForOverlayUsage() {
   const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
   type_ = buffer->GetUsage();
+}
+
+void OverlayLayer::CloneLayer(const OverlayLayer* layer,
+                              const HwcRect<int>& display_frame) {
+  int32_t fence = layer->GetAcquireFence();
+  if (fence > 0) {
+    fence = dup(fence);
+  }
+
+  SetDisplayFrame(display_frame);
+  SetSourceCrop(layer->GetSourceCrop());
+  imported_buffer_.reset(new ImportedBuffer(layer->GetSharedBuffer(), fence));
+  ValidateForOverlayUsage();
+  surface_damage_ = display_frame;
+  transform_ = 0;
 }
 
 void OverlayLayer::Dump() {

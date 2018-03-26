@@ -84,7 +84,7 @@ bool GLRenderer::Init() {
 }
 
 bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
-		      NativeSurface *surface) {
+                      NativeSurface *surface) {
   GLuint frame_width = surface->GetWidth();
   GLuint frame_height = surface->GetHeight();
   GLuint left = 0;
@@ -126,7 +126,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   uint32_t total_height = 0;
   ICOMPOSITORTRACE(
       "Full clear: %d Partial clear: %d Skipped clear: %d damage.left: %d "
-      "damage.right: %d damage.right - "
+      "damage.top: %d damage.right - "
       "damage.left %d damage.bottom - damage.top %d \n",
       clear_surface, partial_clear, !(clear_surface || partial_clear),
       damage.left, damage.top, damage.right - damage.left,

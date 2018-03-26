@@ -27,7 +27,7 @@ namespace hwcomposer {
 // be needed ideally but we seem to run into problems
 // when using Surface Damage for layers having damage
 // rect less than 1000.
-static uint32_t DAMAGE_THRESHOLD = 100;
+static uint32_t DAMAGE_THRESHOLD = 256;
 
 HwcLayer::~HwcLayer() {
   if (release_fd_ > 0) {
@@ -119,6 +119,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     }
   } else if (rects == 0) {
     rect = display_frame_;
+    layer_cache_ |= kForceClear;
   }
 
   if ((surface_damage_.left == rect.left) &&
@@ -132,10 +133,9 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   if (display_frame_width_ < DAMAGE_THRESHOLD &&
       display_frame_height_ < DAMAGE_THRESHOLD) {
     UpdateRenderingDamage(display_frame_, display_frame_, true);
-  } else {
-    UpdateRenderingDamage(surface_damage_, rect, false);
   }
 
+  UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
 }
 
@@ -211,6 +211,7 @@ void HwcLayer::Validate() {
     state_ &= ~kSurfaceDamageChanged;
     state_ &= ~kZorderChanged;
     layer_cache_ &= ~kLayerAttributesChanged;
+    layer_cache_ &= ~kForceClear;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
     if (!surface_damage_.empty() &&

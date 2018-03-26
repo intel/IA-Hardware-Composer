@@ -37,6 +37,7 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
     : pipe_(pipe_id),
       width_(0),
       height_(0),
+      custom_resolution_(false),
       gpu_fd_(gpu_fd),
       power_mode_(kOn) {
 }
@@ -127,6 +128,20 @@ void PhysicalDisplay::Connect() {
   SPIN_LOCK(modeset_lock_);
 
   connection_state_ &= ~kDisconnectionInProgress;
+
+  SPIN_UNLOCK(modeset_lock_);
+
+  if (source_display_) {
+    // Current display is a cloned display, set the source_display_'s
+    // k_RefreshClonedDisplays flag. This makes clone parent have a
+    // chance to update it's cloned display list
+    PhysicalDisplay* p_clone_parent = (PhysicalDisplay*) source_display_;
+    SPIN_LOCK(p_clone_parent->modeset_lock_);
+    p_clone_parent->display_state_ |= kRefreshClonedDisplays;
+    SPIN_UNLOCK(p_clone_parent->modeset_lock_);
+  }
+
+  SPIN_LOCK(modeset_lock_);
   if (connection_state_ & kConnected) {
     SPIN_UNLOCK(modeset_lock_);
     return;
@@ -292,10 +307,11 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
     IHOTPLUGEVENTTRACE("Handle_hoplug_notifications done. %p \n", this);
   }
 
-  bool success = display_queue_->QueueUpdate(source_layers, retire_fence, false,
-                                             handle_constraints);
-  if (success && !clones_.empty()) {
-    HandleClonedDisplays(source_layers);
+  bool ignore_clone_update = false;
+  bool success = display_queue_->QueueUpdate(
+      source_layers, retire_fence, &ignore_clone_update, handle_constraints);
+  if (success && !clones_.empty() && !ignore_clone_update) {
+    HandleClonedDisplays(this);
   }
 
   size_t size = source_layers.size();
@@ -310,8 +326,7 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   return success;
 }
 
-bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
-                                   int32_t *retire_fence, bool idle_frame) {
+bool PhysicalDisplay::PresentClone(NativeDisplay *display) {
   CTRACE();
   SPIN_LOCK(modeset_lock_);
 
@@ -320,21 +335,18 @@ bool PhysicalDisplay::PresentClone(std::vector<HwcLayer *> &source_layers,
   }
   SPIN_UNLOCK(modeset_lock_);
 
-  bool success = display_queue_->QueueUpdate(source_layers, retire_fence,
-                                             idle_frame, false);
-  HandleClonedDisplays(source_layers);
-  return success;
+  display_queue_->PresentClonedCommit(
+      static_cast<PhysicalDisplay *>(display)->display_queue_.get());
+  HandleClonedDisplays(display);
+  return true;
 }
 
-void PhysicalDisplay::HandleClonedDisplays(
-    std::vector<HwcLayer *> &source_layers) {
+void PhysicalDisplay::HandleClonedDisplays(NativeDisplay *display) {
   if (clones_.empty())
     return;
 
-  int32_t fence = -1;
-  for (auto display : clones_) {
-    display->PresentClone(source_layers, &fence,
-                          display_queue_->WasLastFrameIdleUpdate());
+  for (auto clone_display : clones_) {
+    clone_display->PresentClone(display);
   }
 }
 
@@ -553,6 +565,27 @@ bool PhysicalDisplay::GetDisplayAttribute(uint32_t /*config*/,
   }
 
   return true;
+}
+
+/* Setting custom resolution instead of preferred as fetched from display */
+bool PhysicalDisplay::SetCustomResolution(const HwcRect<int32_t> &rect) {
+  if ((rect.right - rect.left) && (rect.bottom - rect.top)) {
+    // Custom rectangle with valid width and height
+    rect_.left = rect.left;
+    rect_.top = rect.top;
+    rect_.right = rect.right;
+    rect_.bottom = rect.bottom;
+    custom_resolution_ = true;
+
+    IHOTPLUGEVENTTRACE("SetCustomResolution: custom width %d, height %d, bool %d",
+      rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
+
+    return true;
+  } else {
+    // Default display rectangle
+    custom_resolution_ = false;
+    return false;
+  }
 }
 
 bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
