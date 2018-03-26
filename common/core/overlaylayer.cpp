@@ -232,21 +232,32 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     state_ |= kLayerOrderChanged;
   }
 
-  surface_damage_ = layer->GetLayerDamage();
-
-  switch (plane_transform_) {
-    case HWCTransform::kTransform270:
-    case HWCTransform::kTransform90: {
-      std::swap(surface_damage_.left, surface_damage_.top);
-      std::swap(surface_damage_.right, surface_damage_.bottom);
-      break;
-    }
-    default:
-      break;
+  if (layer->ForceClear()) {
+    state_ |= kForcePartialClear;
   }
 
+  surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true, layer);
+
+  if (!surface_damage_.empty()) {
+    if (type_ == kLayerCursor) {
+      const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
+      surface_damage_.right = surface_damage_.left + buffer->GetWidth();
+      surface_damage_.bottom = surface_damage_.top + buffer->GetHeight();
+    } else {
+      switch (plane_transform_) {
+        case HWCTransform::kTransform270:
+        case HWCTransform::kTransform90: {
+          std::swap(surface_damage_.left, surface_damage_.top);
+          std::swap(surface_damage_.right, surface_damage_.bottom);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  }
 
   if (!handle_constraints) {
     if (previous_layer) {
