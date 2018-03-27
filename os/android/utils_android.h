@@ -223,39 +223,6 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 
-static bool ReleaseGraphicsBuffer(HWCNativeHandle handle, int fd) {
-  if (!handle)
-    return false;
-
-  uint32_t total_planes = handle->meta_data_.num_planes_;
-  struct drm_gem_close gem_close;
-  int ret = 0;
-  int last_gem_handle = -1;
-
-  for (uint32_t plane = 0; plane < total_planes; plane++) {
-    uint32_t current_gem_handle = handle->meta_data_.gem_handles_[plane];
-    if ((last_gem_handle != -1) &&
-        (current_gem_handle == static_cast<uint32_t>(last_gem_handle))) {
-      break;
-    }
-
-    memset(&gem_close, 0, sizeof(gem_close));
-    last_gem_handle = current_gem_handle;
-    gem_close.handle = current_gem_handle;
-
-    ret = drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
-    if (ret) {
-      ETRACE(
-          "Failed to close gem handle ErrorCode: %d PrimeFD: %d HWCBuffer: %d "
-          "GemHandle: %d  \n",
-          ret, handle->meta_data_.prime_fds_[plane], handle->hwc_buffer_,
-          current_gem_handle);
-    }
-  }
-
-  return true;
-}
-
 static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));

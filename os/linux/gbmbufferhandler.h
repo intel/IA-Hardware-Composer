@@ -34,6 +34,7 @@ class GbmBufferHandler : public NativeBufferHandler {
 
   bool CreateBuffer(uint32_t w, uint32_t h, int format, HWCNativeHandle *handle,
                     uint32_t layer_type) const override;
+  bool CanReleaseGemHandles(HWCNativeHandle handle) const override;
   bool ReleaseBuffer(HWCNativeHandle handle) const override;
   void DestroyHandle(HWCNativeHandle handle) const override;
   void CopyHandle(HWCNativeHandle source,
