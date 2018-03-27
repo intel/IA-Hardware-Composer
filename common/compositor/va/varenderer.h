@@ -109,6 +109,7 @@ class VARenderer : public Renderer {
   bool GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag);
   bool CreateContext();
   void DestroyContext();
+  bool LoadCaps();
   bool UpdateCaps();
   uint32_t HWCTransformToVA(uint32_t transform);
 
