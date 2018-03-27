@@ -120,6 +120,7 @@ void VSyncWorker::Routine() {
   if (!enabled_) {
     ret = WaitForSignalOrExitLocked();
     if (ret == -EINTR) {
+      Unlock();
       return;
     }
   }
