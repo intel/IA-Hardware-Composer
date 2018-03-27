@@ -119,6 +119,24 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
+  /**
+   * API for composition to non-zero coordinates.
+   * This is applicable when float mode is used. Parameters are read from
+   * config file.
+   */
+  uint32_t GetXTranslation() override {
+    return rect_.left;
+  }
+
+  /**
+   * API for composition to non-zero coordinates.
+   * This is applicable when float mode is used. Parameters are read from
+   * config file.
+   */
+  uint32_t GetYTranslation() override {
+    return rect_.top;
+  }
+
   void OwnPresentation(NativeDisplay *clone) override;
 
   void DisOwnPresentation(NativeDisplay *clone) override;

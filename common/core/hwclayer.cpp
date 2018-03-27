@@ -82,15 +82,17 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
 }
 
 void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
-                               int translate_x_pos) {
+                               int translate_x_pos, int translate_y_pos) {
   if (((display_frame.left + translate_x_pos) != display_frame_.left) ||
       ((display_frame.right + translate_x_pos) != display_frame_.right) ||
-      (display_frame.top != display_frame_.top) ||
-      (display_frame.bottom != display_frame_.bottom)) {
+      ((display_frame.top + translate_y_pos) != display_frame_.top) ||
+      ((display_frame.bottom + translate_y_pos) != display_frame_.bottom)) {
     layer_cache_ |= kDisplayFrameRectChanged;
     HwcRect<int> frame = display_frame;
     frame.left += translate_x_pos;
     frame.right += translate_x_pos;
+    frame.top += translate_y_pos;
+    frame.bottom += translate_y_pos;
     UpdateRenderingDamage(display_frame_, frame, false);
 
     display_frame_ = frame;
