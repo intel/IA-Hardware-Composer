@@ -150,6 +150,10 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   return true;
 }
 
+bool GbmBufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
+  return false;
+}
+
 bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
   if (handle->bo || handle->imported_bo) {
     if (handle->bo && handle->hwc_buffer_) {

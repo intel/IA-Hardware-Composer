@@ -27,6 +27,7 @@
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"
+#include "framebuffermanager.h"
 #include "vautils.h"
 
 #include <va/va_drmcommon.h>
@@ -360,19 +361,9 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  int ret = drmModeAddFB2(gpu_fd, width_, height_, frame_buffer_format_,
-                          gem_handles_, pitches_, offsets_, &image_.drm_fd_, 0);
-
-  if (ret) {
-    ETRACE("drmModeAddFB2 error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",
-           width_, height_, frame_buffer_format_, frame_buffer_format_ >> 8,
-           frame_buffer_format_ >> 16, frame_buffer_format_ >> 24,
-           gem_handles_[0], pitches_[0], strerror(-ret));
-
-    image_.drm_fd_ = 0;
-    return false;
-  }
-
+  image_.drm_fd_ = FrameBufferManager::GetInstance(gpu_fd)->FindFB(
+      width_, height_, frame_buffer_format_,
+      image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;
 }

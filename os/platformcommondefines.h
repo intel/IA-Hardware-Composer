@@ -40,6 +40,26 @@ inline void hash_combine_hwc(size_t& seed, size_t value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-int ReleaseFrameBuffer(uint32_t gpu_fd, uint32_t fd);
+typedef struct FBKey {
+  uint32_t gem_handles_[4];
+  uint32_t num_planes_;
+
+  FBKey(const uint32_t &num_planes, const uint32_t (&igem_handles)[4]) {
+    for (uint32_t i = 0; i < 4; i++) {
+      gem_handles_[i] = igem_handles[i];
+    }
+    num_planes_ = num_planes;
+  }
+} FBKey;
+
+int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,
+                      const uint32_t &iframe_buffer_format,
+                      const uint32_t (&igem_handles)[4],
+                      const uint32_t (&ipitches)[4],
+                      const uint32_t (&ioffsets)[4], uint32_t gpu_fd,
+                      uint32_t *fb_id);
+
+int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd,
+                       bool release_gem_handle);
 
 #endif  // OS_LINUX_PLATFORMCOMMONDEFINES_H_

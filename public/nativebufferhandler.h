@@ -35,6 +35,8 @@ class NativeBufferHandler {
                             HWCNativeHandle *handle = NULL,
                             uint32_t layer_type = kLayerNormal) const = 0;
 
+  virtual bool CanReleaseGemHandles(HWCNativeHandle handle) const = 0;
+
   virtual bool ReleaseBuffer(HWCNativeHandle handle) const = 0;
 
   virtual void DestroyHandle(HWCNativeHandle handle) const = 0;

@@ -4,6 +4,7 @@ common_SOURCES =              \
     compositor/factory.cpp \
     compositor/nativesurface.cpp \
     compositor/renderstate.cpp \
+    core/framebuffermanager.cpp \
     core/hwclayer.cpp \
     core/resourcemanager.cpp \
     core/overlaylayer.cpp \
