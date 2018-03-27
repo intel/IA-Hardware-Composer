@@ -22,8 +22,10 @@
 #include "drmencoder.h"
 #include "drmeventlistener.h"
 #include "drmplane.h"
+#include "platform.h"
 
 #include <stdint.h>
+#include <tuple>
 
 namespace android {
 
@@ -32,7 +34,7 @@ class DrmDevice {
   DrmDevice();
   ~DrmDevice();
 
-  int Init();
+  std::tuple<int, int> Init(const char *path, int num_displays);
 
   int fd() const {
     return fd_.get();
@@ -71,6 +73,7 @@ class DrmDevice {
 
   int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
   int DestroyPropertyBlob(uint32_t blob_id);
+  bool HandlesDisplay(int display) const;
 
  private:
   int TryEncoderForDisplay(int display, DrmEncoder *enc);
@@ -90,6 +93,7 @@ class DrmDevice {
 
   std::pair<uint32_t, uint32_t> min_resolution_;
   std::pair<uint32_t, uint32_t> max_resolution_;
+  std::map<int, int> displays_;
 };
 }
 

@@ -16,8 +16,8 @@
 
 #include "drmdisplaycompositor.h"
 #include "drmhwcomposer.h"
-#include "drmdevice.h"
 #include "platform.h"
+#include "resourcemanager.h"
 #include "vsyncworker.h"
 
 #include <hardware/hwcomposer2.h>
@@ -261,8 +261,7 @@ class DrmHwcTwo : public hwc2_device_t {
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
 
-  DrmDevice drm_;
-  std::shared_ptr<Importer> importer_;  // Shared with HwcDisplay
+  ResourceManager resource_manager_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 };

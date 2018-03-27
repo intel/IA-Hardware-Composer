@@ -42,33 +42,30 @@ DrmDevice::~DrmDevice() {
   event_listener_.Exit();
 }
 
-int DrmDevice::Init() {
-  char path[PROPERTY_VALUE_MAX];
-  property_get("hwc.drm.device", path, "/dev/dri/card0");
-
+std::tuple<int, int> DrmDevice::Init(const char *path, int num_displays) {
   /* TODO: Use drmOpenControl here instead */
   fd_.Set(open(path, O_RDWR));
   if (fd() < 0) {
     ALOGE("Failed to open dri- %s", strerror(-errno));
-    return -ENODEV;
+    return std::make_tuple(-ENODEV, 0);
   }
 
   int ret = drmSetClientCap(fd(), DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
   if (ret) {
     ALOGE("Failed to set universal plane cap %d", ret);
-    return ret;
+    return std::make_tuple(ret, 0);
   }
 
   ret = drmSetClientCap(fd(), DRM_CLIENT_CAP_ATOMIC, 1);
   if (ret) {
     ALOGE("Failed to set atomic cap %d", ret);
-    return ret;
+    return std::make_tuple(ret, 0);
   }
 
   drmModeResPtr res = drmModeGetResources(fd());
   if (!res) {
     ALOGE("Failed to get DrmDevice resources");
-    return -ENODEV;
+    return std::make_tuple(-ENODEV, 0);
   }
 
   min_resolution_ =
@@ -76,8 +73,9 @@ int DrmDevice::Init() {
   max_resolution_ =
       std::pair<uint32_t, uint32_t>(res->max_width, res->max_height);
 
-  bool found_primary = false;
-  int display_num = 1;
+  // Assumes that the primary display will always be in the first
+  // drm_device opened.
+  bool found_primary = num_displays != 0;
 
   for (int i = 0; !ret && i < res->count_crtcs; ++i) {
     drmModeCrtcPtr c = drmModeGetCrtc(fd(), res->crtcs[i]);
@@ -160,19 +158,28 @@ int DrmDevice::Init() {
   // First look for primary amongst internal connectors
   for (auto &conn : connectors_) {
     if (conn->internal() && !found_primary) {
-      conn->set_display(0);
+      conn->set_display(num_displays);
+      displays_[num_displays] = num_displays;
+      ++num_displays;
       found_primary = true;
-    } else {
-      conn->set_display(display_num);
-      ++display_num;
+      break;
     }
   }
 
-  // Then look for primary amongst external connectors
+  // Then pick first available as primary and for the others assign
+  // consecutive display_numbers.
   for (auto &conn : connectors_) {
-    if (conn->external() && !found_primary) {
-      conn->set_display(0);
-      found_primary = true;
+    if (conn->external() || conn->internal()) {
+      if (!found_primary) {
+        conn->set_display(num_displays);
+        displays_[num_displays] = num_displays;
+        found_primary = true;
+        ++num_displays;
+      } else if (conn->display() < 0) {
+        conn->set_display(num_displays);
+        displays_[num_displays] = num_displays;
+        ++num_displays;
+      }
     }
   }
 
@@ -181,12 +188,12 @@ int DrmDevice::Init() {
 
   // Catch-all for the above loops
   if (ret)
-    return ret;
+    return std::make_tuple(ret, 0);
 
   drmModePlaneResPtr plane_res = drmModeGetPlaneResources(fd());
   if (!plane_res) {
     ALOGE("Failed to get plane resources");
-    return -ENOENT;
+    return std::make_tuple(-ENOENT, 0);
   }
 
   for (uint32_t i = 0; i < plane_res->count_planes; ++i) {
@@ -211,22 +218,26 @@ int DrmDevice::Init() {
   }
   drmModeFreePlaneResources(plane_res);
   if (ret)
-    return ret;
+    return std::make_tuple(ret, 0);
 
   ret = event_listener_.Init();
   if (ret) {
     ALOGE("Can't initialize event listener %d", ret);
-    return ret;
+    return std::make_tuple(ret, 0);
   }
 
   for (auto &conn : connectors_) {
     ret = CreateDisplayPipe(conn.get());
     if (ret) {
       ALOGE("Failed CreateDisplayPipe %d with %d", conn->id(), ret);
-      return ret;
+      return std::make_tuple(ret, 0);
     }
   }
-  return 0;
+  return std::make_tuple(ret, displays_.size());
+}
+
+bool DrmDevice::HandlesDisplay(int display) const {
+  return displays_.find(display) != displays_.end();
 }
 
 DrmConnector *DrmDevice::GetConnectorForDisplay(int display) const {
