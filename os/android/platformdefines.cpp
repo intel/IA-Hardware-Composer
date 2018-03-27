@@ -67,6 +67,60 @@ VkFormat NativeToVkFormat(int native_format) {
 }
 #endif
 
-int ReleaseFrameBuffer(uint32_t gpu_fd, uint32_t fd) {
-  return drmModeRmFB(gpu_fd, fd);
+int ReleaseFrameBuffer(const FBKey& key, uint32_t fd, uint32_t gpu_fd,
+                       bool release_gem_handle) {
+  int ret = drmModeRmFB(gpu_fd, fd);
+  if (ret) {
+    ETRACE("Failed to Remove FD ErrorCode: %d FD: %d \n", ret, fd);
+  }
+
+  if (!release_gem_handle) {
+    return 0;
+  }
+
+  uint32_t total_planes = key.num_planes_;
+  struct drm_gem_close gem_close;
+  int last_gem_handle = -1;
+
+  for (uint32_t plane = 0; plane < total_planes; plane++) {
+    uint32_t current_gem_handle = key.gem_handles_[plane];
+    if ((last_gem_handle != -1) &&
+        (current_gem_handle == static_cast<uint32_t>(last_gem_handle))) {
+      break;
+    }
+
+    memset(&gem_close, 0, sizeof(gem_close));
+    last_gem_handle = current_gem_handle;
+    gem_close.handle = current_gem_handle;
+
+    ret = drmIoctl(gpu_fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+    if (ret) {
+      ETRACE(
+          "Failed to close gem handle ErrorCode: %d PrimeFD: %d "
+          "GemHandle: %d  \n",
+          ret, fd, current_gem_handle);
+    }
+  }
+
+  return ret;
+}
+
+int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,
+                      const uint32_t &iframe_buffer_format,
+                      const uint32_t (&igem_handles)[4],
+                      const uint32_t (&ipitches)[4],
+                      const uint32_t (&ioffsets)[4], uint32_t gpu_fd,
+                      uint32_t *fb_id) {
+  int ret = drmModeAddFB2(gpu_fd, iwidth, iheight, iframe_buffer_format,
+                          igem_handles, ipitches, ioffsets, fb_id, 0);
+
+  if (ret) {
+    ETRACE("drmModeAddFB2 error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",
+           iwidth, iheight, iframe_buffer_format, iframe_buffer_format >> 8,
+           iframe_buffer_format >> 16, iframe_buffer_format >> 24,
+           igem_handles[0], ipitches[0], strerror(-ret));
+    *fb_id = 0;
+  }
+
+  return ret;
 }

@@ -76,6 +76,7 @@ LOCAL_SRC_FILES := \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
 	core/resourcemanager.cpp \
+	core/framebuffermanager.cpp \
 	core/logicaldisplay.cpp \
 	core/logicaldisplaymanager.cpp \
 	core/mosaicdisplay.cpp \
