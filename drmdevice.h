@@ -58,6 +58,7 @@ class DrmDevice {
 
   DrmConnector *GetConnectorForDisplay(int display) const;
   DrmConnector *GetWritebackConnectorForDisplay(int display) const;
+  DrmConnector *AvailableWritebackConnector(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
   DrmEventListener *event_listener();

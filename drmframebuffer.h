@@ -65,7 +65,7 @@ struct DrmFramebuffer {
       }
       Clear();
     }
-    buffer_ = new GraphicBuffer(w, h, PIXEL_FORMAT_RGBA_8888,
+    buffer_ = new GraphicBuffer(w, h, PIXEL_FORMAT_RGB_888,
                                 GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER |
                                     GRALLOC_USAGE_HW_COMPOSER);
     release_fence_fd_ = -1;

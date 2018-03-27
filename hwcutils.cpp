@@ -105,6 +105,18 @@ int DrmHwcLayer::ImportBuffer(Importer *importer) {
   return 0;
 }
 
+int DrmHwcLayer::InitFromDrmHwcLayer(DrmHwcLayer *src_layer,
+                                     Importer *importer) {
+  blending = src_layer->blending;
+  sf_handle = src_layer->sf_handle;
+  acquire_fence = -1;
+  display_frame = src_layer->display_frame;
+  alpha = src_layer->alpha;
+  source_crop = src_layer->source_crop;
+  transform = src_layer->transform;
+  return ImportBuffer(importer);
+}
+
 void DrmHwcLayer::SetSourceCrop(hwc_frect_t const &crop) {
   source_crop = crop;
 }

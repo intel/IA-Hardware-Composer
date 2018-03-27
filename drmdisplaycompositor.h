@@ -21,6 +21,7 @@
 #include "drmdisplaycomposition.h"
 #include "drmframebuffer.h"
 #include "resourcemanager.h"
+#include "vsyncworker.h"
 
 #include <pthread.h>
 #include <memory>
@@ -34,6 +35,10 @@
 // squash a frame that the hw can't display with hw overlays.
 #define DRM_DISPLAY_BUFFERS 3
 
+// If a scene is still for this number of vblanks flatten it to reduce power
+// consumption.
+#define FLATTEN_COUNTDOWN_INIT 60
+
 namespace android {
 
 class DrmDisplayCompositor {
@@ -44,10 +49,12 @@ class DrmDisplayCompositor {
   int Init(ResourceManager *resource_manager, int display);
 
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
+  std::unique_ptr<DrmDisplayComposition> CreateInitializedComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
   int TestComposition(DrmDisplayComposition *composition);
   int Composite();
   void Dump(std::ostringstream *out) const;
+  void Vsync(int display, int64_t timestamp);
 
   std::tuple<uint32_t, uint32_t, int> GetActiveModeResolution();
 
@@ -66,16 +73,26 @@ class DrmDisplayCompositor {
   static const int kAcquireWaitTries = 5;
   static const int kAcquireWaitTimeoutMs = 100;
 
-  int PrepareFramebuffer(DrmFramebuffer &fb,
-                         DrmDisplayComposition *display_comp);
-  int PrepareFrame(DrmDisplayComposition *display_comp);
-  int CommitFrame(DrmDisplayComposition *display_comp, bool test_only);
+  int CommitFrame(DrmDisplayComposition *display_comp, bool test_only,
+                  DrmConnector *writeback_conn = NULL,
+                  DrmHwcBuffer *writeback_buffer = NULL);
+  int SetupWritebackCommit(drmModeAtomicReqPtr pset, uint32_t crtc_id,
+                           DrmConnector *writeback_conn,
+                           DrmHwcBuffer *writeback_buffer);
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
 
   void ClearDisplay();
   void ApplyFrame(std::unique_ptr<DrmDisplayComposition> composition,
-                  int status);
+                  int status, bool writeback = false);
+  int FlattenActiveComposition();
+  int FlattenSerial(DrmConnector *writeback_conn);
+  int FlattenConcurrent(DrmConnector *writeback_conn);
+  int FlattenOnDisplay(std::unique_ptr<DrmDisplayComposition> &src,
+                       DrmConnector *writeback_conn, DrmMode &src_mode,
+                       DrmHwcLayer *writeback_layer);
+
+  bool CountdownExpired() const;
 
   std::tuple<int, uint32_t> CreateModeBlob(const DrmMode &mode);
 
@@ -100,6 +117,10 @@ class DrmDisplayCompositor {
   // we need to reset them on every Dump() call.
   mutable uint64_t dump_frames_composited_;
   mutable uint64_t dump_last_timestamp_ns_;
+  VSyncWorker vsync_worker_;
+  int64_t flatten_countdown_;
+  std::unique_ptr<Planner> planner_;
+  int writeback_fence_;
 };
 }
 

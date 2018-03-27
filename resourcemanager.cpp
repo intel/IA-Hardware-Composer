@@ -72,6 +72,24 @@ int ResourceManager::AddDrmDevice(std::string path) {
   return ret;
 }
 
+DrmConnector *ResourceManager::AvailableWritebackConnector(int display) {
+  DrmDevice *drm_device = GetDrmDevice(display);
+  DrmConnector *writeback_conn = NULL;
+  if (drm_device) {
+    writeback_conn = drm_device->AvailableWritebackConnector(display);
+    if (writeback_conn)
+      return writeback_conn;
+  }
+  for (auto &drm : drms_) {
+    if (drm.get() == drm_device)
+      continue;
+    writeback_conn = drm->AvailableWritebackConnector(display);
+    if (writeback_conn)
+      return writeback_conn;
+  }
+  return writeback_conn;
+}
+
 DrmDevice *ResourceManager::GetDrmDevice(int display) {
   for (auto &drm : drms_) {
     if (drm->HandlesDisplay(display))

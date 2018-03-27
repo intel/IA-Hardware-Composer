@@ -141,6 +141,7 @@ struct DrmHwcLayer {
   OutputFd release_fence;
 
   int ImportBuffer(Importer *importer);
+  int InitFromDrmHwcLayer(DrmHwcLayer *layer, Importer *importer);
 
   void SetTransform(int32_t sf_transform);
   void SetSourceCrop(hwc_frect_t const &crop);
