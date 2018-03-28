@@ -246,6 +246,8 @@ class DisplayQueue {
   };
 
   void HandleExit();
+  bool ForcePlaneValidation(int add_index, int remove_index, int source_layers,
+                            int total_layers_size, size_t total_planes);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        int remove_index, DisplayPlaneStateList* composition,
                        bool* render_layers, bool* can_ignore_commit,

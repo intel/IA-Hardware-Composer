@@ -221,12 +221,11 @@ bool DisplayPlaneManager::ValidateLayers(
           break;
         } else {
           if (composition.empty()) {
-            bool force_all_layers = true;
+            composition.emplace_back(plane, layer, layer->GetZorder(),
+                                     display_transform_);
+            DisplayPlaneState &last_plane = composition.back();
+            ResetPlaneTarget(last_plane, commit_planes.back());
             if (display_transform_ != kIdentity) {
-              composition.emplace_back(plane, layer, layer->GetZorder(),
-                                       display_transform_);
-              DisplayPlaneState &last_plane = composition.back();
-              ResetPlaneTarget(last_plane, commit_planes.back());
               // If DisplayTransform is not supported, let's check if
               // we can fallback to GPU rotation for this plane.
               if (last_plane.GetRotationType() ==
@@ -238,23 +237,12 @@ bool DisplayPlaneManager::ValidateLayers(
                 if (!FallbacktoGPU(last_plane.GetDisplayPlane(),
                                    last_plane.GetOffScreenTarget()->GetLayer(),
                                    commit_planes)) {
-                  force_all_layers = false;
                   validate_final_layers = true;
                 }
               }
             }
 
-            if (force_all_layers) {
-              // If we are here, it means the layer failed with
-              // Primary. Let's force GPU for all layers.
-              // FIXME: We should try to use overlay for
-              // other layers in this case.
-              ForceGpuForAllLayers(commit_planes, composition, layers,
-                                   mark_later, false);
-              *re_validation_needed = false;
-              *commit_checked = true;
-              return true;
-            }
+            break;
           } else {
             commit_planes.pop_back();
 #ifdef SURFACE_TRACING
