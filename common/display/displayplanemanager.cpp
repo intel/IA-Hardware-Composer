@@ -405,9 +405,15 @@ void DisplayPlaneManager::ValidateCursorLayer(
   uint32_t total_size = cursor_layers.size();
   uint32_t cursor_index = 0;
   auto overlay_end = overlay_planes_.end();
-  auto overlay_begin = overlay_planes_.begin() + composition.size();
+  auto overlay_begin = overlay_end - 1;
+  if (total_size > 1) {
+    overlay_begin = overlay_planes_.begin() + composition.size();
+  }
+
 #ifdef DISABLE_CURSOR_PLANE
   overlay_end = overlay_planes_.end() - 1;
+  if (total_size == 1)
+    overlay_begin = overlay_planes_.begin() + composition.size();
 #endif
   for (auto j = overlay_begin; j < overlay_end; ++j) {
     if (cursor_index == total_size)
