@@ -142,7 +142,8 @@ LOCAL_SRC_FILES += \
         compositor/vk/vkshim.cpp
 else
 LOCAL_CPPFLAGS += \
-        -DUSE_GL
+        -DUSE_GL \
+        -DPREBUILT_SHADER_FILE_PATH='"/vendor/etc"'
 
 LOCAL_SRC_FILES += \
         compositor/gl/glprogram.cpp \
