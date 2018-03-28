@@ -578,7 +578,7 @@ void GpuDevice::HandleHWCSettings() {
       int index = float_display_indices.at(i);
 
       // Ignore float index if out of range of connected displays
-      if (index < num_displays) {
+      if ((size_t) index < num_displays) {
         const HwcRect<int32_t> &rect = float_displays.at(i);
         ret = total_displays_.at(index)->SetCustomResolution(rect);
       }

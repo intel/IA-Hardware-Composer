@@ -130,6 +130,32 @@ void DisplayQueue::RotateDisplay(HWCRotation rotation) {
   display_plane_manager_->SetDisplayTransform(plane_transform_);
 }
 
+bool DisplayQueue::ForcePlaneValidation(int add_index, int remove_index,
+                                        int source_layers,
+                                        int total_layers_size,
+                                        size_t total_planes) {
+  // If this plane doesn't contain more than one layer, no need to
+  // re-validate.
+  if (source_layers <= 1)
+    return false;
+
+  // This is the case where cursor has changed z_order.
+  if (remove_index == add_index)
+    return false;
+
+  int free_planes = display_plane_manager_->GetTotalOverlays() - total_planes;
+  if (free_planes <= 0) {
+    return false;
+  }
+
+  // Bail out in case we have new layers to fill the remaining planes.
+  if ((add_index != -1) && (total_layers_size - add_index) > free_planes) {
+    return false;
+  }
+
+  return true;
+}
+
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    int remove_index,
                                    DisplayPlaneStateList* composition,
@@ -148,7 +174,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   bool reset_composition_regions = false;
   bool reset_plane = remove_index != -1 ? true : false;
   bool removed_layers = false;
-  bool plane_free = false;
+  bool pop_plane = false;
   size_t previous_size = 0;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
@@ -162,7 +188,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       previous_plane.GetDisplayPlane()->SetInUse(false);
-      plane_free = true;
       continue;
     }
 
@@ -171,26 +196,29 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     last_plane.CopyState(previous_plane);
     if (reset_plane) {
       const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-      size_t index = source_layers.at(source_layers.size() - 1);
+      size_t source_layers_size = source_layers.size();
+      size_t index = source_layers.at(source_layers_size - 1);
       size_t threshold = static_cast<size_t>(remove_index);
       bool needs_plane_validation = false;
 
       if (index >= threshold) {
         removed_layers = true;
 #ifdef SURFACE_TRACING
-        size_t original_size = source_layers.size();
+        size_t original_size = source_layers_size;
 #endif
-        bool has_one_layer = source_layers.size() == 1 ? true : false;
+        bool has_one_layer = source_layers_size == 1 ? true : false;
         if (!has_one_layer) {
           last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
         }
+
+        source_layers_size = source_layers.size();
 #ifdef SURFACE_TRACING
         ISURFACETRACE(
             "Layers removed. Total old Layers: %d Total new Layers: %d "
             "Threshold: "
             "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
             "%d \n",
-            original_size, source_layers.size(), threshold, index,
+            original_size, source_layers_size, threshold, index,
             composition->size(), previous_plane_state_.size());
 #endif
         // We need to force re-validation of commit to ensure we update any
@@ -216,14 +244,17 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           last_plane.GetDisplayPlane()->SetInUse(false);
           composition->pop_back();
-          plane_free = true;
+          pop_plane =
+              ForcePlaneValidation(*add_index, remove_index,
+                                   composition->back().GetSourceLayers().size(),
+                                   layers.size(), composition->size());
 #ifdef SURFACE_TRACING
           ISURFACETRACE(
               "Plane removed. Total old Layers: %d Total new Layers: %d "
               "Threshold: "
               "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
               "%d \n",
-              original_size, source_layers.size(), threshold, index,
+              original_size, source_layers_size, threshold, index,
               composition->size(), previous_plane_state_.size());
 #endif
           continue;
@@ -246,7 +277,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
           // Check if Actual & Supported Composition differ for this
           // layer. If so than let' mark it for validation.
-          if (source_layers.size() == 1) {
+          if (source_layers_size == 1) {
             if (layer->CanScanOut() &&
                 squashed_plane.NeedsOffScreenComposition()) {
               plane_validation = true;
@@ -261,6 +292,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       if (needs_plane_validation)
         plane_validation = true;
+
+      if (removed_layers) {
+        pop_plane =
+            ForcePlaneValidation(*add_index, remove_index, source_layers_size,
+                                 layers.size(), composition->size());
+        if (pop_plane)
+          continue;
+      }
     }
 
     DisplayPlaneState& target_plane = composition->back();
@@ -424,22 +463,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
   *can_ignore_commit = ignore_commit;
   *needs_plane_validation = plane_validation;
-  int index = *add_index;
   size_t total_planes = composition->size();
-  if (removed_layers && !plane_free && total_planes == 1) {
-    const DisplayPlaneState& last_overlay = composition->back();
-    const std::vector<size_t>& source_layers = last_overlay.GetSourceLayers();
-    if ((source_layers.size() == 2) &&
-        (display_plane_manager_->GetTotalOverlays() - total_planes > 0)) {
-      plane_free = true;
-    }
-  }
-
   // Check if we can squash the last overlay (Before Cursor Plane).
   // If we have freed planes, let's see if we can actually map
   // layers to planes for direct scanout.
-  if (check_to_squash &&
-      (!plane_free || ((index != -1) && (index != remove_index)))) {
+  if (check_to_squash && !pop_plane) {
     if (composition->back().IsCursorPlane()) {
       // We cannot squash Cursor plane.
       total_planes -= 1;
@@ -482,7 +510,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         *can_ignore_commit = false;
       }
     }
-  } else if (plane_free && ((index == -1) || (index == remove_index))) {
+  } else if (pop_plane) {
     DisplayPlaneState& last_plane = composition->back();
     // Ignore in case we are already scanning out the layer.
     if (!last_plane.NeedsOffScreenComposition()) {
@@ -492,13 +520,10 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
     const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
     // Let's try to allocate more planes in case we have free planes and
     // layers to map.
-    if (source_layers.size() > 1 &&
-        (display_plane_manager_->GetTotalOverlays() - total_planes > 0)) {
-      *add_index = source_layers.at(0);
-      display_plane_manager_->MarkSurfacesForRecycling(
-          &last_plane, surfaces_not_inuse_, true);
-      composition->erase(composition->begin() + (total_planes - 1));
-    }
+    *add_index = source_layers.at(0);
+    display_plane_manager_->MarkSurfacesForRecycling(&last_plane,
+                                                     surfaces_not_inuse_, true);
+    composition->erase(composition->begin() + (total_planes - 1));
   }
 }
 
@@ -722,7 +747,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     GetCachedLayers(layers, remove_index, &current_composition_planes,
                     &render_layers, &can_ignore_commit, &needs_plane_validation,
                     &validate_layers, &add_index);
-
     if (add_index == 0) {
       validate_layers = true;
     }

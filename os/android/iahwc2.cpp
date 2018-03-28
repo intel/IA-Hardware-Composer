@@ -21,7 +21,7 @@
 
 #include <inttypes.h>
 
-#include <cutils/log.h>
+#include <android/log.h>
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
@@ -140,7 +140,7 @@ HWC2::Error IAHWC2::Init() {
   else
     ALOGI("EXPLICIT SYNC support is enabled");
 
-  property_get("board.hwc.scaling.mode", value, "0");
+  property_get("board.hwc.scaling.mode", value, "2");
   scaling_mode_ = atoi(value);
   switch (scaling_mode_) {
     case 1:
@@ -150,7 +150,7 @@ HWC2::Error IAHWC2::Init() {
       ALOGI("HWC Scaling Mode High Quality");
       break;
     default:
-      ALOGI("HWC Scaling Mode None");
+      ALOGI("Unsupport HWC Scaling Mode");
       break;
   }
 
@@ -337,6 +337,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
   handle_ = display_index;
 
   disable_explicit_sync_ = disable_explicit_sync;
+  scaling_mode_ = scaling_mode;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
   display_->SetVideoScalingMode(scaling_mode_);
 

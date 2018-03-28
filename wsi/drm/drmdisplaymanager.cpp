@@ -343,12 +343,6 @@ bool DrmDisplayManager::UpdateDisplayState() {
     NotifyClientsOfDisplayChangeStatus();
   }
 
-  static bool nested_display_registered = false;
-  if (notify_client_ && !nested_display_registered) {
-    nested_display_->HotPlugUpdate(true);
-    nested_display_registered = true;
-  }
-
   return true;
 }
 
@@ -360,6 +354,12 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
     } else {
       display->NotifyClientOfConnectedState();
     }
+  }
+
+  static bool nested_display_registered = false;
+  if (!nested_display_registered) {
+    nested_display_->HotPlugUpdate(true);
+    nested_display_registered = true;
   }
 
 #ifdef ENABLE_ANDROID_WA
