@@ -107,8 +107,12 @@ cd ..
 git clone https://anongit.freedesktop.org/git/wayland/weston.git weston
 git clone https://github.com/intel/IA-Hardware-Composer.git iahwc
 cd iahwc
-os/linux/weston/build_script.sh --apply-patches --weston-dir=/tmp/weston --iahwc-dir=$(pwd) --build
-#+END_SRC
+./autogen.sh --prefix=$WLD --enable-gbm --enable-linux-frontend
+make -j9 install
 
-* Using the build_script.sh
-Please run ./build_script.sh --help for more details
+cd ../weston
+./autogen.sh $AUTOGEN_CMDLINE --enable-iahwc-compositor --disable-wayland-compositor --disable-rdp-compositor \
+    --disable-headless-compositor --disable-x11-compositor --disable-fbdev-compositor \
+    --disable-drm-compositor
+make -j9 install
+#+END_SRC
