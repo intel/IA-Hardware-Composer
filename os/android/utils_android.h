@@ -180,20 +180,9 @@ static uint32_t DrmFormatToHALFormat(int format) {
 }
 
 static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
-  native_handle_t *new_handle =
-      native_handle_create(handle->numFds, handle->numInts);
-  if (new_handle == NULL)
-    return NULL;
-
-  const int *old_data = handle->data;
-  int *new_data = new_handle->data;
-  for (int i = 0; i < handle->numFds; i++) {
-    *new_data = dup(*old_data);
-    old_data++;
-    new_data++;
-  }
-  memcpy(new_data, old_data, sizeof(int) * handle->numInts);
-
+  native_handle_t *new_handle = native_handle_clone(handle);
+  if(new_handle == NULL)
+    ETRACE("failed to duplicate the handle");
   return new_handle;
 }
 
