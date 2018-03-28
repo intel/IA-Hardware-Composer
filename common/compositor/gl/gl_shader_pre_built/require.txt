@@ -1,0 +1,4 @@
+[require]
+GLSL ES >= 3.00
+BindAttribLoc vPosition 0
+BindAttribLoc vTexCords 1
