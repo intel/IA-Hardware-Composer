@@ -50,7 +50,10 @@ libhwcomposer_common_la_LIBADD += -lvulkan
 else
 libhwcomposer_common_la_SOURCES += $(gl_SOURCES)
 AM_CPP_INCLUDES += -Icompositor/gl
-AM_CPPFLAGS += -DUSE_GL
+AM_CPPFLAGS += \
+	-DUSE_GL \
+	-DPREBUILT_SHADER_FILE_PATH='"${prefix}/etc"'
+
 libhwcomposer_common_la_LIBADD += $(GLES2_LIBS)
 endif
 
