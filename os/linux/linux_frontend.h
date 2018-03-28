@@ -52,6 +52,7 @@ class IAHWC : public iahwc_device {
    private:
     hwcomposer::HwcLayer iahwc_layer_;
     struct gbm_handle hwc_handle_;
+    char* pixel_data_;
     int32_t layer_usage_;
   };
 

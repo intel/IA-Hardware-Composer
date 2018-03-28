@@ -29,7 +29,7 @@ PixelBuffer::~PixelBuffer() {
 void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
                              uint32_t width, uint32_t height, uint32_t stride, uint32_t format,
                              void *addr, ResourceHandle &resource, bool is_cursor_buffer) {
-  int layer_type = is_cursor_buffer ? kLayerCursor : kLayerNormal;
+  int layer_type =  is_cursor_buffer ? kLayerCursor : kLayerNormal;
   uint8_t* byteaddr = (uint8_t*) addr;
 
   if (!buffer_handler->CreateBuffer(width, height, format, &resource.handle_, layer_type)) {
@@ -55,23 +55,33 @@ void PixelBuffer::Initialize(const NativeBufferHandler *buffer_handler,
   }
 
   for (uint32_t i = 0; i < height; i++)
-    memcpy(ptr + i * handle->meta_data_.pitches_[0], byteaddr + i * stride,
+    memcpy(ptr + i * handle->meta_data_.pitches_[0],
+           byteaddr + i * stride,
            stride);
 
   Unmap(handle->meta_data_.prime_fds_[0], ptr, size);
   needs_texture_upload_ = false;
+
+  orig_width_ = width;
+  orig_height_ = height;
+  orig_stride_ = stride;
 }
 
 void PixelBuffer::Refresh(void *addr, const ResourceHandle &resource) {
   needs_texture_upload_ = true;
   const HWCNativeHandle &handle = resource.handle_;
   size_t size = handle->meta_data_.height_ * handle->meta_data_.pitches_[0];
-  void *ptr = Map(handle->meta_data_.prime_fds_[0], size);
+  uint8_t *ptr = (uint8_t*) Map(handle->meta_data_.prime_fds_[0], size);
   if (!ptr) {
     return;
   }
 
-  memcpy(ptr, addr, size);
+  uint8_t* byteaddr = (uint8_t*) addr;
+  for (int i = 0; i < orig_height_; i++)
+	memcpy(ptr + i * handle->meta_data_.pitches_[0],
+         byteaddr + i * orig_stride_,
+         orig_stride_);
+
   Unmap(handle->meta_data_.prime_fds_[0], ptr, size);
   needs_texture_upload_ = false;
 }

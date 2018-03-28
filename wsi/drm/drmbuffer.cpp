@@ -259,40 +259,59 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
 #ifdef USE_GL
   GLenum target = GL_TEXTURE_EXTERNAL_OES;
-  if (!external_import) {
+  if (!external_import || (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload())) {
     target = GL_TEXTURE_2D;
   }
 
-  if (image_.texture_ != 0) {
-    glBindTexture(target, image_.texture_);
-    if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-      glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
-                   GL_UNSIGNED_BYTE, data_);
-    }
-
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-    glBindTexture(target, 0);
-  } else {
+  if (!image_.texture_) {
     GLuint texture;
     glGenTextures(1, &texture);
-    glBindTexture(target, texture);
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-    if (external_import) {
-      if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-        glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
-                     GL_UNSIGNED_BYTE, data_);
-      }
-      glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    }
-
-    glBindTexture(target, 0);
     image_.texture_ = texture;
   }
+
+  glBindTexture(target, image_.texture_);
+  if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
+    GLenum gl_format = 0;
+    GLenum gl_pixel_type = 0;
+    switch (format_) {
+    case DRM_FORMAT_XRGB8888:
+      gl_format = GL_BGRA_EXT;
+      gl_pixel_type = GL_UNSIGNED_BYTE;
+      break;
+    case DRM_FORMAT_ARGB8888:
+      gl_format = GL_BGRA_EXT;
+      gl_pixel_type = GL_UNSIGNED_BYTE;
+      break;
+    case DRM_FORMAT_RGB565:
+      gl_format = GL_RGB;
+      gl_pixel_type = GL_UNSIGNED_SHORT_5_6_5;
+      break;
+    default:
+      ETRACE("UnSupported format and pixel type. \n");
+      break;
+    }
+
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
+
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width_, height_, 0, gl_format,
+                 gl_pixel_type, data_);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+  } else {
+    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
+  }
+
+
+  glBindTexture(target, 0);
 
   if (!external_import && image_.fb_ == 0) {
     glGenFramebuffers(1, &image_.fb_);
   }
+
 #elif USE_VK
   ETRACE("Missing implementation for creating FB and Texture with Vulkan. \n");
 #endif
