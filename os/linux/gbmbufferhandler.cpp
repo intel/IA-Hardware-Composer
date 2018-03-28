@@ -91,6 +91,8 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   if (layer_type == kLayerNormal) {
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  } else if (layer_type == kLayerCursor) {
+    flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING | GBM_BO_USE_LINEAR);
 #ifdef USE_MINIGBM
   } else if (layer_type == kLayerVideo) {
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING |
