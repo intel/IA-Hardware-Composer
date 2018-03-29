@@ -72,6 +72,10 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
   } else {
     frame_buffer_format_ = format_;
   }
+
+  FrameBufferManager::GetInstance()->RegisterGemHandles(
+      image_.handle_->meta_data_.num_planes_,
+      image_.handle_->meta_data_.gem_handles_);
 }
 
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
@@ -367,7 +371,7 @@ bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  image_.drm_fd_ = FrameBufferManager::GetInstance(gpu_fd)->FindFB(
+  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
       width_, height_, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;

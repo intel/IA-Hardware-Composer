@@ -67,15 +67,10 @@ VkFormat NativeToVkFormat(int native_format) {
 }
 #endif
 
-int ReleaseFrameBuffer(const FBKey& key, uint32_t fd, uint32_t gpu_fd,
-                       bool release_gem_handle) {
-  int ret = drmModeRmFB(gpu_fd, fd);
+int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd) {
+  int ret = fd > 0 ? drmModeRmFB(gpu_fd, fd) : 0;
   if (ret) {
     ETRACE("Failed to Remove FD ErrorCode: %d FD: %d \n", ret, fd);
-  }
-
-  if (!release_gem_handle) {
-    return 0;
   }
 
   uint32_t total_planes = key.num_planes_;
