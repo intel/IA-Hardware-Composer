@@ -309,6 +309,15 @@ class NativeDisplay {
     return 0;
   }
 
+  /**
+   * This is to position the composition to non-zero coordinates in display.
+   * When using float mode, the composition resolution is custom configured
+   * and it can be positioned as required.
+   */
+  virtual uint32_t GetYTranslation() {
+    return 0;
+  }
+
   virtual uint32_t GetLogicalIndex() const {
     return 0;
   }

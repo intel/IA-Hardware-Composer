@@ -87,6 +87,10 @@ class IAHWC2 : public hwc2_device_t {
       x_translation_ = x_translation;
     }
 
+    void YTranslateCoordinates(uint32_t y_translation) {
+      y_translation_ = y_translation;
+    }
+
     void set_acquire_fence(int acquire_fence) {
       if (acquire_fence > 0)
         hwc_layer_.SetAcquireFence(acquire_fence);
@@ -125,6 +129,7 @@ class IAHWC2 : public hwc2_device_t {
     hwcomposer::HwcLayer hwc_layer_;
     struct gralloc_handle native_handle_;
     uint32_t x_translation_ = 0;
+    uint32_t y_translation_ = 0;
   };
 
   class HwcDisplay {
