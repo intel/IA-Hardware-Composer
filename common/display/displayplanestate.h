@@ -28,6 +28,7 @@
 namespace hwcomposer {
 
 class DisplayPlane;
+class DisplayPlaneManager;
 class DisplayPlaneState;
 class NativeSurface;
 struct OverlayLayer;
@@ -52,7 +53,8 @@ class DisplayPlaneState {
   DisplayPlaneState() = default;
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
-  DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer, uint32_t index,
+  DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
+                    DisplayPlaneManager *plane_manager, uint32_t index,
                     uint32_t plane_transform);
 
   // Copies plane state from state.
@@ -248,13 +250,7 @@ class DisplayPlaneState {
                  // layer before scanning out.
     };
 
-    ~DisplayPlanePrivateState() {
-      for (NativeSurface *surface : surfaces_) {
-        if ((surface->GetSurfaceAge() == 0) && !surface->IsOnScreen()) {
-          surface->SetSurfaceAge(-1);
-        }
-      }
-    }
+    ~DisplayPlanePrivateState();
 
     State state_ = State::kScanout;
     DisplayPlane *plane_ = NULL;
@@ -295,6 +291,7 @@ class DisplayPlaneState {
     PlaneType type_ = PlaneType::kNormal;
     uint32_t plane_transform_ = kIdentity;
     RotationType rotation_type_ = RotationType::kDisplayRotation;
+    DisplayPlaneManager *plane_manager_ = NULL;
   };
 
   bool recycled_surface_ = true;

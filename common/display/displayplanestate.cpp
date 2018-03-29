@@ -15,12 +15,27 @@
 */
 
 #include "displayplanestate.h"
+#include "displayplanemanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 
 namespace hwcomposer {
 
+DisplayPlaneState::DisplayPlanePrivateState::~DisplayPlanePrivateState() {
+  bool surfaces_deleted = false;
+  for (NativeSurface *surface : surfaces_) {
+    if (!surface->IsOnScreen()) {
+      surface->SetSurfaceAge(-1);
+      surfaces_deleted = true;
+    }
+  }
+
+  if (surfaces_deleted)
+    plane_manager_->ReleasedSurfaces();
+}
+
 DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
+                                     DisplayPlaneManager *plane_manager,
                                      uint32_t index, uint32_t plane_transform) {
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
   private_data_->source_layers_.emplace_back(index);
@@ -43,6 +58,8 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
+
+  private_data_->plane_manager_ = plane_manager;
 
   recycled_surface_ = false;
 }

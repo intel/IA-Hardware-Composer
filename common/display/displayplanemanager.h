@@ -54,6 +54,10 @@ class DisplayPlaneManager {
                                 bool recycle_resources,
                                 bool reset_plane_surfaces = true);
 
+  // API to force plane manager to release any free surfaces the next time
+  // ReleaseFreeOffScreenTargets is called.
+  void ReleasedSurfaces();
+
   // This can be used to quickly check if the new DisplayPlaneStateList
   // can be succefully commited before doing a full re-validation.
   bool ReValidatePlanes(DisplayPlaneStateList &list,
