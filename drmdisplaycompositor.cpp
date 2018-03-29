@@ -431,11 +431,6 @@ std::tuple<int, uint32_t> DrmDisplayCompositor::CreateModeBlob(
 }
 
 void DrmDisplayCompositor::ClearDisplay() {
-  AutoLock lock(&lock_, "compositor");
-  int ret = lock.Lock();
-  if (ret)
-    return;
-
   if (!active_composition_)
     return;
 
@@ -447,6 +442,9 @@ void DrmDisplayCompositor::ClearDisplay() {
 
 void DrmDisplayCompositor::ApplyFrame(
     std::unique_ptr<DrmDisplayComposition> composition, int status) {
+  AutoLock lock(&lock_, __func__);
+  if (lock.Lock())
+    return;
   int ret = status;
 
   if (!ret)
@@ -461,16 +459,8 @@ void DrmDisplayCompositor::ApplyFrame(
   }
   ++dump_frames_composited_;
 
-  ret = pthread_mutex_lock(&lock_);
-  if (ret)
-    ALOGE("Failed to acquire lock for active_composition swap");
-
   active_composition_.swap(composition);
 
-  if (!ret)
-    ret = pthread_mutex_unlock(&lock_);
-  if (ret)
-    ALOGE("Failed to release lock for active_composition swap");
 }
 
 int DrmDisplayCompositor::ApplyComposition(
