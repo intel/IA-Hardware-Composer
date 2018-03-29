@@ -37,7 +37,8 @@ class NativeBufferHandler {
 
   virtual bool CanReleaseGemHandles(HWCNativeHandle handle) const = 0;
 
-  virtual bool ReleaseBuffer(HWCNativeHandle handle) const = 0;
+  virtual bool ReleaseBuffer(HWCNativeHandle handle,
+                             bool release_gem_handles = false) const = 0;
 
   virtual void DestroyHandle(HWCNativeHandle handle) const = 0;
 
