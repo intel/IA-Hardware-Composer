@@ -192,7 +192,11 @@ void CompositorThread::HandleReleaseRequest() {
 
     for (size_t i = 0; i < purged_size; i++) {
       const ResourceHandle &handle = purged_gl_resources.at(i);
-      if (handle.drm_fd_ &&
+      bool fd_created = false;
+      if (handle.drm_fd_)
+        fd_created = true;
+
+      if (fd_created &&
           pFBManager->RemoveFB(handle.drm_fd_,
                                handler->CanReleaseGemHandles(handle.handle_))) {
         ETRACE("Failed to remove fb %s", PRINTERROR());
@@ -202,7 +206,7 @@ void CompositorThread::HandleReleaseRequest() {
         continue;
       }
 
-      handler->ReleaseBuffer(handle.handle_);
+      handler->ReleaseBuffer(handle.handle_, !fd_created);
       handler->DestroyHandle(handle.handle_);
     }
   }

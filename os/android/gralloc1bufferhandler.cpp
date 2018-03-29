@@ -171,6 +171,10 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 }
 
 bool Gralloc1BufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
+  if (!handle) {
+    return false;
+  }
+
   if (handle->hwc_buffer_) {
     return false;
   }
@@ -182,13 +186,40 @@ bool Gralloc1BufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
   return false;
 }
 
-bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
+bool Gralloc1BufferHandler::ReleaseBuffer(HWCNativeHandle handle,
+                                          bool release_gem_handles) const {
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
 
   if (handle->hwc_buffer_) {
     release_(gralloc1_dvc, handle->handle_);
   } else if (handle->imported_handle_) {
+    if (release_gem_handles) {
+      uint32_t total_planes = handle->meta_data_.num_planes_;
+      struct drm_gem_close gem_close;
+      int last_gem_handle = -1;
+
+      for (uint32_t plane = 0; plane < total_planes; plane++) {
+        uint32_t current_gem_handle = handle->meta_data_.gem_handles_[plane];
+        if ((last_gem_handle != -1) &&
+            (current_gem_handle == static_cast<uint32_t>(last_gem_handle))) {
+          break;
+        }
+
+        memset(&gem_close, 0, sizeof(gem_close));
+        last_gem_handle = current_gem_handle;
+        gem_close.handle = current_gem_handle;
+
+        int ret = drmIoctl(fd_, DRM_IOCTL_GEM_CLOSE, &gem_close);
+        if (ret) {
+          ETRACE(
+              "Failed to close gem handle ErrorCode: %d "
+              "GemHandle: %d  \n",
+              ret, current_gem_handle);
+        }
+      }
+    }
+
     release_(gralloc1_dvc, handle->imported_handle_);
   }
 
