@@ -172,7 +172,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
 bool Gralloc1BufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
   if (handle->hwc_buffer_) {
-    return false;
+    return true;
   }
 
   if (handle->imported_handle_) {
