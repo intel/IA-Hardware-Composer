@@ -154,7 +154,8 @@ bool GbmBufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
   return false;
 }
 
-bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
+bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle,
+                                     bool /*release_gem_handles*/) const {
   if (handle->bo || handle->imported_bo) {
     if (handle->bo && handle->hwc_buffer_) {
       gbm_bo_destroy(handle->bo);
