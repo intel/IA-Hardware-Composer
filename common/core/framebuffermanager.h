@@ -35,9 +35,6 @@ map.
    can be resued.
 */
 
-#ifndef COMMON_CORE_FRAMEBUFFER_MANAGER_H_
-#define COMMON_CORE_FRAMEBUFFER_MANAGER_H_
-
 #include <hwcdefs.h>
 #include <platformdefines.h>
 #include <hwctrace.h>
@@ -98,4 +95,3 @@ class FrameBufferManager {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_CORE_RESOURCE_MANAGER_H_
