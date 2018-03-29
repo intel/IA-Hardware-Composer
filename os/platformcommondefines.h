@@ -59,7 +59,6 @@ int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,
                       const uint32_t (&ioffsets)[4], uint32_t gpu_fd,
                       uint32_t *fb_id);
 
-int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd,
-                       bool release_gem_handle);
+int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd);
 
 #endif  // OS_LINUX_PLATFORMCOMMONDEFINES_H_
