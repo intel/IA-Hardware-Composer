@@ -67,7 +67,8 @@ class DisplayPlaneState {
 
   // Updates display frame and source rects combined region for
   // this plane.
-  void RefreshLayerRects(const std::vector<OverlayLayer> &layers);
+  void RefreshLayerRects(const std::vector<OverlayLayer> &layers,
+                         bool *source_rect_updated);
 
   // Forces GPU Rendering of content for this plane.
   void ForceGPURendering();

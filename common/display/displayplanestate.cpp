@@ -218,7 +218,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 }
 
 void DisplayPlaneState::RefreshLayerRects(
-    const std::vector<OverlayLayer> &layers) {
+    const std::vector<OverlayLayer> &layers, bool *source_rect_updated) {
   const std::vector<size_t> &current_layers = private_data_->source_layers_;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
@@ -249,6 +249,10 @@ void DisplayPlaneState::RefreshLayerRects(
       ((private_data_->source_crop_ == target_source_crop))) {
     rect_updated = false;
   } else {
+    *source_rect_updated = true;
+    if (target_source_crop == private_data_->source_crop_)
+      *source_rect_updated = false;
+
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
     if (!only_cursor_layer) {

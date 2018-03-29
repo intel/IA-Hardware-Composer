@@ -727,8 +727,13 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   bool video_separate = plane.IsVideoPlane();
   uint32_t preferred_format = 0;
   uint32_t usage = hwcomposer::kLayerNormal;
+  int width = width_;
+  int height = height_;
   if (video_separate) {
     preferred_format = plane.GetDisplayPlane()->GetPreferredVideoFormat();
+    const HwcRect<float> &temp = plane.GetSourceCrop();
+    width = temp.right - temp.left;
+    height = temp.bottom - temp.top;
   } else {
     preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
   }
@@ -736,7 +741,8 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() == -1) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
-      if (preferred_format == surface_format) {
+      if (preferred_format == surface_format &&
+          (width == fb->GetWidth() && height == fb->GetHeight())) {
         surface = fb.get();
         break;
       }
@@ -746,10 +752,10 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   if (!surface) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
-      new_surface = CreateVideoBuffer(width_, height_);
+      new_surface = CreateVideoBuffer(width, height);
       usage = hwcomposer::kLayerVideo;
     } else {
-      new_surface = Create3DBuffer(width_, height_);
+      new_surface = Create3DBuffer(width, height);
     }
 
     new_surface->Init(resource_manager_, preferred_format, usage);
