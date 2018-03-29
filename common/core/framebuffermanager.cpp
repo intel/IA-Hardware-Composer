@@ -78,7 +78,12 @@ int FrameBufferManager::RemoveFB(const uint32_t &fb, bool release_gem_handles) {
     it++;
   }
 
+  if(it == fb_map_.end()) {
+    ETRACE("RemoveFB not meet!");
+  }
+
   lock_.unlock();
+
   return ret;
 }
 

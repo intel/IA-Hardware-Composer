@@ -176,7 +176,7 @@ bool Gralloc1BufferHandler::CanReleaseGemHandles(HWCNativeHandle handle) const {
   }
 
   if (handle->hwc_buffer_) {
-    return false;
+    return true;
   }
 
   if (handle->imported_handle_) {
