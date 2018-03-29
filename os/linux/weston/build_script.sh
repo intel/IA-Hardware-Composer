@@ -86,7 +86,10 @@ function build_iahwc() {
 function build_weston() {
     # Build weston
     git clean -xfd
-    ./autogen.sh $AUTOGEN_CMDLINE && \
+    export WESTON_NATIVE_BACKEND=iahwc-backend.so
+    ./autogen.sh $AUTOGEN_CMDLINE --enable-iahwc-compositor --disable-wayland-compositor --disable-rdp-compositor \
+        --disable-headless-compositor --disable-x11-compositor --disable-fbdev-compositor \
+	--disable-drm-compositor && \
         make -j$PARALLEL && \
         sudo make install
 }
@@ -139,20 +142,6 @@ WESTON_DIR=$(readlink -f $WESTON_DIR)
 cd $WESTON_DIR
 
 IAHWC_DIR=$(realpath --relative-to $WESTON_DIR $IAHWC_DIR)
-
-PATCHES="$IAHWC_DIR/os/linux/weston/patches/*"
-# checkout to weston best known revision and apply patches
-if [ $APPLY_PATCHES -eq 1 ]; then
-    git checkout $BKR
-    sed -i "s|IAHWC_DIR|$IAHWC_DIR|" $PATCHES
-    git am $PATCHES
-
-    # reset patches to use IAHWC_DIR.
-    pushd . > /dev/null
-    cd $IAHWC_DIR
-    git checkout os/linux/weston/patches
-    popd
-fi
 
 [ $BUILD_IAHWC -eq 1 ] && build_iahwc;
 [ $BUILD_WESTON -eq 1 ] && build_weston;

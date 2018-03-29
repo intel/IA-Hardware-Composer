@@ -59,6 +59,7 @@ class PixelBuffer {
 
  private:
   bool needs_texture_upload_ = true;
+  uint32_t orig_width_, orig_height_, orig_stride_;
 };
 
 }  // namespace hwcomposer

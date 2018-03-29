@@ -83,7 +83,7 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_DISPLAY_CLEAR_ALL_LAYERS,
   IAHWC_FUNC_PRESENT_DISPLAY,
   IAHWC_FUNC_CREATE_LAYER,
-  IAHWC_FUNC_DISPLAY_DESTROY_LAYER,
+  IAHWC_FUNC_DESTROY_LAYER,
   IAHWC_FUNC_LAYER_SET_BO,
   IAHWC_FUNC_LAYER_SET_RAW_PIXEL_DATA,
   IAHWC_FUNC_LAYER_SET_ACQUIRE_FENCE,
@@ -157,7 +157,7 @@ typedef int (*IAHWC_PFN_PRESENT_DISPLAY)(iahwc_device_t*,
 typedef int (*IAHWC_PFN_CREATE_LAYER)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t* layer_handle);
-typedef int (*IAHWC_PFN_DISPLAY_DESTROY_LAYER)(iahwc_device_t*,
+typedef int (*IAHWC_PFN_DESTROY_LAYER)(iahwc_device_t*,
                                                iahwc_display_t display_handle,
                                                iahwc_layer_t layer_handle);
 typedef int (*IAHWC_PFN_LAYER_SET_BO)(iahwc_device_t*,
