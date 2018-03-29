@@ -212,6 +212,10 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height, uint32_t rotation,
                                    bool handle_constraints) {
+  bool use_cache = true;
+#ifdef DISABLE_CACHING
+  use_cache = false;
+#endif
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
@@ -238,7 +242,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 
   surface_damage_ = layer->GetLayerDamage();
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+            resource_manager, use_cache, layer);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
