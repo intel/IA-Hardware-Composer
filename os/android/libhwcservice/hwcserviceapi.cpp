@@ -78,7 +78,7 @@ status_t HwcService_Display_SetOverscan(HWCSHANDLE hwcs, uint32_t display,
                                         int32_t xoverscan, int32_t yoverscan) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplaySetOverscan(display, xoverscan, yoverscan);
 }
@@ -88,7 +88,7 @@ status_t HwcService_Display_GetOverscan(HWCSHANDLE hwcs, uint32_t display,
                                         int32_t* yoverscan) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayGetOverscan(display, xoverscan, yoverscan);
 }
@@ -97,7 +97,7 @@ status_t HwcService_Display_SetScaling(HWCSHANDLE hwcs, uint32_t display,
                                        EHwcsScalingMode eScalingMode) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplaySetScaling(display, eScalingMode);
 }
@@ -106,7 +106,7 @@ status_t HwcService_Display_GetScaling(HWCSHANDLE hwcs, uint32_t display,
                                        EHwcsScalingMode* eScalingMode) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayGetScaling(display, eScalingMode);
 }
@@ -115,7 +115,7 @@ status_t HwcService_Display_EnableBlank(HWCSHANDLE hwcs, uint32_t display,
                                         EHwcsBool blank) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayEnableBlank(display, blank);
 }
@@ -125,7 +125,7 @@ status_t HwcService_Display_RestoreDefaultColorParam(HWCSHANDLE hwcs,
                                                      EHwcsColorControl color) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayRestoreDefaultColorParam(display, color);
 }
@@ -134,7 +134,7 @@ status_t HwcService_Display_RestoreDefaultDeinterlaceParam(HWCSHANDLE hwcs,
                                                            uint32_t display) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayRestoreDefaultDeinterlaceParam(display);
 }
@@ -144,7 +144,7 @@ status_t HwcService_Display_GetColorParam(HWCSHANDLE hwcs, uint32_t display,
                                           float* startvalue, float* endvalue) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayGetColorParam(display, color, value,
                                                    startvalue, endvalue);
@@ -155,7 +155,7 @@ status_t HwcService_Display_SetColorParam(HWCSHANDLE hwcs, uint32_t display,
                                           float value) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplaySetColorParam(display, color, value);
 }
@@ -187,7 +187,7 @@ status_t HwcService_Display_SetDeinterlaceParam(HWCSHANDLE hwcs,
   }
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplaySetDeinterlaceParam(display, de_mode);
 }
@@ -197,7 +197,7 @@ status_t HwcService_DisplayMode_GetAvailableModes(
     std::vector<HwcsDisplayModeInfo>& pModeList) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   pModeList = pContext->mControls->DisplayModeGetAvailableModes(display);
   return OK;
@@ -207,7 +207,7 @@ status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
                                         HwcsDisplayModeInfo* pMode) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayModeGetMode(display, pMode);
 }
@@ -216,7 +216,7 @@ status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
                                         const uint32_t config) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->DisplayModeSetMode(display, config);
 }
@@ -225,7 +225,7 @@ status_t HwcService_Video_EnableHDCPSession_ForDisplay(
     HWCSHANDLE hwcs, uint32_t display, EHwcsContentType content_type) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
 
   return pContext->mControls->EnableHDCPSessionForDisplay(display,
@@ -236,7 +236,7 @@ status_t HwcService_Video_EnableHDCPSession_AllDisplays(
     HWCSHANDLE hwcs, EHwcsContentType content_type) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
 
   return pContext->mControls->EnableHDCPSessionForAllDisplays(content_type);
@@ -246,7 +246,7 @@ status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
                                                         uint32_t display) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
 
   return pContext->mControls->DisableHDCPSessionForDisplay(display);
@@ -255,7 +255,7 @@ status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
 
   return pContext->mControls->DisableHDCPSessionForAllDisplays();
@@ -266,7 +266,7 @@ status_t HwcService_Video_EnableEncryptedSession(HWCSHANDLE hwcs,
                                                  uint32_t instanceID) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->VideoEnableEncryptedSession(sessionID,
                                                           instanceID);
@@ -276,7 +276,7 @@ status_t HwcService_Video_DisableEncryptedSession(HWCSHANDLE hwcs,
                                                   uint32_t sessionID) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->VideoDisableAllEncryptedSessions(sessionID);
 }
@@ -284,7 +284,7 @@ status_t HwcService_Video_DisableEncryptedSession(HWCSHANDLE hwcs,
 status_t HwcService_Video_DisableAllEncryptedSessions(HWCSHANDLE hwcs) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->VideoDisableAllEncryptedSessions();
 }
@@ -306,7 +306,7 @@ status_t HwcService_Video_SetOptimizationMode(HWCSHANDLE hwcs,
                                               EHwcsOptimizationMode mode) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->VideoSetOptimizationMode(mode);
 }
@@ -316,7 +316,7 @@ status_t HwcService_MDS_UpdateVideoState(HWCSHANDLE hwcs,
                                          EHwcsBool isPrepared) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->MdsUpdateVideoState(videoSessionID, isPrepared);
 }
@@ -325,7 +325,7 @@ status_t HwcService_MDS_UpdateVideoFPS(HWCSHANDLE hwcs, int64_t videoSessionID,
                                        int32_t fps) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->MdsUpdateVideoFPS(videoSessionID, fps);
 }
@@ -333,7 +333,7 @@ status_t HwcService_MDS_UpdateVideoFPS(HWCSHANDLE hwcs, int64_t videoSessionID,
 status_t HwcService_MDS_UpdateInputState(HWCSHANDLE hwcs, EHwcsBool state) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->MdsUpdateInputState(state);
 }
@@ -341,7 +341,7 @@ status_t HwcService_MDS_UpdateInputState(HWCSHANDLE hwcs, EHwcsBool state) {
 status_t HwcService_Widi_GetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool* enable) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   if (!enable) {
     return android::BAD_VALUE;
@@ -355,7 +355,7 @@ status_t HwcService_Widi_GetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool* enable) {
 status_t HwcService_Widi_SetSingleDisplay(HWCSHANDLE hwcs, EHwcsBool enable) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
-    return -1;
+    return android::BAD_VALUE;
   }
   return pContext->mControls->WidiSetSingleDisplay(enable);
 }
