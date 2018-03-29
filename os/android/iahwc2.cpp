@@ -413,6 +413,7 @@ HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   uint64_t id = display_->AcquireId();
   layers_.emplace(static_cast<hwc2_layer_t>(id), IAHWC2::Hwc2Layer());
   layers_.at(id).XTranslateCoordinates(display_->GetXTranslation());
+  layers_.at(id).YTranslateCoordinates(display_->GetYTranslation());
   *layer = static_cast<hwc2_layer_t>(id);
   return HWC2::Error::None;
 }
@@ -912,7 +913,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerDisplayFrame(hwc_rect_t frame) {
   hwc_layer_.SetDisplayFrame(
       hwcomposer::HwcRect<int>(frame.left, frame.top, frame.right,
                                frame.bottom),
-      x_translation_);
+      x_translation_, y_translation_);
   return HWC2::Error::None;
 }
 

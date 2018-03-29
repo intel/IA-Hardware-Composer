@@ -594,7 +594,7 @@ static void fill_hwclayer(hwcomposer::HwcLayer *pHwcLayer,
       pParameter->source_crop_width, pParameter->source_crop_height));
   pHwcLayer->SetDisplayFrame(hwcomposer::HwcRect<int>(
       pParameter->frame_x, pParameter->frame_y, pParameter->frame_width,
-      pParameter->frame_height), 0);
+      pParameter->frame_height), 0, 0);
   pHwcLayer->SetNativeHandle(pRenderer->GetNativeBoHandle());
 }
 

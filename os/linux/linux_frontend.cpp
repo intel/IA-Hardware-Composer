@@ -403,7 +403,7 @@ int IAHWC::IAHWCLayer::SetLayerSourceCrop(iahwc_rect_t rect) {
 int IAHWC::IAHWCLayer::SetLayerDisplayFrame(iahwc_rect_t rect) {
   iahwc_layer_.SetDisplayFrame(
       hwcomposer::HwcRect<float>(rect.left, rect.top, rect.right, rect.bottom),
-      0);
+      0, 0);
 
   return IAHWC_ERROR_NONE;
 }
