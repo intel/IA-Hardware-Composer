@@ -271,8 +271,8 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
   glBindTexture(target, image_.texture_);
   if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-    GLenum gl_format;
-    GLenum gl_pixel_type;
+    GLenum gl_format = 0;
+    GLenum gl_pixel_type = 0;
     switch (format_) {
     case DRM_FORMAT_XRGB8888:
       gl_format = GL_BGRA_EXT;
@@ -287,6 +287,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
       gl_pixel_type = GL_UNSIGNED_SHORT_5_6_5;
       break;
     default:
+      ETRACE("UnSupported format and pixel type. \n");
       break;
     }
 
