@@ -154,18 +154,12 @@ script:
 - make -j5 && make install
 - popd
 
-#Build IAHWC with linux frontend
-- git clean -xfd > /dev/null
-- ./autogen.sh --prefix=$WLD --enable-gbm --enable-linux-frontend
-- make -j9 install
-
 #Build weston and weston plugin
 - git clone https://github.com/intel/external-weston.git /tmp/weston
-- pushd .
 - cd /tmp/weston
-- ./autogen.sh --prefix=$WLD --disable-setuid-install
-- make -j9 install
-- popd
+- git checkout origin/iahwc-plugin
+- cd -
+- os/linux/weston/build_script.sh --weston-dir=/tmp/weston --iahwc-dir=$(pwd) --build
 
 branches:
   only:
