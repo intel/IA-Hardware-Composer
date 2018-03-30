@@ -428,7 +428,6 @@ static int iahwc_output_repaint(struct weston_output *output_base,
                                 pixman_region32_t *damage, void *repaint_data) {
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct iahwc_backend *backend = to_iahwc_backend(output->base.compositor);
-  struct iahwc_overlay* p = 0;
 
   if (output->disable_pending || output->destroy_pending)
     return -1;
@@ -712,25 +711,25 @@ static int init_egl(struct iahwc_backend *b) {
  */
 static void iahwc_add_overlay_info(struct iahwc_output *output, struct wl_shm_buffer *shm_memory, struct gbm_bo *overlay_bo, uint32_t overlay_layer_id)
 {
-	struct iahwc_overlay *plane;
+  struct iahwc_overlay *plane;
 
-	plane = zalloc(sizeof *plane);
-	if (!plane) {
-		weston_log("%s: out of memory\n", __func__);
-		return;
-	}
+  plane = zalloc(sizeof *plane);
+  if (!plane) {
+    weston_log("%s: out of memory\n", __func__);
+    return;
+  }
 
-	if (shm_memory) {
-	  plane->shm_memory = shm_memory;
-	  plane->overlay_bo = 0;
-	  wl_list_insert(&output->overlay_list_shm, &plane->link);
-	} else {
-	    plane->overlay_bo = overlay_bo;
-	    plane->shm_memory = 0;
-	  wl_list_insert(&output->overlay_list, &plane->link);
-	}
+  if (shm_memory) {
+    plane->shm_memory = shm_memory;
+    plane->overlay_bo = 0;
+    wl_list_insert(&output->overlay_list_shm, &plane->link);
+  } else {
+    plane->overlay_bo = overlay_bo;
+    plane->shm_memory = 0;
+    wl_list_insert(&output->overlay_list, &plane->link);
+  }
 
-	plane->overlay_layer_id = overlay_layer_id;
+  plane->overlay_layer_id = overlay_layer_id;
 }
 
 /**
@@ -739,22 +738,22 @@ static void iahwc_add_overlay_info(struct iahwc_output *output, struct wl_shm_bu
 static void
 iahwc_overlay_destroy(struct iahwc_output *output)
 {
-	struct iahwc_overlay *plane, *next;
-		struct iahwc_overlay *plane_shm, *next_shm;
-		  struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
+  struct iahwc_overlay *plane, *next;
+  struct iahwc_overlay *plane_shm, *next_shm;
+  struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
 
-	wl_list_for_each_safe(plane_shm, next_shm, &output->overlay_list_shm, link) {
-	   b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
-	    wl_list_remove(&plane_shm->link);
-	    free(plane_shm);
-	}
+  wl_list_for_each_safe(plane_shm, next_shm, &output->overlay_list_shm, link) {
+    b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
+    wl_list_remove(&plane_shm->link);
+    free(plane_shm);
+  }
 
-	wl_list_for_each_safe(plane, next, &output->overlay_list, link) {
-	    b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
-	    gbm_bo_destroy(plane->overlay_bo);
-	    wl_list_remove(&plane->link);
-	    free(plane);
-	}
+  wl_list_for_each_safe(plane, next, &output->overlay_list, link) {
+    b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
+    gbm_bo_destroy(plane->overlay_bo);
+    wl_list_remove(&plane->link);
+    free(plane);
+  }
 }
 
 static struct weston_plane *iahwc_output_prepare_cursor_view(
@@ -792,7 +791,7 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
   uint32_t cursor_layer_id = 0;
   b->iahwc_create_layer(b->iahwc_device, 0, &cursor_layer_id);
   b->iahwc_layer_set_usage(b->iahwc_device, 0, cursor_layer_id,
-			   IAHWC_LAYER_USAGE_CURSOR);
+         IAHWC_LAYER_USAGE_CURSOR);
 
   int32_t surfwidth = ev->surface->width;
   int32_t surfheight = ev->surface->height;
@@ -808,26 +807,26 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
 
   switch (dbo.format) {
   case WL_SHM_FORMAT_XRGB8888:
-	  dbo.format = DRM_FORMAT_XRGB8888;
-	  break;
+    dbo.format = DRM_FORMAT_XRGB8888;
+    break;
   case WL_SHM_FORMAT_ARGB8888:
-	  dbo.format = DRM_FORMAT_ARGB8888;
-	  break;
+    dbo.format = DRM_FORMAT_ARGB8888;
+    break;
   case WL_SHM_FORMAT_RGB565:
-	  dbo.format = DRM_FORMAT_RGB565;
-	  break;
+    dbo.format = DRM_FORMAT_RGB565;
+    break;
   case WL_SHM_FORMAT_YUV420:
-	  dbo.format = DRM_FORMAT_YUV420;
-	  break;
+    dbo.format = DRM_FORMAT_YUV420;
+    break;
   case WL_SHM_FORMAT_NV12:
-	  dbo.format = DRM_FORMAT_NV12;
-	  break;
+    dbo.format = DRM_FORMAT_NV12;
+    break;
   case WL_SHM_FORMAT_YUYV:
-	  dbo.format = DRM_FORMAT_YUYV	;
-	  break;
+    dbo.format = DRM_FORMAT_YUYV  ;
+    break;
   default:
-	  weston_log("warning: unknown shm buffer format: %08x\n",
-		     dbo.format);
+    weston_log("warning: unknown shm buffer format: %08x\n",
+               dbo.format);
   }
   wl_shm_buffer_begin_access(buffer->shm_buffer);
   b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0, cursor_layer_id,
@@ -868,7 +867,7 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
 }
 
 static struct weston_plane *iahwc_output_prepare_overlay_view(
-    struct iahwc_output *output, struct weston_view *ev) {
+  struct iahwc_output *output, struct weston_view *ev) {
   struct weston_compositor *ec = output->base.compositor;
   struct iahwc_backend *b = to_iahwc_backend(ec);
   struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
@@ -876,7 +875,7 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   struct weston_plane *p = &output->d_plane;
   struct linux_dmabuf_buffer *dmabuf;
   struct gbm_bo *bo;
-    struct wl_shm_buffer *shmbuf;
+  struct wl_shm_buffer *shmbuf;
   pixman_region32_t dest_rect, src_rect;
   pixman_box32_t *box, tbox;
   wl_fixed_t sx1, sy1, sx2, sy2;
@@ -891,51 +890,51 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   buffer_resource = ev->surface->buffer_ref.buffer->resource;
   shmbuf = wl_shm_buffer_get(buffer_resource);
   if (shmbuf) {
-      return NULL;
+    return NULL;
   }
 
   if (!shmbuf) {
-  if ((dmabuf = linux_dmabuf_buffer_get(buffer_resource))) {
+    if ((dmabuf = linux_dmabuf_buffer_get(buffer_resource))) {
 #ifdef HAVE_GBM_FD_IMPORT
-    /* XXX: TODO:
-     *
-     * Use AddFB2 directly, do not go via GBM.
-     * Add support for multiplanar formats.
-     * Both require refactoring in the IAHWC-backend to
-     * support a mix of gbm_bos and iahwcfbs.
-     */
-    struct gbm_import_fd_data gbm_dmabuf = {
+      /* XXX: TODO:
+       *
+       * Use AddFB2 directly, do not go via GBM.
+       * Add support for multiplanar formats.
+       * Both require refactoring in the IAHWC-backend to
+       * support a mix of gbm_bos and iahwcfbs.
+       */
+      struct gbm_import_fd_data gbm_dmabuf = {
         .fd = dmabuf->attributes.fd[0],
         .width = dmabuf->attributes.width,
         .height = dmabuf->attributes.height,
         .stride = dmabuf->attributes.stride[0],
         .format = dmabuf->attributes.format};
 
-    /* XXX: TODO:
-     *
-     * Currently the buffer is rejected if any dmabuf attribute
-     * flag is set.  This keeps us from passing an inverted /
-     * interlaced / bottom-first buffer (or any other type that may
-     * be added in the future) through to an overlay.  Ultimately,
-     * these types of buffers should be handled through buffer
-     * transforms and not as spot-checks requiring specific
-     * knowledge. */
-    if (dmabuf->attributes.n_planes != 1 || dmabuf->attributes.offset[0] != 0 ||
-        dmabuf->attributes.flags)
-      return NULL;
+      /* XXX: TODO:
+       *
+       * Currently the buffer is rejected if any dmabuf attribute
+       * flag is set.  This keeps us from passing an inverted /
+       * interlaced / bottom-first buffer (or any other type that may
+       * be added in the future) through to an overlay.  Ultimately,
+       * these types of buffers should be handled through buffer
+       * transforms and not as spot-checks requiring specific
+       * knowledge. */
+      if (dmabuf->attributes.n_planes != 1 || dmabuf->attributes.offset[0] != 0 ||
+          dmabuf->attributes.flags)
+        return NULL;
 
-    bo = gbm_bo_import(b->gbm, GBM_BO_IMPORT_FD, &gbm_dmabuf,
-                       GBM_BO_USE_SCANOUT);
+      bo = gbm_bo_import(b->gbm, GBM_BO_IMPORT_FD, &gbm_dmabuf,
+                         GBM_BO_USE_SCANOUT);
 #else
-    return NULL;
+      return NULL;
 #endif
-  } else {
-    bo = gbm_bo_import(b->gbm, GBM_BO_IMPORT_WL_BUFFER, buffer_resource,
-                       GBM_BO_USE_SCANOUT);
-  }
+    } else {
+      bo = gbm_bo_import(b->gbm, GBM_BO_IMPORT_WL_BUFFER, buffer_resource,
+                         GBM_BO_USE_SCANOUT);
+    }
 
-  if (!bo)
-    return NULL;
+    if (!bo)
+      return NULL;
 
   }
 
@@ -950,12 +949,12 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
    */
   pixman_region32_init(&dest_rect);
   pixman_region32_intersect(&dest_rect, &ev->transform.boundingbox,
-			    &output->base.region);
+                            &output->base.region);
   pixman_region32_translate(&dest_rect, -output->base.x, -output->base.y);
   box = pixman_region32_extents(&dest_rect);
   tbox = weston_transformed_rect(output->base.width, output->base.height,
-				 output->base.transform,
-				 output->base.current_scale, *box);
+                                 output->base.transform,
+                                 output->base.current_scale, *box);
   dest_x = tbox.x1;
   dest_y = tbox.y1;
   dest_w = tbox.x2 - tbox.x1;
@@ -964,13 +963,13 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
 
   pixman_region32_init(&src_rect);
   pixman_region32_intersect(&src_rect, &ev->transform.boundingbox,
-			    &output->base.region);
+                            &output->base.region);
   box = pixman_region32_extents(&src_rect);
 
   weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x1),
-				wl_fixed_from_int(box->y1), &sx1, &sy1);
+                                wl_fixed_from_int(box->y1), &sx1, &sy1);
   weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x2),
-				wl_fixed_from_int(box->y2), &sx2, &sy2);
+                                wl_fixed_from_int(box->y2), &sx2, &sy2);
 
   if (sx1 < 0)
     sx1 = 0;
@@ -987,9 +986,9 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   tbox.y2 = sy2;
 
   tbox = weston_transformed_rect(wl_fixed_from_int(ev->surface->width),
-				 wl_fixed_from_int(ev->surface->height),
-				 viewport->buffer.transform,
-				 viewport->buffer.scale, tbox);
+                                 wl_fixed_from_int(ev->surface->height),
+                                 viewport->buffer.transform,
+                                 viewport->buffer.scale, tbox);
 
   src_x = tbox.x1 << 8;
   src_y = tbox.y1 << 8;
@@ -999,42 +998,42 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
 
   b->iahwc_create_layer(b->iahwc_device, 0, &overlay_layer_id);
   b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
-			   IAHWC_LAYER_USAGE_OVERLAY);
+                           IAHWC_LAYER_USAGE_OVERLAY);
 
   if (shmbuf) {
-      iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
-      struct iahwc_raw_pixel_data dbo;
-      dbo.width = ev->surface->width;
-      dbo.height = ev->surface->height;
-      dbo.format = wl_shm_buffer_get_format(shmbuf);
-      dbo.buffer = wl_shm_buffer_get_data(shmbuf);
-      switch (dbo.format) {
-      case WL_SHM_FORMAT_XRGB8888:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
-	      break;
-      case WL_SHM_FORMAT_ARGB8888:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
-	      break;
-      case WL_SHM_FORMAT_RGB565:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
-	      break;
-      case WL_SHM_FORMAT_YUV420:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
-	      break;
-      case WL_SHM_FORMAT_NV12:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
-	      break;
-      case WL_SHM_FORMAT_YUYV:
-	      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
-	      break;
-      default:
-	      weston_log("warning: unknown shm buffer format: %08x\n",
-			 wl_shm_buffer_get_format(shmbuf));
-      }
-	    wl_shm_buffer_begin_access(shmbuf);
-      b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0, overlay_layer_id,
-					dbo);
-	wl_shm_buffer_end_access(shmbuf);
+    iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
+    struct iahwc_raw_pixel_data dbo;
+    dbo.width = ev->surface->width;
+    dbo.height = ev->surface->height;
+    dbo.format = wl_shm_buffer_get_format(shmbuf);
+    dbo.buffer = wl_shm_buffer_get_data(shmbuf);
+    switch (dbo.format) {
+    case WL_SHM_FORMAT_XRGB8888:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+      break;
+    case WL_SHM_FORMAT_ARGB8888:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+      break;
+    case WL_SHM_FORMAT_RGB565:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+      break;
+    case WL_SHM_FORMAT_YUV420:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+      break;
+    case WL_SHM_FORMAT_NV12:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+      break;
+    case WL_SHM_FORMAT_YUYV:
+      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+      break;
+    default:
+      weston_log("warning: unknown shm buffer format: %08x\n",
+                 wl_shm_buffer_get_format(shmbuf));
+    }
+    wl_shm_buffer_begin_access(shmbuf);
+    b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0, overlay_layer_id,
+                                      dbo);
+    wl_shm_buffer_end_access(shmbuf);
   } else {
     iahwc_add_overlay_info(output, 0, bo, overlay_layer_id);
     b->iahwc_layer_set_bo(b->iahwc_device, 0, overlay_layer_id, bo);
@@ -1052,7 +1051,7 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   b->iahwc_layer_set_display_frame(b->iahwc_device, 0, overlay_layer_id,
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0,
-				    overlay_layer_id, damage_region);
+                                    overlay_layer_id, damage_region);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -1206,13 +1205,13 @@ static void iahwc_assign_planes(struct weston_output *output_base,
 
   wl_list_for_each_safe(ev, next, &output_base->compositor->view_list, link) {
 
-      pixman_region32_init(&surface_overlap);
-      pixman_region32_intersect(&surface_overlap, &overlap,
-				&ev->transform.boundingbox);
+    pixman_region32_init(&surface_overlap);
+    pixman_region32_intersect(&surface_overlap, &overlap,
+                              &ev->transform.boundingbox);
 
-      next_plane = NULL;
-     // if (pixman_region32_not_empty(&surface_overlap))
-	//      next_plane = primary;
+    next_plane = NULL;
+    // if (pixman_region32_not_empty(&surface_overlap))
+    //      next_plane = primary;
 
     if (next_plane == NULL) {
       next_plane = iahwc_output_prepare_cursor_view(output, ev);
@@ -1227,26 +1226,26 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     weston_view_move_to_plane(ev, next_plane);
 
     if (next_plane == primary) {
-	struct weston_surface *es = ev->surface;
-	es->keep_buffer = false;
+      struct weston_surface *es = ev->surface;
+      es->keep_buffer = false;
 
       if (output->primary_layer_id == -1) {
         b->iahwc_create_layer(b->iahwc_device, 0, &output->primary_layer_id);
       }
 
       iahwc_rect_t viewport = {0, 0, output_base->current_mode->width,
-			       output_base->current_mode->height};
+                               output_base->current_mode->height};
 
       iahwc_region_t damage_region;
       damage_region.numRects = 1;
       damage_region.rects = &viewport;
 
       b->iahwc_layer_set_source_crop(b->iahwc_device, 0,
-				     output->primary_layer_id, viewport);
+                                     output->primary_layer_id, viewport);
       b->iahwc_layer_set_display_frame(b->iahwc_device, 0,
-				       output->primary_layer_id, viewport);
+                                       output->primary_layer_id, viewport);
       b->iahwc_layer_set_surface_damage(
-	  b->iahwc_device, 0, output->primary_layer_id, damage_region);
+        b->iahwc_device, 0, output->primary_layer_id, damage_region);
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
     }
 
@@ -1672,8 +1671,9 @@ static void session_notify(struct wl_listener *listener, void *data) {
   }
 }
 
-static void planes_binding(struct weston_keyboard *keyboard, uint32_t time,
-                           uint32_t key, void *data) {
+static void
+planes_binding(struct weston_keyboard *keyboard, const struct timespec* time,
+               uint32_t key, void *data) {
   struct iahwc_backend *b = data;
 
   switch (key) {
@@ -1685,8 +1685,9 @@ static void planes_binding(struct weston_keyboard *keyboard, uint32_t time,
   }
 }
 
-static void renderer_switch_binding(struct weston_keyboard *keyboard,
-                                    uint32_t time, uint32_t key, void *data) {
+static void
+renderer_switch_binding(struct weston_keyboard *keyboard,
+                        const struct timespec* time, uint32_t key, void *data) {
     weston_log(
 	"Info: GL renderer is default and the only renderer supported by this backend.\n");
 }
@@ -1708,7 +1709,7 @@ static struct iahwc_backend *iahwc_backend_create(
   const char* device = "/dev/dri/renderD128";
   const char *seat_id = default_seat;
 
-  weston_log(stderr, "Initializing iahwc backend\n");
+  weston_log("Initializing iahwc backend\n");
 
   b = zalloc(sizeof *b);
   if (b == NULL)
