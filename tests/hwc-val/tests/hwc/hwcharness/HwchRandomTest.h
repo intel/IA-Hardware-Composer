@@ -18,7 +18,9 @@
 #define __HwchRandomTest_h__
 
 #include "HwchTest.h"
-#include "HwchDisplayChoice.h"
+#define __HwchApiTest_h__
+#include "HwchChoice.h"
+#include "HwchSystem.h"
 
 namespace Hwch {
 class RandomTest : public Test {

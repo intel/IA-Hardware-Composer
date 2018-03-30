@@ -123,7 +123,7 @@ int Hwch::Interface::GetDisplayAttributes() {
 int Hwch::Interface::GetDisplayAttributes(uint32_t disp) {
   hwc2_device_t *hwc2_dvc;
   hwc2_config_t configs[100];
-  uint32_t numConfigs = 0;  // sizeof(configs) / sizeof(uint32_t);
+  uint32_t numConfigs = 0;
   Hwch::System &system = Hwch::System::getInstance();
 
   // Add the virtual display (if enabled on the command line)
@@ -139,10 +139,10 @@ int Hwch::Interface::GetDisplayAttributes(uint32_t disp) {
 
   if (!(disp == HWCVAL_DISPLAY_ID_VIRTUAL)) {
     Hwch::Display &display = system.GetDisplay(disp);
-    uint32_t nc = 0;  // sizeof(configs) / sizeof(uint32_t);
+    uint32_t nc = 0;
     int ret = -1;
 
-    /* hwc2_device_t */ hwc2_dvc =
+    hwc2_dvc =
         reinterpret_cast<hwc2_device_t *>(hwc_composer_device);
     HWC2_PFN_GET_DISPLAY_CONFIGS pfngetDisplayConfigs =
         reinterpret_cast<HWC2_PFN_GET_DISPLAY_CONFIGS>(
@@ -205,11 +205,8 @@ int Hwch::Interface::GetDisplayAttributes(uint32_t disp) {
 #endif
 
     // Selected config is first in the list
-    const uint32_t attributes[] = {// HWC2_ATTRIBUTE_INVALID,
-                                   HWC2_ATTRIBUTE_VSYNC_PERIOD,
+    const uint32_t attributes[] = {HWC2_ATTRIBUTE_VSYNC_PERIOD,
                                    HWC2_ATTRIBUTE_WIDTH, HWC2_ATTRIBUTE_HEIGHT,
-                                   // HWC2_ATTRIBUTE_DPI_X,
-                                   // HWC2_ATTRIBUTE_DPI_Y
     };
     HWC2_PFN_GET_DISPLAY_ATTRIBUTE pfngetDisplayAttribute =
         reinterpret_cast<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(hwc2_dvc->getFunction(
@@ -466,8 +463,6 @@ int Hwch::Interface::GetReleaseFences(hwc2_display_t display, uint32_t* outNumEl
 
 int Hwch::Interface::EventControl(uint32_t disp, uint32_t event,
                                   uint32_t enable) {
-  if (hwc_composer_device) {
-  }
   return -1;  // ERROR
 }
 
@@ -475,17 +470,6 @@ int Hwch::Interface::Blank(int disp, int blank) {
   if (hwc_composer_device) {
     if (disp < MAX_DISPLAYS) {
       mBlanked[disp] = blank;
-    }
-
-#if defined(HWC_DEVICE_API_VERSION_1_4)
-    if (hwc_composer_device->common.version >= HWC_DEVICE_API_VERSION_1_4) {
-      // return hwc_composer_device->setPowerMode(hwc_composer_device, disp,
-      // blank ? HWC_POWER_MODE_OFF : HWC_POWER_MODE_NORMAL);
-    } else
-#endif
-    {
-      // return hwc_composer_device->blank(hwc_composer_device, disp,
-      // blank);
     }
   }
   return -1;  // ERROR

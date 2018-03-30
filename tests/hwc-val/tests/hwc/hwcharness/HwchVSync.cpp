@@ -20,7 +20,6 @@
 #include "HwcTestState.h"
 #include "HwchDefs.h"
 
-// Constructor
 Hwch::VSync::VSync()
     : mDelayns(0),
       mTimeoutns(50000000),               // 50 ms default
@@ -33,7 +32,6 @@ Hwch::VSync::VSync()
   SetVSyncDelay(6500);
 }
 
-// Destructor
 Hwch::VSync::~VSync() {
   DestroyTimer();
 }

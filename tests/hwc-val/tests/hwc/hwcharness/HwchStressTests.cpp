@@ -80,7 +80,6 @@ int Hwch::BufferStressTest::RunScenario() {
   Hwch::Frame frame(mInterface);
 
   int32_t screenWidth = mSystem.GetDisplay(0).GetWidth();
-  // int32_t screenHeight = mSystem.GetDisplay(0).GetHeight();
 
   Hwch::WallpaperLayer layer1;
   frame.Add(layer1);

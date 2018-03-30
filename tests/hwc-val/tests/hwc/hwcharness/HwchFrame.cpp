@@ -646,29 +646,7 @@ int Hwch::Frame::Send() {
     // Allocate enough space for a frame with all it's layers
     hwcval_display_contents_t dcs[MAX_DISPLAYS];
     memset(dcs, 0, MAX_DISPLAYS * sizeof(hwcval_display_contents_t));
-    /*        size_t displayStructSizes[MAX_DISPLAYS];
-            size_t totalSize=0;
 
-            for (uint32_t disp=0; disp<numDisplays; ++disp)
-            {
-                size_t size = 0;
-                if (connected[disp])
-                {
-                    uint32_t numLayers = mLayers[disp].size();
-                    size = sizeof(hwc2_display_t) + (numLayers+1) *
-       sizeof(hwc2_layer_t);
-                }
-                displayStructSizes[disp] = size;
-                totalSize += size;
-            }
-
-            // Allocate a buffer for the layer list including the visible
-       regions
-            size_t allocSize = totalSize + (sizeof(hwcomposer::HwcRect<int>) *
-       MAX_VISIBLE_REGIONS);
-            char* memBuf = new char[allocSize];*/
-    // hwcval_display_contents_t displayContents;
-    // memset (&displayContents, 0, sizeof(hwcval_display_contents_t));
     hwc_rect_t visibleRegions[MAX_VISIBLE_REGIONS];
     uint32_t visibleRegionCount = 0;
 
@@ -785,14 +763,9 @@ int Hwch::Frame::Send() {
         dc->hwLayers[numLayers].displayFrame.right = displayFrame.right;
         dc->hwLayers[numLayers].displayFrame.top = displayFrame.top;
         dc->hwLayers[numLayers].displayFrame.bottom = displayFrame.bottom;
-
-        // target.Send(dc->hwLayers[numLayers], visibleRegions,
-        // visibleRegionCount);
-
       } else {
         dcs[disp].display = 0;
       }
-      // pDc += displayStructSizes[disp];
 
       if (videoCount > 1) {
         dispVideoRate = 0;
@@ -847,8 +820,6 @@ int Hwch::Frame::Send() {
 
               layer->ClearUpdatedSinceLastFBComp(disp);
               ++numFBLayers;
-            } else {
-	      // layer->SetAcquireFence(-1);
             }
           }
 
@@ -868,8 +839,6 @@ int Hwch::Frame::Send() {
 
           if (framebufferTargetNeedsUpdate) {
             // Yes - so do the simulated composition
-            // dc->hwLayers[numLayers].handle =
-            // targetLayer.mBufs->GetNextBuffer();
             HWCNativeHandle buf = targetLayer.mBufs->Get();
 
             // Initialize the background of the buffer
@@ -879,8 +848,6 @@ int Hwch::Frame::Send() {
             uint32_t height = buf->meta_data_.height_;
 
             HWCLOGD_COND(eLogHarness, "Filling FBT %dx%d", width, height);
-            // targetLayer.mBufs->WaitReleaseFence(mSystem.GetFenceTimeout(),
-            // targetLayer.mName);
 
             if (!mSystem.GetNoCompose()) {
               sRefCmp.Compose(numLayers, dc->hwLayers, dc->hwLayers + numLayers,
@@ -964,13 +931,9 @@ int Hwch::Frame::Send() {
               layer->GetPattern().ClearUpdatedSinceLastFBComp();
             }
           }
-
-          // mSystem.GetDisplay(disp).GetFramebufferTarget().PostFrame(
-          //   HWC_FRAMEBUFFER_TARGET, -1);
         }
       }
 
-      // delete [] memBuf;
       ClearGeometryChanged();
     } else {
       // To speed up the test, we are discarding this frame.
@@ -986,7 +949,6 @@ int Hwch::Frame::Send() {
           for (uint32_t i = 0; i < numLayers; ++i) {
             // Save composition type for next time
             Hwch::Layer* layer = mLayers[disp].at(i);
-            // layer->PostFrame(dc->hwLayers[i].compositionType, -1);
             int acquireFence = dc->hwLayers[i].acquireFence;
             if (acquireFence > 0)
             {
@@ -995,7 +957,6 @@ int Hwch::Frame::Send() {
           }
         }
       }
-      // delete [] memBuf;
     }
   }
 

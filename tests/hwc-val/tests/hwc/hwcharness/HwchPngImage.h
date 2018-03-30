@@ -36,9 +36,6 @@ class PngImage  {
 
   bool ReadPngFile(const char* fileName);
 
-  // Not needed
-  // bool WritePngFile(const char *fileName);
-
   uint32_t GetWidth();
   uint32_t GetHeight();
   uint32_t GetColorType();

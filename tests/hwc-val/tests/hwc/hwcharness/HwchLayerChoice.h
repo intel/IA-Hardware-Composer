@@ -38,7 +38,6 @@ class BufferSizeChoice : public GenericChoice<uint32_t> {
   };
 
   uint32_t mScreenSize;
-  // uint32_t mMinSize;
   uint32_t mMaxSize;
   MultiChoice<BufferSizeClassType> mBufferSizeClassChoice;
   Choice mSmallerChoice;

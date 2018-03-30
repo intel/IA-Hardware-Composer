@@ -309,30 +309,7 @@ void Hwch::Layer::SetSkip(bool skip, bool needBuffer) {
     mBufs = 0;
   }
 }
-#if 0
-void Hwch::Layer::AssignLayerProperties(hwc2_layer_t& hwLayer, buffer_handle_t handle)
-{
-    hwLayer.handle          = handle;
-    hwLayer.compositionType = mCurrentCompType;
-    hwLayer.hints           = mHints;
 
-    hwLayer.flags           = GetFlags();
-    hwLayer.transform       = mPhysicalTransform;
-    hwLayer.blending        = mBlending;
-
-    hwLayer.sourceCropf     = mSourceCropf;
-
-    hwLayer.displayFrame    = mDisplayFrame;
-
-#if ANDROID_VERSION >= 430  // >= 4.3.x
-    hwLayer.planeAlpha = mPlaneAlpha;
-#endif
-
-    hwLayer.acquireFenceFd = -1; // Acquire fences must only be set for Overlays and FRAMEBUFFER_TARGET
-                                 // so we must wait until after Prepare to do this.
-    hwLayer.releaseFenceFd = -1; // This will be returned by HWC.
-}
-#endif
 hwc_rect_t* Hwch::Layer::AssignVisibleRegions(hwc_rect_t* visibleRegions,
                                               uint32_t& visibleRegionCount) {
   // Allocate space for visibleRegionScreen
@@ -352,7 +329,6 @@ hwc_rect_t* Hwch::Layer::AssignVisibleRegions(hwc_rect_t* visibleRegions,
     vr_rects->bottom = mDisplayFrame.bottom;
     ++visibleRegionCount;
   } else {
-    // Copy visibleRegionScreen to dc->hwLayers[i].visibleRegionScreen
     for (int r = 0; r < numRects; r++) {
       vr_rects[r].left = mVisibleRegion[r].left;
       vr_rects[r].top = mVisibleRegion[r].top;
@@ -416,10 +392,6 @@ HWCNativeHandle Hwch::Layer::Send() {
     handle = 0;
   }
 
-  // Setup the layer properties and the visible regions
-  // AssignLayerProperties(hwLayer, handle);
-  // AssignVisibleRegions(hwLayer, visibleRegions, visibleRegionCount);
-
   if (mPattern.get() && (mPattern->IsAllTransparent())) {
     HWCLOGV_COND(eLogHarness, "SetFutureTransparentLayer %p", handle);
     HwcTestState::getInstance()->SetFutureTransparentLayer(handle);
@@ -436,13 +408,6 @@ void Hwch::Layer::SetAcquireFence(int mergeFence) {
 
 void Hwch::Layer::PostFrame(uint32_t compType, int releaseFenceFd) {
   mCurrentCompType = compType;
-#if 0
-
-    if (mBufs.get())
-    {
-        mBufs->PostFrame(releaseFenceFd);
-    }
-#endif
 }
 
 void Hwch::Layer::DoCloning(Layer** lastClonedLayer, Frame* frame) {

@@ -73,7 +73,6 @@ class BufferFormatConfig {
 class BufferFormatConfigManager
     : public std::map<uint32_t, BufferFormatConfig> {
  public:
-  // Constructor
   BufferFormatConfigManager();
 
   // Adjust display frame to comply with the min width & height

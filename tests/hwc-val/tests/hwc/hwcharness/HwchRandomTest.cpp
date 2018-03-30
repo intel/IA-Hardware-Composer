@@ -266,65 +266,6 @@ void Hwch::RandomTest::ChooseScreenDisable(Hwch::Frame& frame) {
 
 void Hwch::RandomTest::RandomEvent() {
 // TODO implement simulate hotplug in real HWC
-#if 0
-  if (mHotPlugChooser.IsEnabled()) {
-    // Note -
-    // for repeatability, decisions we take should be dependent only on the
-    // random
-    // numbers we pick. So for example, it's better to have a random probability
-    // like this
-    // than to decide a length of time for which we will stay unplugged.
-    uint32_t choice = mHotPlugChooser.Get();
-
-    if (choice < 2) {
-      uint32_t displayType = AsyncEvent::cRemovableDisplay;
-
-      if (mHotPlugDisplayTypeChoice.IsEnabled()) {
-        displayType = mHotPlugDisplayTypeChoice.Get();
-      }
-
-      if (choice == 0) {
-        // Unplugging....
-        if (mPlugged & displayType) {
-          HWCLOGV_COND(eLogHarness, "Hot unplugging displayTypes %x",
-                       displayType);
-
-          if (SimulateHotPlug(false, displayType, mHotPlugDelayChoice.Get())) {
-            // For repeatability of the random sequence, we aren't
-            // going to make success/fail of the hotplug change the
-            // behaviour in any other way.
-            mPlugged &= ~displayType;
-          }
-        }
-      } else {
-        // Plugging....
-        if ((mPlugged & displayType) == 0) {
-          HWCLOGV_COND(eLogHarness, "Hot plugging displayTypes %x",
-                       displayType);
-          SimulateHotPlug(true, displayType, mHotPlugDelayChoice.Get());
-          mPlugged |= displayType;
-        }
-      }
-    }
-  }
-
-  if (mModeChangeChooser.IsEnabled() && mModeChoice.IsEnabled()) {
-    if (mModeChangeChooser.Get() == 0) {
-      Hwch::Display& hdmi = mSystem.GetDisplay(HWCVAL_HDMI_DISPLAY_INDEX);
-      uint32_t mode = mModeChoice.Get();
-
-      // Workaround to a HWC bug.
-      // Avoid testing the case where we meet the conditions for extended mode
-      // when we perform setmode
-      // since this causes HWC to DPMS enable the panel, which is incorrect.
-      ClearVideo();
-
-      HWCLOGV_COND(eLogHarness, "HDMI: Changing to mode %d", mode);
-      hdmi.SetMode(mode, mModeChangeDelayChoice.Get());
-      ++mNumModeChanges;
-    }
-  }
-#endif
   if (mVideoOptimizationModeChooser.IsEnabled()) {
     if (mVideoOptimizationModeChooser.Get() == 0) {
       Display::VideoOptimizationMode videoOptimizationMode =
@@ -350,12 +291,6 @@ void Hwch::RandomTest::Tidyup() {
   mSystem.GetKernelEventGenerator().Flush();
   mSystem.GetEventGenerator().Flush();
 // TODO implement simulate hotplug in real HWC
-#if 0
-  if (!mPlugged) {
-    SimulateHotPlug(true);
-    sleep(2);
-  }
-#endif
   if (GetParam("nohup")) {
     Hwch::Frame endFrame(mInterface);
     Hwch::PngImage image("sample.png");

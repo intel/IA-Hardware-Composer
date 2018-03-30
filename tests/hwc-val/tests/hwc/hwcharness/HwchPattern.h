@@ -61,7 +61,6 @@ class SPixelWord {
     uint32_t mYv12UWord32;
   };
 
-  // Constructor
   SPixelWord();
   SPixelWord(uint32_t colour, uint32_t format);
 
