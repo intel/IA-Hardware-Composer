@@ -36,7 +36,6 @@
 
 class HwcTestTest : public HwcTestBase {
  public:
-  // Constructor
   HwcTestTest(int argc, char** argv);
 
   /// Create surfaces and start test
@@ -58,7 +57,6 @@ int HwcTestTest::Run(void) {
   // set up the thread-pool
   sp<ProcessState> proc(ProcessState::self());
   proc->startThreadPool();
-  // ProcessState::self()->startThreadPool();
 
   SurfaceSender::SurfaceSenderProperties sSSP1(SurfaceSender::epsCameraSurface);
   CreateSurface(sSSP1);

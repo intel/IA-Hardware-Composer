@@ -36,7 +36,6 @@
 
 class HwcNv12vpTestTest : public HwcTestBase {
  public:
-  // Constructor
   HwcNv12vpTestTest(int argc, char** argv);
 
   /// Create surfaces and start test

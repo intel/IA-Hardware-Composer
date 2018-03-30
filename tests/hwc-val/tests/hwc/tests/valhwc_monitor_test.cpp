@@ -38,7 +38,6 @@
 
 class HwcTestTest : public HwcTestBase {
  public:
-  // Constructor
   HwcTestTest(int argc, char** argv);
 
   /// Create surfaces and start test

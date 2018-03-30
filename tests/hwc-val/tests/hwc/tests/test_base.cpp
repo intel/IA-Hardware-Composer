@@ -86,8 +86,6 @@ int HwcTestBase::CreateSurface(SurfaceSender::SurfaceSenderProperties sSSP) {
 
 bool HwcTestBase::ContinueTest(void) {
   if (mTestEndCondition == etetRunTime) {
-    // Get current time
-
     mCurrentTime = GetTime();
 
     if ((mCurrentTime - mStartTime) > mTestRunTime) {
@@ -104,10 +102,8 @@ bool HwcTestBase::ContinueTest(void) {
 }
 
 void HwcTestBase::LogTestResult(HwcTestConfig& config) {
-  // Copy priorities from config to result
   mResult.CopyPriorities(config);
 
-  // Print the results
   mResult.Log(config, mTestName.c_str(), false);
 
   if (!mResult.IsGlobalFail()) {
