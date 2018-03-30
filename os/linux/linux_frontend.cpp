@@ -332,8 +332,21 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   hwc_handle_.import_data.width = width;
   hwc_handle_.import_data.height = height;
   hwc_handle_.import_data.format = gbm_bo_get_format(bo);
+#if USE_MINIGBM
+  size_t total_planes = gbm_bo_get_num_planes(bo);
+  for (size_t i = 0; i < total_planes; i++) {
+    hwc_handle_.import_data.fds[i] = gbm_bo_get_plane_fd(bo, i);
+    hwc_handle_.import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
+    hwc_handle_.import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
+  }
+  temp->meta_data_.num_planes_ = total_planes;
+#else
   hwc_handle_.import_data.fd = gbm_bo_get_fd(bo);
   hwc_handle_.import_data.stride = gbm_bo_get_stride(bo);
+  hwc_handle_.meta_data_.num_planes_ =
+      drm_bo_get_num_planes(hwc_handle_.import_data.format);
+#endif
+
   hwc_handle_.bo = bo;
   hwc_handle_.hwc_buffer_ = true;
   hwc_handle_.gbm_flags = 0;

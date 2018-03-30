@@ -77,7 +77,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   uint32_t id;
 
-  if (resource_manager && register_buffer) {
+  if (resource_manager && register_buffer && !handle->is_raw_pixel_) {
     uint32_t gpu_fd = resource_manager->GetNativeBufferHandler()->GetFd();
     id = GetNativeBuffer(gpu_fd, handle);
     buffer = resource_manager->FindCachedBuffer(id);
@@ -91,7 +91,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
     buffer->InitializeFromNativeHandle(handle, resource_manager,
                                        is_cursor_layer);
-    if (resource_manager && register_buffer) {
+    if (resource_manager && register_buffer && !handle->is_raw_pixel_) {
       resource_manager->RegisterBuffer(id, buffer);
     }
   }
