@@ -91,7 +91,7 @@ class OverlayBuffer {
                                                       uint32_t width,
                                                       uint32_t height) = 0;
 
-  virtual bool CreateFrameBuffer(uint32_t gpu_fd) = 0;
+  virtual bool CreateFrameBuffer() = 0;
 
   virtual void Dump() = 0;
 };
