@@ -192,7 +192,7 @@ struct iahwc_output {
   int destroy_pending;
   int disable_pending;
 
-  uint32_t primary_layer_id;
+  int primary_layer_id;
 
   struct gbm_bo *bo;
 
@@ -1495,6 +1495,7 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
 
   if (output->pageflip_timer && output->frame_commited) {
     wl_event_source_timer_update(output->pageflip_timer, 1);
+    // FIXME: This fails to launch weston.
     //weston_output_finish_frame(&output->base, &ts, flags);
   }
 
