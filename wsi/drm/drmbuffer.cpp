@@ -381,7 +381,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource() {
   return image_;
 }
 
-bool DrmBuffer::CreateFrameBuffer(uint32_t gpu_fd) {
+bool DrmBuffer::CreateFrameBuffer() {
   if (image_.drm_fd_) {
     return true;
   }

@@ -71,7 +71,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
   }
 
   display_plane_manager_.reset(
-      new DisplayPlaneManager(gpu_fd_, plane_handler, resource_manager_.get()));
+      new DisplayPlaneManager(plane_handler, resource_manager_.get()));
   if (!display_plane_manager_->Initialize(width, height)) {
     ETRACE("Failed to initialize DisplayPlane Manager.");
     return false;
@@ -101,8 +101,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
-      compositor_.Init(resource_manager_.get(),
-                       display_plane_manager_->GetGpuFd());
+      compositor_.Init(resource_manager_.get(), gpu_fd_);
       power_mode_lock_.unlock();
       break;
     default:
@@ -429,7 +428,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
-        buffer->CreateFrameBuffer(gpu_fd_);
+        buffer->CreateFrameBuffer();
 
         // FB creation failed, we need to re-validate the
         // whole commit.
