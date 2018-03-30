@@ -789,13 +789,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         *ignore_clone_update = true;
         // Free any surfaces.
         if (!mark_not_inuse_.empty()) {
+          bool surfaces_released = false;
           size_t size = mark_not_inuse_.size();
           for (uint32_t i = 0; i < size; i++) {
             mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+            surfaces_released = true;
           }
 
           std::vector<NativeSurface*>().swap(mark_not_inuse_);
           tracker.ForceSurfaceRelease();
+          if (surfaces_released)
+            display_plane_manager_->ReleasedSurfaces();
         }
 
         return true;
@@ -894,13 +898,17 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // is still in use than it will be marked in use
   // below.
   if (!mark_not_inuse_.empty()) {
+    bool surfaces_released = false;
     size_t size = mark_not_inuse_.size();
     for (uint32_t i = 0; i < size; i++) {
       mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+      surfaces_released = true;
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
     tracker.ForceSurfaceRelease();
+    if (surfaces_released)
+      display_plane_manager_->ReleasedSurfaces();
   }
 
   in_flight_layers_.swap(layers);
