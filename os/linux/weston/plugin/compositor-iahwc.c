@@ -1705,8 +1705,7 @@ static struct iahwc_backend *iahwc_backend_create(
   iahwc_module_t *iahwc_module;
   iahwc_device_t *iahwc_device;
 
-  /* const char* device = "/dev/dri/renderD128"; */
-  const char *device = "/dev/dri/card0";
+  const char* device = "/dev/dri/renderD128";
   const char *seat_id = default_seat;
 
   weston_log(stderr, "Initializing iahwc backend\n");
@@ -1803,7 +1802,7 @@ static struct iahwc_backend *iahwc_backend_create(
     goto err_compositor;
   }
 
-  b->iahwc.fd = weston_launcher_open(b->compositor->launcher, device, O_RDWR);
+  b->iahwc.fd = open(device, O_RDWR);
   if (b->iahwc.fd < 0) {
     weston_log("unable to open gpu file\n");
     goto err_compositor;
