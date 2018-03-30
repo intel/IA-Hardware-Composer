@@ -38,12 +38,6 @@
 #define PRIu64 "llu"
 #endif
 
-//#define HWCVAL_LOG_VERBOSE
-//#define HWCVAL_LOG_HWC_ANDROID
-
-// Enable/disable of specific debug code
-//#define HWCVAL_DEBUG_EXTRA_BUFFER_CHECK
-
 #if __x86_64__
 #define HWCVAL_VENDOR_LIBPATH "/vendor/lib64"
 #define HWCVAL_LIBPATH "/vendor/lib64"
@@ -175,9 +169,7 @@
 #define HWCVAL_HOTPLUG_DETECTION_WINDOW_NS (2 * HWCVAL_SEC_TO_NS)
 
 // Enable Render Compression on BXT builds
-#ifdef HWCVAL_BROXTON
 // TODO Enable render compression patch here
-#endif
 
 // Allow these to be defined on all builds
 #define DRM_MODE_FB_AUX_PLANE (1 << 2)

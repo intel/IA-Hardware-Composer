@@ -30,7 +30,6 @@
 
 using namespace Hwcval;
 
-/// Constructor
 Hwcval::Hwc2::Hwc2()
     : mState(HwcTestState::getInstance()){
   memset(mHwcFrame,0,sizeof(mHwcFrame));
@@ -75,7 +74,6 @@ EXPORT_API void Hwcval::Hwc2::CheckPresentDisplayEnter(hwcval_display_contents_t
   // Create a copy of the layer lists for each display in internal form.
   // Later on we will push this to the LLQ.
   memset(mContent, 0, sizeof(mContent));
- // for (uint32_t d = 0; d < numDisplays; ++d) {
     const hwcval_display_contents_t* disp = displays;
 
     if (disp) {
@@ -84,7 +82,6 @@ EXPORT_API void Hwcval::Hwc2::CheckPresentDisplayEnter(hwcval_display_contents_t
     } else {
       mContent[display] = 0;
     }
- // }
 
   // The idea of the buffer monitor enable was to be able to turn off the
   // majority of the validation for specific performance tests.
@@ -407,9 +404,6 @@ void Hwcval::Hwc2::CheckPresentDisplayExit(hwcval_display_contents_t* displays, 
         } else {
           ll->SetRetireFence(-1);
         }
-
-        // HWCLOGI_COND(eLogFence, "  -- Display %d retire fence %d dup
-        // %d", d, disp->retireFenceFd, ll->GetRetireFence());
       }
 
     if ((mTestKernel->GetHwcTestCrtcByDisplayIx(0, true) == 0) &&

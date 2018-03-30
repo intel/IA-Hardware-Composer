@@ -91,8 +91,6 @@ class EXPORT_API DrmShimChecks : public HwcTestKernel {
   Hwcval::DrmParser mDrmParser;
 
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   DrmShimChecks();
   virtual ~DrmShimChecks();
 

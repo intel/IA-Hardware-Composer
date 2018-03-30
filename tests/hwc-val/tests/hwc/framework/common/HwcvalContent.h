@@ -311,7 +311,6 @@ class LayerList {
   uint32_t mNumLayers;
 
  public:
-  // Constructor
   // Option to pre-allocate vector for performance
   LayerList(uint32_t numLayers = 0);
 

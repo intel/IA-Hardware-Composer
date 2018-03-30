@@ -29,7 +29,6 @@ class DrmParser : public Hwcval::LogChecker {
   DrmShimChecks* mChecks;
 
  public:
-  // Constructor
   DrmParser(DrmShimChecks* checks,
             Hwcval::LogChecker* nextChecker);
 

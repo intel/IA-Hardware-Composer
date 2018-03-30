@@ -26,8 +26,6 @@ class HwcTestDisplayContents;
 
 class DrmShimCrtc : public HwcTestCrtc {
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   DrmShimCrtc(uint32_t crtcId, uint32_t width, uint32_t height, uint32_t clock,
               uint32_t vrefresh);
 

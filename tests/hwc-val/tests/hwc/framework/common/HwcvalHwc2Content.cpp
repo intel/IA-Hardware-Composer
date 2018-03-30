@@ -82,8 +82,6 @@ Hwcval::Hwc2LayerList::Hwc2LayerList(
   if (sfDisplay) {
     mOutbuf =
 	sfDisplay->outbuf;  // This will change when we do virtual displays
-    // mOutbufAcquireFenceFd = sfDisplay->outbufAcquireFenceFd;
-    // mFlags = sfDisplay->flags;
     mNumLayers = sfDisplay->numHwLayers;
   } else {
     mOutbufAcquireFenceFd = 0;

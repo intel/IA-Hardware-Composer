@@ -35,7 +35,6 @@ class Hwc2Layer : public ValLayer {
 };
 
 // Hwc2Layer should add only methods
-// static_assert(sizeof(Hwc2Layer) == sizeof(ValLayer));
 
 /*
  * Description of the contents to output on a display.
@@ -45,7 +44,6 @@ class Hwc2Layer : public ValLayer {
  */
 class Hwc2LayerList : public LayerList {
  public:
-  // Constructor
   // Only copies the header, not the layers, these must be added separtely
   Hwc2LayerList(const hwcval_display_contents_t *sfDisplay);
 };

@@ -85,7 +85,6 @@ static std::string GetLongProp(const char* name) {
   return result;
 }
 
-// Constructor for config - use reasonable defaults
 HwcTestConfig::HwcTestConfig()
     : mMinLogPriority(HWCVAL_DEFAULT_LOG_PRIORITY),
       mGlobalEnable(false),
@@ -256,7 +255,6 @@ HwcTestCheckType HwcTestConfig::CheckFromName(const char* checkName) {
   return eCheckTestFail;
 }
 
-/// Constructor for test result - use reasonable defaults
 HwcTestResult::HwcTestResult()
     : mHwcCompValSkipped(0),
       mHwcCompValCount(0),

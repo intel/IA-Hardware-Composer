@@ -175,66 +175,8 @@ void* dll_open(const char* filename, int flag) {
 }
 
 void DumpMemoryUsage() {
-  // The following is taken from /linux/kernl/fs/proc/array.c
-  // and shows us how to read the data in /proc/self/state
-
-  //    seq_printf(m, "%d (%s) %c", pid_nr_ns(pid, ns), tcomm, state);
-  //    seq_put_decimal_ll(m, ' ', ppid);
-  //    seq_put_decimal_ll(m, ' ', pgid);
-  //    seq_put_decimal_ll(m, ' ', sid);
-  //    seq_put_decimal_ll(m, ' ', tty_nr);
-  //    seq_put_decimal_ll(m, ' ', tty_pgrp);
-  //    seq_put_decimal_ull(m, ' ', task->flags);
-  //    seq_put_decimal_ull(m, ' ', min_flt);
-  //    seq_put_decimal_ull(m, ' ', cmin_flt);
-  //    seq_put_decimal_ull(m, ' ', maj_flt);
-  //    seq_put_decimal_ull(m, ' ', cmaj_flt);
-  //    seq_put_decimal_ull(m, ' ', cputime_to_clock_t(utime));
-  //    seq_put_decimal_ull(m, ' ', cputime_to_clock_t(stime));
-  //    seq_put_decimal_ll(m, ' ', cputime_to_clock_t(cutime));
-  //    seq_put_decimal_ll(m, ' ', cputime_to_clock_t(cstime));
-  //    seq_put_decimal_ll(m, ' ', priority);
-  //    seq_put_decimal_ll(m, ' ', nice);
-  //    seq_put_decimal_ll(m, ' ', num_threads);
-  //    seq_put_decimal_ull(m, ' ', 0);
-  //    seq_put_decimal_ull(m, ' ', start_time);
-  //    seq_put_decimal_ull(m, ' ', vsize);
-  //    seq_put_decimal_ull(m, ' ', mm ? get_mm_rss(mm) : 0);
-  //    seq_put_decimal_ull(m, ' ', rsslim);
-  //    seq_put_decimal_ull(m, ' ', mm ? (permitted ? mm->start_code : 1) : 0);
-  //    seq_put_decimal_ull(m, ' ', mm ? (permitted ? mm->end_code : 1) : 0);
-  //    seq_put_decimal_ull(m, ' ', (permitted && mm) ? mm->start_stack : 0);
-  //    seq_put_decimal_ull(m, ' ', esp);
-  //    seq_put_decimal_ull(m, ' ', eip);
-  //    /* The signal information here is obsolete.
-  //     * It must be decimal for Linux 2.0 compatibility.
-  //     * Use /proc/#/status for real-time signals.
-  //     */
-  //    seq_put_decimal_ull(m, ' ', task->pending.signal.sig[0] & 0x7fffffffUL);
-  //    seq_put_decimal_ull(m, ' ', task->blocked.sig[0] & 0x7fffffffUL);
-  //    seq_put_decimal_ull(m, ' ', sigign.sig[0] & 0x7fffffffUL);
-  //    seq_put_decimal_ull(m, ' ', sigcatch.sig[0] & 0x7fffffffUL);
-  //    seq_put_decimal_ull(m, ' ', wchan);
-  //    seq_put_decimal_ull(m, ' ', 0);
-  //    seq_put_decimal_ull(m, ' ', 0);
-  //    seq_put_decimal_ll(m, ' ', task->exit_signal);
-  //    seq_put_decimal_ll(m, ' ', task_cpu(task));
-  //    seq_put_decimal_ull(m, ' ', task->rt_priority);
-  //    seq_put_decimal_ull(m, ' ', task->policy);
-  //    seq_put_decimal_ull(m, ' ', delayacct_blkio_ticks(task));
-  //    seq_put_decimal_ull(m, ' ', cputime_to_clock_t(gtime));
-  //    seq_put_decimal_ll(m, ' ', cputime_to_clock_t(cgtime));
-  //
-  //    if (mm && permitted) {
-  //        seq_put_decimal_ull(m, ' ', mm->start_data);
-  //        seq_put_decimal_ull(m, ' ', mm->end_data);
-  //        seq_put_decimal_ull(m, ' ', mm->start_brk);
-  //        seq_put_decimal_ull(m, ' ', mm->arg_start);
-  //        seq_put_decimal_ull(m, ' ', mm->arg_end);
-  //        seq_put_decimal_ull(m, ' ', mm->env_start);
-  //        seq_put_decimal_ull(m, ' ', mm->env_end);
-  //    } else
-  //        seq_printf(m, " 0 0 0 0 0 0 0");
+  // /linux/kernl/fs/proc/array.c shows us how to read the data in
+  // /proc/self/state
 
   if (HwcTestState::getInstance()->IsOptionEnabled(eLogResources)) {
     FILE* f = fopen("/proc/self/stat", "r");

@@ -136,7 +136,6 @@ bool EventQueue<C, SIZE>::Pop(C& entry) {
 
     if (nextEventToRaise == nextFreeEvent) {
       // Nothing to raise
-      // HWCLOGD_COND(eLogEventQueue, "%s: nothing to pop", Name());
       return false;
     }
     mNextEventToRaise = (mNextEventToRaise + 1) % SIZE;

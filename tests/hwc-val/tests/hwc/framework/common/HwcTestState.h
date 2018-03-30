@@ -103,9 +103,7 @@ class HwcTestState {
   HwcTestKernel* mTestKernel;
 
  public:
-  /// Constructor
   HwcTestState();
-  /// Destructor
   ~HwcTestState();
 
   /// get singular instance

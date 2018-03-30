@@ -114,7 +114,6 @@ class HwcCrcReader : public HwcCrcReaderInterface, public hwcomposer::HWCThread 
 class HwcCrcReaderShim : public HwcCrcReaderInterface {
  public:
   HwcCrcReaderShim(HwcTestKernel *pKernel, HwcTestState *pState)
-      // HwcCrcReaderShim(HwcTestKernel *, HwcTestState *)
       : pReader(NULL) {
     pReader = new HwcCrcReader(pKernel, pState);
   }

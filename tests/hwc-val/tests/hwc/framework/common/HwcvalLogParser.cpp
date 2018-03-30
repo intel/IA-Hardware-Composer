@@ -500,8 +500,6 @@ bool Hwcval::LogParser::ParseCompositionChoice(pid_t pid, int64_t timestamp,
     return false;
   }
 
-  // uint32_t d = atoi(p);
-
   ++numSfFallbackCompositions;
 
   // HWCCHECK count will be set at end of test when we know how many
