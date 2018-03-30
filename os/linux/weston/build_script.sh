@@ -89,7 +89,7 @@ function build_weston() {
     export WESTON_NATIVE_BACKEND=iahwc-backend.so
     ./autogen.sh $AUTOGEN_CMDLINE --enable-iahwc-compositor --disable-wayland-compositor --disable-rdp-compositor \
         --disable-headless-compositor --disable-x11-compositor --disable-fbdev-compositor \
-	--disable-drm-compositor && \
+	--disable-drm-compositor --enable-demo-clients-install --enable-clients && \
         make -j$PARALLEL && \
         sudo make install
 }
