@@ -26,6 +26,11 @@
 #include "drmplane.h"
 #include "physicaldisplay.h"
 
+#ifndef DRM_RGBA8888
+#define DRM_RGBA8888(r,g,b,a) DrmRGBA(8, r, g, b, a)
+#define DRM_RGBA16161616(r,g,b,a) DrmRGBA(16, r, g, b, a)
+#endif
+
 namespace hwcomposer {
 class DrmDisplayManager;
 class DisplayPlaneState;
@@ -56,6 +61,8 @@ class DrmDisplay : public PhysicalDisplay {
   void UpdateDisplayConfig() override;
   void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                           uint32_t brightness) const override;
+  void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                          uint16_t blue, uint16_t alpha) const override;
   void SetColorTransformMatrix(const float *color_transform_matrix,
                                HWCColorTransform color_transform_hint) const override;
   void Disable(const DisplayPlaneStateList &composition_planes) override;
@@ -111,6 +118,8 @@ class DrmDisplay : public PhysicalDisplay {
   bool CommitFrame(const DisplayPlaneStateList &comp_planes,
                    const DisplayPlaneStateList &previous_composition_planes,
                    drmModeAtomicReqPtr pset, uint32_t flags);
+  uint64_t DrmRGBA(uint16_t, uint16_t red, uint16_t green, uint16_t blue,
+                   uint16_t alpha) const;
   std::unique_ptr<DrmPlane> CreatePlane(uint32_t plane_id,
                                         uint32_t possible_crtcs);
 
@@ -129,6 +138,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t active_prop_ = 0;
   uint32_t mode_id_prop_ = 0;
   uint32_t hdcp_id_prop_ = 0;
+  uint32_t canvas_color_prop_ = 0;
   uint32_t connector_ = 0;
   uint64_t lut_size_ = 0;
   int64_t broadcastrgb_full_ = -1;

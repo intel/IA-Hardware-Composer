@@ -57,6 +57,12 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
   gamma_.red = 1;
   gamma_.green = 1;
   gamma_.blue = 1;
+  /* use 0x0 (black) as default canvas/background color for pipe */
+  canvas_.bpc = 8;
+  canvas_.red = 0x0;
+  canvas_.green = 0x0;
+  canvas_.blue = 0x0;
+  canvas_.alpha = 0x0;
   state_ |= kNeedsColorCorrection;
 }
 
@@ -856,6 +862,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     state_ &= ~kNeedsColorCorrection;
   }
 
+  display_->SetPipeCanvasColor(canvas_.bpc, canvas_.red, canvas_.green,
+                               canvas_.blue, canvas_.alpha);
+
   composition_passed =
       display_->Commit(current_composition_planes, previous_plane_state_,
                        disable_ovelays, &fence);
@@ -1346,6 +1355,15 @@ void DisplayQueue::RestoreVideoDefaultDeinterlace() {
   requested_video_effect_ = false;
   compositor_.RestoreVideoDefaultDeinterlace();
   video_lock_.unlock();
+}
+
+void DisplayQueue::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                  uint16_t blue, uint16_t alpha) {
+  canvas_.bpc = bpc;
+  canvas_.red = red;
+  canvas_.green = green;
+  canvas_.blue = blue;
+  canvas_.alpha = alpha;
 }
 
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
