@@ -203,6 +203,13 @@ typedef enum {
   LAYER_TRANSFORM_UNDEFINED
 } LAYER_TRANSFORM;
 
+typedef enum {
+  RED = 0,
+  GREEN = 1,
+  BLUE = 2,
+  ALPHA = 3
+} RGBA;
+
 typedef struct {
   LAYER_TYPE type;
   LAYER_FORMAT format;
@@ -235,6 +242,8 @@ typedef struct {
   std::string broadcast_rgb = "Automatic";
   std::string power_mode = "none";
   LAYER_PARAMETERS layers_parameters;
+  uint64_t canvas_color = 0x0;
+  uint16_t bpc = 8;
 } TEST_PARAMETERS;
 
 bool parseParametersJson(const char* json_path, TEST_PARAMETERS* parameters);
