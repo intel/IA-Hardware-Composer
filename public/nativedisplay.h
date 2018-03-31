@@ -244,6 +244,23 @@ class NativeDisplay {
     return false;
   }
 
+  /**
+  * API for setting the color of the pipe canvas.
+  * The caller of this function must pass the individual color component
+  * values which will all be used to convert into a format expected by
+  * the kernel driver.
+  *
+  * @param bpc specifies how many bits are used per color componenet
+  * @param red bits representing the red color componenet
+  * @param green bits representing the green color componenet
+  * @param blue bits representing the blue color componenet
+  * @param alpha bits representing the alpha color componenet
+  */
+  virtual void SetCanvasColor(uint16_t /*bpc*/, uint16_t /*red*/,
+                              uint16_t /*green*/, uint16_t /*blue*/,
+                              uint16_t /*alpha*/) {
+  }
+
   // Virtual display related.
   virtual void InitVirtualDisplay(uint32_t /*width*/, uint32_t /*height*/) {
   }

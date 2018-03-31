@@ -40,6 +40,14 @@ struct gamma_colors {
   float blue;
 };
 
+struct canvas_color_comps {
+  uint16_t bpc;
+  uint16_t red;
+  uint16_t green;
+  uint16_t blue;
+  uint16_t alpha;
+};
+
 class PhysicalDisplay;
 class DisplayPlaneHandler;
 struct HwcLayer;
@@ -68,6 +76,8 @@ class DisplayQueue {
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float* value, float* start,
                      float* end);
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                      uint16_t blue, uint16_t alpha);
   void RestoreVideoDefaultColor(HWCColorControl color);
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
   void RestoreVideoDefaultDeinterlace();
@@ -314,6 +324,7 @@ class DisplayQueue {
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
+  struct canvas_color_comps canvas_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::unique_ptr<ResourceManager> resource_manager_;

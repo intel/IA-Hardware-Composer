@@ -451,6 +451,11 @@ void PhysicalDisplay::RestoreVideoDefaultDeinterlace() {
   display_queue_->RestoreVideoDefaultDeinterlace();
 }
 
+void PhysicalDisplay::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                     uint16_t blue, uint16_t alpha) {
+  display_queue_->SetCanvasColor(bpc, red, green, blue, alpha);
+}
+
 bool PhysicalDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");

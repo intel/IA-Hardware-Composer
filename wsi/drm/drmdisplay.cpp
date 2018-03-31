@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <set>
+#include <limits>
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
@@ -65,6 +66,7 @@ bool DrmDisplay::InitializeDisplay() {
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
+  GetDrmObjectProperty("background_color", crtc_props, &canvas_color_prop_);
 
   return true;
 }
@@ -569,6 +571,44 @@ void DrmDisplay::ApplyPendingLUT(struct drm_color_lut *lut) const {
   drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
                            lut_id_prop_, lut_blob_id);
   drmModeDestroyPropertyBlob(gpu_fd_, lut_blob_id);
+}
+
+uint64_t DrmDisplay::DrmRGBA(uint16_t bpc, uint16_t red, uint16_t green,
+                             uint16_t blue, uint16_t alpha) const {
+  if (bpc > 16)
+    bpc = 16;
+
+  /*
+   * If we were provided with fewer than 16 bpc, shift the value we
+   * received into the most significant bits.
+   */
+  int shift = 16 - bpc;
+
+  uint64_t val = 0;
+  val = red << shift;
+  val <<= 16;
+  val |= green << shift;
+  val <<= 16;
+  val |= blue << shift;
+  val <<= 16;
+  val |= alpha << shift;
+
+  return val;
+}
+
+void DrmDisplay::SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                    uint16_t blue, uint16_t alpha) const {
+  if (canvas_color_prop_ == 0)
+    return;
+
+  uint64_t canvas_color = 0;
+  if (bpc == 8)
+    canvas_color = DRM_RGBA8888(red, green, blue, alpha);
+  else if (bpc == 16)
+    canvas_color = DRM_RGBA16161616(red, green, blue, alpha);
+
+  drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
+                           canvas_color_prop_, canvas_color);
 }
 
 float DrmDisplay::TransformContrastBrightness(float value, float brightness,
