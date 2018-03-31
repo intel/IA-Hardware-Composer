@@ -90,6 +90,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                      uint16_t blue, uint16_t alpha) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                            HWCDeinterlaceControl mode) override;
@@ -196,6 +198,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual bool InitializeDisplay() = 0;
 
   virtual void NotifyClientsOfDisplayChangeStatus() = 0;
+
+  /**
+  * API for setting the color of the pipe canvas.
+  */
+  virtual void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                  uint16_t blue, uint16_t alpha) const = 0;
 
   /**
   * API for informing the display that it might be disconnected in near

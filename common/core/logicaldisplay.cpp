@@ -175,6 +175,11 @@ void LogicalDisplay::RestoreVideoDefaultDeinterlace() {
   physical_display_->RestoreVideoDefaultDeinterlace();
 }
 
+void LogicalDisplay::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                    uint16_t blue, uint16_t alpha) {
+  physical_display_->SetCanvasColor(bpc, red, green, blue, alpha);
+}
+
 void LogicalDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,
                                         uint32_t /*primary_height*/,
                                         uint32_t /*display_width*/,
