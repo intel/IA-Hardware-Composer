@@ -32,6 +32,11 @@ bool parseParametersJson(const char* json_path, TEST_PARAMETERS* parameters) {
       parameters->contrast_b = json_object_get_int(value);
     } else if (!strcmp(key, "broadcast_rgb")) {
       parameters->broadcast_rgb = std::string(json_object_get_string(value));
+    } else if (!strcmp(key, "canvas_color")) {
+      parameters->canvas_color = std::stoull(std::string(json_object_get_string(value)),
+                                             nullptr, 16);
+    } else if (!strcmp(key, "bits_per_color")) {
+      parameters->bpc = json_object_get_int(value);
     } else if (!strcmp(key, "layers_parameters")) {
       struct array_list* array = json_object_get_array(value);
       int len = json_object_array_length(value);

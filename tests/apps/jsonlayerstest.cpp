@@ -339,6 +339,36 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->SetPowerMode(power_mode);
   }
 
+  uint16_t GetRGBABits(uint64_t color, uint16_t bpc, RGBA comp) {
+    uint64_t comp_color;
+    uint16_t nbits = (1 << bpc) - 1;
+
+    comp_color = color & (uint64_t)(nbits << (bpc * comp));
+    if (bpc <= 10)
+      comp_color &= 0xffffffff;
+
+    uint16_t comp_bits = (uint16_t)(comp_color >> (bpc * comp));
+    return comp_bits;
+  }
+
+  void SetCanvasColor(uint64_t color, uint16_t bpc) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    /**
+     * We are assuming that the color provided the user is in hex and in
+     * ABGR format with R in LSB. For example, 0x000000ff would be Red.
+     */
+    for (auto &display : connected_displays_)
+      display->SetCanvasColor(bpc, GetRGBABits(color, bpc, RED),
+                              GetRGBABits(color, bpc, GREEN),
+                              GetRGBABits(color, bpc, BLUE),
+                              GetRGBABits(color, bpc, ALPHA));
+  }
+
   void SetActiveConfig(uint32_t config) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
@@ -393,6 +423,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
   hwcomposer::GpuDevice *device_;
   hwcomposer::SpinLock spin_lock_;
+  uint16_t GetRGBABits(uint64_t color, uint16_t bpc, RGBA comp) const;
 };
 
 char json_path[1024];
@@ -860,6 +891,8 @@ int main(int argc, char *argv[]) {
                           test_parameters.contrast_b);
   }
 
+  callback->SetCanvasColor(test_parameters.canvas_color, test_parameters.bpc);
+
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -937,6 +970,7 @@ int main(int argc, char *argv[]) {
   callback->SetGamma(1, 1, 1);
   callback->SetBrightness(0x80, 0x80, 0x80);
   callback->SetContrast(0x80, 0x80, 0x80);
+  callback->SetCanvasColor(0x0, 8);
 
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
