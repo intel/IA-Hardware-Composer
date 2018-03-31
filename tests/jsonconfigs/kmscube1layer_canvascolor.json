@@ -1,0 +1,28 @@
+{
+  "canvas_color": "00ff0000",
+  "bits_per_color": 8,
+  "layers_parameters": [
+    {
+      "format": 25,
+      "frame": {
+        "height": 500,
+        "width": 500,
+        "x": 0,
+        "y": 0
+      },
+      "resource_path": "",
+      "source": {
+        "crop": {
+          "height": 500,
+          "width": 500,
+          "x": 0,
+          "y": 0
+        },
+        "height": 500,
+        "width": 500
+      },
+      "transform": 0,
+      "type": 0
+    }
+  ]
+}
