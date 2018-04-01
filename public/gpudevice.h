@@ -40,6 +40,8 @@ class GpuDevice : public HWCThread {
   // Open device.
   bool Initialize();
 
+  uint32_t GetFD() const;
+
   NativeDisplay* GetDisplay(uint32_t display);
 
   NativeDisplay* GetVirtualDisplay();
