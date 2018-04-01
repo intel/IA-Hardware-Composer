@@ -67,9 +67,8 @@ VkFormat NativeToVkFormat(int native_format) {
 }
 #endif
 
-int ReleaseFrameBuffer(const FBKey& /*key*/, uint32_t fd, uint32_t gpu_fd,
-                       bool /*release_gem_handle*/) {
-  return drmModeRmFB(gpu_fd, fd);
+int ReleaseFrameBuffer(const FBKey & /*key*/, uint32_t fd, uint32_t gpu_fd) {
+  return fd > 0 ? drmModeRmFB(gpu_fd, fd) : 0;
 }
 
 int CreateFrameBuffer(const uint32_t &iwidth, const uint32_t &iheight,

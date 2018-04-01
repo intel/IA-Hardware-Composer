@@ -22,10 +22,31 @@ namespace hwcomposer {
 
 FrameBufferManager *FrameBufferManager::pInstance = NULL;
 
-FrameBufferManager *FrameBufferManager::GetInstance(uint32_t gpu_fd) {
+FrameBufferManager *FrameBufferManager::GetInstance() {
+  return pInstance;
+}
+
+void FrameBufferManager::CreateInstance(uint32_t gpu_fd) {
   if (pInstance == NULL)
     pInstance = new FrameBufferManager(gpu_fd);
-  return pInstance;
+}
+
+void FrameBufferManager::RegisterGemHandles(const uint32_t &num_planes,
+                                            const uint32_t (&igem_handles)[4]) {
+  lock_.lock();
+  FBKey key(num_planes, igem_handles);
+  auto it = fb_map_.find(key);
+  if (it != fb_map_.end()) {
+    it->second.fb_ref++;
+  } else {
+    FBValue value;
+    value.fb_ref = 1;
+    value.fb_id = 0;
+    value.fb_created = false;
+    fb_map_.emplace(std::make_pair(key, value));
+  }
+
+  lock_.unlock();
 }
 
 uint32_t FrameBufferManager::FindFB(const uint32_t &iwidth,
@@ -37,48 +58,52 @@ uint32_t FrameBufferManager::FindFB(const uint32_t &iwidth,
                                     const uint32_t (&ioffsets)[4]) {
   lock_.lock();
   FBKey key(num_planes, igem_handles);
+  uint32_t fb_id = 0;
   auto it = fb_map_.find(key);
   if (it != fb_map_.end()) {
-    it->second.fb_ref++;
-    lock_.unlock();
-    return it->second.fb_id;
+    if (it->second.fb_created) {
+      it->second.fb_ref++;
+    } else {
+      it->second.fb_created = true;
+      CreateFrameBuffer(iwidth, iheight, iframe_buffer_format, igem_handles,
+                        ipitches, ioffsets, gpu_fd_, &it->second.fb_id);
+    }
+
+    fb_id = it->second.fb_id;
   } else {
-    uint32_t fb_id = 0;
-    int ret =
-        CreateFrameBuffer(iwidth, iheight, iframe_buffer_format, igem_handles,
-                          ipitches, ioffsets, gpu_fd_, &fb_id);
-    if (ret) {
-      lock_.unlock();
-      return fb_id;
-    }
-
-    FBValue value;
-    value.fb_id = fb_id;
-    value.fb_ref = 1;
-    fb_map_.emplace(std::make_pair(key, value));
-    lock_.unlock();
-    return fb_id;
-  }
-}
-
-int FrameBufferManager::RemoveFB(const uint32_t &fb, bool release_gem_handles) {
-  lock_.lock();
-  auto it = fb_map_.begin();
-  int ret = 0;
-
-  while (it != fb_map_.end()) {
-    if (it->second.fb_id == fb) {
-      it->second.fb_ref -= 1;
-      if (it->second.fb_ref == 0) {
-        ret = ReleaseFrameBuffer(it->first, fb, gpu_fd_, release_gem_handles);
-        fb_map_.erase(it);
-      }
-      break;
-    }
-    it++;
+    ETRACE("Handle not found in Cache \n");
   }
 
   lock_.unlock();
+  return fb_id;
+}
+
+int FrameBufferManager::RemoveFB(uint32_t num_planes,
+                                 const uint32_t (&igem_handles)[4]) {
+  lock_.lock();
+
+  int ret = 0;
+  FBKey key(num_planes, igem_handles);
+
+  auto it = fb_map_.find(key);
+  if (it != fb_map_.end()) {
+    it->second.fb_ref -= 1;
+    if (it->second.fb_ref == 0) {
+      ret = ReleaseFrameBuffer(it->first, it->second.fb_id, gpu_fd_);
+      fb_map_.erase(it);
+    }
+  }
+
+  if (it == fb_map_.end()) {
+    if (igem_handles[0] != 0 || igem_handles[1] != 0 || igem_handles[2] != 0 ||
+        igem_handles[3] != 0) {
+      ETRACE("Unable to find fb in cache. %d %d %d %d \n", igem_handles[0],
+             igem_handles[1], igem_handles[2], igem_handles[3]);
+    }
+  }
+
+  lock_.unlock();
+
   return ret;
 }
 
@@ -87,7 +112,7 @@ void FrameBufferManager::PurgeAllFBs() {
   auto it = fb_map_.begin();
 
   while (it != fb_map_.end()) {
-    ReleaseFrameBuffer(it->first, it->second.fb_id, gpu_fd_, false);
+    ReleaseFrameBuffer(it->first, it->second.fb_id, gpu_fd_);
   }
 
   lock_.unlock();

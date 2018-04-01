@@ -26,14 +26,12 @@
 
 namespace hwcomposer {
 
-DisplayPlaneManager::DisplayPlaneManager(int gpu_fd,
-                                         DisplayPlaneHandler *plane_handler,
+DisplayPlaneManager::DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
                                          ResourceManager *resource_manager)
     : plane_handler_(plane_handler),
       resource_manager_(resource_manager),
       width_(0),
-      height_(0),
-      gpu_fd_(gpu_fd) {
+      height_(0) {
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
@@ -439,7 +437,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
           fall_back = false;
           cursor_layer->SupportedDisplayComposition(OverlayLayer::kAll);
           if (cursor_layer->GetBuffer()->GetFb() == 0) {
-            if (!cursor_layer->GetBuffer()->CreateFrameBuffer(gpu_fd_)) {
+            if (!cursor_layer->GetBuffer()->CreateFrameBuffer()) {
               fall_back = true;
             }
           }
@@ -751,7 +749,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     surface = surfaces_.back().get();
   }
 
-  surface->SetPlaneTarget(plane, gpu_fd_);
+  surface->SetPlaneTarget(plane);
   plane.SetOffScreenTarget(surface);
 }
 
@@ -786,7 +784,7 @@ bool DisplayPlaneManager::FallbacktoGPU(
     return true;
 
   if (layer->GetBuffer()->GetFb() == 0) {
-    if (!layer->GetBuffer()->CreateFrameBuffer(gpu_fd_)) {
+    if (!layer->GetBuffer()->CreateFrameBuffer()) {
       return true;
     }
   }

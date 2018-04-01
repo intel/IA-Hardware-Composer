@@ -179,7 +179,7 @@ void CompositorThread::HandleReleaseRequest() {
       purged_gl_resources, purged_media_resources, &has_gpu_resource);
   size_t purged_size = purged_gl_resources.size();
 
-  FrameBufferManager *pFBManager = FrameBufferManager::GetInstance(gpu_fd_);
+  FrameBufferManager *pFBManager = FrameBufferManager::GetInstance();
 
   if (purged_size != 0) {
     if (has_gpu_resource) {
@@ -192,15 +192,12 @@ void CompositorThread::HandleReleaseRequest() {
 
     for (size_t i = 0; i < purged_size; i++) {
       const ResourceHandle &handle = purged_gl_resources.at(i);
-      if (handle.drm_fd_ &&
-          pFBManager->RemoveFB(handle.drm_fd_,
-                               handler->CanReleaseGemHandles(handle.handle_))) {
-        ETRACE("Failed to remove fb %s", PRINTERROR());
-      }
-
       if (!handle.handle_) {
         continue;
       }
+
+      pFBManager->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                           handle.handle_->meta_data_.gem_handles_);
 
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
@@ -218,16 +215,12 @@ void CompositorThread::HandleReleaseRequest() {
 
     for (size_t i = 0; i < purged_size; i++) {
       const MediaResourceHandle &handle = purged_media_resources.at(i);
-      if (handle.drm_fd_ &&
-          pFBManager->RemoveFB(handle.drm_fd_,
-                               handler->CanReleaseGemHandles(handle.handle_))) {
-        ETRACE("Failed to remove fb %s", PRINTERROR());
-      }
-
       if (!handle.handle_) {
         continue;
       }
 
+      pFBManager->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                           handle.handle_->meta_data_.gem_handles_);
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
     }

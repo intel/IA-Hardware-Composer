@@ -88,7 +88,7 @@ class DrmBuffer : public OverlayBuffer {
                                               uint32_t width,
                                               uint32_t height) override;
 
-  bool CreateFrameBuffer(uint32_t gpu_fd) override;
+  bool CreateFrameBuffer() override;
 
   void Dump() override;
 

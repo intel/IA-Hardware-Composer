@@ -35,7 +35,7 @@ struct OverlayLayer;
 
 class DisplayPlaneManager {
  public:
-  DisplayPlaneManager(int gpu_fd, DisplayPlaneHandler *plane_handler,
+  DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
                       ResourceManager *resource_manager);
 
   virtual ~DisplayPlaneManager();
@@ -73,10 +73,6 @@ class DisplayPlaneManager {
 
   bool HasSurfaces() const {
     return !surfaces_.empty();
-  }
-
-  uint32_t GetGpuFd() const {
-    return gpu_fd_;
   }
 
   uint32_t GetHeight() const {
@@ -180,7 +176,6 @@ class DisplayPlaneManager {
 
   uint32_t width_;
   uint32_t height_;
-  uint32_t gpu_fd_;
   uint32_t total_overlays_ = 0;
   uint32_t display_transform_ = kIdentity;
   bool release_surfaces_ = false;

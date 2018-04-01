@@ -96,8 +96,7 @@ bool NativeSurface::IsSurfaceDamageChanged() const {
   return damage_changed_;
 }
 
-void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
-                                   uint32_t gpu_fd) {
+void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
   surface_damage_ = plane.GetDisplayFrame();
   previous_damage_ = surface_damage_;
   previous_nc_damage_ = surface_damage_;
@@ -106,7 +105,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane,
   on_screen_ = false;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
-    layer_.GetBuffer()->CreateFrameBuffer(gpu_fd);
+    layer_.GetBuffer()->CreateFrameBuffer();
   }
 }
 

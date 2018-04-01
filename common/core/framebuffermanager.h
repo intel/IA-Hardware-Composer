@@ -56,6 +56,7 @@ class NativeBufferHandler;
 typedef struct {
   uint32_t fb_id;
   uint32_t fb_ref;
+  bool fb_created;
 } FBValue;
 
 struct FBHash {
@@ -76,12 +77,15 @@ struct FBEqual {
 
 class FrameBufferManager {
  public:
-  static FrameBufferManager *GetInstance(uint32_t gpu_fd);
+  static FrameBufferManager *GetInstance();
+  static void CreateInstance(uint32_t gpu_fd);
+  void RegisterGemHandles(const uint32_t &num_planes,
+                          const uint32_t (&igem_handles)[4]);
   uint32_t FindFB(const uint32_t &iwidth, const uint32_t &iheight,
                   const uint32_t &iframe_buffer_format,
                   const uint32_t &num_planes, const uint32_t (&igem_handles)[4],
                   const uint32_t (&ipitches)[4], const uint32_t (&ioffsets)[4]);
-  int RemoveFB(const uint32_t &fb, bool release_gem_handles);
+  int RemoveFB(uint32_t num_planes, const uint32_t (&igem_handles)[4]);
 
  private:
   static FrameBufferManager *pInstance;

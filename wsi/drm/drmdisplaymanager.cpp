@@ -36,6 +36,8 @@
 
 #include <nativebufferhandler.h>
 
+#include "framebuffermanager.h"
+
 namespace hwcomposer {
 
 DrmDisplayManager::DrmDisplayManager(GpuDevice *device)
@@ -168,6 +170,8 @@ void DrmDisplayManager::HandleWait() {
 
 void DrmDisplayManager::InitializeDisplayResources() {
   buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
+  // FIXME: Remove this once #303 is fixed.
+  FrameBufferManager::CreateInstance(fd_);
   if (!buffer_handler_) {
     ETRACE("Failed to create native buffer handler instance");
     return;
