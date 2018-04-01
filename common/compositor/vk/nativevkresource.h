@@ -33,11 +33,6 @@ class NativeVKResource : public NativeGpuResource {
       const std::vector<ResourceHandle>& handles) override {
   }
 
-  void HandleTextureUploads(
-      const std::vector<OverlayBuffer*>& buffers) override {
-    ETRACE("HandleTextureUploads is not implemented.");
-  }
-
  private:
   void Reset();
   std::vector<struct vk_resource> layer_textures_;
