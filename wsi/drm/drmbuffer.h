@@ -37,8 +37,6 @@ class DrmBuffer : public OverlayBuffer {
                                   ResourceManager* buffer_manager,
                                   bool is_cursor_buffer) override;
 
-  void UpdateRawPixelBackingStore(void* addr) override;
-
   uint32_t GetWidth() const override {
     return width_;
   }
@@ -104,7 +102,6 @@ class DrmBuffer : public OverlayBuffer {
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;
-  void* data_ = NULL;
 };
 
 }  // namespace hwcomposer

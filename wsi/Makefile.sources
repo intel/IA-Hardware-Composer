@@ -1,9 +1,7 @@
 wsi_SOURCES =              \
     physicaldisplay.cpp \
-    pixelbuffer.cpp \
     drm/drmdisplay.cpp \
     drm/drmbuffer.cpp \
-    drm/drmpixelbuffer.cpp \
     drm/drmplane.cpp \
     drm/drmdisplaymanager.cpp \
     drm/drmscopedtypes.cpp \

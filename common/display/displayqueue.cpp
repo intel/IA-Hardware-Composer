@@ -550,7 +550,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
-  bool handle_raw_pixel_update = false;
   needs_clone_validation_ = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -596,10 +595,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     if (!overlay_layer->IsVisible()) {
       layers.pop_back();
       continue;
-    }
-
-    if (overlay_layer->RawPixelDataChanged()) {
-      handle_raw_pixel_update = true;
     }
 
     if (overlay_layer->IsVideoLayer()) {
@@ -667,10 +662,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
           remove_index, add_index);
 #endif
     }
-  }
-
-  if (handle_raw_pixel_update) {
-    compositor_.UpdateLayerPixelData(layers);
   }
 
   // We may have skipped layers which are not visible.
@@ -851,8 +842,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         composition_passed = false;
       }
     }
-  } else if (handle_raw_pixel_update) {
-    compositor_.EnsurePixelDataUpdated();
   }
 
   if (!composition_passed) {
