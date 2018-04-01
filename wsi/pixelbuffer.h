@@ -49,6 +49,10 @@ class PixelBuffer {
                   uint32_t height, uint32_t stride, uint32_t format, void* addr,
                   ResourceHandle& handle, bool is_cursor_buffer);
 
+  void Initializetemp(const NativeBufferHandler* buffer_handler, uint32_t width,
+                      uint32_t height, uint32_t stride, uint32_t format,
+                      void* addr, bool is_cursor_buffer);
+
   // Returns true if this buffer cannot be mapped.
   bool NeedsTextureUpload() const {
     return needs_texture_upload_;
@@ -59,7 +63,10 @@ class PixelBuffer {
 
  private:
   bool needs_texture_upload_ = true;
-  uint32_t orig_width_, orig_height_, orig_stride_;
+  HWCNativeHandle handle_;
+  uint32_t orig_width_ = 0;
+  uint32_t orig_height_ = 0;
+  uint32_t orig_stride_ = 0;
 };
 
 }  // namespace hwcomposer

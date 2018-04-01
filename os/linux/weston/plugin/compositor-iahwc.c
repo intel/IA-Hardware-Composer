@@ -822,16 +822,19 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
     dbo.format = DRM_FORMAT_NV12;
     break;
   case WL_SHM_FORMAT_YUYV:
-    dbo.format = DRM_FORMAT_YUYV  ;
+    dbo.format = DRM_FORMAT_YUYV;
     break;
   default:
-    weston_log("warning: unknown shm buffer format: %08x\n",
-               dbo.format);
+    weston_log("warning: unknown shm buffer format: %08x\n", dbo.format);
   }
-  wl_shm_buffer_begin_access(buffer->shm_buffer);
-  b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0, cursor_layer_id,
-                                    dbo);
-  wl_shm_buffer_end_access(buffer->shm_buffer);
+
+  dbo.callback_data = buffer->shm_buffer;
+  int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
+                                              cursor_layer_id, dbo);
+  if (ret == -1) {
+    b->iahwc_destroy_layer(b->iahwc_device, 0, cursor_layer_id);
+    return NULL;
+  }
 
   iahwc_rect_t source_crop = {0, 0, surfwidth, surfheight};
 
@@ -935,7 +938,53 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
 
     if (!bo)
       return NULL;
+  }
 
+  b->iahwc_create_layer(b->iahwc_device, 0, &overlay_layer_id);
+  b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
+                           IAHWC_LAYER_USAGE_OVERLAY);
+
+  if (shmbuf) {
+    iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
+    struct iahwc_raw_pixel_data dbo;
+    dbo.width = ev->surface->width;
+    dbo.height = ev->surface->height;
+    dbo.format = wl_shm_buffer_get_format(shmbuf);
+    dbo.buffer = wl_shm_buffer_get_data(shmbuf);
+    switch (dbo.format) {
+      case WL_SHM_FORMAT_XRGB8888:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        break;
+      case WL_SHM_FORMAT_ARGB8888:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        break;
+      case WL_SHM_FORMAT_RGB565:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        break;
+      case WL_SHM_FORMAT_YUV420:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        break;
+      case WL_SHM_FORMAT_NV12:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        break;
+      case WL_SHM_FORMAT_YUYV:
+        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        break;
+      default:
+        weston_log("warning: unknown shm buffer format: %08x\n",
+                   wl_shm_buffer_get_format(shmbuf));
+    }
+
+    dbo.callback_data = shmbuf;
+    int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
+                                                overlay_layer_id, dbo);
+    if (ret == -1) {
+      b->iahwc_destroy_layer(b->iahwc_device, 0, overlay_layer_id);
+      return NULL;
+    }
+  } else {
+    iahwc_add_overlay_info(output, 0, bo, overlay_layer_id);
+    b->iahwc_layer_set_bo(b->iahwc_device, 0, overlay_layer_id, bo);
   }
 
   box = pixman_region32_extents(&ev->transform.boundingbox);
@@ -996,52 +1045,10 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   src_h = (tbox.y2 - tbox.y1) << 8;
   pixman_region32_fini(&src_rect);
 
-  b->iahwc_create_layer(b->iahwc_device, 0, &overlay_layer_id);
-  b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
-                           IAHWC_LAYER_USAGE_OVERLAY);
-
-  if (shmbuf) {
-    iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
-    struct iahwc_raw_pixel_data dbo;
-    dbo.width = ev->surface->width;
-    dbo.height = ev->surface->height;
-    dbo.format = wl_shm_buffer_get_format(shmbuf);
-    dbo.buffer = wl_shm_buffer_get_data(shmbuf);
-    switch (dbo.format) {
-    case WL_SHM_FORMAT_XRGB8888:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
-      break;
-    case WL_SHM_FORMAT_ARGB8888:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
-      break;
-    case WL_SHM_FORMAT_RGB565:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
-      break;
-    case WL_SHM_FORMAT_YUV420:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
-      break;
-    case WL_SHM_FORMAT_NV12:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf);
-      break;
-    case WL_SHM_FORMAT_YUYV:
-      dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
-      break;
-    default:
-      weston_log("warning: unknown shm buffer format: %08x\n",
-                 wl_shm_buffer_get_format(shmbuf));
-    }
-    wl_shm_buffer_begin_access(shmbuf);
-    b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0, overlay_layer_id,
-                                      dbo);
-    wl_shm_buffer_end_access(shmbuf);
-  } else {
-    iahwc_add_overlay_info(output, 0, bo, overlay_layer_id);
-    b->iahwc_layer_set_bo(b->iahwc_device, 0, overlay_layer_id, bo);
-  }
-
   iahwc_rect_t source_crop = {0, 0, dest_w, dest_h};
 
-  iahwc_rect_t display_frame = {dest_x, dest_y, dest_w + dest_x, dest_h + dest_y};
+  iahwc_rect_t display_frame = {dest_x, dest_y, dest_w + dest_x,
+                                dest_h + dest_y};
 
   iahwc_region_t damage_region;
   damage_region.numRects = 1;
@@ -1504,6 +1511,18 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
   return 1;
 }
 
+static int pixel_uploader_callback(iahwc_callback_data_t data,
+                                   iahwc_display_t display,
+                                   uint32_t start_access,
+                                   void *call_back_data) {
+  if (start_access) {
+    wl_shm_buffer_begin_access((struct wl_shm_buffer *)call_back_data);
+  } else {
+    wl_shm_buffer_end_access((struct wl_shm_buffer *)call_back_data);
+  }
+  return 0;
+}
+
 /**
  * Create a Weston output structure
  *
@@ -1599,6 +1618,13 @@ static int create_output_for_connector(struct iahwc_backend *b) {
 
   if (ret != IAHWC_ERROR_NONE) {
     weston_log("unable to register callback\n");
+  }
+
+  ret = b->iahwc_register_callback(
+      b->iahwc_device, IAHWC_CALLBACK_PIXEL_UPLOADER, 0, output,
+      (iahwc_function_ptr_t)pixel_uploader_callback);
+  if (ret != IAHWC_ERROR_NONE) {
+    weston_log("unable to register pixel uploader callback\n");
   }
 
   weston_compositor_add_pending_output(&output->base, b->compositor);

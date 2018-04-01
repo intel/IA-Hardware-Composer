@@ -234,11 +234,7 @@ void CompositorThread::HandleRawPixelUpdate() {
 
   std::vector<OverlayBuffer *> texture_uploads;
   for (auto &buffer : pixel_data_) {
-    if (buffer->NeedsTextureUpload()) {
-      texture_uploads.emplace_back(buffer);
-    } else {
-      buffer->RefreshPixelData();
-    }
+    texture_uploads.emplace_back(buffer);
   }
 
   if (!texture_uploads.empty()) {
