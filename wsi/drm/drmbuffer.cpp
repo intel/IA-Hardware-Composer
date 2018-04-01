@@ -95,10 +95,6 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   Initialize(image_.handle_->meta_data_);
 }
 
-void DrmBuffer::UpdateRawPixelBackingStore(void* addr) {
-  data_ = addr;
-}
-
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
                                                 bool external_import) {
   if (image_.image_ == 0) {
@@ -232,7 +228,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
 #ifdef USE_GL
   GLenum target = GL_TEXTURE_EXTERNAL_OES;
-  if (!external_import || (data_)) {
+  if (!external_import) {
     target = GL_TEXTURE_2D;
   }
 
@@ -243,40 +239,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
   }
 
   glBindTexture(target, image_.texture_);
-  if (data_) {
-    GLenum gl_format = 0;
-    GLenum gl_pixel_type = 0;
-    switch (format_) {
-    case DRM_FORMAT_XRGB8888:
-      gl_format = GL_BGRA_EXT;
-      gl_pixel_type = GL_UNSIGNED_BYTE;
-      break;
-    case DRM_FORMAT_ARGB8888:
-      gl_format = GL_BGRA_EXT;
-      gl_pixel_type = GL_UNSIGNED_BYTE;
-      break;
-    case DRM_FORMAT_RGB565:
-      gl_format = GL_RGB;
-      gl_pixel_type = GL_UNSIGNED_SHORT_5_6_5;
-      break;
-    default:
-      ETRACE("UnSupported format and pixel type. \n");
-      break;
-    }
-
-    glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
-    glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
-
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width_, height_, 0, gl_format,
-                 gl_pixel_type, data_);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-  } else {
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-  }
+  glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
 
 
   glBindTexture(target, 0);
