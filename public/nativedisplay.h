@@ -377,6 +377,10 @@ class NativeDisplay {
                             HWCContentType /*content_type*/) {
   }
 
+  virtual const NativeBufferHandler *GetNativeBufferHandler() const {
+    return NULL;
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;

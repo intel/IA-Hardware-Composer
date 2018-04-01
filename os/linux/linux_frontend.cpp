@@ -18,6 +18,10 @@
 #include <commondrmutils.h>
 #include <hwcrect.h>
 
+#include "nativebufferhandler.h"
+
+#include "pixeluploader.h"
+
 namespace hwcomposer {
 
 class IAHWCVsyncCallback : public hwcomposer::VsyncCallback {
@@ -38,6 +42,27 @@ class IAHWCVsyncCallback : public hwcomposer::VsyncCallback {
   iahwc_function_ptr_t hook_;
 };
 
+class IAPixelUploaderCallback : public hwcomposer::PixelUploaderCallback {
+ public:
+  IAPixelUploaderCallback(iahwc_callback_data_t data, iahwc_function_ptr_t hook,
+                          uint32_t display_id)
+      : data_(data), hook_(hook), display_(display_id) {
+  }
+
+  void Callback(bool start_access, void* call_back_data) {
+    ETRACE("Got callback for Display layer %d \n", display_);
+    if (hook_ != NULL) {
+      auto hook = reinterpret_cast<IAHWC_PFN_PIXEL_UPLOADER>(hook_);
+      hook(data_, display_, start_access ? 1 : 0, call_back_data);
+    }
+  }
+
+ private:
+  iahwc_callback_data_t data_;
+  iahwc_function_ptr_t hook_;
+  uint32_t display_;
+};
+
 IAHWC::IAHWC() {
   getFunctionPtr = HookGetFunctionPtr;
   close = HookClose;
@@ -54,7 +79,7 @@ int32_t IAHWC::Init() {
   for (hwcomposer::NativeDisplay* display : displays) {
     displays_.emplace_back(new IAHWCDisplay());
     IAHWCDisplay* iahwc_display = displays_.back();
-    iahwc_display->Init(display);
+    iahwc_display->Init(display, device_.GetFD());
   }
 
   return IAHWC_ERROR_NONE;
@@ -184,6 +209,15 @@ int IAHWC::RegisterCallback(int32_t description, uint32_t display_id,
       IAHWCDisplay* display = displays_.at(display_id);
       return display->RegisterVsyncCallback(data, hook);
     }
+    case IAHWC_CALLBACK_PIXEL_UPLOADER: {
+      if (display_id >= displays_.size())
+        return IAHWC_ERROR_BAD_DISPLAY;
+
+      IAHWCDisplay* display = displays_.at(display_id);
+      display->RegisterPixelUploaderCallback(data, hook);
+      return IAHWC_ERROR_NONE;
+    }
+
     default:
       return IAHWC_ERROR_BAD_PARAMETER;
   }
@@ -192,9 +226,17 @@ int IAHWC::RegisterCallback(int32_t description, uint32_t display_id,
 IAHWC::IAHWCDisplay::IAHWCDisplay() : native_display_(NULL) {
 }
 
-int IAHWC::IAHWCDisplay::Init(hwcomposer::NativeDisplay* display) {
+IAHWC::IAHWCDisplay::~IAHWCDisplay() {
+  delete raw_data_uploader_;
+}
+
+int IAHWC::IAHWCDisplay::Init(hwcomposer::NativeDisplay* display,
+                              uint32_t gpu_fd) {
   native_display_ = display;
   native_display_->InitializeLayerHashGenerator(4);
+  raw_data_uploader_ =
+      new PixelUploader(native_display_->GetNativeBufferHandler());
+  raw_data_uploader_->Initialize(gpu_fd);
 }
 
 int IAHWC::IAHWCDisplay::GetDisplayInfo(uint32_t config, int attribute,
@@ -280,7 +322,7 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
 
 int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
   *layer_handle = native_display_->AcquireId();
-  layers_.emplace(*layer_handle, IAHWCLayer());
+  layers_.emplace(*layer_handle, IAHWCLayer(raw_data_uploader_));
 
   return IAHWC_ERROR_NONE;
 }
@@ -307,18 +349,28 @@ int IAHWC::IAHWCDisplay::RegisterVsyncCallback(iahwc_callback_data_t data,
   return IAHWC_ERROR_NONE;
 }
 
+void IAHWC::IAHWCDisplay::RegisterPixelUploaderCallback(
+    iahwc_callback_data_t data, iahwc_function_ptr_t hook) {
+  auto callback = std::make_shared<IAPixelUploaderCallback>(data, hook, 0);
+  raw_data_uploader_->RegisterPixelUploaderCallback(std::move(callback));
+}
+
 bool IAHWC::IAHWCDisplay::IsConnected() {
   return native_display_->IsConnected();
 }
 
-IAHWC::IAHWCLayer::IAHWCLayer() {
+IAHWC::IAHWCLayer::IAHWCLayer(PixelUploader* uploader)
+    : raw_data_uploader_(uploader) {
   layer_usage_ = IAHWC_LAYER_USAGE_NORMAL;
-  pixel_data_ = NULL;
 }
 
 IAHWC::IAHWCLayer::~IAHWCLayer() {
   ::close(hwc_handle_.import_data.fd);
-  delete pixel_data_;
+  if (pixel_buffer_) {
+    const NativeBufferHandler* buffer_handler =
+        raw_data_uploader_->GetNativeBufferHandler();
+    buffer_handler->ReleaseBuffer(pixel_buffer_);
+  }
 }
 
 int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
@@ -357,18 +409,46 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
 }
 
 int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
-  hwc_handle_.meta_data_.width_ = bo.width;
-  hwc_handle_.meta_data_.height_ = bo.height;
-  hwc_handle_.meta_data_.pitches_[0] = bo.stride;
-  hwc_handle_.meta_data_.format_ = bo.format;
-  hwc_handle_.gbm_flags = 0;
-  hwc_handle_.is_raw_pixel_ = true;
+  const NativeBufferHandler* buffer_handler =
+      raw_data_uploader_->GetNativeBufferHandler();
+  if (pixel_buffer_ &&
+      ((orig_height_ != bo.height) || (orig_stride_ != bo.stride))) {
+    buffer_handler->ReleaseBuffer(pixel_buffer_);
+    pixel_buffer_ = NULL;
+  }
 
-  pixel_data_ = new char[bo.height * bo.stride];
-  memcpy(pixel_data_, bo.buffer, bo.height * bo.stride);
-  hwc_handle_.pixel_memory_ = pixel_data_;
+  if (!pixel_buffer_) {
+    ;
+    int layer_type =
+        layer_usage_ == IAHWC_LAYER_USAGE_CURSOR ? kLayerCursor : kLayerNormal;
+    if (!buffer_handler->CreateBuffer(bo.width, bo.height, bo.format,
+                                      &pixel_buffer_, layer_type)) {
+      ETRACE("PixelBuffer: CreateBuffer failed");
+      return -1;
+    }
 
-  iahwc_layer_.SetNativeHandle(&hwc_handle_);
+    if (!buffer_handler->ImportBuffer(pixel_buffer_)) {
+      ETRACE("PixelBuffer: ImportBuffer failed");
+      return -1;
+    }
+
+    if (pixel_buffer_->meta_data_.prime_fds_[0] <= 0) {
+      ETRACE("PixelBuffer: prime_fd_ is invalid.");
+      return -1;
+    }
+
+    orig_height_ = bo.height;
+    orig_stride_ = bo.stride;
+    raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
+                                             orig_stride_, bo.callback_data,
+                                             (uint8_t*)bo.buffer);
+
+    iahwc_layer_.SetNativeHandle(pixel_buffer_);
+  } else {
+    raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
+                                             orig_stride_, bo.callback_data,
+                                             (uint8_t*)bo.buffer);
+  }
 
   return IAHWC_ERROR_NONE;
 }
@@ -380,9 +460,18 @@ int IAHWC::IAHWCLayer::SetAcquireFence(int32_t acquire_fence) {
 }
 
 int IAHWC::IAHWCLayer::SetLayerUsage(int32_t layer_usage) {
-  layer_usage_ = layer_usage;
-  if (layer_usage_ == IAHWC_LAYER_USAGE_CURSOR) {
-    iahwc_layer_.MarkAsCursorLayer();
+  if (layer_usage_ != layer_usage) {
+    layer_usage_ = layer_usage;
+    if (layer_usage_ == IAHWC_LAYER_USAGE_CURSOR) {
+      iahwc_layer_.MarkAsCursorLayer();
+    }
+
+    if (pixel_buffer_) {
+      const NativeBufferHandler* buffer_handler =
+          raw_data_uploader_->GetNativeBufferHandler();
+      buffer_handler->ReleaseBuffer(pixel_buffer_);
+      pixel_buffer_ = NULL;
+    }
   }
 
   return IAHWC_ERROR_NONE;

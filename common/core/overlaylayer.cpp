@@ -77,7 +77,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   uint32_t id;
 
-  if (resource_manager && register_buffer && !handle->is_raw_pixel_) {
+  if (resource_manager && register_buffer) {
     uint32_t gpu_fd = resource_manager->GetNativeBufferHandler()->GetFd();
     id = GetNativeBuffer(gpu_fd, handle);
     buffer = resource_manager->FindCachedBuffer(id);
@@ -91,14 +91,9 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
     buffer->InitializeFromNativeHandle(handle, resource_manager,
                                        is_cursor_layer);
-    if (resource_manager && register_buffer && !handle->is_raw_pixel_) {
+    if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
-  }
-
-  if (handle->is_raw_pixel_ && !surface_damage_.empty()) {
-    buffer->UpdateRawPixelBackingStore(handle->pixel_memory_);
-    state_ |= kRawPixelDataChanged;
   }
 
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
@@ -470,7 +465,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   if (!layer->HasVisibleRegionChanged() && !content_changed &&
       surface_damage_.empty() && !layer->HasLayerContentChanged() &&
-      !(state_ & kNeedsReValidation) && !(state_ & kRawPixelDataChanged)) {
+      !(state_ & kNeedsReValidation)) {
     state_ &= ~kLayerContentChanged;
   }
 }

@@ -104,6 +104,14 @@ class DisplayQueue {
     return needs_clone_validation_;
   }
 
+  const NativeBufferHandler* GetNativeBufferHandler() const {
+    if (resource_manager_) {
+      return resource_manager_->GetNativeBufferHandler();
+    }
+
+    return NULL;
+  }
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
