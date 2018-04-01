@@ -63,6 +63,10 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void IgnoreUpdates() override;
 
+  uint32_t GetFD() const override {
+    return fd_;
+  }
+
   void NotifyClientsOfDisplayChangeStatus();
 
   void HandleLazyInitialization();

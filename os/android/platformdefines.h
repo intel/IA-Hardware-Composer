@@ -49,7 +49,6 @@ struct gralloc_handle {
   // In case this is true, we expect meta_data_
   // to be filled with correct width, height and
   // format.
-  bool is_raw_pixel_ = false;
   void* pixel_memory_ = NULL;
 };
 

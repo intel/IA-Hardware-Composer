@@ -51,6 +51,14 @@ bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
   return true;
 }
 
+const NativeBufferHandler *PhysicalDisplay::GetNativeBufferHandler() const {
+  if (display_queue_) {
+    return display_queue_->GetNativeBufferHandler();
+  }
+
+  return NULL;
+}
+
 void PhysicalDisplay::MarkForDisconnect() {
   SPIN_LOCK(modeset_lock_);
 
