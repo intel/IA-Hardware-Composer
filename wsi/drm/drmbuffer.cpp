@@ -84,46 +84,15 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();
-  if (handle->is_raw_pixel_) {
-    data_ = handle->pixel_memory_;
-    PixelBuffer* buffer = PixelBuffer::CreatePixelBuffer();
-    pixel_buffer_.reset(buffer);
-    pixel_buffer_->Initialize(handler, handle->meta_data_.width_,
-                              handle->meta_data_.height_, handle->meta_data_.pitches_[0],
-                              handle->meta_data_.format_, data_, image_, is_cursor_buffer);
-    if (is_cursor_buffer) {
-      image_.handle_->meta_data_.usage_ = hwcomposer::kLayerCursor;
-    }
-  } else {
-    handler->CopyHandle(handle, &image_.handle_);
-    if (!handler->ImportBuffer(image_.handle_)) {
-      ETRACE("Failed to Import buffer.");
-      return;
-    }
+
+  handler->CopyHandle(handle, &image_.handle_);
+  if (!handler->ImportBuffer(image_.handle_)) {
+    ETRACE("Failed to Import buffer.");
+    return;
   }
 
   media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
-}
-
-void DrmBuffer::UpdateRawPixelBackingStore(void* addr) {
-  if (pixel_buffer_) {
-    data_ = addr;
-  }
-}
-
-void DrmBuffer::RefreshPixelData() {
-  if (pixel_buffer_ && data_) {
-    pixel_buffer_->Refresh(data_, image_);
-  }
-}
-
-bool DrmBuffer::NeedsTextureUpload() const {
-  if (pixel_buffer_) {
-    return pixel_buffer_->NeedsTextureUpload();
-  }
-
-  return false;
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
@@ -259,7 +228,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
 #ifdef USE_GL
   GLenum target = GL_TEXTURE_EXTERNAL_OES;
-  if (!external_import || (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload())) {
+  if (!external_import) {
     target = GL_TEXTURE_2D;
   }
 
@@ -270,40 +239,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
   }
 
   glBindTexture(target, image_.texture_);
-  if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-    GLenum gl_format = 0;
-    GLenum gl_pixel_type = 0;
-    switch (format_) {
-    case DRM_FORMAT_XRGB8888:
-      gl_format = GL_BGRA_EXT;
-      gl_pixel_type = GL_UNSIGNED_BYTE;
-      break;
-    case DRM_FORMAT_ARGB8888:
-      gl_format = GL_BGRA_EXT;
-      gl_pixel_type = GL_UNSIGNED_BYTE;
-      break;
-    case DRM_FORMAT_RGB565:
-      gl_format = GL_RGB;
-      gl_pixel_type = GL_UNSIGNED_SHORT_5_6_5;
-      break;
-    default:
-      ETRACE("UnSupported format and pixel type. \n");
-      break;
-    }
-
-    glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
-    glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
-
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width_, height_, 0, gl_format,
-                 gl_pixel_type, data_);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-  } else {
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-  }
+  glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
 
 
   glBindTexture(target, 0);

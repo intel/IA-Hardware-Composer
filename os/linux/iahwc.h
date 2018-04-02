@@ -44,6 +44,7 @@ typedef struct iahwc_device {
 
 typedef struct iahwc_raw_pixel_data {
   void* buffer;
+  void* callback_data;
   uint64_t width;
   uint64_t height;
   uint64_t stride;
@@ -92,9 +93,13 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_LAYER_SET_SOURCE_CROP,
   IAHWC_FUNC_LAYER_SET_DISPLAY_FRAME,
   IAHWC_FUNC_LAYER_SET_SURFACE_DAMAGE,
+  IAHWC_FUNC_REGISTER_PIXEL_UPLOADER_CALLBACK,
 };
 
-enum iahwc_callback_descriptor { IAHWC_CALLBACK_VSYNC };
+enum iahwc_callback_descriptor {
+  IAHWC_CALLBACK_VSYNC,
+  IAHWC_CALLBACK_PIXEL_UPLOADER
+};
 
 enum iahwc_layer_usage {
   IAHWC_LAYER_USAGE_CURSOR,
@@ -192,4 +197,8 @@ typedef int (*IAHWC_PFN_LAYER_SET_SURFACE_DAMAGE)(
     iahwc_region_t region);
 typedef int (*IAHWC_PFN_VSYNC)(iahwc_callback_data_t data,
                                iahwc_display_t display, int64_t timestamp);
-#endif // OS_LINUX_IAHWC_H_
+typedef int (*IAHWC_PFN_PIXEL_UPLOADER)(iahwc_callback_data_t data,
+                                        iahwc_display_t display,
+                                        uint32_t start_access,
+                                        void* call_back_data);
+#endif  // OS_LINUX_IAHWC_H_

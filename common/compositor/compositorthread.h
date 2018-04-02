@@ -49,8 +49,6 @@ class CompositorThread : public HWCThread {
             const std::vector<OverlayLayer>& layers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
-  void UpdateLayerPixelData(std::vector<OverlayLayer>& layers);
-  void EnsurePixelDataUpdated();
   void FreeResources();
 
   void HandleRoutine() override;
@@ -62,25 +60,21 @@ class CompositorThread : public HWCThread {
     kNone = 0,           // No tasks
     kRender3D = 1 << 1,  // Render content.
     kRenderMedia = 1 << 2,
-    kReleaseResources = 1 << 3,  // Release surfaces from plane manager.
-    kRefreshRawPixelData = 1 << 4
+    kReleaseResources = 1 << 3  // Release surfaces from plane manager.
   };
 
   void Handle3DDrawRequest();
   void HandleMediaDrawRequest();
   void HandleReleaseRequest();
-  void HandleRawPixelUpdate();
   void Wait();
   void Ensure3DRenderer();
   void EnsureMediaRenderer();
 
   SpinLock tasks_lock_;
-  SpinLock pixel_data_lock_;
   std::unique_ptr<Renderer> gl_renderer_;
   std::unique_ptr<Renderer> media_renderer_;
   std::unique_ptr<NativeGpuResource> gpu_resource_handler_;
   std::vector<OverlayBuffer*> buffers_;
-  std::vector<OverlayBuffer*> pixel_data_;
   std::vector<DrawState> states_;
   std::vector<DrawState> media_states_;
   std::vector<ResourceHandle> purged_resources_;
