@@ -145,6 +145,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   void RotateDisplay(HWCRotation rotation) override;
 
+  const NativeBufferHandler *GetNativeBufferHandler() const override;
+
   /**
   * API for setting color correction for display.
   */

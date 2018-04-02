@@ -53,6 +53,9 @@ class DisplayManager {
   // manager until ForceRefresh is called.
   virtual void IgnoreUpdates() = 0;
 
+  // Get FD associated with this DisplayManager.
+  virtual uint32_t GetFD() const = 0;
+
   virtual NativeDisplay *GetVirtualDisplay() = 0;
   virtual NativeDisplay *GetNestedDisplay() = 0;
 

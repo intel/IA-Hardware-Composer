@@ -58,29 +58,6 @@ void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
-void CompositorThread::UpdateLayerPixelData(std::vector<OverlayLayer> &layers) {
-  if (!layers.empty()) {
-    pixel_data_lock_.lock();
-    std::vector<OverlayBuffer *>().swap(pixel_data_);
-    for (auto &layer : layers) {
-      if (layer.RawPixelDataChanged()) {
-        pixel_data_.emplace_back(layer.GetBuffer());
-      }
-    }
-
-    tasks_ |= kRefreshRawPixelData;
-  }
-
-  if (!pixel_data_.empty()) {
-    Resume();
-  }
-}
-
-void CompositorThread::EnsurePixelDataUpdated() {
-  pixel_data_lock_.lock();
-  pixel_data_lock_.unlock();
-}
-
 void CompositorThread::FreeResources() {
   tasks_lock_.lock();
   tasks_ |= kReleaseResources;
@@ -159,10 +136,6 @@ void CompositorThread::HandleRoutine() {
     HandleReleaseRequest();
   }
 
-  if (tasks_ & kRefreshRawPixelData) {
-    HandleRawPixelUpdate();
-  }
-
   if (signal) {
     cevent_.Signal();
   }
@@ -225,28 +198,6 @@ void CompositorThread::HandleReleaseRequest() {
       handler->DestroyHandle(handle.handle_);
     }
   }
-}
-
-void CompositorThread::HandleRawPixelUpdate() {
-  tasks_lock_.lock();
-  tasks_ &= ~kRefreshRawPixelData;
-  tasks_lock_.unlock();
-
-  std::vector<OverlayBuffer *> texture_uploads;
-  for (auto &buffer : pixel_data_) {
-    if (buffer->NeedsTextureUpload()) {
-      texture_uploads.emplace_back(buffer);
-    } else {
-      buffer->RefreshPixelData();
-    }
-  }
-
-  if (!texture_uploads.empty()) {
-    Ensure3DRenderer();
-    gpu_resource_handler_->HandleTextureUploads(texture_uploads);
-  }
-
-  pixel_data_lock_.unlock();
 }
 
 void CompositorThread::Handle3DDrawRequest() {
