@@ -93,7 +93,7 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_LAYER_SET_SOURCE_CROP,
   IAHWC_FUNC_LAYER_SET_DISPLAY_FRAME,
   IAHWC_FUNC_LAYER_SET_SURFACE_DAMAGE,
-  IAHWC_FUNC_REGISTER_PIXEL_UPLOADER_CALLBACK,
+  IAHWC_FUNC_LAYER_SET_PLANE_ALPHA,
 };
 
 enum iahwc_callback_descriptor {
@@ -195,6 +195,10 @@ typedef int (*IAHWC_PFN_LAYER_SET_DISPLAY_FRAME)(iahwc_device_t*,
 typedef int (*IAHWC_PFN_LAYER_SET_SURFACE_DAMAGE)(
     iahwc_device_t*, iahwc_display_t display_handle, iahwc_layer_t layer_handle,
     iahwc_region_t region);
+typedef int (*IAHWC_PFN_LAYER_SET_PLANE_ALPHA)(iahwc_device_t*,
+                                               iahwc_display_t display_handle,
+                                               iahwc_layer_t layer_handle,
+                                               float alpha);
 typedef int (*IAHWC_PFN_VSYNC)(iahwc_callback_data_t data,
                                iahwc_display_t display, int64_t timestamp);
 typedef int (*IAHWC_PFN_PIXEL_UPLOADER)(iahwc_callback_data_t data,

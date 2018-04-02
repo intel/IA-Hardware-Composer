@@ -50,6 +50,7 @@ class IAHWC : public iahwc_device {
     int SetLayerSourceCrop(iahwc_rect_t rect);
     int SetLayerDisplayFrame(iahwc_rect_t rect);
     int SetLayerSurfaceDamage(iahwc_region_t region);
+    int SetLayerPlaneAlpha(float alpha);
     hwcomposer::HwcLayer* GetLayer();
 
    private:
