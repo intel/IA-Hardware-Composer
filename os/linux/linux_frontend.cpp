@@ -176,6 +176,10 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_LAYER_SET_SURFACE_DAMAGE>(
           LayerHook<decltype(&IAHWCLayer::SetLayerSurfaceDamage),
                     &IAHWCLayer::SetLayerSurfaceDamage, iahwc_region_t>);
+    case IAHWC_FUNC_LAYER_SET_PLANE_ALPHA:
+      return ToHook<IAHWC_PFN_LAYER_SET_PLANE_ALPHA>(
+          LayerHook<decltype(&IAHWCLayer::SetLayerPlaneAlpha),
+                    &IAHWCLayer::SetLayerPlaneAlpha, float>);
     case IAHWC_FUNC_INVALID:
     default:
       return NULL;
@@ -526,6 +530,15 @@ int IAHWC::IAHWCLayer::SetLayerSurfaceDamage(iahwc_region_t region) {
   }
 
   iahwc_layer_.SetSurfaceDamage(hwc_region);
+
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCLayer::SetLayerPlaneAlpha(float alpha) {
+  iahwc_layer_.SetAlpha(alpha);
+  if (alpha != 1.0) {
+    iahwc_layer_.SetBlending(HWCBlending::kBlendingPremult);
+  }
 
   return IAHWC_ERROR_NONE;
 }
