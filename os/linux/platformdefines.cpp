@@ -67,6 +67,6 @@ VkFormat NativeToVkFormat(int native_format) {
 }
 #endif
 
-int ReleaseFrameBuffer(const FBKey & /*key*/, uint32_t fd, uint32_t gpu_fd) {
-  return fd > 0 ? drmModeRmFB(gpu_fd, fd) : 0;
+void* GetVADisplay(uint32_t gpu_fd) {
+  return vaGetDisplayDRM(gpu_fd);
 }

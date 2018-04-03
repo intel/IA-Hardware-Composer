@@ -39,8 +39,6 @@
 extern "C" {
 #endif
 
-#define DRV_MAX_PLANES 4
-
 // Conversion from HAL to fourcc-based DRM formats
 static uint32_t GetDrmFormatFromHALFormat(int format) {
   switch (format) {

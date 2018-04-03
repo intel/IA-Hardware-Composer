@@ -60,4 +60,6 @@ int CreateFrameBuffer(
 
 int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd);
 
+void *GetVADisplay(uint32_t gpu_fd);
+
 #endif  // OS_LINUX_PLATFORMCOMMONDEFINES_H_

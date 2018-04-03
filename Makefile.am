@@ -29,7 +29,7 @@ SUBDIRS = \
 MAINTAINERCLEANFILES = ChangeLog INSTALL
 
 AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Ios -Ios/linux -Icommon/display/ -Icommon/core/ -Icommon/utils/ -Icommon/compositor/ -Iwsi -Iwsi/drm/
-AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
+AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING -DHANDLE_OWNED_BY_BUFFER_MANAGER
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
 if !ENABLE_GBM

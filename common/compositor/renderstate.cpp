@@ -17,6 +17,7 @@
 #include "renderstate.h"
 
 #include <hwcutils.h>
+#include <algorithm>
 
 #include "compositionregion.h"
 #include "nativegpuresource.h"
