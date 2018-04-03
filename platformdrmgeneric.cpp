@@ -25,7 +25,7 @@
 #include <xf86drmMode.h>
 
 #include <cutils/log.h>
-#include <gralloc_drm_handle.h>
+#include <gralloc_handle.h>
 #include <hardware/gralloc.h>
 #include <EGL/eglext.h>
 
@@ -85,23 +85,23 @@ uint32_t DrmGenericImporter::ConvertHalFormatToDrm(uint32_t hal_format) {
 }
 
 EGLImageKHR DrmGenericImporter::ImportImage(EGLDisplay egl_display, buffer_handle_t handle) {
-  gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
+  gralloc_handle_t *gr_handle = gralloc_handle(handle);
   if (!gr_handle)
     return NULL;
   EGLint attr[] = {
-    EGL_WIDTH, gr_handle->width,
-    EGL_HEIGHT, gr_handle->height,
+    EGL_WIDTH, (EGLint)gr_handle->width,
+    EGL_HEIGHT, (EGLint)gr_handle->height,
     EGL_LINUX_DRM_FOURCC_EXT, (EGLint)ConvertHalFormatToDrm(gr_handle->format),
     EGL_DMA_BUF_PLANE0_FD_EXT, gr_handle->prime_fd,
     EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-    EGL_DMA_BUF_PLANE0_PITCH_EXT, gr_handle->stride,
+    EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)gr_handle->stride,
     EGL_NONE,
   };
   return eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attr);
 }
 
 int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
-  gralloc_drm_handle_t *gr_handle = gralloc_drm_handle(handle);
+  gralloc_handle_t *gr_handle = gralloc_handle(handle);
   if (!gr_handle)
     return -EINVAL;
 
