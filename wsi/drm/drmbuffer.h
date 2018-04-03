@@ -23,6 +23,7 @@
 namespace hwcomposer {
 
 class NativeBufferHandler;
+class FrameBufferManager;
 
 class DrmBuffer : public OverlayBuffer {
  public:
@@ -33,8 +34,9 @@ class DrmBuffer : public OverlayBuffer {
 
   ~DrmBuffer() override;
 
-  void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  ResourceManager* buffer_manager) override;
+  void InitializeFromNativeHandle(
+      HWCNativeHandle handle, ResourceManager* buffer_manager,
+      FrameBufferManager* frame_buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -81,9 +83,10 @@ class DrmBuffer : public OverlayBuffer {
                                               uint32_t width,
                                               uint32_t height) override;
 
-  bool CreateFrameBuffer() override;
+  bool CreateFrameBuffer(FrameBufferManager* frame_buffer_manager) override;
 
-  bool CreateFrameBufferWithModifier(uint64_t modifier) override;
+  bool CreateFrameBufferWithModifier(
+      uint64_t modifier, FrameBufferManager* frame_buffer_manager) override;
 
   HWCNativeHandle GetOriginalHandle() const override {
     return original_handle_;
@@ -94,7 +97,8 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
-  void Initialize(const HwcBuffer& bo);
+  void Initialize(const HwcBuffer& bo,
+                  FrameBufferManager* frame_buffer_manager);
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;

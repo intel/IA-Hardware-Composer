@@ -32,7 +32,8 @@ class NativeBufferHandler;
 class VirtualDisplay : public NativeDisplay {
  public:
   VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-                 uint32_t pipe_id, uint32_t crtc_id);
+                 uint32_t pipe_id, uint32_t crtc_id,
+                 FrameBufferManager *frame_buffer_manager);
   ~VirtualDisplay() override;
 
   void InitVirtualDisplay(uint32_t width, uint32_t height) override;
@@ -47,7 +48,8 @@ class VirtualDisplay : public NativeDisplay {
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager *frame_buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kVirtual;
@@ -89,6 +91,7 @@ class VirtualDisplay : public NativeDisplay {
   std::vector<OverlayLayer> in_flight_layers_;
   HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

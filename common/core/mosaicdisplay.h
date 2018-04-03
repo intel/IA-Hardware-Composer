@@ -32,7 +32,8 @@ class MosaicDisplay : public NativeDisplay {
   MosaicDisplay(const std::vector<NativeDisplay *> &displays);
   ~MosaicDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager * /*frame_buffer_manager*/) override;
 
   DisplayType Type() const override {
     return DisplayType::kMosaic;

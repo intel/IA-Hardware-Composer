@@ -33,14 +33,15 @@ namespace hwcomposer {
 
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
-                               uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
+                               uint32_t /*pipe_id*/, uint32_t /*crtc_id*/,
+                               FrameBufferManager *frame_buffer_manager)
     : output_handle_(0), acquire_fence_(-1), width_(0), height_(0) {
   resource_manager_.reset(new ResourceManager(buffer_handler));
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
 
-  compositor_.Init(resource_manager_.get(), gpu_fd);
+  compositor_.Init(resource_manager_.get(), gpu_fd, frame_buffer_manager);
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -110,7 +111,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints);
+        height_, kIdentity, handle_constraints, fb_manager_);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -196,7 +197,9 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   }
 }
 
-bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/) {
+bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/,
+                                FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   return true;
 }
 

@@ -44,9 +44,11 @@ NativeSurface::~NativeSurface() {
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
                          uint32_t usage, uint64_t modifier,
-                         bool *modifier_succeeded) {
+                         bool *modifier_succeeded,
+                         FrameBufferManager *frame_buffer_manager) {
   const NativeBufferHandler *handler =
       resource_manager->GetNativeBufferHandler();
+  fb_manager_ = frame_buffer_manager;
   resource_manager_ = resource_manager;
   HWCNativeHandle native_handle = 0;
   *modifier_succeeded = false;
@@ -66,7 +68,8 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
   InitializeLayer(native_handle);
 
   if (modifier_used && modifier > 0) {
-    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier)) {
+    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier,
+                                                           fb_manager_)) {
       WTRACE("FB creation failed with modifier, removing modifier usage\n");
       ResourceHandle temp;
       temp.handle_ = native_handle;
@@ -140,7 +143,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
   on_screen_ = false;
   surface_age_ = 0;
   if (layer_.GetBuffer()->GetFb() == 0) {
-    layer_.GetBuffer()->CreateFrameBuffer();
+    layer_.GetBuffer()->CreateFrameBuffer(fb_manager_);
   }
 }
 
@@ -202,7 +205,7 @@ void NativeSurface::ResetDamage() {
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetBuffer(native_handle, -1, resource_manager_, false);
+  layer_.SetBuffer(native_handle, -1, resource_manager_, false, fb_manager_);
 }
 
 }  // namespace hwcomposer

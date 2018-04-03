@@ -158,7 +158,9 @@ void NestedDisplay::InitNestedDisplay(uint32_t width, uint32_t height,
 #endif
 }
 
-bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                               FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   return true;
 }
 
@@ -216,7 +218,8 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
     if (search == mHyperDmaExportedBuffers.end()) {
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       buffer = OverlayBuffer::CreateOverlayBuffer();
-      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
+      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(),
+                                         fb_manager_);
 
       if (mHyperDmaBuf_Fd > 0 && buffer->GetPrimeFD() > 0) {
         struct ioctl_hyper_dmabuf_export_remote msg;

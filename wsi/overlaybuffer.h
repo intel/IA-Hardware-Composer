@@ -22,6 +22,8 @@
 
 #include "compositordefs.h"
 
+#include "framebuffermanager.h"
+
 #include "hwcdefs.h"
 
 namespace hwcomposer {
@@ -40,8 +42,9 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
-  virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                          ResourceManager* buffer_manager) = 0;
+  virtual void InitializeFromNativeHandle(
+      HWCNativeHandle handle, ResourceManager* buffer_manager,
+      FrameBufferManager* frame_buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
@@ -76,10 +79,11 @@ class OverlayBuffer {
                                                       uint32_t width,
                                                       uint32_t height) = 0;
 
-  virtual bool CreateFrameBuffer() = 0;
+  virtual bool CreateFrameBuffer(FrameBufferManager* frame_buffer_manager) = 0;
 
   // Creates Framebuffer taking into account any Modifiers.
-  virtual bool CreateFrameBufferWithModifier(uint64_t modifier) = 0;
+  virtual bool CreateFrameBufferWithModifier(
+      uint64_t modifier, FrameBufferManager* frame_buffer_manager) = 0;
 
   virtual HWCNativeHandle GetOriginalHandle() const = 0;
 

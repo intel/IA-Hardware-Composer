@@ -24,6 +24,7 @@
 namespace hwcomposer {
 
 class GpuDevice;
+class FrameBufferManager;
 class DisplayManager {
  public:
   static DisplayManager *CreateDisplayManager(GpuDevice *device);
@@ -40,7 +41,8 @@ class DisplayManager {
 
   // GetAllDisplays is expected to return set
   // of correct displays after this call is done.
-  virtual void InitializeDisplayResources() = 0;
+  virtual void InitializeDisplayResources(
+      FrameBufferManager *frame_buffer_manager) = 0;
 
   // Display Manager should initialize resources to start monitoring
   // for Hotplug events.

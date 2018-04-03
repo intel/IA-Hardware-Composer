@@ -71,7 +71,8 @@ DrmBuffer::~DrmBuffer() {
   }
 }
 
-void DrmBuffer::Initialize(const HwcBuffer& bo) {
+void DrmBuffer::Initialize(const HwcBuffer& bo,
+                           FrameBufferManager* frame_buffer_manager) {
   width_ = bo.width_;
   height_ = bo.height_;
   for (uint32_t i = 0; i < 4; i++) {
@@ -96,13 +97,14 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
     frame_buffer_format_ = format_;
   }
 
-  FrameBufferManager::GetInstance()->RegisterGemHandles(
+  frame_buffer_manager->RegisterGemHandles(
       image_.handle_->meta_data_.num_planes_,
       image_.handle_->meta_data_.gem_handles_);
 }
 
-void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
-                                           ResourceManager* resource_manager) {
+void DrmBuffer::InitializeFromNativeHandle(
+    HWCNativeHandle handle, ResourceManager* resource_manager,
+    FrameBufferManager* frame_buffer_manager) {
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();
@@ -114,7 +116,7 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   }
 
   media_image_.handle_ = image_.handle_;
-  Initialize(image_.handle_->meta_data_);
+  Initialize(image_.handle_->meta_data_, frame_buffer_manager);
   original_handle_ = handle;
 }
 
@@ -373,7 +375,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource() {
   return image_;
 }
 
-bool DrmBuffer::CreateFrameBuffer() {
+bool DrmBuffer::CreateFrameBuffer(FrameBufferManager* frame_buffer_manager) {
   if (image_.drm_fd_) {
     return true;
   }
@@ -381,14 +383,15 @@ bool DrmBuffer::CreateFrameBuffer() {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
+  image_.drm_fd_ = frame_buffer_manager->FindFB(
       width_, height_, 0, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;
 }
 
-bool DrmBuffer::CreateFrameBufferWithModifier(uint64_t modifier) {
+bool DrmBuffer::CreateFrameBufferWithModifier(
+    uint64_t modifier, FrameBufferManager* frame_buffer_manager) {
   if (image_.drm_fd_) {
     return true;
   }
@@ -396,7 +399,7 @@ bool DrmBuffer::CreateFrameBufferWithModifier(uint64_t modifier) {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
+  image_.drm_fd_ = frame_buffer_manager->FindFB(
       width_, height_, modifier, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;

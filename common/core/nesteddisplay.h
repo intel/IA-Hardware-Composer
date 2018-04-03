@@ -102,7 +102,8 @@ class NestedDisplay : public NativeDisplay {
   void InitNestedDisplay(uint32_t width, uint32_t height,
                          uint32_t port) override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager *frame_buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kNested;
@@ -187,6 +188,7 @@ class NestedDisplay : public NativeDisplay {
   uint32_t port_ = 0;
   bool enable_vsync_ = false;
   uint32_t config_ = 1;
+  FrameBufferManager *fb_manager_ = NULL;
 
 #ifdef NESTED_DISPLAY_SUPPORT
   int mHyperDmaBuf_Fd = -1;

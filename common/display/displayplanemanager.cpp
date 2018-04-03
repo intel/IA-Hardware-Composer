@@ -41,7 +41,9 @@ DisplayPlaneManager::DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
+bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height,
+                                     FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   width_ = width;
   height_ = height;
   bool status = plane_handler_->PopulatePlanes(overlay_planes_);
@@ -712,7 +714,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
     bool modifer_succeeded = false;
     new_surface->Init(resource_manager_, preferred_format, usage, modifier,
-                      &modifer_succeeded);
+                      &modifer_succeeded, fb_manager_);
 
     if (modifer_succeeded) {
       plane.GetDisplayPlane()->PreferredFormatModifierValidated();
@@ -759,7 +761,7 @@ bool DisplayPlaneManager::FallbacktoGPU(
     return true;
 
   if (layer->GetBuffer()->GetFb() == 0) {
-    if (!layer->GetBuffer()->CreateFrameBuffer()) {
+    if (!layer->GetBuffer()->CreateFrameBuffer(fb_manager_)) {
       return true;
     }
   }

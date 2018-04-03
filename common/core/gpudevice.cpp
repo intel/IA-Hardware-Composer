@@ -60,6 +60,8 @@ bool GpuDevice::Initialize() {
 
   thread_stage_lock_.unlock();
   HandleHWCSettings();
+  frame_buffer_manager_.reset(
+      new FrameBufferManager(display_manager_->GetFD()));
   InitializeHotPlugEvents(false);
 
   initialization_state_ |= kInitialized;
@@ -650,7 +652,7 @@ void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
     // Take a lock to ensure displaymanager is all initialized.
     thread_stage_lock_.lock();
   }
-  display_manager_->InitializeDisplayResources();
+  display_manager_->InitializeDisplayResources(frame_buffer_manager_.get());
   display_manager_->StartHotPlugMonitor();
   if (take_lock)
     thread_stage_lock_.unlock();

@@ -35,7 +35,8 @@ class LogicalDisplay : public NativeDisplay {
                  uint32_t index);
   ~LogicalDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager * /*frame_buffer_manager*/) override;
 
   DisplayType Type() const override {
     return DisplayType::kLogical;

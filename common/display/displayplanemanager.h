@@ -40,7 +40,8 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t width, uint32_t height);
+  bool Initialize(uint32_t width, uint32_t height,
+                  FrameBufferManager *frame_buffer_manager);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
                       bool disable_overlay, bool *commit_checked,
@@ -176,6 +177,7 @@ class DisplayPlaneManager {
   uint32_t total_overlays_;
   uint32_t display_transform_;
   bool release_surfaces_;
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer
