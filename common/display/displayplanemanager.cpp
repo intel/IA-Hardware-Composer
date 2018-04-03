@@ -215,6 +215,9 @@ bool DisplayPlaneManager::ValidateLayers(
 
             ResetPlaneTarget(last_plane, commit_planes.back());
           }
+          else if (last_plane.NeedsSurfaceAllocation()) {
+            SetOffScreenPlaneTarget(last_plane);
+          }
 
           break;
         } else {
