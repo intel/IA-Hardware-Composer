@@ -232,14 +232,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   surface_damage_ = layer->GetLayerDamage();
-  // In case of layer using blening we need to force partial clear. Otherwise
-  // we see content not getting updated correctly. For example:
-  // on Android enable, settings put system user_rotation 1 and
-  // navigate to settings on Android.
-  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
-    state_ |= kForcePartialClear;
-    surface_damage_ = layer->GetDisplayFrame();
-  }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true, layer);
@@ -261,6 +253,15 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
           break;
       }
     }
+  }
+
+ // In case of layer using blening we need to force partial clear. Otherwise
+  // we see content not getting updated correctly. For example:
+  // on Android enable, settings put system user_rotation 1 and
+  // navigate to settings on Android.
+  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
+    state_ |= kForcePartialClear;
+    surface_damage_ = layer->GetDisplayFrame();
   }
 
   if (!handle_constraints) {
@@ -512,6 +513,8 @@ void OverlayLayer::Dump() {
     DUMPTRACE("Transform: kReflectY.");
   if (transform_ & kReflectY)
     DUMPTRACE("Transform: kReflectY.");
+  else if(transform_ & kTransform90)
+    DUMPTRACE("Transform: kTransform90.");
   else if (transform_ & kTransform180)
     DUMPTRACE("Transform: kTransform180.");
   else if (transform_ & kTransform270)
