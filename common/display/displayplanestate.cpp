@@ -19,6 +19,8 @@
 #include "hwctrace.h"
 #include "hwcutils.h"
 
+#include<math.h>
+
 namespace hwcomposer {
 
 DisplayPlaneState::DisplayPlanePrivateState::~DisplayPlanePrivateState() {

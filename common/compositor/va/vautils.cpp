@@ -22,6 +22,8 @@
 
 #include <hwctrace.h>
 
+#include "platformdefines.h"
+
 namespace hwcomposer {
 
 int DrmFormatToVAFormat(int format) {

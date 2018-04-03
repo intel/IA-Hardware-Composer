@@ -14,9 +14,48 @@
 // limitations under the License.
 */
 
-#include "platformdefines.h"
+#include "platformcommondefines.h"
+
+#include "hwctrace.h"
 
 #include <drm_fourcc.h>
+
+int ReleaseFrameBuffer(const FBKey &key, uint32_t fd, uint32_t gpu_fd) {
+  int ret = fd > 0 ? drmModeRmFB(gpu_fd, fd) : 0;
+  if (ret) {
+    ETRACE("Failed to Remove FD ErrorCode: %d FD: %d \n", ret, fd);
+  }
+
+#ifdef HANDLE_OWNED_BY_BUFFER_MANAGER
+  return 0;
+#endif
+
+  uint32_t total_planes = key.num_planes_;
+  struct drm_gem_close gem_close;
+  int last_gem_handle = -1;
+
+  for (uint32_t plane = 0; plane < total_planes; plane++) {
+    uint32_t current_gem_handle = key.gem_handles_[plane];
+    if ((last_gem_handle != -1) &&
+        (current_gem_handle == static_cast<uint32_t>(last_gem_handle))) {
+      break;
+    }
+
+    memset(&gem_close, 0, sizeof(gem_close));
+    last_gem_handle = current_gem_handle;
+    gem_close.handle = current_gem_handle;
+
+    ret = drmIoctl(gpu_fd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+    if (ret) {
+      ETRACE(
+          "Failed to close gem handle ErrorCode: %d PrimeFD: %d "
+          "GemHandle: %d  \n",
+          ret, fd, current_gem_handle);
+    }
+  }
+
+  return ret;
+}
 
 int CreateFrameBuffer(
     const uint32_t &iwidth, const uint32_t &iheight, const uint64_t &modifier,
