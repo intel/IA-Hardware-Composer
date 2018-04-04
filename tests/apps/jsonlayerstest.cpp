@@ -239,8 +239,10 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
     spin_lock_.lock();
     connected_displays_.swap(connected_displays);
-    if (connected_displays_.empty())
+    if (connected_displays_.empty()) {
+      spin_lock_.unlock();
       return;
+    }
 
     hwcomposer::NativeDisplay *primary = connected_displays_.at(0);
     for (size_t i = 1; i < connected_displays_.size(); i++) {
