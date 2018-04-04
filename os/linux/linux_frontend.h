@@ -27,6 +27,9 @@
 
 namespace hwcomposer {
 
+class NativeBufferHandler;
+class PixelUploader;
+
 class IAHWC : public iahwc_device {
  public:
   IAHWC();
@@ -34,7 +37,7 @@ class IAHWC : public iahwc_device {
 
   class IAHWCLayer {
    public:
-    IAHWCLayer();
+    IAHWCLayer(PixelUploader* uploader);
     ~IAHWCLayer();
     int SetBo(gbm_bo* bo);
     int SetRawPixelData(iahwc_raw_pixel_data bo);
@@ -52,13 +55,18 @@ class IAHWC : public iahwc_device {
    private:
     hwcomposer::HwcLayer iahwc_layer_;
     struct gbm_handle hwc_handle_;
+    HWCNativeHandle pixel_buffer_ = NULL;
+    uint32_t orig_height_ = 0;
+    uint32_t orig_stride_ = 0;
+    PixelUploader* raw_data_uploader_ = NULL;
     int32_t layer_usage_;
   };
 
   class IAHWCDisplay {
    public:
     IAHWCDisplay();
-    int Init(hwcomposer::NativeDisplay* display);
+    ~IAHWCDisplay();
+    int Init(hwcomposer::NativeDisplay* display, uint32_t gpu_fd);
     int GetDisplayInfo(uint32_t config, int attribute, int32_t* value);
     int GetDisplayName(uint32_t* size, char* name);
     int GetDisplayConfigs(uint32_t* num_configs, uint32_t* configs);
@@ -69,6 +77,8 @@ class IAHWC : public iahwc_device {
     int PresentDisplay(int32_t* release_fd);
     int RegisterVsyncCallback(iahwc_callback_data_t data,
                               iahwc_function_ptr_t hook);
+    void RegisterPixelUploaderCallback(iahwc_callback_data_t data,
+                                       iahwc_function_ptr_t hook);
     int CreateLayer(uint32_t* layer_handle);
     int DestroyLayer(uint32_t layer_handle);
     bool IsConnected();
@@ -77,6 +87,7 @@ class IAHWC : public iahwc_device {
     }
 
    private:
+    PixelUploader* raw_data_uploader_ = NULL;
     hwcomposer::NativeDisplay* native_display_;
     std::map<iahwc_layer_t, IAHWCLayer> layers_;
   };

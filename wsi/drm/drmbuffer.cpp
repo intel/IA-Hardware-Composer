@@ -84,46 +84,15 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();
-  if (handle->is_raw_pixel_) {
-    data_ = handle->pixel_memory_;
-    PixelBuffer* buffer = PixelBuffer::CreatePixelBuffer();
-    pixel_buffer_.reset(buffer);
-    pixel_buffer_->Initialize(handler, handle->meta_data_.width_,
-                              handle->meta_data_.height_, handle->meta_data_.pitches_[0],
-                              handle->meta_data_.format_, data_, image_, is_cursor_buffer);
-    if (is_cursor_buffer) {
-      image_.handle_->meta_data_.usage_ = hwcomposer::kLayerCursor;
-    }
-  } else {
-    handler->CopyHandle(handle, &image_.handle_);
-    if (!handler->ImportBuffer(image_.handle_)) {
-      ETRACE("Failed to Import buffer.");
-      return;
-    }
+
+  handler->CopyHandle(handle, &image_.handle_);
+  if (!handler->ImportBuffer(image_.handle_)) {
+    ETRACE("Failed to Import buffer.");
+    return;
   }
 
   media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
-}
-
-void DrmBuffer::UpdateRawPixelBackingStore(void* addr) {
-  if (pixel_buffer_) {
-    data_ = addr;
-  }
-}
-
-void DrmBuffer::RefreshPixelData() {
-  if (pixel_buffer_ && data_) {
-    pixel_buffer_->Refresh(data_, image_);
-  }
-}
-
-bool DrmBuffer::NeedsTextureUpload() const {
-  if (pixel_buffer_) {
-    return pixel_buffer_->NeedsTextureUpload();
-  }
-
-  return false;
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
@@ -263,36 +232,22 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
     target = GL_TEXTURE_2D;
   }
 
-  if (image_.texture_ != 0) {
-    glBindTexture(target, image_.texture_);
-    if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-      glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
-                   GL_UNSIGNED_BYTE, data_);
-    }
-
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-    glBindTexture(target, 0);
-  } else {
+  if (!image_.texture_) {
     GLuint texture;
     glGenTextures(1, &texture);
-    glBindTexture(target, texture);
-    glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-    if (external_import) {
-      if (pixel_buffer_ && pixel_buffer_->NeedsTextureUpload()) {
-        glTexImage2D(GL_TEXTURE_2D, 0, format_, width_, height_, 0, format_,
-                     GL_UNSIGNED_BYTE, data_);
-      }
-      glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    }
-
-    glBindTexture(target, 0);
     image_.texture_ = texture;
   }
+
+  glBindTexture(target, image_.texture_);
+  glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
+
+
+  glBindTexture(target, 0);
 
   if (!external_import && image_.fb_ == 0) {
     glGenFramebuffers(1, &image_.fb_);
   }
+
 #elif USE_VK
   ETRACE("Missing implementation for creating FB and Texture with Vulkan. \n");
 #endif

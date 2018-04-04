@@ -92,7 +92,7 @@ script:
 
 #clone and build libdrm : dependency
 - pushd /tmp/libdrm
-- git clean -xfd
+- git clean -xfd > /dev/null
 - ./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
 - make -j5 && make install
 - popd
@@ -103,14 +103,14 @@ script:
 - make && make install
 - popd
 
-- git clone git://anongit.freedesktop.org/wayland/wayland /tmp/wayland
+- git clone https://github.com/intel/external-wayland.git /tmp/wayland
 - pushd .
 - cd /tmp/wayland
 - ./autogen.sh --prefix=$WLD --disable-documentation
 - make && make install
 - popd
 
-- git clone git://anongit.freedesktop.org/wayland/wayland-protocols /tmp/wayland-protocols
+- git clone https://github.com/intel/external-wayland-protocols.git /tmp/wayland-protocols
 - pushd .
 - cd /tmp/wayland-protocols
 - ./autogen.sh --prefix=$WLD
@@ -135,28 +135,32 @@ script:
 #Build mesa with gbm and overwrite minigbm
 - pushd .
 - cd /tmp/mesa
-- git clean -xfd
+- git clean -xfd > /dev/null
 - ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland,x11 --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
 - popd
 
 #clone and build libva : dependency
 - pushd /tmp/libva
-- git clean -xfd
+- git clean -xfd > /dev/null
 - ./autogen.sh --prefix=$WLD
 - make -j5 && make install
 - popd
 
 #clone and build vaapi : dependency
 - pushd /tmp/vaapi
-- git clean -xfd
+- git clean -xfd > /dev/null
 - ./autogen.sh --prefix=$WLD
 - make -j5 && make install
 - popd
 
 #Build weston and weston plugin
-- git clone https://anongit.freedesktop.org/git/wayland/weston.git /tmp/weston
-- os/linux/weston/build_script.sh --apply-patches --weston-dir=/tmp/weston --iahwc-dir=$(pwd) --build
+- git clone -b iahwc-plugin https://github.com/intel/external-weston.git ../weston
+- cd ../weston
+#HACK: Weston's paths are hardcoded to ../iahwc/..
+- cp -r ../IA-Hardware-Composer ../iahwc
+- cd -
+- os/linux/weston/build_script.sh --weston-dir=../weston --iahwc-dir=$(pwd) --build
 
 branches:
   only:

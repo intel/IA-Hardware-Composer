@@ -70,6 +70,10 @@ bool GpuDevice::Initialize() {
   return true;
 }
 
+uint32_t GpuDevice::GetFD() const {
+  return display_manager_->GetFD();
+}
+
 NativeDisplay *GpuDevice::GetDisplay(uint32_t display_id) {
   if (total_displays_.size() > display_id)
     return total_displays_.at(display_id);

@@ -197,7 +197,7 @@ bool DisplayPlaneManager::ValidateLayers(
           if (validate_final_layers)
             validate_final_layers = fall_back;
 
-          composition.emplace_back(plane, layer, layer->GetZorder(),
+          composition.emplace_back(plane, layer, this, layer->GetZorder(),
                                    display_transform_);
 #ifdef SURFACE_TRACING
           ISURFACETRACE("Added Layer for direct Scanout: %d \n",
@@ -219,7 +219,7 @@ bool DisplayPlaneManager::ValidateLayers(
           break;
         } else {
           if (composition.empty()) {
-            composition.emplace_back(plane, layer, layer->GetZorder(),
+            composition.emplace_back(plane, layer, this, layer->GetZorder(),
                                      display_transform_);
             DisplayPlaneState &last_plane = composition.back();
             ResetPlaneTarget(last_plane, commit_planes.back());
@@ -403,9 +403,15 @@ void DisplayPlaneManager::ValidateCursorLayer(
   uint32_t total_size = cursor_layers.size();
   uint32_t cursor_index = 0;
   auto overlay_end = overlay_planes_.end();
-  auto overlay_begin = overlay_planes_.begin() + composition.size();
+  auto overlay_begin = overlay_end - 1;
+  if (total_size > 1) {
+    overlay_begin = overlay_planes_.begin() + composition.size();
+  }
+
 #ifdef DISABLE_CURSOR_PLANE
   overlay_end = overlay_planes_.end() - 1;
+  if (total_size == 1)
+    overlay_begin = overlay_planes_.begin() + composition.size();
 #endif
   for (auto j = overlay_begin; j < overlay_end; ++j) {
     if (cursor_index == total_size)
@@ -515,8 +521,8 @@ void DisplayPlaneManager::ValidateCursorLayer(
 
       last_plane->UsePlaneScalar(false);
     } else {
-      composition.emplace_back(plane, cursor_layer, cursor_layer->GetZorder(),
-                               display_transform_);
+      composition.emplace_back(plane, cursor_layer, this,
+                               cursor_layer->GetZorder(), display_transform_);
 #ifdef SURFACE_TRACING
       ISURFACETRACE("Added CursorLayer for direct scanout: %d \n",
                     cursor_layer->GetZorder());
@@ -701,7 +707,7 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
 
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
   for (auto &fb : surfaces_) {
-    if ((fb->GetSurfaceAge() >= 0) && fb->IsOnScreen()) {
+    if (fb->IsOnScreen()) {
       surfaces.emplace_back(fb.release());
     }
   }
@@ -825,7 +831,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   OverlayLayer *primary_layer = &(*(layers.begin()));
   DisplayPlane *current_plane = overlay_planes_.at(0).get();
 
-  composition.emplace_back(current_plane, primary_layer,
+  composition.emplace_back(current_plane, primary_layer, this,
                            primary_layer->GetZorder(), display_transform_);
   DisplayPlaneState &last_plane = composition.back();
   last_plane.ForceGPURendering();
@@ -856,6 +862,10 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   // Reset andy Scanout validation state.
   uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
   last_plane.RevalidationDone(validation_done);
+}
+
+void DisplayPlaneManager::ReleasedSurfaces() {
+  release_surfaces_ = true;
 }
 
 void DisplayPlaneManager::MarkSurfacesForRecycling(

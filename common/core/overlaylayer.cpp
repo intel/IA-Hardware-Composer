@@ -96,11 +96,6 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
   }
 
-  if (handle->is_raw_pixel_ && !surface_damage_.empty()) {
-    buffer->UpdateRawPixelBackingStore(handle->pixel_memory_);
-    state_ |= kRawPixelDataChanged;
-  }
-
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
   ValidateForOverlayUsage();
 }
@@ -470,7 +465,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   if (!layer->HasVisibleRegionChanged() && !content_changed &&
       surface_damage_.empty() && !layer->HasLayerContentChanged() &&
-      !(state_ & kNeedsReValidation) && !(state_ & kRawPixelDataChanged)) {
+      !(state_ & kNeedsReValidation)) {
     state_ &= ~kLayerContentChanged;
   }
 }

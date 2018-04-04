@@ -44,20 +44,6 @@ class OverlayBuffer {
                                           ResourceManager* buffer_manager,
                                           bool is_cursor_buffer) = 0;
 
-  // If this buffer is backed by raw pixel data, we refresh the contents
-  // in this case. Expectation is that when InitializeFromNativeHandle
-  // is called we already know if this is backed by pixel data or
-  // not.
-  virtual void RefreshPixelData() = 0;
-
-  // If this buffer is backed by raw pixel data, we update the pixel data
-  // pointer in this case. Expectation is that when InitializeFromNativeHandle
-  // is called we already know if this is backed by pixel data or
-  // not.
-  virtual void UpdateRawPixelBackingStore(void* addr) = 0;
-
-  virtual bool NeedsTextureUpload() const = 0;
-
   virtual uint32_t GetWidth() const = 0;
 
   virtual uint32_t GetHeight() const = 0;

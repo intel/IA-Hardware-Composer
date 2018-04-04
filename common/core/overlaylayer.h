@@ -203,13 +203,6 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
-  // Returns true if this layer is backed
-  // by raw pixel data and it has changed
-  // compared to previous frame.
-  bool RawPixelDataChanged() const {
-    return state_ & kRawPixelDataChanged;
-  }
-
   bool LayerOrderChanged() const {
     return state_ & kLayerOrderChanged;
   }
@@ -229,9 +222,8 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kRawPixelDataChanged = 1 << 5,
-    kLayerOrderChanged = 1 << 6,
-    kForcePartialClear = 1 << 7
+    kLayerOrderChanged = 1 << 5,
+    kForcePartialClear = 1 << 6
   };
 
   struct ImportedBuffer {

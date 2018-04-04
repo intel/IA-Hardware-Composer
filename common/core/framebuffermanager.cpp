@@ -61,9 +61,7 @@ uint32_t FrameBufferManager::FindFB(const uint32_t &iwidth,
   uint32_t fb_id = 0;
   auto it = fb_map_.find(key);
   if (it != fb_map_.end()) {
-    if (it->second.fb_created) {
-      it->second.fb_ref++;
-    } else {
+    if (!it->second.fb_created) {
       it->second.fb_created = true;
       CreateFrameBuffer(iwidth, iheight, iframe_buffer_format, igem_handles,
                         ipitches, ioffsets, gpu_fd_, &it->second.fb_id);
