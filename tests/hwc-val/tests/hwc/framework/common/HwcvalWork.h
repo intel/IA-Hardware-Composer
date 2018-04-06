@@ -106,8 +106,6 @@ class BufferFreeItem : public Item {
 
 class Queue : public EventQueue<std::shared_ptr<Item>, HWCVAL_MAX_GEM_EVENTS> {
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   Queue();
   virtual ~Queue();
 

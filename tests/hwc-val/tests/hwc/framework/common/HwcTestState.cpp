@@ -33,7 +33,6 @@
 #include "HwcShimInitializer.h"
 #include "HwcvalThreadTable.h"
 
-// HwcTestState Constructor
 HwcTestState::HwcTestState()
     : mDrmChecks(0),
       mTestKernel(0),

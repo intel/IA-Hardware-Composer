@@ -135,37 +135,10 @@
 
 void dumpFence(const char *label, const char *surfaceName, int fence) {
   if (fence != -1) {
-#if 0  
-      sync_fence_info_data *pf = sync_fence_info(fence);
-        struct sync_pt_info *ps;
-        int i = 0;
-
-        if(pf)
-        {
-            HWCLOGI("%s(%s) - frame fence(%d) sync name(%s) status(%d) pt(%d)",
-                    label, surfaceName, fence, pf->name, pf->status, pf->pt_info[0]);
-
-            for(ps = sync_pt_info(pf, NULL); ps; ps = sync_pt_info(pf, ps))
-            {
-                float seconds = float(ps->timestamp_ns) * (1/1000000000.0f);
-
-                HWCLOGI("%s(%s) - fence(%d) syncPoint[%d] = driver(%s) status(%d) timestamp(%.03fs)",
-                        label, surfaceName, fence, i,
-                        ps->driver_name, ps->status, seconds);
-                ++i;
-            }
-            sync_fence_info_free(pf);
-        }
-        else
-#endif
-    {
-      // if we've got a fence fd, we should be able to get its info???
-      HWCLOGW("%s - frame fence %d: can't get more info", label, fence);
-    }
+    // if we've got a fence fd, we should be able to get its info???
+    HWCLOGW("%s - frame fence %d: can't get more info", label, fence);
   }
 }
-
-// SurfaceSenderProperties constructors
 
 SurfaceSender::SurfaceSenderProperties::SurfaceSenderProperties() {
   mUseScreenWidth = true;
@@ -502,7 +475,6 @@ uint32_t SurfaceSender::GetPixelBytes(SPixelWord &pixel) {
   return result;
 }
 
-/// Constructor create surface with given properties
 SurfaceSender::SurfaceSender(SurfaceSender::SurfaceSenderProperties &in)
     : mProps(in) {
   Display displayInfo = Display();
@@ -521,12 +493,8 @@ SurfaceSender::SurfaceSender(SurfaceSender::SurfaceSenderProperties &in)
   mLine = 0;
   mBufferLine.emplace((buffer_handle_t)-1, (uint32_t)0);
   calculatePeriod();
-
-  // DEBUG
-  // HWCLOGI("surface %s color %x", in.mSurfaceName, (uint32_t)in.mRGBAColor);
 }
 
-// Default constructor
 SurfaceSender::SurfaceSender() {
   // Config
   mProps.mColorSpace = ecsRGBA;
@@ -569,8 +537,6 @@ void SurfaceSender::calculateTargetUpdateTime() {
     }
     mNextUpdateTime = systemTime(SYSTEM_TIME_MONOTONIC) + mTargetFramePeriod;
   }
-  // HWCLOGI("Next update time for surface %s is %lld", mProps.mSurfaceName,
-  // mNextUpdateTime);
 }
 
 bool SurfaceSender::Start() {
@@ -795,8 +761,6 @@ bool SurfaceSender::Iterate() {
 }
 
 void SurfaceSender::PreFrame() {
-  // printf("%04d: PreFrame -- %s\n", int((android::elapsedRealtime() / 1000) %
-  // 20), mProps.mSurfaceName);
   if (mWindow->dequeueBuffer(mWindow, &mBuffer, &mFence)) {
     HWCERROR(eCheckSurfaceSender, "Buffer acquisition failed");
   }
@@ -804,8 +768,6 @@ void SurfaceSender::PreFrame() {
 }
 
 bool SurfaceSender::PostFrame() {
-  // printf("%04d: PostFrame - %s\n\n", int((android::elapsedRealtime() / 1000)
-  // % 20), mProps.mSurfaceName);
   if (mWindow->queueBuffer(mWindow, mBuffer, mFence)) {
     HWCERROR(eCheckSurfaceSender,
              "SurfaceSender::PostFrame - Buffer unlock and post failed");
@@ -815,8 +777,6 @@ bool SurfaceSender::PostFrame() {
 }
 
 bool SurfaceSender::Frame() {
-  // printf("%04d: Frame ----- %s\n", int((android::elapsedRealtime() / 1000) %
-  // 20), mProps.mSurfaceName);
   calculateTargetUpdateTime();
 
   int err = 0;

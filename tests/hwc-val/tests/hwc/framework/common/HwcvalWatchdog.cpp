@@ -25,7 +25,6 @@ Hwcval::Watchdog::Watchdog(uint64_t ns, HwcTestCheckType check, const char* str)
       mMessage(str) {
 }
 
-// Copy constructor
 // Only copy state, ie. start time, actual timer will not be running in the
 // copy.
 Hwcval::Watchdog::Watchdog(Hwcval::Watchdog& rhs)

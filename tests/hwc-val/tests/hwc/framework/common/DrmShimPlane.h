@@ -79,15 +79,12 @@ class DrmShimPlane {
   bool mBufferUpdated;
 
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   DrmShimPlane(uint32_t planeId);
 
   DrmShimPlane(uint32_t planeId, HwcTestCrtc* crtc);
 
   virtual ~DrmShimPlane();
 
-  /// Accessors
   HwcTestCrtc* GetCrtc();
   void SetCrtc(HwcTestCrtc* crtc);
 
@@ -167,7 +164,6 @@ class DrmShimPlane {
   void Log(int priority);
 };
 
-/// Accessors
 inline HwcTestCrtc* DrmShimPlane::GetCrtc() {
   return mCrtc;
 }

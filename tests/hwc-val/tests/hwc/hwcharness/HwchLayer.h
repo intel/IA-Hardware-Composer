@@ -159,7 +159,6 @@ class Layer {
   Hwch::System& mSystem;
 
  public:
-  // Constructors and destructors
   Layer();
 
   Layer(const char* name, Coord<int32_t> width, Coord<int32_t> height,
@@ -249,8 +248,6 @@ class Layer {
   // Functions for framework usage only //
   ////////////////////////////////////////
 
-  // void AssignLayerProperties(hwc2_layer_t& hwLayer, buffer_handle_t
-  // handle);
   hwc_rect_t* AssignVisibleRegions(hwc_rect_t* visibleRegions,
                                    uint32_t& visibleRegionCount);
   virtual HWCNativeHandle Send();

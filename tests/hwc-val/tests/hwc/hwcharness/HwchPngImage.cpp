@@ -56,7 +56,6 @@ static void PreMultiply(png_bytep pixel) {
 }
 
 //
-// ReadPngFile(const char* input_file)
 // This routine reads the input file, retrieves the pre-image information and
 // stores that
 // in the appropriate class image variables. Then allocates the row pointers and
@@ -113,13 +112,7 @@ bool Hwch::PngImage::IsLoaded() {
 }
 
 //
-// ProcessFile(void)
 // This routine performs a simple transformation on the row pointers.
-//
-// Input Parameters: none
-//
-// Return Values:
-// 0 = success/1 = failure
 //
 bool Hwch::PngImage::ProcessFile(void) {
   bool bRet = false;
@@ -130,10 +123,6 @@ bool Hwch::PngImage::ProcessFile(void) {
 
     for (uint32_t column = 0; column < mWidth; column++) {
       png_byte* ptr = &(pRow[column * 4]);
-
-      // printf("Pixel at position [ %d - %d ] has RGBA values: %d - %d - %d -
-      // %d\n",
-      //       column, row, ptr[0], ptr[1], ptr[2], ptr[3]);
 
       // set red value to 0 and green value to the blue one
       ptr[0] = 0;
@@ -269,100 +258,6 @@ bool Hwch::PngReader::Read(const char* path, png_bytep*& rowPointers,
   return true;
 }
 
-/*
-//
-// WritePngFile(const char* output_file)
-// This routine writes in a output file a png image header and the image itself
-// contained in the row pointers.
-//
-// Input Parameters:
-// output_file = name of the .png file created
-//
-// Return Values:
-// 0 = success/1 = failure
-//
-bool Hwch::PngImage::WritePngFile(const char* fileName)
-{
-    bool bRet = false;
-
-    FILE *fp = fopen(fileName, "wb");
-    if (!fp)
-    {
-        HWCLOGE("File %s could not be opened for writing", fileName);
-        PngCleanUp(&bRet, &fp);
-    }
-
-
-    // initializations
-
-    mpPngStruct = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL,
-NULL);
-    if (!mpPngStruct)
-    {
-        HWCLOGE("png_create_write_struct failed");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-
-    mpPngInfo = png_create_info_struct(mpPngStruct);
-    if (!mpPngInfo)
-    {
-        HWCLOGE("png_create_info_struct failed");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-
-    if (setjmp(png_jmpbuf(mpPngStruct)))
-    {
-        HWCLOGE("Error during initialization");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-    png_init_io(mpPngStruct, fp);
-
-
-    // write image header
-
-    if (setjmp(png_jmpbuf(mpPngStruct)))
-    {
-        HWCLOGE("Error during writing header");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-    png_set_IHDR(mpPngStruct, mpPngInfo, mWidth, mHeight, mBitDepth, mColorType,
-            PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE,
-PNG_FILTER_TYPE_BASE);
-    png_write_info(mpPngStruct, mpPngInfo);
-
-
-    // write image
-
-    if (setjmp(png_jmpbuf(mpPngStruct)))
-    {
-        HWCLOGE("Error during writing bytes");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-    png_write_image(mpPngStruct, mRowPointers);
-
-    if (setjmp(png_jmpbuf(mpPngStruct)))
-    {
-        HWCLOGE("Error during end of write");
-        PngCleanUp(&bRet, &fp);
-        return bRet;
-    }
-    png_write_end(mpPngStruct, NULL);
-
-    fclose(fp);
-
-    return bRet;
-}
-*/
-
-//
-// Destructor
-// Perform tidyup of PNG structures.
-//
 Hwch::PngReader::~PngReader() {
   if (mFp != NULL)
     fclose(mFp);

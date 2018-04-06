@@ -39,10 +39,8 @@ class HwcTestBase {
   /// \futurework The idea 1
 
  public:
-  // Constructor
   HwcTestBase(int argc, char** argv);
 
-  // Destructor
   virtual ~HwcTestBase();
 
   /// Main entry point for test implmented in each test.
@@ -84,8 +82,6 @@ class HwcTestBase {
   // Test functions
   /// Set the check required
   int SetCheckEnable(bool enable);
-  // Get function
-  // eTestEndType GetTestEndType(void);
 
   /// TODO
   void CheckTestEndType();
@@ -102,7 +98,6 @@ class HwcTestBase {
 
   /// Start test inlcudes checks that the test has a sesnibale set up.
   int StartTest(void);
-  /// Continue test
   bool ContinueTest(void);
   /// Setup checks in shims
   status_t InitialiseChecks();
@@ -116,7 +111,6 @@ class HwcTestBase {
   /// Preserve command-line arguments
   void SetArgs(int argc, char** argv);
 
-  /// Print test test
   void LogTestResult(HwcTestConfig& config);
   void LogTestResult();
 
@@ -144,12 +138,9 @@ class HwcTestBase {
   Display* mpDisplay;
 
  protected:
-  /// Test name
   std::string mTestName;
-  /// Hwc Service 
   HWCSHANDLE mHwcService;
 
-  /// The condition for ending the test
   eTestEndType mTestEndCondition;
   /// Run length of test, need a better name
   uint32_t mTestFrameCount;
@@ -161,7 +152,6 @@ class HwcTestBase {
   uint32_t mFrameCount;
   /// Time a call was made
   int64_t mStartTime;
-  /// Current time
   int64_t mCurrentTime;
 
   /// Command-line argument count
@@ -183,9 +173,7 @@ class HwcTestBase {
 
   /// Stored pointer to this, for logging
   static HwcTestBase* mTheTestBase;
-  /// Test Configuration
   HwcTestConfig mConfig;
-  /// Test Result
   HwcTestResult mResult;
 };
 

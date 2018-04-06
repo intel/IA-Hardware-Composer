@@ -123,7 +123,6 @@ class LogParser : public Hwcval::LogChecker {
   bool ParseRotationInProgress(pid_t pid, int64_t timestamp, const char* str);
 
  public:
-  // Constructor
   LogParser(HwcTestKernel* pKernel)
       : mTestKernel(pKernel){};
 

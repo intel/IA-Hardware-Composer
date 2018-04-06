@@ -199,8 +199,6 @@ class EXPORT_API HwcTestKernel {
   Hwcval::Statistics::Counter mSnapshotsRestored;
 
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   HwcTestKernel();
   virtual ~HwcTestKernel();
 

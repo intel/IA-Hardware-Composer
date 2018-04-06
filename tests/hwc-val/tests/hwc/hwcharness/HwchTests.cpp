@@ -813,8 +813,6 @@ int Hwch::PanelFitterTest::RunScenario() {
     Hwch::StatusBarLayer layer4;
     Hwch::NavigationBarLayer layer5;
 
-    // frame.Add(layer1);
-    // frame.Add(layer2);
     frame.Add(layer3);
     frame.Send(100);
 
@@ -1119,7 +1117,6 @@ int Hwch::PngTest::RunScenario() {
 // this function returns a random number within the (min,max) interval
 // the call to srand ensures that the number is different every time
 static int RandSize(int min, int max) {
-  // srand((unsigned)time(0));
   return ((rand() % (max - min)) + min);
 }
 
@@ -1354,7 +1351,6 @@ int Hwch::RenderCompressionTest::RunScenario() {
 
   frame.Add(launcher);
   frame.Add(skip);
-  // frame.Add(fg);
 
   frame.Send(30);
 

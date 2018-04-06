@@ -42,12 +42,6 @@ extern "C" {
 
 #include "HwcvalHwc2.h"
 
-// Real Hwc service and log
-//#include <HwcService.h>
-//#include <IDiagnostic.h>
-
-//#include "hwc_shim_binder.h"
-
 class HwcShimService;
 class HwcTestState;
 class HwcShim;
@@ -70,9 +64,7 @@ class HwcShim : hwc2_device, public HwcShimInitializer {
   int HwcShimInit(void);
   int HwcShimInitDrivers(HwcTestState *state);
 
-  /// Constructor
   HwcShim(const hw_module_t *module);
-  /// Destructor
   virtual ~HwcShim();
 
   // For hooks into real HWC

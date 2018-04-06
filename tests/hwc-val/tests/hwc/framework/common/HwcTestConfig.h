@@ -139,7 +139,6 @@ class HwcTestConfig {
   // Convert string to a check tyoe
   HwcTestCheckType CheckFromName(const char* checkName);
 
-  /// Constructor
   HwcTestConfig();
 
   // Perform standard initialisation
@@ -237,7 +236,6 @@ class HwcTestResult {
   uint32_t mFinalPriority[eHwcTestNumChecks];
   bool mCausesTestFail[eHwcTestNumChecks];
 
-  /// Constructor
   HwcTestResult();
 
   /// Combination

@@ -1472,7 +1472,6 @@ int HwcShim::HookOpen(const hw_module_t *module, const char *name,
     }
 
     *device = &hwcShim->common;
-    // ALOG_ASSERT((void*)*device == (void*)hwcShim);
     HWCLOGI("HwcShim::HookOpen - Intel HWComposer was loaded successfully.");
 
     return 0;
@@ -1493,7 +1492,6 @@ void HwcShim::StartCallTime(void) {
   if (state->IsCheckEnabled(eCheckOnSetLatency)) {
     callTimeStart = android::elapsedRealtimeNano();
   }
-  //    HWCLOGI("LOgged start time %d", (int) (callTimeStart/ 1000));
 }
 
 void HwcShim::EndCallTime(const char *function) {
@@ -1507,8 +1505,6 @@ void HwcShim::EndCallTime(const char *function) {
                ((double)callTimeDuration) / 1000000.0);
     }
   }
-
-  //    HWCLOGI("Logged end time %d", (int) (callTimeDuration / 1000));
 }
 
 int HwcShim::OnEventControl(int disp, int event, int enabled) {
@@ -1519,9 +1515,6 @@ int HwcShim::OnEventControl(int disp, int event, int enabled) {
               HWC_NUM_DISPLAY_TYPES);
   if (event == HWC_EVENT_VSYNC) {
     status = EnableVSync(disp, enabled);
-  } else {
-    // status = hwc_composer_device->eventControl(hwc_composer_device, disp,
-    // event, enabled);
   }
 
   HWCLOGV("HwcShim::OnEventControl returning status=%d", status);
@@ -1531,12 +1524,10 @@ int HwcShim::OnEventControl(int disp, int event, int enabled) {
 int HwcShim::EnableVSync(int disp, bool enable) {
   HWCLOGI("HwcShim::EnableVSync - HWC_EVENT_VSYNC: disp[%d] %s VSYNC event",
           disp, enable ? "enabling" : "disabling");
-  return -1;  // hwc_composer_device->eventControl(hwc_composer_device, disp,
-              // HWC_EVENT_VSYNC, enable);
+  return -1;
 }
 
 void HwcShim::OnDump(char *buff, int buff_len) {
-  // hwc_composer_device->dump(hwc_composer_device, buff, buff_len);
 }
 
 int HwcShim::OnGetDisplayConfigs(int disp, uint32_t *configs,

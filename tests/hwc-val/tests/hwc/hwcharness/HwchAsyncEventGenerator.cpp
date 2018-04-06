@@ -302,8 +302,6 @@ bool Hwch::AsyncEventGenerator::Do(uint32_t eventType,
 void Hwch::AsyncEventGenerator::Do(AsyncEvent& ev) {
   int64_t t = systemTime(SYSTEM_TIME_MONOTONIC);
   int64_t delayNs = ev.mTargetTime - t;
-  // HWCLOGV("%s scheduled for %f", AsyncEvent::EventName(ev.mType).c_str(),
-  // double(ev.mTargetTime) / HWCVAL_SEC_TO_NS);
 
   if (delayNs > 0) {
     usleep(int32_t(delayNs / HWCVAL_US_TO_NS));

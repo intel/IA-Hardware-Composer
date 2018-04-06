@@ -25,7 +25,6 @@
 #include <fcntl.h>
 #include <utils/Timers.h>
 
-//#include <Debug.h>
 #include "HwcTestState.h"
 #include "HwcTestLog.h"
 #include "CrcDebugfs.h"

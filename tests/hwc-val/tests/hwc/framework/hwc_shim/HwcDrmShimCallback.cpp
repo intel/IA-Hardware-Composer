@@ -20,12 +20,10 @@
 #include "HwcTestUtil.h"
 #include "HwcTestDefs.h"
 
-// Constructor
 HwcDrmShimCallback::HwcDrmShimCallback()
     : cHWCOnSets(0), cPageFlips(0), pfnPageFlipCallback(NULL) {
 }
 
-// Destructor
 HwcDrmShimCallback::~HwcDrmShimCallback() {
 }
 

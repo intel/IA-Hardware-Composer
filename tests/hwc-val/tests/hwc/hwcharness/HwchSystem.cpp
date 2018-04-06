@@ -433,7 +433,6 @@ void Hwch::System::HwcOptionState::Override(bool enable) {
   if (desiredValue != mCurrentValue) {
     HWCLOGV_COND(eLogHarness, "Setting %s option to %s", mName.c_str(),
                  desiredValue.c_str());
-    // mSystem.SetHwcOption(mName, desiredValue);
     mCurrentValue = desiredValue;
   }
 }

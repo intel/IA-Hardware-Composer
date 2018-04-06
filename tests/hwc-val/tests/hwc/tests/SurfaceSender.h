@@ -152,142 +152,103 @@ class SurfaceSender {
   // A class for creating surfaces to ensure surface parameters are consistent
   struct SurfaceSenderProperties {
    public:
-    /// Constructor. Set some sensible defaults
     SurfaceSenderProperties();
 
-    /// Constructor. Create from a predefined surface
     SurfaceSenderProperties(ePredefinedSurface surface);
 
-    // Get and set functions
-
-    /// Set useScreenWidth
     void SetUseScreenWidth(uint32_t value) {
       mUseScreenWidth = value;
     };
-    /// Get useScreenWidth
     bool GetUseScreenWidth(void) {
       return mUseScreenWidth;
     };
 
-    /// Set useScreenHeight
     void SetUseScreenHeight(uint32_t value) {
       mUseScreenHeight = value;
     };
-    /// Get useScreenHeight
     bool GetUseScreenHeight(void) {
       return mUseScreenHeight;
     };
 
-    /// Set height
     void SetHeight(uint32_t value) {
       mHeight = value;
     };
-    /// Get Heigh
     uint32_t GetHeight(void) {
       return mHeight;
     };
 
-    /// Set width
     void SetWidth(uint32_t value) {
       mWidth = value;
     };
-    /// Get width
     uint32_t GetWidth(void) {
       return mWidth;
     };
 
-    /// Set xOffset
     void SetXOffset(uint32_t value) {
       mXOffset = value;
     };
-    /// Get xOffset
     uint32_t GetXOffset(void) {
       return mXOffset;
     };
 
-    /// Set yOffset
     void SetYOffset(uint32_t value) {
       mYOffset = value;
     };
-    /// Get yOffset
     uint32_t GetYOffset(void) {
       return mYOffset;
     };
 
-    /// Set layer
     void SetLayer(uint32_t value) {
       mLayer = value;
     };
-    /// Get layer
     uint32_t GetLayer(void) {
       return mLayer;
     };
 
-    /// Set colorSpace
     void SetColorSpace(eColorSpace value) {
       mColorSpace = value;
     };
-    /// Get colorSpace
     eColorSpace GetColorSpace(void) {
       return mColorSpace;
     };
 
-    /// Set RGBAColor
     void SetRGBAColor(eRGBAColor value) {
       mRGBAColor = value;
     };
-    /// Get RGBAColor
     eRGBAColor GetRGBAColor(void) {
       return mRGBAColor;
     };
 
-    /// Get SurfaceName
     const char *GetSurfaceName(void) {
       return mSurfaceName;
     };
 
-    /// Set fps
     void SetFps(uint32_t value) {
       mFps = value;
     };
-    /// Get fps
     uint32_t GetFps(void) {
       return mFps;
     };
 
-    /// Set fpsThreshold
     void SetFpsThreshold(uint32_t value) {
       mFpsThreshold = value;
     };
-    /// Get fpsThreshold
     uint32_t GetFpsThreshold(void) {
       return mFpsThreshold;
     };
 
    public:
-    /// Set the surface width to the screen width
     bool mUseScreenWidth;
-    /// Set the surface height to to the screen height
     bool mUseScreenHeight;
-    /// Surface height
     uint32_t mHeight;
-    /// Surface width
     uint32_t mWidth;
-    /// surface xOffset
     uint32_t mXOffset;
-    /// surface yOffset
     uint32_t mYOffset;
-    /// layer z-index
     uint32_t mLayer;
-    /// Surface color format
     eColorSpace mColorSpace;
-    /// surface color in RGBA888 format
     eRGBAColor mRGBAColor;
-    /// Surface name
     const char *mSurfaceName;
-    /// Surface fps
     uint32_t mFps;
-    /// Surface min fps
     uint32_t mFpsThreshold;
   };
 
@@ -307,10 +268,8 @@ class SurfaceSender {
     };
   };
 
-  /// Constructor create surface with given properties
   SurfaceSender(SurfaceSenderProperties &in);
 
-  /// Default constructor
   SurfaceSender();
 
   virtual ~SurfaceSender();
@@ -348,7 +307,6 @@ class SurfaceSender {
                     unsigned char *pLineSrc, unsigned char *pNV12ChromaSrc);
   void FillBufferBackground(unsigned char *pBfr);
 
-  /// Surface properties
   SurfaceSenderProperties mProps;
 
   /// Number of frames to sent. Currently unused for frame count test
@@ -367,26 +325,16 @@ class SurfaceSender {
 
   /// Current line
   uint32_t mLine;
-  /// Gralloc module
   struct gralloc_module_t *mGralloc;
-  /// Surface composer client
   sp<SurfaceComposerClient> mClient;
-  /// Surface control
   sp<SurfaceControl> mSurfaceControl;
-  /// Surface
   sp<Surface> mSurface;
-  /// Android Native Window
   ANativeWindow *mWindow;
-  /// Android Native Window Buffer
   ANativeWindowBuffer *mBuffer;
-  /// Fence
   int mFence;
 
-  /// Bytes per pixel
   uint32_t mBytesPerPixel;
-  /// Background pixel value;
   SPixelWord mBackgroundPixel;
-  /// Foreground pixel value;
   SPixelWord mForegroundPixel;
 
   unsigned char *mpBackgroundLine;

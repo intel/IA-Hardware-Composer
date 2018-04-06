@@ -50,12 +50,9 @@ int Hwch::VideoModesTest::RunScenario() {
   frame.Add(wallpaper);
   frame.Send(10);
 
-#define HWCVAL_RESET_PREFERRED_MODE_NOT_WORKING
-#ifdef HWCVAL_RESET_PREFERRED_MODE_NOT_WORKING
   uint32_t entryMode;
   int st = display->GetCurrentMode(entryMode);
   ALOG_ASSERT(st);
-#endif
 
   for (uint32_t m = 0; m < modeCount; ++m) {
     if (doModeSet) {
@@ -85,13 +82,8 @@ int Hwch::VideoModesTest::RunScenario() {
   }
 
   if (doModeSet) {
-#ifdef HWCVAL_RESET_PREFERRED_MODE_NOT_WORKING
     HWCLOGD("Restoring entry mode");
     display->SetMode(entryMode);
-#else
-    HWCLOGD("Clearing display mode");
-    display->ClearMode();
-#endif
   }
 
   SetExpectedMode(HwcTestConfig::eDontCare);

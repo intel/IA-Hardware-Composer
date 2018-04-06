@@ -144,17 +144,6 @@ uint32_t Hwch::SPixelWord::GetPixelBytes(uint32_t colour, uint32_t format) {
       break;
     }
     case DRM_FORMAT_YUYV: {
-      // Two other choices from wikipedia
-      // Doesn't seem to make a lot of difference
-      // float r = R; float g = G; float b = B;
-      // y = 0.299 * r + 0.587 * g + 0.114 * b;
-      // u = -0.147 * r - 0.289 * g + 0.436 * b;
-      // v = 0.615 * r -0.515 * g -0.1 * b;
-
-      // y = 0.299 * r + 0.587 * g + 0.114 * b;
-      // u = -0.169 * r - 0.331 * g + 0.499 * b + 128;
-      // v = 0.499 * r -0.418 * g -0.0813 * b + 128;
-
       mBytes[0] = y;
       mBytes[1] = u;
       mBytes[2] = y;

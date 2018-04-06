@@ -90,7 +90,6 @@ class DrmShimTransform {
   // Invert an existing transform
   DrmShimTransform Inverse();
 
-  // Accessors
   std::shared_ptr<DrmShimBuffer> GetBuf();
   const DrmShimBuffer* GetConstBuf() const;
   DrmShimTransform* SetBuf(std::shared_ptr<DrmShimBuffer>& buf);

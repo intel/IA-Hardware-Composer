@@ -777,81 +777,7 @@ bool DrmShimBuffer::IsBufferTransparent(const hwcomposer::HwcRect<int>& rect) {
 
   return (mBufferContent == BufferContentType::ContentNull);
 }
-#if 0
-// Static function to read a buffer and find out if it is empty within a certain
-// rectangle.
-bool DrmShimBuffer::IsBufferTransparent(struct gralloc_module_t* gralloc,
-					const hwcomposer::HwcRect<int>& rect) {
-  if ((bi->meta_data_.height_ < rect.bottom) || (bi->meta_data_.width_ < rect.right)) {
-    HWCLOGD("video (%d, %d, %d, %d) overlay %dx%d", rect.left, rect.top,
-	    rect.right, rect.bottom, bi->meta_data_.width_, bi->meta_data_.height_);
-    HWCLOGD(
-        "DrmShimBuffer::IsBufferTransparent: Not fully covering video: handle "
-        "%p",
-        handle);
-    return false;
-  }
 
-  uint8_t* data = 0;
-  int err = gralloc->lock(gralloc, handle, GRALLOC_USAGE_SW_READ_OFTEN, 0, 0, 0,
-                          0, (void**)&data);
-
-  if (err || (data == 0)) {
-    HWCLOGW(
-        "DrmShimBuffer::IsBufferTransparent: Gralloc lock of real buffer "
-        "handle %p failed with err=%d",
-        handle, err);
-    return false;
-  }
-
-  uint32_t lineStrideBytes = bi->meta_data_.pitches_[0];
-  uint32_t bytesPerPixel = bi->meta_data_.pitches_[0] / bi->meta_data_.width_;  // could be wrong
-  uint32_t lineWidthBytes = (rect.right - rect.left) * bytesPerPixel;
-
-  bool ret = true;
-  uint32_t n = 0;
-
-  for (int i = rect.top; i < rect.bottom; ++i) {
-    uint8_t* pbyte = (data + i * lineStrideBytes + bytesPerPixel * rect.left);
-    uint64_t* p = (uint64_t*)pbyte;
-
-    uint32_t j;
-    for (j = 0; j < ((lineWidthBytes - 7) / 8); ++j) {
-      ++n;
-      if (p[j] != 0) {
-        HWCLOGD(
-            "DrmShimBuffer::IsBufferTransparent: Not null line %d doubleword "
-            "%d 0x%llx",
-            i, j, p[j]);
-        ret = false;
-        break;
-      }
-    }
-
-    j *= 8;
-    for (; j < lineWidthBytes; ++j) {
-      if (pbyte[j] != 0) {
-        HWCLOGD("DrmShimBuffer::IsBufferTransparent: Not null line %d byte %d",
-                i, j);
-        ret = false;
-        break;
-      }
-    }
-
-    if (!ret) {
-      break;
-    }
-  }
-
-  HWCLOGD(
-      "DrmShimBuffer::IsBufferTransparent tested %d doublewords. "
-      "linewidthbytes=%d (%d, %d, %d, %d)",
-      n, lineWidthBytes, rect.left, rect.right, rect.top, rect.bottom);
-
-  gralloc->unlock(gralloc, handle);
-  return ret;
-}
-#endif
 void DrmShimBuffer::SetTransparentFromHarness() {
   mTransparentFromHarness = true;
 }
@@ -961,7 +887,6 @@ bool DrmShimBuffer::CompareWithRef(bool useAlpha,
   }
 
   // Compare data line by line
-  // uint32_t lineStrideBytes = cpyBi.pitch;
   uint32_t bytesPerPixel =
       mBufCpy->meta_data_.pitches_[0] / mBufCpy->meta_data_.width_;
   uint32_t lineWidthBytes = width * bytesPerPixel;

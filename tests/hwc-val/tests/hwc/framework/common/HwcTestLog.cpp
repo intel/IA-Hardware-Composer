@@ -47,7 +47,6 @@ int HwcValLogVerbose(int priority, const char* context, int line,
 
   std::string logStr = formatV(fmt, args);
 
-  // std::string fmt2 = format("%s(%d) ",context, line);
   std::string fmt2("%s(%d) %s");
   HwcValLog(priority, fmt2.c_str(), context, line, logStr.c_str());
 

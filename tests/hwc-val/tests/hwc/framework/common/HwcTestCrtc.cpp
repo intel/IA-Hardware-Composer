@@ -1164,14 +1164,14 @@ void HwcTestCrtc::ConsistencyChecks(Hwcval::LayerList* ll, uint32_t hwcFrame) {
     }
 
     if (tr.GetLayerIndex() != eNoLayer) {
-      break;  // // for (uint32_t i=0; i < mTransforms.size(); ++i)
+      break;
     }
     if (!tr.GetBuf().get()) {
-      break;  // // for (uint32_t i=0; i < mTransforms.size(); ++i)
+      break;
     }
 
     if (tr.GetBuf()->IsBlanking()) {
-      break;  // // for (uint32_t i=0; i < mTransforms.size(); ++i)
+      break;
     }
 
     std::shared_ptr<DrmShimBuffer> buf = tr.GetBuf();
@@ -1191,7 +1191,7 @@ void HwcTestCrtc::ConsistencyChecks(Hwcval::LayerList* ll, uint32_t hwcFrame) {
           GetSfSrcDisplayIx(), GetDisplayIx(), buf->IdStr(strbuf));
     }
 
-  }  // for (uint32_t i=0; i < mTransforms.size(); ++i)
+  }
 
 func_exit:
 

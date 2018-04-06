@@ -80,9 +80,6 @@ bool EventThread<C, SIZE>::ReadWait(C& entry) {
   uint32_t count = 0;
 
   while (mContinueHandleEvent && !this->Pop(entry)) {
-    // HWCLOGV_COND(eLogEventHandler,"EventThread %s: Nothing to pop",
-    // this->Name());
-
     // For this wait, we could use mEvMutex, but then we need to place a lock on
     // that for the whole of
     // this function and provide a PopNoLock function for us to call.

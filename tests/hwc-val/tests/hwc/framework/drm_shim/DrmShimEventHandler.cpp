@@ -394,14 +394,10 @@ void DrmShimEventHandler::onFirstRef() {
 
 bool DrmShimEventHandler::threadLoop() {
   // Handle all events
-  // HWCLOGV_COND(eLogEventHandler, "DrmShimEventHandler::threadLoop: waiting
-  // for event (fd %d)", mDrmFd);
   if (fpDrmHandleEvent(mDrmFd, &mRealEvctx)) {
     HWCLOGD_COND(eLogEventHandler,
                  "DrmShimEventHandler::threadLoop: event not handled");
   }
-  // HWCLOGV_COND(eLogEventHandler, "DrmShimEventHandler::threadLoop: exiting
-  // exitPending()=%d", exitPending());
 
   return true;
 }

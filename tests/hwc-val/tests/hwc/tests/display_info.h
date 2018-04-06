@@ -42,12 +42,10 @@ class Display {
  public:
   Display();
 
-  /// Get display height
   uint32_t GetWidth(void) {
     return width;
   }
 
-  /// Get display width
   uint32_t GetHeight(void) {
     return height;
   }

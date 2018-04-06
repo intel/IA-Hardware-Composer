@@ -47,28 +47,18 @@ class EXPORT_API Hwc2 {
   uint32_t mActiveDisplays;
 
  public:
-  //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   Hwc2();
 
   // Public interface used by the test
 
-  //EXPORT_API void CheckValidateDisplayEntry(size_t numDisplays,
-  //                                    hwcval_display_contents_t** displays);
  EXPORT_API void CheckValidateDisplayEntry(hwc2_display_t display);
-  //EXPORT_API void CheckValidateDisplayExit(size_t numDisplays,
- //                                    hwcval_display_contents_t** displays);
   EXPORT_API void CheckValidateDisplayExit();
 
   /// Notify entry to PresentDisplay from HWC Shim
-  //void EXPORT_API
-  //    CheckPresentDisplayEnter(size_t numDisplays, hwcval_display_contents_t** displays);
   void EXPORT_API
       CheckPresentDisplayEnter(hwcval_display_contents_t* displays, hwc2_display_t display);
 
   /// Notify exit from PresentDisplay from HWC Shim, and perform checks
-  //EXPORT_API void CheckPresentDisplayExit(size_t numDisplays,
-  //                             hwcval_display_contents_t** displays);
   EXPORT_API void CheckPresentDisplayExit(hwcval_display_contents_t* displays, hwc2_display_t display, int32_t *outPresentFence);
   EXPORT_API void GetDisplayConfigsExit(int disp, uint32_t* configs,
                                          uint32_t numConfigs);

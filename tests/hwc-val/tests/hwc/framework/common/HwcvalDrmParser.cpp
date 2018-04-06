@@ -144,9 +144,6 @@ bool Hwcval::DrmParser::ParseSelfTeardown(const char* str) {
 
 bool Hwcval::DrmParser::ParseDisplayMapping(const char* str) {
   // Parse the logical/physical display mapping
-  // Like this (but expected to change any time):
-  // Drm D2 : pDisplay:0x7f560d715a00 desc:DrmDisplay hwc id:1    drm id:2
-  // connector:38 connected 1920x1200 60Hz Preferred
   const char* p = str;
   if (strncmpinc(p, "DrmDisplay ") != 0) {
     return false;
@@ -233,8 +230,6 @@ bool Hwcval::DrmParser::ParseDropFrame1(const char* str, DrmShimCrtc*& crtc,
 
 bool Hwcval::DrmParser::ParseDropFrame2(const char* str, DrmShimCrtc*& crtc,
                                         uint32_t& f) {
-  // drm DrmDisplay 0/0x7ff2e48c4e00 DrmConnector 10 drop frame:31 102348s 752ms
-  // [timeline:32], retire fence N[ 0x7fff8269b518 Fd:31 ] [QUEUE:SUSPENDED]
   const char* p = str;
   if (strncmpinc(p, "drm DrmDisplay ") != 0)
     return false;

@@ -115,41 +115,6 @@ void Wake(bool wake, int backlight) {
   }
   sleep(1);
 }
-#if 0
-// Wrap string str8 into lines of length not exceeding width
-// by overwriting spaces with newlines where necessary.
-//
-// Words are never split in the middle, so if any are longer
-// than "width" there will be oversize lines.
-void WrapString(std::string& str8, uint32_t width) {
-  int len = str8.length();
-
-  // Start of current line of the string
-  char* str = str8.lockBuffer(len);
-
-  // Last place we can split the string.
-  // When lp==str, we can't split as we have found no spaces.
-  char* lp = str;
-
-  for (char* p = str; *p; ++p) {
-    if (*p == ' ') {
-      if ((p > (str + width)) && (lp != str)) {
-        // Current line is longer than "width" and there was a space in it
-        // somewhere
-        // so split on the last space we found.
-        *lp = '\n';
-        ++lp;
-        str = lp;
-      } else {
-        // Remember the position of the space
-        lp = p;
-      }
-    }
-  }
-
-  str8.unlockBuffer();
-}
-#endif
 
 HwcTestRunner::HwcTestRunner(Hwch::Interface& interface)
     : mInterface(interface),
@@ -389,7 +354,6 @@ int HwcTestRunner::getargs(int argc, char** argv) {
       std::string names;
       Hwch::BaseReg::mHead->AllNames(names);
       std::string testNamesString = std::string("Tests: ") + names;
-      //WrapString(testNamesString, 100);
       printf("%s\n", testNamesString.c_str());
       return 0;
     } else if (strcmp(argv[i], "-t") == 0) {

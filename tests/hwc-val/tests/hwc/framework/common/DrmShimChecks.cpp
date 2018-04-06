@@ -47,7 +47,6 @@ static Hwcval::Statistics::Counter sHwPlaneTransformUsedCounter(
 static Hwcval::Statistics::Counter sHwPlaneScaleUsedCounter(
     "hw_plane_scalers_used");
 
-/// Constructor
 DrmShimChecks::DrmShimChecks()
     : HwcTestKernel(),
       mShimDrmFd(0),
@@ -63,7 +62,6 @@ DrmShimChecks::DrmShimChecks()
 
 }
 
-/// Destructor
 DrmShimChecks::~DrmShimChecks() {
   HWCLOGI("Destroying DrmShimChecks");
 
@@ -383,7 +381,6 @@ void DrmShimChecks::CheckGetConnectorExit(int fd, uint32_t connId,
   // drmModeGetConnector can take ages which means hot plug is delayed
   // indicate that this is OK.
   //TODO: How do we take care this situation?
-  //mProtChecker.RestartSelfTeardown();
 }
 
 void DrmShimChecks::CheckGetEncoder(uint32_t encoder_id,
@@ -1463,42 +1460,6 @@ uint32_t DrmShimChecks::BroxtonPlaneValidation(HwcTestCrtc* crtc,
     return 0;
   }
 }
-
-#if 0
-void DrmShimChecks::CheckIoctlI915SetPlane180Rotation(struct drm_i915_plane_180_rotation* rot)
-{
-    if (rot->obj_type == DRM_MODE_OBJECT_PLANE || rot->obj_type == DRM_MODE_OBJECT_CRTC)
-    {
-        HWCVAL_LOCK(_l,mMutex);
-        mWorkQueue.Process();
-
-        DrmShimPlane* plane = mPlanes.valueFor(rot->obj_id);
-
-        if (plane)
-        {
-	    uint32_t hwTransform = rot->rotate ? hwcomposer::HWCTransform::kTransform180 : Hhwcomposer::HWCTransform::kIdentity;
-            plane->SetHwTransform(hwTransform);
-            HWCLOGD("Performing transform %s on plane %d", DrmShimTransform::GetTransformName(hwTransform), rot->obj_id);
-
-            // Redraw is necessary after hardware transform
-            plane->SetRedrawExpected(true);
-
-            // Flicker detection
-            DrmShimCrtc* crtc = static_cast<DrmShimCrtc*>(plane->GetCrtc());
-
-            if (crtc)
-            {
-                crtc->SetDrmFrame();
-            }
-        }
-        else
-        {
-            HWCERROR(eCheckIoctlParameters, "SetPlane180Rotation: plane %d unknown", rot->obj_id);
-        }
-        HWCCHECK(eCheckIoctlParameters);
-    }
-}
-#endif
 
 uint32_t DrmShimChecks::GetCrtcIdForConnector(uint32_t conn_id) {
   DrmShimCrtc* crtc = mConnectors.at(conn_id).mCrtc;

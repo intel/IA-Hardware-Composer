@@ -376,12 +376,9 @@ void DoSSIMCalculations(dssim_info *inf, dssim_rgba *Bufrow_pointers[],
     img2[ch] = new float[inf->chan[ch].width * inf->chan[ch].height]();
   }
 
-  // int64_t startTime = ns2ms(systemTime(SYSTEM_TIME_MONOTONIC));
   convert_image(Bufrow_pointers, inf, inf->chan[0].img1, inf->chan[1].img1,
                 inf->chan[2].img1, hasAlpha);
   convert_image(Refrow_pointers, inf, img2[0], img2[1], img2[2], hasAlpha);
-  // printf("%s convert_image algorithm execution time in milliseconds: %llu\n",
-  // __FUNCTION__, (ns2ms(systemTime(SYSTEM_TIME_MONOTONIC)) - startTime));
 
   float *sigma1_tmp = new float[width * height]();
   float *tmp = new float[width * height]();

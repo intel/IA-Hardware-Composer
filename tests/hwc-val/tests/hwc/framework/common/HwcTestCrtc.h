@@ -69,7 +69,6 @@ class HwcTestCrtc  {
   typedef std::vector<Mode> ModeVec;
 
   //-----------------------------------------------------------------------------
-  // Constructor & Destructor
   HwcTestCrtc(uint32_t crtcId, uint32_t width, uint32_t height, uint32_t clock,
               uint32_t vrefresh);
   HwcTestCrtc(HwcTestCrtc& rhs);
@@ -77,7 +76,6 @@ class HwcTestCrtc  {
   virtual ~HwcTestCrtc();
   virtual void StopThreads();
 
-  /// Accessors
   uint32_t GetCrtcId();
   void SetCrtcId(uint32_t crtcId);
 
@@ -502,7 +500,6 @@ class HwcTestCrtc  {
   float mVideoRate;
 };
 
-/// Accessors
 inline uint32_t HwcTestCrtc::GetCrtcId() {
   return mCrtcId;
 }

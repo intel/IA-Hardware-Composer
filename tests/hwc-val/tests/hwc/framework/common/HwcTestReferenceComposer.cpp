@@ -84,8 +84,6 @@ bool HwcTestReferenceComposer::isFormatSupportedAsOutput(int32_t format) {
 /// Helper to check the GL status and log errors when found.
 
 bool HwcTestReferenceComposer::getGLError(const char *operation) {
-  // printf("-gl-trace: %s\n", operation);
-
   GLint error = glGetError();
   if (error != GL_NO_ERROR) {
     HWCLOGW("HwcTestReferenceComposer: Error 0x%x on %s", error, operation);
@@ -99,8 +97,6 @@ bool HwcTestReferenceComposer::getGLError(const char *operation) {
 /// Helper to check the EGL status and log errors when found.
 
 bool HwcTestReferenceComposer::getEGLError(const char *operation) {
-  // printf("-egl-trace: %s\n", operation);
-
   GLint error = eglGetError();
   if (error != EGL_SUCCESS) {
     HWCLOGW("HwcTestReferenceComposer: Error 0x%x on %s", error, operation);
@@ -1178,15 +1174,10 @@ static void setupVBOData(GLfloat *vboData, uint32_t stride, uint32_t destWidth,
   GLfloat texCoords[8];
 
   // Calculate the insideness in the 0..+1 range
-  // GLfloat primWidthRec  = 1.f / (right - left);
-  // GLfloat primHeightRec = 1.f / (bottom - top);
-
-  const GLfloat insidenessLeft =
-      0;  //(left   - layer->displayFrame.left) * primWidthRec;
-  const GLfloat insidenessRight = 1.0;  //(right  - left) * primWidthRec;
-  const GLfloat insidenessTop =
-      0;  //(top    - layer->displayFrame.top)  * primHeightRec;
-  const GLfloat insidenessBottom = 1.0;  //(bottom - top)  * primHeightRec;
+  const GLfloat insidenessLeft = 0;
+  const GLfloat insidenessRight = 1.0;
+  const GLfloat insidenessTop = 0;
+  const GLfloat insidenessBottom = 1.0;
 
   // Use the insideness for calculating the texture coordinates
   GLfloat sourceWidthRec =
@@ -1466,8 +1457,6 @@ status_t HwcTestReferenceComposer::draw(const hwcval_layer_t *layer,
 status_t HwcTestReferenceComposer::endFrame() {
   status_t result;
 
-  //    glFlush();
-  //    if (getGLError("glFlush"))
   glFinish();
   if (getGLError("glFinish"))  // Make it synchronous
   {

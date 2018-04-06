@@ -47,7 +47,6 @@ drmVBlankPtr DrmShimCrtc::SetupVBlank() {
       break;
 
     case 2:
-      // Pipe index = 2
       flags |= ((2 << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK);
       break;
 
@@ -139,8 +138,6 @@ void DrmShimCrtc::SavePageFlipUserData(uint64_t userData) {
 
 uint64_t DrmShimCrtc::GetPageFlipUserData() {
   ALOG_ASSERT(this);
-  // HWCLOGV_COND(eLogEventHandler, "DrmShimCrtc::GetPageFlipUserData crtc %d
-  // userData %" PRIx64, mCrtcId, mPageFlipUserData);
   return mPageFlipUserData;
 }
 

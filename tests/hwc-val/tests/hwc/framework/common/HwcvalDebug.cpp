@@ -143,31 +143,7 @@ Condition::~Condition() {
   mbInit = 0;
   ALOG_ASSERT(!mWaiters);
 }
-#if 0
-int Condition::waitRelative(Mutex& mutex, unsigned long timeout) {
-  ALOGD_IF(MUTEX_CONDITION_DEBUG,
-           "Condition %p waitRelative Enter mutex %p mTid/tid %d/%d", this,
-           &mutex, mutex.mTid, gettid());
-  ALOG_ASSERT(mbInit);
-  ALOG_ASSERT(mutex.mTid == gettid());
-  mutex.mTid = 0;
-  mutex.incWaiter();
-  mWaiters++;
-  ALOGD_IF(MUTEX_CONDITION_DEBUG,
-           "Condition %p waitRelative on mutex %p waiters %u/%u", this, &mutex,
-           mWaiters, mutex.getWaiters());
-  mutex.lock();
-  int ret = HWCPoll(hwcevent.get_fd(), timeout);
-  mutex.decWaiter();
-  mWaiters--;
-  ALOGD_IF(MUTEX_CONDITION_DEBUG,
-           "Condition %p re-acquired mutex %p waiters %u/%u", this, &mutex,
-           mWaiters, mutex.getWaiters());
-  mutex.mTid = gettid();
-  clock_gettime(CLOCK_REALTIME, &mutex.mAcqTime);
-  return ret;
-}
-#endif
+
 int Condition::wait(Mutex& mutex) {
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p wait Enter mutex %p mTid/tid %d/%d", this, &mutex,
