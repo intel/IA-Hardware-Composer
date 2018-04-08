@@ -798,37 +798,12 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
   int32_t surfheight = ev->surface->height;
 
   iahwc_add_overlay_info(output, buffer->shm_buffer, 0, cursor_layer_id);
-
   struct iahwc_raw_pixel_data dbo;
   dbo.width = surfwidth;
   dbo.height = surfheight;
   dbo.stride = wl_shm_buffer_get_stride(buffer->shm_buffer);
-  dbo.format = wl_shm_buffer_get_format(buffer->shm_buffer);
+  dbo.format = DRM_FORMAT_ARGB8888;
   dbo.buffer = wl_shm_buffer_get_data(buffer->shm_buffer);
-
-  switch (dbo.format) {
-  case WL_SHM_FORMAT_XRGB8888:
-    dbo.format = DRM_FORMAT_XRGB8888;
-    break;
-  case WL_SHM_FORMAT_ARGB8888:
-    dbo.format = DRM_FORMAT_ARGB8888;
-    break;
-  case WL_SHM_FORMAT_RGB565:
-    dbo.format = DRM_FORMAT_RGB565;
-    break;
-  case WL_SHM_FORMAT_YUV420:
-    dbo.format = DRM_FORMAT_YUV420;
-    break;
-  case WL_SHM_FORMAT_NV12:
-    dbo.format = DRM_FORMAT_NV12;
-    break;
-  case WL_SHM_FORMAT_YUYV:
-    dbo.format = DRM_FORMAT_YUYV;
-    break;
-  default:
-    weston_log("warning: unknown shm buffer format: %08x\n", dbo.format);
-  }
-
   dbo.callback_data = buffer->shm_buffer;
   int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
                                               cursor_layer_id, dbo);
@@ -895,9 +870,6 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     return NULL;
   buffer_resource = ev->surface->buffer_ref.buffer->resource;
   shmbuf = wl_shm_buffer_get(buffer_resource);
-  if (shmbuf) {
-    return NULL;
-  }
 
   if (!shmbuf) {
     if ((dmabuf = linux_dmabuf_buffer_get(buffer_resource))) {
@@ -954,28 +926,32 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     dbo.height = ev->surface->height;
     dbo.format = wl_shm_buffer_get_format(shmbuf);
     dbo.buffer = wl_shm_buffer_get_data(shmbuf);
+    dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+
     switch (dbo.format) {
       case WL_SHM_FORMAT_XRGB8888:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        weston_log("warning: WL_SHM_FORMAT_XRGB8888: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_XRGB8888;
         break;
       case WL_SHM_FORMAT_ARGB8888:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        weston_log("warning: WL_SHM_FORMAT_ARGB8888: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_ARGB8888;
         break;
       case WL_SHM_FORMAT_RGB565:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        weston_log("warning: WL_SHM_FORMAT_RGB565: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_RGB565;
         break;
       case WL_SHM_FORMAT_YUV420:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        dbo.format = DRM_FORMAT_YUV420;
         break;
       case WL_SHM_FORMAT_NV12:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        dbo.format = DRM_FORMAT_NV12;
         break;
       case WL_SHM_FORMAT_YUYV:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        dbo.format = DRM_FORMAT_YUYV;
         break;
       default:
-        weston_log("warning: unknown shm buffer format: %08x\n",
-                   wl_shm_buffer_get_format(shmbuf));
+        weston_log("warning: unknown shm buffer format: %08x\n", dbo.format);
     }
 
     dbo.callback_data = shmbuf;
@@ -1527,6 +1503,7 @@ static int pixel_uploader_callback(iahwc_callback_data_t data,
   } else {
     wl_shm_buffer_end_access((struct wl_shm_buffer *)call_back_data);
   }
+
   return 0;
 }
 

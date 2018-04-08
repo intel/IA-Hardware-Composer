@@ -372,6 +372,9 @@ IAHWC::IAHWCLayer::~IAHWCLayer() {
   if (pixel_buffer_) {
     const NativeBufferHandler* buffer_handler =
         raw_data_uploader_->GetNativeBufferHandler();
+    if (upload_in_progress_) {
+      raw_data_uploader_->Synchronize();
+    }
     buffer_handler->ReleaseBuffer(pixel_buffer_);
   } else {
     ClosePrimeHandles();
@@ -384,6 +387,9 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   if (pixel_buffer_) {
     const NativeBufferHandler* buffer_handler =
         raw_data_uploader_->GetNativeBufferHandler();
+    if (upload_in_progress_) {
+      raw_data_uploader_->Synchronize();
+    }
     buffer_handler->ReleaseBuffer(pixel_buffer_);
   } else {
     ClosePrimeHandles();
@@ -429,12 +435,15 @@ int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
   ClosePrimeHandles();
   if (pixel_buffer_ &&
       ((orig_height_ != bo.height) || (orig_stride_ != bo.stride))) {
+    if (upload_in_progress_) {
+      raw_data_uploader_->Synchronize();
+    }
+
     buffer_handler->ReleaseBuffer(pixel_buffer_);
     pixel_buffer_ = NULL;
   }
 
   if (!pixel_buffer_) {
-    ;
     int layer_type =
         layer_usage_ == IAHWC_LAYER_USAGE_CURSOR ? kLayerCursor : kLayerNormal;
     bool modifier_used = false;
@@ -457,18 +466,23 @@ int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
 
     orig_height_ = bo.height;
     orig_stride_ = bo.stride;
+    upload_in_progress_ = true;
     raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
                                              orig_stride_, bo.callback_data,
-                                             (uint8_t*)bo.buffer);
-
+                                             (uint8_t*)bo.buffer, this);
     iahwc_layer_.SetNativeHandle(pixel_buffer_);
   } else {
+    upload_in_progress_ = true;
     raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
                                              orig_stride_, bo.callback_data,
-                                             (uint8_t*)bo.buffer);
+                                             (uint8_t*)bo.buffer, this);
   }
 
   return IAHWC_ERROR_NONE;
+}
+
+void IAHWC::IAHWCLayer::UploadDone() {
+  upload_in_progress_ = false;
 }
 
 int IAHWC::IAHWCLayer::SetAcquireFence(int32_t acquire_fence) {
