@@ -54,6 +54,7 @@ class IAHWC : public iahwc_device {
     hwcomposer::HwcLayer* GetLayer();
 
    private:
+    void ClosePrimeHandles();
     hwcomposer::HwcLayer iahwc_layer_;
     struct gbm_handle hwc_handle_;
     HWCNativeHandle pixel_buffer_ = NULL;

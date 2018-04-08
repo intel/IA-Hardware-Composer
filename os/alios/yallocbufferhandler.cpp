@@ -73,11 +73,14 @@ bool YallocBufferHandler::Init() {
 bool YallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                        HWCNativeHandle *handle,
                                        uint32_t layer_type, bool *modifier_used,
-                                       int64_t /*preferred_modifier*/) const {
+                                       int64_t /*preferred_modifier*/,
+                                       bool /*raw_pixel_buffer*/) const {
   // LOG_I("YallocBufferHandler::CreateBuffer --> enter.\n");
   // LOG_I("\tw: %d, h: %d, format: %x.\n", w, h, format);
   // FIXME:: Take Modifiers into use.
-  *modifier_used = false;
+  if (modifier_used)
+    *modifier_used = false;
+
   struct yalloc_handle *temp = new struct yalloc_handle();
 
   uint32_t pixel_format = 0;

@@ -113,7 +113,8 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
                                          uint32_t layer_type,
                                          bool *modifier_used,
-                                         int64_t preferred_modifier) const {
+                                         int64_t preferred_modifier,
+                                         bool /*raw_pixel_buffer*/) const {
   struct gralloc_handle *temp = new struct gralloc_handle();
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
