@@ -81,6 +81,7 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
 void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
                                            ResourceManager* resource_manager,
                                            bool is_cursor_buffer) {
+  (void)is_cursor_buffer; /* for avoid unused parameter warning*/
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();
