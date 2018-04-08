@@ -191,6 +191,7 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t * /*retire_fence*/,
                             bool /*handle_constraints*/) {
 #ifndef NESTED_DISPLAY_SUPPORT
+  (void)source_layers;
   return true;
 #else
   int ret = 0;
