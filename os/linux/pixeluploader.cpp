@@ -114,7 +114,6 @@ void PixelUploader::HandleRoutine() {
   bool signal = false;
 
   if (tasks_ & kRefreshRawPixelMap) {
-    ETRACE("HandleRawPixelUpdate \n");
     HandleRawPixelUpdate();
   }
 

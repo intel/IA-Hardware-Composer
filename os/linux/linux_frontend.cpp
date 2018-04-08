@@ -50,7 +50,6 @@ class IAPixelUploaderCallback : public hwcomposer::PixelUploaderCallback {
   }
 
   void Callback(bool start_access, void* call_back_data) {
-    ETRACE("Got callback for Display layer %d \n", display_);
     if (hook_ != NULL) {
       auto hook = reinterpret_cast<IAHWC_PFN_PIXEL_UPLOADER>(hook_);
       hook(data_, display_, start_access ? 1 : 0, call_back_data);
@@ -366,29 +365,38 @@ bool IAHWC::IAHWCDisplay::IsConnected() {
 IAHWC::IAHWCLayer::IAHWCLayer(PixelUploader* uploader)
     : raw_data_uploader_(uploader) {
   layer_usage_ = IAHWC_LAYER_USAGE_NORMAL;
+  memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
 }
 
 IAHWC::IAHWCLayer::~IAHWCLayer() {
-  ::close(hwc_handle_.import_data.fd);
   if (pixel_buffer_) {
     const NativeBufferHandler* buffer_handler =
         raw_data_uploader_->GetNativeBufferHandler();
     buffer_handler->ReleaseBuffer(pixel_buffer_);
+  } else {
+    ClosePrimeHandles();
   }
 }
 
 int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   int32_t width, height;
 
-  ::close(hwc_handle_.import_data.fd);
+  if (pixel_buffer_) {
+    const NativeBufferHandler* buffer_handler =
+        raw_data_uploader_->GetNativeBufferHandler();
+    buffer_handler->ReleaseBuffer(pixel_buffer_);
+  } else {
+    ClosePrimeHandles();
+  }
 
   width = gbm_bo_get_width(bo);
   height = gbm_bo_get_height(bo);
 
+#if USE_MINIGBM
   hwc_handle_.import_data.width = width;
   hwc_handle_.import_data.height = height;
   hwc_handle_.import_data.format = gbm_bo_get_format(bo);
-#if USE_MINIGBM
+
   size_t total_planes = gbm_bo_get_num_planes(bo);
   for (size_t i = 0; i < total_planes; i++) {
     hwc_handle_.import_data.fds[i] = gbm_bo_get_plane_fd(bo, i);
@@ -397,10 +405,13 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
   }
   temp->meta_data_.num_planes_ = total_planes;
 #else
-  hwc_handle_.import_data.fd = gbm_bo_get_fd(bo);
-  hwc_handle_.import_data.stride = gbm_bo_get_stride(bo);
+  hwc_handle_.import_data.fd_data.width = width;
+  hwc_handle_.import_data.fd_data.height = height;
+  hwc_handle_.import_data.fd_data.format = gbm_bo_get_format(bo);
+  hwc_handle_.import_data.fd_data.fd = gbm_bo_get_fd(bo);
+  hwc_handle_.import_data.fd_data.stride = gbm_bo_get_stride(bo);
   hwc_handle_.meta_data_.num_planes_ =
-      drm_bo_get_num_planes(hwc_handle_.import_data.format);
+      drm_bo_get_num_planes(hwc_handle_.import_data.fd_data.format);
 #endif
 
   hwc_handle_.bo = bo;
@@ -415,6 +426,7 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
 int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
   const NativeBufferHandler* buffer_handler =
       raw_data_uploader_->GetNativeBufferHandler();
+  ClosePrimeHandles();
   if (pixel_buffer_ &&
       ((orig_height_ != bo.height) || (orig_stride_ != bo.stride))) {
     buffer_handler->ReleaseBuffer(pixel_buffer_);
@@ -425,8 +437,10 @@ int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
     ;
     int layer_type =
         layer_usage_ == IAHWC_LAYER_USAGE_CURSOR ? kLayerCursor : kLayerNormal;
+    bool modifier_used = false;
     if (!buffer_handler->CreateBuffer(bo.width, bo.height, bo.format,
-                                      &pixel_buffer_, layer_type)) {
+                                      &pixel_buffer_, layer_type,
+                                      &modifier_used, 0, true)) {
       ETRACE("PixelBuffer: CreateBuffer failed");
       return -1;
     }
@@ -547,7 +561,30 @@ hwcomposer::HwcLayer* IAHWC::IAHWCLayer::GetLayer() {
   return &iahwc_layer_;
 }
 
-} // namespace hwcomposer
+void IAHWC::IAHWCLayer::ClosePrimeHandles() {
+#if USE_MINIGBM
+  size_t total_planes = hwc_handle_.meta_data_.num_planes_;
+  bool reset = false;
+  for (size_t i = 0; i < total_planes; i++) {
+    uint32_t fd = hwc_handle_.import_data.fds[i];
+    if (fd > 0) {
+      reset = true;
+      ::close(fd);
+    }
+  }
+
+  if (reset) {
+    memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
+  }
+#else
+  if (hwc_handle_.import_data.fd_data.fd > 0) {
+    ::close(hwc_handle_.import_data.fd_data.fd);
+    memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
+  }
+#endif
+}
+
+}  // namespace hwcomposer
 
 iahwc_module_t IAHWC_MODULE_INFO = {
   .name = "IA Hardware Composer",
