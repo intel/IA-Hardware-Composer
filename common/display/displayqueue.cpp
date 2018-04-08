@@ -130,14 +130,8 @@ void DisplayQueue::RotateDisplay(HWCRotation rotation) {
 }
 
 bool DisplayQueue::ForcePlaneValidation(int add_index, int remove_index,
-                                        int source_layers,
                                         int total_layers_size,
                                         size_t total_planes) {
-  // If this plane doesn't contain more than one layer, no need to
-  // re-validate.
-  if (source_layers <= 1)
-    return false;
-
   // This is the case where cursor has changed z_order.
   if (remove_index == add_index)
     return false;
@@ -243,10 +237,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           last_plane.GetDisplayPlane()->SetInUse(false);
           composition->pop_back();
-          pop_plane =
-              ForcePlaneValidation(*add_index, remove_index,
-                                   composition->back().GetSourceLayers().size(),
-                                   layers.size(), composition->size());
+          pop_plane = ForcePlaneValidation(*add_index, remove_index,
+                                           layers.size(), composition->size());
 #ifdef SURFACE_TRACING
           ISURFACETRACE(
               "Plane removed. Total old Layers: %d Total new Layers: %d "
@@ -293,9 +285,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         plane_validation = true;
 
       if (removed_layers) {
-        pop_plane =
-            ForcePlaneValidation(*add_index, remove_index, source_layers_size,
-                                 layers.size(), composition->size());
+        pop_plane = ForcePlaneValidation(*add_index, remove_index,
+                                         layers.size(), composition->size());
         if (pop_plane)
           continue;
       }
