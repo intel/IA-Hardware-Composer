@@ -26,6 +26,7 @@
 #include <platformdefines.h>
 
 #include "commondrmutils.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -147,6 +148,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   temp->bo = bo;
   temp->hwc_buffer_ = true;
   temp->gbm_flags = flags;
+  temp->layer_type_ = layer_type;
   *handle = temp;
 
   return true;
@@ -198,6 +200,7 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
   temp->bo = source->bo;
   temp->meta_data_.num_planes_ = source->meta_data_.num_planes_;
   temp->gbm_flags = source->gbm_flags;
+  temp->layer_type_ = source->layer_type_;
   *target = temp;
 }
 
@@ -232,8 +235,16 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
 
   handle->meta_data_.width_ = handle->import_data.width;
   handle->meta_data_.height_ = handle->import_data.height;
-  // FIXME: Set right flag here.
-  handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
+
+  if (handle->layer_type_ == hwcomposer::kLayerCursor) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerCursor;
+    // We support DRM_FORMAT_ARGB8888 for cursor.
+    handle->meta_data_.format_ = DRM_FORMAT_ARGB8888;
+  } else if (hwcomposer::IsSupportedMediaFormat(handle->meta_data_.format_)) {
+    handle->meta_data_.usage_ = hwcomposer::kLayerVideo;
+  } else {
+    handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
+  }
 
 #if USE_MINIGBM
   size_t total_planes = gbm_bo_get_num_planes(handle->bo);
