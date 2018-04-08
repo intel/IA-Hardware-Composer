@@ -40,6 +40,13 @@ class PixelUploaderCallback {
   virtual void Callback(bool start_access, void* call_back_data) = 0;
 };
 
+class PixelUploaderLayerCallback {
+ public:
+  virtual ~PixelUploaderLayerCallback() {
+  }
+  virtual void UploadDone() = 0;
+};
+
 class PixelUploader : public HWCThread {
  public:
   PixelUploader(const NativeBufferHandler* buffer_handler);
@@ -52,7 +59,8 @@ class PixelUploader : public HWCThread {
 
   void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_height,
                             uint32_t original_stride, void* callback_data,
-                            uint8_t* byteaddr);
+                            uint8_t* byteaddr,
+                            PixelUploaderLayerCallback* layer_callback);
 
   const NativeBufferHandler* GetNativeBufferHandler() const {
     return buffer_handler_;
@@ -61,6 +69,8 @@ class PixelUploader : public HWCThread {
   void HandleRoutine() override;
   void HandleExit() override;
   void ExitThread();
+
+  void Synchronize();
 
  private:
   enum Tasks {
@@ -75,10 +85,10 @@ class PixelUploader : public HWCThread {
     uint32_t original_stride_ = 0;
     void* callback_data_ = 0;
     uint8_t* data_ = NULL;
+    PixelUploaderLayerCallback* layer_callback_ = NULL;
   };
 
   void HandleRawPixelUpdate();
-  void Wait();
   void* Map(uint32_t prime_fd, size_t size);
   void Unmap(uint32_t prime_fd, void* addr, size_t size);
 
@@ -88,8 +98,6 @@ class PixelUploader : public HWCThread {
   std::vector<PixelData> pixel_data_;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;
-  FDHandler fd_chandler_;
-  HWCEvent cevent_;
   const NativeBufferHandler* buffer_handler_ = NULL;
 };
 
