@@ -41,8 +41,7 @@ class OverlayBuffer {
   }
 
   virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                          ResourceManager* buffer_manager,
-                                          bool is_cursor_buffer) = 0;
+                                          ResourceManager* buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
