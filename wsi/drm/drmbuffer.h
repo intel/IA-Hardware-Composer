@@ -34,8 +34,7 @@ class DrmBuffer : public OverlayBuffer {
   ~DrmBuffer() override;
 
   void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  ResourceManager* buffer_manager,
-                                  bool is_cursor_buffer) override;
+                                  ResourceManager* buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;

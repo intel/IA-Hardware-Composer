@@ -72,7 +72,7 @@ std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              ResourceManager* resource_manager,
-                             bool register_buffer, HwcLayer* layer) {
+                             bool register_buffer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
   uint32_t id;
@@ -85,12 +85,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    bool is_cursor_layer = false;
-    if (layer) {
-      is_cursor_layer = layer->IsCursorLayer();
-    }
-    buffer->InitializeFromNativeHandle(handle, resource_manager,
-                                       is_cursor_layer);
+    buffer->InitializeFromNativeHandle(handle, resource_manager);
     if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
@@ -242,7 +237,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, layer);
+	    resource_manager, true);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {

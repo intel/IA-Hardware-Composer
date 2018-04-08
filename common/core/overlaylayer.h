@@ -101,8 +101,7 @@ struct OverlayLayer {
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
-                 ResourceManager* buffer_manager, bool register_buffer,
-                 HwcLayer* layer = NULL);
+                 ResourceManager* buffer_manager, bool register_buffer);
 
   std::shared_ptr<OverlayBuffer>& GetSharedBuffer() const;
 
