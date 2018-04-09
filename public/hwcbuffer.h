@@ -37,6 +37,7 @@ struct HwcBuffer {
   uint32_t gem_handles_[4];
   int prime_fds_[4];
   uint32_t num_planes_ = 0;
+  uint32_t fb_modifiers_[8];
   hwcomposer::HWCLayerType usage_ = hwcomposer::kLayerNormal;
 };
 

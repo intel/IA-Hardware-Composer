@@ -191,6 +191,7 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t * /*retire_fence*/,
                             bool /*handle_constraints*/) {
 #ifndef NESTED_DISPLAY_SUPPORT
+  HWC_UNUSED(source_layers);
   return true;
 #else
   int ret = 0;
@@ -199,7 +200,6 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
   const uint32_t *offsets;
   HWCNativeHandle sf_handle;
   size_t buffer_number = 0;
-  bool is_cursor_layer = false;
   size_t info_size = sizeof(vm_buffer_info);
   size_t header_size = sizeof(vm_header);
 
@@ -211,12 +211,11 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     const HwcRect<int> &display_frame = layer->GetDisplayFrame();
     sf_handle = layer->GetNativeHandle();
-    is_cursor_layer = layer->IsCursorLayer();
     auto search = mHyperDmaExportedBuffers.find(sf_handle);
     if (search == mHyperDmaExportedBuffers.end()) {
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       buffer = OverlayBuffer::CreateOverlayBuffer();
-      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(), is_cursor_layer);
+      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
 
       if (mHyperDmaBuf_Fd > 0 && buffer->GetPrimeFD() > 0) {
         struct ioctl_hyper_dmabuf_export_remote msg;

@@ -253,8 +253,38 @@ class DisplayQueue {
     DisplayQueue* queue_;
   };
 
+  // State trackers for cloned display.
+  struct ScopedCloneStateTracker {
+    ScopedCloneStateTracker(Compositor& compositor,
+                            ResourceManager* resource_manager,
+                            DisplayQueue* queue)
+        : compositor_(compositor),
+          resource_manager_(resource_manager),
+          queue_(queue) {
+      resource_manager_->RefreshBufferCache();
+    }
+
+    void ForceSurfaceRelease() {
+      forced_ = true;
+    }
+
+    ~ScopedCloneStateTracker() {
+      // Free any surfaces.
+      queue_->display_plane_manager_->ReleaseFreeOffScreenTargets(forced_);
+
+      if (resource_manager_->PreparePurgedResources())
+        compositor_.FreeResources();
+    }
+
+   private:
+    bool forced_ = false;
+    Compositor& compositor_;
+    ResourceManager* resource_manager_;
+    DisplayQueue* queue_;
+  };
+
   void HandleExit();
-  bool ForcePlaneValidation(int add_index, int remove_index, int source_layers,
+  bool ForcePlaneValidation(int add_index, int remove_index,
                             int total_layers_size, size_t total_planes);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
                        int remove_index, DisplayPlaneStateList* composition,

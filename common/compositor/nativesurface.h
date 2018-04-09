@@ -42,7 +42,8 @@ class NativeSurface {
 
   virtual ~NativeSurface();
 
-  bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage);
+  bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage,
+            uint64_t modifier, bool* modifer_succeeded);
 
   bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
                                        ResourceManager* resource_manager);
@@ -123,6 +124,10 @@ class NativeSurface {
     return on_screen_;
   }
 
+  uint64_t GetModifier() const {
+    return modifier_;
+  }
+
  protected:
   OverlayLayer layer_;
   ResourceManager* resource_manager_;
@@ -135,6 +140,7 @@ class NativeSurface {
   ClearType clear_surface_;
   int surface_age_;
   bool damage_changed_ = true;
+  uint64_t modifier_ = 0;
   bool on_screen_ = false;
   HwcRect<int> surface_damage_;
   HwcRect<int> previous_damage_;

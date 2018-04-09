@@ -110,12 +110,6 @@ class DisplayPlaneManager {
                           const OverlayLayer *target_layer);
 
  private:
-  struct LayerResultCache {
-    uint32_t last_transform_ = 0;
-    uint32_t last_failed_transform_ = 0;
-    DisplayPlane *plane_;
-  };
-
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const std::vector<OverlayPlane> &commit_planes) const;
@@ -176,7 +170,6 @@ class DisplayPlaneManager {
   DisplayPlane *cursor_plane_;
   std::vector<std::unique_ptr<NativeSurface>> surfaces_;
   std::vector<std::unique_ptr<DisplayPlane>> overlay_planes_;
-  std::vector<LayerResultCache> results_cache_;
 
   uint32_t width_;
   uint32_t height_;

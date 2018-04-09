@@ -53,6 +53,28 @@ class DisplayPlane {
    */
   virtual uint32_t GetPreferredFormat() const = 0;
 
+  /**
+   * API for querying preferred modifier supported by this
+   * plane's preferred format for non-media content.
+   */
+  virtual uint64_t GetPreferredFormatModifier() const = 0;
+
+  /**
+   * API for blacklisting preferred format modifier.
+   * This happens in case we failed to create FB for the
+   * buffer.
+   */
+  virtual void BlackListPreferredFormatModifier() = 0;
+
+  /**
+   * API for informing Display Plane that
+   * preferred format modifier has been validated
+   * to work by DisplayPlaneManager. If this is not
+   * called before BlackListPreferredFormatModifier
+   * than PreferredFormatModifier should be set to 0.
+   */
+  virtual void PreferredFormatModifierValidated() = 0;
+
   virtual void SetInUse(bool in_use) = 0;
 
   virtual bool InUse() const = 0;

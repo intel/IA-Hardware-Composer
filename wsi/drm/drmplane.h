@@ -66,6 +66,11 @@ class DrmPlane : public DisplayPlane {
 
   uint32_t GetPreferredVideoFormat() const override;
   uint32_t GetPreferredFormat() const override;
+  uint64_t GetPreferredFormatModifier() const override;
+
+  void BlackListPreferredFormatModifier() override;
+
+  void PreferredFormatModifierValidated() override;
 
   void Dump() const override;
 
@@ -115,11 +120,13 @@ class DrmPlane : public DisplayPlane {
 
   uint32_t last_valid_format_;
   bool in_use_;
+  bool prefered_modifier_succeeded_ = false;
 
   std::vector<uint32_t> supported_formats_;
   int32_t kms_fence_ = 0;
   uint32_t prefered_video_format_ = 0;
   uint32_t prefered_format_ = 0;
+  uint64_t prefered_modifier_ = 0;
   uint32_t rotation_ = 0;
 
   // keep supported modifiers for each supported format

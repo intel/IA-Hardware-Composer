@@ -14,10 +14,11 @@
 // limitations under the License.
 */
 
-#ifndef OS_LINUX_GBMBUFFERHANDLER_H_
-#define OS_LINUX_GBMBUFFERHANDLER_H_
+#ifndef OS_ALIOS_YALLOCBUFFERHANDLER_H_
+#define OS_ALIOS_YallocBufferHandler_H_
 
-#include <gbm.h>
+#include <yalloc.h>
+#include <cutils/framebuffer.h>
 
 #include <nativebufferhandler.h>
 
@@ -25,10 +26,10 @@ namespace hwcomposer {
 
 class GpuDevice;
 
-class GbmBufferHandler : public NativeBufferHandler {
+class YallocBufferHandler : public NativeBufferHandler {
  public:
-  explicit GbmBufferHandler(uint32_t fd);
-  ~GbmBufferHandler() override;
+  explicit YallocBufferHandler(uint32_t fd);
+  ~YallocBufferHandler() override;
 
   bool Init();
 
@@ -46,16 +47,14 @@ class GbmBufferHandler : public NativeBufferHandler {
             uint32_t height, uint32_t *stride, void **map_data,
             size_t plane) const override;
   int32_t UnMap(HWCNativeHandle handle, void *map_data) const override;
-  uint32_t GetFd() const override {
-    return fd_;
-  }
+
+  uint32_t GetFd() const override;
 
  private:
   uint32_t fd_;
-  struct gbm_device *device_;
-  uint64_t preferred_cursor_width_;
-  uint64_t preferred_cursor_height_;
+  struct yalloc_device_t *device_;
+  fb_device_t* mFbDevice;
 };
 
 }  // namespace hardware
-#endif  // OS_LINUX_GBMBUFFERHANDLER_H_
+#endif  // OS_ALIOS_YALLOCBUFFERHANDLER_H_

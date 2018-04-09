@@ -41,8 +41,7 @@ class OverlayBuffer {
   }
 
   virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                          ResourceManager* buffer_manager,
-                                          bool is_cursor_buffer) = 0;
+                                          ResourceManager* buffer_manager) = 0;
 
   virtual uint32_t GetWidth() const = 0;
 
@@ -78,6 +77,13 @@ class OverlayBuffer {
                                                       uint32_t height) = 0;
 
   virtual bool CreateFrameBuffer() = 0;
+
+  // Creates Framebuffer taking into account any Modifiers.
+  virtual bool CreateFrameBufferWithModifier(uint64_t modifier) = 0;
+
+  virtual HWCNativeHandle GetOriginalHandle() const = 0;
+
+  virtual void SetOriginalHandle(HWCNativeHandle handle) = 0;
 
   virtual void Dump() = 0;
 };

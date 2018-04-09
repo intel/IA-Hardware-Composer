@@ -102,6 +102,7 @@ struct iahwc_backend {
   IAHWC_PFN_LAYER_SET_SOURCE_CROP iahwc_layer_set_source_crop;
   IAHWC_PFN_LAYER_SET_DISPLAY_FRAME iahwc_layer_set_display_frame;
   IAHWC_PFN_LAYER_SET_SURFACE_DAMAGE iahwc_layer_set_surface_damage;
+  IAHWC_PFN_LAYER_SET_PLANE_ALPHA iahwc_layer_set_plane_alpha;
   IAHWC_PFN_LAYER_SET_ACQUIRE_FENCE iahwc_layer_set_acquire_fence;
   IAHWC_PFN_LAYER_SET_USAGE iahwc_layer_set_usage;
 
@@ -797,37 +798,12 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
   int32_t surfheight = ev->surface->height;
 
   iahwc_add_overlay_info(output, buffer->shm_buffer, 0, cursor_layer_id);
-
   struct iahwc_raw_pixel_data dbo;
   dbo.width = surfwidth;
   dbo.height = surfheight;
   dbo.stride = wl_shm_buffer_get_stride(buffer->shm_buffer);
-  dbo.format = wl_shm_buffer_get_format(buffer->shm_buffer);
+  dbo.format = DRM_FORMAT_ARGB8888;
   dbo.buffer = wl_shm_buffer_get_data(buffer->shm_buffer);
-
-  switch (dbo.format) {
-  case WL_SHM_FORMAT_XRGB8888:
-    dbo.format = DRM_FORMAT_XRGB8888;
-    break;
-  case WL_SHM_FORMAT_ARGB8888:
-    dbo.format = DRM_FORMAT_ARGB8888;
-    break;
-  case WL_SHM_FORMAT_RGB565:
-    dbo.format = DRM_FORMAT_RGB565;
-    break;
-  case WL_SHM_FORMAT_YUV420:
-    dbo.format = DRM_FORMAT_YUV420;
-    break;
-  case WL_SHM_FORMAT_NV12:
-    dbo.format = DRM_FORMAT_NV12;
-    break;
-  case WL_SHM_FORMAT_YUYV:
-    dbo.format = DRM_FORMAT_YUYV;
-    break;
-  default:
-    weston_log("warning: unknown shm buffer format: %08x\n", dbo.format);
-  }
-
   dbo.callback_data = buffer->shm_buffer;
   int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
                                               cursor_layer_id, dbo);
@@ -862,6 +838,8 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, cursor_layer_id,
                                     damage_region);
+  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, cursor_layer_id,
+                                 ev->alpha);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -892,9 +870,6 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     return NULL;
   buffer_resource = ev->surface->buffer_ref.buffer->resource;
   shmbuf = wl_shm_buffer_get(buffer_resource);
-  if (shmbuf) {
-    return NULL;
-  }
 
   if (!shmbuf) {
     if ((dmabuf = linux_dmabuf_buffer_get(buffer_resource))) {
@@ -951,28 +926,32 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     dbo.height = ev->surface->height;
     dbo.format = wl_shm_buffer_get_format(shmbuf);
     dbo.buffer = wl_shm_buffer_get_data(shmbuf);
+    dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+
     switch (dbo.format) {
       case WL_SHM_FORMAT_XRGB8888:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        weston_log("warning: WL_SHM_FORMAT_XRGB8888: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_XRGB8888;
         break;
       case WL_SHM_FORMAT_ARGB8888:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 4;
+        weston_log("warning: WL_SHM_FORMAT_ARGB8888: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_ARGB8888;
         break;
       case WL_SHM_FORMAT_RGB565:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        weston_log("warning: WL_SHM_FORMAT_RGB565: %08x\n", dbo.format);
+        dbo.format = DRM_FORMAT_RGB565;
         break;
       case WL_SHM_FORMAT_YUV420:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        dbo.format = DRM_FORMAT_YUV420;
         break;
       case WL_SHM_FORMAT_NV12:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf);
+        dbo.format = DRM_FORMAT_NV12;
         break;
       case WL_SHM_FORMAT_YUYV:
-        dbo.stride = wl_shm_buffer_get_stride(shmbuf) / 2;
+        dbo.format = DRM_FORMAT_YUYV;
         break;
       default:
-        weston_log("warning: unknown shm buffer format: %08x\n",
-                   wl_shm_buffer_get_format(shmbuf));
+        weston_log("warning: unknown shm buffer format: %08x\n", dbo.format);
     }
 
     dbo.callback_data = shmbuf;
@@ -1057,8 +1036,10 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                                  source_crop);
   b->iahwc_layer_set_display_frame(b->iahwc_device, 0, overlay_layer_id,
                                    display_frame);
-  b->iahwc_layer_set_surface_damage(b->iahwc_device, 0,
-                                    overlay_layer_id, damage_region);
+  b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
+                                    damage_region);
+  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, overlay_layer_id,
+                                 ev->alpha);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -1252,7 +1233,9 @@ static void iahwc_assign_planes(struct weston_output *output_base,
       b->iahwc_layer_set_display_frame(b->iahwc_device, 0,
                                        output->primary_layer_id, viewport);
       b->iahwc_layer_set_surface_damage(
-        b->iahwc_device, 0, output->primary_layer_id, damage_region);
+          b->iahwc_device, 0, output->primary_layer_id, damage_region);
+      b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0,
+                                     output->primary_layer_id, ev->alpha);
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
     }
 
@@ -1520,6 +1503,7 @@ static int pixel_uploader_callback(iahwc_callback_data_t data,
   } else {
     wl_shm_buffer_end_access((struct wl_shm_buffer *)call_back_data);
   }
+
   return 0;
 }
 
@@ -1809,6 +1793,9 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_layer_set_surface_damage =
       (IAHWC_PFN_LAYER_SET_SURFACE_DAMAGE)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_LAYER_SET_SURFACE_DAMAGE);
+  b->iahwc_layer_set_plane_alpha =
+      (IAHWC_PFN_LAYER_SET_PLANE_ALPHA)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_LAYER_SET_PLANE_ALPHA);
   b->iahwc_layer_set_usage =
       (IAHWC_PFN_LAYER_SET_USAGE)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_LAYER_SET_USAGE);

@@ -19,18 +19,12 @@
 
 #include <xf86drm.h>
 #include <drm_fourcc.h>
+#include <math.h>
 
 #include "hwctrace.h"
 #include "nativesurface.h"
 #include "overlaybuffer.h"
 #include "renderstate.h"
-
-#ifdef ANDROID
-#include <va/va_android.h>
-#endif
-
-#define ANDROID_DISPLAY_HANDLE 0x18C34078
-#define UNUSED(x) (void*)(&x)
 
 namespace hwcomposer {
 
@@ -43,13 +37,7 @@ VARenderer::~VARenderer() {
 }
 
 bool VARenderer::Init(int gpu_fd) {
-#ifdef ANDROID
-  unsigned int native_display = ANDROID_DISPLAY_HANDLE;
-  va_display_ = vaGetDisplay(&native_display);
-  UNUSED(gpu_fd);
-#else
-  va_display_ = vaGetDisplayDRM(gpu_fd);
-#endif
+  va_display_ = GetVADisplay(gpu_fd);
   if (!va_display_) {
     ETRACE("vaGetDisplay failed\n");
     return false;

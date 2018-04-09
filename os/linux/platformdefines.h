@@ -36,18 +36,21 @@ struct gbm_handle {
 #ifdef USE_MINIGBM
   struct gbm_import_fd_planar_data import_data;
 #else
-  struct gbm_import_fd_data import_data;
+  union {
+    // for GBM_BO_IMPORT_FD
+    struct gbm_import_fd_data fd_data;
+    // for GBM_BO_IMPORT_FD_MODIFIER
+    struct gbm_import_fd_modifier_data fd_modifier_data;
+  } import_data;
 #endif
   struct gbm_bo* bo = NULL;
   struct gbm_bo* imported_bo = NULL;
   uint32_t total_planes = 0;
   HwcBuffer meta_data_;
   bool hwc_buffer_ = false;
-  // In case this is true, we expect meta_data_
-  // to be filled with correct width, height and
-  // format.
   void* pixel_memory_ = NULL;
   uint32_t gbm_flags = 0;
+  uint32_t layer_type_ = hwcomposer::kLayerNormal;
 };
 
 typedef struct gbm_handle* HWCNativeHandle;
@@ -75,7 +78,7 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
 #else
 inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   uint32_t id = 0;
-  uint32_t prime_fd = handle->import_data.fd;
+  uint32_t prime_fd = handle->import_data.fd_data.fd;
   if (drmPrimeFDToHandle(gpu_fd, prime_fd, &id)) {
     ETRACE("Error generate handle from prime fd %d", prime_fd);
   }

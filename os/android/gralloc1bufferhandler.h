@@ -35,7 +35,9 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   bool Init();
 
   bool CreateBuffer(uint32_t w, uint32_t h, int format, HWCNativeHandle *handle,
-                    uint32_t layer_type) const override;
+                    uint32_t layer_type = kLayerNormal,
+                    bool *modifier_used = NULL, int64_t modifier = -1,
+                    bool raw_pixel_buffer = false) const override;
   bool ReleaseBuffer(HWCNativeHandle handle) const override;
   void DestroyHandle(HWCNativeHandle handle) const override;
   bool ImportBuffer(HWCNativeHandle handle) const override;
@@ -68,6 +70,9 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   GRALLOC1_PFN_SET_FORMAT set_format_;
   GRALLOC1_PFN_SET_PRODUCER_USAGE set_producer_usage_;
   GRALLOC1_PFN_ALLOCATE allocate_;
+#ifdef USE_GRALLOC1
+  GRALLOC1_PFN_SET_MODIFIER set_modifier_;
+#endif
 };
 
 }  // namespace hwcomposer

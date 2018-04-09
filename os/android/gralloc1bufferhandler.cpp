@@ -102,13 +102,19 @@ bool Gralloc1BufferHandler::Init() {
                                 GRALLOC1_FUNCTION_SET_PRODUCER_USAGE));
   allocate_ = reinterpret_cast<GRALLOC1_PFN_ALLOCATE>(
       gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_ALLOCATE));
-
+#ifdef USE_GRALLOC1
+  set_modifier_ = reinterpret_cast<GRALLOC1_PFN_SET_MODIFIER>(
+      gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_SET_MODIFIER));
+#endif
   return true;
 }
 
 bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
                                          HWCNativeHandle *handle,
-                                         uint32_t layer_type) const {
+                                         uint32_t layer_type,
+                                         bool *modifier_used,
+                                         int64_t preferred_modifier,
+                                         bool /*raw_pixel_buffer*/) const {
   struct gralloc_handle *temp = new struct gralloc_handle();
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
@@ -126,6 +132,26 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
+#ifdef ENABLE_RBC
+  if (set_modifier_) {
+    uint64_t modifier = 0;
+    if (preferred_modifier != -1) {
+      modifier = preferred_modifier;
+    } else {
+      modifier = drm_get_modifier(format);
+    }
+
+    set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, modifier);
+  }
+
+  if (modifier_used) {
+    *modifier_used = true;
+  }
+#else
+  if (modifier_used) {
+    *modifier_used = false;
+  }
+#endif
 
   if ((layer_type == hwcomposer::kLayerVideo) &&
       !IsSupportedMediaFormat(format)) {
@@ -199,17 +225,15 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
   register_(gralloc1_dvc, handle->imported_handle_);
-  return ImportGraphicsBuffer(handle, fd_);
-}
-
-uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
-  auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
-  if (!gr_handle) {
-    ETRACE("could not find gralloc drm handle");
+  if (!ImportGraphicsBuffer(handle, fd_)) {
     return false;
   }
 
-  return drm_bo_get_num_planes(gr_handle->format);
+  return true;
+}
+
+uint32_t Gralloc1BufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
+  return handle->meta_data_.num_planes_;
 }
 
 void Gralloc1BufferHandler::CopyHandle(HWCNativeHandle source,

@@ -49,13 +49,11 @@ void FrameBufferManager::RegisterGemHandles(const uint32_t &num_planes,
   lock_.unlock();
 }
 
-uint32_t FrameBufferManager::FindFB(const uint32_t &iwidth,
-                                    const uint32_t &iheight,
-                                    const uint32_t &iframe_buffer_format,
-                                    const uint32_t &num_planes,
-                                    const uint32_t (&igem_handles)[4],
-                                    const uint32_t (&ipitches)[4],
-                                    const uint32_t (&ioffsets)[4]) {
+uint32_t FrameBufferManager::FindFB(
+    const uint32_t &iwidth, const uint32_t &iheight, const uint64_t &modifier,
+    const uint32_t &iframe_buffer_format, const uint32_t &num_planes,
+    const uint32_t (&igem_handles)[4], const uint32_t (&ipitches)[4],
+    const uint32_t (&ioffsets)[4]) {
   lock_.lock();
   FBKey key(num_planes, igem_handles);
   uint32_t fb_id = 0;
@@ -63,8 +61,9 @@ uint32_t FrameBufferManager::FindFB(const uint32_t &iwidth,
   if (it != fb_map_.end()) {
     if (!it->second.fb_created) {
       it->second.fb_created = true;
-      CreateFrameBuffer(iwidth, iheight, iframe_buffer_format, igem_handles,
-                        ipitches, ioffsets, gpu_fd_, &it->second.fb_id);
+      CreateFrameBuffer(iwidth, iheight, modifier, iframe_buffer_format,
+                        num_planes, igem_handles, ipitches, ioffsets, gpu_fd_,
+                        &it->second.fb_id);
     }
 
     fb_id = it->second.fb_id;

@@ -72,7 +72,7 @@ std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              ResourceManager* resource_manager,
-                             bool register_buffer, HwcLayer* layer) {
+                             bool register_buffer) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
   uint32_t id;
@@ -85,15 +85,12 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    bool is_cursor_layer = false;
-    if (layer) {
-      is_cursor_layer = layer->IsCursorLayer();
-    }
-    buffer->InitializeFromNativeHandle(handle, resource_manager,
-                                       is_cursor_layer);
+    buffer->InitializeFromNativeHandle(handle, resource_manager);
     if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
+  } else {
+    buffer->SetOriginalHandle(handle);
   }
 
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
@@ -242,7 +239,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, false, layer);
+	    resource_manager, true);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -476,15 +473,17 @@ void OverlayLayer::ValidateForOverlayUsage() {
 }
 
 void OverlayLayer::CloneLayer(const OverlayLayer* layer,
-                              const HwcRect<int>& display_frame) {
+                              const HwcRect<int>& display_frame,
+                              ResourceManager* resource_manager) {
   int32_t fence = layer->GetAcquireFence();
+  int32_t aquire_fence = 0;
   if (fence > 0) {
-    fence = dup(fence);
+    aquire_fence = dup(fence);
   }
-
   SetDisplayFrame(display_frame);
   SetSourceCrop(layer->GetSourceCrop());
-  imported_buffer_.reset(new ImportedBuffer(layer->GetSharedBuffer(), fence));
+  SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
+            resource_manager, true);
   ValidateForOverlayUsage();
   surface_damage_ = display_frame;
   transform_ = 0;

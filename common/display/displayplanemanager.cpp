@@ -200,8 +200,11 @@ bool DisplayPlaneManager::ValidateLayers(
           composition.emplace_back(plane, layer, this, layer->GetZorder(),
                                    display_transform_);
 #ifdef SURFACE_TRACING
-          ISURFACETRACE("Added Layer for direct Scanout: %d \n",
-                        layer->GetZorder());
+          ISURFACETRACE(
+              "Added Layer for direct Scanout: layer index: %d "
+              "validate_final_layers: %d force_separate: %d fall_back: %d \n",
+              layer->GetZorder(), validate_final_layers, force_separate,
+              fall_back);
 #endif
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
@@ -221,8 +224,14 @@ bool DisplayPlaneManager::ValidateLayers(
           if (composition.empty()) {
             composition.emplace_back(plane, layer, this, layer->GetZorder(),
                                      display_transform_);
+#ifdef SURFACE_TRACING
+            ISURFACETRACE("Added Layer: %d %d validate_final_layers: %d  \n",
+                          layer->GetZorder(), composition.size(),
+                          validate_final_layers);
+#endif
             DisplayPlaneState &last_plane = composition.back();
             ResetPlaneTarget(last_plane, commit_planes.back());
+            validate_final_layers = true;
             if (display_transform_ != kIdentity) {
               // If DisplayTransform is not supported, let's check if
               // we can fallback to GPU rotation for this plane.
@@ -232,10 +241,13 @@ bool DisplayPlaneManager::ValidateLayers(
                     DisplayPlaneState::RotationType::kGPURotation, false);
 
                 // Check if we can rotate using Display plane.
-                if (!FallbacktoGPU(last_plane.GetDisplayPlane(),
-                                   last_plane.GetOffScreenTarget()->GetLayer(),
-                                   commit_planes)) {
-                  validate_final_layers = true;
+                if (FallbacktoGPU(last_plane.GetDisplayPlane(),
+                                  last_plane.GetOffScreenTarget()->GetLayer(),
+                                  commit_planes)) {
+                  last_plane.SetRotationType(
+                      DisplayPlaneState::RotationType::kGPURotation, true);
+                } else {
+                  validate_final_layers = false;
                 }
               }
             }
@@ -244,8 +256,9 @@ bool DisplayPlaneManager::ValidateLayers(
           } else {
             commit_planes.pop_back();
 #ifdef SURFACE_TRACING
-            ISURFACETRACE("Added Layer: %d %d  \n", layer->GetZorder(),
-                          composition.size());
+            ISURFACETRACE("Added Layer: %d %d validate_final_layers: %d  \n",
+                          layer->GetZorder(), composition.size(),
+                          validate_final_layers);
 #endif
             composition.back().AddLayer(layer);
             while (SquashPlanesAsNeeded(layers, composition, commit_planes,
@@ -424,69 +437,8 @@ void DisplayPlaneManager::ValidateCursorLayer(
 
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
     commit_planes.emplace_back(OverlayPlane(plane, cursor_layer));
-    bool fall_back = true;
-    LayerResultCache *cached_plane = NULL;
-    if (!results_cache_.empty()) {
-      size_t size = results_cache_.size();
-      for (size_t i = 0; i < size; i++) {
-        LayerResultCache &cache = results_cache_.at(i);
-        if (cache.plane_ != plane)
-          continue;
-
-        uint32_t layer_transform = cursor_layer->GetPlaneTransform();
-        bool cached = false;
-        if (cache.last_transform_ == layer_transform) {
-          cached = true;
-        }
-
-        if (cached) {
-          fall_back = false;
-          cursor_layer->SupportedDisplayComposition(OverlayLayer::kAll);
-          if (cursor_layer->GetBuffer()->GetFb() == 0) {
-            if (!cursor_layer->GetBuffer()->CreateFrameBuffer()) {
-              fall_back = true;
-            }
-          }
-
-          if (!fall_back) {
-            *validate_final_layers = false;
-          }
-        } else {
-          if (cache.last_failed_transform_ == layer_transform) {
-            cached = true;
-          }
-
-          if (cached) {
-            fall_back = true;
-            *validate_final_layers = true;
-            cursor_layer->SupportedDisplayComposition(OverlayLayer::kGpu);
-          }
-        }
-
-        cached_plane = &(results_cache_.at(i));
-        break;
-      }
-    }
-
-    // We don't have this in cache.
-    if (fall_back && !(*validate_final_layers)) {
-      fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
-      *test_commit_done = true;
-      if (!cached_plane) {
-        results_cache_.emplace_back();
-        cached_plane = &(results_cache_.back());
-        cached_plane->plane_ = plane;
-      }
-
-      if (!fall_back) {
-        cached_plane->last_transform_ = cursor_layer->GetPlaneTransform();
-        *validate_final_layers = false;
-      } else {
-        cached_plane->last_failed_transform_ =
-            cursor_layer->GetPlaneTransform();
-        *validate_final_layers = true;
-      }
-    }
+    bool fall_back = FallbacktoGPU(plane, cursor_layer, commit_planes);
+    *test_commit_done = true;
 
     // Lets ensure we fall back to GPU composition in case
     // cursor layer cannot be scanned out directly.
@@ -532,8 +484,10 @@ void DisplayPlaneManager::ValidateCursorLayer(
         DisplayPlaneState &temp = composition.back();
         SetOffScreenPlaneTarget(temp);
         cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
+        *validate_final_layers = true;
       } else {
         cursor_layer->SetLayerComposition(OverlayLayer::kDisplay);
+        *validate_final_layers = false;
       }
 
       last_plane = GetLastUsedOverlay(composition);
@@ -731,10 +685,12 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
   }
 
+  uint64_t modifier = plane.GetDisplayPlane()->GetPreferredFormatModifier();
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() == -1) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
-      if (preferred_format == surface_format) {
+      if ((preferred_format == surface_format) &&
+          (fb->GetModifier() == modifier)) {
         surface = fb.get();
         break;
       }
@@ -750,7 +706,16 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
       new_surface = Create3DBuffer(width_, height_);
     }
 
-    new_surface->Init(resource_manager_, preferred_format, usage);
+    bool modifer_succeeded = false;
+    new_surface->Init(resource_manager_, preferred_format, usage, modifier,
+                      &modifer_succeeded);
+
+    if (modifer_succeeded) {
+      plane.GetDisplayPlane()->PreferredFormatModifierValidated();
+    } else {
+      plane.GetDisplayPlane()->BlackListPreferredFormatModifier();
+    }
+
     surfaces_.emplace_back(std::move(new_surface));
     surface = surfaces_.back().get();
   }
@@ -1099,16 +1064,20 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
     DisplayPlaneState &last_plane = composition.back();
     DisplayPlaneState &scanout_plane = composition.at(composition.size() - 2);
 #ifdef SURFACE_TRACING
-    ISURFACETRACE("ANALAYZE scanout_plane: %d %d  \n",
-                  scanout_plane.NeedsOffScreenComposition(),
-                  scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
+    ISURFACETRACE(
+        "ANALAYZE scanout_plane: scanout_plane.NeedsOffScreenComposition() %d "
+        "scanout_plane.IsCursorPlane() %d scanout_plane.IsVideoPlane() %d  \n",
+        scanout_plane.NeedsOffScreenComposition(),
+        scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
 
-    ISURFACETRACE("ANALAYZE last_plane: %d %d  \n",
-                  last_plane.NeedsOffScreenComposition(),
-                  last_plane.IsCursorPlane(), last_plane.IsVideoPlane());
+    ISURFACETRACE(
+        "ANALAYZE last_plane: scanout_plane.NeedsOffScreenComposition() %d "
+        "scanout_plane.IsCursorPlane() %d scanout_plane.IsVideoPlane() %d  \n",
+        scanout_plane.NeedsOffScreenComposition(),
+        scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
 
     if (!scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane()) {
-      ISURFACETRACE("ANALAYZE %d \n",
+      ISURFACETRACE("ANALAYZE AnalyseOverlap: %d \n",
                     AnalyseOverlap(scanout_plane.GetDisplayFrame(),
                                    last_plane.GetDisplayFrame()));
       ISURFACETRACE("ANALAYZE Scanout Display Rect %d %d %d %d \n",
