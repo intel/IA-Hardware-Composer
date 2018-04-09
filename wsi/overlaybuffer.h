@@ -81,6 +81,10 @@ class OverlayBuffer {
   // Creates Framebuffer taking into account any Modifiers.
   virtual bool CreateFrameBufferWithModifier(uint64_t modifier) = 0;
 
+  virtual HWCNativeHandle GetOriginalHandle() const = 0;
+
+  virtual void SetOriginalHandle(HWCNativeHandle handle) = 0;
+
   virtual void Dump() = 0;
 };
 

@@ -108,6 +108,7 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
 
   media_image_.handle_ = image_.handle_;
   Initialize(image_.handle_->meta_data_);
+  original_handle_ = handle;
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
@@ -400,6 +401,10 @@ bool DrmBuffer::CreateFrameBufferWithModifier(uint64_t modifier) {
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;
+}
+
+void DrmBuffer::SetOriginalHandle(HWCNativeHandle handle) {
+  original_handle_ = handle;
 }
 
 void DrmBuffer::Dump() {

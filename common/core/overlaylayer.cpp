@@ -89,6 +89,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
+  } else {
+    buffer->SetOriginalHandle(handle);
   }
 
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
@@ -471,15 +473,17 @@ void OverlayLayer::ValidateForOverlayUsage() {
 }
 
 void OverlayLayer::CloneLayer(const OverlayLayer* layer,
-                              const HwcRect<int>& display_frame) {
+                              const HwcRect<int>& display_frame,
+                              ResourceManager* resource_manager) {
   int32_t fence = layer->GetAcquireFence();
+  int32_t aquire_fence = 0;
   if (fence > 0) {
-    fence = dup(fence);
+    aquire_fence = dup(fence);
   }
-
   SetDisplayFrame(display_frame);
   SetSourceCrop(layer->GetSourceCrop());
-  imported_buffer_.reset(new ImportedBuffer(layer->GetSharedBuffer(), fence));
+  SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
+            resource_manager, true);
   ValidateForOverlayUsage();
   surface_damage_ = display_frame;
   transform_ = 0;
