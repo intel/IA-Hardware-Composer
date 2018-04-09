@@ -210,7 +210,8 @@ struct OverlayLayer {
     return state_ & kForcePartialClear;
   }
 
-  void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame);
+  void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
+                  ResourceManager* resource_manager);
 
   void Dump();
 

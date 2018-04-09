@@ -933,9 +933,25 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 }
 
 void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
+  ScopedCloneStateTracker tracker(compositor_, resource_manager_.get(), this);
   const DisplayPlaneStateList& source_planes =
       queue->GetCurrentCompositionPlanes();
   if (source_planes.empty()) {
+    // Mark any surfaces as not in use. These surfaces
+    // where not marked earlier as they where onscreen.
+    // Doing it here also ensures that if this surface
+    // is still in use than it will be marked in use
+    // below.
+    if (!mark_not_inuse_.empty()) {
+      size_t size = mark_not_inuse_.size();
+      for (uint32_t i = 0; i < size; i++) {
+        mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+      }
+
+      std::vector<NativeSurface*>().swap(mark_not_inuse_);
+      tracker.ForceSurfaceRelease();
+    }
+
     return;
   }
 
@@ -959,33 +975,16 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
           (display_frame.bottom * scaling_tracker_.scaling_height);
     }
 
-    layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame);
+    layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame,
+                     resource_manager_.get());
   }
 
   bool test_commit = false;
   bool render_layers = false;
   DisplayPlaneStateList current_composition_planes;
-  if (!clone_rendered_ && !previous_plane_state_.empty() &&
-      (previous_plane_state_.size() == source_planes.size()) &&
-      !queue->NeedsCloneValidation()) {
-    uint32_t index = 0;
-    for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-      current_composition_planes.emplace_back();
-      DisplayPlaneState& last_plane = current_composition_planes.back();
-      last_plane.CopyState(previous_plane);
-      last_plane.SetOverlayLayer(&layers.at(index));
-      if (last_plane.NeedsOffScreenComposition()) {
-        last_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-        last_plane.SwapSurfaceIfNeeded();
-      }
-
-      index++;
-    }
-  } else {
-    render_layers = display_plane_manager_->ValidateLayers(
-        layers, 0, false, &test_commit, &test_commit,
-        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
-  }
+  render_layers = display_plane_manager_->ValidateLayers(
+      layers, 0, false, &test_commit, &test_commit, current_composition_planes,
+      previous_plane_state_, surfaces_not_inuse_);
 
   DUMP_CURRENT_COMPOSITION_PLANES();
   DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
@@ -996,7 +995,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   // Handle any 3D Composition.
   if (render_layers) {
     clone_rendered_ = true;
-    if (!queue->compositor_.BeginFrame(false)) {
+    if (!compositor_.BeginFrame(false)) {
       ETRACE("Failed to initialize compositor.");
       composition_passed = false;
     }
@@ -1010,8 +1009,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
       }
 
       // Prepare for final composition.
-      if (!queue->compositor_.Draw(current_composition_planes, layers,
-                                   layers_rects)) {
+      if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
         ETRACE("Failed to prepare for the frame composition. ");
         composition_passed = false;
       }
@@ -1031,7 +1029,6 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     kms_fence_ = 0;
   }
 #endif
-
   composition_passed = display_->Commit(
       current_composition_planes, previous_plane_state_, false, &kms_fence_);
 

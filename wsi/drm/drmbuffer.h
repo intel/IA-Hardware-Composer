@@ -85,6 +85,12 @@ class DrmBuffer : public OverlayBuffer {
 
   bool CreateFrameBufferWithModifier(uint64_t modifier) override;
 
+  HWCNativeHandle GetOriginalHandle() const override {
+    return original_handle_;
+  }
+
+  void SetOriginalHandle(HWCNativeHandle handle) override;
+
   void Dump() override;
 
  private:
@@ -103,6 +109,7 @@ class DrmBuffer : public OverlayBuffer {
   ResourceManager* resource_manager_ = 0;
   ResourceHandle image_;
   MediaResourceHandle media_image_;
+  HWCNativeHandle original_handle_;
 };
 
 }  // namespace hwcomposer
