@@ -221,6 +221,7 @@ bool DisplayPlaneManager::ValidateLayers(
 
           break;
         } else {
+          bool force_all_layers = true;
           if (composition.empty()) {
             composition.emplace_back(plane, layer, this, layer->GetZorder(),
                                      display_transform_);
@@ -247,11 +248,18 @@ bool DisplayPlaneManager::ValidateLayers(
                   last_plane.SetRotationType(
                       DisplayPlaneState::RotationType::kGPURotation, true);
                 } else {
+                  force_all_layers = false;
                   validate_final_layers = false;
                 }
               }
             }
-
+            if (force_all_layers) {
+              ForceGpuForAllLayers(commit_planes, composition, layers,
+                                   mark_later, false);
+              *re_validation_needed = false;
+              *commit_checked = true;
+              return true;
+            }
             break;
           } else {
             commit_planes.pop_back();
