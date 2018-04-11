@@ -976,7 +976,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
 
     layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame,
-                     resource_manager_.get());
+                     resource_manager_.get(), layers.size() - 1);
   }
 
   bool test_commit = false;
