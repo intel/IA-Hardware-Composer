@@ -1,72 +1,84 @@
-BUILD INSTRUCTIONS:
+BUILD:
 
-Update binaries for validation on device 
+hwc-val is only built for "eng" flavor Android images, check the output of the
+"lunch ..." command when you are building and ensure it contains this line:
+TARGET_BUILD_VARIANT=eng
+
+PREPARE:
+
+Connect to the test device via adb:
+adb connect <dut ip>
+
+Run this script on the host to push validation binaries to the test device:
 cd tests/hwc-val/tests/hwc
 ./host_scripts/valpush hwc hwcval
 
-Note: Hwc-val needs hwc service to work
+TEST:
 
-Executing the test from host PC
-./host_scripts/valhwch -t Home
+Option 1: from the host:
+./host_scripts/valhwch -t <test name> # see AVAILABLE TESTS
 
-Supported tests:
-./host_scripts/valhwch -t Home
-./host_scripts/valhwch -t Basic
-./host_scripts/valhwch -t Flicker1 
-./host_scripts/valhwch -t Flicker2
-./host_scripts/valhwch -t Flicker3 
-./host_scripts/valhwch -t VideoModes
-./host_scripts/valhwch -t GlBasicLine
-./host_scripts/valhwch -t GlBasicClear
-./host_scripts/valhwch -t GlBasicTexture
-./host_scripts/valhwch -t GlBasicCombo1
-./host_scripts/valhwch -t GlBasicCombo2
-./host_scripts/valhwch -t GlBasicCombo3
-./host_scripts/valhwch -t GlBasicPixelDiscard
-./host_scripts/valhwch -t GlBasicViewport
-./host_scripts/valhwch -t GlBasicMovingLine
-./host_scripts/valhwch -t GlBasicPixelDiscardNOP
-./host_scripts/valhwch -t RandomModes
-./host_scripts/valhwch -t Camera
-./host_scripts/valhwch -t Dialog
-./host_scripts/valhwch -t Gallery
-./host_scripts/valhwch -t Game
-./host_scripts/valhwch -t Notification
-./host_scripts/valhwch -t Nv12FullVideo
-./host_scripts/valhwch -t Nv12FullVideo2
-./host_scripts/valhwch -t NetflixScaled
-./host_scripts/valhwch -t NetflixStepped
-./host_scripts/valhwch -t MovieStudio
-./host_scripts/valhwch -t PanelFitter
-./host_scripts/valhwch -t FlipRot
-./host_scripts/valhwch -t Smoke
-./host_scripts/valhwch -t PartComp
-./host_scripts/valhwch -t Png
-./host_scripts/valhwch -t TransparencyComposition
-./host_scripts/valhwch -t Skip
-./host_scripts/valhwch -t PanelFitterStress
-./host_scripts/valhwch -t SmallDf
-./host_scripts/valhwch -t RenderCompression
-./host_scripts/valhwch -t SSIMCompare
-./host_scripts/valhwch -t BufferStres
-./host_scripts/valhwch -t DirectPlanes
-./host_scripts/valhwch -t Api -> Fd leak
-./host_scripts/valhwch -t BufferStress
+Option 2: from the test device:
+adb shell
+cd /data/validation/hwc
+./valhwc_install.sh
+./valhwc_run_harness.sh -t <test names # see AVAILABLE TESTS
 
+CLEANUP:
 
-Executing tests on the device
-1) su
-2) cd /data/validation/hwc
-3) ./valhwc_install.sh
-4) ./valhwc_run_harness.sh -t Basic -> to run testcases
-5) ./valhwc_unins.sh to uninstall shim and boot to Android
+The hwc-val tests will install shims that disable booting to Android home. To
+restore the test device to its default state run one of the available scripts
 
-
-Note: Android would be stopped when tests are executed.As Shims are installed 
-device will not boot to Android home
-
-
-Uninstalling the Shims
+Option 1: from the host:
 ./host_scripts/valuninstall
 
+Option 2: from the test device:
+adb shell
+cd /data/validation/hwc
+./valhwc_unins.sh
+
+AVAILABLE TESTS:
+
+Home
+Basic
+Flicker1
+Flicker2
+Flicker3
+VideoModes
+GlBasicLine
+GlBasicClear
+GlBasicTexture
+GlBasicCombo1
+GlBasicCombo2
+GlBasicCombo3
+GlBasicPixelDiscard
+GlBasicViewport
+GlBasicMovingLine
+GlBasicPixelDiscardNOP
+RandomModes
+Camera
+Dialog
+Gallery
+Game
+Notification
+Nv12FullVideo
+Nv12FullVideo2
+NetflixScaled
+NetflixStepped
+MovieStudio
+PanelFitter
+FlipRot
+Smoke
+PartComp
+Png
+TransparencyComposition
+Skip
+PanelFitterStress
+SmallDf
+RenderCompression
+SSIMCompare
+BufferStres
+DirectPlanes
+Api -> Fd leak
+BufferStress
 
