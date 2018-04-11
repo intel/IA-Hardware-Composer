@@ -48,27 +48,8 @@ int Mutex::lock() {
   timespec timeStart;
   clock_gettime(CLOCK_REALTIME, &timeStart);
   timespec timeNow, timeEla;
-  int timecount;
-  for (timecount = 0;; timecount++) {
-    timespec timeNow;
-    clock_gettime(CLOCK_REALTIME, &timeNow);
-    mspinlock.lock();
-    ALOGD_IF((MUTEX_CONDITION_DEBUG && timecount == 0),
-             "Blocking on mutex %p thread %u", this, gettid());
-    usleep(mSpinWait);
-    timeEla.tv_sec = timeNow.tv_sec - timeStart.tv_sec;
-    timeEla.tv_nsec = timeNow.tv_nsec - timeStart.tv_nsec;
-    if (timeEla.tv_nsec > mLongTime) {
-      ALOGE("Thread %u blocked by thread %u waiting for mutex %p", gettid(),
-            mTid, this);
-      timeStart = timeNow;
-    }
-    if (timecount * mSpinWait > mLongTime * 10) {
-      ALOGE("Fatal Thread %u blocked by thread %u waiting for mutex %p",
-            gettid(), mTid, this);
-      ALOG_ASSERT(0);
-    }
-  }
+  clock_gettime(CLOCK_REALTIME, &timeNow);
+  mspinlock.lock();
   ATRACE_INT_IF(MUTEX_CONDITION_DEBUG,
                 (std::string("W-Mutex-") + std::to_string((long long) this)).c_str(), 0);
   ATRACE_INT_IF(MUTEX_CONDITION_DEBUG,
@@ -130,7 +111,7 @@ uint32_t Mutex::getWaiters(void) {
 }
 
 Mutex::Autolock::Autolock(Mutex& m) : spinlock_(m.mspinlock) {
-  m.mspinlock.lock();
+  spinlock_.lock();
 }
 Mutex::Autolock::~Autolock() {
   spinlock_.unlock();
@@ -149,14 +130,12 @@ int Condition::wait(Mutex& mutex) {
            "Condition %p wait Enter mutex %p mTid/tid %d/%d", this, &mutex,
            mutex.mTid, gettid());
   ALOG_ASSERT(mbInit);
-  ALOG_ASSERT(mutex.mTid == gettid());
   mutex.mTid = 0;
   mutex.incWaiter();
   mWaiters++;
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p wait on mutex %p waiters %u/%u mTid/tid %d/%d", this,
            &mutex, mWaiters, mutex.getWaiters(), mutex.mTid, gettid());
-  mutex.lock();
   int ret = hwcevent.Wait();
   mutex.decWaiter();
   mWaiters--;
@@ -177,6 +156,7 @@ void Condition::broadcast() {
   ALOGD_IF(MUTEX_CONDITION_DEBUG, "Condition %p broadcast [waiters:%u]", this,
            mWaiters);
   ALOG_ASSERT(mbInit);
+  hwcevent.Signal();
 }
 
 };  // namespace Hwcval
