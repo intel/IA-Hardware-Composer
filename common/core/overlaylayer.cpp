@@ -474,7 +474,8 @@ void OverlayLayer::ValidateForOverlayUsage() {
 
 void OverlayLayer::CloneLayer(const OverlayLayer* layer,
                               const HwcRect<int>& display_frame,
-                              ResourceManager* resource_manager) {
+                              ResourceManager* resource_manager,
+                              uint32_t z_order) {
   int32_t fence = layer->GetAcquireFence();
   int32_t aquire_fence = 0;
   if (fence > 0) {
@@ -486,7 +487,12 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
             resource_manager, true);
   ValidateForOverlayUsage();
   surface_damage_ = display_frame;
-  transform_ = 0;
+  transform_ = layer->transform_;
+  plane_transform_ = layer->plane_transform_;
+  alpha_ = layer->alpha_;
+  layer_index_ = z_order;
+  z_order_ = z_order;
+  blending_ = layer->blending_;
 }
 
 void OverlayLayer::Dump() {

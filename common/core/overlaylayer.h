@@ -211,7 +211,7 @@ struct OverlayLayer {
   }
 
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
-                  ResourceManager* resource_manager);
+                  ResourceManager* resource_manager, uint32_t z_order);
 
   void Dump();
 
