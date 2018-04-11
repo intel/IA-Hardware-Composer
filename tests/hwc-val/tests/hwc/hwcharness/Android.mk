@@ -101,6 +101,7 @@ LOCAL_SHARED_LIBRARIES += \
     libc_malloc_debug_leak
 endif
 
+LOCAL_MODULE_TAGS := optional eng
 LOCAL_MODULE:= valhwcharness
 LOCAL_MODULE_PATH=$(VAL_HWC_TARGET_TEST_PATH)/bin
 
