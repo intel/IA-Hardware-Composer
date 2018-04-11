@@ -46,7 +46,7 @@ int DrmEventListener::Init() {
   struct sockaddr_nl addr;
   memset(&addr, 0, sizeof(addr));
   addr.nl_family = AF_NETLINK;
-  addr.nl_pid = getpid();
+  addr.nl_pid = 0;
   addr.nl_groups = 0xFFFFFFFF;
 
   int ret = bind(uevent_fd_.get(), (struct sockaddr *)&addr, sizeof(addr));
