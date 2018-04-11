@@ -111,15 +111,13 @@ class Condition {
            "Condition %p waitRelative Enter mutex %p mTid/tid %d/%d", this,
            &mutex, mutex.mTid, gettid());
   ALOG_ASSERT(mbInit);
-  ALOG_ASSERT(mutex.mTid == gettid());
   mutex.mTid = 0;
   mutex.incWaiter();
   mWaiters++;
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
            "Condition %p waitRelative on mutex %p waiters %u/%u", this, &mutex,
            mWaiters, mutex.getWaiters());
-  mutex.lock();
-  int ret = HWCPoll(hwcevent.get_fd(), timeout);
+  int ret = 0;//hwcevent.Wait();
   mutex.decWaiter();
   mWaiters--;
   ALOGD_IF(MUTEX_CONDITION_DEBUG,
