@@ -840,8 +840,6 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, cursor_layer_id,
                                     damage_region);
-  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, cursor_layer_id,
-                                 ev->alpha);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -1037,8 +1035,6 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
                                     damage_region);
-  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, overlay_layer_id,
-                                 ev->alpha);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
