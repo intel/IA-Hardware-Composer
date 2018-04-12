@@ -445,9 +445,11 @@ static int iahwc_output_repaint(struct weston_output *output_base,
     output->cursor_plane.y = INT32_MIN;
   }
 
+#ifdef IAHWC_DISABLE_OVERLAYS
   iahwc_output_render(output, damage);
   if (!output->fb_pending)
     return -1;
+#endif
 
   weston_log("release fence is %d\n", output->release_fence);
   if (output->release_fence > 0) {
@@ -930,15 +932,12 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
 
     switch (dbo.format) {
       case WL_SHM_FORMAT_XRGB8888:
-        weston_log("warning: WL_SHM_FORMAT_XRGB8888: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_XRGB8888;
         break;
       case WL_SHM_FORMAT_ARGB8888:
-        weston_log("warning: WL_SHM_FORMAT_ARGB8888: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_ARGB8888;
         break;
       case WL_SHM_FORMAT_RGB565:
-        weston_log("warning: WL_SHM_FORMAT_RGB565: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_RGB565;
         break;
       case WL_SHM_FORMAT_YUV420:
@@ -1217,6 +1216,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
 
+#ifdef IAHWC_DISABLE_OVERLAYS
       if (output->primary_layer_id == -1) {
         b->iahwc_create_layer(b->iahwc_device, 0, &output->primary_layer_id);
       }
@@ -1236,6 +1236,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
           b->iahwc_device, 0, output->primary_layer_id, damage_region);
       b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0,
                                      output->primary_layer_id, ev->alpha);
+#endif
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
     }
 
