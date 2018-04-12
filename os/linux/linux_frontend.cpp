@@ -307,6 +307,7 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
   std::vector<hwcomposer::HwcLayer*> layers;
   hwcomposer::HwcLayer* cursor_layer = NULL;
 
+  raw_data_uploader_->Synchronize();
   for (std::pair<const iahwc_layer_t, IAHWCLayer>& l : layers_) {
     IAHWCLayer& temp = l.second;
     if (temp.GetLayer()->IsCursorLayer())
@@ -366,6 +367,7 @@ IAHWC::IAHWCLayer::IAHWCLayer(PixelUploader* uploader)
     : raw_data_uploader_(uploader) {
   layer_usage_ = IAHWC_LAYER_USAGE_NORMAL;
   memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
+  iahwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
 }
 
 IAHWC::IAHWCLayer::~IAHWCLayer() {
