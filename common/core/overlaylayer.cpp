@@ -246,17 +246,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
       surface_damage_.right = surface_damage_.left + buffer->GetWidth();
       surface_damage_.bottom = surface_damage_.top + buffer->GetHeight();
-    } else {
-      switch (plane_transform_) {
-        case HWCTransform::kTransform270:
-        case HWCTransform::kTransform90: {
-          std::swap(surface_damage_.left, surface_damage_.top);
-          std::swap(surface_damage_.right, surface_damage_.bottom);
-          break;
-        }
-        default:
-          break;
-      }
     }
   }
 
