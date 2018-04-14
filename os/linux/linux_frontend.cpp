@@ -179,6 +179,10 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_LAYER_SET_PLANE_ALPHA>(
           LayerHook<decltype(&IAHWCLayer::SetLayerPlaneAlpha),
                     &IAHWCLayer::SetLayerPlaneAlpha, float>);
+    case IAHWC_FUNC_LAYER_SET_INDEX:
+      return ToHook<IAHWC_PFN_LAYER_SET_INDEX>(
+          LayerHook<decltype(&IAHWCLayer::SetLayerIndex),
+                    &IAHWCLayer::SetLayerIndex, uint32_t>);
     case IAHWC_FUNC_INVALID:
     default:
       return NULL;
@@ -306,18 +310,21 @@ int IAHWC::IAHWCDisplay::ClearAllLayers() {
 int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
   std::vector<hwcomposer::HwcLayer*> layers;
   hwcomposer::HwcLayer* cursor_layer = NULL;
+  /*
+   * Here the assumption is that the layer index set by the compositor
+   * is numbered from bottom -> top, i.e. the bottom most layer has the
+   * index of 0 and increases upwards.
+   */
 
   raw_data_uploader_->Synchronize();
+  uint32_t total_layers = layers_.size();
+  layers.resize(total_layers);
+
   for (std::pair<const iahwc_layer_t, IAHWCLayer>& l : layers_) {
     IAHWCLayer& temp = l.second;
-    if (temp.GetLayer()->IsCursorLayer())
-      cursor_layer = temp.GetLayer();
-    else
-      layers.emplace_back(temp.GetLayer());
+    uint32_t layer_index = total_layers - temp.GetLayerIndex() - 1;
+    layers[layer_index] = temp.GetLayer();
   }
-
-  if (cursor_layer)
-    layers.emplace_back(cursor_layer);
 
   native_display_->Present(layers, release_fd);
 
@@ -366,6 +373,7 @@ bool IAHWC::IAHWCDisplay::IsConnected() {
 IAHWC::IAHWCLayer::IAHWCLayer(PixelUploader* uploader)
     : raw_data_uploader_(uploader) {
   layer_usage_ = IAHWC_LAYER_USAGE_NORMAL;
+  layer_index_ = 0;
   memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
   iahwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
 }
@@ -569,6 +577,12 @@ int IAHWC::IAHWCLayer::SetLayerPlaneAlpha(float alpha) {
   if (alpha != 1.0) {
     iahwc_layer_.SetBlending(HWCBlending::kBlendingPremult);
   }
+
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCLayer::SetLayerIndex(uint32_t layer_index) {
+  layer_index_ = layer_index;
 
   return IAHWC_ERROR_NONE;
 }
