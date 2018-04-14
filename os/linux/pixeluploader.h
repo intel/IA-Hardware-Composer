@@ -33,9 +33,9 @@ namespace hwcomposer {
 
 class NativeBufferHandler;
 
-class PixelUploaderCallback {
+class RawPixelUploadCallback {
  public:
-  virtual ~PixelUploaderCallback() {
+  virtual ~RawPixelUploadCallback() {
   }
   virtual void Callback(bool start_access, void* call_back_data) = 0;
 };
@@ -55,7 +55,7 @@ class PixelUploader : public HWCThread {
   void Initialize(uint32_t gpu_fd);
 
   void RegisterPixelUploaderCallback(
-      std::shared_ptr<PixelUploaderCallback> callback);
+      std::shared_ptr<RawPixelUploadCallback> callback);
 
   void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_height,
                             uint32_t original_stride, void* callback_data,
@@ -92,7 +92,7 @@ class PixelUploader : public HWCThread {
   void* Map(uint32_t prime_fd, size_t size);
   void Unmap(uint32_t prime_fd, void* addr, size_t size);
 
-  std::shared_ptr<PixelUploaderCallback> callback_ = NULL;
+  std::shared_ptr<RawPixelUploadCallback> callback_ = NULL;
   SpinLock tasks_lock_;
   SpinLock pixel_data_lock_;
   std::vector<PixelData> pixel_data_;

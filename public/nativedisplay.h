@@ -54,6 +54,13 @@ class HotPlugCallback {
   virtual void Callback(uint32_t display, bool connected) = 0;
 };
 
+class PixelUploaderCallback {
+ public:
+  virtual ~PixelUploaderCallback() {
+  }
+  virtual void Synchronize() = 0;
+};
+
 class NativeDisplay {
  public:
   virtual ~NativeDisplay() {
@@ -111,6 +118,7 @@ class NativeDisplay {
    */
   virtual bool Present(std::vector<HwcLayer *> &source_layers,
                        int32_t *retire_fence,
+                       PixelUploaderCallback *call_back = NULL,
                        bool handle_constraints = false) = 0;
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

@@ -79,7 +79,9 @@ bool VirtualDisplay::SetActiveConfig(uint32_t /*config*/) {
 }
 
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                             int32_t *retire_fence, bool handle_constraints) {
+                             int32_t *retire_fence,
+                             PixelUploaderCallback * /*call_back*/,
+                             bool handle_constraints) {
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;

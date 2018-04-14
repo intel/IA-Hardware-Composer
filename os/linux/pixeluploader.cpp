@@ -59,7 +59,7 @@ void PixelUploader::Initialize(uint32_t gpu_fd) {
 }
 
 void PixelUploader::RegisterPixelUploaderCallback(
-    std::shared_ptr<PixelUploaderCallback> callback) {
+    std::shared_ptr<RawPixelUploadCallback> callback) {
   callback_ = callback;
 }
 

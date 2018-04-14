@@ -74,7 +74,7 @@ class IAHWC : public iahwc_device {
     bool upload_in_progress_ = false;
   };
 
-  class IAHWCDisplay {
+  class IAHWCDisplay : public PixelUploaderCallback {
    public:
     IAHWCDisplay();
     ~IAHWCDisplay();
@@ -97,6 +97,8 @@ class IAHWC : public iahwc_device {
     IAHWCLayer& get_layer(iahwc_layer_t layer) {
       return layers_.at(layer);
     }
+
+    void Synchronize() override;
 
    private:
     PixelUploader* raw_data_uploader_ = NULL;

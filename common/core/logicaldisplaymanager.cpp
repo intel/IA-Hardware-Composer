@@ -132,6 +132,7 @@ void LogicalDisplayManager::RegisterHotPlugNotification() {
 
 bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
                                     int32_t* retire_fence,
+                                    PixelUploaderCallback* call_back,
                                     bool handle_constraints) {
   uint32_t total_size = displays_.size();
   if (handle_hoplug_notifications_) {
@@ -183,8 +184,8 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     layers_.emplace_back(cursor_layers_.at(j));
   }
 
-  bool success =
-      physical_display_->Present(layers_, retire_fence, handle_constraints);
+  bool success = physical_display_->Present(layers_, retire_fence, call_back,
+                                            handle_constraints);
   std::vector<HwcLayer*>().swap(cursor_layers_);
   std::vector<HwcLayer*>().swap(layers_);
   queued_displays_ = 0;

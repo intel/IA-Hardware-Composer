@@ -189,6 +189,7 @@ bool NestedDisplay::SetPowerMode(uint32_t /*power_mode*/) {
 
 bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t * /*retire_fence*/,
+                            PixelUploaderCallback * /*call_back*/,
                             bool /*handle_constraints*/) {
 #ifndef NESTED_DISPLAY_SUPPORT
   HWC_UNUSED(source_layers);

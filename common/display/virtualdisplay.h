@@ -42,6 +42,7 @@ class VirtualDisplay : public NativeDisplay {
   bool SetActiveConfig(uint32_t config) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               PixelUploaderCallback *call_back = NULL,
                bool handle_constraints = false) override;
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;

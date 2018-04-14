@@ -38,7 +38,7 @@ class LogicalDisplayManager {
   void RegisterHotPlugNotification();
 
   bool Present(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
-               bool handle_constraints);
+               PixelUploaderCallback* call_back, bool handle_constraints);
 
   void VSyncCallback(int64_t timestamp);
 
