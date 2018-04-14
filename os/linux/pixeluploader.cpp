@@ -119,7 +119,6 @@ void PixelUploader::HandleRawPixelUpdate() {
   }
 
   std::vector<PixelData>().swap(pixel_data_);
-  pixel_data_lock_.unlock();
 
   for (auto& buffer : texture_uploads) {
     if (callback_) {
@@ -156,6 +155,7 @@ void PixelUploader::HandleRawPixelUpdate() {
     if (buffer.layer_callback_) {
       buffer.layer_callback_->UploadDone();
     }
+    pixel_data_lock_.unlock();
   }
 }
 

@@ -105,6 +105,7 @@ struct iahwc_backend {
   IAHWC_PFN_LAYER_SET_PLANE_ALPHA iahwc_layer_set_plane_alpha;
   IAHWC_PFN_LAYER_SET_ACQUIRE_FENCE iahwc_layer_set_acquire_fence;
   IAHWC_PFN_LAYER_SET_USAGE iahwc_layer_set_usage;
+  IAHWC_PFN_LAYER_SET_INDEX iahwc_layer_set_index;
 
   int sprites_hidden;
 
@@ -445,9 +446,11 @@ static int iahwc_output_repaint(struct weston_output *output_base,
     output->cursor_plane.y = INT32_MIN;
   }
 
+#ifdef IAHWC_DISABLE_OVERLAYS
   iahwc_output_render(output, damage);
   if (!output->fb_pending)
     return -1;
+#endif
 
   weston_log("release fence is %d\n", output->release_fence);
   if (output->release_fence > 0) {
@@ -757,98 +760,8 @@ iahwc_overlay_destroy(struct iahwc_output *output)
   }
 }
 
-static struct weston_plane *iahwc_output_prepare_cursor_view(
-    struct iahwc_output *output, struct weston_view *ev) {
-  struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
-  struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
-  struct wl_shm_buffer *shmbuf;
-  float x, y;
-  struct weston_buffer *buffer = ev->surface->buffer_ref.buffer;
-  if (output->cursor_view)
-    return NULL;
-  if (ev->surface->buffer_ref.buffer == NULL)
-    return NULL;
-  shmbuf = wl_shm_buffer_get(ev->surface->buffer_ref.buffer->resource);
-  if (!shmbuf)
-    return NULL;
-  if (wl_shm_buffer_get_format(shmbuf) != WL_SHM_FORMAT_ARGB8888)
-    return NULL;
-  if (output->base.transform != WL_OUTPUT_TRANSFORM_NORMAL)
-    return NULL;
-  if (ev->transform.enabled &&
-      (ev->transform.matrix.type > WESTON_MATRIX_TRANSFORM_TRANSLATE))
-    return NULL;
-  if (viewport->buffer.scale != output->base.current_scale)
-    return NULL;
-  if (ev->geometry.scissor_enabled)
-    return NULL;
-  if (ev->surface->width > b->cursor_width ||
-      ev->surface->height > b->cursor_height)
-    return NULL;
-  output->cursor_view = ev;
-  weston_view_to_global_float(ev, 0, 0, &x, &y);
-  output->cursor_plane.x = x;
-  output->cursor_plane.y = y;
-  uint32_t cursor_layer_id = 0;
-  b->iahwc_create_layer(b->iahwc_device, 0, &cursor_layer_id);
-  b->iahwc_layer_set_usage(b->iahwc_device, 0, cursor_layer_id,
-         IAHWC_LAYER_USAGE_CURSOR);
-
-  int32_t surfwidth = ev->surface->width;
-  int32_t surfheight = ev->surface->height;
-
-  iahwc_add_overlay_info(output, buffer->shm_buffer, 0, cursor_layer_id);
-  struct iahwc_raw_pixel_data dbo;
-  dbo.width = surfwidth;
-  dbo.height = surfheight;
-  dbo.stride = wl_shm_buffer_get_stride(buffer->shm_buffer);
-  dbo.format = DRM_FORMAT_ARGB8888;
-  dbo.buffer = wl_shm_buffer_get_data(buffer->shm_buffer);
-  dbo.callback_data = buffer->shm_buffer;
-  int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
-                                              cursor_layer_id, dbo);
-  if (ret == -1) {
-    b->iahwc_destroy_layer(b->iahwc_device, 0, cursor_layer_id);
-    return NULL;
-  }
-
-  iahwc_rect_t source_crop = {0, 0, surfwidth, surfheight};
-
-  int32_t disp_width = output->base.current_mode->width;
-  int32_t disp_height = output->base.current_mode->height;
-
-  if (x < 0)
-    x = 0;
-  if (x > disp_width - surfwidth )
-    x = disp_width - surfwidth;
-
-  if (y < 0)
-    y = 0;
-  if (y > disp_height - surfheight )
-    y = disp_height - surfheight;
-
-  iahwc_rect_t display_frame = {x, y, surfwidth+x, surfheight+y};
-
-  iahwc_region_t damage_region;
-  damage_region.numRects = 1;
-  damage_region.rects = &source_crop;
-  b->iahwc_layer_set_source_crop(b->iahwc_device, 0, cursor_layer_id,
-                                 source_crop);
-  b->iahwc_layer_set_display_frame(b->iahwc_device, 0, cursor_layer_id,
-                                   display_frame);
-  b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, cursor_layer_id,
-                                    damage_region);
-  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, cursor_layer_id,
-                                 ev->alpha);
-
-  struct weston_surface *es = ev->surface;
-  es->keep_buffer = true;
-
-  return &output->cursor_plane;
-}
-
 static struct weston_plane *iahwc_output_prepare_overlay_view(
-  struct iahwc_output *output, struct weston_view *ev) {
+    struct iahwc_output *output, struct weston_view *ev, uint32_t layer_index) {
   struct weston_compositor *ec = output->base.compositor;
   struct iahwc_backend *b = to_iahwc_backend(ec);
   struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
@@ -864,6 +777,8 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   uint32_t src_w, src_h;
   uint32_t dest_x, dest_y;
   uint32_t dest_w, dest_h;
+  int is_cusor_layer = 0;
+  float x, y;
 
   uint32_t overlay_layer_id;
   if (ev->surface->buffer_ref.buffer == NULL)
@@ -920,6 +835,12 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                            IAHWC_LAYER_USAGE_OVERLAY);
 
   if (shmbuf) {
+    if (ev->surface->width <= b->cursor_width &&
+        ev->surface->height <= b->cursor_height) {
+      is_cusor_layer = 1;
+      b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
+                               IAHWC_LAYER_USAGE_CURSOR);
+    }
     iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
     struct iahwc_raw_pixel_data dbo;
     dbo.width = ev->surface->width;
@@ -930,15 +851,12 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
 
     switch (dbo.format) {
       case WL_SHM_FORMAT_XRGB8888:
-        weston_log("warning: WL_SHM_FORMAT_XRGB8888: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_XRGB8888;
         break;
       case WL_SHM_FORMAT_ARGB8888:
-        weston_log("warning: WL_SHM_FORMAT_ARGB8888: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_ARGB8888;
         break;
       case WL_SHM_FORMAT_RGB565:
-        weston_log("warning: WL_SHM_FORMAT_RGB565: %08x\n", dbo.format);
         dbo.format = DRM_FORMAT_RGB565;
         break;
       case WL_SHM_FORMAT_YUV420:
@@ -966,80 +884,113 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     b->iahwc_layer_set_bo(b->iahwc_device, 0, overlay_layer_id, bo);
   }
 
-  box = pixman_region32_extents(&ev->transform.boundingbox);
-  p->x = box->x1;
-  p->y = box->y1;
+  if (is_cusor_layer) {
+    weston_view_to_global_float(ev, 0, 0, &x, &y);
+    int32_t surfwidth = ev->surface->width;
+    int32_t surfheight = ev->surface->height;
+    iahwc_rect_t source_crop = {0, 0, surfwidth, surfheight};
 
-  /*
-   * Calculate the source & dest rects properly based on actual
-   * position (note the caller has called weston_view_update_transform()
-   * for us already).
-   */
-  pixman_region32_init(&dest_rect);
-  pixman_region32_intersect(&dest_rect, &ev->transform.boundingbox,
-                            &output->base.region);
-  pixman_region32_translate(&dest_rect, -output->base.x, -output->base.y);
-  box = pixman_region32_extents(&dest_rect);
-  tbox = weston_transformed_rect(output->base.width, output->base.height,
-                                 output->base.transform,
-                                 output->base.current_scale, *box);
-  dest_x = tbox.x1;
-  dest_y = tbox.y1;
-  dest_w = tbox.x2 - tbox.x1;
-  dest_h = tbox.y2 - tbox.y1;
-  pixman_region32_fini(&dest_rect);
+    int32_t disp_width = output->base.current_mode->width;
+    int32_t disp_height = output->base.current_mode->height;
 
-  pixman_region32_init(&src_rect);
-  pixman_region32_intersect(&src_rect, &ev->transform.boundingbox,
-                            &output->base.region);
-  box = pixman_region32_extents(&src_rect);
+    if (x < 0)
+      x = 0;
+    if (x > disp_width - surfwidth )
+      x = disp_width - surfwidth;
 
-  weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x1),
-                                wl_fixed_from_int(box->y1), &sx1, &sy1);
-  weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x2),
-                                wl_fixed_from_int(box->y2), &sx2, &sy2);
+    if (y < 0)
+      y = 0;
+    if (y > disp_height - surfheight )
+      y = disp_height - surfheight;
 
-  if (sx1 < 0)
-    sx1 = 0;
-  if (sy1 < 0)
-    sy1 = 0;
-  if (sx2 > wl_fixed_from_int(ev->surface->width))
-    sx2 = wl_fixed_from_int(ev->surface->width);
-  if (sy2 > wl_fixed_from_int(ev->surface->height))
-    sy2 = wl_fixed_from_int(ev->surface->height);
+    iahwc_rect_t display_frame = {x, y, surfwidth+x, surfheight+y};
 
-  tbox.x1 = sx1;
-  tbox.y1 = sy1;
-  tbox.x2 = sx2;
-  tbox.y2 = sy2;
+    iahwc_region_t damage_region;
+    damage_region.numRects = 1;
+    damage_region.rects = &source_crop;
+    b->iahwc_layer_set_source_crop(b->iahwc_device, 0, overlay_layer_id,
+                                   source_crop);
+    b->iahwc_layer_set_display_frame(b->iahwc_device, 0, overlay_layer_id,
+                                     display_frame);
+    b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
+                                      damage_region);
+    b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
 
-  tbox = weston_transformed_rect(wl_fixed_from_int(ev->surface->width),
-                                 wl_fixed_from_int(ev->surface->height),
-                                 viewport->buffer.transform,
-                                 viewport->buffer.scale, tbox);
+  } else {
+    box = pixman_region32_extents(&ev->transform.boundingbox);
+    p->x = box->x1;
+    p->y = box->y1;
 
-  src_x = tbox.x1 << 8;
-  src_y = tbox.y1 << 8;
-  src_w = (tbox.x2 - tbox.x1) << 8;
-  src_h = (tbox.y2 - tbox.y1) << 8;
-  pixman_region32_fini(&src_rect);
+    /*
+     * Calculate the source & dest rects properly based on actual
+     * position (note the caller has called weston_view_update_transform()
+     * for us already).
+     */
+    pixman_region32_init(&dest_rect);
+    pixman_region32_intersect(&dest_rect, &ev->transform.boundingbox,
+                              &output->base.region);
+    pixman_region32_translate(&dest_rect, -output->base.x, -output->base.y);
+    box = pixman_region32_extents(&dest_rect);
+    tbox = weston_transformed_rect(output->base.width, output->base.height,
+                                   output->base.transform,
+                                   output->base.current_scale, *box);
+    dest_x = tbox.x1;
+    dest_y = tbox.y1;
+    dest_w = tbox.x2 - tbox.x1;
+    dest_h = tbox.y2 - tbox.y1;
+    pixman_region32_fini(&dest_rect);
 
-  iahwc_rect_t source_crop = {0, 0, dest_w, dest_h};
+    pixman_region32_init(&src_rect);
+    pixman_region32_intersect(&src_rect, &ev->transform.boundingbox,
+                              &output->base.region);
+    box = pixman_region32_extents(&src_rect);
 
-  iahwc_rect_t display_frame = {dest_x, dest_y, dest_w + dest_x,
-                                dest_h + dest_y};
+    weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x1),
+                                  wl_fixed_from_int(box->y1), &sx1, &sy1);
+    weston_view_from_global_fixed(ev, wl_fixed_from_int(box->x2),
+                                  wl_fixed_from_int(box->y2), &sx2, &sy2);
 
-  iahwc_region_t damage_region;
-  damage_region.numRects = 1;
-  damage_region.rects = &source_crop;
-  b->iahwc_layer_set_source_crop(b->iahwc_device, 0, overlay_layer_id,
-                                 source_crop);
-  b->iahwc_layer_set_display_frame(b->iahwc_device, 0, overlay_layer_id,
-                                   display_frame);
-  b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
-                                    damage_region);
-  b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0, overlay_layer_id,
-                                 ev->alpha);
+    if (sx1 < 0)
+      sx1 = 0;
+    if (sy1 < 0)
+      sy1 = 0;
+    if (sx2 > wl_fixed_from_int(ev->surface->width))
+      sx2 = wl_fixed_from_int(ev->surface->width);
+    if (sy2 > wl_fixed_from_int(ev->surface->height))
+      sy2 = wl_fixed_from_int(ev->surface->height);
+
+    tbox.x1 = sx1;
+    tbox.y1 = sy1;
+    tbox.x2 = sx2;
+    tbox.y2 = sy2;
+
+    tbox = weston_transformed_rect(wl_fixed_from_int(ev->surface->width),
+                                   wl_fixed_from_int(ev->surface->height),
+                                   viewport->buffer.transform,
+                                   viewport->buffer.scale, tbox);
+
+    src_x = tbox.x1 << 8;
+    src_y = tbox.y1 << 8;
+    src_w = (tbox.x2 - tbox.x1) << 8;
+    src_h = (tbox.y2 - tbox.y1) << 8;
+    pixman_region32_fini(&src_rect);
+
+    iahwc_rect_t source_crop = {0, 0, dest_w, dest_h};
+
+    iahwc_rect_t display_frame = {dest_x, dest_y, dest_w + dest_x,
+                                  dest_h + dest_y};
+
+    iahwc_region_t damage_region;
+    damage_region.numRects = 1;
+    damage_region.rects = &source_crop;
+    b->iahwc_layer_set_source_crop(b->iahwc_device, 0, overlay_layer_id,
+                                   source_crop);
+    b->iahwc_layer_set_display_frame(b->iahwc_device, 0, overlay_layer_id,
+                                     display_frame);
+    b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
+                                      damage_region);
+    b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
+  }
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -1180,6 +1131,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   struct weston_view *ev, *next;
   pixman_region32_t overlap, surface_overlap;
   struct weston_plane *primary, *next_plane;
+  uint32_t layer_index = 0;
 
   pixman_region32_init(&overlap);
   primary = &output_base->compositor->primary_plane;
@@ -1201,22 +1153,20 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     // if (pixman_region32_not_empty(&surface_overlap))
     //      next_plane = primary;
 
-    if (next_plane == NULL) {
-      next_plane = iahwc_output_prepare_cursor_view(output, ev);
-    }
-
     if (next_plane == NULL)
-      next_plane = iahwc_output_prepare_overlay_view(output, ev);
+      next_plane = iahwc_output_prepare_overlay_view(output, ev, layer_index);
 
     if (next_plane == NULL)
       next_plane = primary;
 
     weston_view_move_to_plane(ev, next_plane);
 
+    layer_index++;
     if (next_plane == primary) {
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
 
+#ifdef IAHWC_DISABLE_OVERLAYS
       if (output->primary_layer_id == -1) {
         b->iahwc_create_layer(b->iahwc_device, 0, &output->primary_layer_id);
       }
@@ -1236,7 +1186,9 @@ static void iahwc_assign_planes(struct weston_output *output_base,
           b->iahwc_device, 0, output->primary_layer_id, damage_region);
       b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0,
                                      output->primary_layer_id, ev->alpha);
+#endif
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
+      layer_index--;
     }
 
     ev->psf_flags = WP_PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
@@ -1799,6 +1751,9 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_layer_set_usage =
       (IAHWC_PFN_LAYER_SET_USAGE)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_LAYER_SET_USAGE);
+  b->iahwc_layer_set_index =
+      (IAHWC_PFN_LAYER_SET_INDEX)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_LAYER_SET_INDEX);
   b->iahwc_register_callback =
       (IAHWC_PFN_REGISTER_CALLBACK)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_REGISTER_CALLBACK);
