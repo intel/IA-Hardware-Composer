@@ -377,6 +377,7 @@ IAHWC::IAHWCLayer::IAHWCLayer(PixelUploader* uploader)
   layer_usage_ = IAHWC_LAYER_USAGE_NORMAL;
   layer_index_ = 0;
   memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
+  memset(&hwc_handle_.meta_data_, 0, sizeof(hwc_handle_.meta_data_));
   iahwc_layer_.SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
 }
 
@@ -612,6 +613,7 @@ void IAHWC::IAHWCLayer::ClosePrimeHandles() {
   if (hwc_handle_.import_data.fd_data.fd > 0) {
     ::close(hwc_handle_.import_data.fd_data.fd);
     memset(&hwc_handle_.import_data, 0, sizeof(hwc_handle_.import_data));
+    memset(&hwc_handle_.meta_data_, 0, sizeof(hwc_handle_.meta_data_));
   }
 #endif
 }

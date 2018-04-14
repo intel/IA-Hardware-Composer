@@ -753,7 +753,7 @@ iahwc_overlay_destroy(struct iahwc_output *output)
   }
 
   wl_list_for_each_safe(plane, next, &output->overlay_list, link) {
-    b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
+    b->iahwc_destroy_layer(b->iahwc_device, 0, plane->overlay_layer_id);
     gbm_bo_destroy(plane->overlay_bo);
     wl_list_remove(&plane->link);
     free(plane);
