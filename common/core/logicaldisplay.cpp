@@ -73,12 +73,14 @@ void LogicalDisplay::SetHDCPState(HWCContentProtection state,
 }
 
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                             int32_t *retire_fence, bool handle_constraints) {
+                             int32_t *retire_fence,
+                             PixelUploaderCallback *call_back,
+                             bool handle_constraints) {
   if (power_mode_ != kOn)
     return true;
 
   return logical_display_manager_->Present(source_layers, retire_fence,
-                                           handle_constraints);
+                                           call_back, handle_constraints);
 }
 
 bool LogicalDisplay::PresentClone(NativeDisplay * /*display*/) {

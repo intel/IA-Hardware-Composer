@@ -525,6 +525,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool* ignore_clone_update,
+                               PixelUploaderCallback* call_back,
                                bool handle_constraints) {
   CTRACE();
   ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
@@ -819,6 +820,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DUMP_CURRENT_COMPOSITION_PLANES();
   DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
   DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
+
+  // Ensure all pixel buffer uploads are done.
+  if (call_back) {
+    call_back->Synchronize();
+  }
   // Handle any 3D Composition.
   if (render_layers) {
     if (!compositor_.BeginFrame(disable_ovelays)) {

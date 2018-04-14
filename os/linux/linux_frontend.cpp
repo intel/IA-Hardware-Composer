@@ -42,7 +42,7 @@ class IAHWCVsyncCallback : public hwcomposer::VsyncCallback {
   iahwc_function_ptr_t hook_;
 };
 
-class IAPixelUploaderCallback : public hwcomposer::PixelUploaderCallback {
+class IAPixelUploaderCallback : public hwcomposer::RawPixelUploadCallback {
  public:
   IAPixelUploaderCallback(iahwc_callback_data_t data, iahwc_function_ptr_t hook,
                           uint32_t display_id)
@@ -314,8 +314,6 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
    * is numbered from bottom -> top, i.e. the bottom most layer has the
    * index of 0 and increases upwards.
    */
-
-  raw_data_uploader_->Synchronize();
   uint32_t total_layers = layers_.size();
   layers.resize(total_layers);
   total_layers -= 1;
@@ -326,9 +324,13 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
     layers[layer_index] = temp.GetLayer();
   }
 
-  native_display_->Present(layers, release_fd);
+  native_display_->Present(layers, release_fd, this);
 
   return IAHWC_ERROR_NONE;
+}
+
+void IAHWC::IAHWCDisplay::Synchronize() {
+  raw_data_uploader_->Synchronize();
 }
 
 int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
