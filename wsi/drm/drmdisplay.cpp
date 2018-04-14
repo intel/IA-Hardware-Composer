@@ -282,6 +282,10 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
 void DrmDisplay::UpdateDisplayConfig() {
   // update the activeConfig
   SPIN_LOCK(display_lock_);
+  if (modes_.empty()) {
+    SPIN_UNLOCK(display_lock_);
+    return;
+  }
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   SetDisplayAttribute(modes_[config_]);
   SPIN_UNLOCK(display_lock_);
