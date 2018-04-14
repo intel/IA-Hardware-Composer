@@ -53,6 +53,10 @@ class IAHWC : public iahwc_device {
     int SetLayerDisplayFrame(iahwc_rect_t rect);
     int SetLayerSurfaceDamage(iahwc_region_t region);
     int SetLayerPlaneAlpha(float alpha);
+    int SetLayerIndex(uint32_t layer_index);
+    uint32_t GetLayerIndex() {
+      return layer_index_;
+    }
     hwcomposer::HwcLayer* GetLayer();
 
     void UploadDone() override;
@@ -66,6 +70,7 @@ class IAHWC : public iahwc_device {
     uint32_t orig_stride_ = 0;
     PixelUploader* raw_data_uploader_ = NULL;
     int32_t layer_usage_;
+    uint32_t layer_index_;
     bool upload_in_progress_ = false;
   };
 

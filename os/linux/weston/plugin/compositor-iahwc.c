@@ -105,6 +105,7 @@ struct iahwc_backend {
   IAHWC_PFN_LAYER_SET_PLANE_ALPHA iahwc_layer_set_plane_alpha;
   IAHWC_PFN_LAYER_SET_ACQUIRE_FENCE iahwc_layer_set_acquire_fence;
   IAHWC_PFN_LAYER_SET_USAGE iahwc_layer_set_usage;
+  IAHWC_PFN_LAYER_SET_INDEX iahwc_layer_set_index;
 
   int sprites_hidden;
 
@@ -760,7 +761,7 @@ iahwc_overlay_destroy(struct iahwc_output *output)
 }
 
 static struct weston_plane *iahwc_output_prepare_cursor_view(
-    struct iahwc_output *output, struct weston_view *ev) {
+    struct iahwc_output *output, struct weston_view *ev, uint32_t layer_index) {
   struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
   struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
   struct wl_shm_buffer *shmbuf;
@@ -840,6 +841,7 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, cursor_layer_id,
                                     damage_region);
+  b->iahwc_layer_set_index(b->iahwc_device, 0, cursor_layer_id, layer_index);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -848,7 +850,7 @@ static struct weston_plane *iahwc_output_prepare_cursor_view(
 }
 
 static struct weston_plane *iahwc_output_prepare_overlay_view(
-  struct iahwc_output *output, struct weston_view *ev) {
+    struct iahwc_output *output, struct weston_view *ev, uint32_t layer_index) {
   struct weston_compositor *ec = output->base.compositor;
   struct iahwc_backend *b = to_iahwc_backend(ec);
   struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
@@ -1035,6 +1037,7 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                                    display_frame);
   b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
                                     damage_region);
+  b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
 
   struct weston_surface *es = ev->surface;
   es->keep_buffer = true;
@@ -1175,6 +1178,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   struct weston_view *ev, *next;
   pixman_region32_t overlap, surface_overlap;
   struct weston_plane *primary, *next_plane;
+  uint32_t layer_index = 0;
 
   pixman_region32_init(&overlap);
   primary = &output_base->compositor->primary_plane;
@@ -1197,17 +1201,18 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     //      next_plane = primary;
 
     if (next_plane == NULL) {
-      next_plane = iahwc_output_prepare_cursor_view(output, ev);
+      next_plane = iahwc_output_prepare_cursor_view(output, ev, layer_index);
     }
 
     if (next_plane == NULL)
-      next_plane = iahwc_output_prepare_overlay_view(output, ev);
+      next_plane = iahwc_output_prepare_overlay_view(output, ev, layer_index);
 
     if (next_plane == NULL)
       next_plane = primary;
 
     weston_view_move_to_plane(ev, next_plane);
 
+    layer_index++;
     if (next_plane == primary) {
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
@@ -1234,6 +1239,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
                                      output->primary_layer_id, ev->alpha);
 #endif
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
+      layer_index--;
     }
 
     ev->psf_flags = WP_PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
@@ -1796,6 +1802,9 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_layer_set_usage =
       (IAHWC_PFN_LAYER_SET_USAGE)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_LAYER_SET_USAGE);
+  b->iahwc_layer_set_index =
+      (IAHWC_PFN_LAYER_SET_INDEX)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_LAYER_SET_INDEX);
   b->iahwc_register_callback =
       (IAHWC_PFN_REGISTER_CALLBACK)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_REGISTER_CALLBACK);
