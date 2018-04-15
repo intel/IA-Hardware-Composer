@@ -357,7 +357,7 @@ class NativeDisplay {
    */
   virtual int InitializeLayerHashGenerator(int size) {
     LayerIds_.clear();
-    for (int i = 0; i < size; i++) {
+    for (int i = size; i >= 0; i--) {
       LayerIds_.push_back(i);
     }
 
