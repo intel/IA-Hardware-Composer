@@ -95,6 +95,7 @@ class PixelUploader : public HWCThread {
   std::shared_ptr<RawPixelUploadCallback> callback_ = NULL;
   SpinLock tasks_lock_;
   SpinLock pixel_data_lock_;
+  SpinLock sync_lock_;
   std::vector<PixelData> pixel_data_;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;

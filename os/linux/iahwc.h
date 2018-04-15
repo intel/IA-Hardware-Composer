@@ -83,6 +83,8 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_DISPLAY_GET_CONFIG,
   IAHWC_FUNC_DISPLAY_CLEAR_ALL_LAYERS,
   IAHWC_FUNC_PRESENT_DISPLAY,
+  IAHWC_FUNC_DISABLE_OVERLAY_USAGE,
+  IAHWC_FUNC_ENABLE_OVERLAY_USAGE,
   IAHWC_FUNC_CREATE_LAYER,
   IAHWC_FUNC_DESTROY_LAYER,
   IAHWC_FUNC_LAYER_SET_BO,
@@ -160,6 +162,10 @@ typedef int (*IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS)(
 typedef int (*IAHWC_PFN_PRESENT_DISPLAY)(iahwc_device_t*,
                                          iahwc_display_t display_handle,
                                          int32_t* release_fd);
+typedef int (*IAHWC_PFN_DISABLE_OVERLAY_USAGE)(iahwc_device_t*,
+                                               iahwc_display_t display_handle);
+typedef int (*IAHWC_PFN_ENABLE_OVERLAY_USAGE)(iahwc_device_t*,
+                                              iahwc_display_t display_handle);
 typedef int (*IAHWC_PFN_CREATE_LAYER)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t* layer_handle);
