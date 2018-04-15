@@ -1444,7 +1444,7 @@ void DisplayQueue::ResetQueue() {
   DisplayPlaneStateList().swap(previous_plane_state_);
   std::vector<NativeSurface*>().swap(mark_not_inuse_);
   std::vector<NativeSurface*>().swap(surfaces_not_inuse_);
-  if (display_plane_manager_->HasSurfaces())
+  if (display_plane_manager_.get() && display_plane_manager_->HasSurfaces())
     display_plane_manager_->ReleaseAllOffScreenTargets();
 
   resource_manager_->PurgeBuffer();
