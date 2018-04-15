@@ -262,9 +262,9 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
   handle = NULL;
 }
 
-struct yalloc_drm_handle_t AttrData2YallocHandle(HWCNativeHandle native_handle)
-{
-  native_array_t* attrib_array = &native_handle->imported_target_->attributes;
+static struct yalloc_drm_handle_t AttrData2YallocHandle(
+    HWCNativeHandle native_handle) {
+  native_array_t *attrib_array = &native_handle->imported_target_->attributes;
   struct yalloc_drm_handle_t handle;
 
   handle.magic = attrib_array->data[0];

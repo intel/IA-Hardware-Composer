@@ -79,12 +79,17 @@ typedef struct native_target HWCNativeBuffer;
 
 #define GETNATIVEBUFFER(handle) (*(native_target_t*)(handle->target_))
 
-//define for rework.
-#define VTRACE(fmt, ...) LOG_V("%s: " fmt, __func__, ##__VA_ARGS__)
-#define DTRACE(fmt, ...) LOG_D("%s: " fmt, __func__, ##__VA_ARGS__)
-#define ETRACE(fmt, ...) LOG_E("%s: " fmt, __func__, ##__VA_ARGS__)
-#define WTRACE(fmt, ...) LOG_W("%s: " fmt, __func__, ##__VA_ARGS__)
-#define ITRACE(fmt, ...) LOG_I("%s: " fmt, __func__, ##__VA_ARGS__)
+// define for rework.
+#define VTRACE(fmt, ...) \
+  LOG_V("%s:%d: %s " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#define DTRACE(fmt, ...) \
+  LOG_D("%s:%d: %s " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#define ETRACE(fmt, ...) \
+  LOG_E("%s:%d: %s " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#define WTRACE(fmt, ...) \
+  LOG_W("%s:%d: %s " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+#define ITRACE(fmt, ...) \
+  LOG_I("%s:%d: %s " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 #define STRACE()
 

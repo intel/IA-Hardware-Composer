@@ -23,12 +23,13 @@
 #include <memory>
 #include <stdint.h>
 
+#include "hwctrace.h"
+
 #define LOG_TAG "IAHWF"
 
 namespace hwcomposer {
 
 int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
-  // TODO:
   if (!hwc_layer_) {
     hwc_layer_ = new hwcomposer::HwcLayer();
   }
@@ -139,7 +140,6 @@ int DBG_DumpHwfLayerInfo(struct hwf_device_t *device, int dispCount,
                          hwf_display_t **displays) {
   LOG_I("DBG_DumpHwfLayerInfo --> Enter.\n");
 
-  HwfDevice *hwf_device = (HwfDevice *)device;
   int total_displays = (int)dispCount;
 
   for (int i = 0; i < total_displays; ++i) {
@@ -149,7 +149,6 @@ int DBG_DumpHwfLayerInfo(struct hwf_device_t *device, int dispCount,
     LOG_I("\tDisplay Number: %d.\n", i);
 
     int num_layers = displays[i]->numLayers;
-    HwfDisplay *native_display = hwf_device->GetDisplay(i);
 
     for (int j = 0; j < num_layers; ++j) {
       hwf_layer_t *layer = &displays[i]->hwfLayers[j];
@@ -178,10 +177,12 @@ int DBG_DumpHwfLayerInfo(struct hwf_device_t *device, int dispCount,
   }
 
   LOG_I("DBG_DumpHwfLayerInfo --> Exit.\n");
+  return 0;
 }
 
 int HwfDevice::detect(struct hwf_device_t *device, int dispCount,
                       hwf_display_t **displays) {
+  CTRACE();
   LOG_I("HwfDevice::detect --> dispCount: %d\n", dispCount);
 
   HwfDevice *hwf_device = (HwfDevice *)device;
@@ -224,9 +225,6 @@ int HwfDevice::detect(struct hwf_device_t *device, int dispCount,
       } else {
         layer->composeMode = HWF_FB;
       }
-
-      // For test
-      // layer->composeMode = HWF_OVERLAY;
     }
   }
 
@@ -237,6 +235,7 @@ int HwfDevice::detect(struct hwf_device_t *device, int dispCount,
 
 int HwfDevice::flip(struct hwf_device_t *device, int dispCount,
                     hwf_display_t **displays) {
+  CTRACE();
   LOG_I("HwfDevice::flip --> enter.\n");
   LOG_I("HwfDevice::flip --> dispCount: %d\n", dispCount);
 
@@ -330,6 +329,7 @@ int HwfDevice::flip(struct hwf_device_t *device, int dispCount,
 
 int HwfDevice::setEventState(struct hwf_device_t *device, int disp, int event,
                              int enabled) {
+  CTRACE();
   LOG_I("HwfDevice::setEventState --> disp:%d, event: %d, enabled: %d.\n", disp,
         event, enabled);
 
@@ -347,6 +347,7 @@ int HwfDevice::setEventState(struct hwf_device_t *device, int disp, int event,
 
 int HwfDevice::setDisplayState(struct hwf_device_t *device, int disp,
                                int state) {
+  CTRACE();
   LOG_I("HwfDevice::setDisplayState --> disp:%d, state: %d.\n", disp, state);
 
   HwfDevice *hwf_device = (HwfDevice *)device;
@@ -390,9 +391,9 @@ class IAVsyncCallback : public hwcomposer::VsyncCallback {
   }
 
   void Callback(uint32_t display, int64_t timestamp) {
-    m_pCB->vsyncEvent(
-        m_pCB, display > 0 ? HWF_DISPLAY_EXTERNAL_BIT : HWF_DISPLAY_PRIMARY_BIT,
-        timestamp);
+    m_pCB->vsyncEvent(m_pCB,
+                      display > 0 ? HWF_DISPLAY_EXTERNAL : HWF_DISPLAY_PRIMARY,
+                      timestamp);
   }
 
  private:
@@ -412,7 +413,7 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
 
     LOG_I("IAHotPlugEventCallback --> called.\n");
 
-    m_pCB->hotplugEvent(m_pCB, HWF_DISPLAY_EXTERNAL_BIT, connected);
+    m_pCB->hotplugEvent(m_pCB, HWF_DISPLAY_EXTERNAL, connected);
   }
 
  private:
@@ -420,25 +421,11 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
   bool ignore_ = true;
 };
 
-#if 0
-class IARefreshCallback : public hwcomposer::RefreshCallback {
- public:
-  IARefreshCallback(hwf_callback const *procs) : m_pCB(procs) {
-  }
-
-  void Callback(uint32_t /*display*/) {
-    m_pCB->invalidate(m_pCB);
-  }
-
- private:
-  hwf_callback const *m_pCB;
-};
-#endif
-
 /* Callback function */
 
 void HwfDevice::registerCallback(struct hwf_device_t *device,
                                  hwf_callback_t const *callback) {
+  CTRACE();
   LOG_I("HwfDevice::registerCallback --> called.\n");
 
   HwfDevice *hwf_device = (HwfDevice *)device;
@@ -450,12 +437,6 @@ void HwfDevice::registerCallback(struct hwf_device_t *device,
   auto vsync_callback = std::make_shared<IAVsyncCallback>(callback);
   display->RegisterVsyncCallback(std::move(vsync_callback), 0);
 
-#if 0
-    auto refresh_callback = std::make_shared<IARefreshCallback>(callback);
-    display->RegisterRefreshCallback(std::move(refresh_callback),
-				   static_cast<int>(0));
-#endif
-
   std::vector<HwfDisplay> &extended = hwf_device->extended_displays_;
   size_t size = extended.size();
   for (size_t i = 0; i < size; i++) {
@@ -466,13 +447,6 @@ void HwfDevice::registerCallback(struct hwf_device_t *device,
     auto hotplug_callback = std::make_shared<IAHotPlugEventCallback>(callback);
     extended.at(i)
         .display_->RegisterHotPlugCallback(std::move(hotplug_callback), 1);
-
-#if 0
-	/* XXX/TODO Add hot plug registration for external displays */
-	auto extended_refresh_callback = std::make_shared<IARefreshCallback>(callback);
-	extended.at(i).display_->RegisterRefreshCallback(
-	    std::move(extended_refresh_callback), static_cast<int>(1));
-#endif
   }
 
   return;
@@ -480,9 +454,10 @@ void HwfDevice::registerCallback(struct hwf_device_t *device,
 
 int HwfDevice::queryDispConfigs(struct hwf_device_t *device, int disp,
                                 uint32_t *configs, int *numConfigs) {
+  CTRACE();
   HwfDevice *hwf_device = (HwfDevice *)device;
 
-  uint32_t size = 0;
+  uint32_t size = *numConfigs;
   HwfDisplay *native_display = hwf_device->GetDisplay(disp);
   hwcomposer::NativeDisplay *temp = native_display->display_;
 
@@ -503,6 +478,7 @@ int HwfDevice::queryDispConfigs(struct hwf_device_t *device, int disp,
 int HwfDevice::queryDispAttribs(struct hwf_device_t *device, int disp,
                                 uint32_t config, const uint32_t *attributes,
                                 int32_t *values) {
+  CTRACE();
   LOG_I("    HwfDevice::queryDispAttribs --> disp: %d.\n", disp);
   HwfDevice *hwf_device = (HwfDevice *)device;
 
@@ -546,6 +522,7 @@ int HwfDevice::queryDispAttribs(struct hwf_device_t *device, int disp,
 }
 
 void HwfDevice::dump(struct hwf_device_t *device, char *buff, int buff_len) {
+  CTRACE();
   LOG_I("HwfDevice::dump --> called.\n");
 }
 
@@ -560,6 +537,7 @@ int32_t hwf_close(VendorDevice *device) {
 }
 
 int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
+  CTRACE();
   LOG_I("HwfDevice::hwf_open --> called.\n");
 
   HwfDevice *hwf_device = new HwfDevice();
@@ -618,6 +596,7 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
   }
 
   hwf_device->base.common.module = module;
+  hwf_device->base.common.destroy = hwcomposer::hwf_close;
   hwf_device->base.detect = HwfDevice::detect;
   hwf_device->base.flip = HwfDevice::flip;
   hwf_device->base.setEventState = HwfDevice::setEventState;
@@ -635,70 +614,15 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
 
 static int32_t hwf_device_open(const VendorModule *module, const char *id,
                                VendorDevice **device) {
+  CTRACE();
   LOG_I("open hwf module, id:%s", id);
-  int err;
-
-#if 0
-    if (strcmp(id, YALLOC_HARDWARE_GPU0) == 0) {
-	struct yalloc_device_t** dev = (struct yalloc_device_t**)device;
-	err = yalloc_allocator_open(dev, module);
-    }
-    else if (strcmp(id, YALLOC_HARDWARE_FB0) == 0) {
-	struct fb_device_t** dev = (struct fb_device_t**)device;
-	err = yalloc_fb_open(dev, module);
-    }
-    else
-	err = -EINVAL;
-#endif
   struct hwf_device_t **dev = (struct hwf_device_t **)device;
-  err = hwf_open(dev, module);
+  int err = hwf_open(dev, module);
 
   return err;
 }
 
 }  // namespace hwcomposer
-
-#if 0
-hwf_module_wrapper_t hwf_module_entry = {
-    .base = {
-	.common = {
-	.version = 1,
-	.id = "Hwf",
-	.name = "Hwf",
-	.author = "intel",
-	.createDevice = &hwcomposer::hwf_device_open,
-	},
-    },
-    .priv = NULL,
-};
-
-
-hwf_device_t hwf_device_entry = {
-    .common = {
-	.version = 1,
-	.id = "Hwf",
-	.module = (VendorModule*)&hwf_module_entry,
-	.Destroy = &hwcomposer::hwf_close,
-    },
-    .detect = NULL,
-    .flip = NULL,
-    .setEventState = NULL,
-    .setDisplayState = NULL,
-    .lookup = NULL,
-    .registerCallback = NULL,
-    .queryDispConfigs = NULL,
-    .queryDispAttribs = NULL,
-    .dump = NULL,
-};
-
-
-int hwf_open(VendorModule* module, hwf_device_t** device)
-{
-    int ret;
-    ret = module->CreateDevice(module, "", (VendorDevice**)device);
-    return ret;
-}
-#endif
 
 hwf_module_t hwf_module_entry = {
     .common = {

@@ -126,17 +126,17 @@ typedef struct HwfDisplay {
 struct HwfDevice {
   hwf_device_t base;
 
-  //~HwfDevice() {
-  //};
-
-  // hwf_device_t device;
-  // hwc_procs_t const *procs = NULL;
+  ~HwfDevice() {
+  }
 
   hwcomposer::GpuDevice device_;
   std::vector<HwfDisplay> extended_displays_;
   HwfDisplay primary_display_;
   HwfDisplay virtual_display_;
 
+  /* Note: explicit sync isn't implemented currently, set it to 'false' just
+     let the logic run, all the fence is set as -1.
+  */
   bool disable_explicit_sync_ = false;
 
   hwf_callback* m_phwf_callback;

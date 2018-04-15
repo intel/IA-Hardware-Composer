@@ -48,9 +48,10 @@ extern "C" {
 #ifdef FUNCTION_CALL_TRACING
 class TraceFunc {
  public:
-  explicit TraceFunc(std::string func_name) {
+  explicit TraceFunc(std::string file_name, std::string func_name) {
+    file_name_ = file_name;
     func_name_ = func_name;
-    ITRACE("Calling ----- %s", func_name_.c_str());
+    ITRACE("Calling ----- %s: %s", file_name_.c_str(), func_name_.c_str());
     t_ = std::chrono::high_resolution_clock::now();
   }
   ~TraceFunc() {
@@ -59,16 +60,17 @@ class TraceFunc {
     ITRACE(
         "Total time spent in --- %s Time(msec): %lld", func_name_.c_str(),
         std::chrono::duration_cast<std::chrono::microseconds>(t2 - t_).count());
-    ITRACE("Leaving --- %s", func_name_.c_str());
+    ITRACE("Leaving --- %s: %s", file_name_.c_str(), func_name_.c_str());
   }
 
  private:
   std::chrono::high_resolution_clock::time_point t_;
   std::string func_name_;
+  std::string file_name_;
 };
-#define CTRACE() TraceFunc hwctrace(__func__);
+#define CTRACE() TraceFunc hwctrace(__FILE__, __func__);
 #else
-#define CTRACE()  STRACE()
+#define CTRACE() STRACE()
 #endif
 
 // Arguments tracing
