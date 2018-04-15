@@ -975,7 +975,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   }
 
   // Clean up our bookkeeping for unused overlays.
-  if (output->total_layers > 0 && (output->total_layers != layer_index))
+  if (output->total_layers > 0 && (output->total_layers > layer_index))
     iahwc_overlay_destroy(output, layer_index++);
 
   output->total_layers = layer_index;
