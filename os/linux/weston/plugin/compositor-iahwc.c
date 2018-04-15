@@ -949,10 +949,8 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   struct iahwc_backend *b = to_iahwc_backend(output_base->compositor);
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct weston_view *ev, *next;
-  struct weston_plane *primary, *next_plane;
+  struct weston_plane *next_plane;
   uint32_t layer_index = 0;
-
-  primary = &output_base->compositor->primary_plane;
 
   if (b->sprites_are_broken) {
     if (output->overlay_enabled) {
@@ -969,16 +967,12 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   wl_list_for_each_safe(ev, next, &output_base->compositor->view_list, link) {
     next_plane = iahwc_output_prepare_overlay_view(output, ev, layer_index);
 
-    if (next_plane == NULL)
-      next_plane = primary;
-
-    weston_view_move_to_plane(ev, next_plane);
-
-    layer_index++;
-    if (next_plane == primary) {
+    if (next_plane != NULL) {
+      weston_view_move_to_plane(ev, next_plane);
+      layer_index++;
+    } else {
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
-      layer_index--;
     }
 
     ev->psf_flags = WP_PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
