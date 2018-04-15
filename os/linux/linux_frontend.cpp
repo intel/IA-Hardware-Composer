@@ -136,6 +136,14 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_PRESENT_DISPLAY>(
           DisplayHook<decltype(&IAHWCDisplay::PresentDisplay),
                       &IAHWCDisplay::PresentDisplay, int32_t*>);
+    case IAHWC_FUNC_DISABLE_OVERLAY_USAGE:
+      return ToHook<IAHWC_PFN_DISABLE_OVERLAY_USAGE>(
+          DisplayHook<decltype(&IAHWCDisplay::DisableOverlayUsage),
+                      &IAHWCDisplay::DisableOverlayUsage>);
+    case IAHWC_FUNC_ENABLE_OVERLAY_USAGE:
+      return ToHook<IAHWC_PFN_ENABLE_OVERLAY_USAGE>(
+          DisplayHook<decltype(&IAHWCDisplay::EnableOverlayUsage),
+                      &IAHWCDisplay::EnableOverlayUsage>);
     case IAHWC_FUNC_CREATE_LAYER:
       return ToHook<IAHWC_PFN_CREATE_LAYER>(
           DisplayHook<decltype(&IAHWCDisplay::CreateLayer),
@@ -327,6 +335,16 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
   native_display_->Present(layers, release_fd, this);
 
   return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCDisplay::DisableOverlayUsage() {
+  native_display_->SetExplicitSyncSupport(false);
+  return 0;
+}
+
+int IAHWC::IAHWCDisplay::EnableOverlayUsage() {
+  native_display_->SetExplicitSyncSupport(true);
+  return 0;
 }
 
 void IAHWC::IAHWCDisplay::Synchronize() {

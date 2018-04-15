@@ -62,6 +62,24 @@
 #define GBM_BO_USE_CURSOR GBM_BO_USE_CURSOR_64X64
 #endif
 
+// Spin Lock related functions.
+struct iahwc_spinlock {
+  int atomic_lock;
+  bool locked;
+};
+
+static void lock(struct iahwc_spinlock *lock) {
+  while (__sync_lock_test_and_set(&lock->atomic_lock, 1)) {
+  }
+
+  lock->locked = true;
+}
+
+static void unlock(struct iahwc_spinlock *lock) {
+  lock->locked = false;
+  __sync_lock_release(&lock->atomic_lock);
+}
+
 struct iahwc_backend {
   struct weston_backend base;
   struct weston_compositor *compositor;
@@ -95,6 +113,8 @@ struct iahwc_backend {
   IAHWC_PFN_DISPLAY_GET_CONFIG iahwc_get_display_config;
   IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS iahwc_display_clear_all_layers;
   IAHWC_PFN_PRESENT_DISPLAY iahwc_present_display;
+  IAHWC_PFN_DISABLE_OVERLAY_USAGE iahwc_disable_overlay_usage;
+  IAHWC_PFN_ENABLE_OVERLAY_USAGE iahwc_enable_overlay_usage;
   IAHWC_PFN_CREATE_LAYER iahwc_create_layer;
   IAHWC_PFN_DESTROY_LAYER iahwc_destroy_layer;
   IAHWC_PFN_LAYER_SET_BO iahwc_layer_set_bo;
@@ -107,6 +127,7 @@ struct iahwc_backend {
   IAHWC_PFN_LAYER_SET_USAGE iahwc_layer_set_usage;
   IAHWC_PFN_LAYER_SET_INDEX iahwc_layer_set_index;
 
+  int sprites_are_broken;
   int sprites_hidden;
 
   void *repaint_data;
@@ -120,30 +141,6 @@ struct iahwc_backend {
 struct iahwc_mode {
   struct weston_mode base;
   uint32_t config_id;
-};
-
-enum iahwc_fb_type {
-  BUFFER_INVALID = 0, /**< never used */
-  BUFFER_GBM_SURFACE, /**< internal EGL rendering */
-};
-
-struct iahwc_fb {
-  enum iahwc_fb_type type;
-
-  int refcnt;
-
-  uint32_t stride, handle, size;
-  const struct pixel_format_info *format;
-  int width, height;
-  int fd;
-  struct weston_buffer_reference buffer_ref;
-
-  /* Used by gbm fbs */
-  struct gbm_bo *bo;
-  struct gbm_surface *gbm_surface;
-
-  /* Used by dumb fbs */
-  void *map;
 };
 
 struct iahwc_edid {
@@ -166,12 +163,11 @@ struct iahwc_pending_state {
 struct iahwc_overlay {
   struct wl_list link;
 
-  struct weston_plane base;
-
   struct wl_shm_buffer *shm_memory;
 
   struct gbm_bo *overlay_bo;
   uint32_t overlay_layer_id;
+  uint32_t layer_index;
 };
 
 struct iahwc_output {
@@ -188,45 +184,26 @@ struct iahwc_output {
   struct backlight *backlight;
 
   bool state_invalid;
-
-  int vblank_pending;
-  int page_flip_pending;
-  int destroy_pending;
-  int disable_pending;
-
-  int primary_layer_id;
-
-  struct gbm_bo *bo;
+  bool overlay_enabled;
 
   struct weston_plane cursor_plane;
   struct weston_plane d_plane;
-  struct weston_view *cursor_view;
   struct wl_list overlay_list;
-  struct wl_list overlay_list_shm;
 
-  struct gbm_surface *gbm_surface;
   uint32_t gbm_format;
 
   /* Plane for a fullscreen direct scanout view */
   struct weston_plane scanout_plane;
-
-  /* The last framebuffer submitted to the kernel for this CRTC. */
-  struct iahwc_fb *fb_current;
-  /* The previously-submitted framebuffer, where the hardware has not
-   * yet acknowledged display of fb_current. */
-  struct iahwc_fb *fb_last;
-  /* Framebuffer we are going to submit to the kernel when the current
-   * repaint is flushed. */
-  struct iahwc_fb *fb_pending;
 
   pixman_region32_t previous_damage;
 
   struct vaapi_recorder *recorder;
   struct wl_listener recorder_frame_listener;
 
-  struct wl_event_source *pageflip_timer;
-  int frame_commited;
   int release_fence;
+  struct iahwc_spinlock spin_lock;
+  struct timespec last_vsync_ts;
+  uint32_t total_layers;
 };
 
 static struct gl_renderer_interface *gl_renderer;
@@ -240,83 +217,6 @@ static inline struct iahwc_output *to_iahwc_output(struct weston_output *base) {
 static inline struct iahwc_backend *to_iahwc_backend(
     struct weston_compositor *base) {
   return container_of(base->backend, struct iahwc_backend, base);
-}
-
-static void iahwc_fb_destroy(struct iahwc_fb *fb) {
-  weston_buffer_reference(&fb->buffer_ref, NULL);
-  free(fb);
-}
-
-
-static void iahwc_fb_destroy_gbm(struct gbm_bo *bo, void *data) {
-  struct iahwc_fb *fb = data;
-
-  assert(fb->type == BUFFER_GBM_SURFACE);
-  iahwc_fb_destroy(fb);
-}
-
-static struct iahwc_fb *iahwc_fb_ref(struct iahwc_fb *fb) {
-  fb->refcnt++;
-  return fb;
-}
-
-static struct iahwc_fb *iahwc_fb_get_from_bo(struct gbm_bo *bo,
-                                             struct iahwc_backend *backend,
-                                             uint32_t format,
-                                             enum iahwc_fb_type type) {
-  struct iahwc_fb *fb = gbm_bo_get_user_data(bo);
-
-  if (fb) {
-    assert(fb->type == type);
-    return iahwc_fb_ref(fb);
-  }
-
-  fb = zalloc(sizeof *fb);
-  if (fb == NULL)
-    return NULL;
-
-  fb->type = type;
-  fb->refcnt = 1;
-  fb->bo = bo;
-
-  fb->width = gbm_bo_get_width(bo);
-  fb->height = gbm_bo_get_height(bo);
-  fb->stride = gbm_bo_get_stride(bo);
-  fb->handle = gbm_bo_get_handle(bo).u32;
-  fb->format = pixel_format_get_info(format);
-  fb->size = fb->stride * fb->height;
-  fb->fd = backend->iahwc.fd;
-
-  if (!fb->format) {
-    weston_log("couldn't look up format 0x%lx\n", (unsigned long)format);
-    goto err_free;
-  }
-
-  gbm_bo_set_user_data(bo, fb, iahwc_fb_destroy_gbm);
-
-  return fb;
-
-err_free:
-  free(fb);
-  return NULL;
-}
-
-static void iahwc_fb_unref(struct iahwc_fb *fb) {
-  if (!fb)
-    return;
-
-  assert(fb->refcnt > 0);
-  if (--fb->refcnt > 0)
-    return;
-
-  switch (fb->type) {
-    case BUFFER_GBM_SURFACE:
-      gbm_surface_release_buffer(fb->gbm_surface, fb->bo);
-      break;
-    default:
-      assert(NULL);
-      break;
-  }
 }
 
 /**
@@ -356,63 +256,6 @@ static void iahwc_pending_state_free(
   free(pending_state);
 }
 
-static struct iahwc_fb *iahwc_output_render_gl(struct iahwc_output *output,
-                                               pixman_region32_t *damage) {
-  struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
-  struct gbm_bo *bo;
-  struct iahwc_fb *ret;
-
-  output->base.compositor->renderer->repaint_output(&output->base, damage);
-
-  bo = gbm_surface_lock_front_buffer(output->gbm_surface);
-  if (!bo) {
-    weston_log("failed to lock front buffer: %m\n");
-    return NULL;
-  }
-
-  b->iahwc_layer_set_bo(b->iahwc_device, 0, output->primary_layer_id, bo);
-
-  b->iahwc_layer_set_acquire_fence(b->iahwc_device, 0, output->primary_layer_id,
-				   -1);
-
-  ret = iahwc_fb_get_from_bo(bo, b, output->gbm_format, BUFFER_GBM_SURFACE);
-
-  if (!ret) {
-    weston_log("failed to get iahwc_fb for bo\n");
-    gbm_surface_release_buffer(output->gbm_surface, bo);
-    return NULL;
-  }
-
-  if (output->bo)
-    gbm_surface_release_buffer(output->gbm_surface, output->bo);
-
-  output->bo = bo;
-
-  ret->gbm_surface = output->gbm_surface;
-
-  return ret;
-}
-
-static void iahwc_output_render(struct iahwc_output *output,
-                                pixman_region32_t *damage) {
-  struct weston_compositor *c = output->base.compositor;
-  struct iahwc_fb *fb;
-
-  /* If we already have a client buffer promoted to scanout, then we don't
-   * want to render. */
-  if (output->fb_pending)
-    return;
-
-  fb = iahwc_output_render_gl(output, damage);
-
-  if (!fb)
-    return;
-  output->fb_pending = fb;
-
-  pixman_region32_subtract(&c->primary_plane.damage, &c->primary_plane.damage,
-                           damage);
-}
-
 static void iahwc_output_set_gamma(struct weston_output *output_base,
                                    uint16_t size, uint16_t *r, uint16_t *g,
                                    uint16_t *b) {
@@ -431,64 +274,33 @@ static int iahwc_output_repaint(struct weston_output *output_base,
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct iahwc_backend *backend = to_iahwc_backend(output->base.compositor);
 
-  if (output->disable_pending || output->destroy_pending)
-    return -1;
-
-  /* assert(!output->fb_last); */
-
-  /* If disable_planes is set then assign_planes() wasn't
-   * called for this render, so we could still have a stale
-   * cursor plane set up.
-   */
-  if (output->base.disable_planes) {
-    output->cursor_view = NULL;
-    output->cursor_plane.x = INT32_MIN;
-    output->cursor_plane.y = INT32_MIN;
-  }
-
-#ifdef IAHWC_DISABLE_OVERLAYS
-  iahwc_output_render(output, damage);
-  if (!output->fb_pending)
-    return -1;
-#endif
-
   weston_log("release fence is %d\n", output->release_fence);
   if (output->release_fence > 0) {
     close(output->release_fence);
     output->release_fence = 0;
   }
 
+  backend->iahwc_present_display(backend->iahwc_device, 0,
+                                 &output->release_fence);
 
-  backend->iahwc_present_display(backend->iahwc_device, 0, &output->release_fence);
-  output->frame_commited = 1;
-
-  output->fb_last = output->fb_current;
-  output->fb_current = output->fb_pending;
-  output->fb_pending = NULL;
+  lock(&output->spin_lock);
+  output->state_invalid = false;
+  unlock(&output->spin_lock);
   return 0;
 }
 
 static void iahwc_output_start_repaint_loop(struct weston_output *output_base) {
   struct iahwc_output *output = to_iahwc_output(output_base);
 
-  if (output->disable_pending || output->destroy_pending)
-    return;
-
-  if (!output->fb_current) {
-    /* We can't page flip if there's no mode set */
-    goto finish_frame;
-  }
-
-  output->fb_last = iahwc_fb_ref(output->fb_current);
-
-finish_frame:
   /* if we cannot page-flip, immediately finish frame */
-  /* weston_compositor_read_presentation_clock(output->base.compositor, &ts); */
-  /* weston_output_finish_frame(&output->base, &ts, 0); */
-  weston_output_finish_frame(output_base, NULL,
-                             WP_PRESENTATION_FEEDBACK_INVALID);
-
-  return;
+  lock(&output->spin_lock);
+  if (output->state_invalid) {
+    weston_output_finish_frame(output_base, NULL,
+                               WP_PRESENTATION_FEEDBACK_INVALID);
+  } else {
+    weston_output_finish_frame(output_base, &output->last_vsync_ts, 0);
+  }
+  unlock(&output->spin_lock);
 }
 
 static void iahwc_output_destroy(struct weston_output *base);
@@ -573,10 +385,6 @@ static struct iahwc_mode *choose_mode(struct iahwc_output *output,
   return tmp_mode;
 }
 
-static int iahwc_output_init_egl(struct iahwc_output *output,
-                                 struct iahwc_backend *b);
-static void iahwc_output_fini_egl(struct iahwc_output *output);
-
 static int iahwc_output_switch_mode(struct weston_output *output_base,
                                     struct weston_mode *mode) {
   struct iahwc_output *output;
@@ -609,31 +417,13 @@ static int iahwc_output_switch_mode(struct weston_output *output_base,
   b->iahwc_set_display_config(b->iahwc_device, 0, iahwc_mode->config_id);
 
   output->base.current_mode->flags = 0;
+  lock(&output->spin_lock);
+  output->state_invalid = true;
+  unlock(&output->spin_lock);
 
   output->base.current_mode = &iahwc_mode->base;
   output->base.current_mode->flags =
       WL_OUTPUT_MODE_CURRENT | WL_OUTPUT_MODE_PREFERRED;
-
-  /* XXX: This drops our current buffer too early, before we've started
-   *      displaying it. Ideally this should be much more atomic and
-   *      integrated with a full repaint cycle, rather than doing a
-   *      sledgehammer modeswitch first, and only later showing new
-   *      content.
-   */
-  iahwc_fb_unref(output->fb_current);
-  assert(!output->fb_last);
-  assert(!output->fb_pending);
-  output->fb_last = output->fb_current = NULL;
-
-
-    iahwc_output_fini_egl(output);
-    if (iahwc_output_init_egl(output, b) < 0) {
-      weston_log(
-          "failed to init output egl state with "
-          "new mode");
-      return -1;
-    }
-
   return 0;
 }
 
@@ -711,52 +501,68 @@ static int init_egl(struct iahwc_backend *b) {
 }
 
 /**
+ * Return's overlay which is showing layer with index layer_index.
+ */
+static struct iahwc_overlay *iahwc_get_existing_plane(
+    struct iahwc_output *output, uint32_t layer_index) {
+  struct iahwc_overlay *ps;
+
+  wl_list_for_each(ps, &output->overlay_list, link) {
+    if (ps->layer_index == layer_index)
+      return ps;
+  }
+
+  return NULL;
+}
+
+/**
  * Add Overlay information to the list managed by the output.
  */
-static void iahwc_add_overlay_info(struct iahwc_output *output, struct wl_shm_buffer *shm_memory, struct gbm_bo *overlay_bo, uint32_t overlay_layer_id)
-{
-  struct iahwc_overlay *plane;
-
-  plane = zalloc(sizeof *plane);
+static void iahwc_add_overlay_info(struct iahwc_overlay *plane,
+                                   struct iahwc_output *output,
+                                   struct wl_shm_buffer *shm_memory,
+                                   struct gbm_bo *overlay_bo,
+                                   uint32_t overlay_layer_id,
+                                   uint32_t layer_index) {
   if (!plane) {
-    weston_log("%s: out of memory\n", __func__);
-    return;
+    plane = zalloc(sizeof *plane);
+    if (!plane) {
+      weston_log("%s: out of memory\n", __func__);
+      return;
+    }
+
+    wl_list_insert(&output->overlay_list, &plane->link);
   }
 
   if (shm_memory) {
     plane->shm_memory = shm_memory;
     plane->overlay_bo = 0;
-    wl_list_insert(&output->overlay_list_shm, &plane->link);
   } else {
     plane->overlay_bo = overlay_bo;
     plane->shm_memory = 0;
-    wl_list_insert(&output->overlay_list, &plane->link);
   }
 
   plane->overlay_layer_id = overlay_layer_id;
+  plane->layer_index = layer_index;
 }
 
 /**
  * Clean up output overlay lists.
  */
-static void
-iahwc_overlay_destroy(struct iahwc_output *output)
-{
+static void iahwc_overlay_destroy(struct iahwc_output *output,
+                                  uint32_t starting_index) {
   struct iahwc_overlay *plane, *next;
-  struct iahwc_overlay *plane_shm, *next_shm;
   struct iahwc_backend *b = to_iahwc_backend(output->base.compositor);
 
-  wl_list_for_each_safe(plane_shm, next_shm, &output->overlay_list_shm, link) {
-    b->iahwc_destroy_layer(b->iahwc_device, 0, plane_shm->overlay_layer_id);
-    wl_list_remove(&plane_shm->link);
-    free(plane_shm);
-  }
-
   wl_list_for_each_safe(plane, next, &output->overlay_list, link) {
-    b->iahwc_destroy_layer(b->iahwc_device, 0, plane->overlay_layer_id);
-    gbm_bo_destroy(plane->overlay_bo);
-    wl_list_remove(&plane->link);
-    free(plane);
+    if (plane->layer_index >= starting_index) {
+      b->iahwc_destroy_layer(b->iahwc_device, 0, plane->overlay_layer_id);
+      if (plane->overlay_bo)
+        gbm_bo_destroy(plane->overlay_bo);
+
+      wl_list_remove(&plane->link);
+      free(plane);
+    }
   }
 }
 
@@ -830,9 +636,13 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
       return NULL;
   }
 
-  b->iahwc_create_layer(b->iahwc_device, 0, &overlay_layer_id);
-  b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
-                           IAHWC_LAYER_USAGE_OVERLAY);
+  struct iahwc_overlay *plane = 0;
+  plane = iahwc_get_existing_plane(output, layer_index);
+  if (!plane) {
+    b->iahwc_create_layer(b->iahwc_device, 0, &overlay_layer_id);
+  } else {
+    overlay_layer_id = plane->overlay_layer_id;
+  }
 
   if (shmbuf) {
     if (ev->surface->width <= b->cursor_width &&
@@ -840,8 +650,11 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
       is_cusor_layer = 1;
       b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
                                IAHWC_LAYER_USAGE_CURSOR);
+    } else {
+      b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
+                               IAHWC_LAYER_USAGE_OVERLAY);
     }
-    iahwc_add_overlay_info(output, shmbuf, 0, overlay_layer_id);
+
     struct iahwc_raw_pixel_data dbo;
     dbo.width = ev->surface->width;
     dbo.height = ev->surface->height;
@@ -876,13 +689,22 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     int ret = b->iahwc_layer_set_raw_pixel_data(b->iahwc_device, 0,
                                                 overlay_layer_id, dbo);
     if (ret == -1) {
-      b->iahwc_destroy_layer(b->iahwc_device, 0, overlay_layer_id);
+      // Destroy the layer in case it's not already mapped to a plane.
+      if (!plane)
+        b->iahwc_destroy_layer(b->iahwc_device, 0, overlay_layer_id);
+
       return NULL;
     }
   } else {
-    iahwc_add_overlay_info(output, 0, bo, overlay_layer_id);
+    b->iahwc_layer_set_usage(b->iahwc_device, 0, overlay_layer_id,
+                             IAHWC_LAYER_USAGE_OVERLAY);
     b->iahwc_layer_set_bo(b->iahwc_device, 0, overlay_layer_id, bo);
   }
+
+  b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
+
+  iahwc_add_overlay_info(plane, output, shmbuf, bo, overlay_layer_id,
+                         layer_index);
 
   if (is_cusor_layer) {
     weston_view_to_global_float(ev, 0, 0, &x, &y);
@@ -914,8 +736,6 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                                      display_frame);
     b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
                                       damage_region);
-    b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
-
   } else {
     box = pixman_region32_extents(&ev->transform.boundingbox);
     p->x = box->x1;
@@ -989,7 +809,6 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
                                      display_frame);
     b->iahwc_layer_set_surface_damage(b->iahwc_device, 0, overlay_layer_id,
                                       damage_region);
-    b->iahwc_layer_set_index(b->iahwc_device, 0, overlay_layer_id, layer_index);
   }
 
   struct weston_surface *es = ev->surface;
@@ -1087,43 +906,6 @@ static void iahwc_set_backlight(struct weston_output *output_base,
   backlight_set_brightness(output->backlight, new_brightness);
 }
 
-/* Init output state that depends on gl or gbm */
-static int iahwc_output_init_egl(struct iahwc_output *output,
-                                 struct iahwc_backend *b) {
-  EGLint format[2] = {
-      output->gbm_format,
-      fallback_format_for(output->gbm_format),
-  };
-  int n_formats = 1;
-
-  output->gbm_surface =
-      gbm_surface_create(b->gbm, output->base.current_mode->width,
-                         output->base.current_mode->height, format[0],
-                         GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-  if (!output->gbm_surface) {
-    weston_log("failed to create gbm surface\n");
-    return -1;
-  }
-
-  if (format[1])
-    n_formats = 2;
-  if (gl_renderer->output_window_create(
-          &output->base, (EGLNativeWindowType)output->gbm_surface,
-          output->gbm_surface, gl_renderer->opaque_attribs, format,
-          n_formats) < 0) {
-    weston_log("failed to create gl renderer output state\n");
-    gbm_surface_destroy(output->gbm_surface);
-    return -1;
-  }
-
-  return 0;
-}
-
-static void iahwc_output_fini_egl(struct iahwc_output *output) {
-  gl_renderer->output_destroy(&output->base);
-  gbm_surface_destroy(output->gbm_surface);
-}
-
 static void iahwc_assign_planes(struct weston_output *output_base,
                                 void *repaint_data) {
   struct iahwc_backend *b = to_iahwc_backend(output_base->compositor);
@@ -1136,15 +918,19 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   pixman_region32_init(&overlap);
   primary = &output_base->compositor->primary_plane;
 
-  output->cursor_view = NULL;
-  output->cursor_plane.x = INT32_MIN;
-  output->cursor_plane.y = INT32_MIN;
-
-  // Clean up our bookkeeping of all overlays.
-  iahwc_overlay_destroy(output);
+  if (b->sprites_are_broken) {
+    if (output->overlay_enabled) {
+      weston_log("Disabling overlay usage \n");
+      b->iahwc_disable_overlay_usage(b->iahwc_device, 0);
+      output->overlay_enabled = false;
+    }
+  } else if (!output->overlay_enabled) {
+    weston_log("Enabling overlay usage. \n");
+    b->iahwc_enable_overlay_usage(b->iahwc_device, 0);
+    output->overlay_enabled = true;
+  }
 
   wl_list_for_each_safe(ev, next, &output_base->compositor->view_list, link) {
-
     pixman_region32_init(&surface_overlap);
     pixman_region32_intersect(&surface_overlap, &overlap,
                               &ev->transform.boundingbox);
@@ -1160,28 +946,6 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     if (next_plane == primary) {
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
-
-#ifdef IAHWC_DISABLE_OVERLAYS
-      if (output->primary_layer_id == -1) {
-        b->iahwc_create_layer(b->iahwc_device, 0, &output->primary_layer_id);
-      }
-
-      iahwc_rect_t viewport = {0, 0, output_base->current_mode->width,
-                               output_base->current_mode->height};
-
-      iahwc_region_t damage_region;
-      damage_region.numRects = 1;
-      damage_region.rects = &viewport;
-
-      b->iahwc_layer_set_source_crop(b->iahwc_device, 0,
-                                     output->primary_layer_id, viewport);
-      b->iahwc_layer_set_display_frame(b->iahwc_device, 0,
-                                       output->primary_layer_id, viewport);
-      b->iahwc_layer_set_surface_damage(
-          b->iahwc_device, 0, output->primary_layer_id, damage_region);
-      b->iahwc_layer_set_plane_alpha(b->iahwc_device, 0,
-                                     output->primary_layer_id, ev->alpha);
-#endif
       pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
       layer_index--;
     }
@@ -1189,7 +953,14 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     ev->psf_flags = WP_PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
     pixman_region32_fini(&surface_overlap);
   }
+
   pixman_region32_fini(&overlap);
+
+  // Clean up our bookkeeping for unused overlays.
+  if (output->total_layers > 0 && (output->total_layers != layer_index))
+    iahwc_overlay_destroy(output, layer_index++);
+
+  output->total_layers = layer_index;
 }
 
 static void setup_output_seat_constraint(struct iahwc_backend *b,
@@ -1302,26 +1073,10 @@ static void iahwc_output_set_seat(struct weston_output *base,
   setup_output_seat_constraint(b, &output->base, seat ? seat : "");
 }
 
-static int finish_frame_handler(void *data) {
-  struct iahwc_output *output = data;
-  struct timespec ts;
-
-  weston_compositor_read_presentation_clock(output->base.compositor, &ts);
-  weston_output_finish_frame(&output->base, &ts, 0);
-
-  return 1;
-}
-
 static int iahwc_output_enable(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
   struct iahwc_backend *b = to_iahwc_backend(base->compositor);
   struct weston_mode *m;
-  struct wl_event_loop *loop;
-
-  if (iahwc_output_init_egl(output, b) < 0) {
-    weston_log("Failed to init output gl state\n");
-    goto err;
-  }
 
   if (output->backlight) {
     weston_log("Initialized backlight, device %s\n", output->backlight->path);
@@ -1351,18 +1106,18 @@ static int iahwc_output_enable(struct weston_output *base) {
   weston_compositor_stack_plane(b->compositor, &output->scanout_plane,
                                 &b->compositor->primary_plane);
 
-  loop = wl_display_get_event_loop(base->compositor->wl_display);
-  output->pageflip_timer =
-      wl_event_loop_add_timer(loop, finish_frame_handler, output);
-
-  output->frame_commited = 0;
-
   weston_log("Output %s, (connector %d, crtc %d)\n", output->base.name,
              output->connector_id, output->crtc_id);
   wl_list_for_each(m, &output->base.mode_list, link) weston_log_continue(
       STAMP_SPACE "mode %dx%d@%.1d\n", m->width, m->height, m->refresh);
 
+  lock(&output->spin_lock);
   output->state_invalid = true;
+  output->last_vsync_ts.tv_nsec = 0;
+  output->last_vsync_ts.tv_sec = 0;
+  output->total_layers = 0;
+  output->overlay_enabled = true;
+  unlock(&output->spin_lock);
 
   return 0;
 
@@ -1372,18 +1127,12 @@ err:
 
 static void iahwc_output_deinit(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
-
-  /* output->fb_last and output->fb_pending must not be set here;
-   * destroy_pending/disable_pending exist to guarantee exactly this. */
-  assert(!output->fb_last);
-  assert(!output->fb_pending);
-  iahwc_fb_unref(output->fb_current);
-  output->fb_current = NULL;
-
-  iahwc_output_fini_egl(output);
-
   weston_plane_release(&output->scanout_plane);
   weston_plane_release(&output->cursor_plane);
+  lock(&output->spin_lock);
+  /* Force programming unused connectors and crtcs. */
+  output->state_invalid = true;
+  unlock(&output->spin_lock);
 }
 
 static void iahwc_output_destroy(struct weston_output *base) {
@@ -1395,6 +1144,7 @@ static void iahwc_output_destroy(struct weston_output *base) {
     free(iahwc_mode);
   }
 
+  iahwc_overlay_destroy(output, 0);
   weston_output_release(&output->base);
 
   if (output->backlight)
@@ -1406,15 +1156,9 @@ static void iahwc_output_destroy(struct weston_output *base) {
 static int iahwc_output_disable(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
 
-  if (output->page_flip_pending) {
-    output->disable_pending = 1;
-    return -1;
-  }
-
-  if (output->base.enabled)
+  if (output->base.enabled) {
     iahwc_output_deinit(&output->base);
-
-  output->disable_pending = 0;
+  }
 
   weston_log("Disabling output %s\n", output->base.name);
 
@@ -1424,21 +1168,21 @@ static int iahwc_output_disable(struct weston_output *base) {
 static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
                           int64_t timestamp) {
   struct iahwc_output *output = data;
-  uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
-		   WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK;
-  struct timespec ts;
-  ts.tv_nsec = timestamp;
-  ts.tv_sec = timestamp / (1000 * 1000 * 1000);
+  lock(&output->spin_lock);
+  output->last_vsync_ts.tv_nsec = timestamp;
+  output->last_vsync_ts.tv_sec = timestamp / (1000 * 1000 * 1000);
 
-  if (output->pageflip_timer && output->frame_commited) {
-    wl_event_source_timer_update(output->pageflip_timer, 1);
-    // FIXME: This fails to launch weston.
-    //weston_output_finish_frame(&output->base, &ts, flags);
+  if (!output->state_invalid &&
+      output->base.repaint_status == REPAINT_AWAITING_COMPLETION) {
+    uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
+                     WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
+                     WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
+    weston_output_finish_frame(&output->base, &output->last_vsync_ts, flags);
   }
 
-  output->frame_commited = 0;
+  unlock(&output->spin_lock);
 
-  return 1;
+  return 0;
 }
 
 static int pixel_uploader_callback(iahwc_callback_data_t data,
@@ -1511,20 +1255,17 @@ static int create_output_for_connector(struct iahwc_backend *b) {
   output->base.destroy = iahwc_output_destroy;
   output->base.disable = iahwc_output_disable;
 
-  output->destroy_pending = 0;
-  output->disable_pending = 0;
-
   output->base.make = (char *)make;
   output->base.model = (char *)model;
   output->base.serial_number = (char *)serial_number;
   output->base.subpixel = iahwc_subpixel_to_wayland(DRM_MODE_SUBPIXEL_UNKNOWN);
 
   output->base.connection_internal = true;
+  lock(&output->spin_lock);
+  output->state_invalid = true;
+  unlock(&output->spin_lock);
 
-  output->primary_layer_id = -1;
   wl_list_init(&output->overlay_list);
-  wl_list_init(&output->overlay_list_shm);
-
 
   b->iahwc_get_display_configs(b->iahwc_device, 0, &num_configs, NULL);
   configs = (uint32_t *)calloc(num_configs, sizeof(uint32_t));
@@ -1608,24 +1349,19 @@ static void session_notify(struct wl_listener *listener, void *data) {
     weston_log("activating session\n");
     weston_compositor_wake(compositor);
     weston_compositor_damage_all(compositor);
+    lock(&output->spin_lock);
 
-    wl_list_for_each(output, &compositor->output_list, base.link)
-        output->state_invalid = true;
+    wl_list_for_each(output, &compositor->output_list, base.link) {
+      output->state_invalid = true;
+    }
 
+    unlock(&output->spin_lock);
     udev_input_enable(&b->input);
   } else {
     weston_log("deactivating session\n");
     udev_input_disable(&b->input);
 
     weston_compositor_offscreen(compositor);
-
-    /* If we have a repaint scheduled (either from a
-     * pending pageflip or the idle handler), make sure we
-     * cancel that so we don't try to pageflip when we're
-     * vt switched away.  The OFFSCREEN state will prevent
-     * further attempts at repainting.  When we switch
-     * back, we schedule a repaint, which will process
-     * pending frame callbacks. */
   }
 }
 
@@ -1635,25 +1371,21 @@ planes_binding(struct weston_keyboard *keyboard, const struct timespec* time,
   struct iahwc_backend *b = data;
 
   switch (key) {
+    case KEY_V:
+    case KEY_C:
+      b->sprites_are_broken = 1;
+      break;
     case KEY_O:
-      b->sprites_hidden ^= 1;
+      // FIXME: Drmdisplay should not commit overlays in this case.
+      b->sprites_hidden = 1;
       break;
     default:
       break;
   }
 }
 
-static void
-renderer_switch_binding(struct weston_keyboard *keyboard,
-                        const struct timespec* time, uint32_t key, void *data) {
-    weston_log(
-	"Info: GL renderer is default and the only renderer supported by this backend.\n");
-}
-
 static const struct weston_iahwc_output_api api = {
-    iahwc_output_set_mode,
-    iahwc_output_set_gbm_format,
-    iahwc_output_set_seat,
+    iahwc_output_set_mode, iahwc_output_set_gbm_format, iahwc_output_set_seat,
 };
 
 static struct iahwc_backend *iahwc_backend_create(
@@ -1677,7 +1409,6 @@ static struct iahwc_backend *iahwc_backend_create(
   compositor->backend = &b->base;
   compositor->capabilities |= WESTON_CAP_CURSOR_PLANE;
 
-  // XXX/TODO: Initialize hwc
   iahwc_dl_handle = dlopen("libhwcomposer.so", RTLD_NOW);
   if (!iahwc_dl_handle) {
     weston_log("Unable to open libhwcomposer.so: %s\n", dlerror());
@@ -1723,6 +1454,12 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_present_display =
       (IAHWC_PFN_PRESENT_DISPLAY)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_PRESENT_DISPLAY);
+  b->iahwc_disable_overlay_usage =
+      (IAHWC_PFN_DISABLE_OVERLAY_USAGE)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_DISABLE_OVERLAY_USAGE);
+  b->iahwc_enable_overlay_usage =
+      (IAHWC_PFN_ENABLE_OVERLAY_USAGE)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_ENABLE_OVERLAY_USAGE);
   b->iahwc_layer_set_bo = (IAHWC_PFN_LAYER_SET_BO)iahwc_device->getFunctionPtr(
       iahwc_device, IAHWC_FUNC_LAYER_SET_BO);
   b->iahwc_layer_set_raw_pixel_data =
@@ -1799,6 +1536,8 @@ static struct iahwc_backend *iahwc_backend_create(
 
   b->cursor_width = 256;
   b->cursor_height = 256;
+  b->sprites_are_broken = 0;
+  b->sprites_hidden = 0;
 
   b->base.destroy = iahwc_destroy;
   b->base.repaint_begin = iahwc_repaint_begin;
@@ -1826,16 +1565,11 @@ static struct iahwc_backend *iahwc_backend_create(
   weston_compositor_add_debug_binding(compositor, KEY_V, planes_binding, b);
   /* weston_compositor_add_debug_binding(compositor, KEY_Q, */
   /*                                     recorder_binding, b); */
-  weston_compositor_add_debug_binding(compositor, KEY_W,
-                                      renderer_switch_binding, b);
 
-  // XXX/TODO: This should be there.
-  if (compositor->renderer->import_dmabuf) {
-    if (linux_dmabuf_setup(compositor) < 0)
-      weston_log(
-          "Error: initializing dmabuf "
-          "support failed.\n");
-  }
+  if (linux_dmabuf_setup(compositor) < 0)
+    weston_log(
+        "Error: initializing dmabuf "
+        "support failed.\n");
 
   int ret = weston_plugin_api_register(compositor, WESTON_IAHWC_OUTPUT_API_NAME,
                                        &api, sizeof(api));

@@ -86,8 +86,8 @@ void PixelUploader::UpdateLayerPixelData(
 }
 
 void PixelUploader::Synchronize() {
-  pixel_data_lock_.lock();
-  pixel_data_lock_.unlock();
+  sync_lock_.lock();
+  sync_lock_.unlock();
 }
 
 void PixelUploader::ExitThread() {
@@ -108,8 +108,10 @@ void PixelUploader::HandleRawPixelUpdate() {
   tasks_lock_.unlock();
 
   pixel_data_lock_.lock();
+  sync_lock_.lock();
   if (pixel_data_.empty()) {
     pixel_data_lock_.unlock();
+    sync_lock_.unlock();
     return;
   }
 
@@ -119,6 +121,7 @@ void PixelUploader::HandleRawPixelUpdate() {
   }
 
   std::vector<PixelData>().swap(pixel_data_);
+  pixel_data_lock_.unlock();
 
   for (auto& buffer : texture_uploads) {
     if (callback_) {
@@ -155,8 +158,9 @@ void PixelUploader::HandleRawPixelUpdate() {
     if (buffer.layer_callback_) {
       buffer.layer_callback_->UploadDone();
     }
-    pixel_data_lock_.unlock();
   }
+
+  sync_lock_.unlock();
 }
 
 void* PixelUploader::Map(uint32_t prime_fd, size_t size) {

@@ -98,6 +98,10 @@ class IAHWC : public iahwc_device {
       return layers_.at(layer);
     }
 
+    int DisableOverlayUsage();
+
+    int EnableOverlayUsage();
+
     void Synchronize() override;
 
    private:
