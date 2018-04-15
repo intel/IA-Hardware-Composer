@@ -1269,7 +1269,6 @@ static int create_output_for_connector(struct iahwc_backend *b) {
   weston_output_init(&output->base, b->compositor, name);
   free(name);
 
-  // XXX/TODO: Fill these with appropriate functions.
   output->base.enable = iahwc_output_enable;
   output->base.destroy = iahwc_output_destroy;
   output->base.disable = iahwc_output_disable;
@@ -1441,7 +1440,6 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_module = iahwc_module;
   b->iahwc_device = iahwc_device;
 
-  // XXX/TODO: Get all required function poinsters. add them to iahwc_backend
   b->iahwc_get_num_displays =
       (IAHWC_PFN_GET_NUM_DISPLAYS)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_GET_NUM_DISPLAYS);
@@ -1513,7 +1511,7 @@ static struct iahwc_backend *iahwc_backend_create(
                        &b->gbm_format) < 0)
     goto err_compositor;
 
-  // Check if we run drm-backend using weston-launch
+  // Check if we are connected with weston-launch
   compositor->launcher =
       weston_launcher_connect(compositor, config->tty, seat_id, true);
   if (compositor->launcher == NULL) {
@@ -1547,7 +1545,6 @@ static struct iahwc_backend *iahwc_backend_create(
   b->session_listener.notify = session_notify;
   wl_signal_add(&compositor->session_signal, &b->session_listener);
 
-  // XXX/TODO: currently using egl, add pixman support?
   if (init_egl(b) < 0) {
     weston_log("failed to initialize egl\n");
     goto err_compositor;
@@ -1563,11 +1560,6 @@ static struct iahwc_backend *iahwc_backend_create(
   b->base.repaint_flush = iahwc_repaint_flush;
   b->base.repaint_cancel = iahwc_repaint_cancel;
 
-
-  // XXX/TODO: No sprites for now
-  // XXX/TODO: Add api in hwc to get plane info.
-  // create_sprites(b);
-
   if (udev_input_init(&b->input, compositor, b->udev, seat_id,
                       config->configure_device) < 0) {
     weston_log("failed to create input devices\n");
@@ -1578,7 +1570,6 @@ static struct iahwc_backend *iahwc_backend_create(
 
   weston_setup_vt_switch_bindings(compositor);
 
-  // XXX/TODO: just import not sure we need it
   weston_compositor_add_debug_binding(compositor, KEY_O, planes_binding, b);
   weston_compositor_add_debug_binding(compositor, KEY_C, planes_binding, b);
   weston_compositor_add_debug_binding(compositor, KEY_V, planes_binding, b);
