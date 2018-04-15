@@ -949,11 +949,9 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   struct iahwc_backend *b = to_iahwc_backend(output_base->compositor);
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct weston_view *ev, *next;
-  pixman_region32_t overlap, surface_overlap;
   struct weston_plane *primary, *next_plane;
   uint32_t layer_index = 0;
 
-  pixman_region32_init(&overlap);
   primary = &output_base->compositor->primary_plane;
 
   if (b->sprites_are_broken) {
@@ -969,11 +967,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
   }
 
   wl_list_for_each_safe(ev, next, &output_base->compositor->view_list, link) {
-    pixman_region32_init(&surface_overlap);
-    pixman_region32_intersect(&surface_overlap, &overlap,
-                              &ev->transform.boundingbox);
-
-   next_plane = iahwc_output_prepare_overlay_view(output, ev, layer_index);
+    next_plane = iahwc_output_prepare_overlay_view(output, ev, layer_index);
 
     if (next_plane == NULL)
       next_plane = primary;
@@ -984,15 +978,11 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     if (next_plane == primary) {
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
-      pixman_region32_union(&overlap, &overlap, &ev->transform.boundingbox);
       layer_index--;
     }
 
     ev->psf_flags = WP_PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
-    pixman_region32_fini(&surface_overlap);
   }
-
-  pixman_region32_fini(&overlap);
 
   // Clean up our bookkeeping for unused overlays.
   if (output->total_layers > 0 && (output->total_layers != layer_index))
