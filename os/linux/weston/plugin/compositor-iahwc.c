@@ -979,6 +979,11 @@ static void iahwc_assign_planes(struct weston_output *output_base,
     iahwc_overlay_destroy(output, layer_index++);
 
   output->total_layers = layer_index;
+  pixman_region32_clear(&output->overlay_plane.damage);
+  pixman_region32_clear(&output->overlay_plane.clip);
+  struct weston_compositor *c = output_base->compositor;
+  pixman_region32_clear(&c->primary_plane.damage);
+  pixman_region32_clear(&c->primary_plane.clip);
 }
 
 static void setup_output_seat_constraint(struct iahwc_backend *b,
@@ -1104,10 +1109,8 @@ static int iahwc_output_enable(struct weston_output *base) {
     weston_log("Failed to initialize backlight\n");
   }
 
-  // XXX/TODO: fill them  with the correct functions
   output->base.start_repaint_loop = iahwc_output_start_repaint_loop;
   output->base.repaint = iahwc_output_repaint;
-  // XXX/TODO: minimal plane assignment for now
   output->base.assign_planes = iahwc_assign_planes;
 
   // XXX/TODO: No dpms for now.
@@ -1133,6 +1136,7 @@ static int iahwc_output_enable(struct weston_output *base) {
   output->last_vsync_ts.tv_sec = 0;
   output->total_layers = 0;
   output->overlay_enabled = true;
+  base->disable_planes = 0;
   unlock(&output->spin_lock);
 
   return 0;
