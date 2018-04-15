@@ -187,14 +187,10 @@ struct iahwc_output {
   bool state_invalid;
   bool overlay_enabled;
 
-  struct weston_plane cursor_plane;
   struct weston_plane overlay_plane;
   struct wl_list overlay_list;
 
   uint32_t gbm_format;
-
-  /* Plane for a fullscreen direct scanout view */
-  struct weston_plane scanout_plane;
 
   pixman_region32_t previous_damage;
 
@@ -1120,13 +1116,10 @@ static int iahwc_output_enable(struct weston_output *base) {
 
   output->base.set_gamma = iahwc_output_set_gamma;
 
-  weston_plane_init(&output->cursor_plane, b->compositor, INT32_MIN, INT32_MIN);
   weston_plane_init(&output->overlay_plane, b->compositor, INT32_MIN,
                     INT32_MIN);
-  weston_plane_init(&output->scanout_plane, b->compositor, 0, 0);
 
-  weston_compositor_stack_plane(b->compositor, &output->cursor_plane, NULL);
-  weston_compositor_stack_plane(b->compositor, &output->scanout_plane,
+  weston_compositor_stack_plane(b->compositor, &output->overlay_plane,
                                 &b->compositor->primary_plane);
 
   weston_log("Output %s, (connector %d, crtc %d)\n", output->base.name,
@@ -1150,8 +1143,7 @@ err:
 
 static void iahwc_output_deinit(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
-  weston_plane_release(&output->scanout_plane);
-  weston_plane_release(&output->cursor_plane);
+  weston_plane_release(&output->overlay_plane);
   lock(&output->spin_lock);
   /* Force programming unused connectors and crtcs. */
   output->state_invalid = true;
