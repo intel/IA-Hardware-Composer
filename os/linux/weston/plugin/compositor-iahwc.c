@@ -188,7 +188,7 @@ struct iahwc_output {
   bool overlay_enabled;
 
   struct weston_plane cursor_plane;
-  struct weston_plane d_plane;
+  struct weston_plane overlay_plane;
   struct wl_list overlay_list;
 
   uint32_t gbm_format;
@@ -575,7 +575,7 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   struct iahwc_backend *b = to_iahwc_backend(ec);
   struct weston_buffer_viewport *viewport = &ev->surface->buffer_viewport;
   struct wl_resource *buffer_resource;
-  struct weston_plane *p = &output->d_plane;
+  struct weston_plane *p = &output->overlay_plane;
   struct linux_dmabuf_buffer *dmabuf;
   struct gbm_bo *bo;
   struct wl_shm_buffer *shmbuf;
@@ -1121,7 +1121,8 @@ static int iahwc_output_enable(struct weston_output *base) {
   output->base.set_gamma = iahwc_output_set_gamma;
 
   weston_plane_init(&output->cursor_plane, b->compositor, INT32_MIN, INT32_MIN);
-  weston_plane_init(&output->d_plane, b->compositor, INT32_MIN, INT32_MIN);
+  weston_plane_init(&output->overlay_plane, b->compositor, INT32_MIN,
+                    INT32_MIN);
   weston_plane_init(&output->scanout_plane, b->compositor, 0, 0);
 
   weston_compositor_stack_plane(b->compositor, &output->cursor_plane, NULL);
