@@ -197,6 +197,8 @@ struct iahwc_output {
   struct vaapi_recorder *recorder;
   struct wl_listener recorder_frame_listener;
 
+  struct wl_event_source *pageflip_timer;
+  bool frame_committed;
   int release_fence;
   struct iahwc_spinlock spin_lock;
   struct timespec last_vsync_ts;
@@ -282,6 +284,7 @@ static int iahwc_output_repaint(struct weston_output *output_base,
 
   lock(&output->spin_lock);
   output->state_invalid = false;
+  output->frame_committed = true;
   unlock(&output->spin_lock);
   return 0;
 }
@@ -1096,10 +1099,22 @@ static void iahwc_output_set_seat(struct weston_output *base,
   setup_output_seat_constraint(b, &output->base, seat ? seat : "");
 }
 
+static int finish_frame_handler(void *data) {
+  struct iahwc_output *output = data;
+
+  uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
+    WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
+    WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
+  weston_output_finish_frame(&output->base, &output->last_vsync_ts, flags);
+
+  return 0;
+}
+
 static int iahwc_output_enable(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
   struct iahwc_backend *b = to_iahwc_backend(base->compositor);
   struct weston_mode *m;
+  struct wl_event_loop* loop;
 
   if (output->backlight) {
     weston_log("Initialized backlight, device %s\n", output->backlight->path);
@@ -1130,6 +1145,9 @@ static int iahwc_output_enable(struct weston_output *base) {
   wl_list_for_each(m, &output->base.mode_list, link) weston_log_continue(
       STAMP_SPACE "mode %dx%d@%.1d\n", m->width, m->height, m->refresh);
 
+  loop = wl_display_get_event_loop(base->compositor->wl_display);
+  output->pageflip_timer =
+    wl_event_loop_add_timer(loop, finish_frame_handler, output);
   lock(&output->spin_lock);
   output->state_invalid = true;
   output->last_vsync_ts.tv_nsec = 0;
@@ -1184,6 +1202,7 @@ static int iahwc_output_disable(struct weston_output *base) {
   return 0;
 }
 
+
 static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
                           int64_t timestamp) {
   struct iahwc_output *output = data;
@@ -1191,16 +1210,12 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
   output->last_vsync_ts.tv_nsec = timestamp;
   output->last_vsync_ts.tv_sec = timestamp / (1000 * 1000 * 1000);
 
-  if (!output->state_invalid &&
-      output->base.repaint_status == REPAINT_AWAITING_COMPLETION) {
-    uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
-                     WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
-                     WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
-    weston_output_finish_frame(&output->base, &output->last_vsync_ts, flags);
-  }
+  if (output->pageflip_timer && !output->state_invalid && output->frame_committed)
+    wl_event_source_timer_update(output->pageflip_timer, 1);
+
+  output->frame_committed = false;
 
   unlock(&output->spin_lock);
-
   return 0;
 }
 
