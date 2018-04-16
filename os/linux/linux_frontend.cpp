@@ -62,6 +62,39 @@ class IAPixelUploaderCallback : public hwcomposer::RawPixelUploadCallback {
   uint32_t display_;
 };
 
+class IAHWCHotPlugEventCallback : public hwcomposer::HotPlugCallback {
+ public:
+  IAHWCHotPlugEventCallback(iahwc_callback_data_t data,
+                         iahwc_function_ptr_t hook,
+                         IAHWC::IAHWCDisplay *display)
+      : data_(data), hook_(hook), display_(display) {
+  }
+
+  void Callback(uint32_t display, bool connected) {
+
+    auto hook = reinterpret_cast<IAHWC_PFN_HOTPLUG>(hook_);
+    uint32_t status;
+    if (connected) {
+      status = static_cast<uint32_t>(IAHWC_DISPLAY_STATUS_CONNECTED);
+      if (display_)
+        display_->RunPixelUploader(true);
+    } else {
+      status = static_cast<uint32_t>(IAHWC_DISPLAY_STATUS_DISCONNECTED);
+      if (display_)
+        display_->RunPixelUploader(false);
+    }
+
+    if (hook)
+      hook(data_, display, status);
+
+  }
+
+ private:
+  iahwc_callback_data_t data_;
+  iahwc_function_ptr_t hook_;
+  IAHWC::IAHWCDisplay *display_;
+};
+
 IAHWC::IAHWC() {
   getFunctionPtr = HookGetFunctionPtr;
   close = HookClose;
@@ -232,6 +265,13 @@ int IAHWC::RegisterCallback(int32_t description, uint32_t display_id,
       display->RegisterPixelUploaderCallback(data, hook);
       return IAHWC_ERROR_NONE;
     }
+  case IAHWC_CALLBACK_HOTPLUG: {
+    if (display_id >= displays_.size())
+      return IAHWC_ERROR_BAD_DISPLAY;
+    for (auto display : displays_)
+      display->RegisterHotPlugCallback(data, hook);
+    return IAHWC_ERROR_NONE;
+  }
 
     default:
       return IAHWC_ERROR_BAD_PARAMETER;
@@ -251,7 +291,6 @@ int IAHWC::IAHWCDisplay::Init(hwcomposer::NativeDisplay* display,
   native_display_->InitializeLayerHashGenerator(4);
   raw_data_uploader_ =
       new PixelUploader(native_display_->GetNativeBufferHandler());
-  raw_data_uploader_->Initialize(gpu_fd);
 }
 
 int IAHWC::IAHWCDisplay::GetDisplayInfo(uint32_t config, int attribute,
@@ -349,6 +388,22 @@ int IAHWC::IAHWCDisplay::EnableOverlayUsage() {
 
 void IAHWC::IAHWCDisplay::Synchronize() {
   raw_data_uploader_->Synchronize();
+}
+
+int IAHWC::IAHWCDisplay::RegisterHotPlugCallback(
+  iahwc_callback_data_t data, iahwc_function_ptr_t func) {
+  auto callback = std::make_shared<IAHWCHotPlugEventCallback>(data, func, this);
+  //TODO:XXX send proper handle
+  native_display_->RegisterHotPlugCallback(std::move(callback),
+                                    static_cast<int>(0));
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCDisplay::RunPixelUploader(bool enable) {
+  if (enable)
+    raw_data_uploader_->Initialize();
+  else
+    raw_data_uploader_->ExitThread();
 }
 
 int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
