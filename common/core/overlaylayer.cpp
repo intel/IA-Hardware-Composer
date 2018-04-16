@@ -250,12 +250,17 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       switch (plane_transform_) {
         case HWCTransform::kTransform270:
         case HWCTransform::kTransform90: {
-          std::swap(surface_damage_.left, surface_damage_.top);
-          std::swap(surface_damage_.right, surface_damage_.bottom);
-          break;
-        }
-        default:
-          break;
+         bool swap = true;
+	if (surface_damage_ == display_frame_) {
+	swap = false;
+	} 
+   	 if (swap) {
+         std::swap(surface_damage_.right, surface_damage_.bottom);
+        }
+       break;
+     }
+     default:  
+       break;
       }
     }
   }
