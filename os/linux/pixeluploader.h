@@ -52,7 +52,7 @@ class PixelUploader : public HWCThread {
   PixelUploader(const NativeBufferHandler* buffer_handler);
   ~PixelUploader() override;
 
-  void Initialize(uint32_t gpu_fd);
+  void Initialize();
 
   void RegisterPixelUploaderCallback(
       std::shared_ptr<RawPixelUploadCallback> callback);

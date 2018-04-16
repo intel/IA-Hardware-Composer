@@ -104,6 +104,10 @@ class IAHWC : public iahwc_device {
 
     void Synchronize() override;
 
+    int RegisterHotPlugCallback(iahwc_callback_data_t data,
+                                iahwc_function_ptr_t func);
+    int RunPixelUploader(bool enable);
+
    private:
     PixelUploader* raw_data_uploader_ = NULL;
     hwcomposer::NativeDisplay* native_display_;
