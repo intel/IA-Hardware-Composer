@@ -407,6 +407,8 @@ IAHWC::IAHWCLayer::~IAHWCLayer() {
       raw_data_uploader_->Synchronize();
     }
     buffer_handler->ReleaseBuffer(pixel_buffer_);
+    buffer_handler->DestroyHandle(pixel_buffer_);
+    pixel_buffer_ = NULL;
   } else {
     ClosePrimeHandles();
   }
@@ -422,6 +424,8 @@ int IAHWC::IAHWCLayer::SetBo(gbm_bo* bo) {
       raw_data_uploader_->Synchronize();
     }
     buffer_handler->ReleaseBuffer(pixel_buffer_);
+    buffer_handler->DestroyHandle(pixel_buffer_);
+    pixel_buffer_ = NULL;
   } else {
     ClosePrimeHandles();
   }
@@ -471,6 +475,7 @@ int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
     }
 
     buffer_handler->ReleaseBuffer(pixel_buffer_);
+    buffer_handler->DestroyHandle(pixel_buffer_);
     pixel_buffer_ = NULL;
   }
 
@@ -533,6 +538,7 @@ int IAHWC::IAHWCLayer::SetLayerUsage(int32_t layer_usage) {
       const NativeBufferHandler* buffer_handler =
           raw_data_uploader_->GetNativeBufferHandler();
       buffer_handler->ReleaseBuffer(pixel_buffer_);
+      buffer_handler->DestroyHandle(pixel_buffer_);
       pixel_buffer_ = NULL;
     }
   }
