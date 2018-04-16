@@ -52,6 +52,11 @@ typedef struct iahwc_raw_pixel_data {
 } iahwc_raw_pixel_data;
 
 typedef enum {
+  IAHWC_DISPLAY_STATUS_CONNECTED,
+  IAHWC_DISPLAY_STATUS_DISCONNECTED
+} iahwc_hotplug_status;
+
+typedef enum {
   IAHWC_ERROR_NONE = 0,
   IAHWC_ERROR_BAD_CONFIG,
   IAHWC_ERROR_BAD_DISPLAY,
@@ -101,7 +106,8 @@ enum iahwc_function_descriptors {
 
 enum iahwc_callback_descriptor {
   IAHWC_CALLBACK_VSYNC,
-  IAHWC_CALLBACK_PIXEL_UPLOADER
+  IAHWC_CALLBACK_PIXEL_UPLOADER,
+  IAHWC_CALLBACK_HOTPLUG
 };
 
 enum iahwc_layer_usage {
@@ -216,4 +222,6 @@ typedef int (*IAHWC_PFN_PIXEL_UPLOADER)(iahwc_callback_data_t data,
                                         iahwc_display_t display,
                                         uint32_t start_access,
                                         void* call_back_data);
+typedef int (*IAHWC_PFN_HOTPLUG)(iahwc_callback_data_t data,
+                                 iahwc_display_t display, uint32_t status);
 #endif  // OS_LINUX_IAHWC_H_

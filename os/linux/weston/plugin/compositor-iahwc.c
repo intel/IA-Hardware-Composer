@@ -1578,6 +1578,8 @@ static struct iahwc_backend *iahwc_backend_create(
   }
 
   // XXX/TODO: setup hotplugging support from IAHWC
+  // Nothing for now, registering the callback enables the pixel upload support
+  b->iahwc_register_callback(b->iahwc_device, IAHWC_CALLBACK_HOTPLUG, NULL, NULL, NULL);
 
   weston_setup_vt_switch_bindings(compositor);
 

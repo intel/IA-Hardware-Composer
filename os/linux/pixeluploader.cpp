@@ -50,13 +50,13 @@ PixelUploader::PixelUploader(const NativeBufferHandler* buffer_handler)
     return;
 
   fd_chandler_.AddFd(cevent_.get_fd());
+  gpu_fd_ = buffer_handler_->GetFd();
 }
 
 PixelUploader::~PixelUploader() {
 }
 
-void PixelUploader::Initialize(uint32_t gpu_fd) {
-  gpu_fd_ = gpu_fd;
+void PixelUploader::Initialize() {
   if (!InitWorker()) {
     ETRACE("Failed to initalize PixelUploader. %s", PRINTERROR());
   }
