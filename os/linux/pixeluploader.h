@@ -91,6 +91,7 @@ class PixelUploader : public HWCThread {
   void HandleRawPixelUpdate();
   void* Map(uint32_t prime_fd, size_t size);
   void Unmap(uint32_t prime_fd, void* addr, size_t size);
+  void Wait();
 
   std::shared_ptr<RawPixelUploadCallback> callback_ = NULL;
   SpinLock tasks_lock_;
@@ -99,6 +100,8 @@ class PixelUploader : public HWCThread {
   std::vector<PixelData> pixel_data_;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;
+  FDHandler fd_chandler_;
+  HWCEvent cevent_;
   const NativeBufferHandler* buffer_handler_ = NULL;
 };
 

@@ -46,6 +46,10 @@ struct dma_buf_sync {
 
 PixelUploader::PixelUploader(const NativeBufferHandler* buffer_handler)
     : HWCThread(-8, "PixelUploader"), buffer_handler_(buffer_handler) {
+  if (!cevent_.Initialize())
+    return;
+
+  fd_chandler_.AddFd(cevent_.get_fd());
 }
 
 PixelUploader::~PixelUploader() {
@@ -76,13 +80,13 @@ void PixelUploader::UpdateLayerPixelData(
   temp.callback_data_ = callback_data;
   temp.data_ = byteaddr;
   temp.layer_callback_ = layer_callback;
-  pixel_data_lock_.unlock();
 
   tasks_lock_.lock();
   tasks_ |= kRefreshRawPixelMap;
   tasks_lock_.unlock();
-
   Resume();
+  pixel_data_lock_.unlock();
+  Wait();
 }
 
 void PixelUploader::Synchronize() {
@@ -100,6 +104,19 @@ void PixelUploader::HandleExit() {
 
 void PixelUploader::HandleRoutine() {
   HandleRawPixelUpdate();
+}
+
+void PixelUploader::Wait() {
+  if (fd_chandler_.Poll(-1) <= 0) {
+    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+    return;
+  }
+
+  if (fd_chandler_.IsReady(cevent_.get_fd())) {
+    // If eventfd_ is ready, we need to wait on it (using read()) to clean
+    // the flag that says it is ready.
+    cevent_.Wait();
+  }
 }
 
 void PixelUploader::HandleRawPixelUpdate() {
@@ -122,11 +139,16 @@ void PixelUploader::HandleRawPixelUpdate() {
 
   std::vector<PixelData>().swap(pixel_data_);
   pixel_data_lock_.unlock();
+  bool signal = true;
 
   for (auto& buffer : texture_uploads) {
     if (callback_) {
       // Notify everyone that we are going to access this data.
       callback_->Callback(true, buffer.callback_data_);
+      if (signal) {
+        cevent_.Signal();
+        signal = false;
+      }
     }
 
     uint8_t* ptr = NULL;
