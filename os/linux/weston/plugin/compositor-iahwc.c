@@ -294,8 +294,6 @@ static void iahwc_output_start_repaint_loop(struct weston_output *output_base) {
   if (output->state_invalid) {
     weston_output_finish_frame(output_base, NULL,
                                WP_PRESENTATION_FEEDBACK_INVALID);
-  } else {
-    weston_output_finish_frame(output_base, &output->last_vsync_ts, 0);
   }
   unlock(&output->spin_lock);
 }
@@ -967,6 +965,7 @@ static void iahwc_assign_planes(struct weston_output *output_base,
       weston_view_move_to_plane(ev, next_plane);
       layer_index++;
     } else {
+      weston_log("Layer skipped \n");
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
     }
@@ -1188,11 +1187,23 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
                           int64_t timestamp) {
   struct iahwc_output *output = data;
   lock(&output->spin_lock);
-  output->last_vsync_ts.tv_nsec = timestamp;
-  output->last_vsync_ts.tv_sec = timestamp / (1000 * 1000 * 1000);
+  // Take an avg of last two frame vsync events to reduce
+  // any noise.
+  output->last_vsync_ts.tv_nsec =
+      (output->last_vsync_ts.tv_nsec + timestamp) / 2;
+  output->last_vsync_ts.tv_sec =
+      output->last_vsync_ts.tv_nsec / (1000 * 1000 * 1000);
 
   if (!output->state_invalid &&
       output->base.repaint_status == REPAINT_AWAITING_COMPLETION) {
+    if (output->last_vsync_ts.tv_nsec <
+        millihz_to_nsec(output->base.current_mode->refresh)) {
+      weston_output_finish_frame(&output->base, &output->last_vsync_ts,
+                                 WP_PRESENTATION_FEEDBACK_INVALID);
+      unlock(&output->spin_lock);
+      return 0;
+    }
+
     uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
                      WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
                      WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
