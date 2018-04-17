@@ -66,6 +66,7 @@ class IAHWC : public iahwc_device {
     hwcomposer::HwcLayer iahwc_layer_;
     struct gbm_handle hwc_handle_;
     HWCNativeHandle pixel_buffer_ = NULL;
+    uint32_t orig_width_ = 0;
     uint32_t orig_height_ = 0;
     uint32_t orig_stride_ = 0;
     PixelUploader* raw_data_uploader_ = NULL;

@@ -57,10 +57,11 @@ class PixelUploader : public HWCThread {
   void RegisterPixelUploaderCallback(
       std::shared_ptr<RawPixelUploadCallback> callback);
 
-  void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_height,
-                            uint32_t original_stride, void* callback_data,
-                            uint8_t* byteaddr,
-                            PixelUploaderLayerCallback* layer_callback);
+  void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_width,
+                            uint32_t original_height, uint32_t original_stride,
+                            void* callback_data, uint8_t* byteaddr,
+                            PixelUploaderLayerCallback* layer_callback,
+                            HwcRect<int> surfaceDamage);
 
   const NativeBufferHandler* GetNativeBufferHandler() const {
     return buffer_handler_;
@@ -81,11 +82,13 @@ class PixelUploader : public HWCThread {
 
   struct PixelData {
     HWCNativeHandle handle_;
+    uint32_t original_width_ = 0;
     uint32_t original_height_ = 0;
     uint32_t original_stride_ = 0;
     void* callback_data_ = 0;
     uint8_t* data_ = NULL;
     PixelUploaderLayerCallback* layer_callback_ = NULL;
+    HwcRect<int> surfaceDamage;
   };
 
   void HandleRawPixelUpdate();
