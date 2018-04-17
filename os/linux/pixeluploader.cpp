@@ -68,18 +68,20 @@ void PixelUploader::RegisterPixelUploaderCallback(
 }
 
 void PixelUploader::UpdateLayerPixelData(
-    HWCNativeHandle handle, uint32_t original_height, uint32_t original_stride,
-    void* callback_data, uint8_t* byteaddr,
-    PixelUploaderLayerCallback* layer_callback) {
+    HWCNativeHandle handle, uint32_t original_width, uint32_t original_height,
+    uint32_t original_stride, void* callback_data, uint8_t* byteaddr,
+    PixelUploaderLayerCallback* layer_callback, HwcRect<int> surfaceDamage) {
   pixel_data_lock_.lock();
   pixel_data_.emplace_back();
   PixelData& temp = pixel_data_.back();
   temp.handle_ = handle;
+  temp.original_width_ = original_width;
   temp.original_height_ = original_height;
   temp.original_stride_ = original_stride;
   temp.callback_data_ = callback_data;
   temp.data_ = byteaddr;
   temp.layer_callback_ = layer_callback;
+  temp.surfaceDamage = surfaceDamage;
 
   tasks_lock_.lock();
   tasks_ |= kRefreshRawPixelMap;
@@ -154,8 +156,15 @@ void PixelUploader::HandleRawPixelUpdate() {
     uint8_t* ptr = NULL;
     size_t size = buffer.handle_->meta_data_.height_ *
                   buffer.handle_->meta_data_.pitches_[0];
-    uint32_t mapStride = buffer.original_stride_;
     uint32_t prime_fd = buffer.handle_->meta_data_.prime_fds_[0];
+
+    uint32_t mapStride = buffer.original_stride_;
+    uint32_t bpp = mapStride / buffer.original_width_;
+    uint32_t x1 = buffer.surfaceDamage.left, y1 = buffer.surfaceDamage.top;
+    uint32_t x2 = buffer.surfaceDamage.right, y2 = buffer.surfaceDamage.bottom;
+    uint32_t startx = x1 * bpp;
+    uint32_t block_size = (x2 - x1) * bpp;
+
     if (prime_fd > 0) {
       ptr = (uint8_t*)Map(buffer.handle_->meta_data_.prime_fds_[0], size);
     }
@@ -163,9 +172,9 @@ void PixelUploader::HandleRawPixelUpdate() {
     if (!ptr) {
       // FIXME: Create texture and do texture upload.
     } else {
-      for (int i = 0; i < buffer.original_height_; i++) {
-        memcpy(ptr + i * buffer.handle_->meta_data_.pitches_[0],
-               buffer.data_ + i * mapStride, mapStride);
+      for (int i = y1; i < y2; i++) {
+        memcpy(ptr + (i * buffer.handle_->meta_data_.pitches_[0] + startx),
+               buffer.data_ + (i * mapStride + startx), block_size);
       }
     }
 
