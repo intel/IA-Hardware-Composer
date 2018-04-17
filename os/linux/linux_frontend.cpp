@@ -555,19 +555,16 @@ int IAHWC::IAHWCLayer::SetRawPixelData(iahwc_raw_pixel_data bo) {
       return -1;
     }
 
+    orig_width_ = bo.width;
     orig_height_ = bo.height;
     orig_stride_ = bo.stride;
-    upload_in_progress_ = true;
-    raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
-                                             orig_stride_, bo.callback_data,
-                                             (uint8_t*)bo.buffer, this);
     iahwc_layer_.SetNativeHandle(pixel_buffer_);
-  } else {
-    upload_in_progress_ = true;
-    raw_data_uploader_->UpdateLayerPixelData(pixel_buffer_, orig_height_,
-                                             orig_stride_, bo.callback_data,
-                                             (uint8_t*)bo.buffer, this);
   }
+
+  upload_in_progress_ = true;
+  raw_data_uploader_->UpdateLayerPixelData(
+      pixel_buffer_, orig_width_, orig_height_, orig_stride_, bo.callback_data,
+      (uint8_t*)bo.buffer, this, iahwc_layer_.GetSurfaceDamage());
 
   return IAHWC_ERROR_NONE;
 }
