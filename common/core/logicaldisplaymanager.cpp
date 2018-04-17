@@ -16,8 +16,8 @@
 
 #include "logicaldisplaymanager.h"
 
-#include "logicaldisplay.h"
 #include <hwclayer.h>
+#include "logicaldisplay.h"
 
 namespace hwcomposer {
 
@@ -78,10 +78,12 @@ void LogicalDisplayManager::InitializeLogicalDisplays(uint32_t total) {
   }
 
   auto r_callback = std::make_shared<LDMRefreshCallback>(this);
-  physical_display_->RegisterRefreshCallback(r_callback, physical_display_->GetDisplayPipe());
+  physical_display_->RegisterRefreshCallback(
+      r_callback, physical_display_->GetDisplayPipe());
 
   auto v_callback = std::make_shared<LDMVsyncCallback>(this);
-  physical_display_->RegisterVsyncCallback(v_callback, physical_display_->GetDisplayPipe());
+  physical_display_->RegisterVsyncCallback(v_callback,
+                                           physical_display_->GetDisplayPipe());
 }
 
 void LogicalDisplayManager::UpdatePowerMode() {
@@ -213,11 +215,12 @@ void LogicalDisplayManager::HotPlugCallback(bool connected) {
   }
 }
 
-void LogicalDisplayManager::GetLogicalDisplays(std::vector<LogicalDisplay*>& displays) {
-    uint32_t size = displays_.size();
-    for (uint32_t i = 0; i < size; i++) {
-      displays.emplace_back(displays_.at(i).get());
-    }
+void LogicalDisplayManager::GetLogicalDisplays(
+    std::vector<LogicalDisplay*>& displays) {
+  uint32_t size = displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    displays.emplace_back(displays_.at(i).get());
+  }
 }
 
 void LogicalDisplayManager::SetHDCPState(HWCContentProtection state,

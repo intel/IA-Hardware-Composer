@@ -23,8 +23,8 @@
 
 #include "hwcutils.h"
 
-#include "resourcemanager.h"
 #include "nativebufferhandler.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 
@@ -239,7 +239,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-	    resource_manager, true);
+            resource_manager, true);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -315,7 +315,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
 
     if ((surface_damage_.left < display_frame_.left) &&
-	(surface_damage_.right > display_frame_.left)) {
+        (surface_damage_.right > display_frame_.left)) {
       surface_damage_.left = display_frame_.left;
     }
 

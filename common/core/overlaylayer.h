@@ -20,8 +20,8 @@
 #include <hwcdefs.h>
 #include <platformdefines.h>
 
-#include <memory>
 #include <hwclayer.h>
+#include <memory>
 
 #include "overlaybuffer.h"
 

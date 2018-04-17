@@ -17,8 +17,8 @@
 #ifndef WSI_LOGICALDISPLAY_H_
 #define WSI_LOGICALDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <memory>
 
@@ -80,8 +80,8 @@ class LogicalDisplay : public NativeDisplay {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
-  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
-                      uint16_t blue, uint16_t alpha) override;
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                            HWCDeinterlaceControl mode) override;
