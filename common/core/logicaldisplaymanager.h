@@ -17,8 +17,8 @@
 #ifndef WSI_LOGICALDISPLAY_MANAGER_H_
 #define WSI_LOGICALDISPLAY_MANAGER_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <nativedisplay.h>
 #include "logicaldisplay.h"

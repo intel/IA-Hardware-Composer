@@ -609,8 +609,8 @@ void GpuDevice::EnableHDCPSessionForDisplay(uint32_t display,
 void GpuDevice::EnableHDCPSessionForAllDisplays(HWCContentType content_type) {
   size_t size = total_displays_.size();
   for (size_t i = 0; i < size; i++) {
-    total_displays_.at(i)
-        ->SetHDCPState(HWCContentProtection::kDesired, content_type);
+    total_displays_.at(i)->SetHDCPState(HWCContentProtection::kDesired,
+                                        content_type);
   }
 }
 

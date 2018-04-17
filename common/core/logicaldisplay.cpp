@@ -16,8 +16,8 @@
 
 #include "logicaldisplay.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "logicaldisplaymanager.h"
 
@@ -53,8 +53,8 @@ int LogicalDisplay::GetDisplayPipe() {
 
 bool LogicalDisplay::SetActiveConfig(uint32_t config) {
   bool success = physical_display_->SetActiveConfig(config);
-    width_ = (physical_display_->Width()) / total_divisions_;
-    return success;
+  width_ = (physical_display_->Width()) / total_divisions_;
+  return success;
 }
 
 bool LogicalDisplay::GetActiveConfig(uint32_t *config) {
