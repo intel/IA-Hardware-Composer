@@ -274,7 +274,7 @@ int32_t HwcLayer::GetLeftConstraint() {
   if (total == 1)
     return left_constraint_.at(0);
 
-    std::vector<int32_t> temp;
+  std::vector<int32_t> temp;
   for (size_t i = 1; i < total; i++) {
     temp.emplace_back(left_constraint_.at(i));
   }
@@ -285,21 +285,21 @@ int32_t HwcLayer::GetLeftConstraint() {
 }
 
 int32_t HwcLayer::GetRightConstraint() {
-    size_t total = right_constraint_.size();
-    if (total == 0)
-      return -1;
+  size_t total = right_constraint_.size();
+  if (total == 0)
+    return -1;
 
-    if (total == 1)
-      return right_constraint_.at(0);
+  if (total == 1)
+    return right_constraint_.at(0);
 
-      std::vector<int32_t> temp;
-    for (size_t i = 1; i < total; i++) {
-      temp.emplace_back(right_constraint_.at(i));
-    }
+  std::vector<int32_t> temp;
+  for (size_t i = 1; i < total; i++) {
+    temp.emplace_back(right_constraint_.at(i));
+  }
 
-    uint32_t value = right_constraint_.at(0);
-    right_constraint_.swap(temp);
-    return value;
+  uint32_t value = right_constraint_.at(0);
+  right_constraint_.swap(temp);
+  return value;
 }
 
 void HwcLayer::SetLeftSourceConstraint(int32_t left_constraint) {

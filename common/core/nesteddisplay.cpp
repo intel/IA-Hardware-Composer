@@ -18,11 +18,11 @@
 
 #include <nativebufferhandler.h>
 
-#include <string>
 #include <sstream>
+#include <string>
 
-#include <hwctrace.h>
 #include <hwclayer.h>
+#include <hwctrace.h>
 
 namespace hwcomposer {
 #ifdef NESTED_DISPLAY_SUPPORT

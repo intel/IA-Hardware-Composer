@@ -17,8 +17,8 @@
 #ifndef WSI_MOSAICDISPLAY_H_
 #define WSI_MOSAICDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <memory>
 

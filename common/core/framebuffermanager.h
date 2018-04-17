@@ -39,8 +39,8 @@ map.
 #define COMMON_CORE_FRAMEBUFFER_MANAGER_H_
 
 #include <hwcdefs.h>
-#include <platformdefines.h>
 #include <hwctrace.h>
+#include <platformdefines.h>
 
 #include <memory>
 #include <unordered_map>
