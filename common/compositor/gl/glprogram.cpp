@@ -128,6 +128,60 @@ static std::string GenerateFragmentShader(int layer_count) {
 
 static GLint GenerateProgram(unsigned num_textures,
                              std::ostringstream *shader_log) {
+  GLint status;
+  GLint program = glCreateProgram();
+  if (!program) {
+    if (shader_log)
+      *shader_log << "Failed to create program."
+                  << "\n";
+    return 0;
+  }
+
+  // try pre-built shader program first
+  std::ostringstream shader_program_fname;
+  shader_program_fname << "hwc_shader_prog_"
+                       << num_textures
+                       <<".shader_test.bin";
+
+  FILE *shader_prog_fp;
+  static PFNGLPROGRAMBINARYOESPROC program_binary_oes =
+     (PFNGLPROGRAMBINARYOESPROC)eglGetProcAddress("glProgramBinaryOES");
+
+  shader_prog_fp = fopen(shader_program_fname.str().c_str(), "rb");
+
+  if (shader_prog_fp) {
+    /* check the size of file */
+    fseek(shader_prog_fp, 0, SEEK_END);
+    long binary_sz = ftell(shader_prog_fp);
+    rewind(shader_prog_fp);
+
+    char *binary_prog = (char *)malloc(binary_sz);
+
+    if (fread(binary_prog, 1, binary_sz, shader_prog_fp) == binary_sz) {
+      fclose(shader_prog_fp);
+      program_binary_oes(program, GL_PROGRAM_BINARY_FORMAT_MESA, binary_prog,
+                         binary_sz);
+
+      free(binary_prog);
+
+      glGetProgramiv(program, GL_LINK_STATUS, &status);
+      if (status) {
+        if (shader_log)
+          *shader_log << "Pre-built shader program binary has been loaded "
+                      << "Successfully\n";
+
+        return program;
+      }
+    }
+
+    fclose(shader_prog_fp);
+    free(binary_prog);
+  }
+
+  if (shader_log)
+    *shader_log << "Failed to load pre-built shader program.\n"
+                << "now trying run-time build\n";
+
   std::string vertex_shader_string = GenerateVertexShader(num_textures);
   const GLchar *vertex_shader_source = vertex_shader_string.c_str();
   GLint vertex_shader = CompileAndCheckShader(
@@ -144,14 +198,6 @@ static GLint GenerateProgram(unsigned num_textures,
     return 0;
   }
 
-  GLint program = glCreateProgram();
-  if (!program) {
-    if (shader_log)
-      *shader_log << "Failed to create program."
-                  << "\n";
-    return 0;
-  }
-
   glAttachShader(program, vertex_shader);
   glAttachShader(program, fragment_shader);
   glBindAttribLocation(program, 0, "vPosition");
@@ -162,7 +208,6 @@ static GLint GenerateProgram(unsigned num_textures,
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
 
-  GLint status;
   glGetProgramiv(program, GL_LINK_STATUS, &status);
 
   if (!status) {
