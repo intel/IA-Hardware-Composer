@@ -202,7 +202,6 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::DisplayType type_;
     std::map<hwc2_layer_t, Hwc2Layer> layers_;
     Hwc2Layer client_layer_;
-    int32_t color_mode_;
 
     uint32_t frame_no_ = 0;
     // True after validateDisplay

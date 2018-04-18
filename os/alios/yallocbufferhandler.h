@@ -53,7 +53,6 @@ class YallocBufferHandler : public NativeBufferHandler {
  private:
   uint32_t fd_;
   struct yalloc_device_t *device_;
-  fb_device_t *mFbDevice;
 };
 
 }  // namespace hwcomposer
