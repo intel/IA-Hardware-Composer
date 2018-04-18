@@ -259,7 +259,6 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
     free_buffer_handle(handle->imported_target_);
 
   delete handle;
-  handle = NULL;
 }
 
 static struct yalloc_drm_handle_t AttrData2YallocHandle(

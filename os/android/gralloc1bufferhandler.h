@@ -57,7 +57,6 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
   uint32_t fd_;
   const hw_module_t *gralloc_;
-  hw_device_t *device_;
   GRALLOC1_PFN_RETAIN register_;
   GRALLOC1_PFN_RELEASE release_;
   GRALLOC1_PFN_GET_DIMENSIONS dimensions_;

@@ -725,7 +725,9 @@ HWC2::Error IAHWC2::HwcDisplay::SetClientTarget(buffer_handle_t target,
 
 HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   supported(__func__);
-  color_mode_ = mode;
+  // TODO: Use the parameter mode to set the color mode for the display to be
+  // used.
+
   return HWC2::Error::None;
 }
 
