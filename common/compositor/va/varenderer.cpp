@@ -291,8 +291,9 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   param_.filter_flags = filter_flags_;
 // currently rotation is only supported by VA on Android.
-#ifdef DISABLE_CURSOR_PLANE
-  param_.rotation_state = HWCTransformToVA(state.layer_->GetTransform());
+#if VA_MAJOR_VERSION > 1
+  param_.rotation_state = HWCRotationToVA(state.layer_->GetTransform());
+  param_.mirror_state = HWCReflectToVA(state.layer_->GetTransform());
 #endif
 
   ScopedVABufferID pipeline_buffer(va_display_);
@@ -488,17 +489,29 @@ bool VARenderer::UpdateCaps() {
 }
 
 uint32_t VARenderer::HWCTransformToVA(uint32_t transform) {
-    switch (transform) {
-        case kTransform270:
-            return VA_ROTATION_270;
-        case kTransform180:
-            return VA_ROTATION_180;
-        case kTransform90:
-            return VA_ROTATION_90;
-        default:
-            break;
-    }
-    return VA_ROTATION_NONE;
+  switch (transform) {
+    case kTransform270:
+      return VA_ROTATION_270;
+    case kTransform180:
+      return VA_ROTATION_180;
+    case kTransform90:
+      return VA_ROTATION_90;
+    default:
+      break;
+  }
+  return VA_ROTATION_NONE;
 }
+
+#if VA_MAJOR_VERSION > 1
+uint32_t VARenderer::HWCReflectToVA(uint32_t transform) {
+  if (transform & kReflectX)
+    return VA_MIRROR_HORIZONTAL;
+
+  if (transform & kReflectY)
+    return VA_MIRROR_VERTICAL;
+
+  return VA_MIRROR_NONE;
+}
+#endif
 
 }  // namespace hwcomposer
