@@ -19,13 +19,13 @@
 
 #include <stdint.h>
 #include <fstream>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "displaymanager.h"
+#include "hwcthread.h"
 #include "logicaldisplaymanager.h"
 #include "nativedisplay.h"
-#include "hwcthread.h"
 
 namespace hwcomposer {
 

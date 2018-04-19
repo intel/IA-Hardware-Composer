@@ -59,8 +59,8 @@ struct HwcLayer {
     return source_crop_;
   }
 
-  void SetDisplayFrame(const HwcRect<int>& display_frame,
-                       int translate_x_pos, int translate_y_pos);
+  void SetDisplayFrame(const HwcRect<int>& display_frame, int translate_x_pos,
+                       int translate_y_pos);
 
   const HwcRect<int>& GetDisplayFrame() const {
     return display_frame_;

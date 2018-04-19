@@ -24,10 +24,10 @@
 #include <hwcdefs.h>
 #include <nativebufferhandler.h>
 
+#include "framebuffermanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"
-#include "framebuffermanager.h"
 #include "vautils.h"
 
 #include <va/va_drmcommon.h>
@@ -295,7 +295,6 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 
   glBindTexture(target, image_.texture_);
   glEGLImageTargetTexture2DOES(target, (GLeglImageOES)image_.image_);
-
 
   glBindTexture(target, 0);
 

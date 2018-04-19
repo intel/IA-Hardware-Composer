@@ -19,7 +19,7 @@
 #include "hwctrace.h"
 #include "hwcutils.h"
 
-#include<math.h>
+#include <math.h>
 
 namespace hwcomposer {
 

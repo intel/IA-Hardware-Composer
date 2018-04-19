@@ -171,9 +171,11 @@ class NativeDisplay {
   * |b.r b.g b.b 0|
   * |Tr  Tg  Tb  1|
   *
-  * This matrix will be provided in row-major form: {r.r, r.g, r.b, 0, g.r, ...}.
+  * This matrix will be provided in row-major form: {r.r, r.g, r.b, 0, g.r,
+  * ...}.
   *
-  * Given a matrix of this form and an input color [R_in, G_in, B_in], the output
+  * Given a matrix of this form and an input color [R_in, G_in, B_in], the
+  * output
   * color [R_out, G_out, B_out] will be:
   *
   * R_out = R_in * r.r + G_in * g.r + B_in * b.r + Tr
@@ -181,10 +183,12 @@ class NativeDisplay {
   * B_out = R_in * r.b + G_in * g.b + B_in * b.b + Tb
   *
   * @param matrix a 4x4 transform matrix (16 floats) as described above
-  * @param hint a hint value to specify the transform type, applying no transform
+  * @param hint a hint value to specify the transform type, applying no
+  * transform
   *        or applying transform defined by given matrix
   */
-  virtual void SetColorTransform(const float * /*matrix*/, HWCColorTransform /*hint*/) {
+  virtual void SetColorTransform(const float * /*matrix*/,
+                                 HWCColorTransform /*hint*/) {
   }
 
   /**
@@ -206,9 +210,9 @@ class NativeDisplay {
                              uint32_t /*blue*/) {
   }
 
- /**
-  * API for setting video color in HWC
-  */
+  /**
+   * API for setting video color in HWC
+   */
   virtual void SetVideoColor(HWCColorControl /*color*/, float /*value*/) {
   }
 
@@ -446,7 +450,7 @@ class DisplayHotPlugEventCallback {
  public:
   virtual ~DisplayHotPlugEventCallback() {
   }
-  virtual void Callback(std::vector<NativeDisplay*> connected_displays) = 0;
+  virtual void Callback(std::vector<NativeDisplay *> connected_displays) = 0;
 };
 
 }  // namespace hwcomposer

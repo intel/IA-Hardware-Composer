@@ -16,23 +16,23 @@
 
 #include "drmdisplaymanager.h"
 
-#include <stdlib.h>
-#include <time.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <errno.h>
 
-#include <linux/types.h>
 #include <linux/netlink.h>
+#include <linux/types.h>
 
-#include <hwctrace.h>
 #include <gpudevice.h>
+#include <hwctrace.h>
 
 #include <nativebufferhandler.h>
 

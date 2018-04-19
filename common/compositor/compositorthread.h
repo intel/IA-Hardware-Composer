@@ -17,15 +17,15 @@
 #ifndef COMMON_COMPOSITOR_COMPOSITORTHREAD_H_
 #define COMMON_COMPOSITOR_COMPOSITORTHREAD_H_
 
-#include <spinlock.h>
 #include <platformdefines.h>
+#include <spinlock.h>
 
 #include <memory>
 #include <vector>
 
-#include "renderstate.h"
 #include "factory.h"
 #include "hwcthread.h"
+#include "renderstate.h"
 
 #include "fdhandler.h"
 #include "hwcevent.h"
