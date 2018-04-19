@@ -19,11 +19,11 @@
 
 #include <spinlock.h>
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#include <queue>
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "compositor.h"
@@ -69,7 +69,7 @@ class DisplayQueue {
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
-  void SetColorTransform(const float *matrix, HWCColorTransform hint);
+  void SetColorTransform(const float* matrix, HWCColorTransform hint);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
@@ -77,8 +77,8 @@ class DisplayQueue {
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float* value, float* start,
                      float* end);
-  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
-                      uint16_t blue, uint16_t alpha);
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha);
   void RestoreVideoDefaultColor(HWCColorControl color);
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
   void RestoreVideoDefaultDeinterlace();
@@ -341,7 +341,8 @@ class DisplayQueue {
   int state_ = kConfigurationChanged;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool handle_display_initializations_ = true;  // to disable hwclock monitoring.
+  // to disable hwclock monitoring.
+  bool handle_display_initializations_ = true;
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;

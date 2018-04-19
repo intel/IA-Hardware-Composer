@@ -17,19 +17,19 @@
 #include "drmdisplay.h"
 
 #include <cmath>
-#include <set>
 #include <limits>
+#include <set>
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
 #include <hwctrace.h>
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 
-#include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "displayqueue.h"
 #include "drmdisplaymanager.h"
 #include "wsi_utils.h"
 
@@ -62,7 +62,8 @@ bool DrmDisplay::InitializeDisplay() {
   GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
   GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
   GetDrmObjectProperty("CTM", crtc_props, &ctm_id_prop_);
-  GetDrmObjectProperty("CTM_POST_OFFSET", crtc_props, &ctm_post_offset_id_prop_);
+  GetDrmObjectProperty("CTM_POST_OFFSET", crtc_props,
+                       &ctm_post_offset_id_prop_);
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
@@ -185,10 +186,10 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
     case HWCDisplayAttribute::kRefreshRate:
       if (!custom_resolution_) {
         refresh = (modes_[config].clock * 1000.0f) /
-                (modes_[config].htotal * modes_[config].vtotal);
+                  (modes_[config].htotal * modes_[config].vtotal);
       } else {
         refresh = (modes_[config].clock * 1000.0f) /
-                ((rect_.right - rect_.left) * (rect_.bottom - rect_.top));
+                  ((rect_.right - rect_.left) * (rect_.bottom - rect_.top));
       }
 
       if (modes_[config].flags & DRM_MODE_FLAG_INTERLACE)
@@ -220,7 +221,7 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
           mmHeight_ ? (modes_[config].vdisplay * kUmPerInch) / mmHeight_ : -1;
       } else {
         *value =
-          mmHeight_ ? ((rect_.bottom - rect_.top) * kUmPerInch) / mmHeight_ : -1;
+          mmHeight_ ? ((rect_.bottom - rect_.top) * kUmPerInch) /mmHeight_: -1;
       }
       break;
     default:
@@ -451,8 +452,8 @@ void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {
     width_ = rect_.right - rect_.left;
     height_ = rect_.bottom - rect_.top;
   }
-  IHOTPLUGEVENTTRACE("SetDisplayAttribute: width %d, height %d",
-    width_, height_);
+  IHOTPLUGEVENTTRACE("SetDisplayAttribute: width %d, height %d", width_,
+                     height_);
 
   current_mode_ = mode_info;
 }
@@ -521,11 +522,12 @@ int64_t DrmDisplay::FloatToFixedPoint(float value) const {
   uint32_t negative = (*pointer & (1u << 31)) >> 31;
   *pointer &= 0x7fffffff; /* abs of value*/
   return (negative ? (1ll << 63) : 0) |
-          (__s64)((*(float *)pointer) * (double)(1ll << 32));
+         (__s64)((*(float *)pointer) * (double)(1ll << 32));
 }
 
-void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
-                                 struct drm_color_ctm_post_offset *ctm_post_offset) const {
+void DrmDisplay::ApplyPendingCTM(
+    struct drm_color_ctm *ctm,
+    struct drm_color_ctm_post_offset *ctm_post_offset) const {
   if (ctm_id_prop_ == 0) {
     ETRACE("ctm_id_prop_ == 0");
     return;
@@ -544,7 +546,9 @@ void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
   }
 
   uint32_t ctm_post_offset_id = 0;
-  drmModeCreatePropertyBlob(gpu_fd_, ctm_post_offset, sizeof(drm_color_ctm_post_offset), &ctm_post_offset_id);
+  drmModeCreatePropertyBlob(gpu_fd_, ctm_post_offset,
+                            sizeof(drm_color_ctm_post_offset),
+                            &ctm_post_offset_id);
   if (ctm_post_offset_id == 0) {
     ETRACE("ctm_post_offset_id == 0");
     return;
@@ -557,7 +561,6 @@ void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
   drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
                            ctm_post_offset_id_prop_, ctm_post_offset_id);
   drmModeDestroyPropertyBlob(gpu_fd_, ctm_post_offset_id);
-
 }
 
 void DrmDisplay::ApplyPendingLUT(struct drm_color_lut *lut) const {
@@ -639,9 +642,11 @@ float DrmDisplay::TransformGamma(float value, float gamma) const {
   return result;
 }
 
-void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
-                                         HWCColorTransform color_transform_hint) const {
-  struct drm_color_ctm *ctm = (struct drm_color_ctm *)malloc(sizeof(struct drm_color_ctm));
+void DrmDisplay::SetColorTransformMatrix(
+    const float *color_transform_matrix,
+    HWCColorTransform color_transform_hint) const {
+  struct drm_color_ctm *ctm =
+      (struct drm_color_ctm *)malloc(sizeof(struct drm_color_ctm));
   if (!ctm) {
     ETRACE("Cannot allocate CTM memory");
     return;
@@ -671,7 +676,8 @@ void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
     case HWCColorTransform::kArbitraryMatrix: {
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          ctm->matrix[i * 3 + j] = FloatToFixedPoint(color_transform_matrix[j * 4 + i]);
+          ctm->matrix[i * 3 + j] =
+              FloatToFixedPoint(color_transform_matrix[j * 4 + i]);
         }
       }
       ctm_post_offset->red = color_transform_matrix[12] * 0xffff;

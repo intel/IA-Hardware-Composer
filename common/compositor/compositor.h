@@ -23,10 +23,10 @@
 #include <vector>
 
 #include "compositionregion.h"
-#include "displayplanestate.h"
-#include "renderstate.h"
 #include "compositorthread.h"
+#include "displayplanestate.h"
 #include "factory.h"
+#include "renderstate.h"
 
 namespace hwcomposer {
 

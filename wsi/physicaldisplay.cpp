@@ -23,11 +23,11 @@
 #include <hwctrace.h>
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 
-#include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "displayqueue.h"
 #include "hwcutils.h"
 #include "wsi_utils.h"
 
@@ -143,7 +143,7 @@ void PhysicalDisplay::Connect() {
     // Current display is a cloned display, set the source_display_'s
     // k_RefreshClonedDisplays flag. This makes clone parent have a
     // chance to update it's cloned display list
-    PhysicalDisplay* p_clone_parent = (PhysicalDisplay*) source_display_;
+    PhysicalDisplay *p_clone_parent = (PhysicalDisplay *)source_display_;
     SPIN_LOCK(p_clone_parent->modeset_lock_);
     p_clone_parent->display_state_ |= kRefreshClonedDisplays;
     SPIN_UNLOCK(p_clone_parent->modeset_lock_);
@@ -411,7 +411,8 @@ void PhysicalDisplay::SetGamma(float red, float green, float blue) {
   display_queue_->SetGamma(red, green, blue);
 }
 
-void PhysicalDisplay::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+void PhysicalDisplay::SetColorTransform(const float *matrix,
+                                        HWCColorTransform hint) {
   display_queue_->SetColorTransform(matrix, hint);
 }
 
@@ -436,8 +437,8 @@ void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   display_queue_->SetVideoColor(color, value);
 }
 
-void PhysicalDisplay::GetVideoColor(HWCColorControl color,
-                                    float* value, float* start, float* end) {
+void PhysicalDisplay::GetVideoColor(HWCColorControl color, float *value,
+                                    float *start, float *end) {
   display_queue_->GetVideoColor(color, value, start, end);
 }
 
@@ -593,8 +594,9 @@ bool PhysicalDisplay::SetCustomResolution(const HwcRect<int32_t> &rect) {
     rect_.bottom = rect.bottom;
     custom_resolution_ = true;
 
-    IHOTPLUGEVENTTRACE("SetCustomResolution: custom width %d, height %d, bool %d",
-      rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
+    IHOTPLUGEVENTTRACE(
+        "SetCustomResolution: custom width %d, height %d, bool %d",
+        rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
 
     return true;
   } else {

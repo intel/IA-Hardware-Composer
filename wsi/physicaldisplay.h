@@ -17,18 +17,18 @@
 #ifndef WSI_PHYSICALDISPLAY_H_
 #define WSI_PHYSICALDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <nativedisplay.h>
 
 #include <memory>
 #include <vector>
 
-#include "platformdefines.h"
-#include "displayplanestate.h"
-#include "displayplanehandler.h"
 #include <spinlock.h>
+#include "displayplanehandler.h"
+#include "displayplanestate.h"
+#include "platformdefines.h"
 
 namespace hwcomposer {
 class DisplayPlaneState;
@@ -63,7 +63,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
-  bool SetCustomResolution(const HwcRect<int32_t>&) override;
+  bool SetCustomResolution(const HwcRect<int32_t> &) override;
 
   bool SetPowerMode(uint32_t power_mode) override;
 
@@ -91,8 +91,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
-  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
-                      uint16_t blue, uint16_t alpha) override;
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                            HWCDeinterlaceControl mode) override;
@@ -158,8 +158,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   /**
   * API for setting color transform matrix.
   */
-  virtual void SetColorTransformMatrix(const float *color_transform_matrix,
-                                       HWCColorTransform color_transform_hint) const = 0;
+  virtual void SetColorTransformMatrix(
+      const float *color_transform_matrix,
+      HWCColorTransform color_transform_hint) const = 0;
 
   /**
   * API is called when display needs to be disabled.

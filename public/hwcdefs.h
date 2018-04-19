@@ -21,8 +21,8 @@
 
 #include <hwcrect.h>
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace hwcomposer {
 
@@ -104,8 +104,10 @@ enum DisplayPowerMode {
 };
 
 enum HWCColorTransform {
-  kIdentical = 0,       // Applies no transform to the output color
-  kArbitraryMatrix = 1  // Applies an arbitrary transform defined by a 4x4 affine matrix
+  // Applies no transform to the output color
+  kIdentical = 0,
+  // Applies an arbitrary transform defined by a 4x4 affine matrix
+  kArbitraryMatrix = 1
 };
 
 enum class HWCColorControl : int32_t {

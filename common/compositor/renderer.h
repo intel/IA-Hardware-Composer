@@ -17,8 +17,8 @@
 #ifndef COMMON_COMPOSITOR_RENDERER_H_
 #define COMMON_COMPOSITOR_RENDERER_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <vector>
 

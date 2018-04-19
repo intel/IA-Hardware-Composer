@@ -25,14 +25,14 @@
 
 #include "spinlock.h"
 
-#include "displayplanemanager.h"
 #include "displaymanager.h"
+#include "displayplanemanager.h"
 #include "drmdisplay.h"
 #include "drmscopedtypes.h"
 #include "hwcthread.h"
+#include "nesteddisplay.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
-#include "nesteddisplay.h"
 
 namespace hwcomposer {
 

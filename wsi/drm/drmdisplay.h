@@ -17,8 +17,8 @@
 #ifndef WSI_DRMDISPLAY_H_
 #define WSI_DRMDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <xf86drmMode.h>
 
 #include <drmscopedtypes.h>
@@ -27,8 +27,8 @@
 #include "physicaldisplay.h"
 
 #ifndef DRM_RGBA8888
-#define DRM_RGBA8888(r,g,b,a) DrmRGBA(8, r, g, b, a)
-#define DRM_RGBA16161616(r,g,b,a) DrmRGBA(16, r, g, b, a)
+#define DRM_RGBA8888(r, g, b, a) DrmRGBA(8, r, g, b, a)
+#define DRM_RGBA16161616(r, g, b, a) DrmRGBA(16, r, g, b, a)
 #endif
 
 namespace hwcomposer {
@@ -63,8 +63,9 @@ class DrmDisplay : public PhysicalDisplay {
                           uint32_t brightness) const override;
   void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
                           uint16_t blue, uint16_t alpha) const override;
-  void SetColorTransformMatrix(const float *color_transform_matrix,
-                               HWCColorTransform color_transform_hint) const override;
+  void SetColorTransformMatrix(
+      const float *color_transform_matrix,
+      HWCColorTransform color_transform_hint) const override;
   void Disable(const DisplayPlaneStateList &composition_planes) override;
   bool Commit(const DisplayPlaneStateList &composition_planes,
               const DisplayPlaneStateList &previous_composition_planes,

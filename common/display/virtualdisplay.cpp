@@ -21,8 +21,8 @@
 #include <hwclayer.h>
 #include <nativebufferhandler.h>
 
-#include <vector>
 #include <sstream>
+#include <vector>
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
@@ -102,8 +102,8 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
 
     layers.emplace_back();
-    OverlayLayer& overlay_layer = layers.back();
-    OverlayLayer* previous_layer = NULL;
+    OverlayLayer &overlay_layer = layers.back();
+    OverlayLayer *previous_layer = NULL;
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
     }
@@ -120,8 +120,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    if (!previous_layer ||
-        overlay_layer.HasLayerContentChanged() ||
+    if (!previous_layer || overlay_layer.HasLayerContentChanged() ||
         overlay_layer.HasDimensionsChanged()) {
       layers_changed = true;
     }
@@ -152,14 +151,14 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
   if (fence > 0) {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      HwcLayer* layer = source_layers.at(layer_index);
+      HwcLayer *layer = source_layers.at(layer_index);
       layer->SetReleaseFence(dup(fence));
     }
   } else {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      const OverlayLayer& overlay_layer =
+      const OverlayLayer &overlay_layer =
           in_flight_layers_.at(index.at(layer_index));
-      HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+      HwcLayer *layer = source_layers.at(overlay_layer.GetLayerIndex());
       layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
     }
   }

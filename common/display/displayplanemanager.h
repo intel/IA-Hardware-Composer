@@ -17,13 +17,13 @@
 #ifndef COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 #define COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 
-#include <memory>
 #include <map>
-#include <vector>
+#include <memory>
 #include <tuple>
+#include <vector>
 
-#include "displayplanestate.h"
 #include "displayplanehandler.h"
+#include "displayplanestate.h"
 
 namespace hwcomposer {
 
