@@ -1187,6 +1187,9 @@ static int iahwc_output_disable(struct weston_output *base) {
 static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
                           int64_t timestamp) {
   struct iahwc_output *output = data;
+  struct timespec ts;
+
+  weston_compositor_read_presentation_clock(output->base.compositor, &ts);
   lock(&output->spin_lock);
   // Take an avg of last two frame vsync events to reduce
   // any noise.
@@ -1199,7 +1202,7 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
       output->base.repaint_status == REPAINT_AWAITING_COMPLETION) {
     if (output->last_vsync_ts.tv_nsec <
         millihz_to_nsec(output->base.current_mode->refresh)) {
-      weston_output_finish_frame(&output->base, &output->last_vsync_ts,
+      weston_output_finish_frame(&output->base, &ts,
                                  WP_PRESENTATION_FEEDBACK_INVALID);
       unlock(&output->spin_lock);
       return 0;
@@ -1208,7 +1211,8 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
     uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
                      WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
                      WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
-    weston_output_finish_frame(&output->base, &output->last_vsync_ts, flags);
+    weston_output_finish_frame(&output->base, &ts, flags);
+
   }
 
   unlock(&output->spin_lock);
