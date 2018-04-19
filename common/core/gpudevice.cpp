@@ -188,7 +188,7 @@ void GpuDevice::HandleHWCSettings() {
           if (!value.compare(enable_str)) {
             rotate_display = true;
           }
-	  // Got float switch
+          // Got float switch
         } else if (!key.compare(key_float)) {
           if (!value.compare(enable_str)) {
             use_float = true;
@@ -346,8 +346,8 @@ void GpuDevice::HandleHWCSettings() {
 
           // Got display index
           std::getline(i_value, index_str, ':');
-          if (index_str.empty() || index_str.find_first_not_of("0123456789") !=
-            std::string::npos) {
+          if (index_str.empty() ||
+              index_str.find_first_not_of("0123456789") != std::string::npos) {
             continue;
           }
 
@@ -582,7 +582,7 @@ void GpuDevice::HandleHWCSettings() {
       int index = float_display_indices.at(i);
 
       // Ignore float index if out of range of connected displays
-      if ((size_t) index < num_displays) {
+      if ((size_t)index < num_displays) {
         const HwcRect<int32_t> &rect = float_displays.at(i);
         ret = total_displays_.at(index)->SetCustomResolution(rect);
       }

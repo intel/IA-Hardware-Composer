@@ -17,8 +17,8 @@
 #ifndef WSI_DRMPLANE_H_
 #define WSI_DRMPLANE_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <xf86drmMode.h>
 

@@ -22,13 +22,13 @@
 
 #include "disjoint_layers.h"
 #include "displayplanestate.h"
+#include "hwcdefs.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
 #include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
-#include "hwcutils.h"
-#include "hwcdefs.h"
 
 namespace hwcomposer {
 
@@ -316,8 +316,8 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
       [=](size_t layer_index) { return display_frame[layer_index]; });
   std::transform(source_layers.begin(), source_layers.end(),
                  layer_rects.begin() + layer_offset, [=](size_t layer_index) {
-    return display_frame[layer_index];
-  });
+                   return display_frame[layer_index];
+                 });
 
   std::vector<RectSet<int>> separate_regions;
   get_draw_regions(layer_rects, damage_region, &separate_regions);

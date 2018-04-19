@@ -16,14 +16,14 @@
 
 #include "drmplane.h"
 
-#include <cmath>
 #include <drm_fourcc.h>
+#include <cmath>
 
 #include <gpudevice.h>
 
 #include "hwctrace.h"
-#include "overlaylayer.h"
 #include "hwcutils.h"
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 

@@ -17,22 +17,22 @@
 #ifndef COMMON_CORE_NESTEDDISPLAY_H_
 #define COMMON_CORE_NESTEDDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#include <memory>
-#include <nativedisplay.h>
 #include <drm_fourcc.h>
+#include <nativedisplay.h>
+#include <memory>
 #ifdef NESTED_DISPLAY_SUPPORT
 #include <linux/hyper_dmabuf.h>
-#include <map>
-#include "drmbuffer.h"
-#include <utils/threads.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <utils/threads.h>
+#include <map>
+#include "compositor.h"
+#include "drmbuffer.h"
 #include "hwcthread.h"
 #include "hwctrace.h"
-#include "compositor.h"
 #include "resourcemanager.h"
 
 #define SURFACE_NAME_LENGTH 64

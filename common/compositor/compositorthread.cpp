@@ -16,15 +16,15 @@
 
 #include "compositorthread.h"
 
-#include "hwcutils.h"
+#include "displayplanemanager.h"
+#include "framebuffermanager.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
+#include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "resourcemanager.h"
-#include "framebuffermanager.h"
-#include "displayplanemanager.h"
-#include "nativesurface.h"
 
 #include <nativebufferhandler.h>
 

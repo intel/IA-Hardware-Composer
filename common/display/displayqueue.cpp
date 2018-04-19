@@ -16,18 +16,18 @@
 
 #include "displayqueue.h"
 
-#include <math.h>
 #include <hwcdefs.h>
 #include <hwclayer.h>
+#include <math.h>
 
 #include <vector>
 
 #include "displayplanemanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
+#include "nativesurface.h"
 #include "overlaylayer.h"
 #include "vblankeventhandler.h"
-#include "nativesurface.h"
 
 #include "physicaldisplay.h"
 #include "renderer.h"
@@ -1288,7 +1288,8 @@ void DisplayQueue::SetGamma(float red, float green, float blue) {
   state_ |= kNeedsColorCorrection;
 }
 
-void DisplayQueue::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+void DisplayQueue::SetColorTransform(const float* matrix,
+                                     HWCColorTransform hint) {
   color_transform_hint_ = hint;
 
   if (hint == HWCColorTransform::kArbitraryMatrix) {
