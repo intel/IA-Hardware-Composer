@@ -64,6 +64,35 @@ fi])
 
 AM_CONDITIONAL([ENABLE_VULKAN], [test "x$enable_vulkan" = "xyes"])
 
+# For prebuilt-shader
+AC_DEFINE(ENABLE_PREBUILT_SHADER_BIN_ARRAY, 0, [Enable built-in prebuilt shader array])
+
+AC_ARG_WITH([prebuilt-shader-pci-id],
+  [AS_HELP_STRING([--with-prebuilt-shader-pci-id@<:@=PCI ID in hex@:>@],
+     [PCI-ID of target GPU is required for using built-in pre-built shaders, e.g.
+     "0x0412" @<:@default=no@:>@])],
+     [prebuilt_shader_pci_id="$withval"],
+     [prebuilt_shader_pci_id=no])
+
+# check if shader-db exist
+SHADERDB_PATH=common/compositor/gl/gl_shader_pre_built/shader-db
+
+if test "x$prebuilt_shader_pci_id" != "xno"; then
+    SHADERDB_PATH=common/compositor/gl/gl_shader_pre_built/shader-db
+    AC_CHECK_FILES([$SHADERDB_PATH $SHADERDB_PATH/run
+                    $SHADERDB_PATH/intel_stub.so],
+                    shaderdb=yes, shaderdb=no)
+    if test "x$shaderdb" = "xyes"; then
+        PREBUILT_SHADER_FOR_PCI_ID="$withval"
+        AC_SUBST([PREBUILT_SHADER_FOR_PCI_ID])
+    else
+        prebuilt_shader_pci_id=no
+        AC_MSG_WARN([shader-db is not found at ($SHADERDB_PATH), ignoring prebuilt shaders])
+    fi
+fi
+
+AM_CONDITIONAL(ENABLE_PREBUILT_SHADER_BIN_ARRAY, test "x$prebuilt_shader_pci_id" != "xno")
+
 # For linux
 AC_ARG_ENABLE(linux-frontend,
 AS_HELP_STRING([--enable-linux-frontend],
@@ -232,6 +261,7 @@ AC_MSG_RESULT([
      Linux frontend           $enable_linux_frontend
      GBM                      $enable_gbm
      Hotplug Support          $disable_hotplug_support
+     Prebuilt Shader Target   PCI-ID($prebuilt_shader_pci_id)
 ])
 
 # Test both compositors aren't enabled.
