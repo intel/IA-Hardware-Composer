@@ -146,6 +146,10 @@ static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
   return 0;
 }
 
+#ifdef USE_PREBUILT_SHADER_BIN_ARRAY
+#include "glprebuiltshaderarray.h"
+#endif
+
 static GLint GenerateProgram(unsigned num_textures,
                              std::ostringstream *shader_log) {
   GLint status;
@@ -159,6 +163,27 @@ static GLint GenerateProgram(unsigned num_textures,
                   << "\n";
     return 0;
   }
+
+#ifdef USE_PREBUILT_SHADER_BIN_ARRAY
+  /* try to retrieve shader binary program from built-in arrays */
+
+  /* support only up to 16 layers */
+  if (num_textures > 0 && num_textures < 17) {
+    /* first long is the size of binary */
+    binary_sz = *(long *)shader_prog_arrays[num_textures - 1];
+    binary_prog =
+        (void *)(shader_prog_arrays[num_textures - 1] + sizeof(binary_sz));
+
+    status = LoadPreBuiltBinary(program, binary_prog, binary_sz);
+
+    if (status) {
+      if (shader_log)
+        *shader_log << "Pre-built shader program binary has been loaded "
+                    << "Successfully (from built-in arrays)\n";
+      return program;
+    }
+  }
+#endif
 
 #ifdef LOAD_PREBUILT_SHADER_FILE
 
