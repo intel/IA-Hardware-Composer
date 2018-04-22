@@ -736,7 +736,10 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
     src_h = (tbox.y2 - tbox.y1) << 8;
     pixman_region32_fini(&src_rect);
 
-    iahwc_rect_t source_crop = {0, 0, dest_w, dest_h};
+    src_w = src_w >> 16;
+    src_h = src_h >> 16;
+
+    iahwc_rect_t source_crop = {src_x, src_y, src_w + src_x, src_h + src_y};
 
     iahwc_rect_t display_frame = {dest_x, dest_y, dest_w + dest_x,
                                   dest_h + dest_y};
