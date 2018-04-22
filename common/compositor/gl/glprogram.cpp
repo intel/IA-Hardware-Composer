@@ -126,6 +126,7 @@ static std::string GenerateFragmentShader(int layer_count) {
   return fragment_shader_stream.str();
 }
 
+#if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
 static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
   GLint status;
 
@@ -145,6 +146,7 @@ static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
 
   return 0;
 }
+#endif
 
 #ifdef USE_PREBUILT_SHADER_BIN_ARRAY
 #include "glprebuiltshaderarray.h"
@@ -154,8 +156,10 @@ static GLint GenerateProgram(unsigned num_textures,
                              std::ostringstream *shader_log) {
   GLint status;
   GLint program = glCreateProgram();
+#if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
   void *binary_prog;
   long binary_sz;
+#endif
 
   if (!program) {
     if (shader_log)
