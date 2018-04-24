@@ -111,9 +111,8 @@ class VARenderer : public Renderer {
   void DestroyContext();
   bool LoadCaps();
   bool UpdateCaps();
-  uint32_t HWCRotationToVA(uint32_t transform);
-#if VA_MAJOR_VERSION > 1
-  uint32_t HWCReflectToVA(uint32_t transform);
+#if VA_MAJOR_VERSION >= 1
+  void HWCTransformToVA(uint32_t transform, uint32_t& rotation, uint32_t& mirror);
 #endif
 
   bool update_caps_ = false;
