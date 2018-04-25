@@ -161,5 +161,5 @@ class IAHWC : public iahwc_device {
   std::vector<IAHWCDisplay*> displays_;
 };
 
-} // namespace hwcomposer
+}  // namespace hwcomposer
 #endif

@@ -24,9 +24,9 @@
 
 #include <va/va_drm.h>
 
-#include <cstring>
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 
 #include <libsync.h>
 

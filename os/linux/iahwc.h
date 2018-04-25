@@ -176,8 +176,8 @@ typedef int (*IAHWC_PFN_CREATE_LAYER)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t* layer_handle);
 typedef int (*IAHWC_PFN_DESTROY_LAYER)(iahwc_device_t*,
-                                               iahwc_display_t display_handle,
-                                               iahwc_layer_t layer_handle);
+                                       iahwc_display_t display_handle,
+                                       iahwc_layer_t layer_handle);
 typedef int (*IAHWC_PFN_LAYER_SET_BO)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t layer_handle,

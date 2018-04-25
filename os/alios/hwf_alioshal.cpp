@@ -20,8 +20,8 @@
 #include <cutils/hwflinger_defs.h>
 
 #include <log/Log.h>
-#include <memory>
 #include <stdint.h>
+#include <memory>
 
 #include "hwctrace.h"
 

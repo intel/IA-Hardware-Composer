@@ -16,10 +16,10 @@
 
 #include "yallocbufferhandler.h"
 
-#include <unistd.h>
 #include <drm.h>
-#include <xf86drm.h>
 #include <drm_fourcc.h>
+#include <unistd.h>
+#include <xf86drm.h>
 
 #include <hwcdefs.h>
 #include <hwctrace.h>
@@ -60,7 +60,8 @@ YallocBufferHandler::~YallocBufferHandler() {
 }
 
 bool YallocBufferHandler::Init() {
-  VendorModule* module = (VendorModule*) LOAD_VENDOR_MODULE(YALLOC_VENDOR_MODULE_ID);
+  VendorModule *module =
+      (VendorModule *)LOAD_VENDOR_MODULE(YALLOC_VENDOR_MODULE_ID);
   if (module == NULL) {
     ETRACE("LOAD_VENDOR_MODULE Failed\n");
     return false;
@@ -101,21 +102,17 @@ bool YallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   uint32_t usage = 0;
   if ((layer_type == hwcomposer::kLayerNormal) || force_normal_usage) {
-    usage |= YALLOC_FLAG_HW_COMPOSER |
-             YALLOC_FLAG_HW_RENDER |
+    usage |= YALLOC_FLAG_HW_COMPOSER | YALLOC_FLAG_HW_RENDER |
              YALLOC_FLAG_HW_TEXTURE;
   } else if (layer_type == hwcomposer::kLayerVideo) {
     switch (pixel_format) {
       case YUN_HAL_FORMAT_YCbCr_422_I:
       case YUN_HAL_FORMAT_Y8:
-        usage |= YALLOC_FLAG_HW_TEXTURE |
-                 YALLOC_FLAG_HW_VIDEO_DECODER;
+        usage |= YALLOC_FLAG_HW_TEXTURE | YALLOC_FLAG_HW_VIDEO_DECODER;
         break;
       default:
-        usage |= YALLOC_FLAG_HW_CAMERA_WRITE |
-                 YALLOC_FLAG_HW_CAMERA_READ |
-                 YALLOC_FLAG_HW_VIDEO_ENCODER |
-                 YALLOC_FLAG_HW_TEXTURE;
+        usage |= YALLOC_FLAG_HW_CAMERA_WRITE | YALLOC_FLAG_HW_CAMERA_READ |
+                 YALLOC_FLAG_HW_VIDEO_ENCODER | YALLOC_FLAG_HW_TEXTURE;
     }
   } else if (layer_type == hwcomposer::kLayerCursor) {
     usage |= YALLOC_FLAG_CURSOR;
@@ -146,7 +143,7 @@ void YallocBufferHandler::DestroyHandle(HWCNativeHandle handle) const {
 }
 
 void YallocBufferHandler::CopyHandle(HWCNativeHandle source,
-                                  HWCNativeHandle *target) const {
+                                     HWCNativeHandle *target) const {
   CopyBufferHandle(source, target);
 }
 
@@ -162,7 +159,8 @@ bool YallocBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
 }
 
 uint32_t YallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
-  auto yr_handle = (struct yalloc_drm_handle_t *)handle->imported_target_->attributes.data;
+  auto yr_handle =
+      (struct yalloc_drm_handle_t *)handle->imported_target_->attributes.data;
   if (!yr_handle) {
     ETRACE("could not find yalloc drm handle");
     return false;
@@ -175,33 +173,34 @@ uint32_t YallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
 }
 
 void *YallocBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
-                            uint32_t width, uint32_t height, uint32_t *stride,
-                            void **map_data, size_t plane) const {
+                               uint32_t width, uint32_t height,
+                               uint32_t *stride, void **map_data,
+                               size_t plane) const {
   if (!handle->imported_target_) {
     ETRACE("could not find yalloc drm handle");
     return NULL;
   }
 
-  int error = device_->map(device_, handle->imported_target_,
-                       YALLOC_FLAG_SW_READ_OFTEN | YALLOC_FLAG_SW_WRITE_OFTEN,
-                       x, y, width, height, map_data);
+  int error =
+      device_->map(device_, handle->imported_target_,
+                   YALLOC_FLAG_SW_READ_OFTEN | YALLOC_FLAG_SW_WRITE_OFTEN, x, y,
+                   width, height, map_data);
 
   return error ? NULL : *map_data;
 }
 
-int32_t YallocBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) const {
-    if (!handle->imported_target_) {
-      ETRACE("could not find gralloc drm handle");
-      return -1;
-    }
+int32_t YallocBufferHandler::UnMap(HWCNativeHandle handle,
+                                   void *map_data) const {
+  if (!handle->imported_target_) {
+    ETRACE("could not find gralloc drm handle");
+    return -1;
+  }
 
-    return device_->unmap(device_, handle->imported_target_);
+  return device_->unmap(device_, handle->imported_target_);
 }
 
-uint32_t YallocBufferHandler::GetFd() const
-{
+uint32_t YallocBufferHandler::GetFd() const {
   return fd_;
 }
-
 
 }  // namespace hwcomposer

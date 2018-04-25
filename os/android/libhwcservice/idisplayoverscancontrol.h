@@ -17,8 +17,8 @@
 #ifndef OS_ANDROID_IDISPLAY_OVERSCAN_CONTROL_H_
 #define OS_ANDROID_IDISPLAY_OVERSCAN_CONTROL_H_
 
-#include "hwcservicehelper.h"
 #include <utils/RefBase.h>
+#include "hwcservicehelper.h"
 
 namespace hwcomposer {
 
