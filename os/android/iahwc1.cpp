@@ -24,10 +24,10 @@
 #include <sync/sync.h>
 
 #include <gpudevice.h>
-#include <hwclayer.h>
-#include <platformdefines.h>
 #include <hwcdefs.h>
+#include <hwclayer.h>
 #include <nativedisplay.h>
+#include <platformdefines.h>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -127,9 +127,10 @@ class IAVsyncCallback : public hwcomposer::VsyncCallback {
   }
 
   void Callback(uint32_t display, int64_t timestamp) {
-    procs_->vsync(procs_, display > 0 ? HWC_DISPLAY_EXTERNAL_BIT
-                                      : HWC_DISPLAY_PRIMARY_BIT,
-                  timestamp);
+    procs_->vsync(
+        procs_,
+        display > 0 ? HWC_DISPLAY_EXTERNAL_BIT : HWC_DISPLAY_PRIMARY_BIT,
+        timestamp);
   }
 
  private:
@@ -472,10 +473,10 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
   size_t size = extended.size();
   for (size_t i = 0; i < size; i++) {
     auto extended_callback = std::make_shared<IAVsyncCallback>(procs);
-    extended.at(i)
-        .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
+    extended.at(i).display_->RegisterVsyncCallback(std::move(extended_callback),
+                                                   1);
 
-	/* XXX/TODO Add hot plug registration for external displays */
+    /* XXX/TODO Add hot plug registration for external displays */
     auto extended_refresh_callback = std::make_shared<IARefreshCallback>(procs);
     extended.at(i).display_->RegisterRefreshCallback(
         std::move(extended_refresh_callback), static_cast<int>(1));
@@ -662,7 +663,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
 
   return 0;
 }
-}
+}  // namespace android
 
 static struct hw_module_methods_t hwc1_module_methods = {
     .open = android::hwc_device_open};

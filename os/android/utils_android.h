@@ -18,13 +18,13 @@
 #ifndef OS_UTILS_ANDROID_H_
 #define OS_UTILS_ANDROID_H_
 
-#include <xf86drmMode.h>
 #include <xf86drm.h>
+#include <xf86drmMode.h>
 
-#include <stdint.h>
 #include <drm_fourcc.h>
-#include <system/graphics.h>
 #include <hardware/gralloc1.h>
+#include <stdint.h>
+#include <system/graphics.h>
 
 #include "platformdefines.h"
 
@@ -179,7 +179,7 @@ static uint32_t DrmFormatToHALFormat(int format) {
 
 static native_handle_t *dup_buffer_handle(buffer_handle_t handle) {
   native_handle_t *new_handle = native_handle_clone(handle);
-  if(new_handle == NULL)
+  if (new_handle == NULL)
     ETRACE("failed to duplicate the handle");
   return new_handle;
 }

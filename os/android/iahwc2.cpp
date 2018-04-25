@@ -32,9 +32,9 @@
 #include <nativedisplay.h>
 #include "mosaicdisplay.h"
 
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace android {
@@ -1027,8 +1027,9 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           DeviceHook<int32_t, decltype(&IAHWC2::DestroyVirtualDisplay),
                      &IAHWC2::DestroyVirtualDisplay, hwc2_display_t>);
     case HWC2::FunctionDescriptor::Dump:
-      return ToHook<HWC2_PFN_DUMP>(DeviceHook<
-          void, decltype(&IAHWC2::Dump), &IAHWC2::Dump, uint32_t *, char *>);
+      return ToHook<HWC2_PFN_DUMP>(
+          DeviceHook<void, decltype(&IAHWC2::Dump), &IAHWC2::Dump, uint32_t *,
+                     char *>);
     case HWC2::FunctionDescriptor::GetMaxVirtualDisplayCount:
       return ToHook<HWC2_PFN_GET_MAX_VIRTUAL_DISPLAY_COUNT>(
           DeviceHook<uint32_t, decltype(&IAHWC2::GetMaxVirtualDisplayCount),
@@ -1071,13 +1072,15 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           DisplayHook<decltype(&HwcDisplay::GetColorModes),
                       &HwcDisplay::GetColorModes, uint32_t *, int32_t *>);
     case HWC2::FunctionDescriptor::GetDisplayAttribute:
-      return ToHook<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(DisplayHook<
-          decltype(&HwcDisplay::GetDisplayAttribute),
-          &HwcDisplay::GetDisplayAttribute, hwc2_config_t, int32_t, int32_t *>);
+      return ToHook<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayAttribute),
+                      &HwcDisplay::GetDisplayAttribute, hwc2_config_t, int32_t,
+                      int32_t *>);
     case HWC2::FunctionDescriptor::GetDisplayConfigs:
-      return ToHook<HWC2_PFN_GET_DISPLAY_CONFIGS>(DisplayHook<
-          decltype(&HwcDisplay::GetDisplayConfigs),
-          &HwcDisplay::GetDisplayConfigs, uint32_t *, hwc2_config_t *>);
+      return ToHook<HWC2_PFN_GET_DISPLAY_CONFIGS>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayConfigs),
+                      &HwcDisplay::GetDisplayConfigs, uint32_t *,
+                      hwc2_config_t *>);
     case HWC2::FunctionDescriptor::GetDisplayName:
       return ToHook<HWC2_PFN_GET_DISPLAY_NAME>(
           DisplayHook<decltype(&HwcDisplay::GetDisplayName),
@@ -1114,9 +1117,10 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           DisplayHook<decltype(&HwcDisplay::SetActiveConfig),
                       &HwcDisplay::SetActiveConfig, hwc2_config_t>);
     case HWC2::FunctionDescriptor::SetClientTarget:
-      return ToHook<HWC2_PFN_SET_CLIENT_TARGET>(DisplayHook<
-          decltype(&HwcDisplay::SetClientTarget), &HwcDisplay::SetClientTarget,
-          buffer_handle_t, int32_t, int32_t, hwc_region_t>);
+      return ToHook<HWC2_PFN_SET_CLIENT_TARGET>(
+          DisplayHook<decltype(&HwcDisplay::SetClientTarget),
+                      &HwcDisplay::SetClientTarget, buffer_handle_t, int32_t,
+                      int32_t, hwc_region_t>);
     case HWC2::FunctionDescriptor::SetColorMode:
       return ToHook<HWC2_PFN_SET_COLOR_MODE>(
           DisplayHook<decltype(&HwcDisplay::SetColorMode),
@@ -1176,9 +1180,10 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           LayerHook<decltype(&Hwc2Layer::SetLayerPlaneAlpha),
                     &Hwc2Layer::SetLayerPlaneAlpha, float>);
     case HWC2::FunctionDescriptor::SetLayerSidebandStream:
-      return ToHook<HWC2_PFN_SET_LAYER_SIDEBAND_STREAM>(LayerHook<
-          decltype(&Hwc2Layer::SetLayerSidebandStream),
-          &Hwc2Layer::SetLayerSidebandStream, const native_handle_t *>);
+      return ToHook<HWC2_PFN_SET_LAYER_SIDEBAND_STREAM>(
+          LayerHook<decltype(&Hwc2Layer::SetLayerSidebandStream),
+                    &Hwc2Layer::SetLayerSidebandStream,
+                    const native_handle_t *>);
     case HWC2::FunctionDescriptor::SetLayerSourceCrop:
       return ToHook<HWC2_PFN_SET_LAYER_SOURCE_CROP>(
           LayerHook<decltype(&Hwc2Layer::SetLayerSourceCrop),

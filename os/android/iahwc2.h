@@ -31,7 +31,7 @@
 namespace hwcomposer {
 class GpuDevice;
 class NativeDisplay;
-}
+}  // namespace hwcomposer
 
 namespace android {
 class HwcService;

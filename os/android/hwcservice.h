@@ -168,6 +168,6 @@ class HwcService : public BnService {
 
   std::vector<Notification> mNotifications;
 };
-}  // android
+}  // namespace android
 
 #endif  // OS_ANDROID_HWCSERVICE_H_
