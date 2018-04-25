@@ -32,9 +32,9 @@
 #include <nativedisplay.h>
 #include "mosaicdisplay.h"
 
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace android {

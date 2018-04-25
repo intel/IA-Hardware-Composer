@@ -16,10 +16,10 @@
 
 #include "gralloc1bufferhandler.h"
 
+#include <cutils/native_handle.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
-#include <cutils/native_handle.h>
 
 #include <hwcdefs.h>
 #include <hwctrace.h>

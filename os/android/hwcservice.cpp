@@ -19,8 +19,8 @@
 #include <binder/IServiceManager.h>
 #include <binder/Parcel.h>
 #include <binder/ProcessState.h>
-#include "iahwc2.h"
 #include "hwcdefs.h"
+#include "iahwc2.h"
 
 #define HWC_VERSION_STRING                                             \
   "VERSION:HWC 2.0 GIT Branch & Latest Commit:" HWC_VERSION_GIT_BRANCH \
@@ -80,7 +80,7 @@ bool HwcService::Start(IAHWC2 &hwc) {
     ALOGE("Failed to start %s service", IA_HWC_SERVICE_NAME);
     return false;
   }
-  initialized_=true;
+  initialized_ = true;
   return true;
 }
 
@@ -460,4 +460,4 @@ void HwcService::Notify(ENotification notify, int32_t paraCnt, int64_t para[]) {
   // TO DO
 }
 
-}  //  android
+}  // namespace android
