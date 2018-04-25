@@ -51,10 +51,17 @@
 namespace hwcomposer {
 
 DrmBuffer::~DrmBuffer() {
+  bool texture_initialized = false;
+#if USE_GL
+  texture_initialized = image_.texture_ > 0;
+#elif USE_VK
+  texture_initialized = image_.texture_ != VK_NULL_HANDLE;
+#endif
+
   if (media_image_.surface_ == VA_INVALID_ID) {
-    resource_manager_->MarkResourceForDeletion(image_, image_.texture_ > 0);
+    resource_manager_->MarkResourceForDeletion(image_, texture_initialized);
   } else {
-    if (image_.texture_ > 0) {
+    if (texture_initialized) {
       image_.handle_ = 0;
       image_.drm_fd_ = 0;
       resource_manager_->MarkResourceForDeletion(image_, true);
@@ -113,8 +120,8 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
 
 const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
                                                 bool external_import) {
+#if USE_GL
   if (image_.image_ == 0) {
-#ifdef USE_GL
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
     uint32_t total_planes = image_.handle_->meta_data_.num_planes_;
     // Note: If eglCreateImageKHR is successful for a EGL_LINUX_DMA_BUF_EXT
@@ -241,47 +248,9 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
       ETRACE("eglCreateKHR failed to create image for DrmBuffer");
     }
     image_.image_ = image;
-#elif USE_VK
-    struct vk_import import;
 
-    PFN_vkCreateDmaBufImageINTEL vkCreateDmaBufImageINTEL =
-        (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
-            egl_display, "vkCreateDmaBufImageINTEL");
-    if (vkCreateDmaBufImageINTEL == NULL) {
-      ETRACE("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
-      import.res = VK_ERROR_INITIALIZATION_FAILED;
-      return import;
-    }
-
-    VkFormat vk_format = NativeToVkFormat(format_);
-    if (vk_format == VK_FORMAT_UNDEFINED) {
-      ETRACE("Failed DRM -> Vulkan format conversion\n");
-      import.res = VK_ERROR_FORMAT_NOT_SUPPORTED;
-      return import;
-    }
-
-    VkExtent3D image_extent = {};
-    image_extent.width = width_;
-    image_extent.height = height_;
-    image_extent.depth = 1;
-
-    VkDmaBufImageCreateInfo image_create = {};
-    image_create.sType =
-        (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
-    image_create.fd =
-        static_cast<int>(image_.handle_->meta_data_.prime_fds_[0]);
-    image_create.format = vk_format;
-    image_create.extent = image_extent;
-    image_create.strideInBytes = pitches_[0];
-
-    import.res = vkCreateDmaBufImageINTEL(egl_display, &image_create, NULL,
-                                          &import.memory, &import.image);
-
-    image_ = import;
-#endif
   }
 
-#ifdef USE_GL
   GLenum target = GL_TEXTURE_EXTERNAL_OES;
   if (!external_import) {
     target = GL_TEXTURE_2D;
@@ -301,11 +270,44 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
   if (!external_import && image_.fb_ == 0) {
     glGenFramebuffers(1, &image_.fb_);
   }
-
 #elif USE_VK
-  ETRACE("Missing implementation for creating FB and Texture with Vulkan. \n");
-#endif
+  if (image_.image_ == VK_NULL_HANDLE) {
+    VkDevice dev = egl_display;
+    VkResult res;
 
+    PFN_vkCreateDmaBufImageINTEL vkCreateDmaBufImageINTEL =
+        (PFN_vkCreateDmaBufImageINTEL)vkGetDeviceProcAddr(
+            dev, "vkCreateDmaBufImageINTEL");
+    if (vkCreateDmaBufImageINTEL == NULL) {
+      ETRACE("vkGetDeviceProcAddr(\"vkCreateDmaBufImageINTEL\") failed\n");
+    }
+
+    VkFormat vk_format = NativeToVkFormat(format_);
+    if (vk_format == VK_FORMAT_UNDEFINED) {
+      ETRACE("Failed DRM -> Vulkan format conversion\n");
+    }
+
+    VkExtent3D image_extent = {};
+    image_extent.width = width_;
+    image_extent.height = height_;
+    image_extent.depth = 1;
+
+    VkDmaBufImageCreateInfo image_create = {};
+    image_create.sType =
+        (enum VkStructureType)VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL;
+    image_create.fd =
+        static_cast<int>(image_.handle_->meta_data_.prime_fds_[0]);
+    image_create.format = vk_format;
+    image_create.extent = image_extent;
+    image_create.strideInBytes = pitches_[0];
+
+    res = vkCreateDmaBufImageINTEL(dev, &image_create, NULL, &image_.memory_,
+                                   &image_.image_);
+    if (res != VK_SUCCESS) {
+      ETRACE("vkCreateDmaBufImageINTEL failed\n");
+    }
+  }
+#endif
   return image_;
 }
 
