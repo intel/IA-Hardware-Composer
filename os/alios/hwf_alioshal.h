@@ -20,10 +20,10 @@
 #include <cutils/hwflinger.h>
 #include <cutils/hwflinger_defs.h>
 
-#include <nativedisplay.h>
-#include <hwclayer.h>
-#include <gpudevice.h>
 #include <fcntl.h>
+#include <gpudevice.h>
+#include <hwclayer.h>
+#include <nativedisplay.h>
 
 #include <Hal.h>
 
@@ -179,6 +179,6 @@ class ia_hwf_yunhal {
 
   HwfDevice* get_hwf_hw();
 };
-}
+}  // namespace hwcomposer
 
 #endif

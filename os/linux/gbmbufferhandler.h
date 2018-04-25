@@ -57,5 +57,5 @@ class GbmBufferHandler : public NativeBufferHandler {
   uint64_t preferred_cursor_height_;
 };
 
-}  // namespace hardware
+}  // namespace hwcomposer
 #endif  // OS_LINUX_GBMBUFFERHANDLER_H_

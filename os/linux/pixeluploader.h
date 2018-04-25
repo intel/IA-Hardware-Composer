@@ -17,8 +17,8 @@
 #ifndef OS_LINUX_PIXELUPLOADER_H_
 #define OS_LINUX_PIXELUPLOADER_H_
 
-#include <spinlock.h>
 #include <platformdefines.h>
+#include <spinlock.h>
 
 #include <memory>
 #include <vector>

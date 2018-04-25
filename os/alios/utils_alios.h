@@ -21,11 +21,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <xf86drmMode.h>
 #include <xf86drm.h>
+#include <xf86drmMode.h>
 
-#include <stdint.h>
 #include <drm_fourcc.h>
+#include <stdint.h>
 
 #include "platformdefines.h"
 
@@ -53,157 +53,157 @@ static uint32_t GetDrmFormatFromHALFormat(int format) {
   switch (format) {
     case YUN_HAL_FORMAT_RGBA_8888:
     case YUN_HAL_FORMAT_sRGB_A_8888:
-        ret = DRM_FORMAT_ABGR8888;
-        break;
+      ret = DRM_FORMAT_ABGR8888;
+      break;
 
     case YUN_HAL_FORMAT_RGBX_8888:
     case YUN_HAL_FORMAT_sRGB_X_8888:
-        ret = DRM_FORMAT_XBGR8888;
-        break;
+      ret = DRM_FORMAT_XBGR8888;
+      break;
 
     case YUN_HAL_FORMAT_RGB_888:
-        ret = DRM_FORMAT_BGR888;
-        break;
+      ret = DRM_FORMAT_BGR888;
+      break;
 
     case YUN_HAL_FORMAT_RGB_565:
-        ret = DRM_FORMAT_RGB565;
-        break;
+      ret = DRM_FORMAT_RGB565;
+      break;
 
     case YUN_HAL_FORMAT_BGRA_8888:
     case YUN_HAL_FORMAT_sBGR_A_8888:
-        ret = DRM_FORMAT_ARGB8888;
-        break;
+      ret = DRM_FORMAT_ARGB8888;
+      break;
 
     case YUN_HAL_FORMAT_BGRX_8888:
     case YUN_HAL_FORMAT_sBGR_X_8888:
-        ret = DRM_FORMAT_XRGB8888;
-        break;
+      ret = DRM_FORMAT_XRGB8888;
+      break;
 
     case YUN_HAL_FORMAT_I420:
-        ret = DRM_FORMAT_YUV420;
-        break;
+      ret = DRM_FORMAT_YUV420;
+      break;
 
     case YUN_HAL_FORMAT_YV12:
-        ret = DRM_FORMAT_YVU420;
-        break;
+      ret = DRM_FORMAT_YVU420;
+      break;
 
     case YUN_HAL_FORMAT_NV12:
     case YUN_HAL_FORMAT_DRM_NV12:
-        ret = DRM_FORMAT_NV12;
-        break;
+      ret = DRM_FORMAT_NV12;
+      break;
 
     case YUN_HAL_FORMAT_NV21:
     case YUN_HAL_FORMAT_YCrCb_420_SP:
-        ret = DRM_FORMAT_NV21;
-        break;
+      ret = DRM_FORMAT_NV21;
+      break;
 
     case YUN_HAL_FORMAT_NV16:
     case YUN_HAL_FORMAT_YCbCr_422_SP:
-        ret = DRM_FORMAT_NV16;
-        break;
+      ret = DRM_FORMAT_NV16;
+      break;
 
     case YUN_HAL_FORMAT_NV61:
-        ret = DRM_FORMAT_NV61;
-        break;
+      ret = DRM_FORMAT_NV61;
+      break;
 
     case YUN_HAL_FORMAT_UYVY:
-        ret = DRM_FORMAT_UYVY;
-        break;
+      ret = DRM_FORMAT_UYVY;
+      break;
 
     case YUN_HAL_FORMAT_VYUY:
-        ret = DRM_FORMAT_VYUY;
-        break;
+      ret = DRM_FORMAT_VYUY;
+      break;
 
     case YUN_HAL_FORMAT_YUYV:
     case YUN_HAL_FORMAT_YCbCr_422_I:
-        ret = DRM_FORMAT_YUYV;
-        break;
+      ret = DRM_FORMAT_YUYV;
+      break;
 
     case YUN_HAL_FORMAT_YVYU:
-        ret = DRM_FORMAT_YVYU;
-        break;
+      ret = DRM_FORMAT_YVYU;
+      break;
 
     default:
-    ETRACE("GetDrmFormatFromHALFormat --> can't get format. \n");
+      ETRACE("GetDrmFormatFromHALFormat --> can't get format. \n");
       break;
   }
 
-  ITRACE("GetDrmFormatFromHALFormat --> Format: %c%c%c%c.\n", ret,
-      ret >> 8, ret >> 16, ret >> 24);
+  ITRACE("GetDrmFormatFromHALFormat --> Format: %c%c%c%c.\n", ret, ret >> 8,
+         ret >> 16, ret >> 24);
 
   return ret;
 }
 
 static uint32_t DrmFormatToHALFormat(int format) {
-  ITRACE("DrmFormatToHALFormat --> Format: %c%c%c%c.\n", format,
-    format >> 8, format >> 16, format >> 24);
+  ITRACE("DrmFormatToHALFormat --> Format: %c%c%c%c.\n", format, format >> 8,
+         format >> 16, format >> 24);
   int ret = 0;
 
   switch (format) {
     /* Use below code validated from Yalloc. */
     case DRM_FORMAT_ABGR8888:
-        ret = YUN_HAL_FORMAT_RGBA_8888;
-        break;
+      ret = YUN_HAL_FORMAT_RGBA_8888;
+      break;
 
     case DRM_FORMAT_XBGR8888:
-        ret = YUN_HAL_FORMAT_RGBX_8888;
-        break;
+      ret = YUN_HAL_FORMAT_RGBX_8888;
+      break;
 
     case DRM_FORMAT_BGR888:
-        ret = YUN_HAL_FORMAT_RGB_888;
-        break;
+      ret = YUN_HAL_FORMAT_RGB_888;
+      break;
 
     case DRM_FORMAT_RGB565:
-        ret = YUN_HAL_FORMAT_RGB_565;
-        break;
+      ret = YUN_HAL_FORMAT_RGB_565;
+      break;
 
     case DRM_FORMAT_ARGB8888:
-        ret = YUN_HAL_FORMAT_BGRA_8888;
-        break;
+      ret = YUN_HAL_FORMAT_BGRA_8888;
+      break;
 
     case DRM_FORMAT_XRGB8888:
-        ret = YUN_HAL_FORMAT_BGRX_8888;
-        break;
+      ret = YUN_HAL_FORMAT_BGRX_8888;
+      break;
 
     case YUN_HAL_FORMAT_I420:
-        ret = DRM_FORMAT_YUV420;
-        break;
+      ret = DRM_FORMAT_YUV420;
+      break;
 
     case DRM_FORMAT_YUV420:
-        ret = YUN_HAL_FORMAT_YV12;
-        break;
+      ret = YUN_HAL_FORMAT_YV12;
+      break;
 
     case DRM_FORMAT_NV12:
-        ret = YUN_HAL_FORMAT_NV12;
-        break;
+      ret = YUN_HAL_FORMAT_NV12;
+      break;
 
     case DRM_FORMAT_NV21:
-        ret = YUN_HAL_FORMAT_NV21;
-        break;
+      ret = YUN_HAL_FORMAT_NV21;
+      break;
 
     case DRM_FORMAT_NV16:
-        ret = YUN_HAL_FORMAT_NV16;
-        break;
+      ret = YUN_HAL_FORMAT_NV16;
+      break;
 
     case DRM_FORMAT_NV61:
-        ret = YUN_HAL_FORMAT_NV61;
-        break;
+      ret = YUN_HAL_FORMAT_NV61;
+      break;
 
     case DRM_FORMAT_UYVY:
-        ret = YUN_HAL_FORMAT_UYVY;
-        break;
+      ret = YUN_HAL_FORMAT_UYVY;
+      break;
 
     case DRM_FORMAT_VYUY:
-        ret = YUN_HAL_FORMAT_VYUY;
-        break;
+      ret = YUN_HAL_FORMAT_VYUY;
+      break;
 
     case DRM_FORMAT_YUYV:
-        ret = YUN_HAL_FORMAT_YUYV;
-        break;
+      ret = YUN_HAL_FORMAT_YUYV;
+      break;
 
     case DRM_FORMAT_YVYU:
-        ret = YUN_HAL_FORMAT_YVYU;
-        break;
+      ret = YUN_HAL_FORMAT_YVYU;
+      break;
 
     default:
       ETRACE("DrmFormatToHALFormat --> Error Format @ line: %d.\n", __LINE__);
@@ -214,8 +214,8 @@ static uint32_t DrmFormatToHALFormat(int format) {
   return ret;
 }
 
-static native_target_t* dup_buffer_handle(gb_target_t handle) {
-  native_target_t* new_handle =
+static native_target_t *dup_buffer_handle(gb_target_t handle) {
+  native_target_t *new_handle =
       native_target_create(handle->fds.num, handle->attributes.num);
   if (new_handle == NULL)
     return NULL;
@@ -237,7 +237,7 @@ static native_target_t* dup_buffer_handle(gb_target_t handle) {
   return new_handle;
 }
 
-static void free_buffer_handle(native_target_t* handle) {
+static void free_buffer_handle(native_target_t *handle) {
   int ret = native_target_close(handle);
   if (ret)
     ETRACE("Failed to close native target %d", ret);

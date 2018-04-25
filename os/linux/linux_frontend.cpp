@@ -65,13 +65,12 @@ class IAPixelUploaderCallback : public hwcomposer::RawPixelUploadCallback {
 class IAHWCHotPlugEventCallback : public hwcomposer::HotPlugCallback {
  public:
   IAHWCHotPlugEventCallback(iahwc_callback_data_t data,
-                         iahwc_function_ptr_t hook,
-                         IAHWC::IAHWCDisplay *display)
+                            iahwc_function_ptr_t hook,
+                            IAHWC::IAHWCDisplay* display)
       : data_(data), hook_(hook), display_(display) {
   }
 
   void Callback(uint32_t display, bool connected) {
-
     auto hook = reinterpret_cast<IAHWC_PFN_HOTPLUG>(hook_);
     uint32_t status;
     if (connected) {
@@ -86,13 +85,12 @@ class IAHWCHotPlugEventCallback : public hwcomposer::HotPlugCallback {
 
     if (hook)
       hook(data_, display, status);
-
   }
 
  private:
   iahwc_callback_data_t data_;
   iahwc_function_ptr_t hook_;
-  IAHWC::IAHWCDisplay *display_;
+  IAHWC::IAHWCDisplay* display_;
 };
 
 IAHWC::IAHWC() {
@@ -265,13 +263,13 @@ int IAHWC::RegisterCallback(int32_t description, uint32_t display_id,
       display->RegisterPixelUploaderCallback(data, hook);
       return IAHWC_ERROR_NONE;
     }
-  case IAHWC_CALLBACK_HOTPLUG: {
-    if (display_id >= displays_.size())
-      return IAHWC_ERROR_BAD_DISPLAY;
-    for (auto display : displays_)
-      display->RegisterHotPlugCallback(data, hook);
-    return IAHWC_ERROR_NONE;
-  }
+    case IAHWC_CALLBACK_HOTPLUG: {
+      if (display_id >= displays_.size())
+        return IAHWC_ERROR_BAD_DISPLAY;
+      for (auto display : displays_)
+        display->RegisterHotPlugCallback(data, hook);
+      return IAHWC_ERROR_NONE;
+    }
 
     default:
       return IAHWC_ERROR_BAD_PARAMETER;
@@ -390,12 +388,12 @@ void IAHWC::IAHWCDisplay::Synchronize() {
   raw_data_uploader_->Synchronize();
 }
 
-int IAHWC::IAHWCDisplay::RegisterHotPlugCallback(
-  iahwc_callback_data_t data, iahwc_function_ptr_t func) {
+int IAHWC::IAHWCDisplay::RegisterHotPlugCallback(iahwc_callback_data_t data,
+                                                 iahwc_function_ptr_t func) {
   auto callback = std::make_shared<IAHWCHotPlugEventCallback>(data, func, this);
-  //TODO:XXX send proper handle
+  // TODO:XXX send proper handle
   native_display_->RegisterHotPlugCallback(std::move(callback),
-                                    static_cast<int>(0));
+                                           static_cast<int>(0));
   return IAHWC_ERROR_NONE;
 }
 
@@ -697,6 +695,6 @@ void IAHWC::IAHWCLayer::ClosePrimeHandles() {
 }  // namespace hwcomposer
 
 iahwc_module_t IAHWC_MODULE_INFO = {
-  .name = "IA Hardware Composer",
-  .open = hwcomposer::IAHWC::HookOpen,
+    .name = "IA Hardware Composer",
+    .open = hwcomposer::IAHWC::HookOpen,
 };

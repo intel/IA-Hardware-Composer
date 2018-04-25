@@ -20,8 +20,8 @@
 #include <cutils/hwflinger_defs.h>
 
 #include <log/Log.h>
-#include <memory>
 #include <stdint.h>
+#include <memory>
 
 #include "hwctrace.h"
 
@@ -441,12 +441,12 @@ void HwfDevice::registerCallback(struct hwf_device_t *device,
   size_t size = extended.size();
   for (size_t i = 0; i < size; i++) {
     auto extended_callback = std::make_shared<IAVsyncCallback>(callback);
-    extended.at(i)
-        .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
+    extended.at(i).display_->RegisterVsyncCallback(std::move(extended_callback),
+                                                   1);
 
     auto hotplug_callback = std::make_shared<IAHotPlugEventCallback>(callback);
-    extended.at(i)
-        .display_->RegisterHotPlugCallback(std::move(hotplug_callback), 1);
+    extended.at(i).display_->RegisterHotPlugCallback(
+        std::move(hotplug_callback), 1);
   }
 
   return;

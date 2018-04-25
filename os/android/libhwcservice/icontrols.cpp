@@ -15,8 +15,8 @@
 */
 
 #include "icontrols.h"
-#include <utils/String8.h>
 #include <binder/IPCThreadState.h>
+#include <utils/String8.h>
 
 // For AID_ROOT & AID_MEDIA - various vendor code and utils include this despite
 // the path.
