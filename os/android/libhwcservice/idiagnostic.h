@@ -56,6 +56,6 @@ class BnDiagnostic : public android::BnInterface<IDiagnostic> {
   status_t onTransact(uint32_t, const Parcel&, Parcel*, uint32_t) override;
 };
 
-}  // hwcomposer
+}  // namespace hwcomposer
 
 #endif  // OS_ANDROID_HWC_IDIAGNOSTIC_H

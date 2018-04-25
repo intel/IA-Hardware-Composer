@@ -1,13 +1,13 @@
 #ifndef OS_ALIOS_PLATFORMDEFINES_H_
 #define OS_ALIOS_PLATFORMDEFINES_H_
 
-#include <string.h>
-#include <cstdint>
 #include <hwcbuffer.h>
 #include <log/Log.h>
+#include <string.h>
+#include <cstdint>
 
-#include "platformcommondefines.h"
 #include <cutils/native_target.h>
+#include "platformcommondefines.h"
 
 #define LOG_TAG "IAHWF"
 
@@ -29,40 +29,44 @@ extern "C" {
 #endif
 
 /************ FROM MESA 17+ *************/
-#define fourcc_code(a, b, c, d) ((__u32)(a) | ((__u32)(b) << 8) | \
-				 ((__u32)(c) << 16) | ((__u32)(d) << 24))
+#define fourcc_code(a, b, c, d) \
+  ((__u32)(a) | ((__u32)(b) << 8) | ((__u32)(c) << 16) | ((__u32)(d) << 24))
 
 /*
  * 2 plane YCbCr MSB aligned
  * index 0 = Y plane, [15:0] Y:x [10:6] little endian
  * index 1 = Cr:Cb plane, [31:0] Cr:x:Cb:x [10:6:10:6] little endian
  */
-#define DRM_FORMAT_P010		fourcc_code('P', '0', '1', '0') /* 2x2 subsampled Cr:Cb plane 10 bits per channel */
+/* 2x2 subsampled Cr:Cb plane 10 bits per channel */
+#define DRM_FORMAT_P010 fourcc_code('P', '0', '1', '0')
 
 /*
  * 2 plane YCbCr MSB aligned
  * index 0 = Y plane, [15:0] Y:x [12:4] little endian
  * index 1 = Cr:Cb plane, [31:0] Cr:x:Cb:x [12:4:12:4] little endian
  */
-#define DRM_FORMAT_P012		fourcc_code('P', '0', '1', '2') /* 2x2 subsampled Cr:Cb plane 12 bits per channel */
+/* 2x2 subsampled Cr:Cb plane 12 bits per channel */
+#define DRM_FORMAT_P012 fourcc_code('P', '0', '1', '2')
 
 /*
  * 2 plane YCbCr MSB aligned
  * index 0 = Y plane, [15:0] Y little endian
  * index 1 = Cr:Cb plane, [31:0] Cr:Cb [16:16] little endian
  */
-#define DRM_FORMAT_P016		fourcc_code('P', '0', '1', '6') /* 2x2 subsampled Cr:Cb plane 16 bits per channel */
+/* 2x2 subsampled Cr:Cb plane 16 bits per channel */
+#define DRM_FORMAT_P016 fourcc_code('P', '0', '1', '6')
 
 /* 16 bpp Red */
-#define DRM_FORMAT_R16		fourcc_code('R', '1', '6', ' ') /* [15:0] R little endian */
+/* [15:0] R little endian */
+#define DRM_FORMAT_R16 fourcc_code('R', '1', '6', ' ')
 
-#define DRM_MODE_ROTATE_0       (1<<0)
-#define DRM_MODE_ROTATE_90      (1<<1)
-#define DRM_MODE_ROTATE_180     (1<<2)
-#define DRM_MODE_ROTATE_270     (1<<3)
+#define DRM_MODE_ROTATE_0 (1 << 0)
+#define DRM_MODE_ROTATE_90 (1 << 1)
+#define DRM_MODE_ROTATE_180 (1 << 2)
+#define DRM_MODE_ROTATE_270 (1 << 3)
 
-#define DRM_MODE_REFLECT_X      (1<<4)
-#define DRM_MODE_REFLECT_Y      (1<<5)
+#define DRM_MODE_REFLECT_X (1 << 4)
+#define DRM_MODE_REFLECT_Y (1 << 5)
 
 /*************************/
 
@@ -101,7 +105,6 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   }
   return id;
 }
-
 
 // _cplusplus
 #ifdef _cplusplus

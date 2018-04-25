@@ -15,9 +15,9 @@
 */
 
 #include "idiagnostic.h"
-#include <utils/String8.h>
-#include <binder/Parcel.h>
 #include <binder/IInterface.h>
+#include <binder/Parcel.h>
+#include <utils/String8.h>
 
 namespace hwcomposer {
 

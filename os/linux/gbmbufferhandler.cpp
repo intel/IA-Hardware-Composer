@@ -16,10 +16,10 @@
 
 #include "gbmbufferhandler.h"
 
-#include <unistd.h>
 #include <drm.h>
-#include <xf86drm.h>
 #include <drm_fourcc.h>
+#include <unistd.h>
+#include <xf86drm.h>
 
 #include <hwcdefs.h>
 #include <hwctrace.h>

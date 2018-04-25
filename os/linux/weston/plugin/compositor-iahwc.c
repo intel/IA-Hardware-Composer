@@ -1215,7 +1215,6 @@ static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
                      WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
                      WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
     weston_output_finish_frame(&output->base, &ts, flags);
-
   }
 
   unlock(&output->spin_lock);
@@ -1402,9 +1401,9 @@ static void session_notify(struct wl_listener *listener, void *data) {
   }
 }
 
-static void
-planes_binding(struct weston_keyboard *keyboard, const struct timespec* time,
-               uint32_t key, void *data) {
+static void planes_binding(struct weston_keyboard *keyboard,
+                           const struct timespec *time, uint32_t key,
+                           void *data) {
   struct iahwc_backend *b = data;
 
   switch (key) {
@@ -1433,7 +1432,7 @@ static struct iahwc_backend *iahwc_backend_create(
   iahwc_module_t *iahwc_module;
   iahwc_device_t *iahwc_device;
 
-  const char* device = "/dev/dri/renderD128";
+  const char *device = "/dev/dri/renderD128";
   const char *seat_id = default_seat;
 
   weston_log("Initializing iahwc backend\n");
@@ -1464,8 +1463,9 @@ static struct iahwc_backend *iahwc_backend_create(
           iahwc_device, IAHWC_FUNC_GET_NUM_DISPLAYS);
   b->iahwc_create_layer = (IAHWC_PFN_CREATE_LAYER)iahwc_device->getFunctionPtr(
       iahwc_device, IAHWC_FUNC_CREATE_LAYER);
-  b->iahwc_destroy_layer = (IAHWC_PFN_DESTROY_LAYER)iahwc_device->getFunctionPtr(
-	      iahwc_device, IAHWC_FUNC_DESTROY_LAYER);
+  b->iahwc_destroy_layer =
+      (IAHWC_PFN_DESTROY_LAYER)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_DESTROY_LAYER);
   b->iahwc_get_display_info =
       (IAHWC_PFN_DISPLAY_GET_INFO)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_DISPLAY_GET_INFO);
@@ -1587,7 +1587,8 @@ static struct iahwc_backend *iahwc_backend_create(
 
   // XXX/TODO: setup hotplugging support from IAHWC
   // Nothing for now, registering the callback enables the pixel upload support
-  b->iahwc_register_callback(b->iahwc_device, IAHWC_CALLBACK_HOTPLUG, NULL, NULL, NULL);
+  b->iahwc_register_callback(b->iahwc_device, IAHWC_CALLBACK_HOTPLUG, NULL,
+                             NULL, NULL);
 
   weston_setup_vt_switch_bindings(compositor);
 

@@ -25,13 +25,13 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #endif
 
-#include <utils/Trace.h>
 #include <android/log.h>
+#include <cros_gralloc_handle.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
+#include <utils/Trace.h>
 #include "platformcommondefines.h"
-#include <cros_gralloc_handle.h>
 
 #define DRV_I915 1
 #include <i915_private_android_types.h>
