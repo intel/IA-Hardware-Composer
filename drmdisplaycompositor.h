@@ -98,6 +98,9 @@ class DrmDisplayCompositor {
     return &squash_state_;
   }
 
+  bool uses_GL() {
+    return !!pre_compositor_;
+  }
  private:
   struct ModeState {
     bool needs_modeset = false;
