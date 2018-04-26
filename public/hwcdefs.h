@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
 #include <hwcrect.h>
 
 #include <unordered_map>
@@ -93,6 +94,7 @@ enum class DisplayType : int32_t {
   kMosaic = 4,
   kNested = 5
 };
+#endif  //__cplusplus
 
 enum DisplayPowerMode {
   kOff = 0,         // Display is off
@@ -110,6 +112,7 @@ enum HWCColorTransform {
   kArbitraryMatrix = 1
 };
 
+#ifdef __cplusplus
 enum class HWCColorControl : int32_t {
   kColorHue = 0,
   kColorSaturation = 1,
@@ -159,4 +162,6 @@ using HWCColorMap =
     std::unordered_map<HWCColorControl, HWCColorProp, EnumClassHash>;
 
 }  // namespace hwcomposer
+#endif  // __cplusplus
+
 #endif  // PUBLIC_HWCDEFS_H_
