@@ -42,7 +42,7 @@ static float TransformMatrices[] = {
 };
 // clang-format on
 
-#ifdef USE_DC
+#if USE_DC
 typedef unsigned GpuResourceHandle;
 typedef struct dc_import {
   HWCNativeHandle handle_ = 0;
@@ -65,9 +65,9 @@ typedef struct vk_resource {
   VkImageView image_view;
 } GpuResourceHandle;
 typedef struct vk_import {
-  VkImage image = 0;
-  VkDeviceMemory memory;
-  VkResult res;
+  VkImage image_ = VK_NULL_HANDLE;
+  VkDeviceMemory memory_ = VK_NULL_HANDLE;
+  VkImageView texture_ = VK_NULL_HANDLE;
   HWCNativeHandle handle_ = 0;
   uint32_t drm_fd_ = 0;
 } ResourceHandle;
