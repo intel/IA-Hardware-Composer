@@ -609,12 +609,13 @@ static void parse_args(int argc, char *argv[]) {
         }
         printf("optarg:%s\n", optarg);
         strcpy(log_path, optarg);
-        fp = freopen(log_path, "w", stdout);
         fp = freopen(log_path, "a", stderr);
         if (!fp) {
           printf("unable to open log file\n");
+          fclose(fp);
           exit(EXIT_FAILURE);
         }
+        fclose(fp);
         break;
       case ':':
         fprintf(stderr, "usage error: %s requires an argument\n",
