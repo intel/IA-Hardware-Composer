@@ -290,10 +290,13 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   }
 
   param_.filter_flags = filter_flags_;
-// currently rotation is only supported by VA on Android.
-#if VA_MAJOR_VERSION > 1
-  param_.rotation_state = HWCRotationToVA(state.layer_->GetTransform());
-  param_.mirror_state = HWCReflectToVA(state.layer_->GetTransform());
+
+#if VA_MAJOR_VERSION >= 1
+  // currently rotation is only supported by VA on Android.
+  uint32_t rotation = 0, mirror = 0;
+  HWCTransformToVA(state.layer_->GetTransform(), rotation, mirror);
+  param_.rotation_state = rotation;
+  param_.mirror_state = mirror;
 #endif
 
   ScopedVABufferID pipeline_buffer(va_display_);
@@ -488,29 +491,42 @@ bool VARenderer::UpdateCaps() {
   return true;
 }
 
-uint32_t VARenderer::HWCRotationToVA(uint32_t transform) {
-  switch (transform) {
-    case kTransform270:
-      return VA_ROTATION_270;
-    case kTransform180:
-      return VA_ROTATION_180;
-    case kTransform90:
-      return VA_ROTATION_90;
-    default:
-      break;
-  }
-  return VA_ROTATION_NONE;
-}
+#if VA_MAJOR_VERSION >= 1
+void VARenderer::HWCTransformToVA(uint32_t transform, uint32_t& rotation,
+                                  uint32_t& mirror) {
+  rotation = VA_ROTATION_NONE;
+  mirror = VA_MIRROR_NONE;
 
-#if VA_MAJOR_VERSION > 1
-uint32_t VARenderer::HWCReflectToVA(uint32_t transform) {
   if (transform & kReflectX)
-    return VA_MIRROR_HORIZONTAL;
-
+    mirror |= VA_MIRROR_HORIZONTAL;
   if (transform & kReflectY)
-    return VA_MIRROR_VERTICAL;
+    mirror |= VA_MIRROR_VERTICAL;
 
-  return VA_MIRROR_NONE;
+  if (mirror == VA_MIRROR_NONE ||
+      mirror == (VA_MIRROR_HORIZONTAL | VA_MIRROR_VERTICAL)) {
+    transform &= ~kReflectX;
+    transform &= ~kReflectY;
+    switch (transform) {
+      case kTransform270:
+        rotation = VA_ROTATION_270;
+      case kTransform180:
+        rotation = VA_ROTATION_180;
+      case kTransform90:
+        rotation = VA_ROTATION_90;
+      default:
+        break;
+    }
+  } else {
+    // Fixme? WA added. VA is using rotation then mirror order
+    // CTS Cameration orientation is expecting mirror, then rotation
+    // WA added to use inverse rotation to make the same result
+    if (transform & kTransform180)
+      rotation = VA_ROTATION_180;
+    else if (transform & kTransform90)
+      rotation = VA_ROTATION_270;
+    else if (transform & kTransform270)
+      rotation = VA_ROTATION_90;
+  }
 }
 #endif
 
