@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 
 namespace android {
 

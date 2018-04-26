@@ -19,7 +19,7 @@
 #include "drmresources.h"
 #include "platform.h"
 
-#include <cutils/log.h>
+#include <log/log.h>
 
 namespace android {
 

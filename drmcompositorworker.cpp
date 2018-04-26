@@ -22,7 +22,7 @@
 
 #include <stdlib.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <hardware/hardware.h>
 
 namespace android {

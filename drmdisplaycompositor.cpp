@@ -26,7 +26,7 @@
 #include <sstream>
 #include <vector>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <drm/drm_mode.h>
 #include <sync/sync.h>
 #include <utils/Trace.h>

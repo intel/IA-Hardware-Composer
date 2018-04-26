@@ -28,7 +28,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <sw_sync.h>
 #include <sync/sync.h>
 #include <xf86drmMode.h>

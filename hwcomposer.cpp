@@ -39,7 +39,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>

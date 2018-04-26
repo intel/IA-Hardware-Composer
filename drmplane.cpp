@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <xf86drmMode.h>
 
 namespace android {
