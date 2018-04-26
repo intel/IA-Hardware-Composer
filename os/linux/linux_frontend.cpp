@@ -147,6 +147,10 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
       return ToHook<IAHWC_PFN_DISPLAY_GET_CONFIGS>(
           DisplayHook<decltype(&IAHWCDisplay::GetDisplayConfigs),
                       &IAHWCDisplay::GetDisplayConfigs, uint32_t*, uint32_t*>);
+    case IAHWC_FUNC_DISPLAY_SET_POWER_MODE:
+      return ToHook<IAHWC_PFN_DISPLAY_SET_POWER_MODE>(
+          DisplayHook<decltype(&IAHWCDisplay::SetPowerMode),
+                      &IAHWCDisplay::SetPowerMode, uint32_t>);
     case IAHWC_FUNC_DISPLAY_SET_GAMMA:
       return ToHook<IAHWC_PFN_DISPLAY_SET_GAMMA>(
           DisplayHook<decltype(&IAHWCDisplay::SetDisplayGamma),
@@ -319,6 +323,12 @@ int IAHWC::IAHWCDisplay::GetDisplayConfigs(uint32_t* num_configs,
 
   if (!ret)
     return IAHWC_ERROR_NO_RESOURCES;
+
+  return IAHWC_ERROR_NONE;
+}
+
+int IAHWC::IAHWCDisplay::SetPowerMode(uint32_t power_mode) {
+  native_display_->SetPowerMode(power_mode);
 
   return IAHWC_ERROR_NONE;
 }
