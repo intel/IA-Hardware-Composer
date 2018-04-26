@@ -111,8 +111,8 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
 NestedDisplay::~NestedDisplay() {
 #ifdef NESTED_DISPLAY_SUPPORT
   if (mHyperDmaBuf_Fd > 0) {
-    for (auto it = mHyperDmaExportedBuffers.begin();
-         it != mHyperDmaExportedBuffers.end(); ++it) {
+    auto it = mHyperDmaExportedBuffers.begin();
+    for (; it != mHyperDmaExportedBuffers.end(); ++it) {
       struct ioctl_hyper_dmabuf_unexport msg;
       int ret;
       msg.hid = it->second.hyper_dmabuf_id;

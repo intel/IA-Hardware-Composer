@@ -467,9 +467,7 @@ static int fallback_format_for(uint32_t format) {
 
 static int iahwc_backend_create_gl_renderer(struct iahwc_backend *b) {
   EGLint format[3] = {
-      b->gbm_format,
-      fallback_format_for(b->gbm_format),
-      0,
+      b->gbm_format, fallback_format_for(b->gbm_format), 0,
   };
   int n_formats = 2;
 
@@ -1420,13 +1418,13 @@ static void session_notify(struct wl_listener *listener, void *data) {
     weston_log("activating session\n");
     weston_compositor_wake(compositor);
     weston_compositor_damage_all(compositor);
-    lock(&output->spin_lock);
 
     wl_list_for_each(output, &compositor->output_list, base.link) {
+      lock(&output->spin_lock);
       output->state_invalid = true;
+      unlock(&output->spin_lock);
     }
 
-    unlock(&output->spin_lock);
     udev_input_enable(&b->input);
   } else {
     weston_log("deactivating session\n");
