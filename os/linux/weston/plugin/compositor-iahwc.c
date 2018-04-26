@@ -111,6 +111,7 @@ struct iahwc_backend {
   IAHWC_PFN_DISPLAY_SET_GAMMA iahwc_set_display_gamma;
   IAHWC_PFN_DISPLAY_SET_CONFIG iahwc_set_display_config;
   IAHWC_PFN_DISPLAY_GET_CONFIG iahwc_get_display_config;
+  IAHWC_PFN_DISPLAY_SET_POWER_MODE iahwc_display_set_power_mode;
   IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS iahwc_display_clear_all_layers;
   IAHWC_PFN_PRESENT_DISPLAY iahwc_present_display;
   IAHWC_PFN_DISABLE_OVERLAY_USAGE iahwc_disable_overlay_usage;
@@ -201,6 +202,8 @@ struct iahwc_output {
   struct iahwc_spinlock spin_lock;
   struct timespec last_vsync_ts;
   uint32_t total_layers;
+
+  enum dpms_enum current_dpms;
 };
 
 static struct gl_renderer_interface *gl_renderer;
@@ -1028,6 +1031,37 @@ static int parse_gbm_format(const char *s, uint32_t default_value,
   return ret;
 }
 
+static void iahwc_set_dpms(struct weston_output *output_base,
+                           enum dpms_enum level) {
+  struct iahwc_output *output = to_iahwc_output(output_base);
+  struct iahwc_backend *b = to_iahwc_backend(output_base->compositor);
+  uint32_t power_level;
+
+  if (output->current_dpms == level)
+    return;
+
+  if (level == WESTON_DPMS_ON)
+    weston_output_schedule_repaint(output_base);
+
+  switch (level) {
+    case WESTON_DPMS_ON:
+      power_level = kOn;
+      break;
+    case WESTON_DPMS_STANDBY:
+      power_level = kDoze;
+      break;
+    case WESTON_DPMS_SUSPEND:
+      power_level = kDozeSuspend;
+      break;
+    case WESTON_DPMS_OFF:
+      power_level = kOff;
+      break;
+  }
+
+  b->iahwc_display_set_power_mode(b->iahwc_device, 0, power_level);
+  output->current_dpms = level;
+}
+
 /**
  * Choose suitable mode for an output
  *
@@ -1116,8 +1150,7 @@ static int iahwc_output_enable(struct weston_output *base) {
   output->base.repaint = iahwc_output_repaint;
   output->base.assign_planes = iahwc_assign_planes;
 
-  // XXX/TODO: No dpms for now.
-  output->base.set_dpms = NULL;
+  output->base.set_dpms = iahwc_set_dpms;
   output->base.switch_mode = iahwc_output_switch_mode;
 
   output->base.set_gamma = iahwc_output_set_gamma;
@@ -1141,6 +1174,8 @@ static int iahwc_output_enable(struct weston_output *base) {
   output->overlay_enabled = true;
   base->disable_planes = 0;
   unlock(&output->spin_lock);
+
+  output->current_dpms = WESTON_DPMS_ON;
 
   return 0;
 
@@ -1484,6 +1519,9 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_get_display_config =
       (IAHWC_PFN_DISPLAY_GET_CONFIG)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_DISPLAY_GET_CONFIG);
+  b->iahwc_display_set_power_mode =
+      (IAHWC_PFN_DISPLAY_SET_POWER_MODE)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_DISPLAY_SET_POWER_MODE);
   b->iahwc_display_clear_all_layers =
       (IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_DISPLAY_CLEAR_ALL_LAYERS);

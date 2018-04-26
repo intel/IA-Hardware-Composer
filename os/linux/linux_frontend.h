@@ -86,6 +86,7 @@ class IAHWC : public iahwc_device {
     int SetDisplayGamma(float r, float b, float g);
     int SetDisplayConfig(uint32_t config);
     int GetDisplayConfig(uint32_t* config);
+    int SetPowerMode(uint32_t power_mode);
     int ClearAllLayers();
     int PresentDisplay(int32_t* release_fd);
     int RegisterVsyncCallback(iahwc_callback_data_t data,

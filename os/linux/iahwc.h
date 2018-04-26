@@ -19,6 +19,7 @@
 
 #include <gbm.h>
 #include <stdint.h>
+#include <hwcdefs.h>
 
 #define IAHWC_MODULE IAHWC_MODULE_INFO
 #define IAHWC_MODULE_STR "IAHWC_MODULE_INFO"
@@ -86,6 +87,7 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_DISPLAY_SET_GAMMA,
   IAHWC_FUNC_DISPLAY_SET_CONFIG,
   IAHWC_FUNC_DISPLAY_GET_CONFIG,
+  IAHWC_FUNC_DISPLAY_SET_POWER_MODE,
   IAHWC_FUNC_DISPLAY_CLEAR_ALL_LAYERS,
   IAHWC_FUNC_PRESENT_DISPLAY,
   IAHWC_FUNC_DISABLE_OVERLAY_USAGE,
@@ -163,6 +165,9 @@ typedef int (*IAHWC_PFN_DISPLAY_SET_CONFIG)(iahwc_device_t*,
 typedef int (*IAHWC_PFN_DISPLAY_GET_CONFIG)(iahwc_device_t*,
                                             iahwc_display_t display_handle,
                                             uint32_t* config);
+typedef int (*IAHWC_PFN_DISPLAY_SET_POWER_MODE)(iahwc_device_t*,
+                                                iahwc_display_t display_handle,
+                                                uint32_t power_mode);
 typedef int (*IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS)(
     iahwc_device_t*, iahwc_display_t display_handle);
 typedef int (*IAHWC_PFN_PRESENT_DISPLAY)(iahwc_device_t*,
