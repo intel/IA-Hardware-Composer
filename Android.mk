@@ -25,6 +25,7 @@ LOCAL_SRC_FILES := \
 	worker.cpp
 
 LOCAL_MODULE := libdrmhwc_utils
+LOCAL_VENDOR_MODULE := true
 
 include $(BUILD_STATIC_LIBRARY)
 
