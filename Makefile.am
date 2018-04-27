@@ -32,10 +32,6 @@ AM_CPP_INCLUDES = -I$(top_srcdir) -Ipublic -Ios -Ios/linux -Icommon/display/ -Ic
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DHANDLE_OWNED_BY_BUFFER_MANAGER
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
-if !ENABLE_GBM
-AM_CPPFLAGS += -DUSE_MINIGBM
-endif
-
 libhwcomposer_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \

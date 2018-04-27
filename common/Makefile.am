@@ -27,10 +27,6 @@ AM_CPP_INCLUDES = -Icore -Iutils -Icompositor -Idisplay -I../os/ -I../os/linux/ 
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
-if !ENABLE_GBM
-AM_CPPFLAGS += -DUSE_MINIGBM
-endif
-
 libhwcomposer_common_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \

@@ -33,16 +33,12 @@
 #include "platformcommondefines.h"
 
 struct gbm_handle {
-#ifdef USE_MINIGBM
-  struct gbm_import_fd_planar_data import_data;
-#else
   union {
     // for GBM_BO_IMPORT_FD
     struct gbm_import_fd_data fd_data;
     // for GBM_BO_IMPORT_FD_MODIFIER
     struct gbm_import_fd_modifier_data fd_modifier_data;
   } import_data;
-#endif
   struct gbm_bo* bo = NULL;
   struct gbm_bo* imported_bo = NULL;
   HwcBuffer meta_data_;
@@ -65,16 +61,6 @@ extern "C" {
 #define ETRACE(fmt, ...) fprintf(stderr, "%s: \n" fmt, __func__, ##__VA_ARGS__)
 #define STRACE() ((void)0)
 
-#ifdef USE_MINIGBM
-inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
-  uint32_t id = 0;
-  uint32_t prime_fd = handle->import_data.fds[0];
-  if (drmPrimeFDToHandle(gpu_fd, prime_fd, &id)) {
-    ETRACE("Error generate handle from prime fd %d", prime_fd);
-  }
-  return id;
-}
-#else
 inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   uint32_t id = 0;
   uint32_t prime_fd = -1;
@@ -88,7 +74,6 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   }
   return id;
 }
-#endif
 
 // _cplusplus
 #ifdef _cplusplus
