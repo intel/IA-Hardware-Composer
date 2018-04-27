@@ -34,10 +34,6 @@ AM_CPP_INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/public -I../common/core -I../c
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
 
-if !ENABLE_GBM
-AM_CPPFLAGS += -DUSE_MINIGBM
-endif
-
 testlayers_LDADD = \
 	$(DRM_LIBS) \
 	$(GBM_LIBS) \
@@ -61,14 +57,6 @@ testlayers_SOURCES = \
     ./common/esTransform.cpp \
     ./common/jsonhandlers.cpp \
     ./apps/jsonlayerstest.cpp
-
-if !ENABLE_GBM
-testlayers_SOURCES +=   \
-    ./common/videolayerrenderer.cpp \
-    ./common/imagelayerrenderer.cpp \
-    ./common/cclayerrenderer.cpp
-
-endif
 
 linux_test_LDFLAGS = \
 	-no-undefined
