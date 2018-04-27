@@ -94,11 +94,6 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   if (layer_type == kLayerNormal || layer_type == kLayerCursor) {
     flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-#ifdef USE_MINIGBM
-  } else if (layer_type == kLayerVideo) {
-    flags |= (GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING |
-              GBM_BO_USE_CAMERA_WRITE | GBM_BO_USE_CAMERA_READ);
-#endif
   }
 
   if (raw_pixel_buffer) {
@@ -158,24 +153,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   struct gbm_handle *temp = new struct gbm_handle();
   uint64_t mod = 0;
-#if USE_MINIGBM
-  size_t total_planes = gbm_bo_get_num_planes(bo);
-  temp->import_data.width = gbm_bo_get_width(bo);
-  temp->import_data.height = gbm_bo_get_height(bo);
-  temp->import_data.format = gbm_bo_get_format(bo);
 
-  for (size_t i = 0; i < total_planes; i++) {
-    temp->import_data.fds[i] = gbm_bo_get_plane_fd(bo, i);
-    temp->import_data.offsets[i] = gbm_bo_get_plane_offset(bo, i);
-    temp->import_data.strides[i] = gbm_bo_get_plane_stride(bo, i);
-    if (rbc_enabled) {
-      mod = gbm_bo_get_plane_format_modifier(bo, i);
-      temp->meta_data_.fb_modifiers_[2 * i] = static_cast<uint32_t>(mod >> 32);
-      temp->meta_data_.fb_modifiers_[2 * i + 1] = static_cast<uint32_t>(mod);
-    }
-  }
-  temp->meta_data_.num_planes_ = total_planes;
-#else
   if (rbc_enabled) {
     temp->meta_data_.num_planes_ = gbm_bo_get_plane_count(bo);
     temp->import_data.fd_modifier_data.width = gbm_bo_get_width(bo);
@@ -203,7 +181,6 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     temp->import_data.fd_data.fd = gbm_bo_get_fd(bo);
     temp->import_data.fd_data.stride = gbm_bo_get_stride(bo);
   }
-#endif
 
   temp->bo = bo;
   temp->hwc_buffer_ = true;
@@ -223,18 +200,13 @@ bool GbmBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
     if (handle->imported_bo) {
       gbm_bo_destroy(handle->imported_bo);
     }
-#ifdef USE_MINIGBM
-    uint32_t total_planes = handle->meta_data_.num_planes_;
-    for (size_t i = 0; i < total_planes; i++)
-      close(handle->import_data.fds[i]);
-#else
+
     if (!handle->meta_data_.fb_modifiers_[0]) {
       close(handle->import_data.fd_data.fd);
     } else {
       for (size_t i = 0; i < handle->import_data.fd_modifier_data.num_fds; i++)
         close(handle->import_data.fd_modifier_data.fds[i]);
     }
-#endif
   }
 
   return true;
@@ -249,21 +221,6 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
                                   HWCNativeHandle *target) const {
   struct gbm_handle *temp = new struct gbm_handle();
 
-#if USE_MINIGBM
-  temp->import_data.width = source->import_data.width;
-  temp->import_data.height = source->import_data.height;
-  temp->import_data.format = source->import_data.format;
-
-  size_t total_planes = source->meta_data_.num_planes_;
-  for (size_t i = 0; i < total_planes; i++) {
-    temp->import_data.fds[i] = dup(source->import_data.fds[i]);
-    temp->import_data.offsets[i] = source->import_data.offsets[i];
-    temp->import_data.strides[i] = source->import_data.strides[i];
-    temp->meta_data_.fb_modifiers_[i] = source->meta_data_.fb_modifiers_[i];
-    temp->meta_data_.fb_modifiers_[2 * i + 1] =
-        source->meta_data_.fb_modifiers_[2 * i + 1];
-  }
-#else
   if (!source->meta_data_.fb_modifiers_[0]) {
     temp->import_data.fd_data.width = source->import_data.fd_data.width;
     temp->import_data.fd_data.height = source->import_data.fd_data.height;
@@ -301,7 +258,7 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
     temp->import_data.fd_modifier_data.modifier =
         source->import_data.fd_modifier_data.modifier;
   }
-#endif
+
   temp->bo = source->bo;
   temp->meta_data_.num_planes_ = source->meta_data_.num_planes_;
   temp->gbm_flags = source->gbm_flags;
@@ -316,17 +273,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   uint64_t mod = 0;
 
   if (!handle->imported_bo) {
-#if USE_MINIGBM
-    bo->format_ = handle->import_data.format;
-    bo->native_format_ = handle->import_data.format;
-    handle->imported_bo =
-        gbm_bo_import(device_, GBM_BO_IMPORT_FD_PLANAR, &handle->import_data,
-                      handle->gbm_flags);
-
-    if (!handle->imported_bo) {
-      ETRACE("can't import bo");
-    }
-#else
     if (!handle->meta_data_.fb_modifiers_[0]) {
       use_modifier = false;
       bo->format_ = handle->import_data.fd_data.format;
@@ -346,7 +292,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     if (!handle->imported_bo) {
       ETRACE("can't import bo");
     }
-#endif
   }
 
   gem_handle = gbm_bo_get_handle(handle->imported_bo).u32;
@@ -356,10 +301,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     return false;
   }
 
-#if USE_MINIGBM
-  handle->meta_data_.width_ = handle->import_data.width;
-  handle->meta_data_.height_ = handle->import_data.height;
-#else
   if (!use_modifier) {
     handle->meta_data_.width_ = handle->import_data.fd_data.width;
     handle->meta_data_.height_ = handle->import_data.fd_data.height;
@@ -367,7 +308,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     handle->meta_data_.width_ = handle->import_data.fd_modifier_data.width;
     handle->meta_data_.height_ = handle->import_data.fd_modifier_data.height;
   }
-#endif
 
   if (handle->layer_type_ == hwcomposer::kLayerCursor) {
     handle->meta_data_.usage_ = hwcomposer::kLayerCursor;
@@ -379,21 +319,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     handle->meta_data_.usage_ = hwcomposer::kLayerNormal;
   }
 
-#if USE_MINIGBM
-  size_t total_planes = gbm_bo_get_num_planes(handle->bo);
-  handle->meta_data_.num_planes_ = total_planes;
-  for (size_t i = 0; i < total_planes; i++) {
-    handle->meta_data_.gem_handles_[i] = gem_handle;
-    handle->meta_data_.offsets_[i] =
-        gbm_bo_get_plane_offset(handle->imported_bo, i);
-    handle->meta_data_.pitches_[i] =
-        gbm_bo_get_plane_stride(handle->imported_bo, i);
-    handle->meta_data_.prime_fds_[i] = handle->import_data.fds[i];
-    mod = gbm_bo_get_plane_format_modifier(handle->bo, i);
-    bo->fb_modifiers_[2 * i] = static_cast<uint32_t>(mod >> 32);
-    bo->fb_modifiers_[2 * i + 1] = static_cast<uint32_t>(mod);
-  }
-#else
   size_t total_planes = gbm_bo_get_plane_count(handle->imported_bo);
   handle->meta_data_.num_planes_ = total_planes;
 
@@ -426,7 +351,6 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
       bo->fb_modifiers_[2 * i + 1] = modifier_high;
     }
   }
-#endif
 
   return true;
 }
@@ -441,13 +365,8 @@ void *GbmBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
   if (!handle->bo)
     return NULL;
 
-#if USE_MINIGBM
-  return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
-                    stride, map_data, plane);
-#else
   return gbm_bo_map(handle->bo, x, y, width, height, GBM_BO_TRANSFER_WRITE,
                     stride, map_data);
-#endif
 }
 
 int32_t GbmBufferHandler::UnMap(HWCNativeHandle handle, void *map_data) const {

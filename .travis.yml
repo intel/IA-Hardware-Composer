@@ -23,7 +23,6 @@ script:
 - export PATH=$WLD/bin:$PATH
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- export DRV_I915=1
 - tar -xvf travisci/resources/hwc-install.tar.xz -C $HWC_BUILD_DIR
 - mkdir -p $WLD/share/aclocal
 
@@ -55,16 +54,8 @@ script:
 # #clone and build mesa : dependency
 - git clone https://github.com/intel/external-mesa /tmp/mesa
 - pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --disable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
-- popd
-
-# #clone and build minigbm : dependency
-- git clone https://github.com/intel/minigbm /tmp/minigbm
-- pushd /tmp/minigbm
-- export DRV_I915=1
-- make CFLAGS=-DDRV_I915=1 -j5
-- make install DESTDIR=$WLD LIBDIR=lib/
 - popd
 
 #clone and build libva : dependency
@@ -101,7 +92,6 @@ script:
 - export PATH=$WLD/bin:$PATH
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- export DRV_I915=1
 - mkdir -p $WLD/share/aclocal
 
 #clone and build libdrm : dependency
@@ -146,7 +136,7 @@ script:
 - ninja -C builddir/ install
 - popd
 
-#Build mesa with gbm and overwrite minigbm
+#Build mesa with gbm
 - pushd .
 - cd /tmp/mesa
 - git clean -xfd > /dev/null
