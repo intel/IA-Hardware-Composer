@@ -37,13 +37,13 @@ bool VKSurface::InitializeGPUResources() {
 
   const struct vk_import& import =
       layer_.GetBuffer()->GetGpuResource(dev_, false);
-  if (import.res != VK_SUCCESS) {
-    ETRACE("Failed to make import image (%d)\n", import.res);
+  if (import.image_ == VK_NULL_HANDLE) {
+    ETRACE("Failed to make import image\n");
     return false;
   }
 
-  image_memory_ = import.memory;
-  image_ = import.image;
+  image_memory_ = import.memory_;
+  image_ = import.image_;
 
   VkImageSubresourceRange clear_range = {};
   clear_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
