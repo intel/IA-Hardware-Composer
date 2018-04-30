@@ -1347,6 +1347,7 @@ static int create_output_for_connector(struct iahwc_backend *b) {
   b->iahwc_get_display_info(b->iahwc_device, 0, configs[0], IAHWC_CONFIG_DPIY,
                             &output->base.mm_height);
 
+  //FIXME Memory leak for iahwc_mode
   for (i = 0; i < num_configs; i++) {
     iahwc_mode = iahwc_output_add_mode(b, output, configs[i]);
     if (!iahwc_mode) {
@@ -1420,6 +1421,8 @@ static void session_notify(struct wl_listener *listener, void *data) {
     weston_log("activating session\n");
     weston_compositor_wake(compositor);
     weston_compositor_damage_all(compositor);
+    //FIXME: Output isn't initialized to anything yet we are trying to use its
+    //spin_lock member
     lock(&output->spin_lock);
 
     wl_list_for_each(output, &compositor->output_list, base.link) {
