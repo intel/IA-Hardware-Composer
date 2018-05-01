@@ -16,8 +16,8 @@
 
 #define LOG_TAG "hwc-drm-event-listener"
 
+#include "drmdevice.h"
 #include "drmeventlistener.h"
-#include "drmresources.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -31,9 +31,8 @@
 
 namespace android {
 
-DrmEventListener::DrmEventListener(DrmResources *drm)
-    : Worker("drm-event-listener", HAL_PRIORITY_URGENT_DISPLAY),
-      drm_(drm) {
+DrmEventListener::DrmEventListener(DrmDevice *drm)
+    : Worker("drm-event-listener", HAL_PRIORITY_URGENT_DISPLAY), drm_(drm) {
 }
 
 int DrmEventListener::Init() {

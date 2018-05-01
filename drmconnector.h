@@ -27,11 +27,11 @@
 
 namespace android {
 
-class DrmResources;
+class DrmDevice;
 
 class DrmConnector {
  public:
-  DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
+  DrmConnector(DrmDevice *drm, drmModeConnectorPtr c,
                DrmEncoder *current_encoder,
                std::vector<DrmEncoder *> &possible_encoders);
   DrmConnector(const DrmProperty &) = delete;
@@ -71,7 +71,7 @@ class DrmConnector {
   uint32_t mm_height() const;
 
  private:
-  DrmResources *drm_;
+  DrmDevice *drm_;
 
   uint32_t id_;
   DrmEncoder *encoder_;

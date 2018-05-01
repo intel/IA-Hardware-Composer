@@ -111,8 +111,8 @@ class DrmDisplayComposition {
   DrmDisplayComposition(const DrmDisplayComposition &) = delete;
   ~DrmDisplayComposition();
 
-  int Init(DrmResources *drm, DrmCrtc *crtc, Importer *importer,
-           Planner *planner, uint64_t frame_no);
+  int Init(DrmDevice *drm, DrmCrtc *crtc, Importer *importer, Planner *planner,
+           uint64_t frame_no);
 
   int SetLayers(DrmHwcLayer *layers, size_t num_layers, bool geometry_changed);
   int AddPlaneComposition(DrmCompositionPlane plane);
@@ -176,7 +176,7 @@ class DrmDisplayComposition {
  private:
   bool validate_composition_type(DrmCompositionType desired);
 
-  DrmResources *drm_ = NULL;
+  DrmDevice *drm_ = NULL;
   DrmCrtc *crtc_ = NULL;
   Importer *importer_ = NULL;
   Planner *planner_ = NULL;

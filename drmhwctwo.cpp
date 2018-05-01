@@ -150,7 +150,7 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
   return HWC2::Error::None;
 }
 
-DrmHwcTwo::HwcDisplay::HwcDisplay(DrmResources *drm,
+DrmHwcTwo::HwcDisplay::HwcDisplay(DrmDevice *drm,
                                   std::shared_ptr<Importer> importer,
                                   hwc2_display_t handle, HWC2::DisplayType type)
     : drm_(drm), importer_(importer), handle_(handle), type_(type) {

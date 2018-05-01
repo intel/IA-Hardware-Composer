@@ -16,11 +16,11 @@
 
 #define LOG_TAG "hwc-drm-display-composition"
 
+#include "drmdevice.h"
 #include "drmdisplaycomposition.h"
 #include "drmdisplaycompositor.h"
 #include "drmcrtc.h"
 #include "drmplane.h"
-#include "drmresources.h"
 #include "platform.h"
 
 #include <stdlib.h>
@@ -37,7 +37,7 @@ namespace android {
 DrmDisplayComposition::~DrmDisplayComposition() {
 }
 
-int DrmDisplayComposition::Init(DrmResources *drm, DrmCrtc *crtc,
+int DrmDisplayComposition::Init(DrmDevice *drm, DrmCrtc *crtc,
                                 Importer *importer, Planner *planner,
                                 uint64_t frame_no) {
   drm_ = drm;

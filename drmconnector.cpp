@@ -17,7 +17,7 @@
 #define LOG_TAG "hwc-drm-connector"
 
 #include "drmconnector.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@
 
 namespace android {
 
-DrmConnector::DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
+DrmConnector::DrmConnector(DrmDevice *drm, drmModeConnectorPtr c,
                            DrmEncoder *current_encoder,
                            std::vector<DrmEncoder *> &possible_encoders)
     : drm_(drm),

@@ -16,7 +16,7 @@
 
 #define LOG_TAG "hwc-platform-drm-generic"
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 #include "platformdrmgeneric.h"
 
@@ -32,7 +32,7 @@ namespace android {
 
 #ifdef USE_DRM_GENERIC_IMPORTER
 // static
-Importer *Importer::CreateInstance(DrmResources *drm) {
+Importer *Importer::CreateInstance(DrmDevice *drm) {
   DrmGenericImporter *importer = new DrmGenericImporter(drm);
   if (!importer)
     return NULL;
@@ -47,7 +47,7 @@ Importer *Importer::CreateInstance(DrmResources *drm) {
 }
 #endif
 
-DrmGenericImporter::DrmGenericImporter(DrmResources *drm) : drm_(drm) {
+DrmGenericImporter::DrmGenericImporter(DrmDevice *drm) : drm_(drm) {
 }
 
 DrmGenericImporter::~DrmGenericImporter() {
@@ -141,7 +141,7 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
 }
 
 #ifdef USE_DRM_GENERIC_IMPORTER
-std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
+std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   std::unique_ptr<Planner> planner(new Planner);
   planner->AddStage<PlanStageGreedy>();
   return planner;

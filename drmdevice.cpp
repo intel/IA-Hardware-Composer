@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "hwc-drm-resources"
+#define LOG_TAG "hwc-drm-device"
 
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
 #include "drmeventlistener.h"
 #include "drmplane.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 
 #include <cinttypes>
 #include <errno.h>
@@ -35,14 +35,14 @@
 
 namespace android {
 
-DrmResources::DrmResources() : event_listener_(this) {
+DrmDevice::DrmDevice() : event_listener_(this) {
 }
 
-DrmResources::~DrmResources() {
+DrmDevice::~DrmDevice() {
   event_listener_.Exit();
 }
 
-int DrmResources::Init() {
+int DrmDevice::Init() {
   char path[PROPERTY_VALUE_MAX];
   property_get("hwc.drm.device", path, "/dev/dri/card0");
 
@@ -67,7 +67,7 @@ int DrmResources::Init() {
 
   drmModeResPtr res = drmModeGetResources(fd());
   if (!res) {
-    ALOGE("Failed to get DrmResources resources");
+    ALOGE("Failed to get DrmDevice resources");
     return -ENODEV;
   }
 
@@ -229,7 +229,7 @@ int DrmResources::Init() {
   return 0;
 }
 
-DrmConnector *DrmResources::GetConnectorForDisplay(int display) const {
+DrmConnector *DrmDevice::GetConnectorForDisplay(int display) const {
   for (auto &conn : connectors_) {
     if (conn->display() == display)
       return conn.get();
@@ -237,7 +237,7 @@ DrmConnector *DrmResources::GetConnectorForDisplay(int display) const {
   return NULL;
 }
 
-DrmCrtc *DrmResources::GetCrtcForDisplay(int display) const {
+DrmCrtc *DrmDevice::GetCrtcForDisplay(int display) const {
   for (auto &crtc : crtcs_) {
     if (crtc->display() == display)
       return crtc.get();
@@ -245,7 +245,7 @@ DrmCrtc *DrmResources::GetCrtcForDisplay(int display) const {
   return NULL;
 }
 
-DrmPlane *DrmResources::GetPlane(uint32_t id) const {
+DrmPlane *DrmDevice::GetPlane(uint32_t id) const {
   for (auto &plane : planes_) {
     if (plane->id() == id)
       return plane.get();
@@ -253,15 +253,15 @@ DrmPlane *DrmResources::GetPlane(uint32_t id) const {
   return NULL;
 }
 
-const std::vector<std::unique_ptr<DrmCrtc>> & DrmResources::crtcs() const {
+const std::vector<std::unique_ptr<DrmCrtc>> &DrmDevice::crtcs() const {
   return crtcs_;
 }
 
-uint32_t DrmResources::next_mode_id() {
+uint32_t DrmDevice::next_mode_id() {
   return ++mode_id_;
 }
 
-int DrmResources::TryEncoderForDisplay(int display, DrmEncoder *enc) {
+int DrmDevice::TryEncoderForDisplay(int display, DrmEncoder *enc) {
   /* First try to use the currently-bound crtc */
   DrmCrtc *crtc = enc->crtc();
   if (crtc && crtc->can_bind(display)) {
@@ -286,7 +286,7 @@ int DrmResources::TryEncoderForDisplay(int display, DrmEncoder *enc) {
   return -EAGAIN;
 }
 
-int DrmResources::CreateDisplayPipe(DrmConnector *connector) {
+int DrmDevice::CreateDisplayPipe(DrmConnector *connector) {
   int display = connector->display();
   /* Try to use current setup first */
   if (connector->encoder()) {
@@ -314,8 +314,8 @@ int DrmResources::CreateDisplayPipe(DrmConnector *connector) {
   return -ENODEV;
 }
 
-int DrmResources::CreatePropertyBlob(void *data, size_t length,
-                                     uint32_t *blob_id) {
+int DrmDevice::CreatePropertyBlob(void *data, size_t length,
+                                  uint32_t *blob_id) {
   struct drm_mode_create_blob create_blob;
   memset(&create_blob, 0, sizeof(create_blob));
   create_blob.length = length;
@@ -330,7 +330,7 @@ int DrmResources::CreatePropertyBlob(void *data, size_t length,
   return 0;
 }
 
-int DrmResources::DestroyPropertyBlob(uint32_t blob_id) {
+int DrmDevice::DestroyPropertyBlob(uint32_t blob_id) {
   if (!blob_id)
     return 0;
 
@@ -345,12 +345,12 @@ int DrmResources::DestroyPropertyBlob(uint32_t blob_id) {
   return 0;
 }
 
-DrmEventListener *DrmResources::event_listener() {
+DrmEventListener *DrmDevice::event_listener() {
   return &event_listener_;
 }
 
-int DrmResources::GetProperty(uint32_t obj_id, uint32_t obj_type,
-                              const char *prop_name, DrmProperty *property) {
+int DrmDevice::GetProperty(uint32_t obj_id, uint32_t obj_type,
+                           const char *prop_name, DrmProperty *property) {
   drmModeObjectPropertiesPtr props;
 
   props = drmModeObjectGetProperties(fd(), obj_id, obj_type);
@@ -373,19 +373,19 @@ int DrmResources::GetProperty(uint32_t obj_id, uint32_t obj_type,
   return found ? 0 : -ENOENT;
 }
 
-int DrmResources::GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
-                                   DrmProperty *property) {
+int DrmDevice::GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
+                                DrmProperty *property) {
   return GetProperty(plane.id(), DRM_MODE_OBJECT_PLANE, prop_name, property);
 }
 
-int DrmResources::GetCrtcProperty(const DrmCrtc &crtc, const char *prop_name,
-                                  DrmProperty *property) {
+int DrmDevice::GetCrtcProperty(const DrmCrtc &crtc, const char *prop_name,
+                               DrmProperty *property) {
   return GetProperty(crtc.id(), DRM_MODE_OBJECT_CRTC, prop_name, property);
 }
 
-int DrmResources::GetConnectorProperty(const DrmConnector &connector,
-                                       const char *prop_name,
-                                       DrmProperty *property) {
+int DrmDevice::GetConnectorProperty(const DrmConnector &connector,
+                                    const char *prop_name,
+                                    DrmProperty *property) {
   return GetProperty(connector.id(), DRM_MODE_OBJECT_CONNECTOR, prop_name,
                      property);
 }

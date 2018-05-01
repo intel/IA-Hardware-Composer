@@ -15,8 +15,8 @@
  */
 
 #include "drmcrtc.h"
+#include "drmdevice.h"
 #include "drmencoder.h"
-#include "drmresources.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>

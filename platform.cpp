@@ -16,7 +16,7 @@
 
 #define LOG_TAG "hwc-platform"
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 
 #include <log/log.h>

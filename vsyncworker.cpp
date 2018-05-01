@@ -16,7 +16,7 @@
 
 #define LOG_TAG "hwc-vsync-worker"
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "vsyncworker.h"
 #include "worker.h"
 
@@ -42,7 +42,7 @@ VSyncWorker::VSyncWorker()
 VSyncWorker::~VSyncWorker() {
 }
 
-int VSyncWorker::Init(DrmResources *drm, int display) {
+int VSyncWorker::Init(DrmDevice *drm, int display) {
   drm_ = drm;
   display_ = display;
 

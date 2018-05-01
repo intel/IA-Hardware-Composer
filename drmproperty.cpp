@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+#include "drmdevice.h"
 #include "drmproperty.h"
-#include "drmresources.h"
 
 #include <errno.h>
 #include <stdint.h>

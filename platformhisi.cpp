@@ -16,7 +16,7 @@
 
 #define LOG_TAG "hwc-platform-hisi"
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 #include "platformhisi.h"
 
@@ -35,7 +35,7 @@
 
 namespace android {
 
-Importer *Importer::CreateInstance(DrmResources *drm) {
+Importer *Importer::CreateInstance(DrmDevice *drm) {
   HisiImporter *importer = new HisiImporter(drm);
   if (!importer)
     return NULL;
@@ -49,7 +49,8 @@ Importer *Importer::CreateInstance(DrmResources *drm) {
   return importer;
 }
 
-HisiImporter::HisiImporter(DrmResources *drm) : DrmGenericImporter(drm), drm_(drm) {
+HisiImporter::HisiImporter(DrmDevice *drm)
+    : DrmGenericImporter(drm), drm_(drm) {
 }
 
 HisiImporter::~HisiImporter() {
@@ -132,7 +133,7 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return ret;
 }
 
-std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
+std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   std::unique_ptr<Planner> planner(new Planner);
   planner->AddStage<PlanStageGreedy>();
   return planner;

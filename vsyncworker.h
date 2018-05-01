@@ -17,7 +17,7 @@
 #ifndef ANDROID_EVENT_WORKER_H_
 #define ANDROID_EVENT_WORKER_H_
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "worker.h"
 
 #include <map>
@@ -40,7 +40,7 @@ class VSyncWorker : public Worker {
   VSyncWorker();
   ~VSyncWorker() override;
 
-  int Init(DrmResources *drm, int display);
+  int Init(DrmDevice *drm, int display);
   void RegisterCallback(std::shared_ptr<VsyncCallback> callback);
 
   void VSyncControl(bool enabled);
@@ -52,7 +52,7 @@ class VSyncWorker : public Worker {
   int64_t GetPhasedVSync(int64_t frame_ns, int64_t current);
   int SyntheticWaitVBlank(int64_t *timestamp);
 
-  DrmResources *drm_;
+  DrmDevice *drm_;
 
   // shared_ptr since we need to use this outside of the thread lock (to
   // actually call the hook) and we don't want the memory freed until we're

@@ -27,10 +27,10 @@
 
 namespace android {
 
-class DrmResources {
+class DrmDevice {
  public:
-  DrmResources();
-  ~DrmResources();
+  DrmDevice();
+  ~DrmDevice();
 
   int Init();
 

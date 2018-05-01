@@ -16,7 +16,7 @@
 
 #include "drmdisplaycompositor.h"
 #include "drmhwcomposer.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 #include "vsyncworker.h"
 
@@ -135,7 +135,7 @@ class DrmHwcTwo : public hwc2_device_t {
 
   class HwcDisplay {
    public:
-    HwcDisplay(DrmResources *drm, std::shared_ptr<Importer> importer,
+    HwcDisplay(DrmDevice *drm, std::shared_ptr<Importer> importer,
                hwc2_display_t handle, HWC2::DisplayType type);
     HwcDisplay(const HwcDisplay &) = delete;
     HWC2::Error Init(std::vector<DrmPlane *> *planes);
@@ -188,7 +188,7 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Error CreateComposition(bool test);
     void AddFenceToRetireFence(int fd);
 
-    DrmResources *drm_;
+    DrmDevice *drm_;
     DrmDisplayCompositor compositor_;
     std::shared_ptr<Importer> importer_;
     std::unique_ptr<Planner> planner_;
@@ -261,7 +261,7 @@ class DrmHwcTwo : public hwc2_device_t {
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
 
-  DrmResources drm_;
+  DrmDevice drm_;
   std::shared_ptr<Importer> importer_;  // Shared with HwcDisplay
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;

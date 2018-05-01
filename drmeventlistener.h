@@ -22,7 +22,7 @@
 
 namespace android {
 
-class DrmResources;
+class DrmDevice;
 
 class DrmEventHandler {
  public:
@@ -36,7 +36,7 @@ class DrmEventHandler {
 
 class DrmEventListener : public Worker {
  public:
-  DrmEventListener(DrmResources *drm);
+  DrmEventListener(DrmDevice *drm);
   virtual ~DrmEventListener() {
   }
 
@@ -57,7 +57,7 @@ class DrmEventListener : public Worker {
   UniqueFd uevent_fd_;
   int max_fd_ = -1;
 
-  DrmResources *drm_;
+  DrmDevice *drm_;
   DrmEventHandler *hotplug_handler_ = NULL;
 };
 }

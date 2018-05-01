@@ -33,8 +33,8 @@
 
 #include "autolock.h"
 #include "drmcrtc.h"
+#include "drmdevice.h"
 #include "drmplane.h"
-#include "drmresources.h"
 
 namespace android {
 
@@ -74,7 +74,7 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
   pthread_mutex_destroy(&lock_);
 }
 
-int DrmDisplayCompositor::Init(DrmResources *drm, int display) {
+int DrmDisplayCompositor::Init(DrmDevice *drm, int display) {
   drm_ = drm;
   display_ = display;
 

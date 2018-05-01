@@ -40,7 +40,7 @@ class DrmDisplayCompositor {
   DrmDisplayCompositor();
   ~DrmDisplayCompositor();
 
-  int Init(DrmResources *drm, int display);
+  int Init(DrmDevice *drm, int display);
 
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
@@ -78,7 +78,7 @@ class DrmDisplayCompositor {
 
   std::tuple<int, uint32_t> CreateModeBlob(const DrmMode &mode);
 
-  DrmResources *drm_;
+  DrmDevice *drm_;
   int display_;
 
   std::unique_ptr<DrmDisplayComposition> active_composition_;

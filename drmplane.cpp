@@ -16,8 +16,8 @@
 
 #define LOG_TAG "hwc-drm-plane"
 
+#include "drmdevice.h"
 #include "drmplane.h"
-#include "drmresources.h"
 
 #include <cinttypes>
 #include <errno.h>
@@ -28,7 +28,7 @@
 
 namespace android {
 
-DrmPlane::DrmPlane(DrmResources *drm, drmModePlanePtr p)
+DrmPlane::DrmPlane(DrmDevice *drm, drmModePlanePtr p)
     : drm_(drm), id_(p->plane_id), possible_crtc_mask_(p->possible_crtcs) {
 }
 
