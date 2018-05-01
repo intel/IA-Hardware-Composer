@@ -135,8 +135,9 @@ class DrmHwcTwo : public hwc2_device_t {
 
   class HwcDisplay {
    public:
-    HwcDisplay(DrmDevice *drm, std::shared_ptr<Importer> importer,
-               hwc2_display_t handle, HWC2::DisplayType type);
+    HwcDisplay(ResourceManager *resource_manager, DrmDevice *drm,
+               std::shared_ptr<Importer> importer, hwc2_display_t handle,
+               HWC2::DisplayType type);
     HwcDisplay(const HwcDisplay &) = delete;
     HWC2::Error Init(std::vector<DrmPlane *> *planes);
 
@@ -188,6 +189,7 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Error CreateComposition(bool test);
     void AddFenceToRetireFence(int fd);
 
+    ResourceManager *resource_manager_;
     DrmDevice *drm_;
     DrmDisplayCompositor compositor_;
     std::shared_ptr<Importer> importer_;

@@ -72,10 +72,10 @@ HWC2::Error DrmHwcTwo::Init() {
     return HWC2::Error::NoResources;
   }
 
-  displays_.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
-                    std::forward_as_tuple(drm, importer, HWC_DISPLAY_PRIMARY,
-                                          HWC2::DisplayType::Physical));
+  displays_.emplace(
+      std::piecewise_construct, std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
+      std::forward_as_tuple(&resource_manager_, drm, importer,
+                            HWC_DISPLAY_PRIMARY, HWC2::DisplayType::Physical));
 
   DrmCrtc *crtc = drm->GetCrtcForDisplay(static_cast<int>(HWC_DISPLAY_PRIMARY));
   if (!crtc) {
@@ -152,10 +152,15 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
   return HWC2::Error::None;
 }
 
-DrmHwcTwo::HwcDisplay::HwcDisplay(DrmDevice *drm,
+DrmHwcTwo::HwcDisplay::HwcDisplay(ResourceManager *resource_manager,
+                                  DrmDevice *drm,
                                   std::shared_ptr<Importer> importer,
                                   hwc2_display_t handle, HWC2::DisplayType type)
-    : drm_(drm), importer_(importer), handle_(handle), type_(type) {
+    : resource_manager_(resource_manager),
+      drm_(drm),
+      importer_(importer),
+      handle_(handle),
+      type_(type) {
   supported(__func__);
 }
 
@@ -168,7 +173,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
   }
 
   int display = static_cast<int>(handle_);
-  int ret = compositor_.Init(drm_, display);
+  int ret = compositor_.Init(resource_manager_, drm_, display);
   if (ret) {
     ALOGE("Failed display compositor init for display %d (%d)", display, ret);
     return HWC2::Error::NoResources;

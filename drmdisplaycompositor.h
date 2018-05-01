@@ -20,6 +20,7 @@
 #include "drmhwcomposer.h"
 #include "drmdisplaycomposition.h"
 #include "drmframebuffer.h"
+#include "resourcemanager.h"
 
 #include <pthread.h>
 #include <memory>
@@ -40,7 +41,7 @@ class DrmDisplayCompositor {
   DrmDisplayCompositor();
   ~DrmDisplayCompositor();
 
-  int Init(DrmDevice *drm, int display);
+  int Init(ResourceManager *resource_manager, DrmDevice *drm, int display);
 
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
@@ -78,6 +79,7 @@ class DrmDisplayCompositor {
 
   std::tuple<int, uint32_t> CreateModeBlob(const DrmMode &mode);
 
+  ResourceManager *resource_manager_;
   DrmDevice *drm_;
   int display_;
 

@@ -39,7 +39,8 @@
 namespace android {
 
 DrmDisplayCompositor::DrmDisplayCompositor()
-    : drm_(NULL),
+    : resource_manager_(NULL),
+      drm_(NULL),
       display_(-1),
       initialized_(false),
       active_(false),
@@ -74,7 +75,9 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
   pthread_mutex_destroy(&lock_);
 }
 
-int DrmDisplayCompositor::Init(DrmDevice *drm, int display) {
+int DrmDisplayCompositor::Init(ResourceManager *resource_manager,
+                               DrmDevice *drm, int display) {
+  resource_manager_ = resource_manager;
   drm_ = drm;
   display_ = display;
 
