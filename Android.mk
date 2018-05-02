@@ -48,7 +48,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_STATIC_LIBRARIES := libdrmhwc_utils
 
 LOCAL_C_INCLUDES := \
-	external/drm_gralloc \
 	system/core/libsync
 
 LOCAL_SRC_FILES := \
