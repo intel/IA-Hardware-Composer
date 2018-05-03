@@ -80,14 +80,15 @@ ifeq ($(TARGET_PRODUCT),hikey960)
 LOCAL_CPPFLAGS += -DUSE_HISI_IMPORTER
 LOCAL_SRC_FILES += platformhisi.cpp
 LOCAL_C_INCLUDES += device/linaro/hikey/gralloc960/
-else
-ifeq ($(TARGET_PRODUCT),hikey)
+else ifeq ($(TARGET_PRODUCT),hikey)
 LOCAL_CPPFLAGS += -DUSE_HISI_IMPORTER
 LOCAL_SRC_FILES += platformhisi.cpp
 LOCAL_C_INCLUDES += device/linaro/hikey/gralloc/
+else ifeq ($(strip $(BOARD_DRM_HWCOMPOSER_BUFFER_IMPORTER)),minigbm)
+LOCAL_SRC_FILES += platformminigbm.cpp
+LOCAL_C_INCLUDES += external/minigbm/cros_gralloc/
 else
 LOCAL_CPPFLAGS += -DUSE_DRM_GENERIC_IMPORTER
-endif
 endif
 
 LOCAL_MODULE := hwcomposer.drm
