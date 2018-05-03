@@ -222,13 +222,6 @@ int DrmDisplayCompositor::Init(DrmResources *drm, int display) {
     return ret;
   }
 
-  pre_compositor_.reset(new GLWorkerCompositor());
-  ret = pre_compositor_->Init();
-  if (ret) {
-    ALOGE("Failed to initialize OpenGL compositor %d", ret);
-    pre_compositor_.reset();
-  }
-
   initialized_ = true;
   return 0;
 }
@@ -301,16 +294,14 @@ int DrmDisplayCompositor::ApplySquash(DrmDisplayComposition *display_comp) {
   }
 
   std::vector<DrmCompositionRegion> &regions = display_comp->squash_regions();
-  if (pre_compositor_) {
-    ret = pre_compositor_->Composite(display_comp->layers().data(),
+  ret = pre_compositor_->Composite(display_comp->layers().data(),
                                    regions.data(), regions.size(), fb.buffer(),
                                    display_comp->importer());
-    pre_compositor_->Finish();
+  pre_compositor_->Finish();
 
-    if (ret) {
-      ALOGE("Failed to squash layers");
-      return ret;
-    }
+  if (ret) {
+    ALOGE("Failed to squash layers");
+    return ret;
   }
 
   ret = display_comp->CreateNextTimelineFence();
@@ -337,16 +328,14 @@ int DrmDisplayCompositor::ApplyPreComposite(
   }
 
   std::vector<DrmCompositionRegion> &regions = display_comp->pre_comp_regions();
-  if (pre_compositor_) {
-    ret = pre_compositor_->Composite(display_comp->layers().data(),
+  ret = pre_compositor_->Composite(display_comp->layers().data(),
                                    regions.data(), regions.size(), fb.buffer(),
                                    display_comp->importer());
-    pre_compositor_->Finish();
+  pre_compositor_->Finish();
 
-    if (ret) {
-      ALOGE("Failed to pre-composite layers");
-      return ret;
-    }
+  if (ret) {
+    ALOGE("Failed to pre-composite layers");
+    return ret;
   }
 
   ret = display_comp->CreateNextTimelineFence();
@@ -405,6 +394,15 @@ int DrmDisplayCompositor::PrepareFrame(DrmDisplayComposition *display_comp) {
       display_comp->squash_regions();
   std::vector<DrmCompositionRegion> &pre_comp_regions =
       display_comp->pre_comp_regions();
+
+  if (!pre_compositor_) {
+    pre_compositor_.reset(new GLWorkerCompositor());
+    int ret = pre_compositor_->Init();
+    if (ret) {
+      ALOGE("Failed to initialize OpenGL compositor %d", ret);
+      return ret;
+    }
+  }
 
   int squash_layer_index = -1;
   if (squash_regions.size() > 0) {
