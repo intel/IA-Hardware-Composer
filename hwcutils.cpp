@@ -121,34 +121,6 @@ void DrmHwcNativeHandle::Clear() {
   }
 }
 
-int DrmHwcLayer::InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
-                                  const gralloc_module_t *gralloc) {
-  alpha = sf_layer->planeAlpha;
-
-  SetSourceCrop(sf_layer->sourceCropf);
-  SetDisplayFrame(sf_layer->displayFrame);
-  SetTransform(sf_layer->transform);
-
-  switch (sf_layer->blending) {
-    case HWC_BLENDING_NONE:
-      blending = DrmHwcBlending::kNone;
-      break;
-    case HWC_BLENDING_PREMULT:
-      blending = DrmHwcBlending::kPreMult;
-      break;
-    case HWC_BLENDING_COVERAGE:
-      blending = DrmHwcBlending::kCoverage;
-      break;
-    default:
-      ALOGE("Invalid blending in hwc_layer_1_t %d", sf_layer->blending);
-      return -EINVAL;
-  }
-
-  sf_handle = sf_layer->handle;
-
-  return ImportBuffer(importer, gralloc);
-}
-
 int DrmHwcLayer::ImportBuffer(Importer *importer,
                               const gralloc_module_t *gralloc) {
   int ret = buffer.ImportBuffer(sf_handle, importer);
