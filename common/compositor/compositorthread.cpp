@@ -103,6 +103,13 @@ bool CompositorThread::Draw(std::vector<DrawState> &states,
   // succeed.
   draw_succeeded_ = true;
   tasks_lock_.unlock();
+
+  // Adding check to end up waiting in this
+  // thread in certain corner case.
+  if (states_.empty() && media_states_.empty()) {
+    return draw_succeeded_;
+  }
+
   Resume();
   Wait();
   return draw_succeeded_;
