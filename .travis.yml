@@ -5,8 +5,8 @@ install:
 - sudo apt-get update
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
-- sudo apt-get install automake autoconf cmake libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev clang-format-3.9
-- travisci/check_patch.sh
+- sudo apt-get install automake autoconf cmake libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev llvm-dev gcc-4.9 g++-4.9 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev clang-format-3.9 python3
+- python3 travisci/check_patch.py
 - sudo pip3 install pathlib
 - sudo pip3 install meson==0.43.0
 - sudo dpkg -s python-mako
