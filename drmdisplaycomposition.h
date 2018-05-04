@@ -20,7 +20,6 @@
 #include "drmcrtc.h"
 #include "drmhwcomposer.h"
 #include "drmplane.h"
-#include "glworker.h"
 
 #include <sstream>
 #include <vector>
@@ -61,8 +60,6 @@ class DrmCompositionPlane {
   enum class Type : int32_t {
     kDisable,
     kLayer,
-    kPrecomp,
-    kSquash,
   };
 
   DrmCompositionPlane() = default;
@@ -124,32 +121,13 @@ class DrmDisplayComposition {
   int SetDpmsMode(uint32_t dpms_mode);
   int SetDisplayMode(const DrmMode &display_mode);
 
-  int Plan(SquashState *squash, std::vector<DrmPlane *> *primary_planes,
+  int Plan(std::vector<DrmPlane *> *primary_planes,
            std::vector<DrmPlane *> *overlay_planes);
 
   int FinalizeComposition();
 
-  int CreateNextTimelineFence();
-  int SignalSquashDone() {
-    return IncreaseTimelineToPoint(timeline_squash_done_);
-  }
-  int SignalPreCompDone() {
-    return IncreaseTimelineToPoint(timeline_pre_comp_done_);
-  }
-  int SignalCompositionDone() {
-    return IncreaseTimelineToPoint(timeline_);
-  }
-
   std::vector<DrmHwcLayer> &layers() {
     return layers_;
-  }
-
-  std::vector<DrmCompositionRegion> &squash_regions() {
-    return squash_regions_;
-  }
-
-  std::vector<DrmCompositionRegion> &pre_comp_regions() {
-    return pre_comp_regions_;
   }
 
   std::vector<DrmCompositionPlane> &composition_planes() {
@@ -201,12 +179,9 @@ class DrmDisplayComposition {
  private:
   bool validate_composition_type(DrmCompositionType desired);
 
-  int IncreaseTimelineToPoint(int point);
-
   int FinalizeComposition(DrmHwcRect<int> *exclude_rects,
                           size_t num_exclude_rects);
   void SeparateLayers(DrmHwcRect<int> *exclude_rects, size_t num_exclude_rects);
-  int CreateAndAssignReleaseFences();
 
   DrmResources *drm_ = NULL;
   DrmCrtc *crtc_ = NULL;
@@ -217,17 +192,10 @@ class DrmDisplayComposition {
   uint32_t dpms_mode_ = DRM_MODE_DPMS_ON;
   DrmMode display_mode_;
 
-  int timeline_fd_ = -1;
-  int timeline_ = 0;
-  int timeline_current_ = 0;
-  int timeline_squash_done_ = 0;
-  int timeline_pre_comp_done_ = 0;
   UniqueFd out_fence_ = -1;
 
   bool geometry_changed_;
   std::vector<DrmHwcLayer> layers_;
-  std::vector<DrmCompositionRegion> squash_regions_;
-  std::vector<DrmCompositionRegion> pre_comp_regions_;
   std::vector<DrmCompositionPlane> composition_planes_;
 
   uint64_t frame_no_ = 0;

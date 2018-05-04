@@ -526,8 +526,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   std::vector<DrmPlane *> primary_planes(primary_planes_);
   std::vector<DrmPlane *> overlay_planes(overlay_planes_);
-  ret = composition->Plan(compositor_.squash_state(), &primary_planes,
-                         &overlay_planes);
+  ret = composition->Plan(&primary_planes, &overlay_planes);
   if (ret) {
     ALOGE("Failed to plan the composition ret=%d", ret);
     return HWC2::Error::BadConfig;
@@ -679,11 +678,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       case HWC2::Composition::SolidColor:
       case HWC2::Composition::Cursor:
       case HWC2::Composition::Sideband:
+      default:
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
-        break;
-      default:
-        layer.set_validated_type(layer.sf_type());
         break;
     }
   }

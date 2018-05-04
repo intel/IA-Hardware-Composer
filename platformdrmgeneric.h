@@ -31,7 +31,6 @@ class DrmGenericImporter : public Importer {
 
   int Init();
 
-  EGLImageKHR ImportImage(EGLDisplay egl_display, buffer_handle_t handle) override;
   int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
   int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 

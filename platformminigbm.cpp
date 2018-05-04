@@ -66,22 +66,6 @@ int DrmMinigbmImporter::Init() {
   return 0;
 }
 
-EGLImageKHR DrmMinigbmImporter::ImportImage(EGLDisplay egl_display, buffer_handle_t handle) {
-  cros_gralloc_handle *gr_handle = (cros_gralloc_handle *)handle;
-  if (!gr_handle)
-    return NULL;
-  EGLint attr[] = {
-    EGL_WIDTH, (EGLint)gr_handle->width,
-    EGL_HEIGHT, (EGLint)gr_handle->height,
-    EGL_LINUX_DRM_FOURCC_EXT, (EGLint)gr_handle->format,
-    EGL_DMA_BUF_PLANE0_FD_EXT, gr_handle->fds[0],
-    EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)gr_handle->strides[0],
-    EGL_DMA_BUF_PLANE0_OFFSET_EXT, (EGLint)gr_handle->offsets[0],
-    EGL_NONE,
-  };
-  return eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attr);
-}
-
 int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   cros_gralloc_handle *gr_handle = (cros_gralloc_handle *)handle;
   if (!gr_handle)

@@ -69,29 +69,9 @@ int HisiImporter::Init() {
   return 0;
 }
 
-EGLImageKHR HisiImporter::ImportImage(EGLDisplay egl_display, buffer_handle_t handle) {
-  private_handle_t const *hnd = reinterpret_cast < private_handle_t const *>(handle);
-  if (!hnd)
-    return NULL;
-
-  EGLint fmt = ConvertHalFormatToDrm(hnd->req_format);
-  if (fmt < 0)
-	return NULL;
-
-  EGLint attr[] = {
-    EGL_WIDTH, hnd->width,
-    EGL_HEIGHT, hnd->height,
-    EGL_LINUX_DRM_FOURCC_EXT, fmt,
-    EGL_DMA_BUF_PLANE0_FD_EXT, hnd->share_fd,
-    EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-    EGL_DMA_BUF_PLANE0_PITCH_EXT, hnd->byte_stride,
-    EGL_NONE,
-  };
-  return eglCreateImageKHR(egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attr);
-}
-
 int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
-  private_handle_t const *hnd = reinterpret_cast < private_handle_t const *>(handle);
+  private_handle_t const *hnd =
+      reinterpret_cast<private_handle_t const *>(handle);
   if (!hnd)
     return -EINVAL;
 
@@ -102,7 +82,7 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
     return ret;
   }
 
-  EGLint fmt = ConvertHalFormatToDrm(hnd->req_format);
+  int32_t fmt = ConvertHalFormatToDrm(hnd->req_format);
   if (fmt < 0)
 	return fmt;
 
@@ -131,5 +111,3 @@ std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
   return planner;
 }
 }
-
-

@@ -36,49 +36,6 @@
 
 namespace android {
 
-class GLWorkerCompositor;
-
-class SquashState {
- public:
-  static const unsigned kHistoryLength = 6;  // TODO: make this number not magic
-  static const unsigned kMaxLayers = 64;
-
-  struct Region {
-    DrmHwcRect<int> rect;
-    std::bitset<kMaxLayers> layer_refs;
-    std::bitset<kHistoryLength> change_history;
-    bool squashed = false;
-  };
-
-  bool is_stable(int region_index) const {
-    return valid_history_ >= kHistoryLength &&
-           regions_[region_index].change_history.none();
-  }
-
-  const std::vector<Region> &regions() const {
-    return regions_;
-  }
-
-  void Init(DrmHwcLayer *layers, size_t num_layers);
-  void GenerateHistory(DrmHwcLayer *layers, size_t num_layers,
-                       std::vector<bool> &changed_regions) const;
-  void StableRegionsWithMarginalHistory(
-      const std::vector<bool> &changed_regions,
-      std::vector<bool> &stable_regions) const;
-  void RecordHistory(DrmHwcLayer *layers, size_t num_layers,
-                     const std::vector<bool> &changed_regions);
-  bool RecordAndCompareSquashed(const std::vector<bool> &squashed_regions);
-
-  void Dump(std::ostringstream *out) const;
-
- private:
-  size_t generation_number_ = 0;
-  unsigned valid_history_ = 0;
-  std::vector<buffer_handle_t> last_handles_;
-
-  std::vector<Region> regions_;
-};
-
 class DrmDisplayCompositor {
  public:
   DrmDisplayCompositor();
@@ -89,14 +46,9 @@ class DrmDisplayCompositor {
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
   int Composite();
-  int SquashAll();
   void Dump(std::ostringstream *out) const;
 
   std::tuple<uint32_t, uint32_t, int> GetActiveModeResolution();
-
-  SquashState *squash_state() {
-    return &squash_state_;
-  }
 
  private:
   struct ModeState {
@@ -115,11 +67,8 @@ class DrmDisplayCompositor {
 
   int PrepareFramebuffer(DrmFramebuffer &fb,
                          DrmDisplayComposition *display_comp);
-  int ApplySquash(DrmDisplayComposition *display_comp);
-  int ApplyPreComposite(DrmDisplayComposition *display_comp);
   int PrepareFrame(DrmDisplayComposition *display_comp);
   int CommitFrame(DrmDisplayComposition *display_comp, bool test_only);
-  int SquashFrame(DrmDisplayComposition *src, DrmDisplayComposition *dst);
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
 
@@ -142,11 +91,6 @@ class DrmDisplayCompositor {
 
   int framebuffer_index_;
   DrmFramebuffer framebuffers_[DRM_DISPLAY_BUFFERS];
-  std::unique_ptr<GLWorkerCompositor> pre_compositor_;
-
-  SquashState squash_state_;
-  int squash_framebuffer_index_;
-  DrmFramebuffer squash_framebuffers_[2];
 
   // mutable since we need to acquire in Dump()
   mutable pthread_mutex_t lock_;
