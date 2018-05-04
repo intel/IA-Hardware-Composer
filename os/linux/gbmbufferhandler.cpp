@@ -159,7 +159,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   struct gbm_handle *temp = new struct gbm_handle();
   // FIXME: If USE_MINIGBM is not set then an unitialized variable is used in
   // line 191 to initialize modifier_high
-  uint64_t mod;
+  uint64_t mod = 0;
 #if USE_MINIGBM
   size_t total_planes = gbm_bo_get_num_planes(bo);
   temp->import_data.width = gbm_bo_get_width(bo);
