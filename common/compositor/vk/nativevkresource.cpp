@@ -33,12 +33,12 @@ bool NativeVKResource::PrepareResources(
 
   for (auto& buffer : buffers) {
     const struct vk_import& import = buffer->GetGpuResource(dev_, true);
-    if (import.res != VK_SUCCESS) {
-      ETRACE("Failed to make import image (%d)\n", import.res);
+    if (import.image_ == VK_NULL_HANDLE) {
+      ETRACE("Failed to make import image\n");
       return false;
     }
-    src_images_.emplace_back(import.image);
-    src_image_memory_.emplace_back(import.memory);
+    src_images_.emplace_back(import.image_);
+    src_image_memory_.emplace_back(import.memory_);
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -48,13 +48,13 @@ bool NativeVKResource::PrepareResources(
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = import.image;
+    barrier.image = import.image_;
     barrier.subresourceRange = clear_range;
     src_barrier_before_clear_.emplace_back(barrier);
 
     VkImageViewCreateInfo view_create = {};
     view_create.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_create.image = import.image;
+    view_create.image = import.image_;
     view_create.viewType = VK_IMAGE_VIEW_TYPE_2D;
     view_create.format = NativeToVkFormat(buffer->GetFormat());
     view_create.components = {};
@@ -76,7 +76,7 @@ bool NativeVKResource::PrepareResources(
     src_image_views_.emplace_back(image_view);
 
     struct vk_resource resource;
-    resource.image = import.image;
+    resource.image = import.image_;
     resource.image_view = image_view;
     layer_textures_.emplace_back(resource);
   }
