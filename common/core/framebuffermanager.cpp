@@ -41,7 +41,7 @@ void FrameBufferManager::RegisterGemHandles(const uint32_t &num_planes,
   } else {
     FBValue value;
     value.fb_ref = 1;
-                value.fb_id = 0;
+    value.fb_id = 0;
     value.fb_created = false;
     fb_map_.emplace(std::make_pair(key, value));
   }
