@@ -6,7 +6,6 @@ install:
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
 - sudo apt-get update
 - sudo apt-get install automake autoconf cmake libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev llvm-dev gcc-4.9 g++-4.9 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev clang-format-3.9 python3
-- python3 travisci/check_patch.py
 - sudo pip3 install pathlib
 - sudo pip3 install meson==0.43.0
 - sudo dpkg -s python-mako
@@ -14,6 +13,7 @@ install:
 - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
 - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
 script:
+- python3 travisci/check_patch.py
 - export LLVM_CONFIG=/usr/bin/llvm-config
 - export HWC_BUILD_DIR=/tmp/
 - export WLD=/tmp/hwc-install
@@ -33,6 +33,15 @@ script:
 - pushd /tmp
 - unzip ninja.zip
 - sudo cp ninja /usr/bin/
+- popd
+
+#clone and build libvulkan : dependency
+- git clone -b sdk-1.1.73 https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers.git /tmp/libvulkan
+- pushd /tmp/libvulkan
+- ./update_external_sources.sh
+- cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$WLD -DBUILD_DEMOS=Off -DBUILD_TESTS=Off -DBUILD_WSI_MIR_SUPPORT=Off -DBUILD_WSI_WAYLAND_SUPPORT=Off -DBUILD_WSI_XCB_SUPPORT=Off -DBUILD_WSI_XLIB_SUPPORT=Off
+- cd build
+- make -j5 && make install
 - popd
 
 #clone and build libdrm : dependency
@@ -79,6 +88,9 @@ script:
 - make -j5
 - make clean
 - ./autogen.sh --prefix=$WLD --enable-dummy-compositor
+- make -j5
+- make clean
+- ./autogen.sh --prefix=$WLD --enable-vulkan
 - make -j5
 
 # Test Weston plugin
