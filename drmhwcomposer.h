@@ -141,7 +141,7 @@ struct DrmHwcLayer {
   DrmHwcNativeHandle handle;
   uint32_t transform;
   DrmHwcBlending blending = DrmHwcBlending::kNone;
-  uint8_t alpha = 0xff;
+  uint16_t alpha = 0xffff;
   DrmHwcRect<float> source_crop;
   DrmHwcRect<int> display_frame;
 
