@@ -626,7 +626,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     }
 
     // TODO: Once we have atomic test, this should fall back to GL
-    if (alpha != 0xFF && plane->alpha_property().id() == 0) {
+    if (alpha != 0xFFFF && plane->alpha_property().id() == 0) {
       ALOGE("Alpha is not supported on plane %d", plane->id());
       ret = -EINVAL;
       break;
