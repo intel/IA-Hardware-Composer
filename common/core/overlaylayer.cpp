@@ -229,17 +229,9 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   surface_damage_ = layer->GetLayerDamage();
-  // In case of layer using blending we need to force partial clear. Otherwise
-  // we see content not getting updated correctly. For example:
-  // on Android enable, settings put system user_rotation 1 and
-  // navigate to settings on Android.
-  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
-    state_ |= kForcePartialClear;
-    surface_damage_ = layer->GetDisplayFrame();
-  }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-	    resource_manager, true);
+            resource_manager, true);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
