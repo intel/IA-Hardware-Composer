@@ -18,6 +18,7 @@
 #define COMMON_UTILS_HWCUTILS_H_
 
 #include <hwcdefs.h>
+#include <sstream>
 
 namespace hwcomposer {
 
@@ -86,6 +87,16 @@ inline OverlapType AnalyseOverlap(const hwcomposer::HwcRect<int>& rect,
     return kOutside;
   }
 }
+
+/**
+ * Pretty-print HwcRect for debugging.
+ */
+std::string StringifyRect(HwcRect<int> rect);
+
+/**
+ * Pretty-print HwcRegion for debugging.
+ */
+std::string StringifyRegion(HwcRegion region);
 
 }  // namespace hwcomposer
 
