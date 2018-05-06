@@ -536,6 +536,9 @@ void OverlayLayer::Dump() {
   DUMPTRACE("SourceHeight: %d", source_crop_height_);
   DUMPTRACE("DstWidth: %d", display_frame_width_);
   DUMPTRACE("DstHeight: %d", display_frame_height_);
+  DUMPTRACE("Source crop %s", StringifyRect(source_crop_).c_str());
+  DUMPTRACE("Display frame %s", StringifyRect(display_frame_).c_str());
+  DUMPTRACE("Surface Damage %s", StringifyRect(surface_damage_).c_str());
   DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
 
   imported_buffer_->buffer_->Dump();
