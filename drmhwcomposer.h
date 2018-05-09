@@ -20,10 +20,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <vector>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include "autofd.h"
-#include "separate_rects.h"
 #include "drmhwcgralloc.h"
 
 struct hwc_import_context;
@@ -110,9 +111,6 @@ class DrmHwcNativeHandle {
   native_handle_t *handle_ = NULL;
 };
 
-template <typename T>
-using DrmHwcRect = separate_rects::Rect<T>;
-
 enum DrmHwcTransform {
   kIdentity = 0,
   kFlipH = 1 << 0,
@@ -136,8 +134,8 @@ struct DrmHwcLayer {
   uint32_t transform;
   DrmHwcBlending blending = DrmHwcBlending::kNone;
   uint16_t alpha = 0xffff;
-  DrmHwcRect<float> source_crop;
-  DrmHwcRect<int> display_frame;
+  hwc_frect_t source_crop;
+  hwc_rect_t display_frame;
 
   UniqueFd acquire_fence;
   OutputFd release_fence;

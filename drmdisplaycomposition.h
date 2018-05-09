@@ -51,7 +51,6 @@ struct DrmCompositionDisplayLayersMap {
 };
 
 struct DrmCompositionRegion {
-  DrmHwcRect<int> frame;
   std::vector<size_t> source_layers;
 };
 
@@ -124,8 +123,6 @@ class DrmDisplayComposition {
   int Plan(std::vector<DrmPlane *> *primary_planes,
            std::vector<DrmPlane *> *overlay_planes);
 
-  int FinalizeComposition();
-
   std::vector<DrmHwcLayer> &layers() {
     return layers_;
   }
@@ -178,10 +175,6 @@ class DrmDisplayComposition {
 
  private:
   bool validate_composition_type(DrmCompositionType desired);
-
-  int FinalizeComposition(DrmHwcRect<int> *exclude_rects,
-                          size_t num_exclude_rects);
-  void SeparateLayers(DrmHwcRect<int> *exclude_rects, size_t num_exclude_rects);
 
   DrmResources *drm_ = NULL;
   DrmCrtc *crtc_ = NULL;

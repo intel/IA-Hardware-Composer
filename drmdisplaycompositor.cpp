@@ -205,8 +205,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
 
     int fb_id = -1;
     int fence_fd = -1;
-    DrmHwcRect<int> display_frame;
-    DrmHwcRect<float> source_crop;
+    hwc_rect_t display_frame;
+    hwc_frect_t source_crop;
     uint64_t rotation = 0;
     uint64_t alpha = 0xFFFF;
 

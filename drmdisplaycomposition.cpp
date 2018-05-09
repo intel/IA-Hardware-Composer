@@ -96,18 +96,6 @@ int DrmDisplayComposition::AddPlaneComposition(DrmCompositionPlane plane) {
   return 0;
 }
 
-void DrmDisplayComposition::SeparateLayers(DrmHwcRect<int> *, size_t) {
-  std::vector<size_t> dedicated_layers;
-
-  // Go through the composition and find the layers that have a dedicated plane.
-  for (auto &i : composition_planes_) {
-    if (i.type() == DrmCompositionPlane::Type::kLayer) {
-      dedicated_layers.insert(dedicated_layers.end(), i.source_layers().begin(),
-                              i.source_layers().end());
-    }
-  }
-}
-
 int DrmDisplayComposition::Plan(std::vector<DrmPlane *> *primary_planes,
                                 std::vector<DrmPlane *> *overlay_planes) {
   if (type_ != DRM_COMPOSITION_TYPE_FRAME)
@@ -279,12 +267,7 @@ void DrmDisplayComposition::Dump(std::ostringstream *out) const {
     *out << " transform=";
     DumpTransform(layer.transform, out);
     *out << " blending[a=" << (int)layer.alpha
-         << "]=" << BlendingToString(layer.blending) << " source_crop";
-    layer.source_crop.Dump(out);
-    *out << " display_frame";
-    layer.display_frame.Dump(out);
-
-    *out << "\n";
+         << "]=" << BlendingToString(layer.blending) << "\n";
   }
 
   *out << "    Planes: count=" << composition_planes_.size() << "\n";

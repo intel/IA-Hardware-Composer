@@ -75,7 +75,6 @@ LOCAL_SRC_FILES := \
 	hwcutils.cpp \
 	platform.cpp \
 	platformdrmgeneric.cpp \
-	separate_rects.cpp \
 	vsyncworker.cpp
 
 LOCAL_CFLAGS := $(common_drm_hwcomposer_cflags)

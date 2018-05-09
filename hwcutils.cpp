@@ -106,12 +106,11 @@ int DrmHwcLayer::ImportBuffer(Importer *importer) {
 }
 
 void DrmHwcLayer::SetSourceCrop(hwc_frect_t const &crop) {
-  source_crop = DrmHwcRect<float>(crop.left, crop.top, crop.right, crop.bottom);
+  source_crop = crop;
 }
 
 void DrmHwcLayer::SetDisplayFrame(hwc_rect_t const &frame) {
-  display_frame =
-      DrmHwcRect<int>(frame.left, frame.top, frame.right, frame.bottom);
+  display_frame = frame;
 }
 
 void DrmHwcLayer::SetTransform(int32_t sf_transform) {

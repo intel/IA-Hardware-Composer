@@ -20,7 +20,6 @@
 #include "drmhwcomposer.h"
 #include "drmdisplaycomposition.h"
 #include "drmframebuffer.h"
-#include "separate_rects.h"
 
 #include <pthread.h>
 #include <memory>
