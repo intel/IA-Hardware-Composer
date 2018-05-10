@@ -10,7 +10,7 @@ stages:
 clang-format:
   stage: style
   script:
-    - git diff -U --no-color master...HEAD | clang-format-diff-3.5 -p 1 -style=file > format-fixup.patch
+    - git diff -U0 --no-color master...HEAD | clang-format-diff-3.5 -p 1 -style=file > format-fixup.patch
     - if [ -s format-fixup.patch ]; then cat format-fixup.patch && exit 1; fi
   artifacts:
     when: on_failure
