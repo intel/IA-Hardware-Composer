@@ -40,7 +40,6 @@ namespace android {
 
 DrmDisplayCompositor::DrmDisplayCompositor()
     : resource_manager_(NULL),
-      drm_(NULL),
       display_(-1),
       initialized_(false),
       active_(false),
@@ -60,11 +59,11 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
   int ret = pthread_mutex_lock(&lock_);
   if (ret)
     ALOGE("Failed to acquire compositor lock %d", ret);
-
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
   if (mode_.blob_id)
-    drm_->DestroyPropertyBlob(mode_.blob_id);
+    drm->DestroyPropertyBlob(mode_.blob_id);
   if (mode_.old_blob_id)
-    drm_->DestroyPropertyBlob(mode_.old_blob_id);
+    drm->DestroyPropertyBlob(mode_.old_blob_id);
 
   active_composition_.reset();
 
@@ -75,12 +74,13 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
   pthread_mutex_destroy(&lock_);
 }
 
-int DrmDisplayCompositor::Init(ResourceManager *resource_manager,
-                               DrmDevice *drm, int display) {
+int DrmDisplayCompositor::Init(ResourceManager *resource_manager, int display) {
   resource_manager_ = resource_manager;
-  drm_ = drm;
   display_ = display;
-
+  if (!resource_manager_->GetDrmDevice(display)) {
+    ALOGE("Could not find drmdevice for display");
+    return -EINVAL;
+  }
   int ret = pthread_mutex_init(&lock_, NULL);
   if (ret) {
     ALOGE("Failed to initialize drm compositor lock %d\n", ret);
@@ -98,7 +98,8 @@ std::unique_ptr<DrmDisplayComposition> DrmDisplayCompositor::CreateComposition()
 
 std::tuple<uint32_t, uint32_t, int>
 DrmDisplayCompositor::GetActiveModeResolution() {
-  DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
+  DrmConnector *connector = drm->GetConnectorForDisplay(display_);
   if (connector == NULL) {
     ALOGE("Failed to determine display mode: no connector for display %d",
           display_);
@@ -131,8 +132,8 @@ int DrmDisplayCompositor::DisablePlanes(DrmDisplayComposition *display_comp) {
       return ret;
     }
   }
-
-  ret = drmModeAtomicCommit(drm_->fd(), pset, 0, drm_);
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
+  ret = drmModeAtomicCommit(drm->fd(), pset, 0, drm);
   if (ret) {
     ALOGE("Failed to commit pset ret=%d\n", ret);
     drmModeAtomicFree(pset);
@@ -152,14 +153,15 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
   std::vector<DrmCompositionPlane> &comp_planes =
       display_comp->composition_planes();
-  uint64_t out_fences[drm_->crtcs().size()];
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
+  uint64_t out_fences[drm->crtcs().size()];
 
-  DrmConnector *connector = drm_->GetConnectorForDisplay(display_);
+  DrmConnector *connector = drm->GetConnectorForDisplay(display_);
   if (!connector) {
     ALOGE("Could not locate connector for display %d", display_);
     return -ENODEV;
   }
-  DrmCrtc *crtc = drm_->GetCrtcForDisplay(display_);
+  DrmCrtc *crtc = drm->GetCrtcForDisplay(display_);
   if (!crtc) {
     ALOGE("Could not locate crtc for display %d", display_);
     return -ENODEV;
@@ -353,7 +355,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     if (test_only)
       flags |= DRM_MODE_ATOMIC_TEST_ONLY;
 
-    ret = drmModeAtomicCommit(drm_->fd(), pset, flags, drm_);
+    ret = drmModeAtomicCommit(drm->fd(), pset, flags, drm);
     if (ret) {
       if (!test_only)
         ALOGE("Failed to commit pset ret=%d\n", ret);
@@ -365,7 +367,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     drmModeAtomicFree(pset);
 
   if (!test_only && mode_.needs_modeset) {
-    ret = drm_->DestroyPropertyBlob(mode_.old_blob_id);
+    ret = drm->DestroyPropertyBlob(mode_.old_blob_id);
     if (ret) {
       ALOGE("Failed to destroy old mode property blob %" PRIu32 "/%d",
             mode_.old_blob_id, ret);
@@ -393,14 +395,15 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
 }
 
 int DrmDisplayCompositor::ApplyDpms(DrmDisplayComposition *display_comp) {
-  DrmConnector *conn = drm_->GetConnectorForDisplay(display_);
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
+  DrmConnector *conn = drm->GetConnectorForDisplay(display_);
   if (!conn) {
     ALOGE("Failed to get DrmConnector for display %d", display_);
     return -ENODEV;
   }
 
   const DrmProperty &prop = conn->dpms_property();
-  int ret = drmModeConnectorSetProperty(drm_->fd(), conn->id(), prop.id(),
+  int ret = drmModeConnectorSetProperty(drm->fd(), conn->id(), prop.id(),
                                         display_comp->dpms_mode());
   if (ret) {
     ALOGE("Failed to set DPMS property for connector %d", conn->id());
@@ -416,8 +419,9 @@ std::tuple<int, uint32_t> DrmDisplayCompositor::CreateModeBlob(
   mode.ToDrmModeModeInfo(&drm_mode);
 
   uint32_t id = 0;
-  int ret = drm_->CreatePropertyBlob(&drm_mode,
-                                     sizeof(struct drm_mode_modeinfo), &id);
+  DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
+  int ret = drm->CreatePropertyBlob(&drm_mode, sizeof(struct drm_mode_modeinfo),
+                                    &id);
   if (ret) {
     ALOGE("Failed to create mode property blob %d", ret);
     return std::make_tuple(ret, 0);
@@ -495,7 +499,8 @@ int DrmDisplayCompositor::ApplyComposition(
     case DRM_COMPOSITION_TYPE_MODESET:
       mode_.mode = composition->display_mode();
       if (mode_.blob_id)
-        drm_->DestroyPropertyBlob(mode_.blob_id);
+        resource_manager_->GetDrmDevice(display_)
+            ->DestroyPropertyBlob(mode_.blob_id);
       std::tie(ret, mode_.blob_id) = CreateModeBlob(mode_.mode);
       if (ret) {
         ALOGE("Failed to create mode blob for display %d", display_);

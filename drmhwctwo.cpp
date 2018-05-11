@@ -173,7 +173,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
   }
 
   int display = static_cast<int>(handle_);
-  int ret = compositor_.Init(resource_manager_, drm_, display);
+  int ret = compositor_.Init(resource_manager_, display);
   if (ret) {
     ALOGE("Failed display compositor init for display %d (%d)", display, ret);
     return HWC2::Error::NoResources;
