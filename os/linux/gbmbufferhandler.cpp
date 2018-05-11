@@ -116,12 +116,12 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   struct gbm_bo *bo = NULL;
 
   bool rbc_enabled = false;
-  uint64_t modifier = 0;
+  uint64_t modifier = DRM_FORMAT_MOD_NONE;
 #ifdef ENABLE_RBC
   if (preferred_modifier != -1) {
     modifier = preferred_modifier;
   } else {
-    modifier = drm_get_modifier(gbm_format);
+    modifier = choose_drm_modifier(gbm_format);
   }
 
   if (modifier_used) {
@@ -157,8 +157,6 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   struct gbm_handle *temp = new struct gbm_handle();
-  // FIXME: If USE_MINIGBM is not set then an unitialized variable is used in
-  // line 191 to initialize modifier_high
   uint64_t mod = 0;
 #if USE_MINIGBM
   size_t total_planes = gbm_bo_get_num_planes(bo);
@@ -179,6 +177,7 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   temp->meta_data_.num_planes_ = total_planes;
 #else
   if (rbc_enabled) {
+    temp->meta_data_.num_planes_ = gbm_bo_get_plane_count(bo);
     temp->import_data.fd_modifier_data.width = gbm_bo_get_width(bo);
     temp->import_data.fd_modifier_data.height = gbm_bo_get_height(bo);
     temp->import_data.fd_modifier_data.format = gbm_bo_get_format(bo);
@@ -186,13 +185,14 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     temp->import_data.fd_modifier_data.fds[0] = gbm_bo_get_fd(bo);
 
     temp->import_data.fd_modifier_data.modifier = gbm_bo_get_modifier(bo);
-    uint32_t modifier_low = static_cast<uint32_t>(
-        temp->import_data.fd_modifier_data.modifier >> 32);
+    mod = temp->import_data.fd_modifier_data.modifier;
+    uint32_t modifier_low = static_cast<uint32_t>(mod >> 32);
     uint32_t modifier_high = static_cast<uint32_t>(mod);
 
-    for (size_t i = 0; i < temp->total_planes; i++) {
+    for (size_t i = 0; i < temp->meta_data_.num_planes_; i++) {
       temp->import_data.fd_modifier_data.offsets[i] = gbm_bo_get_offset(bo, i);
-      temp->import_data.fd_modifier_data.strides[i] = gbm_bo_get_stride(bo);
+      temp->import_data.fd_modifier_data.strides[i] =
+          gbm_bo_get_stride_for_plane(bo, i);
       temp->meta_data_.fb_modifiers_[2 * i] = modifier_low;
       temp->meta_data_.fb_modifiers_[2 * i + 1] = modifier_high;
     }
@@ -277,7 +277,6 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
         source->import_data.fd_modifier_data.height;
     temp->import_data.fd_modifier_data.format =
         source->import_data.fd_modifier_data.format;
-    temp->total_planes = source->total_planes;
     temp->import_data.fd_modifier_data.num_fds =
         source->import_data.fd_modifier_data.num_fds;
 
@@ -286,7 +285,9 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
           dup(source->import_data.fd_modifier_data.fds[i]);
     }
 
-    for (size_t i = 0; i < temp->total_planes; i++) {
+    size_t total_planes = source->meta_data_.num_planes_;
+
+    for (size_t i = 0; i < total_planes; i++) {
       temp->import_data.fd_modifier_data.offsets[i] =
           source->import_data.fd_modifier_data.offsets[i];
       temp->import_data.fd_modifier_data.strides[i] =
@@ -309,10 +310,9 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
 }
 
 bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
-  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   uint32_t gem_handle = 0;
   HwcBuffer *bo = &(handle->meta_data_);
-  bool use_modifer = true;
+  bool use_modifier = true;
   uint64_t mod = 0;
 
   if (!handle->imported_bo) {
@@ -328,13 +328,16 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     }
 #else
     if (!handle->meta_data_.fb_modifiers_[0]) {
-      use_modifer = false;
+      use_modifier = false;
       bo->format_ = handle->import_data.fd_data.format;
+      bo->native_format_ = handle->import_data.fd_data.format;
+
       handle->imported_bo =
           gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data.fd_data,
                         handle->gbm_flags);
     } else {
       bo->format_ = handle->import_data.fd_modifier_data.format;
+      bo->native_format_ = handle->import_data.fd_modifier_data.format;
       handle->imported_bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER,
                                           &handle->import_data.fd_modifier_data,
                                           handle->gbm_flags);
@@ -357,7 +360,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   handle->meta_data_.width_ = handle->import_data.width;
   handle->meta_data_.height_ = handle->import_data.height;
 #else
-  if (!use_modifer) {
+  if (!use_modifier) {
     handle->meta_data_.width_ = handle->import_data.fd_data.width;
     handle->meta_data_.height_ = handle->import_data.fd_data.height;
   } else {
@@ -391,26 +394,37 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     bo->fb_modifiers_[2 * i + 1] = static_cast<uint32_t>(mod);
   }
 #else
-  if (!use_modifer) {
+  size_t total_planes = gbm_bo_get_plane_count(handle->imported_bo);
+  handle->meta_data_.num_planes_ = total_planes;
+
+  if (!use_modifier) {
     bo->prime_fds_[0] = handle->import_data.fd_data.fd;
+    for (size_t i = 0; i < total_planes; i++) {
+      handle->meta_data_.gem_handles_[i] = gem_handle;
+      handle->meta_data_.offsets_[i] =
+          gbm_bo_get_offset(handle->imported_bo, i);
+      handle->meta_data_.pitches_[i] =
+          gbm_bo_get_stride_for_plane(handle->imported_bo, i);
+      handle->meta_data_.prime_fds_[i] = handle->import_data.fd_data.fd;
+    }
   } else {
     bo->prime_fds_[0] = handle->import_data.fd_modifier_data.fds[0];
-  }
 
-  size_t total_planes = gbm_bo_get_plane_count(handle->imported_bo);
-  bo->num_planes_ = total_planes;
-  mod = gbm_bo_get_modifier(handle->imported_bo);
-  uint32_t modifier_low = static_cast<uint32_t>(
-      handle->import_data.fd_modifier_data.modifier >> 32);
-  uint32_t modifier_high = static_cast<uint32_t>(mod);
+    mod = gbm_bo_get_modifier(handle->imported_bo);
+    uint32_t modifier_low = static_cast<uint32_t>(mod >> 32);
+    uint32_t modifier_high = static_cast<uint32_t>(mod);
 
-  for (size_t i = 0; i < total_planes; i++) {
-    bo->gem_handles_[i] =
-        gbm_bo_get_handle_for_plane(handle->imported_bo, i).u32;
-    bo->offsets_[i] = handle->import_data.fd_modifier_data.offsets[i];
-    bo->pitches_[i] = gbm_bo_get_stride_for_plane(handle->imported_bo, i);
-    bo->fb_modifiers_[2 * i] = modifier_low;
-    bo->fb_modifiers_[2 * i + 1] = modifier_high;
+    for (size_t i = 0; i < total_planes; i++) {
+      handle->meta_data_.gem_handles_[i] = gem_handle;
+      handle->meta_data_.offsets_[i] =
+          gbm_bo_get_offset(handle->imported_bo, i);
+      handle->meta_data_.pitches_[i] =
+          gbm_bo_get_stride_for_plane(handle->imported_bo, i);
+      handle->meta_data_.prime_fds_[i] =
+          handle->import_data.fd_modifier_data.fds[0];
+      bo->fb_modifiers_[2 * i] = modifier_low;
+      bo->fb_modifiers_[2 * i + 1] = modifier_high;
+    }
   }
 #endif
 
