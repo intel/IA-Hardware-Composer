@@ -45,7 +45,6 @@ struct gbm_handle {
 #endif
   struct gbm_bo* bo = NULL;
   struct gbm_bo* imported_bo = NULL;
-  uint32_t total_planes = 0;
   HwcBuffer meta_data_;
   bool hwc_buffer_ = false;
   void* pixel_memory_ = NULL;
@@ -78,7 +77,12 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
 #else
 inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   uint32_t id = 0;
-  uint32_t prime_fd = handle->import_data.fd_data.fd;
+  uint32_t prime_fd = -1;
+  if (!handle->meta_data_.fb_modifiers_[0]) {
+    prime_fd = handle->import_data.fd_data.fd;
+  } else {
+    prime_fd = handle->import_data.fd_modifier_data.fds[0];
+  }
   if (drmPrimeFDToHandle(gpu_fd, prime_fd, &id)) {
     ETRACE("Error generate handle from prime fd %d", prime_fd);
   }
