@@ -202,19 +202,15 @@ bool VARenderer::SetVAProcFilterDeinterlaceMode(
   return false;
 }
 
-bool VARenderer::SetVAProcFilterScalingMode(uint32_t mode) {
+unsigned int VARenderer::GetVAProcFilterScalingMode(uint32_t mode) {
   switch (mode) {
     case 1:
-      filter_flags_ = VA_FILTER_SCALING_FAST;
-      break;
+      return VA_FILTER_SCALING_FAST;
     case 2:
-      filter_flags_ = VA_FILTER_SCALING_HQ;
-      break;
+      return VA_FILTER_SCALING_HQ;
     default:
-      filter_flags_ = VA_FILTER_SCALING_HQ;
-      break;
+      return VA_FILTER_SCALING_HQ;
   }
-  return true;
 }
 
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
@@ -269,9 +265,12 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   output_region.width = layer_out->GetSourceCropWidth();
   output_region.height = layer_out->GetSourceCropHeight();
 
-  param_.surface = surface_in;
-  param_.surface_region = &surface_region;
-  param_.output_region = &output_region;
+  VAProcPipelineParameterBuffer pipe_param = {};
+  pipe_param.surface = surface_in;
+  pipe_param.surface_region = &surface_region;
+  pipe_param.surface_color_standard = VAProcColorStandardBT601;
+  pipe_param.output_region = &output_region;
+  pipe_param.output_color_standard = VAProcColorStandardBT601;
 
   DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
             surface_region.y, surface_region.width, surface_region.height);
@@ -282,27 +281,30 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
   SetVAProcFilterDeinterlaceMode(state.deinterlace_);
-  SetVAProcFilterScalingMode(state.scaling_mode_);
 
   if (!UpdateCaps()) {
     ETRACE("Failed to update capabailities. \n");
     return false;
   }
 
-  param_.filter_flags = filter_flags_;
+  pipe_param.filter_flags = GetVAProcFilterScalingMode(state.scaling_mode_);
+  if (filters_.size()) {
+    pipe_param.filters = filters_.data();
+  }
+  pipe_param.num_filters = static_cast<unsigned int>(filters_.size());
 
 #if VA_MAJOR_VERSION >= 1
   // currently rotation is only supported by VA on Android.
   uint32_t rotation = 0, mirror = 0;
   HWCTransformToVA(state.layer_->GetTransform(), rotation, mirror);
-  param_.rotation_state = rotation;
-  param_.mirror_state = mirror;
+  pipe_param.rotation_state = rotation;
+  pipe_param.mirror_state = mirror;
 #endif
 
   ScopedVABufferID pipeline_buffer(va_display_);
   if (!pipeline_buffer.CreateBuffer(
           va_context_, VAProcPipelineParameterBufferType,
-          sizeof(VAProcPipelineParameterBuffer), 1, &param_)) {
+          sizeof(VAProcPipelineParameterBuffer), 1, &pipe_param)) {
     return false;
   }
 
@@ -353,11 +355,6 @@ bool VARenderer::LoadCaps() {
   SetVAProcFilterColorDefaultValue(&colorbalancecaps[0]);
   SetVAProcFilterDeinterlaceDefaultMode();
 
-  memset(&param_, 0, sizeof(VAProcPipelineParameterBuffer));
-  param_.surface_color_standard = VAProcColorStandardBT601;
-  param_.output_color_standard = VAProcColorStandardBT601;
-  param_.num_filters = 0;
-  param_.filters = nullptr;
   return true;
 }
 
@@ -480,13 +477,6 @@ bool VARenderer::UpdateCaps() {
     filters_.push_back(deinterlace[0].buffer());
   }
   deinterlace_.swap(deinterlace);
-
-  param_.num_filters = static_cast<unsigned int>(filters_.size());
-  param_.filters = nullptr;
-
-  if (filters_.size()) {
-    param_.filters = &filters_[0];
-  }
 
   return true;
 }
