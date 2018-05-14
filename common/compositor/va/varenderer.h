@@ -98,10 +98,10 @@ class VARenderer : public Renderer {
  private:
   bool QueryVAProcFilterCaps(VAContextID context, VAProcFilterType type,
                              void* caps, uint32_t* num);
+  unsigned int GetVAProcFilterScalingMode(uint32_t mode);
   bool SetVAProcFilterColorValue(HWCColorControl type,
                                  const HWCColorProp& prop);
   bool SetVAProcFilterDeinterlaceMode(const HWCDeinterlaceProp& prop);
-  bool SetVAProcFilterScalingMode(uint32_t mode);
   bool SetVAProcFilterColorDefaultValue(VAProcFilterCapColorBalance* caps);
   bool SetVAProcFilterDeinterlaceDefaultMode();
   bool MapVAProcFilterColorModetoHwc(HWCColorControl& vppmode,
@@ -128,8 +128,6 @@ class VARenderer : public Renderer {
   int render_target_format_ = VA_RT_FORMAT_YUV420;
   VAContextID va_context_ = VA_INVALID_ID;
   VAConfigID va_config_ = VA_INVALID_ID;
-  VAProcPipelineParameterBuffer param_;
-  uint32_t filter_flags_ = 0;
 };
 
 }  // namespace hwcomposer
