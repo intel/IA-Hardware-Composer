@@ -106,6 +106,8 @@ class GpuDevice : public HWCThread {
   SpinLock thread_stage_lock_;
   SpinLock thread_sync_lock_;
   int lock_fd_ = -1;
+  bool hwc_locked = false;
+  bool use_lock_file = true;
   friend class DrmDisplayManager;
 };
 

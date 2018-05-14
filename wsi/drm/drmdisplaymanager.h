@@ -67,6 +67,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void HandleLazyInitialization();
 
+  void SetDisplayRenderingState(bool rendering);
+
  protected:
   void HandleWait() override;
   void HandleRoutine() override;

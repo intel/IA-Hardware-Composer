@@ -479,6 +479,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     return true;
   }
 
+  if (!display_->GetDisplayRenderingState()) {
+#ifdef SURFACE_TRACING
+        ISURFACETRACE("display_->GetRenderingState returned false, skip the display rendering");
+#endif
+    return true;
+  }
+
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   std::vector<OverlayLayer> layers;

@@ -53,6 +53,8 @@ class DisplayManager {
   // manager until ForceRefresh is called.
   virtual void IgnoreUpdates() = 0;
 
+  virtual void SetDisplayRenderingState(bool rendering) = 0;
+
   virtual NativeDisplay *GetVirtualDisplay() = 0;
   virtual NativeDisplay *GetNestedDisplay() = 0;
 
