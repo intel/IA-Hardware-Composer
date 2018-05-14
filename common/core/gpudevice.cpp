@@ -61,11 +61,6 @@ bool GpuDevice::Initialize() {
   initialization_state_ &= ~kHWCSettingsDone;
   thread_sync_lock_.unlock();
 
-  if (use_thread && lock_fd_ == -1) {
-    // Exit thread as we don't need worker thread after
-    // Initialization.
-    HWCThread::Exit();
-  }
 
   return true;
 }
@@ -652,39 +647,44 @@ void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
 }
 
 void GpuDevice::HandleRoutine() {
-  thread_sync_lock_.lock();
-  HandleHWCSettings();
-
-  // Iniitialize resources to monitor external events.
-  // These can be two types:
-  // 1) We are showing splash screen and another App
-  //    needs to take the control. In this case splash
-  //    is true.
-  // 2) Another app is having control of display and we
-  //    we need to take control.
-  // TODO: Add splash screen support.
-  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
-  if (lock_fd_ == -1) {
-    thread_sync_lock_.unlock();
-    return;
-  }
-
-  thread_sync_lock_.unlock();
-  display_manager_->IgnoreUpdates();
-
-  if (flock(lock_fd_, LOCK_EX) != 0)
-    ETRACE("Failed to wait on hwc lock.");
-
-  close(lock_fd_);
-  lock_fd_ = -1;
-
-  display_manager_->ForceRefresh();
+  // do nothing.
 }
 
 void GpuDevice::HandleWait() {
-  if (lock_fd_ == -1) {
-    HWCThread::HandleWait();
+
+  ETRACE("Called in GpuDevice::HandleWait.");
+
+  if (use_lock_file && -1 == lock_fd_) {
+    lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
+
+    if (-1 == lock_fd_) {
+      ETRACE("/vendor/hwc.lock doesn't exist, skip the DRM locking");
+      use_lock_file = false;
+    }
+    else {
+      if (flock(lock_fd_, LOCK_EX|LOCK_NB) != 0) {
+         ETRACE("Failed to obtain exclusive hwc lock, set frame rendering skip true.");
+         display_manager_->SetDisplayRenderingState(false);
+         ETRACE("Try to grab exclusive hwc lock.");
+         if (0 == flock(lock_fd_, LOCK_EX)) {
+           ETRACE("Grabbed exclusive hwc lock.");
+           display_manager_->SetDisplayRenderingState(true);
+         }
+         else {
+           ETRACE("Failed to get exclusive hwc lock, still enable display rendering.");
+           display_manager_->SetDisplayRenderingState(true);
+        }
+        hwc_locked = true;
+      }
+      else {
+        ETRACE("Grabbed exclusive hwc lock.");
+        display_manager_->SetDisplayRenderingState(true);
+        hwc_locked = true;
+      }
+    }
   }
+
+  HWCThread::HandleWait();
 }
 
 void GpuDevice::DisableWatch() {

@@ -600,6 +600,18 @@ bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
   return true;
 }
 
+void PhysicalDisplay::SetDisplayRenderingState(bool rendering)
+{
+  SPIN_LOCK(modeset_lock_);
+  rendering_state_ = rendering;
+  SPIN_UNLOCK(modeset_lock_);
+}
+
+bool PhysicalDisplay::GetDisplayRenderingState()
+{
+  return rendering_state_;
+}
+
 bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
   stream << "Headless";

@@ -209,6 +209,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void HandleLazyInitialization() {
   }
 
+  void SetDisplayRenderingState(bool rendering);
+  bool GetDisplayRenderingState();
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
@@ -259,6 +262,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
+  volatile bool rendering_state_ = true;
 };
 
 }  // namespace hwcomposer

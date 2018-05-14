@@ -352,6 +352,19 @@ bool DrmDisplayManager::UpdateDisplayState() {
   return true;
 }
 
+
+void DrmDisplayManager::SetDisplayRenderingState(bool rendering)
+{
+  spin_lock_.lock();
+
+  for (auto &display: displays_) {
+    display->SetDisplayRenderingState(rendering);
+  }
+
+  spin_lock_.unlock();
+
+}
+
 void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
   spin_lock_.lock();
   for (auto &display : displays_) {
