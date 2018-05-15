@@ -219,7 +219,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
   surface_damage_ = layer->GetLayerDamage();
-  if (previous_layer && !layer->IsCursorLayer() && layer->HasZorderChanged()) {
+  if (previous_layer && layer->HasZorderChanged()) {
     if (previous_layer->actual_composition_ == kGpu) {
       CalculateRect(previous_layer->display_frame_, surface_damage_);
       bool force_partial_clear = true;
@@ -233,8 +233,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       if (force_partial_clear) {
         state_ |= kForcePartialClear;
       }
-    } else {
-      state_ |= kLayerOrderChanged;
+    } else if (!layer->IsCursorLayer()) {
+      state_ |= kNeedsReValidation;
     }
   }
 
