@@ -25,7 +25,7 @@
 struct HwcBuffer {
   HwcBuffer() = default;
 
-  HwcBuffer &operator=(const HwcBuffer &rhs) = delete;
+  HwcBuffer &operator=(const HwcBuffer &rhs) = default;
 
   uint32_t width_ = 0;
   uint32_t height_ = 0;

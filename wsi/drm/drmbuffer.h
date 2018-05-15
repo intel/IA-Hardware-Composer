@@ -37,15 +37,15 @@ class DrmBuffer : public OverlayBuffer {
                                   ResourceManager* buffer_manager) override;
 
   uint32_t GetWidth() const override {
-    return width_;
+    return mtdt.width_;
   }
 
   uint32_t GetHeight() const override {
-    return height_;
+    return mtdt.height_;
   }
 
   uint32_t GetFormat() const override {
-    return format_;
+    return mtdt.format_;
   }
 
   HWCLayerType GetUsage() const override {
@@ -61,15 +61,15 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   const uint32_t* GetPitches() const override {
-    return pitches_;
+    return &mtdt.pitches_[0];
   }
 
   const uint32_t* GetOffsets() const override {
-    return offsets_;
+    return &mtdt.offsets_[0];
   }
 
   uint32_t GetTilingMode() const override {
-    return tiling_mode_;
+    return mtdt.tiling_mode_;
   }
 
   const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
@@ -93,6 +93,8 @@ class DrmBuffer : public OverlayBuffer {
 
   void Dump() override;
 
+  void SaveMetaDataBufferObject(const HwcBuffer& bo) { mtdt = bo; };
+
  private:
   void Initialize(const HwcBuffer& bo);
   uint32_t width_ = 0;
@@ -100,9 +102,7 @@ class DrmBuffer : public OverlayBuffer {
   uint32_t format_ = 0;
   uint32_t tiling_mode_ = 0;
   uint32_t frame_buffer_format_ = 0;
-  uint32_t pitches_[4];
-  uint32_t offsets_[4];
-  uint32_t gem_handles_[4];
+  HwcBuffer mtdt; /* metadata buffer object */
   HWCLayerType usage_ = kLayerNormal;
   uint32_t previous_width_ = 0;   // For Media usage.
   uint32_t previous_height_ = 0;  // For Media usage.
