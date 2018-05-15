@@ -22,13 +22,6 @@
 
 namespace hwcomposer {
 
-// Minimum threshold before we take advantage of
-// Surface damage for this layer. This should not
-// be needed ideally but we seem to run into problems
-// when using Surface Damage for layers having damage
-// rect less than 1000.
-static uint32_t DAMAGE_THRESHOLD = 256;
-
 HwcLayer::~HwcLayer() {
   if (release_fd_ > 0) {
     close(release_fd_);
@@ -127,19 +120,10 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       (surface_damage_.top == rect.top) &&
       (surface_damage_.right == rect.right) &&
       (surface_damage_.bottom == rect.bottom)) {
-    if (display_frame_width_ < DAMAGE_THRESHOLD &&
-        display_frame_height_ < DAMAGE_THRESHOLD) {
-      layer_cache_ |= kForceClear;
-    }
     return;
   }
 
   state_ |= kSurfaceDamageChanged;
-  if (display_frame_width_ < DAMAGE_THRESHOLD &&
-      display_frame_height_ < DAMAGE_THRESHOLD) {
-    layer_cache_ |= kForceClear;
-    UpdateRenderingDamage(display_frame_, display_frame_, true);
-  }
 
   UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
@@ -217,7 +201,6 @@ void HwcLayer::Validate() {
     state_ &= ~kSurfaceDamageChanged;
     state_ &= ~kZorderChanged;
     layer_cache_ &= ~kLayerAttributesChanged;
-    layer_cache_ &= ~kForceClear;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
 
@@ -226,11 +209,6 @@ void HwcLayer::Validate() {
     // to global display co-ordinates
     if (!surface_damage_.empty() &&
         ((source_crop_.left == 0) && (source_crop_.top == 0))) {
-      if (display_frame_width_ < DAMAGE_THRESHOLD &&
-          display_frame_height_ < DAMAGE_THRESHOLD) {
-        layer_cache_ |= kForceClear;
-        current_rendering_damage_ = display_frame_;
-      }
       current_rendering_damage_.left =
           surface_damage_.left + display_frame_.left;
       current_rendering_damage_.top = surface_damage_.top + display_frame_.top;
