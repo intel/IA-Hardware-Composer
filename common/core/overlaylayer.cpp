@@ -218,13 +218,25 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
-  if (!layer->IsCursorLayer() && layer->HasZorderChanged() &&
-      (!previous_layer ||
-       (previous_layer && (previous_layer->z_order_ != z_order)))) {
-    state_ |= kLayerOrderChanged;
-  }
-
   surface_damage_ = layer->GetLayerDamage();
+  if (previous_layer && !layer->IsCursorLayer() && layer->HasZorderChanged()) {
+    if (previous_layer->actual_composition_ == kGpu) {
+      CalculateRect(previous_layer->display_frame_, surface_damage_);
+      bool force_partial_clear = true;
+      // We can skip Clear in case display frame, transforms are same.
+      if (previous_layer->display_frame_ == display_frame_ &&
+          transform_ == previous_layer->transform_ &&
+          plane_transform_ == previous_layer->plane_transform_) {
+        force_partial_clear = false;
+      }
+
+      if (force_partial_clear) {
+        state_ |= kForcePartialClear;
+      }
+    } else {
+      state_ |= kLayerOrderChanged;
+    }
+  }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
             resource_manager, true);
