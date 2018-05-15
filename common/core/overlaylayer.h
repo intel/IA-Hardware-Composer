@@ -202,10 +202,6 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
-  bool LayerOrderChanged() const {
-    return state_ & kLayerOrderChanged;
-  }
-
   bool NeedsPartialClear() const {
     return state_ & kForcePartialClear;
   }
@@ -222,8 +218,7 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kLayerOrderChanged = 1 << 5,
-    kForcePartialClear = 1 << 6
+    kForcePartialClear = 1 << 5
   };
 
   struct ImportedBuffer {

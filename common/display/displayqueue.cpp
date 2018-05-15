@@ -604,13 +604,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     z_order++;
 
-    // This could be optimized in future but for now let's reset
-    // the whole cache in case z_order of any layer has changed.
-    if (add_index != 0 && overlay_layer->LayerOrderChanged()) {
-      add_index = 0;
-      continue;
-    }
-
     // Handle case where Media layer has been destroyed/created or has changed
     // z-order.
     if (add_index != 0 && overlay_layer->IsVideoLayer()) {
