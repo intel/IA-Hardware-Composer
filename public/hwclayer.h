@@ -253,14 +253,6 @@ struct HwcLayer {
    */
   const HwcRect<int>& GetLayerDamage();
 
-  /**
-   * API for checking if we need to force clearing the surface
-   * which is rendering this layer.
-   */
-  bool ForceClear() const {
-    return layer_cache_ & kForceClear;
-  }
-
  private:
   void Validate();
   void UpdateRenderingDamage(const HwcRect<int>& old_rect,
@@ -285,7 +277,6 @@ struct HwcLayer {
     kLayerAttributesChanged = 1 << 0,
     kDisplayFrameRectChanged = 1 << 1,
     kSourceRectChanged = 1 << 2,
-    kForceClear = 1 << 3
   };
 
   int32_t transform_ = 0;
