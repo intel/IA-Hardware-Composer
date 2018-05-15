@@ -109,6 +109,10 @@ endif
 
 LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
 
+ifeq ($(strip $(HWC_VIDEO_PERF_WA)), true)
+LOCAL_CPPFLAGS += -DPREFER_ABGR
+endif
+
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
