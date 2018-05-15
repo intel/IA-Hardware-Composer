@@ -224,10 +224,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     state_ |= kLayerOrderChanged;
   }
 
-  if (layer->ForceClear()) {
-    state_ |= kForcePartialClear;
-  }
-
   surface_damage_ = layer->GetLayerDamage();
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
