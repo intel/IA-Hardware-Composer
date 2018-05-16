@@ -144,7 +144,6 @@ class NativeSurface {
   bool on_screen_ = false;
   HwcRect<int> surface_damage_;
   HwcRect<int> previous_damage_;
-  HwcRect<int> previous_nc_damage_;
 };
 
 }  // namespace hwcomposer

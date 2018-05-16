@@ -137,7 +137,6 @@ bool NativeSurface::IsSurfaceDamageChanged() const {
 void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
   surface_damage_ = plane.GetDisplayFrame();
   previous_damage_ = surface_damage_;
-  previous_nc_damage_ = surface_damage_;
   clear_surface_ = kFullClear;
   damage_changed_ = true;
   on_screen_ = false;
@@ -157,24 +156,9 @@ void NativeSurface::ResetSourceCrop(const HwcRect<float> &source_crop) {
 
 void NativeSurface::UpdateSurfaceDamage(
     const HwcRect<int> &currentsurface_damage, bool force) {
-  HwcRect<int> current_damage = currentsurface_damage;
-  if (current_damage.right > width_) {
-    current_damage.right = width_;
-  }
-
-  if (current_damage.bottom > height_) {
-    current_damage.bottom = height_;
-  }
-
   if (surface_damage_.empty()) {
-    surface_damage_ = current_damage;
+    surface_damage_ = currentsurface_damage;
     damage_changed_ = true;
-
-    if (!surface_damage_.empty()) {
-      CalculateRect(previous_nc_damage_, surface_damage_);
-
-      previous_nc_damage_ = current_damage;
-    }
 
     if (!force && (previous_damage_ == surface_damage_))
       damage_changed_ = false;
@@ -182,19 +166,10 @@ void NativeSurface::UpdateSurfaceDamage(
     return;
   }
 
-  CalculateRect(current_damage, previous_nc_damage_);
-
-  if (current_damage == surface_damage_) {
-    return;
-  }
-
-  CalculateRect(current_damage, surface_damage_);
-
-  if (!damage_changed_) {
-    damage_changed_ = true;
-    if (!force && (previous_damage_ == surface_damage_))
-      damage_changed_ = false;
-  }
+  CalculateRect(currentsurface_damage, surface_damage_);
+  damage_changed_ = true;
+  if (!force && (previous_damage_ == surface_damage_))
+    damage_changed_ = false;
 }
 
 void NativeSurface::ResetDamage() {
