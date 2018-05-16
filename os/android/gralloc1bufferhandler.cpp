@@ -44,7 +44,23 @@ NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
   return handler;
 }
 
-Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd) : fd_(fd) {
+Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd)
+    : fd_(fd),
+      gralloc_(nullptr),
+      device_(nullptr),
+      register_(nullptr),
+      release_(nullptr),
+      dimensions_(nullptr),
+      lock_(nullptr),
+      unlock_(nullptr),
+      create_descriptor_(nullptr),
+      destroy_descriptor_(nullptr),
+      set_consumer_usage_(nullptr),
+      set_dimensions_(nullptr),
+      set_format_(nullptr),
+      set_producer_usage_(nullptr),
+      allocate_(nullptr),
+      set_modifier_(nullptr) {
 }
 
 Gralloc1BufferHandler::~Gralloc1BufferHandler() {

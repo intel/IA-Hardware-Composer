@@ -197,19 +197,19 @@ class IAHWC2 : public hwc2_device_t {
     hwcomposer::NativeDisplay *GetDisplay();
 
    private:
-    hwcomposer::NativeDisplay *display_ = NULL;
+    hwcomposer::NativeDisplay *display_;
     hwc2_display_t handle_;
     HWC2::DisplayType type_;
     std::map<hwc2_layer_t, Hwc2Layer> layers_;
     Hwc2Layer client_layer_;
     int32_t color_mode_;
 
-    uint32_t frame_no_ = 0;
+    uint32_t frame_no_;
     // True after validateDisplay
-    bool checkValidateDisplay = false;
-    bool disable_explicit_sync_ = false;
-    bool enable_nested_display_compose_ = false;
-    uint32_t scaling_mode_ = 0;
+    bool check_validate_display_;
+    bool disable_explicit_sync_;
+    bool enable_nested_display_compose_;
+    uint32_t scaling_mode_;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
