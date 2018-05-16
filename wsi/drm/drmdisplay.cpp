@@ -132,8 +132,10 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   SetPowerMode(power_mode_);
 
   // This is a valid case on DSI panels.
-  if (!broadcastrgb_props)
+  if (broadcastrgb_props == NULL) {
+    WTRACE("Unable to get Broadcast RGB properties\n");
     return true;
+  }
 
   if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM)) {
     drmModeFreeProperty(broadcastrgb_props);
