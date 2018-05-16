@@ -282,7 +282,15 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   return error;
 }
 
-IAHWC2::HwcDisplay::HwcDisplay() {
+IAHWC2::HwcDisplay::HwcDisplay()
+    : display_(nullptr),
+      handle_(0),
+      type_(HWC2::DisplayType::Invalid),
+      frame_no_(0),
+      check_validate_display_(false),
+      disable_explicit_sync_(false),
+      enable_nested_display_compose_(false),
+      scaling_mode_(0) {
   supported(__func__);
 }
 
@@ -395,7 +403,7 @@ HWC2::Error IAHWC2::HwcDisplay::RegisterHotPlugCallback(
 
 HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
-  if (!checkValidateDisplay) {
+  if (!check_validate_display_) {
     ALOGV("AcceptChanges failed, not validated");
     return HWC2::Error::NotValidated;
   }
@@ -404,7 +412,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
     l.second.accept_type_change();
 
   // reset the value to false
-  checkValidateDisplay = false;
+  check_validate_display_ = false;
   return HWC2::Error::None;
 }
 
@@ -839,7 +847,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     }
   }
 
-  checkValidateDisplay = true;
+  check_validate_display_ = true;
   return HWC2::Error::None;
 }
 
