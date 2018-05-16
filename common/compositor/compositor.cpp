@@ -96,6 +96,10 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
           plane.GetCompositionRegion();
       bool regions_empty = comp_regions.empty();
       NativeSurface *surface = plane.GetOffScreenTarget();
+      if(surface == NULL) {
+        ETRACE("GetOffScreenTarget() returned NULL pointer 'surface'.");
+        return false;
+      }
       if (!regions_empty &&
           (surface->ClearSurface() || surface->IsPartialClear() ||
            surface->IsSurfaceDamageChanged())) {
