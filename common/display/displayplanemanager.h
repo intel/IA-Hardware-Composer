@@ -173,9 +173,9 @@ class DisplayPlaneManager {
 
   uint32_t width_;
   uint32_t height_;
-  uint32_t total_overlays_ = 0;
-  uint32_t display_transform_ = kIdentity;
-  bool release_surfaces_ = false;
+  uint32_t total_overlays_;
+  uint32_t display_transform_;
+  bool release_surfaces_;
 };
 
 }  // namespace hwcomposer
