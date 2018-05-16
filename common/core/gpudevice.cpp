@@ -35,6 +35,8 @@ bool GpuDevice::Initialize() {
   if (initialization_state_ & kInitialized)
     return true;
 
+  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
+
   bool use_thread = true;
   if (!InitWorker()) {
     ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
@@ -61,9 +63,10 @@ bool GpuDevice::Initialize() {
   initialization_state_ &= ~kHWCSettingsDone;
   thread_sync_lock_.unlock();
 
-  if (use_thread && lock_fd_ == -1) {
+  if (-1 == lock_fd_) {
     // Exit thread as we don't need worker thread after
     // Initialization.
+    ETRACE("Failed to open /vendor/hwc.lock file.");
     HWCThread::Exit();
   }
 
@@ -656,8 +659,6 @@ void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
 }
 
 void GpuDevice::HandleRoutine() {
-  thread_sync_lock_.lock();
-  HandleHWCSettings();
 
   // Iniitialize resources to monitor external events.
   // These can be two types:
@@ -667,14 +668,11 @@ void GpuDevice::HandleRoutine() {
   // 2) Another app is having control of display and we
   //    we need to take control.
   // TODO: Add splash screen support.
-  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
-  if (lock_fd_ == -1) {
-    thread_sync_lock_.unlock();
-    return;
-  }
 
-  thread_sync_lock_.unlock();
-  display_manager_->IgnoreUpdates();
+  if (flock(lock_fd_, LOCK_EX|LOCK_NB) != 0) {
+    ETRACE("Getting the exlusive file lock on /vendor/hwc.lock failed.");
+    display_manager_->IgnoreUpdates();
+  }
 
   if (flock(lock_fd_, LOCK_EX) != 0)
     ETRACE("Failed to wait on hwc lock.");

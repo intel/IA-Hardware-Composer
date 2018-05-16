@@ -96,6 +96,8 @@ class DisplayQueue {
 
   void ForceRefresh();
 
+  bool IsIgnoreUpdates();
+
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
                           uint32_t display_width, uint32_t display_height);
 
