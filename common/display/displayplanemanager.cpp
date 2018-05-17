@@ -30,8 +30,12 @@ DisplayPlaneManager::DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
                                          ResourceManager *resource_manager)
     : plane_handler_(plane_handler),
       resource_manager_(resource_manager),
+      cursor_plane_(nullptr),
       width_(0),
-      height_(0) {
+      height_(0),
+      total_overlays_(0),
+      display_transform_(kIdentity),
+      release_surfaces_(false) {
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
