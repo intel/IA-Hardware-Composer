@@ -138,8 +138,10 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   if (!broadcastrgb_props)
     return true;
 
-  if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM))
+  if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM)) {
+    drmModeFreeProperty(broadcastrgb_props);
     return false;
+  }
 
   for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
     if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
