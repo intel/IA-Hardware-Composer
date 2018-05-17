@@ -298,7 +298,7 @@ HwcService::Controls::DisplayModeGetAvailableModes(uint32_t display) {
   } else {
     phyDisplay = mHwc.GetExtendedDisplay(display - 1);
   }
-  uint32_t numConfigs, configIndex;
+  uint32_t numConfigs;
   int32_t tempValue;
   phyDisplay->GetDisplayConfigs(&numConfigs, NULL);
   for (uint32_t i = 0; i < numConfigs; i++) {
