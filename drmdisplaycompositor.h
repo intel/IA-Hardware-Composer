@@ -44,6 +44,7 @@ class DrmDisplayCompositor {
 
   std::unique_ptr<DrmDisplayComposition> CreateComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
+  int TestComposition(DrmDisplayComposition *composition);
   int Composite();
   void Dump(std::ostringstream *out) const;
 

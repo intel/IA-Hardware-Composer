@@ -510,6 +510,10 @@ int DrmDisplayCompositor::ApplyComposition(
   return ret;
 }
 
+int DrmDisplayCompositor::TestComposition(DrmDisplayComposition *composition) {
+  return CommitFrame(composition, true);
+}
+
 void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
   int ret = pthread_mutex_lock(&lock_);
   if (ret)
