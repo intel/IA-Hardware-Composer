@@ -129,10 +129,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 
   if (layers_changed) {
-    if (!compositor_.BeginFrame(false)) {
-      ETRACE("Failed to initialize compositor.");
-      return false;
-    }
+    compositor_.BeginFrame(false);
 
     // Prepare for final composition.
     if (!compositor_.DrawOffscreen(
