@@ -131,6 +131,10 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
 
   drmModePropertyPtr broadcastrgb_props =
       drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
+  if (broadcastrgb_props == NULL) {
+    ETRACE("drmModeGetProperty() returned NULL pointer 'broadcastrgb_props'.");
+    return false;
+  }
 
   SetPowerMode(power_mode_);
 
