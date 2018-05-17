@@ -252,6 +252,8 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
 
       formats_modifiers_.emplace_back(modifiers_obj);
     }
+
+    drmModeFreePropertyBlob(blob);
   }
   return true;
 }
