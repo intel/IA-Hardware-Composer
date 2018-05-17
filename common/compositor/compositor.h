@@ -65,7 +65,7 @@ class Compositor {
   void RestoreVideoDefaultDeinterlace();
 
  private:
-  bool CalculateRenderState(std::vector<OverlayLayer> &layers,
+  void CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
                             DrawState &state, uint32_t downscaling_factor,
                             bool uses_display_up_scaling,
