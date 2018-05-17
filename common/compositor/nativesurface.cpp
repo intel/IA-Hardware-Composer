@@ -44,52 +44,49 @@ NativeSurface::~NativeSurface() {
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
                          uint32_t usage, uint64_t modifier,
-                         bool *modifer_succeeded) {
-  modifier_ = modifier;
+                         bool *modifier_succeeded) {
+  const NativeBufferHandler *handler =
+      resource_manager->GetNativeBufferHandler();
+  resource_manager_ = resource_manager;
+  HWCNativeHandle native_handle = 0;
+  *modifier_succeeded = false;
+  bool modifier_used = false;
+
   if (usage == hwcomposer::kLayerVideo) {
-    modifier_ = 0;
+    modifier = 0;
   }
 
-  bool modifier_used = false;
-  resource_manager->GetNativeBufferHandler()->CreateBuffer(
-      width_, height_, format, &native_handle_, usage, &modifier_used,
-      modifier_);
-  if (!native_handle_) {
-    ETRACE("NativeSurface: Failed to create buffer.");
+  handler->CreateBuffer(width_, height_, format, &native_handle, usage,
+                        &modifier_used, modifier);
+  if (!native_handle) {
+    ETRACE("Failed to create buffer\n");
     return false;
   }
 
-  if (!modifier_used) {
-    modifier_ = 0;
-    *modifer_succeeded = false;
-  }
+  InitializeLayer(native_handle);
 
-  resource_manager_ = resource_manager;
-  InitializeLayer(native_handle_);
-
-  if (modifier_ > 0) {
-    // Remove modifier, incase we tried modifier and FB creation failed.
-    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier_)) {
-      ETRACE("FB Creation failed with Modifier, Removing modifier usage.");
-      *modifer_succeeded = false;
+  if (modifier_used && modifier > 0) {
+    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier)) {
+      WTRACE("FB creation failed with modifier, removing modifier usage\n");
       ResourceHandle temp;
-      temp.handle_ = native_handle_;
+      temp.handle_ = native_handle;
       resource_manager_->MarkResourceForDeletion(temp, false);
+      native_handle = 0;
 
-      HWCNativeHandle native_handle;
-      resource_manager->GetNativeBufferHandler()->CreateBuffer(
-          width_, height_, format, &native_handle, usage, 0);
-      if (!native_handle_) {
-        ETRACE("NativeSurface: Failed to create buffer.");
+      handler->CreateBuffer(width_, height_, format, &native_handle, usage, 0);
+      if (!native_handle) {
+        ETRACE("Failed to create buffer\n");
         return false;
       }
 
-      native_handle_ = native_handle;
-      InitializeLayer(native_handle_);
+      InitializeLayer(native_handle);
     } else {
-      *modifer_succeeded = true;
+      *modifier_succeeded = true;
     }
   }
+
+  modifier_ = modifier;
+  native_handle_ = native_handle;
 
   return true;
 }
