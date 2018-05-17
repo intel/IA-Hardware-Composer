@@ -815,23 +815,18 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
   // Handle any 3D Composition.
   if (render_layers) {
-    if (!compositor_.BeginFrame(disable_ovelays)) {
-      ETRACE("Failed to initialize compositor.");
-      composition_passed = false;
+    compositor_.BeginFrame(disable_ovelays);
+
+    std::vector<HwcRect<int>> layers_rects;
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      const OverlayLayer& layer = layers.at(layer_index);
+      layers_rects.emplace_back(layer.GetDisplayFrame());
     }
 
-    if (composition_passed) {
-      std::vector<HwcRect<int>> layers_rects;
-      for (size_t layer_index = 0; layer_index < size; layer_index++) {
-        const OverlayLayer& layer = layers.at(layer_index);
-        layers_rects.emplace_back(layer.GetDisplayFrame());
-      }
-
-      // Prepare for final composition.
-      if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
-        ETRACE("Failed to prepare for the frame composition. ");
-        composition_passed = false;
-      }
+    // Prepare for final composition.
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+      ETRACE("Failed to prepare for the frame composition. ");
+      composition_passed = false;
     }
   }
 
@@ -995,24 +990,19 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   // Handle any 3D Composition.
   if (render_layers) {
     clone_rendered_ = true;
-    if (!compositor_.BeginFrame(false)) {
-      ETRACE("Failed to initialize compositor.");
-      composition_passed = false;
+    compositor_.BeginFrame(false);
+
+    std::vector<HwcRect<int>> layers_rects;
+    size_t size = layers.size();
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      const OverlayLayer& layer = layers.at(layer_index);
+      layers_rects.emplace_back(layer.GetDisplayFrame());
     }
 
-    if (composition_passed) {
-      std::vector<HwcRect<int>> layers_rects;
-      size_t size = layers.size();
-      for (size_t layer_index = 0; layer_index < size; layer_index++) {
-        const OverlayLayer& layer = layers.at(layer_index);
-        layers_rects.emplace_back(layer.GetDisplayFrame());
-      }
-
-      // Prepare for final composition.
-      if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
-        ETRACE("Failed to prepare for the frame composition. ");
-        composition_passed = false;
-      }
+    // Prepare for final composition.
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+      ETRACE("Failed to prepare for the frame composition. ");
+      composition_passed = false;
     }
   }
 
