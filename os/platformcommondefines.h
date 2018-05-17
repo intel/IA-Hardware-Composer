@@ -34,7 +34,49 @@ VkFormat NativeToVkFormat(int native_format);
 // minigbm specific DRM_FORMAT_YVU420_ANDROID enum
 #define DRM_FORMAT_YVU420_ANDROID fourcc_code('9', '9', '9', '7')
 
+/*
+ * 2 plane YCbCr MSB aligned
+ * index 0 = Y plane, [15:0] Y:x [10:6] little endian
+ * index 1 = Cr:Cb plane, [31:0] Cr:x:Cb:x [10:6:10:6] little endian
+ */
+#define DRM_FORMAT_P010      \
+  fourcc_code('P', '0', '1', \
+              '0') /* 2x2 subsampled Cr:Cb plane 10 bits per channel */
+
+/*
+ * 2 plane YCbCr MSB aligned
+ * index 0 = Y plane, [15:0] Y:x [12:4] little endian
+ * index 1 = Cr:Cb plane, [31:0] Cr:x:Cb:x [12:4:12:4] little endian
+ */
+#define DRM_FORMAT_P012      \
+  fourcc_code('P', '0', '1', \
+              '2') /* 2x2 subsampled Cr:Cb plane 12 bits per channel */
+
+/*
+ * 2 plane YCbCr MSB aligned
+ * index 0 = Y plane, [15:0] Y little endian
+ * index 1 = Cr:Cb plane, [31:0] Cr:Cb [16:16] little endian
+ */
+#define DRM_FORMAT_P016      \
+  fourcc_code('P', '0', '1', \
+              '6') /* 2x2 subsampled Cr:Cb plane 16 bits per channel */
+
+/* 64 bpp RGB */
+#define DRM_FORMAT_XRGB161616                                                 \
+  fourcc_code('X', 'R', '4', '8') /* [63:0] x:R:G:B 16:16:16:16 little endian \
+                                     */
+#define DRM_FORMAT_XBGR161616                                                 \
+  fourcc_code('X', 'B', '4', '8') /* [63:0] x:B:G:R 16:16:16:16 little endian \
+                                     */
+
 #define HWC_UNUSED(x) ((void)&(x))
+
+struct drm_color_ctm_post_offset {
+  /* Data is U0.16 fixed point format. */
+  __u16 red;
+  __u16 green;
+  __u16 blue;
+};
 
 inline void hash_combine_hwc(size_t &seed, size_t value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
