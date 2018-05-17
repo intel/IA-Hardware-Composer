@@ -106,7 +106,6 @@ class GpuDevice : public HWCThread {
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
   SpinLock thread_stage_lock_;
-  SpinLock thread_sync_lock_;
   int lock_fd_ = -1;
   friend class DrmDisplayManager;
 };

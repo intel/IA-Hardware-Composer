@@ -1123,6 +1123,10 @@ void DisplayQueue::IgnoreUpdates() {
   idle_tracker_.revalidate_frames_counter_ = 0;
 }
 
+bool DisplayQueue::IsIgnoreUpdates() {
+  return idle_tracker_.state_ & FrameStateTracker::kIgnoreUpdates;
+}
+
 void DisplayQueue::HandleCommitFailure(
     DisplayPlaneStateList& current_composition_planes) {
   for (DisplayPlaneState& plane : current_composition_planes) {
