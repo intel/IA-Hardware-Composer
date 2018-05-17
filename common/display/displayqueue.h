@@ -83,6 +83,8 @@ class DisplayQueue {
 
   void DisplayConfigurationChanged();
 
+  bool IsIgnoreUpdates();
+
   void ForceRefresh();
 
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,

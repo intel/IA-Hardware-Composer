@@ -80,7 +80,9 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
   SPIN_UNLOCK(modeset_lock_);
 
   if (refresh_needed) {
-    display_queue_->ForceRefresh();
+    if (!display_queue_->IsIgnoreUpdates()) {
+      display_queue_->ForceRefresh();
+    }
   }
 }
 
