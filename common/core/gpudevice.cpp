@@ -35,7 +35,15 @@ bool GpuDevice::Initialize() {
   if (initialization_state_ & kInitialized)
     return true;
 
+  bool use_lock = true;
   bool use_thread = true;
+
+  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
+  if (-1 == lock_fd_) {
+    ETRACE("Failed to open /vendor/hwc.lock file!");
+    use_lock = false;
+  }
+
   if (!InitWorker()) {
     ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
     use_thread = false;
@@ -54,14 +62,10 @@ bool GpuDevice::Initialize() {
   HandleHWCSettings();
   InitializeHotPlugEvents(false);
 
-  // Take the lock to ensure everything is initilized in
-  // Handle Routine.
-  thread_sync_lock_.lock();
   initialization_state_ |= kInitialized;
   initialization_state_ &= ~kHWCSettingsDone;
-  thread_sync_lock_.unlock();
 
-  if (use_thread && lock_fd_ == -1) {
+  if ((use_lock && !use_thread) || (!use_lock && use_thread)) {
     // Exit thread as we don't need worker thread after
     // Initialization.
     HWCThread::Exit();
@@ -656,8 +660,8 @@ void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
 }
 
 void GpuDevice::HandleRoutine() {
-  thread_sync_lock_.lock();
   HandleHWCSettings();
+  bool update_ignored = false;
 
   // Iniitialize resources to monitor external events.
   // These can be two types:
@@ -667,22 +671,30 @@ void GpuDevice::HandleRoutine() {
   // 2) Another app is having control of display and we
   //    we need to take control.
   // TODO: Add splash screen support.
-  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
-  if (lock_fd_ == -1) {
-    thread_sync_lock_.unlock();
-    return;
+  if (lock_fd_ != -1) {
+    if (flock(lock_fd_, LOCK_EX | LOCK_NB) != 0) {
+      ITRACE(
+          "Another process is holding hwc lock, "
+          "wait until it releases the lock.");
+
+      display_manager_->IgnoreUpdates();
+      update_ignored = true;
+
+      if (flock(lock_fd_, LOCK_EX) != 0) {
+        ETRACE("Failed to wait on the hwc lock.");
+      } else {
+        ITRACE("Successfully grabbed the hwc lock.");
+      }
+    } else {
+      ITRACE("No other process hold the hwc lock.");
+    }
+
+    close(lock_fd_);
+    lock_fd_ = -1;
   }
 
-  thread_sync_lock_.unlock();
-  display_manager_->IgnoreUpdates();
-
-  if (flock(lock_fd_, LOCK_EX) != 0)
-    ETRACE("Failed to wait on hwc lock.");
-
-  close(lock_fd_);
-  lock_fd_ = -1;
-
-  display_manager_->ForceRefresh();
+  if (update_ignored)
+    display_manager_->ForceRefresh();
 }
 
 void GpuDevice::HandleWait() {
