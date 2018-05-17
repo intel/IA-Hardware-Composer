@@ -25,7 +25,6 @@
 #include <sstream>
 #include <vector>
 
-#include <hardware/gralloc.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
