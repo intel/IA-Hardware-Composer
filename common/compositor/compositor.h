@@ -44,7 +44,7 @@ class Compositor {
 
   Compositor(const Compositor &) = delete;
 
-  bool BeginFrame(bool disable_explicit_sync);
+  void BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
@@ -65,7 +65,7 @@ class Compositor {
   void RestoreVideoDefaultDeinterlace();
 
  private:
-  bool CalculateRenderState(std::vector<OverlayLayer> &layers,
+  void CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
                             DrawState &state, uint32_t downscaling_factor,
                             bool uses_display_up_scaling,

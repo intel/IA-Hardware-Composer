@@ -47,9 +47,8 @@ void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
   thread_->Initialize(resource_manager, gpu_fd);
 }
 
-bool Compositor::BeginFrame(bool disable_explicit_sync) {
+void Compositor::BeginFrame(bool disable_explicit_sync) {
   thread_->SetExplicitSyncSupport(disable_explicit_sync);
-  return true;
 }
 
 void Compositor::Reset() {
@@ -131,12 +130,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         use_plane_transform = true;
       }
 
-      if (!CalculateRenderState(
-              layers, comp_regions, state, plane.GetDownScalingFactor(),
-              plane.IsUsingPlaneScalar(), use_plane_transform)) {
-        ETRACE("Failed to calculate Render state.");
-        return false;
-      }
+      CalculateRenderState(layers, comp_regions, state,
+                           plane.GetDownScalingFactor(),
+                           plane.IsUsingPlaneScalar(), use_plane_transform);
 
       if (state.states_.empty()) {
         draw_state.pop_back();
@@ -179,10 +175,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
   draw_state.states_.reserve(num_regions);
-  if (!CalculateRenderState(layers, comp_regions, draw_state, 1, false)) {
-    ETRACE("Failed to calculate render state.");
-    return false;
-  }
+  CalculateRenderState(layers, comp_regions, draw_state, 1, false);
 
   if (draw_state.states_.empty()) {
     return true;
@@ -206,7 +199,7 @@ void Compositor::FreeResources() {
   thread_->FreeResources();
 }
 
-bool Compositor::CalculateRenderState(
+void Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
     uint32_t downscaling_factor, bool uses_display_up_scaling,
@@ -232,8 +225,6 @@ bool Compositor::CalculateRenderState(
       }
     }
   }
-
-  return true;
 }
 
 void Compositor::SetVideoScalingMode(uint32_t mode) {
