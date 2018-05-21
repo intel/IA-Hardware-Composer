@@ -51,7 +51,7 @@ enum HWCContentType {
   kCONTENT_TYPE1,  // Can support only HDCP 2.2 and higher specification.
 };
 
-enum HWCTransform {
+enum HWCTransform : uint32_t {
   kIdentity = 0,
   kReflectX = 1 << 0,
   kReflectY = 1 << 1,
