@@ -76,7 +76,8 @@ MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> &displays)
 MosaicDisplay::~MosaicDisplay() {
 }
 
-bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                               FrameBufferManager * /*frame_buffer_manager*/) {
   return true;
 }
 

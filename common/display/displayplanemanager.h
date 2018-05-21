@@ -29,6 +29,7 @@ namespace hwcomposer {
 
 class DisplayPlane;
 class DisplayPlaneState;
+class FrameBufferManager;
 class GpuDevice;
 class ResourceManager;
 struct OverlayLayer;
@@ -40,7 +41,8 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t width, uint32_t height);
+  bool Initialize(uint32_t width, uint32_t height,
+                  FrameBufferManager *frame_buffer_manager);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
                       bool disable_overlay, bool *commit_checked,
@@ -181,6 +183,7 @@ class DisplayPlaneManager {
 #ifdef DISABLE_CURSOR_PLANE
   bool enable_last_plane_;
 #endif
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

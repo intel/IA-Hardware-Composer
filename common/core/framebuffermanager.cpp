@@ -20,17 +20,6 @@
 
 namespace hwcomposer {
 
-FrameBufferManager *FrameBufferManager::pInstance = NULL;
-
-FrameBufferManager *FrameBufferManager::GetInstance() {
-  return pInstance;
-}
-
-void FrameBufferManager::CreateInstance(uint32_t gpu_fd) {
-  if (pInstance == NULL)
-    pInstance = new FrameBufferManager(gpu_fd);
-}
-
 void FrameBufferManager::RegisterGemHandles(const uint32_t &num_planes,
                                             const uint32_t (&igem_handles)[4]) {
   lock_.lock();
