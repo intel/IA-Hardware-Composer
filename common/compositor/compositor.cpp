@@ -40,11 +40,12 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd,
+                      FrameBufferManager *frame_buffer_manager) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(resource_manager, gpu_fd);
+  thread_->Initialize(resource_manager, gpu_fd, frame_buffer_manager);
 }
 
 void Compositor::BeginFrame(bool disable_explicit_sync) {

@@ -29,6 +29,7 @@
 #include "displayplanemanager.h"
 #include "drmdisplay.h"
 #include "drmscopedtypes.h"
+#include "framebuffermanager.h"
 #include "hwcthread.h"
 #include "nesteddisplay.h"
 #include "vblankeventhandler.h"
@@ -80,6 +81,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   bool UpdateDisplayState();
   std::unique_ptr<NativeDisplay> virtual_display_;
   std::unique_ptr<NativeDisplay> nested_display_;
+  std::unique_ptr<FrameBufferManager> frame_buffer_manager_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
   std::unique_ptr<NativeBufferHandler> buffer_handler_;

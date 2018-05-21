@@ -40,7 +40,7 @@ VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
     ETRACE("Failed to construct hwc layer buffer manager");
   }
 
-  compositor_.Init(resource_manager_.get(), gpu_fd);
+  compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -110,7 +110,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints);
+        height_, kIdentity, handle_constraints, fb_manager_);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -196,7 +196,9 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   }
 }
 
-bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/) {
+bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/,
+                                FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   return true;
 }
 

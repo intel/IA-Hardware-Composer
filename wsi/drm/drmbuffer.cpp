@@ -24,7 +24,6 @@
 #include <hwcdefs.h>
 #include <nativebufferhandler.h>
 
-#include "framebuffermanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"
@@ -96,13 +95,14 @@ void DrmBuffer::Initialize(const HwcBuffer& bo) {
     frame_buffer_format_ = format_;
   }
 
-  FrameBufferManager::GetInstance()->RegisterGemHandles(
-      image_.handle_->meta_data_.num_planes_,
-      image_.handle_->meta_data_.gem_handles_);
+  fb_manager_->RegisterGemHandles(image_.handle_->meta_data_.num_planes_,
+                                  image_.handle_->meta_data_.gem_handles_);
 }
 
-void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
-                                           ResourceManager* resource_manager) {
+void DrmBuffer::InitializeFromNativeHandle(
+    HWCNativeHandle handle, ResourceManager* resource_manager,
+    FrameBufferManager* frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();
@@ -381,9 +381,9 @@ bool DrmBuffer::CreateFrameBuffer() {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
-      width_, height_, 0, frame_buffer_format_,
-      image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
+  image_.drm_fd_ = fb_manager_->FindFB(width_, height_, 0, frame_buffer_format_,
+                                       image_.handle_->meta_data_.num_planes_,
+                                       gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;
 }
@@ -396,7 +396,7 @@ bool DrmBuffer::CreateFrameBufferWithModifier(uint64_t modifier) {
   image_.drm_fd_ = 0;
   media_image_.drm_fd_ = 0;
 
-  image_.drm_fd_ = FrameBufferManager::GetInstance()->FindFB(
+  image_.drm_fd_ = fb_manager_->FindFB(
       width_, height_, modifier, frame_buffer_format_,
       image_.handle_->meta_data_.num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
