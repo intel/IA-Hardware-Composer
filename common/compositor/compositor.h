@@ -39,7 +39,8 @@ class Compositor {
   Compositor();
   ~Compositor();
 
-  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
+  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd,
+            FrameBufferManager *frame_buffer_manager);
   void Reset();
 
   Compositor(const Compositor &) = delete;

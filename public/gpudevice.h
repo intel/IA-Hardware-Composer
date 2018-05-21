@@ -23,6 +23,7 @@
 #include <string>
 
 #include "displaymanager.h"
+#include "framebuffermanager.h"
 #include "hwcthread.h"
 #include "logicaldisplaymanager.h"
 #include "nativedisplay.h"
@@ -100,6 +101,7 @@ class GpuDevice : public HWCThread {
   void HandleRoutine() override;
   void HandleWait() override;
   std::unique_ptr<DisplayManager> display_manager_;
+  std::unique_ptr<FrameBufferManager> frame_buffer_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
   std::vector<NativeDisplay*> total_displays_;

@@ -39,6 +39,7 @@ namespace hwcomposer {
 #define DRM_HOTPLUG_EVENT_SIZE 256
 
 class NativeDisplay;
+class FrameBufferManager;
 
 class DrmDisplayManager : public HWCThread, public DisplayManager {
  public:
@@ -47,7 +48,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   bool Initialize() override;
 
-  void InitializeDisplayResources() override;
+  void InitializeDisplayResources(
+      FrameBufferManager *frame_buffer_manager) override;
 
   void StartHotPlugMonitor() override;
 

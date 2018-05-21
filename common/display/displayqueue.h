@@ -61,6 +61,7 @@ class DisplayQueue {
   ~DisplayQueue();
 
   bool Initialize(uint32_t pipe, uint32_t width, uint32_t height,
+                  FrameBufferManager* frame_buffer_manager,
                   DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
@@ -356,6 +357,7 @@ class DisplayQueue {
   bool clone_mode_ = false;
   // Set to true if this queue needs to render the offscreen surfaces.
   bool clone_rendered_ = false;
+  FrameBufferManager* fb_manager_ = NULL;
   // Surfaces to be marked as not in use. These
   // are surfaces which are added to surfaces_not_inuse_
   // below.

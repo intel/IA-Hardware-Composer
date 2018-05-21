@@ -43,7 +43,8 @@ class NativeSurface {
   virtual ~NativeSurface();
 
   bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage,
-            uint64_t modifier, bool* modifier_succeeded);
+            uint64_t modifier, bool* modifier_succeeded,
+            FrameBufferManager* frame_buffer_manager);
 
   bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
                                        ResourceManager* resource_manager);
@@ -145,6 +146,7 @@ class NativeSurface {
   HwcRect<int> surface_damage_;
   HwcRect<int> previous_damage_;
   HwcRect<int> previous_nc_damage_;
+  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer
