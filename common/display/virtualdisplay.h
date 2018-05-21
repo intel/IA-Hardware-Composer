@@ -33,6 +33,8 @@ class VirtualDisplay : public NativeDisplay {
  public:
   VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
                  uint32_t pipe_id, uint32_t crtc_id);
+  VirtualDisplay(const VirtualDisplay &) = delete;
+  VirtualDisplay &operator=(const VirtualDisplay &) = delete;
   ~VirtualDisplay() override;
 
   void InitVirtualDisplay(uint32_t width, uint32_t height) override;
