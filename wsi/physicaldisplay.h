@@ -43,7 +43,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id);
   ~PhysicalDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager *frame_buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kInternal;
@@ -151,79 +152,79 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   const NativeBufferHandler *GetNativeBufferHandler() const override;
 
   /**
-  * API for setting color correction for display.
-  */
+   * API for setting color correction for display.
+   */
   virtual void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                                   uint32_t brightness) const = 0;
   /**
-  * API for setting color transform matrix.
-  */
+   * API for setting color transform matrix.
+   */
   virtual void SetColorTransformMatrix(
       const float *color_transform_matrix,
       HWCColorTransform color_transform_hint) const = 0;
 
   /**
-  * API is called when display needs to be disabled.
-  * @param composition_planes contains list of planes enabled last
-  * frame.
-  */
+   * API is called when display needs to be disabled.
+   * @param composition_planes contains list of planes enabled last
+   * frame.
+   */
   virtual void Disable(const DisplayPlaneStateList &composition_planes) = 0;
 
   /**
-  * API for showing content on display
-  * @param composition_planes contains list of layers which need to displayed.
-  * @param previous_composition_planes contains list of planes enabled last
-  * frame.
-  * @param disable_explicit_fence is set to true if we want a hardware fence
-  *        associated with this commit request set to commit_fence.
-  * @param commit_fence hardware fence associated with this commit request.
-  */
+   * API for showing content on display
+   * @param composition_planes contains list of layers which need to displayed.
+   * @param previous_composition_planes contains list of planes enabled last
+   * frame.
+   * @param disable_explicit_fence is set to true if we want a hardware fence
+   *        associated with this commit request set to commit_fence.
+   * @param commit_fence hardware fence associated with this commit request.
+   */
   virtual bool Commit(const DisplayPlaneStateList &composition_planes,
                       const DisplayPlaneStateList &previous_composition_planes,
                       bool disable_explicit_fence, int32_t previous_fence,
                       int32_t *commit_fence, bool *previous_fence_released) = 0;
 
   /**
-  * API is called if current active display configuration has changed.
-  * Implementations need to reset any state in this case.
-  */
+   * API is called if current active display configuration has changed.
+   * Implementations need to reset any state in this case.
+   */
   virtual void UpdateDisplayConfig() = 0;
 
   /**
-  * API for powering on the display
-  */
+   * API for powering on the display
+   */
   virtual void PowerOn() = 0;
 
   /**
-  * API for initializing display. Implementation needs to handle all things
-  * needed to set up the physical display.
-  */
+   * API for initializing display. Implementation needs to handle all things
+   * needed to set up the physical display.
+   */
   virtual bool InitializeDisplay() = 0;
 
   virtual void NotifyClientsOfDisplayChangeStatus() = 0;
 
   /**
-  * API for setting the color of the pipe canvas.
-  */
+   * API for setting the color of the pipe canvas.
+   */
   virtual void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
                                   uint16_t blue, uint16_t alpha) const = 0;
 
   /**
-  * API for informing the display that it might be disconnected in near
-  * future.
-  */
+   * API for informing the display that it might be disconnected in near
+   * future.
+   */
   void MarkForDisconnect();
 
   /**
-  * API for informing the clients resgistered via RegisterHotPlugCallback
-  * that this display had been disconnected.
-  */
+   * API for informing the clients resgistered via RegisterHotPlugCallback
+   * that this display had been disconnected.
+   */
   void NotifyClientOfConnectedState();
 
   /**
-  * API for informing the clients resgistered via RegisterHotPlugCallback
-  * that this display had been connected.
-  */
+   * API for informing the clients resgistered via RegisterHotPlugCallback
+   * that this display had been connected.
+   */
   void NotifyClientOfDisConnectedState();
 
   /**
@@ -244,9 +245,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void DisConnect();
 
   /**
-  * API to handle any lazy initializations which need to be handled
-  * during first present call.
-  */
+   * API to handle any lazy initializations which need to be handled
+   * during first present call.
+   */
   virtual void HandleLazyInitialization() {
   }
 
@@ -300,6 +301,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

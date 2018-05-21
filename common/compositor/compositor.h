@@ -41,7 +41,8 @@ class Compositor {
   Compositor &operator=(const Compositor &) = delete;
   ~Compositor();
 
-  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
+  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd,
+            FrameBufferManager *frame_buffer_manager);
   void Reset();
   void BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,

@@ -44,7 +44,9 @@ NativeSurface::~NativeSurface() {
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
                          uint32_t usage, uint64_t modifier,
-                         bool *modifier_succeeded) {
+                         bool *modifier_succeeded,
+                         FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   const NativeBufferHandler *handler =
       resource_manager->GetNativeBufferHandler();
   resource_manager_ = resource_manager;
@@ -210,7 +212,7 @@ void NativeSurface::ResetDamage() {
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetBuffer(native_handle, -1, resource_manager_, false);
+  layer_.SetBuffer(native_handle, -1, resource_manager_, false, fb_manager_);
 }
 
 }  // namespace hwcomposer

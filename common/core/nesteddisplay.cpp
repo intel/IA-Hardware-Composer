@@ -158,7 +158,8 @@ void NestedDisplay::InitNestedDisplay(uint32_t width, uint32_t height,
 #endif
 }
 
-bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                               FrameBufferManager * /*frame_buffer_manager*/) {
   return true;
 }
 
