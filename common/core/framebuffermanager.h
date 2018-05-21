@@ -77,8 +77,12 @@ struct FBEqual {
 
 class FrameBufferManager {
  public:
-  static FrameBufferManager *GetInstance();
-  static void CreateInstance(uint32_t gpu_fd);
+  FrameBufferManager(uint32_t gpu_fd) : gpu_fd_(gpu_fd) {
+  }
+  ~FrameBufferManager() {
+    PurgeAllFBs();
+  }
+
   void RegisterGemHandles(const uint32_t &num_planes,
                           const uint32_t (&igem_handles)[4]);
   uint32_t FindFB(const uint32_t &iwidth, const uint32_t &iheight,
@@ -89,14 +93,8 @@ class FrameBufferManager {
   int RemoveFB(uint32_t num_planes, const uint32_t (&igem_handles)[4]);
 
  private:
-  static FrameBufferManager *pInstance;
   SpinLock lock_;
   void PurgeAllFBs();
-  FrameBufferManager(uint32_t gpu_fd) : gpu_fd_(gpu_fd) {
-  }
-  ~FrameBufferManager() {
-    PurgeAllFBs();
-  }
 
   std::unordered_map<FBKey, FBValue, FBHash, FBEqual> fb_map_;
   uint32_t gpu_fd_ = 0;
