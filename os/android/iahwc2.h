@@ -136,6 +136,8 @@ class IAHWC2 : public hwc2_device_t {
    public:
     HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
+    HwcDisplay &operator=(const HwcDisplay &) = delete;
+
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
                      bool disable_explicit_sync, uint32_t scaling_mode);
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
