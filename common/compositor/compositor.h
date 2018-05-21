@@ -37,13 +37,12 @@ struct OverlayLayer;
 class Compositor {
  public:
   Compositor();
+  Compositor(const Compositor &) = delete;
+  Compositor &operator=(const Compositor &) = delete;
   ~Compositor();
 
   void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
   void Reset();
-
-  Compositor(const Compositor &) = delete;
-
   void BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
