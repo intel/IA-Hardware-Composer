@@ -28,8 +28,6 @@ namespace hwcomposer {
 
 int DrmFormatToVAFormat(int format) {
   switch (format) {
-    case DRM_FORMAT_ABGR8888:
-      return VA_FOURCC_ABGR;
     case DRM_FORMAT_NV12:
       return VA_FOURCC_NV12;
     case DRM_FORMAT_YVU420:
@@ -71,8 +69,6 @@ int DrmFormatToRTFormat(int format) {
       return VA_RT_FORMAT_YUV444;
     case DRM_FORMAT_P010:
       return VA_RT_FORMAT_YUV420_10BPP;
-    case DRM_FORMAT_ABGR8888:
-      return VA_RT_FORMAT_RGB32;
     default:
       ETRACE("Unable to convert to RTFormat from format %x", format);
       break;

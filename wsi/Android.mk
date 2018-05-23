@@ -109,8 +109,6 @@ endif
 
 LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
 
-LOCAL_CPPFLAGS += -DPREFER_ABGR
-
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined

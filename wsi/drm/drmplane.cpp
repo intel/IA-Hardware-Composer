@@ -91,15 +91,8 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
   uint32_t total_size = supported_formats_.size();
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
-#ifdef PREFER_ABGR
-    // fixme? force to use ABGR8888 to WA h264 1080p 60fps issue
-    // http://jira01.devtools.intel.com/browse/OAM-62484
-    if (format == DRM_FORMAT_ABGR8888) {
-      prefered_video_format_ = DRM_FORMAT_ABGR8888;
-#else
     if (IsSupportedMediaFormat(format)) {
       prefered_video_format_ = format;
-#endif
       break;
     }
   }
