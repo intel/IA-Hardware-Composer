@@ -249,8 +249,7 @@ void DisplayPlaneState::RefreshLayerRects(
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
     CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
-    if (!layer.IsCursorLayer() &&
-        (layer.HasDimensionsChanged() || layer.HasSourceRectChanged())) {
+    if (!layer.IsCursorLayer() && (layer.HasDimensionsChanged())) {
       only_cursor_layer = false;
     }
 

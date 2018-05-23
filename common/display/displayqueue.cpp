@@ -311,7 +311,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged() || layer.HasSourceRectChanged()) {
+          if (layer.HasDimensionsChanged()) {
             update_rect = true;
             break;
           }
@@ -841,14 +841,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     return false;
   }
 
-  int32_t fence = 0;
-#ifndef ENABLE_DOUBLE_BUFFERING
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
-  }
-#endif
   if (state_ & kNeedsColorCorrection) {
     display_->SetColorCorrection(gamma_, contrast_, brightness_);
     display_->SetColorTransformMatrix(color_transform_matrix_,
@@ -859,9 +851,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   display_->SetPipeCanvasColor(canvas_.bpc, canvas_.red, canvas_.green,
                                canvas_.blue, canvas_.alpha);
 
+  int32_t fence = 0;
+  bool fence_released = false;
   composition_passed =
       display_->Commit(current_composition_planes, previous_plane_state_,
-                       disable_ovelays, &fence);
+                       disable_ovelays, kms_fence_, &fence, &fence_released);
+
+  if (fence_released) {
+    kms_fence_ = 0;
+  }
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
@@ -917,14 +915,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     SetReleaseFenceToLayers(fence, source_layers);
   }
-
-#ifdef ENABLE_DOUBLE_BUFFERING
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
-  }
-#endif
 
   // Let Display handle any lazy initalizations.
   if (handle_display_initializations_) {
@@ -1020,15 +1010,15 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     return;
   }
 
-#ifndef ENABLE_DOUBLE_BUFFERING
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
+  int32_t fence = 0;
+  bool fence_released = false;
+  composition_passed =
+      display_->Commit(current_composition_planes, previous_plane_state_, false,
+                       kms_fence_, &fence, &fence_released);
+
+  if (fence_released) {
     kms_fence_ = 0;
   }
-#endif
-  composition_passed = display_->Commit(
-      current_composition_planes, previous_plane_state_, false, &kms_fence_);
 
   if (!composition_passed) {
     last_commit_failed_update_ = true;
@@ -1075,13 +1065,9 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     surfaces_not_inuse_.swap(temp);
   }
 
-#ifdef ENABLE_DOUBLE_BUFFERING
-  if (kms_fence_ > 0) {
-    HWCPoll(kms_fence_, -1);
-    close(kms_fence_);
-    kms_fence_ = 0;
+  if (fence > 0) {
+    kms_fence_ = fence;
   }
-#endif
 }
 
 void DisplayQueue::SetCloneMode(bool cloned) {

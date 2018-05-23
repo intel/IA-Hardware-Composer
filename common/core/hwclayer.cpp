@@ -64,8 +64,6 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
       (source_crop.top != source_crop_.top) ||
       (source_crop.bottom != source_crop_.bottom)) {
     layer_cache_ |= kSourceRectChanged;
-    UpdateRenderingDamage(HwcRect<int>(source_crop), HwcRect<int>(source_crop_),
-                          false);
     source_crop_ = source_crop;
     source_crop_width_ =
         static_cast<int>(ceilf(source_crop.right - source_crop.left));
