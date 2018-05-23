@@ -180,7 +180,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   */
   virtual bool Commit(const DisplayPlaneStateList &composition_planes,
                       const DisplayPlaneStateList &previous_composition_planes,
-                      bool disable_explicit_fence, int32_t *commit_fence) = 0;
+                      bool disable_explicit_fence, int32_t previous_fence,
+                      int32_t *commit_fence, bool *previous_fence_released) = 0;
 
   /**
   * API is called if current active display configuration has changed.

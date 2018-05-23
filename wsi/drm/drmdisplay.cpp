@@ -23,6 +23,7 @@
 #include <hwcdefs.h>
 #include <hwclayer.h>
 #include <hwctrace.h>
+#include <hwcutils.h>
 
 #include <algorithm>
 #include <sstream>
@@ -357,9 +358,11 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state,
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,
-    bool disable_explicit_fence, int32_t *commit_fence) {
+    bool disable_explicit_fence, int32_t previous_fence, int32_t *commit_fence,
+    bool *previous_fence_released) {
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  *previous_fence_released = false;
 
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -376,7 +379,7 @@ bool DrmDisplay::Commit(
   }
 
   if (!CommitFrame(composition_planes, previous_composition_planes, pset.get(),
-                   flags_)) {
+                   flags_, previous_fence, previous_fence_released)) {
     ETRACE("Failed to Commit layers.");
     return false;
   }
@@ -389,13 +392,23 @@ bool DrmDisplay::Commit(
     }
   }
 
+#ifdef ENABLE_DOUBLE_BUFFERING
+  int32_t fence = *commit_fence;
+  if (fence > 0) {
+    HWCPoll(fence, -1);
+    close(fence);
+    *commit_fence = 0;
+  }
+#endif
+
   return true;
 }
 
 bool DrmDisplay::CommitFrame(
     const DisplayPlaneStateList &comp_planes,
     const DisplayPlaneStateList &previous_composition_planes,
-    drmModeAtomicReqPtr pset, uint32_t flags) {
+    drmModeAtomicReqPtr pset, uint32_t flags, int32_t previous_fence,
+    bool *previous_fence_released) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -426,6 +439,14 @@ bool DrmDisplay::CommitFrame(
 
     plane->Disable(pset);
   }
+
+#ifndef ENABLE_DOUBLE_BUFFERING
+  if (previous_fence > 0) {
+    HWCPoll(previous_fence, -1);
+    close(previous_fence);
+    *previous_fence_released = true;
+  }
+#endif
 
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
   if (ret) {
