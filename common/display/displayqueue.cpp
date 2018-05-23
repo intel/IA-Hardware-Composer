@@ -311,7 +311,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         for (size_t i = 0; i < layers_size; i++) {
           const size_t& source_index = source_layers.at(i);
           const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged() || layer.HasSourceRectChanged()) {
+          if (layer.HasDimensionsChanged()) {
             update_rect = true;
             break;
           }
