@@ -186,6 +186,7 @@ class NestedDisplay : public NativeDisplay {
   uint32_t height_ = 0;
   uint32_t port_ = 0;
   bool enable_vsync_ = false;
+  bool mconnected = false;
   uint32_t config_ = 1;
 
 #ifdef NESTED_DISPLAY_SUPPORT
@@ -195,7 +196,6 @@ class NestedDisplay : public NativeDisplay {
   static std::unique_ptr<SocketThread> st_;
   int msock_fd = -1;
   static int mclient_sock_fd;
-  bool mconnected = false;
   std::unique_ptr<ResourceManager> resource_manager_;
   Compositor compositor_;
 #endif
