@@ -381,13 +381,24 @@ void GpuDevice::HandleHWCSettings() {
   std::vector<NativeDisplay *> unordered_displays =
       display_manager_->GetAllDisplays();
   size_t size = unordered_displays.size();
+  uint32_t dispmgr_display_size = (uint32_t) size;
 
   if (physical_displays.empty()) {
     displays.swap(unordered_displays);
   } else {
     size = physical_displays.size();
     for (size_t i = 0; i < size; i++) {
-      displays.emplace_back(unordered_displays.at(physical_displays.at(i)));
+      uint32_t pdisp_index = physical_displays.at(i);
+      // Add the physical display only if it has been enumerated from DRM API.
+      // Skip the non-existence display defined in hwc_display.ini file.
+      if (pdisp_index < dispmgr_display_size) {
+        displays.emplace_back(unordered_displays.at(pdisp_index));
+      }
+      else {
+        ETRACE("Physical display number: %u defined in hwc_display.ini "
+               "doesn't exist in enumerated DRM display list (total: %u).", \
+               pdisp_index, dispmgr_display_size);
+      }
     }
 
     if (displays.size() != unordered_displays.size()) {
