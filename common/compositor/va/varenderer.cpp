@@ -317,7 +317,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   if (surface_region.width == 1920 && surface_region.height == 1080) {
     // FIXME: WA for OAM-63127. Not sure why this is needed but seems
     // to ensure we have consistent 60 fps.
-    int retSync = vaSyncSurface(va_display_, surface_out);
+    vaSyncSurface(va_display_, surface_out);
   }
 
   surface->ResetDamage();
