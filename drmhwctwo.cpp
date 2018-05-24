@@ -553,7 +553,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     ret = compositor_.ApplyComposition(std::move(composition));
   }
   if (ret) {
-    ALOGE("Failed to apply the frame composition ret=%d", ret);
+    if (!test)
+      ALOGE("Failed to apply the frame composition ret=%d", ret);
     return HWC2::Error::BadParameter;
   }
   return HWC2::Error::None;
