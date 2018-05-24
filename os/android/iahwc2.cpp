@@ -821,7 +821,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
 #ifdef NESTED_DISPLAY_SUPPORT
     /*Cluster will leverage surfaceflinger do compostion*/
-    if (handle_ == HWC_DISPLAY_NESTED) {
+    if (handle_ == HWC_DISPLAY_NESTED && display_->IsConnected()) {
       layer.set_validated_type(HWC2::Composition::Client);
       continue;
     }
