@@ -84,18 +84,15 @@ class GpuDevice : public HWCThread {
 
  private:
   enum InitializationType {
-    kUnInitialized = 0,               // Nothing Initialized.
-    kHWCSettingsInProgress = 1 << 0,  // Reading HWC Settings is in progress.
-    kHWCSettingsDone = 1 << 1,        // Reading HWC Settings is done.
-    kInitializeHotPlugMonitor =
-        1 << 2,  // Initialize resources to monitor for Hotplug events.
+    kUnInitialized = 0,         // Nothing Initialized.
+    kHWCSettingsDone = 1 << 0,  // Reading HWC Settings is done.
     kInitializedHotPlugMonitor =
-        1 << 3,  // Initialized resources to monitor for Hotplug events.
-    kInitialized = 1 << 4  // Everything Initialized
+        1 << 1,  // Initialized resources to monitor for Hotplug events.
+    kInitialized = 1 << 2  // Everything Initialized
   };
 
   void HandleHWCSettings();
-  void InitializeHotPlugEvents(bool take_lock = true);
+  void InitializeHotPlugEvents();
   void DisableWatch();
   void HandleRoutine() override;
   void HandleWait() override;
@@ -105,7 +102,6 @@ class GpuDevice : public HWCThread {
   std::vector<NativeDisplay*> total_displays_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
-  SpinLock thread_stage_lock_;
   int lock_fd_ = -1;
   friend class DrmDisplayManager;
 };
