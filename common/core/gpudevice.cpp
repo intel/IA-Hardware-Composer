@@ -44,23 +44,20 @@ bool GpuDevice::Initialize() {
     use_lock = false;
   }
 
+  display_manager_.reset(DisplayManager::CreateDisplayManager(this));
+
   if (!InitWorker()) {
     ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
     use_thread = false;
   }
 
-  thread_stage_lock_.lock();
-  display_manager_.reset(DisplayManager::CreateDisplayManager(this));
-
   bool success = display_manager_->Initialize();
   if (!success) {
-    thread_stage_lock_.unlock();
     return false;
   }
 
-  thread_stage_lock_.unlock();
   HandleHWCSettings();
-  InitializeHotPlugEvents(false);
+  InitializeHotPlugEvents();
 
   initialization_state_ |= kInitialized;
   initialization_state_ &= ~kHWCSettingsDone;
@@ -648,7 +645,7 @@ void GpuDevice::DisableHDCPSessionForAllDisplays() {
   }
 }
 
-void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
+void GpuDevice::InitializeHotPlugEvents() {
   initialization_state_lock_.lock();
   if ((initialization_state_ & kInitializeHotPlugMonitor) ||
       (initialization_state_ & kInitializedHotPlugMonitor)) {
@@ -657,14 +654,8 @@ void GpuDevice::InitializeHotPlugEvents(bool take_lock) {
   }
 
   initialization_state_ |= kInitializeHotPlugMonitor;
-  if (take_lock) {
-    // Take a lock to ensure displaymanager is all initialized.
-    thread_stage_lock_.lock();
-  }
   display_manager_->InitializeDisplayResources();
   display_manager_->StartHotPlugMonitor();
-  if (take_lock)
-    thread_stage_lock_.unlock();
 
   initialization_state_ |= kInitializedHotPlugMonitor;
   initialization_state_lock_.unlock();
@@ -687,7 +678,6 @@ void GpuDevice::HandleRoutine() {
       ITRACE(
           "Another process is holding hwc lock, "
           "wait until it releases the lock.");
-
       display_manager_->IgnoreUpdates();
       update_ignored = true;
 
