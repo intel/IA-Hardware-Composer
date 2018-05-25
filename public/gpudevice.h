@@ -95,7 +95,7 @@ class GpuDevice : public HWCThread {
   };
 
   void HandleHWCSettings();
-  void InitializeHotPlugEvents(bool take_lock = true);
+  void InitializeHotPlugEvents();
   void DisableWatch();
   void HandleRoutine() override;
   void HandleWait() override;
@@ -105,7 +105,6 @@ class GpuDevice : public HWCThread {
   std::vector<NativeDisplay*> total_displays_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
-  SpinLock thread_stage_lock_;
   int lock_fd_ = -1;
   friend class DrmDisplayManager;
 };
