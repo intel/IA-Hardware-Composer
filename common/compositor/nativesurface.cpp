@@ -132,9 +132,11 @@ bool NativeSurface::IsSurfaceDamageChanged() const {
 }
 
 void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
-  surface_damage_ = plane.GetDisplayFrame();
-  previous_damage_ = surface_damage_;
-  previous_nc_damage_ = surface_damage_;
+  HwcRect<int> &current_damage = layer_.GetSurfaceDamage();
+  CalculateRect(layer_.GetDisplayFrame(), current_damage);
+  CalculateRect(plane.GetDisplayFrame(), current_damage);
+  previous_damage_ = current_damage;
+  previous_nc_damage_ = current_damage;
   clear_surface_ = kFullClear;
   damage_changed_ = true;
   on_screen_ = false;
@@ -163,17 +165,19 @@ void NativeSurface::UpdateSurfaceDamage(
     current_damage.bottom = height_;
   }
 
-  if (surface_damage_.empty()) {
-    surface_damage_ = current_damage;
+  HwcRect<int> &surface_damage = layer_.GetSurfaceDamage();
+
+  if (surface_damage.empty()) {
+    surface_damage = current_damage;
     damage_changed_ = true;
 
-    if (!surface_damage_.empty()) {
-      CalculateRect(previous_nc_damage_, surface_damage_);
+    if (!surface_damage.empty()) {
+      CalculateRect(previous_nc_damage_, surface_damage);
 
       previous_nc_damage_ = current_damage;
     }
 
-    if (!force && (previous_damage_ == surface_damage_))
+    if (!force && (previous_damage_ == surface_damage))
       damage_changed_ = false;
 
     return;
@@ -181,22 +185,23 @@ void NativeSurface::UpdateSurfaceDamage(
 
   CalculateRect(current_damage, previous_nc_damage_);
 
-  if (current_damage == surface_damage_) {
+  if (current_damage == surface_damage) {
     return;
   }
 
-  CalculateRect(current_damage, surface_damage_);
+  CalculateRect(current_damage, surface_damage);
 
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (!force && (previous_damage_ == surface_damage_))
+    if (!force && (previous_damage_ == surface_damage))
       damage_changed_ = false;
   }
 }
 
 void NativeSurface::ResetDamage() {
-  previous_damage_ = surface_damage_;
-  surface_damage_.reset();
+  HwcRect<int> &surface_damage = layer_.GetSurfaceDamage();
+  previous_damage_ = surface_damage;
+  surface_damage.reset();
   damage_changed_ = false;
 }
 

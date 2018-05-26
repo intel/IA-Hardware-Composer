@@ -113,7 +113,6 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_width_ = display_frame.right - display_frame.left;
   display_frame_height_ = display_frame.bottom - display_frame.top;
   display_frame_ = display_frame;
-  surface_damage_ = display_frame;
 }
 
 void OverlayLayer::SetTransform(uint32_t transform) {

@@ -119,6 +119,10 @@ struct OverlayLayer {
     return surface_damage_;
   }
 
+  HwcRect<int>& GetSurfaceDamage() {
+    return surface_damage_;
+  }
+
   uint32_t GetSourceCropWidth() const {
     return source_crop_width_;
   }
