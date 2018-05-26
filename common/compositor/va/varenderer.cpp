@@ -240,10 +240,17 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Output Surface.
   const OverlayLayer* layer_out = surface->GetLayer();
+#ifdef DISABLE_PLANE_SCALING
+  const MediaResourceHandle& out_resource =
+      layer_out->GetBuffer()->GetMediaResource(
+          va_display_, layer_out->GetDisplayFrameWidth(),
+          layer_out->GetDisplayFrameHeight());
+#else
   const MediaResourceHandle& out_resource =
       layer_out->GetBuffer()->GetMediaResource(
           va_display_, layer_out->GetSourceCropWidth(),
           layer_out->GetSourceCropHeight());
+#endif
   VASurfaceID surface_out = out_resource.surface_;
   if (surface_out == VA_INVALID_ID) {
     ETRACE("Failed to create Va Output Surface. \n");
@@ -259,11 +266,19 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   surface_region.height = layer_in->GetSourceCropHeight();
 
   VARectangle output_region;
+#ifdef DISABLE_PLANE_SCALING
+  const HwcRect<int>& display_frame = layer_out->GetDisplayFrame();
+  output_region.x = display_frame.left;
+  output_region.y = display_frame.top;
+  output_region.width = layer_out->GetDisplayFrameWidth();
+  output_region.height = layer_out->GetDisplayFrameHeight();
+#else
   const HwcRect<float>& source_crop_out = layer_out->GetSourceCrop();
   output_region.x = static_cast<int>(source_crop_out.left);
   output_region.y = static_cast<int>(source_crop_out.top);
   output_region.width = layer_out->GetSourceCropWidth();
   output_region.height = layer_out->GetSourceCropHeight();
+#endif
 
   VAProcPipelineParameterBuffer pipe_param = {};
   pipe_param.surface = surface_in;
