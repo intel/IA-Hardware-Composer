@@ -950,6 +950,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   }
 
   std::vector<OverlayLayer> layers;
+  int add_index = -1;
   for (const DisplayPlaneState& previous_plane : source_planes) {
     layers.emplace_back();
     OverlayLayer& layer = layers.back();
@@ -975,10 +976,73 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
 
   bool test_commit = false;
   bool render_layers = false;
+  bool validate_layers = last_commit_failed_update_ ||
+                         queue->needs_clone_validation_ ||
+                         previous_plane_state_.empty();
+  if (previous_plane_state_.size() != source_planes.size())
+    validate_layers = true;
+
   DisplayPlaneStateList current_composition_planes;
-  render_layers = display_plane_manager_->ValidateLayers(
-      layers, 0, false, &test_commit, &test_commit, current_composition_planes,
-      previous_plane_state_, surfaces_not_inuse_);
+  // Validate Overlays and Layers usage.
+  if (!validate_layers) {
+    bool can_ignore_commit = false;
+    // Before forcing layer validation, check if content has changed
+    // if not continue showing the current buffer.
+    bool commit_checked = false;
+    bool needs_plane_validation = false;
+    GetCachedLayers(layers, -1, &current_composition_planes, &render_layers,
+                    &can_ignore_commit, &needs_plane_validation,
+                    &validate_layers, &add_index);
+    if (add_index == 0) {
+      validate_layers = true;
+    }
+
+    if (!validate_layers && add_index > 0) {
+      bool render_cursor = display_plane_manager_->ValidateLayers(
+          layers, add_index, false, &commit_checked, &needs_plane_validation,
+          current_composition_planes, previous_plane_state_,
+          surfaces_not_inuse_);
+
+      if (!render_layers)
+        render_layers = render_cursor;
+      can_ignore_commit = false;
+    }
+
+    if (!validate_layers && needs_plane_validation) {
+      bool render = display_plane_manager_->ReValidatePlanes(
+          current_composition_planes, layers, surfaces_not_inuse_,
+          &validate_layers, needs_plane_validation, false);
+      can_ignore_commit = false;
+      if (!render_layers)
+        render_layers = render;
+    }
+
+    if (!validate_layers) {
+      if (can_ignore_commit) {
+        // Free any surfaces.
+        if (!mark_not_inuse_.empty()) {
+          size_t size = mark_not_inuse_.size();
+          for (uint32_t i = 0; i < size; i++) {
+            mark_not_inuse_.at(i)->SetSurfaceAge(-1);
+          }
+
+          std::vector<NativeSurface*>().swap(mark_not_inuse_);
+          tracker.ForceSurfaceRelease();
+        }
+
+        return;
+      }
+    }
+  }
+
+  // Reset last commit failure state.
+  last_commit_failed_update_ = false;
+
+  if (validate_layers) {
+    render_layers = display_plane_manager_->ValidateLayers(
+        layers, 0, false, &test_commit, &test_commit,
+        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
+  }
 
   DUMP_CURRENT_COMPOSITION_PLANES();
   DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
