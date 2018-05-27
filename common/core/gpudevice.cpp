@@ -45,7 +45,7 @@ bool GpuDevice::Initialize() {
 
   lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
   if (-1 == lock_fd_) {
-    ETRACE("Failed to open /vendor/hwc.lock file!");
+    ITRACE("Failed to open /vendor/hwc.lock file!");
     use_lock = false;
   }
 

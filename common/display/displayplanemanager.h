@@ -87,6 +87,8 @@ class DisplayPlaneManager {
     return total_overlays_;
   }
 
+  void SetLastPlaneUsage(bool enable);
+
   // Transform to be applied to all planes associated
   // with pipe of this displayplanemanager.
   void SetDisplayTransform(uint32_t transform);
@@ -176,6 +178,9 @@ class DisplayPlaneManager {
   uint32_t total_overlays_;
   uint32_t display_transform_;
   bool release_surfaces_;
+#ifdef DISABLE_CURSOR_PLANE
+  bool enable_last_plane_;
+#endif
 };
 
 }  // namespace hwcomposer

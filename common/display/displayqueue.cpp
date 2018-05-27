@@ -84,6 +84,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
   }
 
   display_plane_manager_->SetDisplayTransform(plane_transform_);
+  display_plane_manager_->SetLastPlaneUsage(!enable_wa_);
   ResetQueue();
   vblank_handler_->SetPowerMode(kOff);
   vblank_handler_->Init(gpu_fd_, pipe);
@@ -1068,6 +1069,15 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   if (fence > 0) {
     kms_fence_ = fence;
   }
+}
+
+void DisplayQueue::NotifyDisplayWA(bool enable_wa) {
+  if (enable_wa_ == enable_wa)
+    return;
+
+  enable_wa_ = enable_wa;
+  if (display_plane_manager_)
+    display_plane_manager_->SetLastPlaneUsage(!enable_wa_);
 }
 
 void DisplayQueue::SetCloneMode(bool cloned) {

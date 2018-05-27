@@ -352,6 +352,25 @@ bool DrmDisplayManager::UpdateDisplayState() {
 
 void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
   spin_lock_.lock();
+  bool disable_last_plane_usage = false;
+  uint32_t total_connected_displays = 0;
+  for (auto &display : displays_) {
+    if (display->IsConnected()) {
+      display->NotifyClientOfDisConnectedState();
+      total_connected_displays++;
+    }
+
+    if (total_connected_displays > 1) {
+      disable_last_plane_usage = true;
+      break;
+    }
+  }
+
+  for (auto &display : displays_) {
+    display->NotifyDisplayWA(disable_last_plane_usage);
+    display->ForceRefresh();
+  }
+
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->NotifyClientOfDisConnectedState();
@@ -369,6 +388,7 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 #ifdef ENABLE_ANDROID_WA
   notify_client_ = true;
 #endif
+
   spin_lock_.unlock();
 }
 

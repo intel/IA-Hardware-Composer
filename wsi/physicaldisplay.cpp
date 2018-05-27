@@ -70,7 +70,6 @@ void PhysicalDisplay::MarkForDisconnect() {
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
   SPIN_LOCK(modeset_lock_);
-  bool refresh_needed = false;
   if (hotplug_callback_ && (connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -79,19 +78,8 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, true);
     display_state_ &= ~kNotifyClient;
-#ifdef ENABLE_ANDROID_WA
-    if (ordered_display_id_ == 0) {
-      refresh_needed = true;
-    }
-#endif
   }
   SPIN_UNLOCK(modeset_lock_);
-
-  if (refresh_needed) {
-    if (!display_queue_->IsIgnoreUpdates()) {
-      display_queue_->ForceRefresh();
-    }
-  }
 }
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
@@ -131,6 +119,21 @@ void PhysicalDisplay::DisConnect() {
 
   connection_state_ &= ~kConnected;
   display_state_ &= ~kUpdateDisplay;
+  SPIN_UNLOCK(modeset_lock_);
+}
+
+void PhysicalDisplay::NotifyDisplayWA(bool enable_wa) {
+  SPIN_LOCK(modeset_lock_);
+  display_queue_->NotifyDisplayWA(enable_wa);
+  SPIN_UNLOCK(modeset_lock_);
+}
+
+void PhysicalDisplay::ForceRefresh() {
+  SPIN_LOCK(modeset_lock_);
+  if ((connection_state_ & kConnected) &&
+      (!display_queue_->IsIgnoreUpdates())) {
+    display_queue_->ForceRefresh();
+  }
   SPIN_UNLOCK(modeset_lock_);
 }
 
