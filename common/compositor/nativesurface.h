@@ -111,6 +111,11 @@ class NativeSurface {
     return layer_.GetSurfaceDamage();
   }
 
+  // Return's damage area of this surface.
+  const HwcRect<int>& GetPreviousSurfaceDamage() const {
+    return previous_damage_;
+  }
+
   // Applies rotation transform to this surface.
   void SetTransform(uint32_t transform);
 
@@ -140,6 +145,7 @@ class NativeSurface {
   ClearType clear_surface_;
   int surface_age_;
   bool damage_changed_ = true;
+  bool reset_damage_ = true;
   uint64_t modifier_ = 0;
   bool on_screen_ = false;
   HwcRect<int> previous_damage_;

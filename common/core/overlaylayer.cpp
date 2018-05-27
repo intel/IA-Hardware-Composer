@@ -491,7 +491,7 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
   SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
             resource_manager, true);
   ValidateForOverlayUsage();
-  surface_damage_ = display_frame;
+  surface_damage_ = layer->GetSurfaceDamage();
   transform_ = layer->transform_;
   plane_transform_ = layer->plane_transform_;
   alpha_ = layer->alpha_;

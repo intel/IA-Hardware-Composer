@@ -166,6 +166,10 @@ void NativeSurface::UpdateSurfaceDamage(
   }
 
   HwcRect<int> &surface_damage = layer_.GetSurfaceDamage();
+  if (reset_damage_) {
+    reset_damage_ = false;
+    surface_damage.reset();
+  }
 
   if (surface_damage.empty()) {
     surface_damage = current_damage;
@@ -199,9 +203,8 @@ void NativeSurface::UpdateSurfaceDamage(
 }
 
 void NativeSurface::ResetDamage() {
-  HwcRect<int> &surface_damage = layer_.GetSurfaceDamage();
-  previous_damage_ = surface_damage;
-  surface_damage.reset();
+  reset_damage_ = true;
+  previous_damage_ = layer_.GetSurfaceDamage();
   damage_changed_ = false;
 }
 
