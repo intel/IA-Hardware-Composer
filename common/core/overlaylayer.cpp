@@ -232,6 +232,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       if (force_validation) {
         state_ |= kForceFullValidation;
       }
+
+      state_ |= kResetIdleFrame;
     } else if (!layer->IsCursorLayer()) {
       state_ |= kNeedsReValidation;
     }

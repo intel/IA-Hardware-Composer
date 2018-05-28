@@ -549,6 +549,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
+  bool tracking_idle = idle_frame || tracker.TrackingFrames();
   needs_clone_validation_ = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -596,6 +597,12 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       continue;
     }
 
+    if (tracking_idle && overlay_layer->ResetIdleFrame()) {
+      idle_frame = false;
+      validate_layers = true;
+      add_index = 0;
+    }
+
     if (overlay_layer->IsVideoLayer()) {
       has_video_layer = true;
     }
@@ -611,8 +618,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
-    } else if (overlay_layer->HasLayerContentChanged()) {
-      idle_frame = false;
     }
 
     if (overlay_layer->IsCursorLayer()) {

@@ -210,6 +210,10 @@ struct OverlayLayer {
     return state_ & kForceFullValidation;
   }
 
+  bool ResetIdleFrame() const {
+    return state_ & kResetIdleFrame;
+  }
+
   bool NeedsPartialClear() const {
     return state_ & kForcePartialClear;
   }
@@ -227,7 +231,8 @@ struct OverlayLayer {
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
     kForcePartialClear = 1 << 5,
-    kForceFullValidation = 1 << 6
+    kForceFullValidation = 1 << 6,
+    kResetIdleFrame = 1 << 7
   };
 
   struct ImportedBuffer {
