@@ -221,16 +221,16 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   if (previous_layer && layer->HasZorderChanged()) {
     if (previous_layer->actual_composition_ == kGpu) {
       CalculateRect(previous_layer->display_frame_, surface_damage_);
-      bool force_partial_clear = true;
+      bool force_validation = true;
       // We can skip Clear in case display frame, transforms are same.
       if (previous_layer->display_frame_ == display_frame_ &&
           transform_ == previous_layer->transform_ &&
           plane_transform_ == previous_layer->plane_transform_) {
-        force_partial_clear = false;
+        force_validation = false;
       }
 
-      if (force_partial_clear) {
-        state_ |= kForcePartialClear;
+      if (force_validation) {
+        state_ |= kForceFullValidation;
       }
     } else if (!layer->IsCursorLayer()) {
       state_ |= kNeedsReValidation;

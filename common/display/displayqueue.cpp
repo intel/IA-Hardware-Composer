@@ -600,6 +600,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       has_video_layer = true;
     }
 
+    if (overlay_layer->ForceFullValidation()) {
+      if (add_index == -1) {
+        add_index = z_order;
+      }
+
+      if (previous_layer)
+        remove_index = z_order;
+    }
+
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
     } else if (overlay_layer->HasLayerContentChanged()) {
