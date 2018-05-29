@@ -146,11 +146,13 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
     return false;
   }
 
-  for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
-    if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
-      broadcastrgb_full_ = broadcastrgb_props->enums[i].value;
-    } else if (!strcmp(broadcastrgb_props->enums[i].name, "Automatic")) {
-      broadcastrgb_automatic_ = broadcastrgb_props->enums[i].value;
+  if (broadcastrgb_props->enums != NULL) {
+    for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
+      if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
+        broadcastrgb_full_ = broadcastrgb_props->enums[i].value;
+      } else if (!strcmp(broadcastrgb_props->enums[i].name, "Automatic")) {
+        broadcastrgb_automatic_ = broadcastrgb_props->enums[i].value;
+      }
     }
   }
 
