@@ -304,7 +304,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
       bool update_rect = reset_plane;
       bool refresh_surfaces = reset_composition_regions;
-      bool force_partial_clear = false;
 
       const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
       size_t layers_size = source_layers.size();
@@ -319,10 +318,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
           if (refresh_surfaces) {
             continue;
-          }
-
-          if (layer.NeedsPartialClear()) {
-            force_partial_clear = true;
           }
 
           if (layer.HasLayerContentChanged()) {
@@ -369,18 +364,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
       }
 
-      if (update_rect || refresh_surfaces || !surface_damage.empty() ||
-          force_partial_clear) {
+      if (update_rect || refresh_surfaces || !surface_damage.empty()) {
         needs_gpu_composition = true;
         if (target_plane.NeedsSurfaceAllocation()) {
           display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
         } else if (refresh_surfaces || reset_plane) {
           target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!update_rect && !surface_damage.empty()) {
-          if (force_partial_clear) {
-            target_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-          }
-
           target_plane.UpdateDamage(surface_damage);
         }
 
@@ -549,6 +539,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   uint32_t z_order = 0;
   bool has_video_layer = false;
   bool re_validate_commit = false;
+  bool tracking_idle = idle_frame || tracker.TrackingFrames();
   needs_clone_validation_ = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -596,14 +587,27 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
       continue;
     }
 
+    if (tracking_idle && overlay_layer->ResetIdleFrame()) {
+      idle_frame = false;
+      validate_layers = true;
+      add_index = 0;
+    }
+
     if (overlay_layer->IsVideoLayer()) {
       has_video_layer = true;
     }
 
+    if (overlay_layer->ForceFullValidation()) {
+      if (add_index == -1) {
+        add_index = z_order;
+      }
+
+      if (previous_layer)
+        remove_index = z_order;
+    }
+
     if (overlay_layer->NeedsRevalidation()) {
       re_validate_commit = true;
-    } else if (overlay_layer->HasLayerContentChanged()) {
-      idle_frame = false;
     }
 
     if (overlay_layer->IsCursorLayer()) {

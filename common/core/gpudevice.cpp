@@ -51,11 +51,6 @@ bool GpuDevice::Initialize() {
 
   display_manager_.reset(DisplayManager::CreateDisplayManager(this));
 
-  if (!InitWorker()) {
-    ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
-    use_thread = false;
-  }
-
   bool success = display_manager_->Initialize();
   if (!success) {
     return false;
@@ -64,6 +59,10 @@ bool GpuDevice::Initialize() {
   HandleHWCSettings();
   InitializeHotPlugEvents();
 
+  if (!InitWorker()) {
+    ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
+    use_thread = false;
+  }
   if ((use_lock && !use_thread) || (!use_lock && use_thread)) {
     // Exit thread as we don't need worker thread after
     // Initialization.

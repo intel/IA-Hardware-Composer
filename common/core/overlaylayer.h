@@ -206,8 +206,12 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
-  bool NeedsPartialClear() const {
-    return state_ & kForcePartialClear;
+  bool ForceFullValidation() const {
+    return state_ & kForceFullValidation;
+  }
+
+  bool ResetIdleFrame() const {
+    return state_ & kResetIdleFrame;
   }
 
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
@@ -222,7 +226,8 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kForcePartialClear = 1 << 5
+    kForceFullValidation = 1 << 5,
+    kResetIdleFrame = 1 << 6
   };
 
   struct ImportedBuffer {
