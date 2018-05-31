@@ -119,6 +119,7 @@ LOCAL_CPPFLAGS += \
         -std=c++14 -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -Wall -Wsign-compare -Wpointer-arith \
         -Wcast-qual -Wcast-align \
+	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -O3
 

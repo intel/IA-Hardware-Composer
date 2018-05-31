@@ -26,6 +26,7 @@ MAINTAINERCLEANFILES = ChangeLog INSTALL
 AM_CPP_INCLUDES = -Icore -Iutils -Icompositor -Idisplay -I../os/ -I../os/linux/ -I../public/ -I../wsi/
 AM_CPPFLAGS = -std=c++11 -fPIC -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -DENABLE_DOUBLE_BUFFERING
 AM_CPPFLAGS += $(AM_CPP_INCLUDES) $(CWARNFLAGS) $(DRM_CFLAGS) $(DEBUG_CFLAGS) -Wformat -Wformat-security
+AM_CPPFLAGS += -DLOCK_DIR_PREFIX='"${prefix}/etc"'
 
 if !ENABLE_GBM
 AM_CPPFLAGS += -DUSE_MINIGBM
