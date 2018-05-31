@@ -59,7 +59,7 @@ bool GpuDevice::Initialize() {
       ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
     }
   } else {
-    ITRACE("Failed to open /vendor/hwc.lock file!");
+    ITRACE("Failed to open " LOCK_DIR_PREFIX "/hwc.lock file!");
   }
 
   return true;
