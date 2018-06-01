@@ -88,6 +88,43 @@ inline OverlapType AnalyseOverlap(const hwcomposer::HwcRect<int>& rect,
   }
 }
 
+inline HwcRect<int> TranslateRect(HwcRect<int> rect, int x, int y) {
+  HwcRect<int> ret;
+  ret.left = rect.left + x;
+  ret.right = rect.right + x;
+  ret.top = rect.top + y;
+  ret.bottom = rect.bottom + y;
+  return ret;
+}
+
+inline HwcRect<int> Intersection(const hwcomposer::HwcRect<int>& rect1,
+                                 const hwcomposer::HwcRect<int>& rect2) {
+  HwcRect<int> rect = {0, 0, 0, 0};
+
+  int lmax = std::max(rect1.left, rect2.left);
+  int rmax = std::max(rect1.right, rect2.right);
+  int tmax = std::max(rect1.top, rect2.top);
+  int bmax = std::max(rect1.bottom, rect2.bottom);
+
+  int lmin = std::min(rect1.left, rect2.left);
+  int rmin = std::min(rect1.right, rect2.right);
+  int tmin = std::min(rect1.top, rect2.top);
+  int bmin = std::min(rect1.bottom, rect2.bottom);
+
+  if (lmax == rmax || tmax == bmax)
+    return rect;
+
+  if (lmin == rmin || tmin == bmin)
+    return rect;
+
+  rect.left = lmax;
+  rect.right = rmin;
+  rect.top = tmax;
+  rect.bottom = bmin;
+
+  return rect;
+}
+
 /**
  * Pretty-print HwcRect for debugging.
  */

@@ -255,9 +255,6 @@ struct HwcLayer {
 
  private:
   void Validate();
-  void UpdateRenderingDamage(const HwcRect<int>& old_rect,
-                             const HwcRect<int>& newrect, bool same_rect);
-
   void SetTotalDisplays(uint32_t total_displays);
   friend class VirtualDisplay;
   friend class PhysicalDisplay;
