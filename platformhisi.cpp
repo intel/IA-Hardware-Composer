@@ -31,6 +31,7 @@
 #include <hardware/gralloc.h>
 #include "gralloc_priv.h"
 
+#define MALI_ALIGN(value, base) (((value) + ((base)-1)) & ~((base)-1))
 
 namespace android {
 
@@ -84,16 +85,42 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
 
   int32_t fmt = ConvertHalFormatToDrm(hnd->req_format);
   if (fmt < 0)
-	return fmt;
+    return fmt;
 
   memset(bo, 0, sizeof(hwc_drm_bo_t));
   bo->width = hnd->width;
   bo->height = hnd->height;
   bo->format = fmt;
   bo->usage = hnd->usage;
+
   bo->pitches[0] = hnd->byte_stride;
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;
+
+  switch (fmt) {
+    case DRM_FORMAT_YVU420: {
+      int align = 128;
+      if (hnd->usage &
+          (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK))
+        align = 16;
+      int adjusted_height = MALI_ALIGN(hnd->height, 2);
+      int y_size = adjusted_height * hnd->byte_stride;
+      int vu_stride = MALI_ALIGN(hnd->byte_stride / 2, align);
+      int v_size = vu_stride * (adjusted_height / 2);
+
+      /* V plane*/
+      bo->gem_handles[1] = gem_handle;
+      bo->pitches[1] = vu_stride;
+      bo->offsets[1] = y_size;
+      /* U plane */
+      bo->gem_handles[2] = gem_handle;
+      bo->pitches[2] = vu_stride;
+      bo->offsets[2] = y_size + v_size;
+      break;
+    }
+    default:
+      break;
+  }
 
   ret = drmModeAddFB2(drm_->fd(), bo->width, bo->height, bo->format,
                       bo->gem_handles, bo->pitches, bo->offsets, &bo->fb_id, 0);
