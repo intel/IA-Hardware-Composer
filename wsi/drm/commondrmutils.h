@@ -18,6 +18,7 @@
 #define WSI_COMMONDRMUTILS_H_
 
 #include <drm_fourcc.h>
+
 static size_t drm_bo_get_num_planes(uint32_t format) {
   switch (format) {
     case DRM_FORMAT_ABGR1555:
@@ -86,7 +87,7 @@ static size_t drm_bo_get_num_planes(uint32_t format) {
   return 0;
 }
 
-static uint64_t drm_get_modifier(uint32_t format) {
+static uint64_t choose_drm_modifier(uint32_t format) {
 #ifdef ENABLE_RBC
   switch (format) {
     case DRM_FORMAT_XRGB8888:
