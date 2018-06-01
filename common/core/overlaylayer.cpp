@@ -72,7 +72,8 @@ std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              ResourceManager* resource_manager,
-                             bool register_buffer) {
+                             bool register_buffer,
+                             FrameBufferManager* frame_buffer_manager) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
   uint32_t id;
@@ -85,7 +86,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(handle, resource_manager);
+    buffer->InitializeFromNativeHandle(handle, resource_manager,
+                                       frame_buffer_manager);
     if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
@@ -202,7 +204,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height, uint32_t rotation,
-                                   bool handle_constraints) {
+                                   bool handle_constraints,
+                                   FrameBufferManager* frame_buffer_manager) {
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
@@ -238,7 +241,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true);
+            resource_manager, true, frame_buffer_manager);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -370,22 +373,25 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, uint32_t rotation, bool handle_constraints) {
+    uint32_t max_height, uint32_t rotation, bool handle_constraints,
+    FrameBufferManager* frame_buffer_manager) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, rotation, handle_constraints,
+                  frame_buffer_manager);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
-    bool handle_constraints) {
+    bool handle_constraints, FrameBufferManager* frame_buffer_manager) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, rotation, handle_constraints,
+                  frame_buffer_manager);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
@@ -480,7 +486,8 @@ void OverlayLayer::ValidateForOverlayUsage() {
 void OverlayLayer::CloneLayer(const OverlayLayer* layer,
                               const HwcRect<int>& display_frame,
                               ResourceManager* resource_manager,
-                              uint32_t z_order) {
+                              uint32_t z_order,
+                              FrameBufferManager* frame_buffer_manager) {
   int32_t fence = layer->GetAcquireFence();
   int32_t aquire_fence = 0;
   if (fence > 0) {
@@ -489,7 +496,7 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
   SetDisplayFrame(display_frame);
   SetSourceCrop(layer->GetSourceCrop());
   SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
-            resource_manager, true);
+            resource_manager, true, frame_buffer_manager);
   ValidateForOverlayUsage();
   surface_damage_ = layer->GetSurfaceDamage();
   transform_ = layer->transform_;

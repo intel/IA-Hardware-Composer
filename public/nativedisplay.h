@@ -32,6 +32,7 @@ namespace hwcomposer {
 struct HwcLayer;
 class GpuDevice;
 class NativeBufferHandler;
+class FrameBufferManager;
 
 class VsyncCallback {
  public:
@@ -71,7 +72,8 @@ class NativeDisplay {
   NativeDisplay(const NativeDisplay &rhs) = delete;
   NativeDisplay &operator=(const NativeDisplay &rhs) = delete;
 
-  virtual bool Initialize(NativeBufferHandler *buffer_handler) = 0;
+  virtual bool Initialize(NativeBufferHandler *buffer_handler,
+                          FrameBufferManager *frame_buffer_manager) = 0;
 
   virtual DisplayType Type() const = 0;
 
@@ -88,20 +90,20 @@ class NativeDisplay {
   virtual bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) = 0;
   virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
   /**
-  * API for getting connected display's pipe id.
-  * @return "-1" for unconnected display, valid values are 0 ~ 2.
-  */
+   * API for getting connected display's pipe id.
+   * @return "-1" for unconnected display, valid values are 0 ~ 2.
+   */
   virtual int GetDisplayPipe() = 0;
   virtual bool SetActiveConfig(uint32_t config) = 0;
   virtual bool GetActiveConfig(uint32_t *config) = 0;
 
   /**
-  * API for setting custom resolution. By default the resolution is set as per
-  * the display hardware capability. This API sets the resolution from
-  * the configuration file.
-  * @param rectangle as per the resolution required
-  * @return true if set passes, false otherwise
-  */
+   * API for setting custom resolution. By default the resolution is set as per
+   * the display hardware capability. This API sets the resolution from
+   * the configuration file.
+   * @param rectangle as per the resolution required
+   * @return true if set passes, false otherwise
+   */
   virtual bool SetCustomResolution(const HwcRect<int32_t> &) {
     return false;
   }
@@ -148,45 +150,46 @@ class NativeDisplay {
 
   // Color Correction related APIS.
   /**
-  * API for setting color gamma value of display in HWC, which be used to remap
-  * original color brightness to new one by gamma color correction. HWC uses
-  * default gamma value 2.2 which popular display is using, and allow users to
-  * change gamma value for RGB colors by this API, e.g. 0 will remap all
-  * gradient brightness of the color to brightest value (solid color).
-  *
-  * @param red red color gamma value
-  * @param green blue color gamma value
-  * @param blue blue color gamma value
-  */
+   * API for setting color gamma value of display in HWC, which be used to remap
+   * original color brightness to new one by gamma color correction. HWC uses
+   * default gamma value 2.2 which popular display is using, and allow users to
+   * change gamma value for RGB colors by this API, e.g. 0 will remap all
+   * gradient brightness of the color to brightest value (solid color).
+   *
+   * @param red red color gamma value
+   * @param green blue color gamma value
+   * @param blue blue color gamma value
+   */
   virtual void SetGamma(float /*red*/, float /*green*/, float /*blue*/) {
   }
 
   /**
-  * API for setting a color transform which will be applied after composition.
-  *
-  * The matrix provided is an affine color transformation of the following form:
-  *
-  * |r.r r.g r.b 0|
-  * |g.r g.g g.b 0|
-  * |b.r b.g b.b 0|
-  * |Tr  Tg  Tb  1|
-  *
-  * This matrix will be provided in row-major form: {r.r, r.g, r.b, 0, g.r,
-  * ...}.
-  *
-  * Given a matrix of this form and an input color [R_in, G_in, B_in], the
-  * output
-  * color [R_out, G_out, B_out] will be:
-  *
-  * R_out = R_in * r.r + G_in * g.r + B_in * b.r + Tr
-  * G_out = R_in * r.g + G_in * g.g + B_in * b.g + Tg
-  * B_out = R_in * r.b + G_in * g.b + B_in * b.b + Tb
-  *
-  * @param matrix a 4x4 transform matrix (16 floats) as described above
-  * @param hint a hint value to specify the transform type, applying no
-  * transform
-  *        or applying transform defined by given matrix
-  */
+   * API for setting a color transform which will be applied after composition.
+   *
+   * The matrix provided is an affine color transformation of the following
+   * form:
+   *
+   * |r.r r.g r.b 0|
+   * |g.r g.g g.b 0|
+   * |b.r b.g b.b 0|
+   * |Tr  Tg  Tb  1|
+   *
+   * This matrix will be provided in row-major form: {r.r, r.g, r.b, 0, g.r,
+   * ...}.
+   *
+   * Given a matrix of this form and an input color [R_in, G_in, B_in], the
+   * output
+   * color [R_out, G_out, B_out] will be:
+   *
+   * R_out = R_in * r.r + G_in * g.r + B_in * b.r + Tr
+   * G_out = R_in * r.g + G_in * g.g + B_in * b.g + Tg
+   * B_out = R_in * r.b + G_in * g.b + B_in * b.b + Tb
+   *
+   * @param matrix a 4x4 transform matrix (16 floats) as described above
+   * @param hint a hint value to specify the transform type, applying no
+   * transform
+   *        or applying transform defined by given matrix
+   */
   virtual void SetColorTransform(const float * /*matrix*/,
                                  HWCColorTransform /*hint*/) {
   }
@@ -257,17 +260,17 @@ class NativeDisplay {
   }
 
   /**
-  * API for setting the color of the pipe canvas.
-  * The caller of this function must pass the individual color component
-  * values which will all be used to convert into a format expected by
-  * the kernel driver.
-  *
-  * @param bpc specifies how many bits are used per color componenet
-  * @param red bits representing the red color componenet
-  * @param green bits representing the green color componenet
-  * @param blue bits representing the blue color componenet
-  * @param alpha bits representing the alpha color componenet
-  */
+   * API for setting the color of the pipe canvas.
+   * The caller of this function must pass the individual color component
+   * values which will all be used to convert into a format expected by
+   * the kernel driver.
+   *
+   * @param bpc specifies how many bits are used per color componenet
+   * @param red bits representing the red color componenet
+   * @param green bits representing the green color componenet
+   * @param blue bits representing the blue color componenet
+   * @param alpha bits representing the alpha color componenet
+   */
   virtual void SetCanvasColor(uint16_t /*bpc*/, uint16_t /*red*/,
                               uint16_t /*green*/, uint16_t /*blue*/,
                               uint16_t /*alpha*/) {
@@ -290,27 +293,27 @@ class NativeDisplay {
                                int32_t /*acquire_fence*/) {
   }
   /**
-  * API to check the format support on the device
-  * @param format valid DRM formats found in drm_fourcc.h.
-  */
+   * API to check the format support on the device
+   * @param format valid DRM formats found in drm_fourcc.h.
+   */
   virtual bool CheckPlaneFormat(uint32_t format) = 0;
 
   virtual void SetExplicitSyncSupport(bool /*explicit_sync_enabled*/) {
   }
 
   /**
-  * API to connect the display. Note that this doesn't necessarily
-  * mean display is turned on. Implementation is free to reset any display
-  * state which they seem appropriate for this state. Any subsequent calls
-  * to Present after this call will show content on screen provided
-  * Powermode is kon.
-  */
+   * API to connect the display. Note that this doesn't necessarily
+   * mean display is turned on. Implementation is free to reset any display
+   * state which they seem appropriate for this state. Any subsequent calls
+   * to Present after this call will show content on screen provided
+   * Powermode is kon.
+   */
   virtual void Connect() {
   }
 
   /**
-  * API to check if display is connected.
-  */
+   * API to check if display is connected.
+   */
   virtual bool IsConnected() const {
     return false;
   }
@@ -442,10 +445,10 @@ class NativeDisplay {
 };
 
 /**
-* This is provided for Convenience in case
-* one doesnt want to register for hot plug
-* callback per display.
-*/
+ * This is provided for Convenience in case
+ * one doesnt want to register for hot plug
+ * callback per display.
+ */
 class DisplayHotPlugEventCallback {
  public:
   virtual ~DisplayHotPlugEventCallback() {
