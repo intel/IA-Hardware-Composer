@@ -48,9 +48,10 @@ bool GpuDevice::Initialize() {
     return false;
   }
 
-  HandleHWCSettings();
   display_manager_->InitializeDisplayResources();
   display_manager_->StartHotPlugMonitor();
+
+  HandleHWCSettings();
 
   lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
   if (-1 != lock_fd_) {
