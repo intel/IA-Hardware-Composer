@@ -128,10 +128,14 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
 
     gem_close.handle = bo->gem_handles[i];
     int ret = drmIoctl(drm_->fd(), DRM_IOCTL_GEM_CLOSE, &gem_close);
-    if (ret)
+    if (ret) {
       ALOGE("Failed to close gem handle %d %d", i, ret);
-    else
+    } else {
+      for (int j = i + 1; j < num_gem_handles; j++)
+        if (bo->gem_handles[j] == bo->gem_handles[i])
+          bo->gem_handles[j] = 0;
       bo->gem_handles[i] = 0;
+    }
   }
   return 0;
 }
