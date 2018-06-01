@@ -1148,21 +1148,26 @@ void DisplayQueue::SetCloneMode(bool cloned) {
   if (clone_mode_ == cloned)
     return;
 
-  if (cloned) {
-    vblank_handler_->SetPowerMode(kOff);
-  } else {
-    vblank_handler_->SetPowerMode(kOn);
+  if (vblank_handler_) {
+    if (cloned) {
+      vblank_handler_->SetPowerMode(kOff);
+    } else {
+      vblank_handler_->SetPowerMode(kOn);
+    }
   }
 
-  // Set Age for all offscreen surfaces.
-  UpdateOnScreenSurfaces();
+  if (display_plane_manager_) {
+    // Set Age for all offscreen surfaces.
+    UpdateOnScreenSurfaces();
 
-  for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-    display_plane_manager_->MarkSurfacesForRecycling(&previous_plane,
-                                                     surfaces_not_inuse_, true);
+    for (DisplayPlaneState& previous_plane : previous_plane_state_) {
+      display_plane_manager_->MarkSurfacesForRecycling(
+          &previous_plane, surfaces_not_inuse_, true);
+    }
+
+    DisplayPlaneStateList().swap(previous_plane_state_);
   }
 
-  DisplayPlaneStateList().swap(previous_plane_state_);
   clone_mode_ = cloned;
   clone_rendered_ = false;
 }
