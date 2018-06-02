@@ -527,8 +527,8 @@ void OverlayLayer::Dump() {
     DUMPTRACE("Transform: kReflectX.");
   if (transform_ & kReflectY)
     DUMPTRACE("Transform: kReflectY.");
-  if (transform_ & kReflectY)
-    DUMPTRACE("Transform: kReflectY.");
+  if (transform_ & kTransform90)
+    DUMPTRACE("Transform: kTransform90.");
   else if (transform_ & kTransform180)
     DUMPTRACE("Transform: kTransform180.");
   else if (transform_ & kTransform270)
