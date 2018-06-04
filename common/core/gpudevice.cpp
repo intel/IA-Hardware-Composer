@@ -95,7 +95,7 @@ void GpuDevice::GetConnectedPhysicalDisplays(
   }
 }
 
-std::vector<NativeDisplay *> GpuDevice::GetAllDisplays() {
+std::vector<NativeDisplay *>& GpuDevice::GetAllDisplays() {
   return total_displays_;
 }
 
