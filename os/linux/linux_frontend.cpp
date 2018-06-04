@@ -293,6 +293,7 @@ int IAHWC::IAHWCDisplay::Init(hwcomposer::NativeDisplay* display,
   native_display_->InitializeLayerHashGenerator(4);
   raw_data_uploader_ =
       new PixelUploader(native_display_->GetNativeBufferHandler());
+  return 0;
 }
 
 int IAHWC::IAHWCDisplay::GetDisplayInfo(uint32_t config, int attribute,
@@ -412,6 +413,7 @@ int IAHWC::IAHWCDisplay::RunPixelUploader(bool enable) {
     raw_data_uploader_->Initialize();
   else
     raw_data_uploader_->ExitThread();
+  return 0;
 }
 
 int IAHWC::IAHWCDisplay::CreateLayer(uint32_t* layer_handle) {
