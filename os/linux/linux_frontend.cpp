@@ -104,7 +104,8 @@ int32_t IAHWC::Init() {
     return IAHWC_ERROR_NO_RESOURCES;
   }
 
-  std::vector<hwcomposer::NativeDisplay*> displays = device_.GetAllDisplays();
+  const std::vector<hwcomposer::NativeDisplay*>& displays =
+      device_.GetAllDisplays();
 
   for (hwcomposer::NativeDisplay* display : displays) {
     displays_.emplace_back(new IAHWCDisplay());
