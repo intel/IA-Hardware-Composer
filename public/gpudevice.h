@@ -53,7 +53,7 @@ class GpuDevice : public HWCThread {
 
   void GetConnectedPhysicalDisplays(std::vector<NativeDisplay*>& displays);
 
-  std::vector<NativeDisplay*> GetAllDisplays();
+  const std::vector<NativeDisplay*>& GetAllDisplays();
 
   void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback);
