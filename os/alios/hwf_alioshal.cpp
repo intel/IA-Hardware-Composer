@@ -552,7 +552,7 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
     return -1;
   }
 
-  std::vector<hwcomposer::NativeDisplay *> displays =
+  const std::vector<hwcomposer::NativeDisplay *> &displays =
       p_gpu_device->GetAllDisplays();
 
   hwf_device->virtual_display_.display_ = p_gpu_device->GetVirtualDisplay();

@@ -159,7 +159,7 @@ HWC2::Error IAHWC2::Init() {
     return HWC2::Error::NoResources;
   }
 
-  std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
+  const std::vector<NativeDisplay *> &displays = device_.GetAllDisplays();
   NativeDisplay *primary_display = displays.at(0);
   uint32_t external_display_id = 1;
   primary_display_.Init(primary_display, 0, disable_explicit_sync_,
