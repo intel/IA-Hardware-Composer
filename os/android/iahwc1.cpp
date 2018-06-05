@@ -600,7 +600,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     return -1;
   }
 
-  std::vector<hwcomposer::NativeDisplay *> displays =
+  const std::vector<hwcomposer::NativeDisplay *> &displays =
       ctx->device_.GetAllDisplays();
   ctx->virtual_display_.display_ = ctx->device_.GetVirtualDisplay();
   ctx->virtual_display_.display_->SetExplicitSyncSupport(
