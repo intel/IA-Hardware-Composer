@@ -464,7 +464,12 @@ void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
   uint32_t size = mode_info.size();
   std::vector<drmModeModeInfo>().swap(modes_);
   for (uint32_t i = 0; i < size; ++i) {
-    modes_.emplace_back(mode_info[i]);
+#ifdef ENABLE_ANDROID_WA
+    //FIXME: SurfaceFlinger can't distinguish interlace mode config.
+    //interlace mode is not requirement for android, ignore them.
+    if (!(mode_info[i].flags & DRM_MODE_FLAG_INTERLACE))
+#endif
+      modes_.emplace_back(mode_info[i]);
   }
 
   SPIN_UNLOCK(display_lock_);
