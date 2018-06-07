@@ -46,6 +46,7 @@ static char buf[METADATA_BUFFER_SIZE];
 namespace hwcomposer {
 
 struct HwcLayer;
+class FrameBufferManager;
 class NativeBufferHandler;
 class NestedDisplayManager;
 
@@ -198,6 +199,7 @@ class NestedDisplay : public NativeDisplay {
   int msock_fd = -1;
   static int mclient_sock_fd;
   std::unique_ptr<ResourceManager> resource_manager_;
+  FrameBufferManager *fb_manager_ = NULL;
   Compositor compositor_;
 #endif
 };
