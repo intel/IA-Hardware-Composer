@@ -80,7 +80,7 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
-  compositor_.Init(resource_manager_.get(), gpu_fd);
+  compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
 
   mHyperDmaBuf_Fd = open(HYPER_DMABUF_PATH, O_RDWR);
   if (mHyperDmaBuf_Fd < 0)
@@ -220,7 +220,8 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
     if (search == mHyperDmaExportedBuffers.end()) {
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       buffer = OverlayBuffer::CreateOverlayBuffer();
-      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
+      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(),
+                                         fb_manager_);
 
       if (mHyperDmaBuf_Fd > 0 && buffer->GetPrimeFD() > 0) {
         struct ioctl_hyper_dmabuf_export_remote msg;
