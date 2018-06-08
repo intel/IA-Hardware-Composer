@@ -61,7 +61,11 @@ Renderer* CreateMediaRenderer() {
 #ifdef USE_DC
   return NULL;
 #else
+#ifndef DISABLE_VA
   return new VARenderer();
+#else
+  return NULL;
+#endif
 #endif
 }
 

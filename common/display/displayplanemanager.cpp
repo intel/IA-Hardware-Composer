@@ -213,10 +213,11 @@ bool DisplayPlaneManager::ValidateLayers(
 #endif
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
+#ifndef DISABLE_VA
           if (layer->IsVideoLayer()) {
             last_plane.SetVideoPlane(true);
           }
-
+#endif
           if (fall_back) {
             if (!validate_final_layers)
               validate_final_layers = !(last_plane.GetOffScreenTarget());

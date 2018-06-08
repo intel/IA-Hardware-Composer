@@ -349,7 +349,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                    !target_plane.IsVideoPlane()) {
           const OverlayLayer& layer = layers.at(source_layers.at(0));
           if (layer.IsVideoLayer()) {
+#ifndef DISABLE_VA
             target_plane.SetVideoPlane(true);
+#endif
             display_plane_manager_->MarkSurfacesForRecycling(
                 &target_plane, surfaces_not_inuse_, true);
             refresh_surfaces = true;
