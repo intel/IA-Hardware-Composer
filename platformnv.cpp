@@ -29,6 +29,10 @@
 #include <cutils/log.h>
 #include <hardware/gralloc.h>
 
+#ifndef EGL_NATIVE_HANDLE_ANDROID_NVX
+#define EGL_NATIVE_HANDLE_ANDROID_NVX 0x322A
+#endif
+
 namespace android {
 
 #ifdef USE_NVIDIA_IMPORTER
@@ -67,6 +71,13 @@ int NvImporter::Init() {
           gralloc_->common.author);
 
   return 0;
+}
+
+
+EGLImageKHR NvImporter::ImportImage(EGLDisplay egl_display, buffer_handle_t handle) {
+  return eglCreateImageKHR(
+      egl_display, EGL_NO_CONTEXT, EGL_NATIVE_HANDLE_ANDROID_NVX,
+      (EGLClientBuffer)handle, NULL /* no attribs */);
 }
 
 int NvImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {

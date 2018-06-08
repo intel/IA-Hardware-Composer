@@ -126,7 +126,7 @@ void DrmEventListener::Routine() {
 
   if (FD_ISSET(drm_->fd(), &fds_)) {
     drmEventContext event_context = {
-        .version = DRM_EVENT_CONTEXT_VERSION,
+        .version = 2,
         .vblank_handler = NULL,
         .page_flip_handler = DrmEventListener::FlipHandler};
     drmHandleEvent(drm_->fd(), &event_context);
