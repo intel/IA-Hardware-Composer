@@ -199,6 +199,7 @@ struct iahwc_output {
   struct wl_listener recorder_frame_listener;
 
   int release_fence;
+  struct wl_event_source *release_fence_source;
   struct iahwc_spinlock spin_lock;
   struct timespec last_vsync_ts;
   uint32_t total_layers;
@@ -217,6 +218,17 @@ static inline struct iahwc_output *to_iahwc_output(struct weston_output *base) {
 static inline struct iahwc_backend *to_iahwc_backend(
     struct weston_compositor *base) {
   return container_of(base->backend, struct iahwc_backend, base);
+}
+
+static void frame_done(void *data) {
+  struct iahwc_output *output = data;
+  struct timespec ts;
+
+  uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
+                   WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
+                   WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
+  weston_compositor_read_presentation_clock(output->base.compositor, &ts);
+  weston_output_finish_frame(&output->base, &ts, flags);
 }
 
 /**
@@ -273,15 +285,28 @@ static int iahwc_output_repaint(struct weston_output *output_base,
                                 pixman_region32_t *damage, void *repaint_data) {
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct iahwc_backend *backend = to_iahwc_backend(output->base.compositor);
+  struct wl_event_loop *loop;
 
   weston_log("release fence is %d\n", output->release_fence);
   if (output->release_fence > 0) {
+    wl_event_source_remove(output->release_fence_source);
     close(output->release_fence);
-    output->release_fence = 0;
+    output->release_fence = -1;
+    output->release_fence_source = NULL;
   }
 
   backend->iahwc_present_display(backend->iahwc_device, 0,
                                  &output->release_fence);
+
+  loop = wl_display_get_event_loop(output->base.compositor->wl_display);
+
+  if (output->release_fence > 0) {
+    output->release_fence_source = wl_event_loop_add_fd(
+        loop, output->release_fence, WL_EVENT_READABLE, frame_done, output);
+  } else {
+    // when release fence is -1, immediately call frame_done
+    wl_event_loop_add_idle(loop, frame_done, output);
+  }
 
   lock(&output->spin_lock);
   output->state_invalid = false;
@@ -294,10 +319,8 @@ static void iahwc_output_start_repaint_loop(struct weston_output *output_base) {
 
   /* if we cannot page-flip, immediately finish frame */
   lock(&output->spin_lock);
-  if (output->state_invalid) {
-    weston_output_finish_frame(output_base, NULL,
-                               WP_PRESENTATION_FEEDBACK_INVALID);
-  }
+  weston_output_finish_frame(output_base, NULL,
+                             WP_PRESENTATION_FEEDBACK_INVALID);
   unlock(&output->spin_lock);
 }
 
@@ -970,7 +993,6 @@ static void iahwc_assign_planes(struct weston_output *output_base,
       weston_view_move_to_plane(ev, next_plane);
       layer_index++;
     } else {
-      weston_log("Layer skipped \n");
       struct weston_surface *es = ev->surface;
       es->keep_buffer = false;
     }
@@ -1164,6 +1186,8 @@ static int iahwc_output_enable(struct weston_output *base) {
   wl_list_for_each(m, &output->base.mode_list, link) weston_log_continue(
       STAMP_SPACE "mode %dx%d@%.1d\n", m->width, m->height, m->refresh);
 
+  output->release_fence = -1;
+  output->release_fence_source = NULL;
   lock(&output->spin_lock);
   output->state_invalid = true;
   output->last_vsync_ts.tv_nsec = 0;
@@ -1216,41 +1240,6 @@ static int iahwc_output_disable(struct weston_output *base) {
   }
 
   weston_log("Disabling output %s\n", output->base.name);
-
-  return 0;
-}
-
-static int vsync_callback(iahwc_callback_data_t data, iahwc_display_t display,
-                          int64_t timestamp) {
-  struct iahwc_output *output = data;
-  struct timespec ts;
-
-  weston_compositor_read_presentation_clock(output->base.compositor, &ts);
-  lock(&output->spin_lock);
-  // Take an avg of last two frame vsync events to reduce
-  // any noise.
-  output->last_vsync_ts.tv_nsec =
-      (output->last_vsync_ts.tv_nsec + timestamp) / 2;
-  output->last_vsync_ts.tv_sec =
-      output->last_vsync_ts.tv_nsec / (1000 * 1000 * 1000);
-
-  if (!output->state_invalid &&
-      output->base.repaint_status == REPAINT_AWAITING_COMPLETION) {
-    if (output->last_vsync_ts.tv_nsec <
-        millihz_to_nsec(output->base.current_mode->refresh)) {
-      weston_output_finish_frame(&output->base, &ts,
-                                 WP_PRESENTATION_FEEDBACK_INVALID);
-      unlock(&output->spin_lock);
-      return 0;
-    }
-
-    uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
-                     WP_PRESENTATION_FEEDBACK_KIND_HW_CLOCK |
-                     WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
-    weston_output_finish_frame(&output->base, &ts, flags);
-  }
-
-  unlock(&output->spin_lock);
 
   return 0;
 }
@@ -1351,14 +1340,6 @@ static int create_output_for_connector(struct iahwc_backend *b) {
       iahwc_output_destroy(&output->base);
       return -1;
     }
-  }
-
-  ret =
-      b->iahwc_register_callback(b->iahwc_device, IAHWC_CALLBACK_VSYNC, 0,
-                                 output, (iahwc_function_ptr_t)vsync_callback);
-
-  if (ret != IAHWC_ERROR_NONE) {
-    weston_log("unable to register callback\n");
   }
 
   ret = b->iahwc_register_callback(
