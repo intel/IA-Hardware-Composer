@@ -332,17 +332,54 @@ const HwcRect<int>& HwcLayer::GetLayerDamage() {
 
   current_rendering_damage_.reset();
 
-  // From observation: In Android, when the source crop doesn't
-  // begin from (0, 0) the surface damage is already translated
-  // to global display co-ordinates
-  if (!surface_damage_.empty() &&
-      ((source_crop_.left == 0) && (source_crop_.top == 0))) {
-    // XXX/TODO: Apply other transformations here like rotation and scaling
-    // and remove the corresponding workarounds in overlaylayer.cpp
-    current_rendering_damage_ =
-        TranslateRect(surface_damage_, display_frame_.left, display_frame_.top);
-  } else {
-    current_rendering_damage_ = surface_damage_;
+  int ox = 0, oy = 0;
+  HwcRect<int> translated_damage =
+      TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
+
+  if (transform_ == hwcomposer::HWCTransform::kTransform270) {
+    ox = display_frame_.left;
+    oy = display_frame_.bottom;
+    current_rendering_damage_.left = ox + translated_damage.top;
+    current_rendering_damage_.top = oy - translated_damage.right;
+    current_rendering_damage_.right = ox + translated_damage.bottom;
+    current_rendering_damage_.bottom = oy - translated_damage.left;
+  } else if (transform_ == hwcomposer::HWCTransform::kTransform180) {
+    ox = display_frame_.right;
+    oy = display_frame_.bottom;
+    current_rendering_damage_.left = ox - translated_damage.right;
+    current_rendering_damage_.top = oy - translated_damage.bottom;
+    current_rendering_damage_.right = ox - translated_damage.left;
+    current_rendering_damage_.bottom = oy - translated_damage.top;
+  } else if (transform_ & hwcomposer::HWCTransform::kTransform90) {
+    if (transform_ & hwcomposer::HWCTransform::kReflectX) {
+      ox = display_frame_.left;
+      oy = display_frame_.top;
+      current_rendering_damage_.left = ox + translated_damage.top;
+      current_rendering_damage_.top = oy + translated_damage.left;
+      current_rendering_damage_.right = ox + translated_damage.bottom;
+      current_rendering_damage_.bottom = oy + translated_damage.right;
+    } else if (transform_ & hwcomposer::HWCTransform::kReflectY) {
+      ox = display_frame_.right;
+      oy = display_frame_.bottom;
+      current_rendering_damage_.left = ox - translated_damage.bottom;
+      current_rendering_damage_.top = oy - translated_damage.right;
+      current_rendering_damage_.right = ox - translated_damage.top;
+      current_rendering_damage_.bottom = oy - translated_damage.left;
+    } else {
+      ox = display_frame_.right;
+      oy = display_frame_.top;
+      current_rendering_damage_.left = ox - translated_damage.bottom;
+      current_rendering_damage_.top = oy + translated_damage.left;
+      current_rendering_damage_.right = ox - translated_damage.top;
+      current_rendering_damage_.bottom = oy + translated_damage.right;
+    }
+  } else if (transform_ == 0) {
+    ox = display_frame_.left;
+    oy = display_frame_.top;
+    current_rendering_damage_.left = ox + translated_damage.left;
+    current_rendering_damage_.top = oy + translated_damage.top;
+    current_rendering_damage_.right = ox + translated_damage.right;
+    current_rendering_damage_.bottom = oy + translated_damage.bottom;
   }
 
   if (state_ & kVisibleRegionSet) {
