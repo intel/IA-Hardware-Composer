@@ -477,7 +477,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
 
   // order the layers by z-order
   bool use_client_layer = false;
-  uint32_t client_z_order = 0;
+  uint32_t client_z_order = UINT32_MAX;
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     HWC2::Composition comp_type;
@@ -491,9 +491,9 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
         break;
       case HWC2::Composition::Client:
-        // Place it at the z_order of the highest client layer
+        // Place it at the z_order of the lowest client layer
         use_client_layer = true;
-        client_z_order = std::max(client_z_order, l.second.z_order());
+        client_z_order = std::min(client_z_order, l.second.z_order());
         break;
       default:
         continue;
@@ -707,7 +707,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     // Assume the test failed due to overlay planes
     avail_planes = 1;
 
-  std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
+  std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     if (l.second.sf_type() == HWC2::Composition::Device)
       z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
