@@ -24,12 +24,15 @@
 #include <hwcdefs.h>
 #include <nativebufferhandler.h>
 
+#include "framebuffermanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"
-#include "vautils.h"
 
+#ifndef DISABLE_VA
 #include <va/va_drmcommon.h>
+#include "vautils.h"
+#endif
 
 #ifndef EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT
 #define EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT 0x3443
@@ -57,6 +60,7 @@ DrmBuffer::~DrmBuffer() {
   texture_initialized = image_.texture_ != VK_NULL_HANDLE;
 #endif
 
+#ifndef DISABLE_VA
   if (media_image_.surface_ == VA_INVALID_ID) {
     resource_manager_->MarkResourceForDeletion(image_, texture_initialized);
   } else {
@@ -68,6 +72,9 @@ DrmBuffer::~DrmBuffer() {
 
     resource_manager_->MarkMediaResourceForDeletion(media_image_);
   }
+#else
+  resource_manager_->MarkResourceForDeletion(image_, texture_initialized);
+#endif
 }
 
 void DrmBuffer::Initialize(const HwcBuffer& bo) {
@@ -313,6 +320,7 @@ const ResourceHandle& DrmBuffer::GetGpuResource(GpuDisplay egl_display,
 const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
                                                        uint32_t width,
                                                        uint32_t height) {
+#ifndef DISABLE_VA
   if (media_image_.surface_ != VA_INVALID_ID) {
     if ((previous_width_ == width) && (previous_height_ == height)) {
       return media_image_;
@@ -367,6 +375,13 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
     ETRACE("Failed to create VASurface from drmbuffer with ret %x", ret);
 
   return media_image_;
+#else
+
+  // FIXME: when va is disabled, this function should
+  // not been called or left to be defined if other media
+  // backend
+  return media_image_;
+#endif
 }
 
 const ResourceHandle& DrmBuffer::GetGpuResource() {

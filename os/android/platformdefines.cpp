@@ -16,7 +16,9 @@
 
 #include "platformdefines.h"
 
+#ifndef DISABLE_VA
 #include <va/va_android.h>
+#endif
 
 #define ANDROID_DISPLAY_HANDLE 0x18C34078
 
@@ -71,8 +73,10 @@ VkFormat NativeToVkFormat(int native_format) {
 }
 #endif
 
+#ifndef DISABLE_VA
 void* GetVADisplay(uint32_t gpu_fd) {
   HWC_UNUSED(gpu_fd);
   unsigned int native_display = ANDROID_DISPLAY_HANDLE;
   return vaGetDisplay(&native_display);
 }
+#endif

@@ -473,12 +473,14 @@ bool DisplayPlaneState::IsVideoPlane() const {
 }
 
 void DisplayPlaneState::SetVideoPlane(bool enable_video) {
+#ifndef DISABLE_VA
   if (enable_video) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
     private_data_->supports_video_ = true;
   } else {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
+#endif
 }
 
 void DisplayPlaneState::UsePlaneScalar(bool enable, bool force_refresh) {

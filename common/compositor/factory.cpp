@@ -29,7 +29,9 @@
 #include "vksurface.h"
 #endif
 
+#ifndef DISABLE_VA
 #include "va/varenderer.h"
+#endif
 
 namespace hwcomposer {
 
@@ -61,7 +63,11 @@ Renderer* CreateMediaRenderer() {
 #ifdef USE_DC
   return NULL;
 #else
+#ifndef DISABLE_VA
   return new VARenderer();
+#else
+  return NULL;
+#endif
 #endif
 }
 
