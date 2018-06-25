@@ -71,22 +71,24 @@ DrmBuffer::~DrmBuffer() {
 }
 
 void DrmBuffer::Initialize(const HwcBuffer& bo) {
-  width_ = bo.width_;
-  height_ = bo.height_;
+
+  width_ = GetWidth();
+  height_ = GetHeight();
   for (uint32_t i = 0; i < 4; i++) {
     pitches_[i] = bo.pitches_[i];
     offsets_[i] = bo.offsets_[i];
     gem_handles_[i] = bo.gem_handles_[i];
   }
 
-  format_ = bo.format_;
+  format_ = GetFormat();
   if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL || format_ == DRM_FORMAT_NV21)
     format_ = DRM_FORMAT_NV12;
   else if (format_ == DRM_FORMAT_YVU420_ANDROID)
     format_ = DRM_FORMAT_YUV420;
 
-  tiling_mode_ = bo.tiling_mode_;
-  usage_ = bo.usage_;
+  tiling_mode_ = GetTilingMode();
+  num_planes_ = GetNumPlanes();
+  usage_ = GetUsage();
 
   if (usage_ == hwcomposer::kLayerCursor) {
     // We support DRM_FORMAT_ARGB8888 for cursor.
@@ -382,8 +384,7 @@ bool DrmBuffer::CreateFrameBuffer() {
   media_image_.drm_fd_ = 0;
 
   image_.drm_fd_ = fb_manager_->FindFB(width_, height_, 0, frame_buffer_format_,
-                                       image_.handle_->meta_data_.num_planes_,
-                                       gem_handles_, pitches_, offsets_);
+                                       num_planes_, gem_handles_, pitches_, offsets_);
   media_image_.drm_fd_ = image_.drm_fd_;
   return true;
 }
