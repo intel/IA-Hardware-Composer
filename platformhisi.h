@@ -14,43 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DRM_COMPOSITOR_H_
-#define ANDROID_DRM_COMPOSITOR_H_
+#ifndef ANDROID_PLATFORM_HISI_H_
+#define ANDROID_PLATFORM_HISI_H_
 
-#include "drmcomposition.h"
-#include "drmdisplaycompositor.h"
+#include "drmresources.h"
 #include "platform.h"
+#include "platformdrmgeneric.h"
 
-#include <map>
-#include <memory>
-#include <sstream>
+#include <stdatomic.h>
+
+#include <hardware/gralloc.h>
 
 namespace android {
 
-class DrmCompositor {
+class HisiImporter : public DrmGenericImporter {
  public:
-  DrmCompositor(DrmResources *drm);
-  ~DrmCompositor();
+  HisiImporter(DrmResources *drm);
+  ~HisiImporter() override;
 
   int Init();
 
-  std::unique_ptr<DrmComposition> CreateComposition(Importer *importer);
-
-  int QueueComposition(std::unique_ptr<DrmComposition> composition);
-  int Composite();
-  void Dump(std::ostringstream *out) const;
+  int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
 
  private:
-  DrmCompositor(const DrmCompositor &) = delete;
 
   DrmResources *drm_;
-  std::unique_ptr<Planner> planner_;
 
-  uint64_t frame_no_;
-
-  // mutable for Dump() propagation
-  mutable std::map<int, DrmDisplayCompositor> compositor_map_;
+  const gralloc_module_t *gralloc_;
 };
 }
 
-#endif  // ANDROID_DRM_COMPOSITOR_H_
+#endif

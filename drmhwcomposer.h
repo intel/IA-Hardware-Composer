@@ -20,10 +20,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <vector>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include "autofd.h"
-#include "separate_rects.h"
 #include "drmhwcgralloc.h"
 
 struct hwc_import_context;
@@ -81,13 +82,10 @@ class DrmHwcNativeHandle {
  public:
   DrmHwcNativeHandle() = default;
 
-  DrmHwcNativeHandle(const gralloc_module_t *gralloc, native_handle_t *handle)
-      : gralloc_(gralloc), handle_(handle) {
+  DrmHwcNativeHandle(native_handle_t *handle) : handle_(handle) {
   }
 
   DrmHwcNativeHandle(DrmHwcNativeHandle &&rhs) {
-    gralloc_ = rhs.gralloc_;
-    rhs.gralloc_ = NULL;
     handle_ = rhs.handle_;
     rhs.handle_ = NULL;
   }
@@ -96,14 +94,13 @@ class DrmHwcNativeHandle {
 
   DrmHwcNativeHandle &operator=(DrmHwcNativeHandle &&rhs) {
     Clear();
-    gralloc_ = rhs.gralloc_;
-    rhs.gralloc_ = NULL;
     handle_ = rhs.handle_;
     rhs.handle_ = NULL;
     return *this;
   }
 
-  int CopyBufferHandle(buffer_handle_t handle, const gralloc_module_t *gralloc);
+  int CopyBufferHandle(buffer_handle_t handle, int width, int height,
+                       int layerCount, int format, int usage, int stride);
 
   void Clear();
 
@@ -112,12 +109,8 @@ class DrmHwcNativeHandle {
   }
 
  private:
-  const gralloc_module_t *gralloc_ = NULL;
   native_handle_t *handle_ = NULL;
 };
-
-template <typename T>
-using DrmHwcRect = separate_rects::Rect<T>;
 
 enum DrmHwcTransform {
   kIdentity = 0,
@@ -141,16 +134,14 @@ struct DrmHwcLayer {
   DrmHwcNativeHandle handle;
   uint32_t transform;
   DrmHwcBlending blending = DrmHwcBlending::kNone;
-  uint8_t alpha = 0xff;
-  DrmHwcRect<float> source_crop;
-  DrmHwcRect<int> display_frame;
+  uint16_t alpha = 0xffff;
+  hwc_frect_t source_crop;
+  hwc_rect_t display_frame;
 
   UniqueFd acquire_fence;
   OutputFd release_fence;
 
-  int InitFromHwcLayer(hwc_layer_1_t *sf_layer, Importer *importer,
-                       const gralloc_module_t *gralloc);
-  int ImportBuffer(Importer *importer, const gralloc_module_t *gralloc);
+  int ImportBuffer(Importer *importer);
 
   void SetTransform(int32_t sf_transform);
   void SetSourceCrop(hwc_frect_t const &crop);

@@ -38,10 +38,6 @@ class Importer {
   // Creates a platform-specific importer instance
   static Importer *CreateInstance(DrmResources *drm);
 
-  // Imports EGLImage for glcompositor, since NV handles this in non-standard
-  // way, and fishing out the details is specific to the gralloc used.
-  virtual EGLImageKHR ImportImage(EGLDisplay egl_display, buffer_handle_t handle) = 0;
-
   // Imports the buffer referred to by handle into bo.
   //
   // Note: This can be called from a different thread than ReleaseBuffer. The
@@ -77,17 +73,7 @@ class Planner {
       return plane;
     }
 
-    // Finds and returns the squash layer from the composition
-    static DrmCompositionPlane *GetPrecomp(
-        std::vector<DrmCompositionPlane> *composition) {
-      auto l = GetPrecompIter(composition);
-      if (l == composition->end())
-        return NULL;
-      return &(*l);
-    }
-
-    // Inserts the given layer:plane in the composition right before the precomp
-    // layer
+    // Inserts the given layer:plane in the composition at the back
     static int Emplace(std::vector<DrmCompositionPlane> *composition,
                        std::vector<DrmPlane *> *planes,
                        DrmCompositionPlane::Type type, DrmCrtc *crtc,
@@ -96,18 +82,8 @@ class Planner {
       if (!plane)
         return -ENOENT;
 
-      auto precomp = GetPrecompIter(composition);
-      composition->emplace(precomp, type, plane, crtc, source_layer);
+      composition->emplace_back(type, plane, crtc, source_layer);
       return 0;
-    }
-
-   private:
-    static std::vector<DrmCompositionPlane>::iterator GetPrecompIter(
-        std::vector<DrmCompositionPlane> *composition) {
-      return std::find_if(composition->begin(), composition->end(),
-                          [](const DrmCompositionPlane &p) {
-        return p.type() == DrmCompositionPlane::Type::kPrecomp;
-      });
     }
   };
 
@@ -115,22 +91,17 @@ class Planner {
   static std::unique_ptr<Planner> CreateInstance(DrmResources *drm);
 
   // Takes a stack of layers and provisions hardware planes for them. If the
-  // entire stack can't fit in hardware, the Planner may place the remaining
-  // layers in a PRECOMP plane. Layers in the PRECOMP plane will be composited
-  // using GL. PRECOMP planes should be placed above any 1:1 layer:plane
-  // compositions. If use_squash_fb is true, the Planner should try to reserve a
-  // plane at the highest z-order with type SQUASH.
+  // entire stack can't fit in hardware, FIXME
   //
   // @layers: a map of index:layer of layers to composite
-  // @use_squash_fb: reserve a squash framebuffer
   // @primary_planes: a vector of primary planes available for this frame
   // @overlay_planes: a vector of overlay planes available for this frame
   //
   // Returns: A tuple with the status of the operation (0 for success) and
   //          a vector of the resulting plan (ie: layer->plane mapping).
   std::tuple<int, std::vector<DrmCompositionPlane>> ProvisionPlanes(
-      std::map<size_t, DrmHwcLayer *> &layers, bool use_squash_fb,
-      DrmCrtc *crtc, std::vector<DrmPlane *> *primary_planes,
+      std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+      std::vector<DrmPlane *> *primary_planes,
       std::vector<DrmPlane *> *overlay_planes);
 
   template <typename T, typename... A>
@@ -150,18 +121,6 @@ class Planner {
 // This plan stage extracts all protected layers and places them on dedicated
 // planes.
 class PlanStageProtected : public Planner::PlanStage {
- public:
-  int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
-                      std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
-                      std::vector<DrmPlane *> *planes);
-};
-
-// This plan stage provisions the precomp plane with any remaining layers that
-// are on top of the current precomp layers. This stage should be included in
-// all platforms before loosely allocating layers (i.e. PlanStageGreedy) if
-// any previous plan could have modified the precomp plane layers
-// (ex. PlanStageProtected).
-class PlanStagePrecomp : public Planner::PlanStage {
  public:
   int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,

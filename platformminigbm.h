@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_PLATFORM_DRM_GENERIC_H_
-#define ANDROID_PLATFORM_DRM_GENERIC_H_
+#ifndef ANDROID_PLATFORM_DRM_MINIGBM_H_
+#define ANDROID_PLATFORM_DRM_MINIGBM_H_
 
 #include "drmresources.h"
 #include "platform.h"
+#include "platformdrmgeneric.h"
 
 #include <hardware/gralloc.h>
 
 namespace android {
 
-class DrmGenericImporter : public Importer {
+class DrmMinigbmImporter : public DrmGenericImporter {
  public:
-  DrmGenericImporter(DrmResources *drm);
-  ~DrmGenericImporter() override;
+  DrmMinigbmImporter(DrmResources *drm);
+  ~DrmMinigbmImporter() override;
 
   int Init();
 
   int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
-  int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
-  uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
  private:
-
   DrmResources *drm_;
 
   const gralloc_module_t *gralloc_;
 };
+
 }
 
 #endif

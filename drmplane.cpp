@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <xf86drmMode.h>
 
 namespace android {
@@ -126,6 +126,10 @@ int DrmPlane::Init() {
   if (ret)
     ALOGI("Could not get alpha property");
 
+  ret = drm_->GetPlaneProperty(*this, "IN_FENCE_FD", &in_fence_fd_property_);
+  if (ret)
+    ALOGI("Could not get IN_FENCE_FD property");
+
   return 0;
 }
 
@@ -187,5 +191,9 @@ const DrmProperty &DrmPlane::rotation_property() const {
 
 const DrmProperty &DrmPlane::alpha_property() const {
   return alpha_property_;
+}
+
+const DrmProperty &DrmPlane::in_fence_fd_property() const {
+  return in_fence_fd_property_;
 }
 }

@@ -30,12 +30,12 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <cutils/properties.h>
 
 namespace android {
 
-DrmResources::DrmResources() : compositor_(this), event_listener_(this) {
+DrmResources::DrmResources() : event_listener_(this) {
 }
 
 DrmResources::~DrmResources() {
@@ -154,16 +154,28 @@ int DrmResources::Init() {
       break;
     }
 
-    if (conn->built_in() && !found_primary) {
+    connectors_.emplace_back(std::move(conn));
+  }
+
+  // First look for primary amongst internal connectors
+  for (auto &conn : connectors_) {
+    if (conn->internal() && !found_primary) {
       conn->set_display(0);
       found_primary = true;
     } else {
       conn->set_display(display_num);
       ++display_num;
     }
-
-    connectors_.emplace_back(std::move(conn));
   }
+
+  // Then look for primary amongst external connectors
+  for (auto &conn : connectors_) {
+    if (conn->external() && !found_primary) {
+      conn->set_display(0);
+      found_primary = true;
+    }
+  }
+
   if (res)
     drmModeFreeResources(res);
 
@@ -198,10 +210,6 @@ int DrmResources::Init() {
     planes_.emplace_back(std::move(plane));
   }
   drmModeFreePlaneResources(plane_res);
-  if (ret)
-    return ret;
-
-  ret = compositor_.Init();
   if (ret)
     return ret;
 
@@ -243,6 +251,10 @@ DrmPlane *DrmResources::GetPlane(uint32_t id) const {
       return plane.get();
   }
   return NULL;
+}
+
+const std::vector<std::unique_ptr<DrmCrtc>> & DrmResources::crtcs() const {
+  return crtcs_;
 }
 
 uint32_t DrmResources::next_mode_id() {
@@ -331,54 +343,6 @@ int DrmResources::DestroyPropertyBlob(uint32_t blob_id) {
     return ret;
   }
   return 0;
-}
-
-int DrmResources::SetDisplayActiveMode(int display, const DrmMode &mode) {
-  std::unique_ptr<DrmComposition> comp(compositor_.CreateComposition(NULL));
-  if (!comp) {
-    ALOGE("Failed to create composition for dpms on %d", display);
-    return -ENOMEM;
-  }
-  int ret = comp->SetDisplayMode(display, mode);
-  if (ret) {
-    ALOGE("Failed to add mode to composition on %d %d", display, ret);
-    return ret;
-  }
-  ret = compositor_.QueueComposition(std::move(comp));
-  if (ret) {
-    ALOGE("Failed to queue dpms composition on %d %d", display, ret);
-    return ret;
-  }
-  return 0;
-}
-
-int DrmResources::SetDpmsMode(int display, uint64_t mode) {
-  if (mode != DRM_MODE_DPMS_ON && mode != DRM_MODE_DPMS_OFF) {
-    ALOGE("Invalid dpms mode %" PRIu64, mode);
-    return -EINVAL;
-  }
-
-  std::unique_ptr<DrmComposition> comp(compositor_.CreateComposition(NULL));
-  if (!comp) {
-    ALOGE("Failed to create composition for dpms on %d", display);
-    return -ENOMEM;
-  }
-  int ret = comp->SetDpmsMode(display, mode);
-  if (ret) {
-    ALOGE("Failed to add dpms %" PRIu64 " to composition on %d %d", mode,
-          display, ret);
-    return ret;
-  }
-  ret = compositor_.QueueComposition(std::move(comp));
-  if (ret) {
-    ALOGE("Failed to queue dpms composition on %d %d", display, ret);
-    return ret;
-  }
-  return 0;
-}
-
-DrmCompositor *DrmResources::compositor() {
-  return &compositor_;
 }
 
 DrmEventListener *DrmResources::event_listener() {

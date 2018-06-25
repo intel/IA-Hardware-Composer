@@ -66,7 +66,7 @@ struct WorkerTest : public testing::Test {
 };
 
 TEST_F(WorkerTest, test_worker) {
-  // already isInitialized so should fail
+  // already isInitialized so should succeed
   ASSERT_TRUE(worker.initialized());
 
   int val = worker.value;
