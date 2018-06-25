@@ -27,7 +27,9 @@
 
 #include <platformdefines.h>
 
+#ifndef DISABLE_VA
 #include <va/va.h>
+#endif
 
 namespace hwcomposer {
 
@@ -80,7 +82,9 @@ typedef void* GpuDisplay;
 #endif
 
 typedef struct media_import {
+#ifndef DISABLE_VA
   VASurfaceID surface_ = VA_INVALID_ID;
+#endif
   HWCNativeHandle handle_ = 0;
   uint32_t drm_fd_ = 0;
 } MediaResourceHandle;

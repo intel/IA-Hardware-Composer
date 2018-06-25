@@ -39,12 +39,8 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../os \
         $(LOCAL_PATH)/../os/android \
         $(LOCAL_PATH)/../wsi \
-        $(LOCAL_PATH)/../wsi/drm \
-        $(TARGET_OUT_HEADERS)/libva
+        $(LOCAL_PATH)/../wsi/drm
 
-LOCAL_SHARED_LIBRARIES += \
-	libva \
-	libva-android
 
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 27; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += \
@@ -71,8 +67,6 @@ LOCAL_SRC_FILES := \
         compositor/factory.cpp \
         compositor/nativesurface.cpp \
         compositor/renderstate.cpp \
-	compositor/va/varenderer.cpp \
-	compositor/va/vautils.cpp \
         core/gpudevice.cpp \
         core/hwclayer.cpp \
 	core/resourcemanager.cpp \
@@ -92,6 +86,19 @@ LOCAL_SRC_FILES := \
         utils/hwcthread.cpp \
         utils/hwcutils.cpp \
         utils/disjoint_layers.cpp
+
+ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
+LOCAL_SHARED_LIBRARIES += \
+	libva \
+	libva-android
+
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
+
+LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
+	           compositor/va/vautils.cpp
+else
+LOCAL_CPPFLAGS += -DDISABLE_VA
+endif
 
 ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
 LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT

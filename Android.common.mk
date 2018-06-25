@@ -117,12 +117,16 @@ LOCAL_CPPFLAGS += \
 	-DENABLE_RBC
 endif
 
+ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/common/compositor/va
 
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
+else
+LOCAL_CPPFLAGS += -DDISABLE_VA
+endif
 
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
