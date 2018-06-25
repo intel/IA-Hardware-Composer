@@ -17,7 +17,6 @@
 #ifndef ANDROID_DRM_H_
 #define ANDROID_DRM_H_
 
-#include "drmcompositor.h"
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
@@ -58,7 +57,6 @@ class DrmResources {
   DrmConnector *GetConnectorForDisplay(int display) const;
   DrmCrtc *GetCrtcForDisplay(int display) const;
   DrmPlane *GetPlane(uint32_t id) const;
-  DrmCompositor *compositor();
   DrmEventListener *event_listener();
 
   int GetPlaneProperty(const DrmPlane &plane, const char *prop_name,
@@ -68,9 +66,8 @@ class DrmResources {
   int GetConnectorProperty(const DrmConnector &connector, const char *prop_name,
                            DrmProperty *property);
 
+  const std::vector<std::unique_ptr<DrmCrtc>> &crtcs() const;
   uint32_t next_mode_id();
-  int SetDisplayActiveMode(int display, const DrmMode &mode);
-  int SetDpmsMode(int display, uint64_t mode);
 
   int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
   int DestroyPropertyBlob(uint32_t blob_id);
@@ -89,7 +86,6 @@ class DrmResources {
   std::vector<std::unique_ptr<DrmEncoder>> encoders_;
   std::vector<std::unique_ptr<DrmCrtc>> crtcs_;
   std::vector<std::unique_ptr<DrmPlane>> planes_;
-  DrmCompositor compositor_;
   DrmEventListener event_listener_;
 
   std::pair<uint32_t, uint32_t> min_resolution_;

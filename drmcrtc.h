@@ -45,6 +45,7 @@ class DrmCrtc {
 
   const DrmProperty &active_property() const;
   const DrmProperty &mode_property() const;
+  const DrmProperty &out_fence_ptr_property() const;
 
  private:
   DrmResources *drm_;
@@ -53,16 +54,11 @@ class DrmCrtc {
   unsigned pipe_;
   int display_;
 
-  uint32_t x_;
-  uint32_t y_;
-  uint32_t width_;
-  uint32_t height_;
-
   DrmMode mode_;
-  bool mode_valid_;
 
   DrmProperty active_property_;
   DrmProperty mode_property_;
+  DrmProperty out_fence_ptr_property_;
 };
 }
 
