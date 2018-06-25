@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <xf86drmMode.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 
 namespace android {
 
@@ -31,12 +31,7 @@ DrmCrtc::DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe)
       id_(c->crtc_id),
       pipe_(pipe),
       display_(-1),
-      x_(c->x),
-      y_(c->y),
-      width_(c->width),
-      height_(c->height),
-      mode_(&c->mode),
-      mode_valid_(c->mode_valid) {
+      mode_(&c->mode) {
 }
 
 int DrmCrtc::Init() {
@@ -49,6 +44,12 @@ int DrmCrtc::Init() {
   ret = drm_->GetCrtcProperty(*this, "MODE_ID", &mode_property_);
   if (ret) {
     ALOGE("Failed to get MODE_ID property");
+    return ret;
+  }
+
+  ret = drm_->GetCrtcProperty(*this, "OUT_FENCE_PTR", &out_fence_ptr_property_);
+  if (ret) {
+    ALOGE("Failed to get OUT_FENCE_PTR property");
     return ret;
   }
   return 0;
@@ -80,5 +81,9 @@ const DrmProperty &DrmCrtc::active_property() const {
 
 const DrmProperty &DrmCrtc::mode_property() const {
   return mode_property_;
+}
+
+const DrmProperty &DrmCrtc::out_fence_ptr_property() const {
+  return out_fence_ptr_property_;
 }
 }

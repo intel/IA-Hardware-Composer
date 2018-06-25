@@ -44,7 +44,9 @@ class DrmConnector {
   int display() const;
   void set_display(int display);
 
-  bool built_in() const;
+  bool internal() const;
+  bool external() const;
+  bool valid_type() const;
 
   int UpdateModes();
 
