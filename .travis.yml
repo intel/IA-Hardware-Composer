@@ -4,8 +4,10 @@ dist: trusty
 install:
 - sudo apt-get update
 - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+- sudo sh -c "echo \"deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse\" >> /etc/apt/sources.list"
 - sudo apt-get update
-- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev clang-format-3.5 llvm-dev gcc-4.9 g++-4.9 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev
+- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev llvm-dev gcc-4.9 g++-4.9 python3 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev clang-format-3.9 cppcheck/trusty-backports
+- ./travisci/check_patch.py
 - sudo pip3 install pathlib
 - sudo pip3 install meson==0.43.0
 - sudo dpkg -s python-mako
@@ -21,7 +23,6 @@ script:
 - export PATH=$WLD/bin:$PATH
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- export DRV_I915=1
 - tar -xvf travisci/resources/hwc-install.tar.xz -C $HWC_BUILD_DIR
 - mkdir -p $WLD/share/aclocal
 
@@ -34,6 +35,15 @@ script:
 - sudo cp ninja /usr/bin/
 - popd
 
+#clone and build libvulkan : dependency
+- git clone -b sdk-1.1.73 https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers.git /tmp/libvulkan
+- pushd /tmp/libvulkan
+- ./update_external_sources.sh
+- cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$WLD -DBUILD_DEMOS=Off -DBUILD_TESTS=Off -DBUILD_WSI_MIR_SUPPORT=Off -DBUILD_WSI_WAYLAND_SUPPORT=Off -DBUILD_WSI_XCB_SUPPORT=Off -DBUILD_WSI_XLIB_SUPPORT=Off
+- cd build
+- make -j5 && make install
+- popd
+
 #clone and build libdrm : dependency
 - git clone https://github.com/intel/external-libdrm /tmp/libdrm
 - pushd /tmp/libdrm
@@ -44,16 +54,8 @@ script:
 # #clone and build mesa : dependency
 - git clone https://github.com/intel/external-mesa /tmp/mesa
 - pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --disable-gbm --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
+- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
 - make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
-- popd
-
-# #clone and build minigbm : dependency
-- git clone https://github.com/intel/minigbm /tmp/minigbm
-- pushd /tmp/minigbm
-- export DRV_I915=1
-- make CFLAGS=-DDRV_I915=1 -j5
-- make install DESTDIR=$WLD LIBDIR=lib/
 - popd
 
 #clone and build libva : dependency
@@ -79,6 +81,9 @@ script:
 - make clean
 - ./autogen.sh --prefix=$WLD --enable-dummy-compositor
 - make -j5
+- make clean
+- ./autogen.sh --prefix=$WLD --enable-vulkan
+- make -j5
 
 # Test Weston plugin
 - export WLD=/tmp/wl-install
@@ -87,7 +92,6 @@ script:
 - export PATH=$WLD/bin:$PATH
 - export ACLOCAL_PATH=$WLD/share/aclocal
 - export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- export DRV_I915=1
 - mkdir -p $WLD/share/aclocal
 
 #clone and build libdrm : dependency
@@ -132,7 +136,7 @@ script:
 - ninja -C builddir/ install
 - popd
 
-#Build mesa with gbm and overwrite minigbm
+#Build mesa with gbm
 - pushd .
 - cd /tmp/mesa
 - git clean -xfd > /dev/null

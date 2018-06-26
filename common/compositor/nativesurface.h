@@ -24,6 +24,7 @@
 
 namespace hwcomposer {
 
+class FrameBufferManager;
 class ResourceManager;
 class DisplayPlaneState;
 
@@ -43,7 +44,8 @@ class NativeSurface {
   virtual ~NativeSurface();
 
   bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage,
-            uint64_t modifier, bool* modifer_succeeded);
+            uint64_t modifier, bool* modifier_succeeded,
+            FrameBufferManager* frame_buffer_manager);
 
   bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
                                        ResourceManager* resource_manager);
@@ -108,7 +110,12 @@ class NativeSurface {
 
   // Return's damage area of this surface.
   const HwcRect<int>& GetSurfaceDamage() const {
-    return surface_damage_;
+    return layer_.GetSurfaceDamage();
+  }
+
+  // Return's damage area of this surface.
+  const HwcRect<int>& GetPreviousSurfaceDamage() const {
+    return previous_damage_;
   }
 
   // Applies rotation transform to this surface.
@@ -140,11 +147,12 @@ class NativeSurface {
   ClearType clear_surface_;
   int surface_age_;
   bool damage_changed_ = true;
+  bool reset_damage_ = true;
   uint64_t modifier_ = 0;
   bool on_screen_ = false;
-  HwcRect<int> surface_damage_;
   HwcRect<int> previous_damage_;
   HwcRect<int> previous_nc_damage_;
+  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

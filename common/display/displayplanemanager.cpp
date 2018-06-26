@@ -30,14 +30,25 @@ DisplayPlaneManager::DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
                                          ResourceManager *resource_manager)
     : plane_handler_(plane_handler),
       resource_manager_(resource_manager),
+      cursor_plane_(nullptr),
       width_(0),
-      height_(0) {
+      height_(0),
+      total_overlays_(0),
+      display_transform_(kIdentity),
+#ifdef DISABLE_CURSOR_PLANE
+      release_surfaces_(false),
+      enable_last_plane_(true) {
+#else
+      release_surfaces_(false) {
+#endif
 }
 
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
+bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height,
+                                     FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   width_ = width;
   height_ = height;
   bool status = plane_handler_->PopulatePlanes(overlay_planes_);
@@ -45,17 +56,11 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
     total_overlays_ = overlay_planes_.size();
     if (total_overlays_ > 1) {
       cursor_plane_ = overlay_planes_.back().get();
-      bool needs_cursor_wa = false;
-#ifdef DISABLE_CURSOR_PLANE
-      needs_cursor_wa = overlay_planes_.size() > 3;
-#endif
       // If this is a universal plane, let's not restrict it to
       // cursor usage only.
-      if (!needs_cursor_wa && cursor_plane_->IsUniversal()) {
+      if (cursor_plane_->IsUniversal()) {
         cursor_plane_ = NULL;
-      }
-
-      if (needs_cursor_wa || (cursor_plane_ && !cursor_plane_->IsUniversal())) {
+      } else {
         total_overlays_--;
       }
     }
@@ -138,15 +143,15 @@ bool DisplayPlaneManager::ValidateLayers(
 
   if (layer_begin != layer_end) {
     auto overlay_end = overlay_planes_.end();
-    if (cursor_plane_) {
 #ifdef DISABLE_CURSOR_PLANE
+    if (!enable_last_plane_ || cursor_plane_) {
       overlay_end = overlay_planes_.end() - 1;
-#else
-      if (!cursor_plane_->IsUniversal()) {
-        overlay_end = overlay_planes_.end() - 1;
-      }
-#endif
     }
+#else
+    if (cursor_plane_) {
+      overlay_end = overlay_planes_.end() - 1;
+    }
+#endif
 
     // Handle layers for overlays.
     for (auto j = overlay_begin; j < overlay_end; ++j) {
@@ -368,8 +373,7 @@ DisplayPlaneState *DisplayPlaneManager::GetLastUsedOverlay(
   size_t size = composition.size();
   for (size_t i = size; i > 0; i--) {
     DisplayPlaneState &plane = composition.at(i - 1);
-    if (cursor_plane_ && (cursor_plane_ == plane.GetDisplayPlane()) &&
-        (!cursor_plane_->IsUniversal()))
+    if (cursor_plane_ && (cursor_plane_ == plane.GetDisplayPlane()))
       continue;
 
     last_plane = &plane;
@@ -422,9 +426,11 @@ void DisplayPlaneManager::ValidateCursorLayer(
   }
 
 #ifdef DISABLE_CURSOR_PLANE
-  overlay_end = overlay_planes_.end() - 1;
-  if (total_size == 1)
-    overlay_begin = overlay_planes_.begin() + composition.size();
+  if (!enable_last_plane_) {
+    overlay_end = overlay_planes_.end() - 1;
+    if (total_size == 1)
+      overlay_begin = overlay_planes_.begin() + composition.size();
+  }
 #endif
   for (auto j = overlay_begin; j < overlay_end; ++j) {
     if (cursor_index == total_size)
@@ -432,7 +438,9 @@ void DisplayPlaneManager::ValidateCursorLayer(
 
     DisplayPlane *plane = j->get();
     if (plane->InUse()) {
-      ETRACE("Trying to use a plane for cursor which is already in use. \n");
+      ITRACE("Trying to use a plane for cursor which is already in use. \n");
+      last_plane = NULL;
+      break;
     }
 
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
@@ -670,6 +678,39 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
   release_surfaces_ = false;
 }
 
+void DisplayPlaneManager::SetLastPlaneUsage(bool enable) {
+#ifdef DISABLE_CURSOR_PLANE
+  if (total_overlays_ < 3 && enable_last_plane_) {
+    // If planes are less than 3, we don't need to enable any W/A.
+    // enable_last_plane_ needs to be checked to handle case where
+    // we manually decremented total_overlays_ in any previous
+    // calls.
+    return;
+  }
+
+  if (enable_last_plane_ != enable) {
+    enable_last_plane_ = enable;
+    // If we have cursor plane, we can use all overlays and just
+    // ignore cursor plane in case  W/A need's to be enabled.
+    if (cursor_plane_) {
+      return;
+    }
+
+    // We are running on a hypervisor. We could
+    // be sharing plane with others.
+    if (enable) {
+      total_overlays_++;
+      enable_last_plane_ = true;
+    } else {
+      total_overlays_--;
+      enable_last_plane_ = false;
+    }
+  }
+#else
+  HWC_UNUSED(enable);
+#endif
+}
+
 void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
   display_transform_ = transform;
 }
@@ -708,7 +749,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
     bool modifer_succeeded = false;
     new_surface->Init(resource_manager_, preferred_format, usage, modifier,
-                      &modifer_succeeded);
+                      &modifer_succeeded, fb_manager_);
 
     if (modifer_succeeded) {
       plane.GetDisplayPlane()->PreferredFormatModifierValidated();

@@ -19,6 +19,7 @@
 
 #include <gbm.h>
 #include <stdint.h>
+#include <hwcdefs.h>
 
 #define IAHWC_MODULE IAHWC_MODULE_INFO
 #define IAHWC_MODULE_STR "IAHWC_MODULE_INFO"
@@ -52,6 +53,11 @@ typedef struct iahwc_raw_pixel_data {
 } iahwc_raw_pixel_data;
 
 typedef enum {
+  IAHWC_DISPLAY_STATUS_CONNECTED,
+  IAHWC_DISPLAY_STATUS_DISCONNECTED
+} iahwc_hotplug_status;
+
+typedef enum {
   IAHWC_ERROR_NONE = 0,
   IAHWC_ERROR_BAD_CONFIG,
   IAHWC_ERROR_BAD_DISPLAY,
@@ -81,8 +87,11 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_DISPLAY_SET_GAMMA,
   IAHWC_FUNC_DISPLAY_SET_CONFIG,
   IAHWC_FUNC_DISPLAY_GET_CONFIG,
+  IAHWC_FUNC_DISPLAY_SET_POWER_MODE,
   IAHWC_FUNC_DISPLAY_CLEAR_ALL_LAYERS,
   IAHWC_FUNC_PRESENT_DISPLAY,
+  IAHWC_FUNC_DISABLE_OVERLAY_USAGE,
+  IAHWC_FUNC_ENABLE_OVERLAY_USAGE,
   IAHWC_FUNC_CREATE_LAYER,
   IAHWC_FUNC_DESTROY_LAYER,
   IAHWC_FUNC_LAYER_SET_BO,
@@ -94,11 +103,13 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_LAYER_SET_DISPLAY_FRAME,
   IAHWC_FUNC_LAYER_SET_SURFACE_DAMAGE,
   IAHWC_FUNC_LAYER_SET_PLANE_ALPHA,
+  IAHWC_FUNC_LAYER_SET_INDEX,
 };
 
 enum iahwc_callback_descriptor {
   IAHWC_CALLBACK_VSYNC,
-  IAHWC_CALLBACK_PIXEL_UPLOADER
+  IAHWC_CALLBACK_PIXEL_UPLOADER,
+  IAHWC_CALLBACK_HOTPLUG
 };
 
 enum iahwc_layer_usage {
@@ -154,17 +165,24 @@ typedef int (*IAHWC_PFN_DISPLAY_SET_CONFIG)(iahwc_device_t*,
 typedef int (*IAHWC_PFN_DISPLAY_GET_CONFIG)(iahwc_device_t*,
                                             iahwc_display_t display_handle,
                                             uint32_t* config);
+typedef int (*IAHWC_PFN_DISPLAY_SET_POWER_MODE)(iahwc_device_t*,
+                                                iahwc_display_t display_handle,
+                                                uint32_t power_mode);
 typedef int (*IAHWC_PFN_DISPLAY_CLEAR_ALL_LAYERS)(
     iahwc_device_t*, iahwc_display_t display_handle);
 typedef int (*IAHWC_PFN_PRESENT_DISPLAY)(iahwc_device_t*,
                                          iahwc_display_t display_handle,
                                          int32_t* release_fd);
+typedef int (*IAHWC_PFN_DISABLE_OVERLAY_USAGE)(iahwc_device_t*,
+                                               iahwc_display_t display_handle);
+typedef int (*IAHWC_PFN_ENABLE_OVERLAY_USAGE)(iahwc_device_t*,
+                                              iahwc_display_t display_handle);
 typedef int (*IAHWC_PFN_CREATE_LAYER)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t* layer_handle);
 typedef int (*IAHWC_PFN_DESTROY_LAYER)(iahwc_device_t*,
-                                               iahwc_display_t display_handle,
-                                               iahwc_layer_t layer_handle);
+                                       iahwc_display_t display_handle,
+                                       iahwc_layer_t layer_handle);
 typedef int (*IAHWC_PFN_LAYER_SET_BO)(iahwc_device_t*,
                                       iahwc_display_t display_handle,
                                       iahwc_layer_t layer_handle,
@@ -199,10 +217,16 @@ typedef int (*IAHWC_PFN_LAYER_SET_PLANE_ALPHA)(iahwc_device_t*,
                                                iahwc_display_t display_handle,
                                                iahwc_layer_t layer_handle,
                                                float alpha);
+typedef int (*IAHWC_PFN_LAYER_SET_INDEX)(iahwc_device_t*,
+                                         iahwc_display_t display_handle,
+                                         iahwc_layer_t layer_handle,
+                                         uint32_t layer_index);
 typedef int (*IAHWC_PFN_VSYNC)(iahwc_callback_data_t data,
                                iahwc_display_t display, int64_t timestamp);
 typedef int (*IAHWC_PFN_PIXEL_UPLOADER)(iahwc_callback_data_t data,
                                         iahwc_display_t display,
                                         uint32_t start_access,
                                         void* call_back_data);
+typedef int (*IAHWC_PFN_HOTPLUG)(iahwc_callback_data_t data,
+                                 iahwc_display_t display, uint32_t status);
 #endif  // OS_LINUX_IAHWC_H_

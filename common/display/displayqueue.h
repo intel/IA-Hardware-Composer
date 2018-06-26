@@ -19,11 +19,11 @@
 
 #include <spinlock.h>
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#include <queue>
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "compositor.h"
@@ -40,6 +40,15 @@ struct gamma_colors {
   float blue;
 };
 
+struct canvas_color_comps {
+  uint16_t bpc;
+  uint16_t red;
+  uint16_t green;
+  uint16_t blue;
+  uint16_t alpha;
+};
+
+class FrameBufferManager;
 class PhysicalDisplay;
 class DisplayPlaneHandler;
 struct HwcLayer;
@@ -53,14 +62,16 @@ class DisplayQueue {
   ~DisplayQueue();
 
   bool Initialize(uint32_t pipe, uint32_t width, uint32_t height,
-                  DisplayPlaneHandler* plane_manager);
+                  DisplayPlaneHandler* plane_manager,
+                  FrameBufferManager* frame_buffer_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
-                   bool* ignore_clone_update, bool handle_constraints);
+                   bool* ignore_clone_update, PixelUploaderCallback* call_back,
+                   bool handle_constraints);
   bool SetPowerMode(uint32_t power_mode);
   bool CheckPlaneFormat(uint32_t format);
   void SetGamma(float red, float green, float blue);
-  void SetColorTransform(const float *matrix, HWCColorTransform hint);
+  void SetColorTransform(const float* matrix, HWCColorTransform hint);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
   void SetExplicitSyncSupport(bool disable_explicit_sync);
@@ -68,6 +79,8 @@ class DisplayQueue {
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float* value, float* start,
                      float* end);
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha);
   void RestoreVideoDefaultColor(HWCColorControl color);
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag, HWCDeinterlaceControl mode);
   void RestoreVideoDefaultDeinterlace();
@@ -83,6 +96,8 @@ class DisplayQueue {
 
   void DisplayConfigurationChanged();
 
+  bool IsIgnoreUpdates();
+
   void ForceRefresh();
 
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
@@ -95,6 +110,8 @@ class DisplayQueue {
   void IgnoreUpdates();
 
   void PresentClonedCommit(DisplayQueue* queue);
+
+  void NotifyDisplayWA(bool enable_wa);
 
   const DisplayPlaneStateList& GetCurrentCompositionPlanes() const {
     return previous_plane_state_;
@@ -314,6 +331,7 @@ class DisplayQueue {
   uint32_t contrast_;
   int32_t kms_fence_ = 0;
   struct gamma_colors gamma_;
+  struct canvas_color_comps canvas_;
   std::unique_ptr<VblankEventHandler> vblank_handler_;
   std::unique_ptr<DisplayPlaneManager> display_plane_manager_;
   std::unique_ptr<ResourceManager> resource_manager_;
@@ -329,7 +347,9 @@ class DisplayQueue {
   int state_ = kConfigurationChanged;
   PhysicalDisplay* display_ = NULL;
   SpinLock power_mode_lock_;
-  bool handle_display_initializations_ = true;  // to disable hwclock monitoring.
+  // to disable hwclock monitoring.
+  bool handle_display_initializations_ = true;
+  bool enable_wa_ = false;
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
@@ -349,6 +369,7 @@ class DisplayQueue {
   // need to be marked as not in use during next
   // frame.
   std::vector<NativeSurface*> surfaces_not_inuse_;
+  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

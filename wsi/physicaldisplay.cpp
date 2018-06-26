@@ -23,11 +23,11 @@
 #include <hwctrace.h>
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 
-#include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "displayqueue.h"
 #include "hwcutils.h"
 #include "wsi_utils.h"
 
@@ -45,7 +45,9 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
 PhysicalDisplay::~PhysicalDisplay() {
 }
 
-bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
+bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler,
+                                 FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   display_queue_.reset(new DisplayQueue(gpu_fd_, false, buffer_handler, this));
   InitializeDisplay();
   return true;
@@ -70,7 +72,6 @@ void PhysicalDisplay::MarkForDisconnect() {
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
   SPIN_LOCK(modeset_lock_);
-  bool refresh_needed = false;
   if (hotplug_callback_ && (connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -79,17 +80,8 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, true);
     display_state_ &= ~kNotifyClient;
-#ifdef ENABLE_ANDROID_WA
-    if (ordered_display_id_ == 0) {
-      refresh_needed = true;
-    }
-#endif
   }
   SPIN_UNLOCK(modeset_lock_);
-
-  if (refresh_needed) {
-    display_queue_->ForceRefresh();
-  }
 }
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
@@ -132,6 +124,21 @@ void PhysicalDisplay::DisConnect() {
   SPIN_UNLOCK(modeset_lock_);
 }
 
+void PhysicalDisplay::NotifyDisplayWA(bool enable_wa) {
+  SPIN_LOCK(modeset_lock_);
+  display_queue_->NotifyDisplayWA(enable_wa);
+  SPIN_UNLOCK(modeset_lock_);
+}
+
+void PhysicalDisplay::ForceRefresh() {
+  SPIN_LOCK(modeset_lock_);
+  if ((connection_state_ & kConnected) &&
+      (!display_queue_->IsIgnoreUpdates())) {
+    display_queue_->ForceRefresh();
+  }
+  SPIN_UNLOCK(modeset_lock_);
+}
+
 void PhysicalDisplay::Connect() {
   SPIN_LOCK(modeset_lock_);
 
@@ -143,7 +150,7 @@ void PhysicalDisplay::Connect() {
     // Current display is a cloned display, set the source_display_'s
     // k_RefreshClonedDisplays flag. This makes clone parent have a
     // chance to update it's cloned display list
-    PhysicalDisplay* p_clone_parent = (PhysicalDisplay*) source_display_;
+    PhysicalDisplay *p_clone_parent = (PhysicalDisplay *)source_display_;
     SPIN_LOCK(p_clone_parent->modeset_lock_);
     p_clone_parent->display_state_ |= kRefreshClonedDisplays;
     SPIN_UNLOCK(p_clone_parent->modeset_lock_);
@@ -160,7 +167,7 @@ void PhysicalDisplay::Connect() {
   display_state_ |= kNotifyClient;
   IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
 
-  if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
+  if (!display_queue_->Initialize(pipe_, width_, height_, this, fb_manager_)) {
     ETRACE("Failed to initialize Display Queue.");
   } else {
     display_state_ |= kInitialized;
@@ -274,7 +281,9 @@ bool PhysicalDisplay::UpdatePowerMode() {
 }
 
 bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                              int32_t *retire_fence, bool handle_constraints) {
+                              int32_t *retire_fence,
+                              PixelUploaderCallback *call_back,
+                              bool handle_constraints) {
   CTRACE();
   SPIN_LOCK(modeset_lock_);
 
@@ -316,8 +325,9 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 
   bool ignore_clone_update = false;
-  bool success = display_queue_->QueueUpdate(
-      source_layers, retire_fence, &ignore_clone_update, handle_constraints);
+  bool success = display_queue_->QueueUpdate(source_layers, retire_fence,
+                                             &ignore_clone_update, call_back,
+                                             handle_constraints);
   if (success && !clones_.empty() && !ignore_clone_update) {
     HandleClonedDisplays(this);
   }
@@ -408,7 +418,8 @@ void PhysicalDisplay::SetGamma(float red, float green, float blue) {
   display_queue_->SetGamma(red, green, blue);
 }
 
-void PhysicalDisplay::SetColorTransform(const float *matrix, HWCColorTransform hint) {
+void PhysicalDisplay::SetColorTransform(const float *matrix,
+                                        HWCColorTransform hint) {
   display_queue_->SetColorTransform(matrix, hint);
 }
 
@@ -433,8 +444,8 @@ void PhysicalDisplay::SetVideoColor(HWCColorControl color, float value) {
   display_queue_->SetVideoColor(color, value);
 }
 
-void PhysicalDisplay::GetVideoColor(HWCColorControl color,
-                                    float* value, float* start, float* end) {
+void PhysicalDisplay::GetVideoColor(HWCColorControl color, float *value,
+                                    float *start, float *end) {
   display_queue_->GetVideoColor(color, value, start, end);
 }
 
@@ -449,6 +460,11 @@ void PhysicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 
 void PhysicalDisplay::RestoreVideoDefaultDeinterlace() {
   display_queue_->RestoreVideoDefaultDeinterlace();
+}
+
+void PhysicalDisplay::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                     uint16_t blue, uint16_t alpha) {
+  display_queue_->SetCanvasColor(bpc, red, green, blue, alpha);
 }
 
 bool PhysicalDisplay::PopulatePlanes(
@@ -585,8 +601,9 @@ bool PhysicalDisplay::SetCustomResolution(const HwcRect<int32_t> &rect) {
     rect_.bottom = rect.bottom;
     custom_resolution_ = true;
 
-    IHOTPLUGEVENTTRACE("SetCustomResolution: custom width %d, height %d, bool %d",
-      rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
+    IHOTPLUGEVENTTRACE(
+        "SetCustomResolution: custom width %d, height %d, bool %d",
+        rect_.right - rect_.left, rect_.bottom - rect_.top, custom_resolution_);
 
     return true;
   } else {

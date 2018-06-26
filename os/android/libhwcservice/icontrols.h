@@ -17,9 +17,9 @@
 #ifndef OS_ANDROID_HWC_ICONTROLS_H_
 #define OS_ANDROID_HWC_ICONTROLS_H_
 
-#include "hwcserviceapi.h"
 #include <binder/IInterface.h>
 #include <binder/Parcel.h>
+#include "hwcserviceapi.h"
 
 namespace hwcomposer {
 

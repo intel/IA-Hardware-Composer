@@ -18,6 +18,7 @@
 
 #include <platformdefines.h>
 
+#include "framebuffermanager.h"
 #include "overlaybuffer.h"
 
 namespace hwcomposer {
@@ -33,8 +34,9 @@ class DrmBuffer : public OverlayBuffer {
 
   ~DrmBuffer() override;
 
-  void InitializeFromNativeHandle(HWCNativeHandle handle,
-                                  ResourceManager* buffer_manager) override;
+  void InitializeFromNativeHandle(
+      HWCNativeHandle handle, ResourceManager* buffer_manager,
+      FrameBufferManager* frame_buffer_manager) override;
 
   uint32_t GetWidth() const override {
     return width_;
@@ -110,6 +112,7 @@ class DrmBuffer : public OverlayBuffer {
   ResourceHandle image_;
   MediaResourceHandle media_image_;
   HWCNativeHandle original_handle_;
+  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

@@ -23,8 +23,8 @@
 
 #include "hwcutils.h"
 
-#include "resourcemanager.h"
 #include "nativebufferhandler.h"
+#include "resourcemanager.h"
 
 namespace hwcomposer {
 
@@ -72,7 +72,8 @@ std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
 
 void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
                              ResourceManager* resource_manager,
-                             bool register_buffer) {
+                             bool register_buffer,
+                             FrameBufferManager* frame_buffer_manager) {
   std::shared_ptr<OverlayBuffer> buffer(NULL);
 
   uint32_t id;
@@ -85,7 +86,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(handle, resource_manager);
+    buffer->InitializeFromNativeHandle(handle, resource_manager,
+                                       frame_buffer_manager);
     if (resource_manager && register_buffer) {
       resource_manager->RegisterBuffer(id, buffer);
     }
@@ -113,7 +115,6 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
   display_frame_width_ = display_frame.right - display_frame.left;
   display_frame_height_ = display_frame.bottom - display_frame.top;
   display_frame_ = display_frame;
-  surface_damage_ = display_frame;
 }
 
 void OverlayLayer::SetTransform(uint32_t transform) {
@@ -203,7 +204,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
                                    uint32_t max_height, uint32_t rotation,
-                                   bool handle_constraints) {
+                                   bool handle_constraints,
+                                   FrameBufferManager* frame_buffer_manager) {
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
@@ -218,28 +220,28 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
-  if (!layer->IsCursorLayer() && layer->HasZorderChanged() &&
-      (!previous_layer ||
-       (previous_layer && (previous_layer->z_order_ != z_order)))) {
-    state_ |= kLayerOrderChanged;
-  }
-
-  if (layer->ForceClear()) {
-    state_ |= kForcePartialClear;
-  }
-
   surface_damage_ = layer->GetLayerDamage();
-  // In case of layer using blending we need to force partial clear. Otherwise
-  // we see content not getting updated correctly. For example:
-  // on Android enable, settings put system user_rotation 1 and
-  // navigate to settings on Android.
-  if (((blending_ != HWCBlending::kBlendingNone) && !surface_damage_.empty())) {
-    state_ |= kForcePartialClear;
-    surface_damage_ = layer->GetDisplayFrame();
+  if (previous_layer && layer->HasZorderChanged()) {
+    if (previous_layer->actual_composition_ == kGpu) {
+      CalculateRect(previous_layer->display_frame_, surface_damage_);
+      bool force_partial_clear = true;
+      // We can skip Clear in case display frame, transforms are same.
+      if (previous_layer->display_frame_ == display_frame_ &&
+          transform_ == previous_layer->transform_ &&
+          plane_transform_ == previous_layer->plane_transform_) {
+        force_partial_clear = false;
+      }
+
+      if (force_partial_clear) {
+        state_ |= kForcePartialClear;
+      }
+    } else if (!layer->IsCursorLayer()) {
+      state_ |= kNeedsReValidation;
+    }
   }
 
   SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-	    resource_manager, true);
+            resource_manager, true, frame_buffer_manager);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -321,7 +323,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
 
     if ((surface_damage_.left < display_frame_.left) &&
-	(surface_damage_.right > display_frame_.left)) {
+        (surface_damage_.right > display_frame_.left)) {
       surface_damage_.left = display_frame_.left;
     }
 
@@ -371,22 +373,25 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, uint32_t rotation, bool handle_constraints) {
+    uint32_t max_height, uint32_t rotation, bool handle_constraints,
+    FrameBufferManager* frame_buffer_manager) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, rotation, handle_constraints,
+                  frame_buffer_manager);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
-    bool handle_constraints) {
+    bool handle_constraints, FrameBufferManager* frame_buffer_manager) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, rotation, handle_constraints,
+                  frame_buffer_manager);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
@@ -481,7 +486,8 @@ void OverlayLayer::ValidateForOverlayUsage() {
 void OverlayLayer::CloneLayer(const OverlayLayer* layer,
                               const HwcRect<int>& display_frame,
                               ResourceManager* resource_manager,
-                              uint32_t z_order) {
+                              uint32_t z_order,
+                              FrameBufferManager* frame_buffer_manager) {
   int32_t fence = layer->GetAcquireFence();
   int32_t aquire_fence = 0;
   if (fence > 0) {
@@ -490,9 +496,9 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
   SetDisplayFrame(display_frame);
   SetSourceCrop(layer->GetSourceCrop());
   SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
-            resource_manager, true);
+            resource_manager, true, frame_buffer_manager);
   ValidateForOverlayUsage();
-  surface_damage_ = display_frame;
+  surface_damage_ = layer->GetSurfaceDamage();
   transform_ = layer->transform_;
   plane_transform_ = layer->plane_transform_;
   alpha_ = layer->alpha_;
@@ -521,8 +527,8 @@ void OverlayLayer::Dump() {
     DUMPTRACE("Transform: kReflectX.");
   if (transform_ & kReflectY)
     DUMPTRACE("Transform: kReflectY.");
-  if (transform_ & kReflectY)
-    DUMPTRACE("Transform: kReflectY.");
+  if (transform_ & kTransform90)
+    DUMPTRACE("Transform: kTransform90.");
   else if (transform_ & kTransform180)
     DUMPTRACE("Transform: kTransform180.");
   else if (transform_ & kTransform270)
@@ -536,6 +542,9 @@ void OverlayLayer::Dump() {
   DUMPTRACE("SourceHeight: %d", source_crop_height_);
   DUMPTRACE("DstWidth: %d", display_frame_width_);
   DUMPTRACE("DstHeight: %d", display_frame_height_);
+  DUMPTRACE("Source crop %s", StringifyRect(source_crop_).c_str());
+  DUMPTRACE("Display frame %s", StringifyRect(display_frame_).c_str());
+  DUMPTRACE("Surface Damage %s", StringifyRect(surface_damage_).c_str());
   DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
 
   imported_buffer_->buffer_->Dump();

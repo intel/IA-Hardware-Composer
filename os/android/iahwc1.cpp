@@ -24,10 +24,10 @@
 #include <sync/sync.h>
 
 #include <gpudevice.h>
-#include <hwclayer.h>
-#include <platformdefines.h>
 #include <hwcdefs.h>
+#include <hwclayer.h>
 #include <nativedisplay.h>
+#include <platformdefines.h>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -475,7 +475,7 @@ static void hwc_register_procs(struct hwc_composer_device_1 *dev,
     extended.at(i)
         .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
 
-	/* XXX/TODO Add hot plug registration for external displays */
+    /* XXX/TODO Add hot plug registration for external displays */
     auto extended_refresh_callback = std::make_shared<IARefreshCallback>(procs);
     extended.at(i).display_->RegisterRefreshCallback(
         std::move(extended_refresh_callback), static_cast<int>(1));
@@ -600,7 +600,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     return -1;
   }
 
-  std::vector<hwcomposer::NativeDisplay *> displays =
+  const std::vector<hwcomposer::NativeDisplay *> &displays =
       ctx->device_.GetAllDisplays();
   ctx->virtual_display_.display_ = ctx->device_.GetVirtualDisplay();
   ctx->virtual_display_.display_->SetExplicitSyncSupport(
@@ -662,7 +662,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
 
   return 0;
 }
-}
+}  // namespace android
 
 static struct hw_module_methods_t hwc1_module_methods = {
     .open = android::hwc_device_open};

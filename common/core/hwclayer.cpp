@@ -22,13 +22,6 @@
 
 namespace hwcomposer {
 
-// Minimum threshold before we take advantage of
-// Surface damage for this layer. This should not
-// be needed ideally but we seem to run into problems
-// when using Surface Damage for layers having damage
-// rect less than 1000.
-static uint32_t DAMAGE_THRESHOLD = 256;
-
 HwcLayer::~HwcLayer() {
   if (release_fd_ > 0) {
     close(release_fd_);
@@ -71,8 +64,6 @@ void HwcLayer::SetSourceCrop(const HwcRect<float>& source_crop) {
       (source_crop.top != source_crop_.top) ||
       (source_crop.bottom != source_crop_.bottom)) {
     layer_cache_ |= kSourceRectChanged;
-    UpdateRenderingDamage(HwcRect<int>(source_crop), HwcRect<int>(source_crop_),
-                          false);
     source_crop_ = source_crop;
     source_crop_width_ =
         static_cast<int>(ceilf(source_crop.right - source_crop.left));
@@ -127,19 +118,10 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       (surface_damage_.top == rect.top) &&
       (surface_damage_.right == rect.right) &&
       (surface_damage_.bottom == rect.bottom)) {
-    if (display_frame_width_ < DAMAGE_THRESHOLD &&
-        display_frame_height_ < DAMAGE_THRESHOLD) {
-      layer_cache_ |= kForceClear;
-    }
     return;
   }
 
   state_ |= kSurfaceDamageChanged;
-  if (display_frame_width_ < DAMAGE_THRESHOLD &&
-      display_frame_height_ < DAMAGE_THRESHOLD) {
-    layer_cache_ |= kForceClear;
-    UpdateRenderingDamage(display_frame_, display_frame_, true);
-  }
 
   UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
@@ -217,14 +199,21 @@ void HwcLayer::Validate() {
     state_ &= ~kSurfaceDamageChanged;
     state_ &= ~kZorderChanged;
     layer_cache_ &= ~kLayerAttributesChanged;
-    layer_cache_ &= ~kForceClear;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
+
+    // From observation: In Android, when the source crop doesn't
+    // begin from (0, 0) the surface damage is already translated
+    // to global display co-ordinates
     if (!surface_damage_.empty() &&
-        (display_frame_width_ < DAMAGE_THRESHOLD &&
-         display_frame_height_ < DAMAGE_THRESHOLD)) {
-      layer_cache_ |= kForceClear;
-      current_rendering_damage_ = display_frame_;
+        ((source_crop_.left == 0) && (source_crop_.top == 0))) {
+      current_rendering_damage_.left =
+          surface_damage_.left + display_frame_.left;
+      current_rendering_damage_.top = surface_damage_.top + display_frame_.top;
+      current_rendering_damage_.right =
+          surface_damage_.right + display_frame_.left;
+      current_rendering_damage_.bottom =
+          surface_damage_.bottom + display_frame_.top;
     } else {
       current_rendering_damage_ = surface_damage_;
     }
@@ -274,7 +263,7 @@ int32_t HwcLayer::GetLeftConstraint() {
   if (total == 1)
     return left_constraint_.at(0);
 
-    std::vector<int32_t> temp;
+  std::vector<int32_t> temp;
   for (size_t i = 1; i < total; i++) {
     temp.emplace_back(left_constraint_.at(i));
   }
@@ -285,21 +274,21 @@ int32_t HwcLayer::GetLeftConstraint() {
 }
 
 int32_t HwcLayer::GetRightConstraint() {
-    size_t total = right_constraint_.size();
-    if (total == 0)
-      return -1;
+  size_t total = right_constraint_.size();
+  if (total == 0)
+    return -1;
 
-    if (total == 1)
-      return right_constraint_.at(0);
+  if (total == 1)
+    return right_constraint_.at(0);
 
-      std::vector<int32_t> temp;
-    for (size_t i = 1; i < total; i++) {
-      temp.emplace_back(right_constraint_.at(i));
-    }
+  std::vector<int32_t> temp;
+  for (size_t i = 1; i < total; i++) {
+    temp.emplace_back(right_constraint_.at(i));
+  }
 
-    uint32_t value = right_constraint_.at(0);
-    right_constraint_.swap(temp);
-    return value;
+  uint32_t value = right_constraint_.at(0);
+  right_constraint_.swap(temp);
+  return value;
 }
 
 void HwcLayer::SetLeftSourceConstraint(int32_t left_constraint) {

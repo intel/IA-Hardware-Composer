@@ -17,8 +17,8 @@
 #ifndef WSI_LOGICALDISPLAY_H_
 #define WSI_LOGICALDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <memory>
 
@@ -35,7 +35,8 @@ class LogicalDisplay : public NativeDisplay {
                  uint32_t index);
   ~LogicalDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager * /*frame_buffer_manager*/) override;
 
   DisplayType Type() const override {
     return DisplayType::kLogical;
@@ -58,6 +59,7 @@ class LogicalDisplay : public NativeDisplay {
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               PixelUploaderCallback *call_back = NULL,
                bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
@@ -79,6 +81,8 @@ class LogicalDisplay : public NativeDisplay {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                            HWCDeinterlaceControl mode) override;

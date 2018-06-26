@@ -19,10 +19,11 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
 #include <hwcrect.h>
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace hwcomposer {
 
@@ -50,7 +51,7 @@ enum HWCContentType {
   kCONTENT_TYPE1,  // Can support only HDCP 2.2 and higher specification.
 };
 
-enum HWCTransform {
+enum HWCTransform : uint32_t {
   kIdentity = 0,
   kReflectX = 1 << 0,
   kReflectY = 1 << 1,
@@ -93,6 +94,7 @@ enum class DisplayType : int32_t {
   kMosaic = 4,
   kNested = 5
 };
+#endif  //__cplusplus
 
 enum DisplayPowerMode {
   kOff = 0,         // Display is off
@@ -104,10 +106,13 @@ enum DisplayPowerMode {
 };
 
 enum HWCColorTransform {
-  kIdentical = 0,       // Applies no transform to the output color
-  kArbitraryMatrix = 1  // Applies an arbitrary transform defined by a 4x4 affine matrix
+  // Applies no transform to the output color
+  kIdentical = 0,
+  // Applies an arbitrary transform defined by a 4x4 affine matrix
+  kArbitraryMatrix = 1
 };
 
+#ifdef __cplusplus
 enum class HWCColorControl : int32_t {
   kColorHue = 0,
   kColorSaturation = 1,
@@ -157,4 +162,6 @@ using HWCColorMap =
     std::unordered_map<HWCColorControl, HWCColorProp, EnumClassHash>;
 
 }  // namespace hwcomposer
+#endif  // __cplusplus
+
 #endif  // PUBLIC_HWCDEFS_H_

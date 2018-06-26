@@ -17,8 +17,8 @@
 #ifndef OS_LINUX_PIXELUPLOADER_H_
 #define OS_LINUX_PIXELUPLOADER_H_
 
-#include <spinlock.h>
 #include <platformdefines.h>
+#include <spinlock.h>
 
 #include <memory>
 #include <vector>
@@ -33,9 +33,9 @@ namespace hwcomposer {
 
 class NativeBufferHandler;
 
-class PixelUploaderCallback {
+class RawPixelUploadCallback {
  public:
-  virtual ~PixelUploaderCallback() {
+  virtual ~RawPixelUploadCallback() {
   }
   virtual void Callback(bool start_access, void* call_back_data) = 0;
 };
@@ -52,15 +52,16 @@ class PixelUploader : public HWCThread {
   PixelUploader(const NativeBufferHandler* buffer_handler);
   ~PixelUploader() override;
 
-  void Initialize(uint32_t gpu_fd);
+  void Initialize();
 
   void RegisterPixelUploaderCallback(
-      std::shared_ptr<PixelUploaderCallback> callback);
+      std::shared_ptr<RawPixelUploadCallback> callback);
 
-  void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_height,
-                            uint32_t original_stride, void* callback_data,
-                            uint8_t* byteaddr,
-                            PixelUploaderLayerCallback* layer_callback);
+  void UpdateLayerPixelData(HWCNativeHandle handle, uint32_t original_width,
+                            uint32_t original_height, uint32_t original_stride,
+                            void* callback_data, uint8_t* byteaddr,
+                            PixelUploaderLayerCallback* layer_callback,
+                            HwcRect<int> surfaceDamage);
 
   const NativeBufferHandler* GetNativeBufferHandler() const {
     return buffer_handler_;
@@ -81,23 +82,29 @@ class PixelUploader : public HWCThread {
 
   struct PixelData {
     HWCNativeHandle handle_;
+    uint32_t original_width_ = 0;
     uint32_t original_height_ = 0;
     uint32_t original_stride_ = 0;
     void* callback_data_ = 0;
     uint8_t* data_ = NULL;
     PixelUploaderLayerCallback* layer_callback_ = NULL;
+    HwcRect<int> surfaceDamage;
   };
 
   void HandleRawPixelUpdate();
   void* Map(uint32_t prime_fd, size_t size);
   void Unmap(uint32_t prime_fd, void* addr, size_t size);
+  void Wait();
 
-  std::shared_ptr<PixelUploaderCallback> callback_ = NULL;
+  std::shared_ptr<RawPixelUploadCallback> callback_ = NULL;
   SpinLock tasks_lock_;
   SpinLock pixel_data_lock_;
+  SpinLock sync_lock_;
   std::vector<PixelData> pixel_data_;
   uint32_t tasks_ = kNone;
   uint32_t gpu_fd_ = 0;
+  FDHandler fd_chandler_;
+  HWCEvent cevent_;
   const NativeBufferHandler* buffer_handler_ = NULL;
 };
 

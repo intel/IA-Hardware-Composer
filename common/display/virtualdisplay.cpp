@@ -21,8 +21,8 @@
 #include <hwclayer.h>
 #include <nativebufferhandler.h>
 
-#include <vector>
 #include <sstream>
+#include <vector>
 
 #include "hwctrace.h"
 #include "overlaylayer.h"
@@ -40,7 +40,7 @@ VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
     ETRACE("Failed to construct hwc layer buffer manager");
   }
 
-  compositor_.Init(resource_manager_.get(), gpu_fd);
+  compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -79,7 +79,9 @@ bool VirtualDisplay::SetActiveConfig(uint32_t /*config*/) {
 }
 
 bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                             int32_t *retire_fence, bool handle_constraints) {
+                             int32_t *retire_fence,
+                             PixelUploaderCallback * /*call_back*/,
+                             bool handle_constraints) {
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
@@ -100,15 +102,15 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
 
     layers.emplace_back();
-    OverlayLayer& overlay_layer = layers.back();
-    OverlayLayer* previous_layer = NULL;
+    OverlayLayer &overlay_layer = layers.back();
+    OverlayLayer *previous_layer = NULL;
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
     }
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints);
+        height_, kIdentity, handle_constraints, fb_manager_);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
@@ -118,8 +120,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    if (!previous_layer ||
-        overlay_layer.HasLayerContentChanged() ||
+    if (!previous_layer || overlay_layer.HasLayerContentChanged() ||
         overlay_layer.HasDimensionsChanged()) {
       layers_changed = true;
     }
@@ -128,10 +129,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 
   if (layers_changed) {
-    if (!compositor_.BeginFrame(false)) {
-      ETRACE("Failed to initialize compositor.");
-      return false;
-    }
+    compositor_.BeginFrame(false);
 
     // Prepare for final composition.
     if (!compositor_.DrawOffscreen(
@@ -150,14 +148,14 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
   if (fence > 0) {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      HwcLayer* layer = source_layers.at(layer_index);
+      HwcLayer *layer = source_layers.at(layer_index);
       layer->SetReleaseFence(dup(fence));
     }
   } else {
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      const OverlayLayer& overlay_layer =
+      const OverlayLayer &overlay_layer =
           in_flight_layers_.at(index.at(layer_index));
-      HwcLayer* layer = source_layers.at(overlay_layer.GetLayerIndex());
+      HwcLayer *layer = source_layers.at(overlay_layer.GetLayerIndex());
       layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
     }
   }
@@ -198,7 +196,9 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
   }
 }
 
-bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/) {
+bool VirtualDisplay::Initialize(NativeBufferHandler * /*buffer_manager*/,
+                                FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   return true;
 }
 

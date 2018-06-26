@@ -16,15 +16,15 @@
 
 #include "pixeluploader.h"
 
-#include "hwcutils.h"
+#include "displayplanemanager.h"
+#include "framebuffermanager.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
+#include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "resourcemanager.h"
-#include "framebuffermanager.h"
-#include "displayplanemanager.h"
-#include "nativesurface.h"
 
 #include <nativebufferhandler.h>
 
@@ -46,48 +46,54 @@ struct dma_buf_sync {
 
 PixelUploader::PixelUploader(const NativeBufferHandler* buffer_handler)
     : HWCThread(-8, "PixelUploader"), buffer_handler_(buffer_handler) {
+  if (!cevent_.Initialize())
+    return;
+
+  fd_chandler_.AddFd(cevent_.get_fd());
+  gpu_fd_ = buffer_handler_->GetFd();
 }
 
 PixelUploader::~PixelUploader() {
 }
 
-void PixelUploader::Initialize(uint32_t gpu_fd) {
-  gpu_fd_ = gpu_fd;
+void PixelUploader::Initialize() {
   if (!InitWorker()) {
     ETRACE("Failed to initalize PixelUploader. %s", PRINTERROR());
   }
 }
 
 void PixelUploader::RegisterPixelUploaderCallback(
-    std::shared_ptr<PixelUploaderCallback> callback) {
+    std::shared_ptr<RawPixelUploadCallback> callback) {
   callback_ = callback;
 }
 
 void PixelUploader::UpdateLayerPixelData(
-    HWCNativeHandle handle, uint32_t original_height, uint32_t original_stride,
-    void* callback_data, uint8_t* byteaddr,
-    PixelUploaderLayerCallback* layer_callback) {
+    HWCNativeHandle handle, uint32_t original_width, uint32_t original_height,
+    uint32_t original_stride, void* callback_data, uint8_t* byteaddr,
+    PixelUploaderLayerCallback* layer_callback, HwcRect<int> surfaceDamage) {
   pixel_data_lock_.lock();
   pixel_data_.emplace_back();
   PixelData& temp = pixel_data_.back();
   temp.handle_ = handle;
+  temp.original_width_ = original_width;
   temp.original_height_ = original_height;
   temp.original_stride_ = original_stride;
   temp.callback_data_ = callback_data;
   temp.data_ = byteaddr;
   temp.layer_callback_ = layer_callback;
-  pixel_data_lock_.unlock();
+  temp.surfaceDamage = surfaceDamage;
 
   tasks_lock_.lock();
   tasks_ |= kRefreshRawPixelMap;
   tasks_lock_.unlock();
-
   Resume();
+  pixel_data_lock_.unlock();
+  Wait();
 }
 
 void PixelUploader::Synchronize() {
-  pixel_data_lock_.lock();
-  pixel_data_lock_.unlock();
+  sync_lock_.lock();
+  sync_lock_.unlock();
 }
 
 void PixelUploader::ExitThread() {
@@ -102,14 +108,29 @@ void PixelUploader::HandleRoutine() {
   HandleRawPixelUpdate();
 }
 
+void PixelUploader::Wait() {
+  if (fd_chandler_.Poll(-1) <= 0) {
+    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+    return;
+  }
+
+  if (fd_chandler_.IsReady(cevent_.get_fd())) {
+    // If eventfd_ is ready, we need to wait on it (using read()) to clean
+    // the flag that says it is ready.
+    cevent_.Wait();
+  }
+}
+
 void PixelUploader::HandleRawPixelUpdate() {
   tasks_lock_.lock();
   tasks_ &= ~kRefreshRawPixelMap;
   tasks_lock_.unlock();
 
   pixel_data_lock_.lock();
+  sync_lock_.lock();
   if (pixel_data_.empty()) {
     pixel_data_lock_.unlock();
+    sync_lock_.unlock();
     return;
   }
 
@@ -120,18 +141,30 @@ void PixelUploader::HandleRawPixelUpdate() {
 
   std::vector<PixelData>().swap(pixel_data_);
   pixel_data_lock_.unlock();
+  bool signal = true;
 
   for (auto& buffer : texture_uploads) {
     if (callback_) {
       // Notify everyone that we are going to access this data.
       callback_->Callback(true, buffer.callback_data_);
+      if (signal) {
+        cevent_.Signal();
+        signal = false;
+      }
     }
 
     uint8_t* ptr = NULL;
     size_t size = buffer.handle_->meta_data_.height_ *
                   buffer.handle_->meta_data_.pitches_[0];
-    uint32_t mapStride = buffer.original_stride_;
     uint32_t prime_fd = buffer.handle_->meta_data_.prime_fds_[0];
+
+    uint32_t mapStride = buffer.original_stride_;
+    uint32_t bpp = mapStride / buffer.original_width_;
+    uint32_t x1 = buffer.surfaceDamage.left, y1 = buffer.surfaceDamage.top;
+    uint32_t x2 = buffer.surfaceDamage.right, y2 = buffer.surfaceDamage.bottom;
+    uint32_t startx = x1 * bpp;
+    uint32_t block_size = (x2 - x1) * bpp;
+
     if (prime_fd > 0) {
       ptr = (uint8_t*)Map(buffer.handle_->meta_data_.prime_fds_[0], size);
     }
@@ -139,9 +172,9 @@ void PixelUploader::HandleRawPixelUpdate() {
     if (!ptr) {
       // FIXME: Create texture and do texture upload.
     } else {
-      for (int i = 0; i < buffer.original_height_; i++) {
-        memcpy(ptr + i * buffer.handle_->meta_data_.pitches_[0],
-               buffer.data_ + i * mapStride, mapStride);
+      for (int i = y1; i < y2; i++) {
+        memcpy(ptr + (i * buffer.handle_->meta_data_.pitches_[0] + startx),
+               buffer.data_ + (i * mapStride + startx), block_size);
       }
     }
 
@@ -157,6 +190,8 @@ void PixelUploader::HandleRawPixelUpdate() {
       buffer.layer_callback_->UploadDone();
     }
   }
+
+  sync_lock_.unlock();
 }
 
 void* PixelUploader::Map(uint32_t prime_fd, size_t size) {
@@ -183,7 +218,6 @@ void PixelUploader::Unmap(uint32_t prime_fd, void* addr, size_t size) {
     sync_start.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW;
     ioctl(prime_fd, DMA_BUF_IOCTL_SYNC, &sync_start);
     munmap(addr, size);
-    addr = nullptr;
   }
 }
 

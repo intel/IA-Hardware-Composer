@@ -144,4 +144,26 @@ uint32_t GetTotalPlanesForFormat(uint32_t format) {
   return 1;
 }
 
+std::string StringifyRect(HwcRect<int> rect) {
+  std::stringstream ss;
+  ss << "{(" << rect.left << "," << rect.top << ") "
+     << "(" << rect.right << "," << rect.bottom << ")}";
+
+  return ss.str();
+}
+
+std::string StringifyRegion(HwcRegion region) {
+  std::stringstream ss;
+  std::string separator = "";
+
+  ss << "[";
+  for (auto& rect : region) {
+    ss << separator << StringifyRect(rect);
+    separator = ", ";
+  }
+  ss << "]";
+
+  return ss.str();
+}
+
 }  // namespace hwcomposer

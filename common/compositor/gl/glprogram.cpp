@@ -126,8 +126,126 @@ static std::string GenerateFragmentShader(int layer_count) {
   return fragment_shader_stream.str();
 }
 
+#if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
+static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
+  GLint status;
+
+  /* check if glProgramBinaryOES exists */
+  if (!glProgramBinaryOES)
+    return 0;
+
+  /* currently GL_MESA_program_binary_formats is not exposed by MESA drv
+   * TODO: will enable this once this is fixed in MESA
+   */
+
+  glProgramBinaryOES(gl_program, GL_PROGRAM_BINARY_FORMAT_MESA, binary, size);
+
+  glGetProgramiv(gl_program, GL_LINK_STATUS, &status);
+  if (status)
+    return gl_program;
+
+  return 0;
+}
+#endif
+
+#ifdef USE_PREBUILT_SHADER_BIN_ARRAY
+#include "glprebuiltshaderarray.h"
+#endif
+
 static GLint GenerateProgram(unsigned num_textures,
                              std::ostringstream *shader_log) {
+  GLint status;
+  GLint program = glCreateProgram();
+#if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
+  void *binary_prog;
+  long binary_sz;
+#endif
+
+  if (!program) {
+    if (shader_log)
+      *shader_log << "Failed to create program."
+                  << "\n";
+    return 0;
+  }
+
+#ifdef USE_PREBUILT_SHADER_BIN_ARRAY
+  /* try to retrieve shader binary program from built-in arrays */
+
+  /* support only up to 16 layers */
+  if (num_textures > 0 && num_textures < 17) {
+    /* first long is the size of binary */
+    binary_sz = *(long *)shader_prog_arrays[num_textures - 1];
+    binary_prog =
+        (void *)(shader_prog_arrays[num_textures - 1] + sizeof(binary_sz));
+
+    status = LoadPreBuiltBinary(program, binary_prog, binary_sz);
+
+    if (status) {
+      if (shader_log)
+        *shader_log << "Pre-built shader program binary has been loaded "
+                    << "Successfully (from built-in arrays)\n";
+      return program;
+    }
+  }
+#endif
+
+#ifdef LOAD_PREBUILT_SHADER_FILE
+
+/* 10MB limit on shader binary file size */
+#define FILE_SIZE_LIMIT 10485760
+
+  /* try to load prebuilt shader program from files */
+  std::ostringstream shader_program_fname;
+  shader_program_fname << PREBUILT_SHADER_FILE_PATH "/hwc_shader_prog_"
+                       << num_textures << ".shader_test.bin";
+
+  FILE *shader_prog_fp;
+
+  shader_prog_fp = fopen(shader_program_fname.str().c_str(), "rb");
+
+  if (!shader_prog_fp)
+    goto fail_file_open;
+
+  /* check the size of file */
+  fseek(shader_prog_fp, 0, SEEK_END);
+  binary_sz = ftell(shader_prog_fp);
+  rewind(shader_prog_fp);
+
+  if (binary_sz > FILE_SIZE_LIMIT)
+    goto fail_fsize_too_big;
+
+  binary_prog = (void *)malloc(binary_sz);
+
+  if (!binary_prog)
+    goto fail_buf_creation;
+
+  if (fread(binary_prog, 1, binary_sz, shader_prog_fp) != binary_sz)
+    goto fail_bin_read;
+
+  status = LoadPreBuiltBinary(program, binary_prog, binary_sz);
+  if (status) {
+    if (shader_log)
+      *shader_log << "Pre-built shader program binary has been loaded "
+                  << "Successfully (from files)\n";
+
+    free(binary_prog);
+    fclose(shader_prog_fp);
+    return program;
+  }
+
+fail_bin_read:
+  free(binary_prog);
+
+fail_fsize_too_big:
+fail_buf_creation:
+  fclose(shader_prog_fp);
+
+fail_file_open:
+  if (shader_log)
+    *shader_log << "Failed to load pre-built shader program.\n"
+                << "now trying run-time build\n";
+#endif
+
   std::string vertex_shader_string = GenerateVertexShader(num_textures);
   const GLchar *vertex_shader_source = vertex_shader_string.c_str();
   GLint vertex_shader = CompileAndCheckShader(
@@ -144,14 +262,6 @@ static GLint GenerateProgram(unsigned num_textures,
     return 0;
   }
 
-  GLint program = glCreateProgram();
-  if (!program) {
-    if (shader_log)
-      *shader_log << "Failed to create program."
-                  << "\n";
-    return 0;
-  }
-
   glAttachShader(program, vertex_shader);
   glAttachShader(program, fragment_shader);
   glBindAttribLocation(program, 0, "vPosition");
@@ -162,7 +272,6 @@ static GLint GenerateProgram(unsigned num_textures,
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
 
-  GLint status;
   glGetProgramiv(program, GL_LINK_STATUS, &status);
 
   if (!status) {

@@ -17,8 +17,8 @@
 #ifndef WSI_DISPLAYPLANE_H_
 #define WSI_DISPLAYPLANE_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 namespace hwcomposer {
 

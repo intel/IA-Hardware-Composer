@@ -17,18 +17,20 @@
 #include "drmdisplay.h"
 
 #include <cmath>
+#include <limits>
 #include <set>
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
 #include <hwctrace.h>
+#include <hwcutils.h>
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 
-#include "displayqueue.h"
 #include "displayplanemanager.h"
+#include "displayqueue.h"
 #include "drmdisplaymanager.h"
 #include "wsi_utils.h"
 
@@ -61,10 +63,12 @@ bool DrmDisplay::InitializeDisplay() {
   GetDrmObjectProperty("ACTIVE", crtc_props, &active_prop_);
   GetDrmObjectProperty("MODE_ID", crtc_props, &mode_id_prop_);
   GetDrmObjectProperty("CTM", crtc_props, &ctm_id_prop_);
-  GetDrmObjectProperty("CTM_POST_OFFSET", crtc_props, &ctm_post_offset_id_prop_);
+  GetDrmObjectProperty("CTM_POST_OFFSET", crtc_props,
+                       &ctm_post_offset_id_prop_);
   GetDrmObjectProperty("GAMMA_LUT", crtc_props, &lut_id_prop_);
   GetDrmObjectPropertyValue("GAMMA_LUT_SIZE", crtc_props, &lut_size_);
   GetDrmObjectProperty("OUT_FENCE_PTR", crtc_props, &out_fence_ptr_prop_);
+  GetDrmObjectProperty("background_color", crtc_props, &canvas_color_prop_);
 
   return true;
 }
@@ -132,17 +136,23 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   SetPowerMode(power_mode_);
 
   // This is a valid case on DSI panels.
-  if (!broadcastrgb_props)
+  if (broadcastrgb_props == NULL) {
+    WTRACE("Unable to get Broadcast RGB properties\n");
     return true;
+  }
 
-  if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM))
+  if (!(broadcastrgb_props->flags & DRM_MODE_PROP_ENUM)) {
+    drmModeFreeProperty(broadcastrgb_props);
     return false;
+  }
 
-  for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
-    if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
-      broadcastrgb_full_ = broadcastrgb_props->enums[i].value;
-    } else if (!strcmp(broadcastrgb_props->enums[i].name, "Automatic")) {
-      broadcastrgb_automatic_ = broadcastrgb_props->enums[i].value;
+  if (broadcastrgb_props->enums != NULL) {
+    for (int i = 0; i < broadcastrgb_props->count_enums; i++) {
+      if (!strcmp(broadcastrgb_props->enums[i].name, "Full")) {
+        broadcastrgb_full_ = broadcastrgb_props->enums[i].value;
+      } else if (!strcmp(broadcastrgb_props->enums[i].name, "Automatic")) {
+        broadcastrgb_automatic_ = broadcastrgb_props->enums[i].value;
+      }
     }
   }
 
@@ -183,10 +193,10 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
     case HWCDisplayAttribute::kRefreshRate:
       if (!custom_resolution_) {
         refresh = (modes_[config].clock * 1000.0f) /
-                (modes_[config].htotal * modes_[config].vtotal);
+                  (modes_[config].htotal * modes_[config].vtotal);
       } else {
         refresh = (modes_[config].clock * 1000.0f) /
-                ((rect_.right - rect_.left) * (rect_.bottom - rect_.top));
+                  ((rect_.right - rect_.left) * (rect_.bottom - rect_.top));
       }
 
       if (modes_[config].flags & DRM_MODE_FLAG_INTERLACE)
@@ -218,7 +228,7 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
           mmHeight_ ? (modes_[config].vdisplay * kUmPerInch) / mmHeight_ : -1;
       } else {
         *value =
-          mmHeight_ ? ((rect_.bottom - rect_.top) * kUmPerInch) / mmHeight_ : -1;
+          mmHeight_ ? ((rect_.bottom - rect_.top) * kUmPerInch) /mmHeight_: -1;
       }
       break;
     default:
@@ -350,9 +360,11 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state,
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,
-    bool disable_explicit_fence, int32_t *commit_fence) {
+    bool disable_explicit_fence, int32_t previous_fence, int32_t *commit_fence,
+    bool *previous_fence_released) {
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  *previous_fence_released = false;
 
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -369,7 +381,7 @@ bool DrmDisplay::Commit(
   }
 
   if (!CommitFrame(composition_planes, previous_composition_planes, pset.get(),
-                   flags_)) {
+                   flags_, previous_fence, previous_fence_released)) {
     ETRACE("Failed to Commit layers.");
     return false;
   }
@@ -382,13 +394,23 @@ bool DrmDisplay::Commit(
     }
   }
 
+#ifdef ENABLE_DOUBLE_BUFFERING
+  int32_t fence = *commit_fence;
+  if (fence > 0) {
+    HWCPoll(fence, -1);
+    close(fence);
+    *commit_fence = 0;
+  }
+#endif
+
   return true;
 }
 
 bool DrmDisplay::CommitFrame(
     const DisplayPlaneStateList &comp_planes,
     const DisplayPlaneStateList &previous_composition_planes,
-    drmModeAtomicReqPtr pset, uint32_t flags) {
+    drmModeAtomicReqPtr pset, uint32_t flags, int32_t previous_fence,
+    bool *previous_fence_released) {
   CTRACE();
   if (!pset) {
     ETRACE("Failed to allocate property set %d", -ENOMEM);
@@ -420,6 +442,14 @@ bool DrmDisplay::CommitFrame(
     plane->Disable(pset);
   }
 
+#ifndef ENABLE_DOUBLE_BUFFERING
+  if (previous_fence > 0) {
+    HWCPoll(previous_fence, -1);
+    close(previous_fence);
+    *previous_fence_released = true;
+  }
+#endif
+
   int ret = drmModeAtomicCommit(gpu_fd_, pset, flags, NULL);
   if (ret) {
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
@@ -449,8 +479,8 @@ void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {
     width_ = rect_.right - rect_.left;
     height_ = rect_.bottom - rect_.top;
   }
-  IHOTPLUGEVENTTRACE("SetDisplayAttribute: width %d, height %d",
-    width_, height_);
+  IHOTPLUGEVENTTRACE("SetDisplayAttribute: width %d, height %d", width_,
+                     height_);
 
   current_mode_ = mode_info;
 }
@@ -519,11 +549,12 @@ int64_t DrmDisplay::FloatToFixedPoint(float value) const {
   uint32_t negative = (*pointer & (1u << 31)) >> 31;
   *pointer &= 0x7fffffff; /* abs of value*/
   return (negative ? (1ll << 63) : 0) |
-          (__s64)((*(float *)pointer) * (double)(1ll << 32));
+         (__s64)((*(float *)pointer) * (double)(1ll << 32));
 }
 
-void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
-                                 struct drm_color_ctm_post_offset *ctm_post_offset) const {
+void DrmDisplay::ApplyPendingCTM(
+    struct drm_color_ctm *ctm,
+    struct drm_color_ctm_post_offset *ctm_post_offset) const {
   if (ctm_id_prop_ == 0) {
     ETRACE("ctm_id_prop_ == 0");
     return;
@@ -542,7 +573,9 @@ void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
   }
 
   uint32_t ctm_post_offset_id = 0;
-  drmModeCreatePropertyBlob(gpu_fd_, ctm_post_offset, sizeof(drm_color_ctm_post_offset), &ctm_post_offset_id);
+  drmModeCreatePropertyBlob(gpu_fd_, ctm_post_offset,
+                            sizeof(drm_color_ctm_post_offset),
+                            &ctm_post_offset_id);
   if (ctm_post_offset_id == 0) {
     ETRACE("ctm_post_offset_id == 0");
     return;
@@ -555,7 +588,6 @@ void DrmDisplay::ApplyPendingCTM(struct drm_color_ctm *ctm,
   drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
                            ctm_post_offset_id_prop_, ctm_post_offset_id);
   drmModeDestroyPropertyBlob(gpu_fd_, ctm_post_offset_id);
-
 }
 
 void DrmDisplay::ApplyPendingLUT(struct drm_color_lut *lut) const {
@@ -573,6 +605,44 @@ void DrmDisplay::ApplyPendingLUT(struct drm_color_lut *lut) const {
   drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
                            lut_id_prop_, lut_blob_id);
   drmModeDestroyPropertyBlob(gpu_fd_, lut_blob_id);
+}
+
+uint64_t DrmDisplay::DrmRGBA(uint16_t bpc, uint16_t red, uint16_t green,
+                             uint16_t blue, uint16_t alpha) const {
+  if (bpc > 16)
+    bpc = 16;
+
+  /*
+   * If we were provided with fewer than 16 bpc, shift the value we
+   * received into the most significant bits.
+   */
+  int shift = 16 - bpc;
+
+  uint64_t val = 0;
+  val = red << shift;
+  val <<= 16;
+  val |= green << shift;
+  val <<= 16;
+  val |= blue << shift;
+  val <<= 16;
+  val |= alpha << shift;
+
+  return val;
+}
+
+void DrmDisplay::SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                    uint16_t blue, uint16_t alpha) const {
+  if (canvas_color_prop_ == 0)
+    return;
+
+  uint64_t canvas_color = 0;
+  if (bpc == 8)
+    canvas_color = DRM_RGBA8888(red, green, blue, alpha);
+  else if (bpc == 16)
+    canvas_color = DRM_RGBA16161616(red, green, blue, alpha);
+
+  drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
+                           canvas_color_prop_, canvas_color);
 }
 
 float DrmDisplay::TransformContrastBrightness(float value, float brightness,
@@ -599,9 +669,11 @@ float DrmDisplay::TransformGamma(float value, float gamma) const {
   return result;
 }
 
-void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
-                                         HWCColorTransform color_transform_hint) const {
-  struct drm_color_ctm *ctm = (struct drm_color_ctm *)malloc(sizeof(struct drm_color_ctm));
+void DrmDisplay::SetColorTransformMatrix(
+    const float *color_transform_matrix,
+    HWCColorTransform color_transform_hint) const {
+  struct drm_color_ctm *ctm =
+      (struct drm_color_ctm *)malloc(sizeof(struct drm_color_ctm));
   if (!ctm) {
     ETRACE("Cannot allocate CTM memory");
     return;
@@ -631,7 +703,8 @@ void DrmDisplay::SetColorTransformMatrix(const float *color_transform_matrix,
     case HWCColorTransform::kArbitraryMatrix: {
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          ctm->matrix[i * 3 + j] = FloatToFixedPoint(color_transform_matrix[j * 4 + i]);
+          ctm->matrix[i * 3 + j] =
+              FloatToFixedPoint(color_transform_matrix[j * 4 + i]);
         }
       }
       ctm_post_offset->red = color_transform_matrix[12] * 0xffff;

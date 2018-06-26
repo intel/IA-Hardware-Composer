@@ -17,15 +17,15 @@
 #ifndef COMMON_COMPOSITOR_COMPOSITORTHREAD_H_
 #define COMMON_COMPOSITOR_COMPOSITORTHREAD_H_
 
-#include <spinlock.h>
 #include <platformdefines.h>
+#include <spinlock.h>
 
 #include <memory>
 #include <vector>
 
-#include "renderstate.h"
 #include "factory.h"
 #include "hwcthread.h"
+#include "renderstate.h"
 
 #include "fdhandler.h"
 #include "hwcevent.h"
@@ -36,13 +36,15 @@ class OverlayBuffer;
 class DisplayPlaneManager;
 class ResourceManager;
 class NativeBufferHandler;
+class FrameBufferManager;
 
 class CompositorThread : public HWCThread {
  public:
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd);
+  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd,
+                  FrameBufferManager* frame_buffer_manager);
 
   bool Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
@@ -85,6 +87,7 @@ class CompositorThread : public HWCThread {
   uint32_t gpu_fd_ = 0;
   FDHandler fd_chandler_;
   HWCEvent cevent_;
+  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

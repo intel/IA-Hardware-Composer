@@ -17,18 +17,19 @@
 #ifndef COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 #define COMMON_DISPLAY_DISPLAYPLANEMANAGER_H_
 
-#include <memory>
 #include <map>
-#include <vector>
+#include <memory>
 #include <tuple>
+#include <vector>
 
-#include "displayplanestate.h"
 #include "displayplanehandler.h"
+#include "displayplanestate.h"
 
 namespace hwcomposer {
 
 class DisplayPlane;
 class DisplayPlaneState;
+class FrameBufferManager;
 class GpuDevice;
 class ResourceManager;
 struct OverlayLayer;
@@ -40,7 +41,8 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t width, uint32_t height);
+  bool Initialize(uint32_t width, uint32_t height,
+                  FrameBufferManager *frame_buffer_manager);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
                       bool disable_overlay, bool *commit_checked,
@@ -86,6 +88,8 @@ class DisplayPlaneManager {
   uint32_t GetTotalOverlays() const {
     return total_overlays_;
   }
+
+  void SetLastPlaneUsage(bool enable);
 
   // Transform to be applied to all planes associated
   // with pipe of this displayplanemanager.
@@ -173,9 +177,13 @@ class DisplayPlaneManager {
 
   uint32_t width_;
   uint32_t height_;
-  uint32_t total_overlays_ = 0;
-  uint32_t display_transform_ = kIdentity;
-  bool release_surfaces_ = false;
+  uint32_t total_overlays_;
+  uint32_t display_transform_;
+  bool release_surfaces_;
+#ifdef DISABLE_CURSOR_PLANE
+  bool enable_last_plane_;
+#endif
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

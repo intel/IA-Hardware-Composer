@@ -18,7 +18,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SHARED_LIBRARIES := \
         libcutils \
-        libdrm_pri \
+        libdrm \
         libEGL \
         libGLESv2 \
         libhardware \
@@ -119,6 +119,7 @@ LOCAL_CPPFLAGS += \
         -std=c++14 -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -Wall -Wsign-compare -Wpointer-arith \
         -Wcast-qual -Wcast-align \
+	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -O3
 
@@ -142,7 +143,8 @@ LOCAL_SRC_FILES += \
         compositor/vk/vkshim.cpp
 else
 LOCAL_CPPFLAGS += \
-        -DUSE_GL
+        -DUSE_GL \
+        -DPREBUILT_SHADER_FILE_PATH='"/vendor/etc"'
 
 LOCAL_SRC_FILES += \
         compositor/gl/glprogram.cpp \

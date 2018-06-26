@@ -16,8 +16,8 @@
 
 #include "mosaicdisplay.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <hwclayer.h>
 
@@ -76,7 +76,8 @@ MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> &displays)
 MosaicDisplay::~MosaicDisplay() {
 }
 
-bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                               FrameBufferManager * /*frame_buffer_manager*/) {
   return true;
 }
 
@@ -126,10 +127,10 @@ bool MosaicDisplay::SetActiveConfig(uint32_t config) {
     int32_t refresh = 0;
     height_ = std::max(height_, physical_displays_.at(i)->Height());
     width_ += physical_displays_.at(i)->Width();
-    physical_displays_.at(i)
-        ->GetDisplayAttribute(config_, HWCDisplayAttribute::kDpiX, &dpix);
-    physical_displays_.at(i)
-        ->GetDisplayAttribute(config_, HWCDisplayAttribute::kDpiY, &dpiy);
+    physical_displays_.at(i)->GetDisplayAttribute(
+        config_, HWCDisplayAttribute::kDpiX, &dpix);
+    physical_displays_.at(i)->GetDisplayAttribute(
+        config_, HWCDisplayAttribute::kDpiY, &dpiy);
     physical_displays_.at(i)->GetDisplayAttribute(
         config_, HWCDisplayAttribute::kRefreshRate, &refresh);
     dpix_ += dpix;
@@ -170,6 +171,7 @@ bool MosaicDisplay::SetPowerMode(uint32_t power_mode) {
 
 bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t *retire_fence,
+                            PixelUploaderCallback *call_back,
                             bool /*handle_constraints*/) {
   if (power_mode_ != kOn)
     return true;
@@ -182,13 +184,13 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
     for (uint32_t i = 0; i < size; i++) {
       if (physical_displays_.at(i)->IsConnected()) {
         connected_displays_.emplace_back(physical_displays_.at(i));
-	for (uint32_t i = 0; i < size; i++) {
-	  int32_t refresh = 0;
-	  physical_displays_.at(i)->GetDisplayAttribute(
-	      config_, HWCDisplayAttribute::kRefreshRate, &refresh);
-	  if (previous_refresh < refresh)
-	    preferred_display_index_ = i;
-	}
+        for (uint32_t i = 0; i < size; i++) {
+          int32_t refresh = 0;
+          physical_displays_.at(i)->GetDisplayAttribute(
+              config_, HWCDisplayAttribute::kRefreshRate, &refresh);
+          if (previous_refresh < refresh)
+            preferred_display_index_ = i;
+        }
       }
     }
     update_connected_displays_ = false;
@@ -230,7 +232,7 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
       continue;
     }
 
-    display->Present(layers, &fence, true);
+    display->Present(layers, &fence, call_back, true);
     IMOSAICDISPLAYTRACE("Present called for Display index %d \n", i);
     if (fence > 0 && (i != preferred_display_index_)) {
       close(fence);

@@ -17,8 +17,8 @@
 #ifndef OS_ALIOS_YALLOCBUFFERHANDLER_H_
 #define OS_ALIOS_YallocBufferHandler_H_
 
-#include <yalloc.h>
 #include <cutils/framebuffer.h>
+#include <yalloc.h>
 
 #include <nativebufferhandler.h>
 
@@ -53,8 +53,7 @@ class YallocBufferHandler : public NativeBufferHandler {
  private:
   uint32_t fd_;
   struct yalloc_device_t *device_;
-  fb_device_t* mFbDevice;
 };
 
-}  // namespace hardware
+}  // namespace hwcomposer
 #endif  // OS_ALIOS_YALLOCBUFFERHANDLER_H_

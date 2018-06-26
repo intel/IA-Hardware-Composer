@@ -23,10 +23,10 @@
 #include <vector>
 
 #include "compositionregion.h"
-#include "displayplanestate.h"
-#include "renderstate.h"
 #include "compositorthread.h"
+#include "displayplanestate.h"
 #include "factory.h"
+#include "renderstate.h"
 
 namespace hwcomposer {
 
@@ -37,14 +37,14 @@ struct OverlayLayer;
 class Compositor {
  public:
   Compositor();
+  Compositor(const Compositor &) = delete;
+  Compositor &operator=(const Compositor &) = delete;
   ~Compositor();
 
-  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
+  void Init(ResourceManager *buffer_manager, uint32_t gpu_fd,
+            FrameBufferManager *frame_buffer_manager);
   void Reset();
-
-  Compositor(const Compositor &) = delete;
-
-  bool BeginFrame(bool disable_explicit_sync);
+  void BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
             const std::vector<HwcRect<int>> &display_frame);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
@@ -65,7 +65,7 @@ class Compositor {
   void RestoreVideoDefaultDeinterlace();
 
  private:
-  bool CalculateRenderState(std::vector<OverlayLayer> &layers,
+  void CalculateRenderState(std::vector<OverlayLayer> &layers,
                             const std::vector<CompositionRegion> &comp_regions,
                             DrawState &state, uint32_t downscaling_factor,
                             bool uses_display_up_scaling,

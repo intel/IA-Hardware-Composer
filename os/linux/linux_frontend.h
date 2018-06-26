@@ -53,6 +53,10 @@ class IAHWC : public iahwc_device {
     int SetLayerDisplayFrame(iahwc_rect_t rect);
     int SetLayerSurfaceDamage(iahwc_region_t region);
     int SetLayerPlaneAlpha(float alpha);
+    int SetLayerIndex(uint32_t layer_index);
+    uint32_t GetLayerIndex() {
+      return layer_index_;
+    }
     hwcomposer::HwcLayer* GetLayer();
 
     void UploadDone() override;
@@ -62,14 +66,16 @@ class IAHWC : public iahwc_device {
     hwcomposer::HwcLayer iahwc_layer_;
     struct gbm_handle hwc_handle_;
     HWCNativeHandle pixel_buffer_ = NULL;
+    uint32_t orig_width_ = 0;
     uint32_t orig_height_ = 0;
     uint32_t orig_stride_ = 0;
     PixelUploader* raw_data_uploader_ = NULL;
     int32_t layer_usage_;
+    uint32_t layer_index_;
     bool upload_in_progress_ = false;
   };
 
-  class IAHWCDisplay {
+  class IAHWCDisplay : public PixelUploaderCallback {
    public:
     IAHWCDisplay();
     ~IAHWCDisplay();
@@ -80,6 +86,7 @@ class IAHWC : public iahwc_device {
     int SetDisplayGamma(float r, float b, float g);
     int SetDisplayConfig(uint32_t config);
     int GetDisplayConfig(uint32_t* config);
+    int SetPowerMode(uint32_t power_mode);
     int ClearAllLayers();
     int PresentDisplay(int32_t* release_fd);
     int RegisterVsyncCallback(iahwc_callback_data_t data,
@@ -92,6 +99,16 @@ class IAHWC : public iahwc_device {
     IAHWCLayer& get_layer(iahwc_layer_t layer) {
       return layers_.at(layer);
     }
+
+    int DisableOverlayUsage();
+
+    int EnableOverlayUsage();
+
+    void Synchronize() override;
+
+    int RegisterHotPlugCallback(iahwc_callback_data_t data,
+                                iahwc_function_ptr_t func);
+    int RunPixelUploader(bool enable);
 
    private:
     PixelUploader* raw_data_uploader_ = NULL;
@@ -145,5 +162,5 @@ class IAHWC : public iahwc_device {
   std::vector<IAHWCDisplay*> displays_;
 };
 
-} // namespace hwcomposer
+}  // namespace hwcomposer
 #endif

@@ -16,15 +16,15 @@
 
 #include "compositorthread.h"
 
-#include "hwcutils.h"
+#include "displayplanemanager.h"
+#include "framebuffermanager.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
+#include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "resourcemanager.h"
-#include "framebuffermanager.h"
-#include "displayplanemanager.h"
-#include "nativesurface.h"
 
 #include <nativebufferhandler.h>
 
@@ -41,7 +41,9 @@ CompositorThread::~CompositorThread() {
 }
 
 void CompositorThread::Initialize(ResourceManager *resource_manager,
-                                  uint32_t gpu_fd) {
+                                  uint32_t gpu_fd,
+                                  FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
     gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());
@@ -103,6 +105,13 @@ bool CompositorThread::Draw(std::vector<DrawState> &states,
   // succeed.
   draw_succeeded_ = true;
   tasks_lock_.unlock();
+
+  // Adding check to avoid waiting in this
+  // thread in certain corner case.
+  if (states_.empty() && media_states_.empty()) {
+    return draw_succeeded_;
+  }
+
   Resume();
   Wait();
   return draw_succeeded_;
@@ -152,8 +161,6 @@ void CompositorThread::HandleReleaseRequest() {
       purged_gl_resources, purged_media_resources, &has_gpu_resource);
   size_t purged_size = purged_gl_resources.size();
 
-  FrameBufferManager *pFBManager = FrameBufferManager::GetInstance();
-
   if (purged_size != 0) {
     if (has_gpu_resource) {
       Ensure3DRenderer();
@@ -169,8 +176,8 @@ void CompositorThread::HandleReleaseRequest() {
         continue;
       }
 
-      pFBManager->RemoveFB(handle.handle_->meta_data_.num_planes_,
-                           handle.handle_->meta_data_.gem_handles_);
+      fb_manager_->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                            handle.handle_->meta_data_.gem_handles_);
 
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
@@ -192,8 +199,8 @@ void CompositorThread::HandleReleaseRequest() {
         continue;
       }
 
-      pFBManager->RemoveFB(handle.handle_->meta_data_.num_planes_,
-                           handle.handle_->meta_data_.gem_handles_);
+      fb_manager_->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                            handle.handle_->meta_data_.gem_handles_);
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
     }

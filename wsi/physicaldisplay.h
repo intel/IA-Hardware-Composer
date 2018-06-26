@@ -17,18 +17,18 @@
 #ifndef WSI_PHYSICALDISPLAY_H_
 #define WSI_PHYSICALDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <nativedisplay.h>
 
 #include <memory>
 #include <vector>
 
-#include "platformdefines.h"
-#include "displayplanestate.h"
-#include "displayplanehandler.h"
 #include <spinlock.h>
+#include "displayplanehandler.h"
+#include "displayplanestate.h"
+#include "platformdefines.h"
 
 namespace hwcomposer {
 class DisplayPlaneState;
@@ -43,7 +43,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id);
   ~PhysicalDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager *frame_buffer_manager) override;
 
   DisplayType Type() const override {
     return DisplayType::kInternal;
@@ -63,11 +64,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool SetActiveConfig(uint32_t config) override;
   bool GetActiveConfig(uint32_t *config) override;
 
-  bool SetCustomResolution(const HwcRect<int32_t>&) override;
+  bool SetCustomResolution(const HwcRect<int32_t> &) override;
 
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               PixelUploaderCallback *call_back = NULL,
                bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
@@ -90,6 +92,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
                      float *end) override;
+  void SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green, uint16_t blue,
+                      uint16_t alpha) override;
   void RestoreVideoDefaultColor(HWCColorControl color) override;
   void SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                            HWCDeinterlaceControl mode) override;
@@ -148,72 +152,91 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   const NativeBufferHandler *GetNativeBufferHandler() const override;
 
   /**
-  * API for setting color correction for display.
-  */
+   * API for setting color correction for display.
+   */
   virtual void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                                   uint32_t brightness) const = 0;
   /**
-  * API for setting color transform matrix.
-  */
-  virtual void SetColorTransformMatrix(const float *color_transform_matrix,
-                                       HWCColorTransform color_transform_hint) const = 0;
+   * API for setting color transform matrix.
+   */
+  virtual void SetColorTransformMatrix(
+      const float *color_transform_matrix,
+      HWCColorTransform color_transform_hint) const = 0;
 
   /**
-  * API is called when display needs to be disabled.
-  * @param composition_planes contains list of planes enabled last
-  * frame.
-  */
+   * API is called when display needs to be disabled.
+   * @param composition_planes contains list of planes enabled last
+   * frame.
+   */
   virtual void Disable(const DisplayPlaneStateList &composition_planes) = 0;
 
   /**
-  * API for showing content on display
-  * @param composition_planes contains list of layers which need to displayed.
-  * @param previous_composition_planes contains list of planes enabled last
-  * frame.
-  * @param disable_explicit_fence is set to true if we want a hardware fence
-  *        associated with this commit request set to commit_fence.
-  * @param commit_fence hardware fence associated with this commit request.
-  */
+   * API for showing content on display
+   * @param composition_planes contains list of layers which need to displayed.
+   * @param previous_composition_planes contains list of planes enabled last
+   * frame.
+   * @param disable_explicit_fence is set to true if we want a hardware fence
+   *        associated with this commit request set to commit_fence.
+   * @param commit_fence hardware fence associated with this commit request.
+   */
   virtual bool Commit(const DisplayPlaneStateList &composition_planes,
                       const DisplayPlaneStateList &previous_composition_planes,
-                      bool disable_explicit_fence, int32_t *commit_fence) = 0;
+                      bool disable_explicit_fence, int32_t previous_fence,
+                      int32_t *commit_fence, bool *previous_fence_released) = 0;
 
   /**
-  * API is called if current active display configuration has changed.
-  * Implementations need to reset any state in this case.
-  */
+   * API is called if current active display configuration has changed.
+   * Implementations need to reset any state in this case.
+   */
   virtual void UpdateDisplayConfig() = 0;
 
   /**
-  * API for powering on the display
-  */
+   * API for powering on the display
+   */
   virtual void PowerOn() = 0;
 
   /**
-  * API for initializing display. Implementation needs to handle all things
-  * needed to set up the physical display.
-  */
+   * API for initializing display. Implementation needs to handle all things
+   * needed to set up the physical display.
+   */
   virtual bool InitializeDisplay() = 0;
 
   virtual void NotifyClientsOfDisplayChangeStatus() = 0;
 
   /**
-  * API for informing the display that it might be disconnected in near
-  * future.
-  */
+   * API for setting the color of the pipe canvas.
+   */
+  virtual void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                  uint16_t blue, uint16_t alpha) const = 0;
+
+  /**
+   * API for informing the display that it might be disconnected in near
+   * future.
+   */
   void MarkForDisconnect();
 
   /**
-  * API for informing the clients resgistered via RegisterHotPlugCallback
-  * that this display had been disconnected.
-  */
+   * API for informing the clients resgistered via RegisterHotPlugCallback
+   * that this display had been disconnected.
+   */
   void NotifyClientOfConnectedState();
 
   /**
-  * API for informing the clients resgistered via RegisterHotPlugCallback
-  * that this display had been connected.
-  */
+   * API for informing the clients resgistered via RegisterHotPlugCallback
+   * that this display had been connected.
+   */
   void NotifyClientOfDisConnectedState();
+
+  /**
+  * API for ensuring DisplayQueue can handle any W/A needed for
+  * Multi plane/multi port cases.
+  */
+  void NotifyDisplayWA(bool enable_wa);
+
+  /**
+  * API to refresh display in case of hot plug event.
+  */
+  void ForceRefresh();
 
   /**
   * API to disconnect the display. This is called when this display
@@ -222,9 +245,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void DisConnect();
 
   /**
-  * API to handle any lazy initializations which need to be handled
-  * during first present call.
-  */
+   * API to handle any lazy initializations which need to be handled
+   * during first present call.
+   */
   virtual void HandleLazyInitialization() {
   }
 
@@ -278,6 +301,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
+  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

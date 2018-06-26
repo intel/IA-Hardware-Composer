@@ -30,7 +30,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
-	libdrm_pri \
+	libdrm \
 	libEGL \
 	libGLESv2 \
 	libhardware \

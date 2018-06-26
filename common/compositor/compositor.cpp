@@ -22,13 +22,13 @@
 
 #include "disjoint_layers.h"
 #include "displayplanestate.h"
+#include "hwcdefs.h"
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativegpuresource.h"
 #include "nativesurface.h"
 #include "overlaylayer.h"
 #include "renderer.h"
-#include "hwcutils.h"
-#include "hwcdefs.h"
 
 namespace hwcomposer {
 
@@ -40,16 +40,16 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd,
+                      FrameBufferManager *frame_buffer_manager) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(resource_manager, gpu_fd);
+  thread_->Initialize(resource_manager, gpu_fd, frame_buffer_manager);
 }
 
-bool Compositor::BeginFrame(bool disable_explicit_sync) {
+void Compositor::BeginFrame(bool disable_explicit_sync) {
   thread_->SetExplicitSyncSupport(disable_explicit_sync);
-  return true;
 }
 
 void Compositor::Reset() {
@@ -96,6 +96,10 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
           plane.GetCompositionRegion();
       bool regions_empty = comp_regions.empty();
       NativeSurface *surface = plane.GetOffScreenTarget();
+      if (surface == NULL) {
+        ETRACE("GetOffScreenTarget() returned NULL pointer 'surface'.");
+        return false;
+      }
       if (!regions_empty &&
           (surface->ClearSurface() || surface->IsPartialClear() ||
            surface->IsSurfaceDamageChanged())) {
@@ -127,12 +131,9 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         use_plane_transform = true;
       }
 
-      if (!CalculateRenderState(
-              layers, comp_regions, state, plane.GetDownScalingFactor(),
-              plane.IsUsingPlaneScalar(), use_plane_transform)) {
-        ETRACE("Failed to calculate Render state.");
-        return false;
-      }
+      CalculateRenderState(layers, comp_regions, state,
+                           plane.GetDownScalingFactor(),
+                           plane.IsUsingPlaneScalar(), use_plane_transform);
 
       if (state.states_.empty()) {
         draw_state.pop_back();
@@ -175,10 +176,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   draw_state.surface_ = surface;
   size_t num_regions = comp_regions.size();
   draw_state.states_.reserve(num_regions);
-  if (!CalculateRenderState(layers, comp_regions, draw_state, 1, false)) {
-    ETRACE("Failed to calculate render state.");
-    return false;
-  }
+  CalculateRenderState(layers, comp_regions, draw_state, 1, false);
 
   if (draw_state.states_.empty()) {
     return true;
@@ -202,7 +200,7 @@ void Compositor::FreeResources() {
   thread_->FreeResources();
 }
 
-bool Compositor::CalculateRenderState(
+void Compositor::CalculateRenderState(
     std::vector<OverlayLayer> &layers,
     const std::vector<CompositionRegion> &comp_regions, DrawState &draw_state,
     uint32_t downscaling_factor, bool uses_display_up_scaling,
@@ -228,8 +226,6 @@ bool Compositor::CalculateRenderState(
       }
     }
   }
-
-  return true;
 }
 
 void Compositor::SetVideoScalingMode(uint32_t mode) {
@@ -316,8 +312,8 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
       [=](size_t layer_index) { return display_frame[layer_index]; });
   std::transform(source_layers.begin(), source_layers.end(),
                  layer_rects.begin() + layer_offset, [=](size_t layer_index) {
-    return display_frame[layer_index];
-  });
+                   return display_frame[layer_index];
+                 });
 
   std::vector<RectSet<int>> separate_regions;
   get_draw_regions(layer_rects, damage_region, &separate_regions);

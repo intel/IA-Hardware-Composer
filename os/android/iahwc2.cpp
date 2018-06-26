@@ -32,9 +32,9 @@
 #include <nativedisplay.h>
 #include "mosaicdisplay.h"
 
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace android {
@@ -159,7 +159,7 @@ HWC2::Error IAHWC2::Init() {
     return HWC2::Error::NoResources;
   }
 
-  std::vector<NativeDisplay *> displays = device_.GetAllDisplays();
+  const std::vector<NativeDisplay *> &displays = device_.GetAllDisplays();
   NativeDisplay *primary_display = displays.at(0);
   uint32_t external_display_id = 1;
   primary_display_.Init(primary_display, 0, disable_explicit_sync_,
@@ -282,7 +282,15 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   return error;
 }
 
-IAHWC2::HwcDisplay::HwcDisplay() {
+IAHWC2::HwcDisplay::HwcDisplay()
+    : display_(nullptr),
+      handle_(0),
+      type_(HWC2::DisplayType::Invalid),
+      frame_no_(0),
+      check_validate_display_(false),
+      disable_explicit_sync_(false),
+      enable_nested_display_compose_(false),
+      scaling_mode_(0) {
   supported(__func__);
 }
 
@@ -395,7 +403,7 @@ HWC2::Error IAHWC2::HwcDisplay::RegisterHotPlugCallback(
 
 HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
-  if (!checkValidateDisplay) {
+  if (!check_validate_display_) {
     ALOGV("AcceptChanges failed, not validated");
     return HWC2::Error::NotValidated;
   }
@@ -404,7 +412,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
     l.second.accept_type_change();
 
   // reset the value to false
-  checkValidateDisplay = false;
+  check_validate_display_ = false;
   return HWC2::Error::None;
 }
 
@@ -725,7 +733,9 @@ HWC2::Error IAHWC2::HwcDisplay::SetClientTarget(buffer_handle_t target,
 
 HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   supported(__func__);
-  color_mode_ = mode;
+  // TODO: Use the parameter mode to set the color mode for the display to be
+  // used.
+
   return HWC2::Error::None;
 }
 
@@ -811,7 +821,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
 #ifdef NESTED_DISPLAY_SUPPORT
     /*Cluster will leverage surfaceflinger do compostion*/
-    if (handle_ == HWC_DISPLAY_NESTED) {
+    if (handle_ == HWC_DISPLAY_NESTED && display_->IsConnected()) {
       layer.set_validated_type(HWC2::Composition::Client);
       continue;
     }
@@ -837,7 +847,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     }
   }
 
-  checkValidateDisplay = true;
+  check_validate_display_ = true;
   return HWC2::Error::None;
 }
 

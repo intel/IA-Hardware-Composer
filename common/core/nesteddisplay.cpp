@@ -18,11 +18,11 @@
 
 #include <nativebufferhandler.h>
 
-#include <string>
 #include <sstream>
+#include <string>
 
-#include <hwctrace.h>
 #include <hwclayer.h>
+#include <hwctrace.h>
 
 namespace hwcomposer {
 #ifdef NESTED_DISPLAY_SUPPORT
@@ -80,14 +80,14 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
-  compositor_.Init(resource_manager_.get(), gpu_fd);
+  compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
 
   mHyperDmaBuf_Fd = open(HYPER_DMABUF_PATH, O_RDWR);
   if (mHyperDmaBuf_Fd < 0)
     ETRACE("Hyper DmaBuf: open hyper dmabuf device node %s failed because %s",
            HYPER_DMABUF_PATH, strerror(errno));
   else {
-    ETRACE("Hyper DmaBuf: open hyper dmabuf device node %s successfully!",
+    ITRACE("Hyper DmaBuf: open hyper dmabuf device node %s successfully!",
            HYPER_DMABUF_PATH);
     /* TODO: add config option to specify which domains should be used, for now
      * we share always with dom0 */
@@ -100,7 +100,7 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
       close(mHyperDmaBuf_Fd);
       mHyperDmaBuf_Fd = -1;
     } else
-      ETRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_TX_CH_SETUP Done!\n");
+      ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_TX_CH_SETUP Done!\n");
   }
 #else
   HWC_UNUSED(gpu_fd);
@@ -111,8 +111,8 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
 NestedDisplay::~NestedDisplay() {
 #ifdef NESTED_DISPLAY_SUPPORT
   if (mHyperDmaBuf_Fd > 0) {
-    for (auto it = mHyperDmaExportedBuffers.begin();
-         it != mHyperDmaExportedBuffers.end(); ++it) {
+    auto it = mHyperDmaExportedBuffers.begin();
+    for (; it != mHyperDmaExportedBuffers.end(); ++it) {
       struct ioctl_hyper_dmabuf_unexport msg;
       int ret;
       msg.hid = it->second.hyper_dmabuf_id;
@@ -125,7 +125,7 @@ NestedDisplay::~NestedDisplay() {
             "[0x%x]\n",
             ret, it->second.hyper_dmabuf_id.id);
       } else {
-        ETRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
+        ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
                it->second.hyper_dmabuf_id.id);
         mHyperDmaExportedBuffers.erase(it);
       }
@@ -158,12 +158,13 @@ void NestedDisplay::InitNestedDisplay(uint32_t width, uint32_t height,
 #endif
 }
 
-bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool NestedDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                               FrameBufferManager * /*frame_buffer_manager*/) {
   return true;
 }
 
 bool NestedDisplay::IsConnected() const {
-  return true;
+  return mconnected;
 }
 
 int NestedDisplay::GetDisplayPipe() {
@@ -189,11 +190,15 @@ bool NestedDisplay::SetPowerMode(uint32_t /*power_mode*/) {
 
 bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t * /*retire_fence*/,
+                            PixelUploaderCallback * /*call_back*/,
                             bool /*handle_constraints*/) {
 #ifndef NESTED_DISPLAY_SUPPORT
   HWC_UNUSED(source_layers);
   return true;
 #else
+  if (!mconnected)
+    return true;
+
   int ret = 0;
   size_t size = source_layers.size();
   const uint32_t *pitches;
@@ -215,7 +220,8 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
     if (search == mHyperDmaExportedBuffers.end()) {
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       buffer = OverlayBuffer::CreateOverlayBuffer();
-      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
+      buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(),
+                                         fb_manager_);
 
       if (mHyperDmaBuf_Fd > 0 && buffer->GetPrimeFD() > 0) {
         struct ioctl_hyper_dmabuf_export_remote msg;
@@ -231,7 +237,7 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
                  ret);
           return false;
         } else {
-          ETRACE("Hyper DmaBuf: Exporting hyper_dmabuf Done! 0x%x\n",
+          ITRACE("Hyper DmaBuf: Exporting hyper_dmabuf Done! 0x%x\n",
                  msg.hid.id);
           mHyperDmaExportedBuffers[sf_handle].surf_index = surf_index++;
           mHyperDmaExportedBuffers[sf_handle].width = buffer->GetWidth();
@@ -279,12 +285,11 @@ bool NestedDisplay::Present(std::vector<HwcLayer *> &source_layers,
   *stream_end = METADATA_STREAM_END;
   int msg_size = header_size + info_size * buffer_number + sizeof(int) * 2;
   int rc;
-  if (mconnected) {
-    do {
-      rc = HyperCommunicationNetworkSendData(buf, msg_size);
-    } while (rc != msg_size && rc >= 0);
-  }
+  do {
+    rc = HyperCommunicationNetworkSendData(buf, msg_size);
+  } while (rc != msg_size && rc >= 0);
   memset(buf, 0, METADATA_BUFFER_SIZE);
+
   return true;
 #endif
 }

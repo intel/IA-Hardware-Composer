@@ -16,8 +16,8 @@
 
 #include "logicaldisplaymanager.h"
 
-#include "logicaldisplay.h"
 #include <hwclayer.h>
+#include "logicaldisplay.h"
 
 namespace hwcomposer {
 
@@ -78,10 +78,12 @@ void LogicalDisplayManager::InitializeLogicalDisplays(uint32_t total) {
   }
 
   auto r_callback = std::make_shared<LDMRefreshCallback>(this);
-  physical_display_->RegisterRefreshCallback(r_callback, physical_display_->GetDisplayPipe());
+  physical_display_->RegisterRefreshCallback(
+      r_callback, physical_display_->GetDisplayPipe());
 
   auto v_callback = std::make_shared<LDMVsyncCallback>(this);
-  physical_display_->RegisterVsyncCallback(v_callback, physical_display_->GetDisplayPipe());
+  physical_display_->RegisterVsyncCallback(v_callback,
+                                           physical_display_->GetDisplayPipe());
 }
 
 void LogicalDisplayManager::UpdatePowerMode() {
@@ -132,6 +134,7 @@ void LogicalDisplayManager::RegisterHotPlugNotification() {
 
 bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
                                     int32_t* retire_fence,
+                                    PixelUploaderCallback* call_back,
                                     bool handle_constraints) {
   uint32_t total_size = displays_.size();
   if (handle_hoplug_notifications_) {
@@ -183,8 +186,8 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     layers_.emplace_back(cursor_layers_.at(j));
   }
 
-  bool success =
-      physical_display_->Present(layers_, retire_fence, handle_constraints);
+  bool success = physical_display_->Present(layers_, retire_fence, call_back,
+                                            handle_constraints);
   std::vector<HwcLayer*>().swap(cursor_layers_);
   std::vector<HwcLayer*>().swap(layers_);
   queued_displays_ = 0;
@@ -212,11 +215,12 @@ void LogicalDisplayManager::HotPlugCallback(bool connected) {
   }
 }
 
-void LogicalDisplayManager::GetLogicalDisplays(std::vector<LogicalDisplay*>& displays) {
-    uint32_t size = displays_.size();
-    for (uint32_t i = 0; i < size; i++) {
-      displays.emplace_back(displays_.at(i).get());
-    }
+void LogicalDisplayManager::GetLogicalDisplays(
+    std::vector<LogicalDisplay*>& displays) {
+  uint32_t size = displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    displays.emplace_back(displays_.at(i).get());
+  }
 }
 
 void LogicalDisplayManager::SetHDCPState(HWCContentProtection state,

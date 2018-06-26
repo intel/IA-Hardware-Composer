@@ -16,27 +16,25 @@
 
 #include "drmdisplaymanager.h"
 
-#include <stdlib.h>
-#include <time.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <errno.h>
 
-#include <linux/types.h>
 #include <linux/netlink.h>
+#include <linux/types.h>
 
-#include <hwctrace.h>
 #include <gpudevice.h>
+#include <hwctrace.h>
 
 #include <nativebufferhandler.h>
-
-#include "framebuffermanager.h"
 
 namespace hwcomposer {
 
@@ -170,8 +168,7 @@ void DrmDisplayManager::HandleWait() {
 
 void DrmDisplayManager::InitializeDisplayResources() {
   buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
-  // FIXME: Remove this once #303 is fixed.
-  FrameBufferManager::CreateInstance(fd_);
+  frame_buffer_manager_.reset(new FrameBufferManager(fd_));
   if (!buffer_handler_) {
     ETRACE("Failed to create native buffer handler instance");
     return;
@@ -179,7 +176,8 @@ void DrmDisplayManager::InitializeDisplayResources() {
 
   int size = displays_.size();
   for (int i = 0; i < size; ++i) {
-    if (!displays_.at(i)->Initialize(buffer_handler_.get())) {
+    if (!displays_.at(i)->Initialize(buffer_handler_.get(),
+                                     frame_buffer_manager_.get())) {
       ETRACE("Failed to Initialize Display %d", i);
     }
   }
@@ -352,6 +350,25 @@ bool DrmDisplayManager::UpdateDisplayState() {
 
 void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
   spin_lock_.lock();
+  bool disable_last_plane_usage = false;
+  uint32_t total_connected_displays = 0;
+  for (auto &display : displays_) {
+    if (display->IsConnected()) {
+      display->NotifyClientOfDisConnectedState();
+      total_connected_displays++;
+    }
+
+    if (total_connected_displays > 1) {
+      disable_last_plane_usage = true;
+      break;
+    }
+  }
+
+  for (auto &display : displays_) {
+    display->NotifyDisplayWA(disable_last_plane_usage);
+    display->ForceRefresh();
+  }
+
   for (auto &display : displays_) {
     if (!display->IsConnected()) {
       display->NotifyClientOfDisConnectedState();
@@ -369,6 +386,7 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 #ifdef ENABLE_ANDROID_WA
   notify_client_ = true;
 #endif
+
   spin_lock_.unlock();
 }
 

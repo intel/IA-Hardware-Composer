@@ -19,8 +19,8 @@
 
 #include <vector>
 
-#include <unistd.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include "compositordefs.h"
 #include "hwcdefs.h"

@@ -1,26 +1,18 @@
 /*
- * Copyright (c) 2012 Arvin Schnell <arvin.schnell@gmail.com>
- * Copyright (c) 2012 Rob Clark <rob@ti.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sub license,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) 2016 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 
 /* Based on a egl cube test app originally written by Arvin Schnell */
 
@@ -339,6 +331,36 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
       display->SetPowerMode(power_mode);
   }
 
+  uint16_t GetRGBABits(uint64_t color, uint16_t bpc, RGBA comp) {
+    uint64_t comp_color;
+    uint16_t nbits = (1 << bpc) - 1;
+
+    comp_color = color & (uint64_t)(nbits << (bpc * comp));
+    if (bpc <= 10)
+      comp_color &= 0xffffffff;
+
+    uint16_t comp_bits = (uint16_t)(comp_color >> (bpc * comp));
+    return comp_bits;
+  }
+
+  void SetCanvasColor(uint64_t color, uint16_t bpc) {
+    hwcomposer::ScopedSpinLock lock(spin_lock_);
+    PopulateConnectedDisplays();
+
+    if (connected_displays_.empty())
+      return;
+
+    /**
+     * We are assuming that the color provided the user is in hex and in
+     * ABGR format with R in LSB. For example, 0x000000ff would be Red.
+     */
+    for (auto &display : connected_displays_)
+      display->SetCanvasColor(bpc, GetRGBABits(color, bpc, RED),
+                              GetRGBABits(color, bpc, GREEN),
+                              GetRGBABits(color, bpc, BLUE),
+                              GetRGBABits(color, bpc, ALPHA));
+  }
+
   void SetActiveConfig(uint32_t config) {
     hwcomposer::ScopedSpinLock lock(spin_lock_);
     PopulateConnectedDisplays();
@@ -393,6 +415,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
   hwcomposer::GpuDevice *device_;
   hwcomposer::SpinLock spin_lock_;
+  uint16_t GetRGBABits(uint64_t color, uint16_t bpc, RGBA comp) const;
 };
 
 char json_path[1024];
@@ -860,6 +883,8 @@ int main(int argc, char *argv[]) {
                           test_parameters.contrast_b);
   }
 
+  callback->SetCanvasColor(test_parameters.canvas_color, test_parameters.bpc);
+
   /* clear the color buffer */
   int64_t gpu_fence_fd = -1; /* out-fence from gpu, in-fence to kms */
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -937,6 +962,7 @@ int main(int argc, char *argv[]) {
   callback->SetGamma(1, 1, 1);
   callback->SetBrightness(0x80, 0x80, 0x80);
   callback->SetContrast(0x80, 0x80, 0x80);
+  callback->SetCanvasColor(0x0, 8);
 
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];

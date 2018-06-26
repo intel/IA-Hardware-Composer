@@ -20,8 +20,8 @@
 #include <hwcdefs.h>
 #include <platformdefines.h>
 
-#include <memory>
 #include <hwclayer.h>
+#include <memory>
 
 #include "overlaybuffer.h"
 
@@ -49,15 +49,14 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer, ResourceManager* buffer_manager,
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
-                              uint32_t rotation, bool handle_constraints);
+                              uint32_t rotation, bool handle_constraints,
+                              FrameBufferManager* frame_buffer_manager);
 
-  void InitializeFromScaledHwcLayer(HwcLayer* layer,
-                                    ResourceManager* buffer_manager,
-                                    OverlayLayer* previous_layer,
-                                    uint32_t z_order, uint32_t layer_index,
-                                    const HwcRect<int>& display_frame,
-                                    uint32_t max_height, uint32_t rotation,
-                                    bool handle_constraints);
+  void InitializeFromScaledHwcLayer(
+      HwcLayer* layer, ResourceManager* buffer_manager,
+      OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
+      const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
+      bool handle_constraints, FrameBufferManager* frame_buffer_manager);
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
@@ -101,7 +100,8 @@ struct OverlayLayer {
   OverlayBuffer* GetBuffer() const;
 
   void SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
-                 ResourceManager* buffer_manager, bool register_buffer);
+                 ResourceManager* buffer_manager, bool register_buffer,
+                 FrameBufferManager* frame_buffer_manager);
 
   std::shared_ptr<OverlayBuffer>& GetSharedBuffer() const;
 
@@ -116,6 +116,10 @@ struct OverlayLayer {
   }
 
   const HwcRect<int>& GetSurfaceDamage() const {
+    return surface_damage_;
+  }
+
+  HwcRect<int>& GetSurfaceDamage() {
     return surface_damage_;
   }
 
@@ -202,16 +206,13 @@ struct OverlayLayer {
     return state_ & kNeedsReValidation;
   }
 
-  bool LayerOrderChanged() const {
-    return state_ & kLayerOrderChanged;
-  }
-
   bool NeedsPartialClear() const {
     return state_ & kForcePartialClear;
   }
 
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
-                  ResourceManager* resource_manager, uint32_t z_order);
+                  ResourceManager* resource_manager, uint32_t z_order,
+                  FrameBufferManager* frame_buffer_manager);
 
   void Dump();
 
@@ -222,8 +223,7 @@ struct OverlayLayer {
     kInvisible = 1 << 2,
     kSourceRectChanged = 1 << 3,
     kNeedsReValidation = 1 << 4,
-    kLayerOrderChanged = 1 << 5,
-    kForcePartialClear = 1 << 6
+    kForcePartialClear = 1 << 5
   };
 
   struct ImportedBuffer {
@@ -249,7 +249,8 @@ struct OverlayLayer {
   void InitializeState(HwcLayer* layer, ResourceManager* buffer_manager,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
-                       uint32_t rotation, bool handle_constraints);
+                       uint32_t rotation, bool handle_constraints,
+                       FrameBufferManager* frame_buffer_manager);
 
   uint32_t transform_ = 0;
   uint32_t plane_transform_ = 0;

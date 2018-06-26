@@ -17,8 +17,8 @@
 #ifndef WSI_MOSAICDISPLAY_H_
 #define WSI_MOSAICDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <memory>
 
@@ -32,7 +32,8 @@ class MosaicDisplay : public NativeDisplay {
   MosaicDisplay(const std::vector<NativeDisplay *> &displays);
   ~MosaicDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager * /*frame_buffer_manager*/) override;
 
   DisplayType Type() const override {
     return DisplayType::kMosaic;
@@ -51,6 +52,7 @@ class MosaicDisplay : public NativeDisplay {
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               PixelUploaderCallback *call_back = NULL,
                bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

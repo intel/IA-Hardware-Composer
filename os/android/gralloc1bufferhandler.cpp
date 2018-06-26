@@ -16,10 +16,10 @@
 
 #include "gralloc1bufferhandler.h"
 
+#include <cutils/native_handle.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <ui/GraphicBuffer.h>
-#include <cutils/native_handle.h>
 
 #include <hwcdefs.h>
 #include <hwctrace.h>
@@ -44,7 +44,23 @@ NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
   return handler;
 }
 
-Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd) : fd_(fd) {
+Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd)
+    : fd_(fd),
+      gralloc_(nullptr),
+      device_(nullptr),
+      register_(nullptr),
+      release_(nullptr),
+      dimensions_(nullptr),
+      lock_(nullptr),
+      unlock_(nullptr),
+      create_descriptor_(nullptr),
+      destroy_descriptor_(nullptr),
+      set_consumer_usage_(nullptr),
+      set_dimensions_(nullptr),
+      set_format_(nullptr),
+      set_producer_usage_(nullptr),
+      allocate_(nullptr),
+      set_modifier_(nullptr) {
 }
 
 Gralloc1BufferHandler::~Gralloc1BufferHandler() {
@@ -138,7 +154,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     if (preferred_modifier != -1) {
       modifier = preferred_modifier;
     } else {
-      modifier = drm_get_modifier(format);
+      modifier = choose_drm_modifier(format);
     }
 
     set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, modifier);

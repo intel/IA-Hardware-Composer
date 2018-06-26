@@ -17,22 +17,22 @@
 #ifndef COMMON_CORE_NESTEDDISPLAY_H_
 #define COMMON_CORE_NESTEDDISPLAY_H_
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#include <memory>
-#include <nativedisplay.h>
 #include <drm_fourcc.h>
+#include <nativedisplay.h>
+#include <memory>
 #ifdef NESTED_DISPLAY_SUPPORT
 #include <linux/hyper_dmabuf.h>
-#include <map>
-#include "drmbuffer.h"
-#include <utils/threads.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <utils/threads.h>
+#include <map>
+#include "compositor.h"
+#include "drmbuffer.h"
 #include "hwcthread.h"
 #include "hwctrace.h"
-#include "compositor.h"
 #include "resourcemanager.h"
 
 #define SURFACE_NAME_LENGTH 64
@@ -46,6 +46,7 @@ static char buf[METADATA_BUFFER_SIZE];
 namespace hwcomposer {
 
 struct HwcLayer;
+class FrameBufferManager;
 class NativeBufferHandler;
 class NestedDisplayManager;
 
@@ -102,7 +103,8 @@ class NestedDisplay : public NativeDisplay {
   void InitNestedDisplay(uint32_t width, uint32_t height,
                          uint32_t port) override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler) override;
+  bool Initialize(NativeBufferHandler *buffer_handler,
+                  FrameBufferManager * /*frame_buffer_manager*/) override;
 
   DisplayType Type() const override {
     return DisplayType::kNested;
@@ -127,6 +129,7 @@ class NestedDisplay : public NativeDisplay {
   bool SetPowerMode(uint32_t power_mode) override;
 
   bool Present(std::vector<HwcLayer *> &source_layers, int32_t *retire_fence,
+               PixelUploaderCallback *call_back = NULL,
                bool handle_constraints = false) override;
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
@@ -185,6 +188,7 @@ class NestedDisplay : public NativeDisplay {
   uint32_t height_ = 0;
   uint32_t port_ = 0;
   bool enable_vsync_ = false;
+  bool mconnected = false;
   uint32_t config_ = 1;
 
 #ifdef NESTED_DISPLAY_SUPPORT
@@ -194,8 +198,8 @@ class NestedDisplay : public NativeDisplay {
   static std::unique_ptr<SocketThread> st_;
   int msock_fd = -1;
   static int mclient_sock_fd;
-  bool mconnected = false;
   std::unique_ptr<ResourceManager> resource_manager_;
+  FrameBufferManager *fb_manager_ = NULL;
   Compositor compositor_;
 #endif
 };

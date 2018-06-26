@@ -16,8 +16,8 @@
 
 #include "logicaldisplay.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "logicaldisplaymanager.h"
 
@@ -35,7 +35,8 @@ LogicalDisplay::LogicalDisplay(LogicalDisplayManager *display_manager,
 LogicalDisplay::~LogicalDisplay() {
 }
 
-bool LogicalDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
+bool LogicalDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
+                                FrameBufferManager * /*frame_buffer_manager*/) {
   return true;
 }
 
@@ -53,8 +54,8 @@ int LogicalDisplay::GetDisplayPipe() {
 
 bool LogicalDisplay::SetActiveConfig(uint32_t config) {
   bool success = physical_display_->SetActiveConfig(config);
-    width_ = (physical_display_->Width()) / total_divisions_;
-    return success;
+  width_ = (physical_display_->Width()) / total_divisions_;
+  return success;
 }
 
 bool LogicalDisplay::GetActiveConfig(uint32_t *config) {
@@ -73,12 +74,14 @@ void LogicalDisplay::SetHDCPState(HWCContentProtection state,
 }
 
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
-                             int32_t *retire_fence, bool handle_constraints) {
+                             int32_t *retire_fence,
+                             PixelUploaderCallback *call_back,
+                             bool handle_constraints) {
   if (power_mode_ != kOn)
     return true;
 
   return logical_display_manager_->Present(source_layers, retire_fence,
-                                           handle_constraints);
+                                           call_back, handle_constraints);
 }
 
 bool LogicalDisplay::PresentClone(NativeDisplay * /*display*/) {
@@ -173,6 +176,11 @@ void LogicalDisplay::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 
 void LogicalDisplay::RestoreVideoDefaultDeinterlace() {
   physical_display_->RestoreVideoDefaultDeinterlace();
+}
+
+void LogicalDisplay::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
+                                    uint16_t blue, uint16_t alpha) {
+  physical_display_->SetCanvasColor(bpc, red, green, blue, alpha);
 }
 
 void LogicalDisplay::UpdateScalingRatio(uint32_t /*primary_width*/,

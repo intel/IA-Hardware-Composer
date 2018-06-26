@@ -44,52 +44,51 @@ NativeSurface::~NativeSurface() {
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
                          uint32_t usage, uint64_t modifier,
-                         bool *modifer_succeeded) {
-  modifier_ = modifier;
+                         bool *modifier_succeeded,
+                         FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
+  const NativeBufferHandler *handler =
+      resource_manager->GetNativeBufferHandler();
+  resource_manager_ = resource_manager;
+  HWCNativeHandle native_handle = 0;
+  *modifier_succeeded = false;
+  bool modifier_used = false;
+
   if (usage == hwcomposer::kLayerVideo) {
-    modifier_ = 0;
+    modifier = 0;
   }
 
-  bool modifier_used = false;
-  resource_manager->GetNativeBufferHandler()->CreateBuffer(
-      width_, height_, format, &native_handle_, usage, &modifier_used,
-      modifier_);
-  if (!native_handle_) {
-    ETRACE("NativeSurface: Failed to create buffer.");
+  handler->CreateBuffer(width_, height_, format, &native_handle, usage,
+                        &modifier_used, modifier);
+  if (!native_handle) {
+    ETRACE("Failed to create buffer\n");
     return false;
   }
 
-  if (!modifier_used) {
-    modifier_ = 0;
-    *modifer_succeeded = false;
-  }
+  InitializeLayer(native_handle);
 
-  resource_manager_ = resource_manager;
-  InitializeLayer(native_handle_);
-
-  if (modifier_ > 0) {
-    // Remove modifier, incase we tried modifier and FB creation failed.
-    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier_)) {
-      ETRACE("FB Creation failed with Modifier, Removing modifier usage.");
-      *modifer_succeeded = false;
+  if (modifier_used && modifier > 0) {
+    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier)) {
+      WTRACE("FB creation failed with modifier, removing modifier usage\n");
       ResourceHandle temp;
-      temp.handle_ = native_handle_;
+      temp.handle_ = native_handle;
       resource_manager_->MarkResourceForDeletion(temp, false);
+      native_handle = 0;
 
-      HWCNativeHandle native_handle;
-      resource_manager->GetNativeBufferHandler()->CreateBuffer(
-          width_, height_, format, &native_handle, usage, 0);
-      if (!native_handle_) {
-        ETRACE("NativeSurface: Failed to create buffer.");
+      handler->CreateBuffer(width_, height_, format, &native_handle, usage, 0);
+      if (!native_handle) {
+        ETRACE("Failed to create buffer\n");
         return false;
       }
 
-      native_handle_ = native_handle;
-      InitializeLayer(native_handle_);
+      InitializeLayer(native_handle);
     } else {
-      *modifer_succeeded = true;
+      *modifier_succeeded = true;
     }
   }
+
+  modifier_ = modifier;
+  native_handle_ = native_handle;
 
   return true;
 }
@@ -135,9 +134,11 @@ bool NativeSurface::IsSurfaceDamageChanged() const {
 }
 
 void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
-  surface_damage_ = plane.GetDisplayFrame();
-  previous_damage_ = surface_damage_;
-  previous_nc_damage_ = surface_damage_;
+  HwcRect<int> &current_damage = layer_.GetSurfaceDamage();
+  CalculateRect(layer_.GetDisplayFrame(), current_damage);
+  CalculateRect(plane.GetDisplayFrame(), current_damage);
+  previous_damage_ = current_damage;
+  previous_nc_damage_ = current_damage;
   clear_surface_ = kFullClear;
   damage_changed_ = true;
   on_screen_ = false;
@@ -166,17 +167,23 @@ void NativeSurface::UpdateSurfaceDamage(
     current_damage.bottom = height_;
   }
 
-  if (surface_damage_.empty()) {
-    surface_damage_ = current_damage;
+  HwcRect<int> &surface_damage = layer_.GetSurfaceDamage();
+  if (reset_damage_) {
+    reset_damage_ = false;
+    surface_damage.reset();
+  }
+
+  if (surface_damage.empty()) {
+    surface_damage = current_damage;
     damage_changed_ = true;
 
-    if (!surface_damage_.empty()) {
-      CalculateRect(previous_nc_damage_, surface_damage_);
+    if (!surface_damage.empty()) {
+      CalculateRect(previous_nc_damage_, surface_damage);
 
       previous_nc_damage_ = current_damage;
     }
 
-    if (!force && (previous_damage_ == surface_damage_))
+    if (!force && (previous_damage_ == surface_damage))
       damage_changed_ = false;
 
     return;
@@ -184,28 +191,28 @@ void NativeSurface::UpdateSurfaceDamage(
 
   CalculateRect(current_damage, previous_nc_damage_);
 
-  if (current_damage == surface_damage_) {
+  if (current_damage == surface_damage) {
     return;
   }
 
-  CalculateRect(current_damage, surface_damage_);
+  CalculateRect(current_damage, surface_damage);
 
   if (!damage_changed_) {
     damage_changed_ = true;
-    if (!force && (previous_damage_ == surface_damage_))
+    if (!force && (previous_damage_ == surface_damage))
       damage_changed_ = false;
   }
 }
 
 void NativeSurface::ResetDamage() {
-  previous_damage_ = surface_damage_;
-  surface_damage_.reset();
+  reset_damage_ = true;
+  previous_damage_ = layer_.GetSurfaceDamage();
   damage_changed_ = false;
 }
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetBuffer(native_handle, -1, resource_manager_, false);
+  layer_.SetBuffer(native_handle, -1, resource_manager_, false, fb_manager_);
 }
 
 }  // namespace hwcomposer
