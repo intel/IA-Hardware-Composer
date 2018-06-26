@@ -45,8 +45,6 @@ class DrmEncoder {
   uint32_t id_;
   DrmCrtc *crtc_;
 
-  uint32_t type_;
-
   std::vector<DrmCrtc *> possible_crtcs_;
 };
 }

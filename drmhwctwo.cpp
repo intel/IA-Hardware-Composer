@@ -26,7 +26,7 @@
 #include <inttypes.h>
 #include <string>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
@@ -70,17 +70,9 @@ HWC2::Error DrmHwcTwo::Init() {
     return HWC2::Error::NoResources;
   }
 
-  ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-                      (const hw_module_t **)&gralloc_);
-  if (ret) {
-    ALOGE("Failed to open gralloc module %d", ret);
-    return HWC2::Error::NoResources;
-  }
-
   displays_.emplace(std::piecewise_construct,
                     std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
-                    std::forward_as_tuple(&drm_, importer_, gralloc_,
-                                          HWC_DISPLAY_PRIMARY,
+                    std::forward_as_tuple(&drm_, importer_, HWC_DISPLAY_PRIMARY,
                                           HWC2::DisplayType::Physical));
 
   DrmCrtc *crtc = drm_.GetCrtcForDisplay(static_cast<int>(HWC_DISPLAY_PRIMARY));
@@ -160,13 +152,8 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
 
 DrmHwcTwo::HwcDisplay::HwcDisplay(DrmResources *drm,
                                   std::shared_ptr<Importer> importer,
-                                  const gralloc_module_t *gralloc,
                                   hwc2_display_t handle, HWC2::DisplayType type)
-    : drm_(drm),
-      importer_(importer),
-      gralloc_(gralloc),
-      handle_(handle),
-      type_(type) {
+    : drm_(drm), importer_(importer), handle_(handle), type_(type) {
   supported(__func__);
 }
 
@@ -242,7 +229,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
 
 HWC2::Error DrmHwcTwo::HwcDisplay::AcceptDisplayChanges() {
   supported(__func__);
-  uint32_t num_changes = 0;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
     l.second.accept_type_change();
   return HWC2::Error::None;
@@ -481,8 +467,7 @@ void DrmHwcTwo::HwcDisplay::AddFenceToRetireFence(int fd) {
   }
 }
 
-HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
-  supported(__func__);
+HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
   std::vector<DrmCompositionDisplayLayersMap> layers_map;
   layers_map.emplace_back();
   DrmCompositionDisplayLayersMap &map = layers_map.back();
@@ -492,17 +477,23 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   // order the layers by z-order
   bool use_client_layer = false;
-  uint32_t client_z_order = 0;
+  uint32_t client_z_order = UINT32_MAX;
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
-    switch (l.second.validated_type()) {
+    HWC2::Composition comp_type;
+    if (test)
+      comp_type = l.second.sf_type();
+    else
+      comp_type = l.second.validated_type();
+
+    switch (comp_type) {
       case HWC2::Composition::Device:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
         break;
       case HWC2::Composition::Client:
-        // Place it at the z_order of the highest client layer
+        // Place it at the z_order of the lowest client layer
         use_client_layer = true;
-        client_z_order = std::max(client_z_order, l.second.z_order());
+        client_z_order = std::min(client_z_order, l.second.z_order());
         break;
       default:
         continue;
@@ -511,20 +502,19 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (use_client_layer)
     z_map.emplace(std::make_pair(client_z_order, &client_layer_));
 
+  if (z_map.empty())
+    return HWC2::Error::BadLayer;
+
   // now that they're ordered by z, add them to the composition
   for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
     DrmHwcLayer layer;
     l.second->PopulateDrmLayer(&layer);
-    int ret = layer.ImportBuffer(importer_.get(), gralloc_);
+    int ret = layer.ImportBuffer(importer_.get());
     if (ret) {
       ALOGE("Failed to import layer, ret=%d", ret);
       return HWC2::Error::NoResources;
     }
     map.layers.emplace_back(std::move(layer));
-  }
-  if (map.layers.empty()) {
-    *retire_fence = -1;
-    return HWC2::Error::None;
   }
 
   std::unique_ptr<DrmDisplayComposition> composition =
@@ -540,8 +530,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
   std::vector<DrmPlane *> primary_planes(primary_planes_);
   std::vector<DrmPlane *> overlay_planes(overlay_planes_);
-  ret = composition->Plan(compositor_.squash_state(), &primary_planes,
-                         &overlay_planes);
+  ret = composition->Plan(&primary_planes, &overlay_planes);
   if (ret) {
     ALOGE("Failed to plan the composition ret=%d", ret);
     return HWC2::Error::BadConfig;
@@ -557,18 +546,32 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     i = overlay_planes.erase(i);
   }
 
-  ret = compositor_.QueueComposition(std::move(composition));
+  if (test) {
+    ret = compositor_.TestComposition(composition.get());
+  } else {
+    AddFenceToRetireFence(composition->take_out_fence());
+    ret = compositor_.ApplyComposition(std::move(composition));
+  }
   if (ret) {
-    ALOGE("Failed to apply the frame composition ret=%d", ret);
+    if (!test)
+      ALOGE("Failed to apply the frame composition ret=%d", ret);
     return HWC2::Error::BadParameter;
   }
+  return HWC2::Error::None;
+}
 
-  // Now that the release fences have been generated by the compositor, make
-  // sure they're managed properly
-  for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
-    l.second->manage_release_fence();
-    AddFenceToRetireFence(l.second->release_fence());
+HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
+  supported(__func__);
+  HWC2::Error ret;
+
+  ret = CreateComposition(false);
+  if (ret == HWC2::Error::BadLayer) {
+    // Can we really have no client or device layers?
+    *retire_fence = -1;
+    return HWC2::Error::None;
   }
+  if (ret != HWC2::Error::None)
+    return ret;
 
   // The retire fence returned here is for the last frame, so return it and
   // promote the next retire fence
@@ -593,7 +596,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
       compositor_.CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   int ret = composition->SetDisplayMode(*mode);
-  ret = compositor_.QueueComposition(std::move(composition));
+  ret = compositor_.ApplyComposition(std::move(composition));
   if (ret) {
     ALOGE("Failed to queue dpms composition on %d", ret);
     return HWC2::Error::BadConfig;
@@ -619,7 +622,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
 HWC2::Error DrmHwcTwo::HwcDisplay::SetClientTarget(buffer_handle_t target,
                                                    int32_t acquire_fence,
                                                    int32_t dataspace,
-                                                   hwc_region_t damage) {
+                                                   hwc_region_t /*damage*/) {
   supported(__func__);
   UniqueFd uf(acquire_fence);
 
@@ -673,7 +676,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
       compositor_.CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   composition->SetDpmsMode(dpms_value);
-  int ret = compositor_.QueueComposition(std::move(composition));
+  int ret = compositor_.ApplyComposition(std::move(composition));
   if (ret) {
     ALOGE("Failed to apply the dpms composition ret=%d", ret);
     return HWC2::Error::BadParameter;
@@ -690,23 +693,57 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
                                                    uint32_t *num_requests) {
   supported(__func__);
+  size_t plane_count = 0;
   *num_types = 0;
   *num_requests = 0;
+  size_t avail_planes = primary_planes_.size() + overlay_planes_.size();
+
+  HWC2::Error ret;
+
+  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
+    l.second.set_validated_type(HWC2::Composition::Invalid);
+
+  ret = CreateComposition(true);
+  if (ret != HWC2::Error::None)
+    // Assume the test failed due to overlay planes
+    avail_planes = 1;
+
+  std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
+  for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
+    if (l.second.sf_type() == HWC2::Composition::Device)
+      z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
+  }
+
+  /*
+   * If more layers then planes, save one plane
+   * for client composited layers
+   */
+  if (avail_planes < layers_.size())
+    avail_planes--;
+
+  for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
+    if (!avail_planes--)
+      break;
+    l.second->set_validated_type(HWC2::Composition::Device);
+  }
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     DrmHwcTwo::HwcLayer &layer = l.second;
     switch (layer.sf_type()) {
+      case HWC2::Composition::Device:
+        if (layer.validated_type() == HWC2::Composition::Device)
+          break;
+      // fall thru
       case HWC2::Composition::SolidColor:
       case HWC2::Composition::Cursor:
       case HWC2::Composition::Sideband:
+      default:
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
         break;
-      default:
-        layer.set_validated_type(layer.sf_type());
-        break;
     }
   }
-  return HWC2::Error::None;
+  return *num_types ? HWC2::Error::HasChanges : HWC2::Error::None;
 }
 
 HWC2::Error DrmHwcTwo::HwcLayer::SetCursorPosition(int32_t x, int32_t y) {
@@ -829,7 +866,7 @@ void DrmHwcTwo::HwcLayer::PopulateDrmLayer(DrmHwcLayer *layer) {
   layer->acquire_fence = acquire_fence_.Release();
   layer->release_fence = std::move(release_fence);
   layer->SetDisplayFrame(display_frame_);
-  layer->alpha = static_cast<uint8_t>(255.0f * alpha_ + 0.5f);
+  layer->alpha = static_cast<uint16_t>(65535.0f * alpha_ + 0.5f);
   layer->SetSourceCrop(source_crop_);
   layer->SetTransform(static_cast<int32_t>(transform_));
 }
