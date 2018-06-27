@@ -173,7 +173,7 @@ struct OverlayLayer {
   }
 
   bool IsVideoLayer() const {
-    return type_ == kLayerVideo;
+    return (type_ == kLayerVideo || type_ == kLayerProtected);
   }
 
   bool IsSolidColor() const {
@@ -188,7 +188,7 @@ struct OverlayLayer {
     // We set this to true only in case
     // of Media buffer. If this changes
     // in future, use appropriate checks.
-    return type_ == kLayerVideo;
+    return (type_ == kLayerVideo || type_ == kLayerProtected);
   }
 
   bool HasDimensionsChanged() const {
