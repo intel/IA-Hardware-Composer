@@ -106,10 +106,8 @@ void GpuDevice::RegisterHotPlugEventCallback(
 
 void GpuDevice::HandleHWCSettings() {
   // Handle config file reading
-  const char *hwc_dp_cfg_path = std::getenv("HWC_DISPLAY_CONFIG");
-  if (!hwc_dp_cfg_path) {
-    hwc_dp_cfg_path = "/vendor/etc/hwc_display.ini";
-  }
+  const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
+  ITRACE("Hwc display config file is %s", hwc_dp_cfg_path);
 
   bool use_logical = false;
   bool use_mosaic = false;
