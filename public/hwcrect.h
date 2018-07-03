@@ -58,6 +58,11 @@ struct Rect {
     return true;
   }
 
+  /**
+   * Check if bounds are unset
+   *
+   * @return True if all bounds are set to 0
+   */
   bool empty() const {
     for (int i = 0; i < 4; i++) {
       if (bounds[i] != 0)
@@ -66,6 +71,9 @@ struct Rect {
     return true;
   }
 
+  /**
+   * Set bounds to 0
+   */
   void reset() {
     for (int i = 0; i < 4; i++) {
       memset(&bounds, 0, sizeof(bounds));
