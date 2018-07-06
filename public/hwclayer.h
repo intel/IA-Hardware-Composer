@@ -255,9 +255,6 @@ struct HwcLayer {
 
  private:
   void Validate();
-  void UpdateRenderingDamage(const HwcRect<int>& old_rect,
-                             const HwcRect<int>& newrect, bool same_rect);
-
   void SetTotalDisplays(uint32_t total_displays);
   friend class VirtualDisplay;
   friend class PhysicalDisplay;
@@ -304,6 +301,7 @@ struct HwcLayer {
       kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
+  bool damage_dirty_ = true;
 };
 
 }  // namespace hwcomposer

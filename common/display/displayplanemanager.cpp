@@ -216,7 +216,6 @@ bool DisplayPlaneManager::ValidateLayers(
           if (layer->IsVideoLayer()) {
             last_plane.SetVideoPlane(true);
           }
-
           if (fall_back) {
             if (!validate_final_layers)
               validate_final_layers = !(last_plane.GetOffScreenTarget());

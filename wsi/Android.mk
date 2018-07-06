@@ -40,11 +40,16 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../os \
         $(LOCAL_PATH)/../os/android \
         $(LOCAL_PATH)/../wsi \
-	$(LOCAL_PATH)/../wsi/drm \
-	$(TARGET_OUT_HEADERS)/libva
+	$(LOCAL_PATH)/../wsi/drm
 
+ifeq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
+LOCAL_CPPFLAGS += -DDISABLE_VA
+else
 LOCAL_SHARED_LIBRARIES += \
 	libva
+LOCAL_C_INCLUDES += \
+	$(TARGET_OUT_HEADERS)/libva
+endif
 
 LOCAL_SRC_FILES := \
         physicaldisplay.cpp \

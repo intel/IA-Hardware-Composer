@@ -20,6 +20,8 @@
 
 #include <drm_mode.h>
 #include <hwctrace.h>
+#include <map>
+#include <vector>
 
 #include "hwcutils.h"
 
@@ -124,78 +126,35 @@ void OverlayLayer::SetTransform(uint32_t transform) {
 
 void OverlayLayer::ValidateTransform(uint32_t transform,
                                      uint32_t display_transform) {
-  if (transform & kTransform90) {
-    switch (display_transform) {
-      case HWCTransform::kTransform90:
-        plane_transform_ |= kTransform180;
-        break;
-      case HWCTransform::kTransform180:
-        plane_transform_ |= kTransform270;
-        break;
-      case HWCTransform::kIdentity:
-        plane_transform_ |= kTransform90;
-        if (transform & kReflectX) {
-          plane_transform_ |= kReflectX;
-        }
+  std::map<int, int> tmap = {{kIdentity, 0},
+                             {kTransform90, 1},
+                             {kTransform180, 2},
+                             {kTransform270, 3}};
+  std::vector<int> inv_tmap = {kIdentity, kTransform90, kTransform180,
+                               kTransform270};
 
-        if (transform & kReflectY) {
-          plane_transform_ |= kReflectY;
-        }
-        break;
-      default:
-        break;
-    }
-  } else if (transform & kTransform180) {
-    switch (display_transform) {
-      case HWCTransform::kTransform90:
-        plane_transform_ |= kTransform270;
-        break;
-      case HWCTransform::kTransform270:
-        plane_transform_ |= kTransform90;
-        break;
-      case HWCTransform::kIdentity:
-        plane_transform_ |= kTransform180;
-        break;
-      default:
-        break;
-    }
-  } else if (transform & kTransform270) {
-    switch (display_transform) {
-      case HWCTransform::kTransform270:
-        plane_transform_ |= kTransform180;
-        break;
-      case HWCTransform::kTransform180:
-        plane_transform_ |= kTransform90;
-        break;
-      case HWCTransform::kIdentity:
-        plane_transform_ |= kTransform270;
-        break;
-      default:
-        break;
-    }
+  int mtransform =
+      transform & (kIdentity | kTransform90 | kTransform180 | kTransform270);
+  if (tmap.find(mtransform) != tmap.end()) {
+    mtransform = tmap[mtransform];
   } else {
-    if (display_transform & HWCTransform::kTransform90) {
-      if (transform & kReflectX) {
-        plane_transform_ |= kReflectX;
-      }
+    // reaching here indicates that transform is
+    // is an OR of multiple values
+    // Assign Identity in this case
+    mtransform = kIdentity;
+  }
 
-      if (transform & kReflectY) {
-        plane_transform_ |= kReflectY;
-      }
+  // The elements {0, 1, 2, 3} form a circulant matrix under mod 4 arithmetic
+  mtransform = (mtransform + display_transform) % 4;
+  mtransform = inv_tmap[mtransform];
+  plane_transform_ = mtransform;
 
-      plane_transform_ |= kTransform90;
-    } else {
-      switch (display_transform) {
-        case HWCTransform::kTransform270:
-          plane_transform_ |= kTransform270;
-          break;
-        case HWCTransform::kTransform180:
-          plane_transform_ |= kTransform180;
-          break;
-        default:
-          break;
-      }
-    }
+  if (plane_transform_ & kTransform90) {
+    if (transform & kReflectX)
+      plane_transform_ |= kReflectX;
+
+    if (transform & kReflectY)
+      plane_transform_ |= kReflectY;
   }
 }
 
@@ -248,23 +207,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       const std::shared_ptr<OverlayBuffer>& buffer = imported_buffer_->buffer_;
       surface_damage_.right = surface_damage_.left + buffer->GetWidth();
       surface_damage_.bottom = surface_damage_.top + buffer->GetHeight();
-    } else {
-      switch (plane_transform_) {
-        case HWCTransform::kTransform270:
-        case HWCTransform::kTransform90: {
-          bool swap = true;
-          if (surface_damage_ == display_frame_) {
-            swap = false;
-          }
-
-          if (swap) {
-            std::swap(surface_damage_.right, surface_damage_.bottom);
-          }
-          break;
-        }
-        default:
-          break;
-      }
     }
   }
 
