@@ -697,6 +697,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   *num_types = 0;
   *num_requests = 0;
   size_t avail_planes = primary_planes_.size() + overlay_planes_.size();
+  bool comp_failed = false;
 
   HWC2::Error ret;
 
@@ -705,8 +706,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
   ret = CreateComposition(true);
   if (ret != HWC2::Error::None)
-    // Assume the test failed due to overlay planes
-    avail_planes = 1;
+    comp_failed = true;
 
   std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
@@ -722,7 +722,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     avail_planes--;
 
   for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
-    if (!avail_planes--)
+    if (comp_failed || !avail_planes--)
       break;
     l.second->set_validated_type(HWC2::Composition::Device);
   }
