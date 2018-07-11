@@ -693,7 +693,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
                                                    uint32_t *num_requests) {
   supported(__func__);
-  size_t plane_count = 0;
   *num_types = 0;
   *num_requests = 0;
   size_t avail_planes = primary_planes_.size() + overlay_planes_.size();

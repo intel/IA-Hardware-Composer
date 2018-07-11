@@ -19,11 +19,6 @@ LOCAL_PATH := $(call my-dir)
 common_drm_hwcomposer_cflags := \
     -Wall \
     -Werror \
-    -Wno-unused-function \
-    -Wno-unused-label \
-    -Wno-unused-parameter \
-    -Wno-unused-private-field \
-    -Wno-unused-variable \
 
 # =====================
 # libdrmhwc_utils.a

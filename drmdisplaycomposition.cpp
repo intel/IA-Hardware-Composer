@@ -107,7 +107,6 @@ int DrmDisplayComposition::Plan(std::vector<DrmPlane *> *primary_planes,
     to_composite.emplace(std::make_pair(i, &layers_[i]));
 
   int ret;
-  std::vector<DrmCompositionPlane> plan;
   std::tie(ret, composition_planes_) = planner_->ProvisionPlanes(
       to_composite, crtc_, primary_planes, overlay_planes);
   if (ret) {
