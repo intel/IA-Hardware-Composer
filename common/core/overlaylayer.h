@@ -180,6 +180,19 @@ struct OverlayLayer {
     return type_ == kLayerSolidColor;
   }
 
+  bool IsProtected() const {
+    return type_ == kLayerProtected;
+  }
+
+  void SetProtected(bool protected) {
+    if (protected && type_ == kLayerVideo)
+      type_ = kLayerProtcted;
+    if (!protected && type == kLayerProtected)
+      type_ = kLayerVideo;
+    else
+      type_ = kLayerNormal;
+  }
+
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in
