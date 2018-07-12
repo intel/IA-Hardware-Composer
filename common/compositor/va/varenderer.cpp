@@ -250,6 +250,13 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     return false;
   }
 
+  // Set the protected status to output layer if input layer is protected
+  if (state.layer_->IsProtected()) {
+    layer_out->SetProtected(true);
+  } else {
+    layer_out->SetProtected(false);
+  }
+
   VARectangle surface_region;
   const OverlayLayer* layer_in = state.layer_;
   const HwcRect<float>& source_crop = layer_in->GetSourceCrop();

@@ -194,6 +194,12 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     in_fence_fd_prop_.id = 0;
   }
 
+  ret = rrb2_prop_.Initialize(gpu_fd, "RRB2", plane_propes);
+  if (!ret) {
+    ETRACE("Cound not get RRB2 property");
+    rrb2_prop_.id = 0;
+  }
+
   // query and store supported modifiers for format, from in_formats
   // property
   uint64_t in_formats_prop_value = 0;
@@ -313,6 +319,12 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                         layer->GetSourceCropWidth() << 16) < 0;
     success |= drmModeAtomicAddProperty(property_set, id_, src_h_prop_.id,
                                         layer->GetSourceCropHeight() << 16) < 0;
+  }
+
+  if (layer->IsProtected()) {
+    sucess |= drmModeAtomicAddProperty(property_set, id_, rrb2_prop_.id, 1) < 0;
+  } else {
+    sucess |= drmModeAtomicAddProperty(property_set, id_, rrb2_prop_.id, 0) < 0;
   }
 
   if (rotation_prop_.id) {
