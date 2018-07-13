@@ -80,6 +80,7 @@ class IAHWC : public iahwc_device {
     IAHWCDisplay();
     ~IAHWCDisplay();
     int Init(hwcomposer::NativeDisplay* display, uint32_t gpu_fd);
+    int GetConnectionStatus(int32_t* status);
     int GetDisplayInfo(uint32_t config, int attribute, int32_t* value);
     int GetDisplayName(uint32_t* size, char* name);
     int GetDisplayConfigs(uint32_t* num_configs, uint32_t* configs);
