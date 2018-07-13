@@ -62,6 +62,15 @@
 #define GBM_BO_USE_CURSOR GBM_BO_USE_CURSOR_64X64
 #endif
 
+#define MAX_CLONED_CONNECTORS 1
+
+struct iahwc_head {
+  struct weston_head base;
+  struct iahwc_backend *backend;
+  uint32_t *mode_configs;
+  uint32_t num_configs;
+};
+
 // Spin Lock related functions.
 struct iahwc_spinlock {
   int atomic_lock;
@@ -105,6 +114,7 @@ struct iahwc_backend {
 
   IAHWC_PFN_GET_NUM_DISPLAYS iahwc_get_num_displays;
   IAHWC_PFN_REGISTER_CALLBACK iahwc_register_callback;
+  IAHWC_PFN_DISPLAY_GET_CONNECTION_STATUS iahwc_display_get_connection_status;
   IAHWC_PFN_DISPLAY_GET_INFO iahwc_get_display_info;
   IAHWC_PFN_DISPLAY_GET_NAME iahwc_get_display_name;
   IAHWC_PFN_DISPLAY_GET_CONFIGS iahwc_get_display_configs;
@@ -215,13 +225,16 @@ static inline struct iahwc_output *to_iahwc_output(struct weston_output *base) {
   return container_of(base, struct iahwc_output, base);
 }
 
+static inline struct iahwc_head *to_iahwc_head(struct weston_head *base) {
+  return container_of(base, struct iahwc_head, base);
+}
+
 static inline struct iahwc_backend *to_iahwc_backend(
     struct weston_compositor *base) {
   return container_of(base->backend, struct iahwc_backend, base);
 }
 
-static void frame_done(void *data) {
-  struct iahwc_output *output = data;
+static void frame_done(struct iahwc_output *output) {
   struct timespec ts;
 
   uint32_t flags = WP_PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
@@ -229,6 +242,17 @@ static void frame_done(void *data) {
                    WP_PRESENTATION_FEEDBACK_KIND_VSYNC;
   weston_compositor_read_presentation_clock(output->base.compositor, &ts);
   weston_output_finish_frame(&output->base, &ts, flags);
+}
+
+static int frame_done_fd(int fd, unsigned int mask, void *data) {
+  struct iahwc_output *output = data;
+  frame_done(output);
+  return 0;
+}
+
+static void frame_done_idle(void *data) {
+  struct iahwc_output *output = data;
+  frame_done(output);
 }
 
 /**
@@ -302,10 +326,10 @@ static int iahwc_output_repaint(struct weston_output *output_base,
 
   if (output->release_fence > 0) {
     output->release_fence_source = wl_event_loop_add_fd(
-        loop, output->release_fence, WL_EVENT_READABLE, frame_done, output);
+        loop, output->release_fence, WL_EVENT_READABLE, frame_done_fd, output);
   } else {
     // when release fence is -1, immediately call frame_done
-    wl_event_loop_add_idle(loop, frame_done, output);
+    wl_event_loop_add_idle(loop, frame_done_idle, output);
   }
 
   lock(&output->spin_lock);
@@ -595,7 +619,7 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
   struct wl_resource *buffer_resource;
   struct weston_plane *p = &output->overlay_plane;
   struct linux_dmabuf_buffer *dmabuf;
-  struct gbm_bo *bo;
+  struct gbm_bo *bo = NULL;
   struct wl_shm_buffer *shmbuf;
   pixman_region32_t dest_rect, src_rect;
   pixman_box32_t *box, tbox;
@@ -887,14 +911,14 @@ static struct weston_plane *iahwc_output_prepare_overlay_view(
  * @param info IAHWC mode structure to add
  * @returns Newly-allocated Weston/IAHWC mode structure
  */
-static struct iahwc_mode *iahwc_output_add_mode(struct iahwc_backend *b,
-                                                struct iahwc_output *output,
-                                                int config_id) {
+static int iahwc_output_add_mode(struct iahwc_backend *b,
+                                 struct iahwc_output *output, int config_id) {
   struct iahwc_mode *mode;
+  int refresh;
 
   mode = malloc(sizeof *mode);
   if (mode == NULL)
-    return NULL;
+    return -1;
 
   mode->base.flags = 0;
   b->iahwc_get_display_info(b->iahwc_device, 0, config_id, IAHWC_CONFIG_WIDTH,
@@ -902,17 +926,13 @@ static struct iahwc_mode *iahwc_output_add_mode(struct iahwc_backend *b,
   b->iahwc_get_display_info(b->iahwc_device, 0, config_id, IAHWC_CONFIG_HEIGHT,
                             &mode->base.height);
   b->iahwc_get_display_info(b->iahwc_device, 0, config_id,
-                            IAHWC_CONFIG_REFRESHRATE, &mode->base.refresh);
-
+                            IAHWC_CONFIG_REFRESHRATE, &refresh);
+  mode->base.refresh = refresh;
   mode->config_id = config_id;
-
-  // XXX/TODO: Get current mode and set preffered mode flag.
-  /* if (info->type & IAHWC_MODE_TYPE_PREFERRED) */
-  /* 	mode->base.flags |= WL_OUTPUT_MODE_PREFERRED; */
 
   wl_list_insert(output->base.mode_list.prev, &mode->base.link);
 
-  return mode;
+  return 0;
 }
 
 static int iahwc_subpixel_to_wayland(int iahwc_value) {
@@ -1055,7 +1075,7 @@ static void iahwc_set_dpms(struct weston_output *output_base,
                            enum dpms_enum level) {
   struct iahwc_output *output = to_iahwc_output(output_base);
   struct iahwc_backend *b = to_iahwc_backend(output_base->compositor);
-  uint32_t power_level;
+  uint32_t power_level = 0;
 
   if (output->current_dpms == level)
     return;
@@ -1113,14 +1133,25 @@ static struct iahwc_mode *iahwc_output_choose_initial_mode(
   return NULL;
 }
 
-// XXX/TODO: rewrite this to suit iahwc
 static int iahwc_output_set_mode(struct weston_output *base,
                                  enum weston_iahwc_backend_output_mode mode,
                                  const char *modeline) {
   struct iahwc_output *output = to_iahwc_output(base);
   struct iahwc_backend *b = to_iahwc_backend(base->compositor);
-
+  struct weston_head *head_base;
   struct iahwc_mode *current;
+  struct iahwc_head *head;
+  uint32_t i;
+  int ret;
+
+  wl_list_for_each(head_base, &output->base.head_list, output_link) {
+    head = to_iahwc_head(head_base);
+    for (i = 0; i < head->num_configs; i++) {
+      ret = iahwc_output_add_mode(b, output, head->mode_configs[i]);
+      if (ret < 0)
+        return -1;
+    }
+  }
 
   current = iahwc_output_choose_initial_mode(b, output, mode, modeline);
   if (!current)
@@ -1200,9 +1231,6 @@ static int iahwc_output_enable(struct weston_output *base) {
   output->current_dpms = WESTON_DPMS_ON;
 
   return 0;
-
-err:
-  return -1;
 }
 
 static void iahwc_output_deinit(struct weston_output *base) {
@@ -1216,11 +1244,11 @@ static void iahwc_output_deinit(struct weston_output *base) {
 
 static void iahwc_output_destroy(struct weston_output *base) {
   struct iahwc_output *output = to_iahwc_output(base);
-  struct iahwc_mode *iahwc_mode, *next;
+  struct iahwc_mode *mode, *next;
 
-  wl_list_for_each_safe(iahwc_mode, next, &output->base.mode_list, base.link) {
-    wl_list_remove(&iahwc_mode->base.link);
-    free(iahwc_mode);
+  wl_list_for_each_safe(mode, next, &output->base.mode_list, base.link) {
+    wl_list_remove(&mode->base.link);
+    free(mode);
   }
 
   iahwc_overlay_destroy(output, 0);
@@ -1257,90 +1285,44 @@ static int pixel_uploader_callback(iahwc_callback_data_t data,
   return 0;
 }
 
-/**
- * Create a Weston output structure
- *
- * Given a IAHWC connector, create a matching iahwc_output structure and add it
- * to Weston's output list. It also takes ownership of the connector, which
- * is released when output is destroyed.
- *
- * @param b Weston backend structure
- * @param resources IAHWC resources for this device
- * @param connector IAHWC connector to use for this new output
- * @param iahwc_device udev device pointer
- * @returns 0 on success, or -1 on failure
- */
-// XXX?TODO: Rename this function
-static int create_output_for_connector(struct iahwc_backend *b) {
+static int iahwc_output_attach_head(struct weston_output *output_base,
+                                    struct weston_head *head_base) {
+  if (wl_list_length(&output_base->head_list) >= MAX_CLONED_CONNECTORS)
+    return -1;
+
+  if (!output_base->enabled)
+    return 0;
+
+  weston_output_schedule_repaint(output_base);
+
+  return 0;
+}
+
+static void iahwc_output_detach_head(struct weston_output *output_base,
+                                     struct weston_head *head_base) {
+  if (!output_base->enabled)
+    return;
+
+  weston_output_schedule_repaint(output_base);
+}
+
+static struct weston_output *iahwc_output_create(
+    struct weston_compositor *compositor, const char *name) {
+  struct iahwc_backend *b = to_iahwc_backend(compositor);
   struct iahwc_output *output;
-  struct iahwc_mode *iahwc_mode;
-  char *name;
-  const char *make = "unknown";
-  const char *model = "unknown";
-  const char *serial_number = "unknown";
-  int i, num_displays;
-  uint32_t size, num_configs;
-  uint32_t *configs;
   int ret;
 
   output = zalloc(sizeof *output);
   if (output == NULL)
-    goto err;
+    return NULL;
 
-  b->iahwc_get_num_displays(b->iahwc_device, &num_displays);
-
-  if (num_displays < 1) {
-    weston_log("Unable to find any connected displays");
-    goto err;
-  }
-  /* output->backlight = backlight_init(iahwc_device, */
-  /* 				   connector->connector_type); */
-
-  // XXX/TODO: support more than one display
-
-  b->iahwc_get_display_name(b->iahwc_device, 0, &size, NULL);
-  weston_log("Size of name is %d\n", size);
-  name = (char *)calloc(size + 1, sizeof(char));
-  b->iahwc_get_display_name(b->iahwc_device, 0, &size, name);
-  name[size] = '\0';
-
-  weston_log("Name of the display is %s\n", name);
-
-  weston_output_init(&output->base, b->compositor, name);
-  free(name);
+  weston_output_init(&output->base, compositor, name);
 
   output->base.enable = iahwc_output_enable;
   output->base.destroy = iahwc_output_destroy;
   output->base.disable = iahwc_output_disable;
-
-  output->base.make = (char *)make;
-  output->base.model = (char *)model;
-  output->base.serial_number = (char *)serial_number;
-  output->base.subpixel = iahwc_subpixel_to_wayland(DRM_MODE_SUBPIXEL_UNKNOWN);
-
-  output->base.connection_internal = true;
-  lock(&output->spin_lock);
-  output->state_invalid = true;
-  unlock(&output->spin_lock);
-
-  wl_list_init(&output->overlay_list);
-
-  b->iahwc_get_display_configs(b->iahwc_device, 0, &num_configs, NULL);
-  configs = (uint32_t *)calloc(num_configs, sizeof(uint32_t));
-  b->iahwc_get_display_configs(b->iahwc_device, 0, &num_configs, configs);
-
-  b->iahwc_get_display_info(b->iahwc_device, 0, configs[0], IAHWC_CONFIG_DPIX,
-                            &output->base.mm_width);
-  b->iahwc_get_display_info(b->iahwc_device, 0, configs[0], IAHWC_CONFIG_DPIY,
-                            &output->base.mm_height);
-
-  for (i = 0; i < num_configs; i++) {
-    iahwc_mode = iahwc_output_add_mode(b, output, configs[i]);
-    if (!iahwc_mode) {
-      iahwc_output_destroy(&output->base);
-      return -1;
-    }
-  }
+  output->base.attach_head = iahwc_output_attach_head;
+  output->base.detach_head = iahwc_output_detach_head;
 
   ret = b->iahwc_register_callback(
       b->iahwc_device, IAHWC_CALLBACK_PIXEL_UPLOADER, 0, output,
@@ -1349,32 +1331,117 @@ static int create_output_for_connector(struct iahwc_backend *b) {
     weston_log("unable to register pixel uploader callback\n");
   }
 
+  lock(&output->spin_lock);
+  output->state_invalid = true;
+  unlock(&output->spin_lock);
+
+  wl_list_init(&output->overlay_list);
+
   weston_compositor_add_pending_output(&output->base, b->compositor);
 
-  return 0;
-
-err:
-
-  return -1;
+  return &output->base;
 }
 
-static int create_outputs(struct iahwc_backend *b) {
-  create_output_for_connector(b);
+static void iahwc_head_destroy(struct iahwc_head *head) {
+  weston_head_release(&head->base);
+  free(head->mode_configs);
+  free(head);
+}
 
-  if (wl_list_empty(&b->compositor->output_list) &&
-      wl_list_empty(&b->compositor->pending_output_list))
-    weston_log("No currently active connector found.\n");
+static struct iahwc_head *iahwc_head_create(struct iahwc_backend *backend) {
+  struct iahwc_head *head;
+  char *name;
+  const char *make = "unknown";
+  const char *model = "unknown";
+  const char *serial_number = "unknown";
+  uint32_t num_configs, size;
+  int mm_width;
+  int mm_height;
+  int connection_status;
+
+  head = zalloc(sizeof *head);
+  if (!head)
+    return NULL;
+
+  backend->iahwc_get_display_name(backend->iahwc_device, 0, &size, NULL);
+  name = (char *)calloc(size + 1, sizeof(char));
+  backend->iahwc_get_display_name(backend->iahwc_device, 0, &size, name);
+  name[size] = '\0';
+
+  weston_log("Name of the display is %s\n", name);
+
+  weston_head_init(&head->base, name);
+  free(name);
+
+  head->backend = backend;
+  head->mode_configs = NULL;
+  head->num_configs = 0;
+
+  backend->iahwc_get_display_configs(backend->iahwc_device, 0, &num_configs,
+                                     NULL);
+  head->mode_configs = (uint32_t *)calloc(num_configs, sizeof(uint32_t));
+  head->num_configs = num_configs;
+  backend->iahwc_get_display_configs(backend->iahwc_device, 0, &num_configs,
+                                     head->mode_configs);
+
+  backend->iahwc_get_display_info(backend->iahwc_device, 0,
+                                  head->mode_configs[0], IAHWC_CONFIG_DPIX,
+                                  &mm_width);
+  backend->iahwc_get_display_info(backend->iahwc_device, 0,
+                                  head->mode_configs[0], IAHWC_CONFIG_DPIY,
+                                  &mm_height);
+
+  // XXX:TODO: get these details from iahwc
+  weston_head_set_monitor_strings(&head->base, make, model, serial_number);
+  weston_head_set_subpixel(&head->base, WL_OUTPUT_SUBPIXEL_UNKNOWN);
+
+  weston_head_set_physical_size(&head->base, mm_width, mm_height);
+
+  backend->iahwc_display_get_connection_status(backend->iahwc_device, 0,
+                                               &connection_status);
+  weston_head_set_connection_status(&head->base, connection_status);
+
+  // XXX:TODO: check if the connector is internal or external?
+
+  weston_compositor_add_head(backend->compositor, &head->base);
+  /* iahwc_head_log_info(head, "found"); */
+
+  return head;
+}
+
+static int iahwc_create_heads(struct iahwc_backend *b) {
+  struct iahwc_head *head;
+  int num_displays;
+  int i;
+
+  b->iahwc_get_num_displays(b->iahwc_device, &num_displays);
+
+  if (num_displays < 1) {
+    weston_log("Unable to find any connected displays");
+    return -1;
+  }
+
+  for (i = 0; i < num_displays; i++) {
+    head = iahwc_head_create(b);
+    if (!head) {
+      weston_log("IAHWC: failed to create head for display %d.\n", i);
+    }
+  }
 
   return 0;
 }
 
 static void iahwc_destroy(struct weston_compositor *ec) {
   struct iahwc_backend *b = to_iahwc_backend(ec);
+  struct weston_head *base, *next;
 
   udev_input_destroy(&b->input);
 
   wl_event_source_remove(b->udev_iahwc_source);
   wl_event_source_remove(b->iahwc_source);
+
+  wl_list_for_each_safe(base, next, &ec->head_list, compositor_link)
+      iahwc_head_destroy(to_iahwc_head(base));
 
   weston_compositor_shutdown(ec);
 
@@ -1480,6 +1547,9 @@ static struct iahwc_backend *iahwc_backend_create(
   b->iahwc_destroy_layer =
       (IAHWC_PFN_DESTROY_LAYER)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_DESTROY_LAYER);
+  b->iahwc_display_get_connection_status =
+      (IAHWC_PFN_DISPLAY_GET_CONNECTION_STATUS)iahwc_device->getFunctionPtr(
+          iahwc_device, IAHWC_FUNC_DISPLAY_GET_CONNECTION_STATUS);
   b->iahwc_get_display_info =
       (IAHWC_PFN_DISPLAY_GET_INFO)iahwc_device->getFunctionPtr(
           iahwc_device, IAHWC_FUNC_DISPLAY_GET_INFO);
@@ -1572,11 +1642,6 @@ static struct iahwc_backend *iahwc_backend_create(
   if (config->seat_id)
     seat_id = config->seat_id;
 
-  if (create_outputs(b) < 0) {
-    weston_log("failed to create output");
-    goto err_compositor;
-  }
-
   // session_notification XXX?TODO: make necessary changes
   b->session_listener.notify = session_notify;
   wl_signal_add(&compositor->session_signal, &b->session_listener);
@@ -1595,10 +1660,16 @@ static struct iahwc_backend *iahwc_backend_create(
   b->base.repaint_begin = iahwc_repaint_begin;
   b->base.repaint_flush = iahwc_repaint_flush;
   b->base.repaint_cancel = iahwc_repaint_cancel;
+  b->base.create_output = iahwc_output_create;
 
   if (udev_input_init(&b->input, compositor, b->udev, seat_id,
                       config->configure_device) < 0) {
     weston_log("failed to create input devices\n");
+    goto err_compositor;
+  }
+
+  if (iahwc_create_heads(b) < 0) {
+    weston_log("Failed to create heads. No devices connected?");
     goto err_compositor;
   }
 

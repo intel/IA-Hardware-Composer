@@ -81,6 +81,7 @@ enum iahwc_function_descriptors {
   IAHWC_FUNC_INVALID = 0,
   IAHWC_FUNC_GET_NUM_DISPLAYS,
   IAHWC_FUNC_REGISTER_CALLBACK,
+  IAHWC_FUNC_DISPLAY_GET_CONNECTION_STATUS,
   IAHWC_FUNC_DISPLAY_GET_INFO,
   IAHWC_FUNC_DISPLAY_GET_NAME,
   IAHWC_FUNC_DISPLAY_GET_CONFIGS,
@@ -145,6 +146,8 @@ typedef int (*IAHWC_PFN_REGISTER_CALLBACK)(iahwc_device_t*, int descriptor,
                                            iahwc_display_t display_handle,
                                            iahwc_callback_data_t data,
                                            iahwc_function_ptr_t hook);
+typedef int (*IAHWC_PFN_DISPLAY_GET_CONNECTION_STATUS)(
+    iahwc_device_t*, iahwc_display_t display_handle, int32_t* status);
 typedef int (*IAHWC_PFN_DISPLAY_GET_INFO)(iahwc_device_t*,
                                           iahwc_display_t display_handle,
                                           uint32_t config, int attribute,
