@@ -102,19 +102,12 @@ inline HwcRect<int> Intersection(const hwcomposer::HwcRect<int>& rect1,
   HwcRect<int> rect = {0, 0, 0, 0};
 
   int lmax = std::max(rect1.left, rect2.left);
-  int rmax = std::max(rect1.right, rect2.right);
   int tmax = std::max(rect1.top, rect2.top);
-  int bmax = std::max(rect1.bottom, rect2.bottom);
 
-  int lmin = std::min(rect1.left, rect2.left);
   int rmin = std::min(rect1.right, rect2.right);
-  int tmin = std::min(rect1.top, rect2.top);
   int bmin = std::min(rect1.bottom, rect2.bottom);
 
-  if (lmax == rmax || tmax == bmax)
-    return rect;
-
-  if (lmin == rmin || tmin == bmin)
+  if (rmin < lmax || bmin < tmax)
     return rect;
 
   rect.left = lmax;

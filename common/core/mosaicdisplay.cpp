@@ -16,6 +16,7 @@
 
 #include "mosaicdisplay.h"
 
+#include <libsync.h>
 #include <sstream>
 #include <string>
 
@@ -120,7 +121,6 @@ bool MosaicDisplay::SetActiveConfig(uint32_t config) {
   }
 
   uint32_t avg = 0;
-  int32_t previous_refresh = 0;
   for (uint32_t i = 0; i < size; i++) {
     int32_t dpix = 0;
     int32_t dpiy = 0;
@@ -136,8 +136,6 @@ bool MosaicDisplay::SetActiveConfig(uint32_t config) {
     dpix_ += dpix;
     dpiy_ += dpiy;
     refresh_ += refresh;
-    if (previous_refresh < refresh)
-      preferred_display_index_ = i;
 
     avg++;
   }
@@ -180,17 +178,9 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   if (update_connected_displays_) {
     std::vector<NativeDisplay *>().swap(connected_displays_);
     uint32_t size = physical_displays_.size();
-    int32_t previous_refresh = 0;
     for (uint32_t i = 0; i < size; i++) {
       if (physical_displays_.at(i)->IsConnected()) {
         connected_displays_.emplace_back(physical_displays_.at(i));
-        for (uint32_t i = 0; i < size; i++) {
-          int32_t refresh = 0;
-          physical_displays_.at(i)->GetDisplayAttribute(
-              config_, HWCDisplayAttribute::kRefreshRate, &refresh);
-          if (previous_refresh < refresh)
-            preferred_display_index_ = i;
-        }
       }
     }
     update_connected_displays_ = false;
@@ -200,6 +190,7 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   int32_t left_constraint = 0;
   size_t total_layers = source_layers.size();
   int32_t fence = -1;
+  *retire_fence = -1;
   for (uint32_t i = 0; i < size; i++) {
     NativeDisplay *display = connected_displays_.at(i);
     int32_t right_constraint = left_constraint + display->Width();
@@ -234,10 +225,17 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     display->Present(layers, &fence, call_back, true);
     IMOSAICDISPLAYTRACE("Present called for Display index %d \n", i);
-    if (fence > 0 && (i != preferred_display_index_)) {
-      close(fence);
-    } else {
-      *retire_fence = fence;
+    if (fence > 0) {
+      if (*retire_fence < 0) {
+        *retire_fence = fence;
+      } else {
+        int ret = sync_accumulate("iahwc_mosaic_fence", retire_fence, fence);
+        if (ret) {
+          ETRACE("Unable to merge fences");
+          *retire_fence = -1;
+        }
+        close(fence);
+      }
     }
 
     left_constraint = right_constraint;

@@ -59,14 +59,14 @@ script:
 - popd
 
 #clone and build libva : dependency
-- git clone https://github.com/android-ia/libva.git /tmp/libva
+- git clone https://github.com/projectceladon/libva.git /tmp/libva
 - pushd /tmp/libva
 - ./autogen.sh --prefix=$WLD
 - make -j5 && make install
 - popd
 
 #clone and build vaapi : dependency
-- git clone https://github.com/android-ia/vaapi.git /tmp/vaapi
+- git clone https://github.com/projectceladon/vaapi.git /tmp/vaapi
 - pushd /tmp/vaapi
 - ./autogen.sh --prefix=$WLD
 - make -j5 && make install

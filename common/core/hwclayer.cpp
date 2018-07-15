@@ -330,6 +330,11 @@ const HwcRect<int>& HwcLayer::GetLayerDamage() {
     return current_rendering_damage_;
   }
 
+  if (surface_damage_ == display_frame_) {
+    current_rendering_damage_ = display_frame_;
+    return current_rendering_damage_;
+  }
+
   current_rendering_damage_.reset();
 
   int ox = 0, oy = 0;
