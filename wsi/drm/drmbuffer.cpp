@@ -24,6 +24,7 @@
 #include <hwcdefs.h>
 #include <nativebufferhandler.h>
 
+#include "framebuffermanager.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"

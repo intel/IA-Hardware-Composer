@@ -127,6 +127,7 @@ LOCAL_CPPFLAGS += \
         -Wall -Wsign-compare -Wpointer-arith \
         -Wcast-qual -Wcast-align \
 	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
+        -DHWC_DISPLAY_INI_PATH='"/vendor/etc/hwc_display.ini"' \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -O3
 

@@ -136,6 +136,10 @@ iahwc_function_ptr_t IAHWC::HookGetFunctionPtr(iahwc_device_t* /* device */,
           DeviceHook<int32_t, decltype(&IAHWC::RegisterCallback),
                      &IAHWC::RegisterCallback, int, uint32_t,
                      iahwc_callback_data_t, iahwc_function_ptr_t>);
+    case IAHWC_FUNC_DISPLAY_GET_CONNECTION_STATUS:
+      return ToHook<IAHWC_PFN_DISPLAY_GET_CONNECTION_STATUS>(
+          DisplayHook<decltype(&IAHWCDisplay::GetConnectionStatus),
+                      &IAHWCDisplay::GetConnectionStatus, int32_t*>);
     case IAHWC_FUNC_DISPLAY_GET_INFO:
       return ToHook<IAHWC_PFN_DISPLAY_GET_INFO>(
           DisplayHook<decltype(&IAHWCDisplay::GetDisplayInfo),
@@ -295,6 +299,12 @@ int IAHWC::IAHWCDisplay::Init(hwcomposer::NativeDisplay* display,
   raw_data_uploader_ =
       new PixelUploader(native_display_->GetNativeBufferHandler());
   return 0;
+}
+
+int IAHWC::IAHWCDisplay::GetConnectionStatus(int32_t* value) {
+  *value = IsConnected();
+
+  return IAHWC_ERROR_NONE;
 }
 
 int IAHWC::IAHWCDisplay::GetDisplayInfo(uint32_t config, int attribute,

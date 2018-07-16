@@ -15,6 +15,7 @@
 */
 
 #include <hwclayer.h>
+#include <libsync.h>
 
 #include <cmath>
 
@@ -162,11 +163,15 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
 
 void HwcLayer::SetReleaseFence(int32_t fd) {
   if (release_fd_ > 0) {
-    close(release_fd_);
-    release_fd_ = -1;
-  }
-
-  release_fd_ = fd;
+    if (fd != -1) {
+      int ret = sync_accumulate("iahwc_release_layerfence", &release_fd_, fd);
+      if (ret) {
+        ETRACE("Unable to merge layer release fence");
+        release_fd_ = -1;
+      }
+    }
+  } else
+    release_fd_ = fd;
 }
 
 int32_t HwcLayer::GetReleaseFence() {
@@ -327,6 +332,11 @@ bool HwcLayer::IsCursorLayer() const {
 
 const HwcRect<int>& HwcLayer::GetLayerDamage() {
   if (!damage_dirty_) {
+    return current_rendering_damage_;
+  }
+
+  if (surface_damage_ == display_frame_) {
+    current_rendering_damage_ = display_frame_;
     return current_rendering_damage_;
   }
 
