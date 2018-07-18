@@ -83,17 +83,51 @@ class FrameBufferManager {
     PurgeAllFBs();
   }
 
+  /**
+  * Register the num planes and gem handles with FBKey and add pair to fb_map_.
+  *
+  * @param num_planes number of planes to represent.
+  * @param igem_handle array of graphics execution manager handles from image.
+  */
   void RegisterGemHandles(const uint32_t &num_planes,
                           const uint32_t (&igem_handles)[4]);
+  /**
+  * Find the frame buffer and return its id.
+  *
+  * Take the num_planes and igem_handles parameter and pass to FBKey to check
+  * for the registered gem handle. If we aren't at the end of the map and a
+  * framebuffer has not been created yet than we create one.
+  * @param iwidth the width specified by the drmbuffer.
+  * @param iheight the height specified by the drmbuffer.
+  * @param modifier a flag used to specify if a modifier will be used.
+  * @param iframe_buffer_format enumerated value from supported drm formats.
+  * @param num_planes number of planes to represent.
+  * @param igem_handle array of graphics execution manager handles from image.
+  * @param ipitches array of pitch values.
+  * @param ioffsets array of offset values.
+  * @return 0 if the framebuffer is not found.
+  * @return the id of the framebuffer if the framebuffer exists.
+  */
   uint32_t FindFB(const uint32_t &iwidth, const uint32_t &iheight,
                   const uint64_t &modifier,
                   const uint32_t &iframe_buffer_format,
                   const uint32_t &num_planes, const uint32_t (&igem_handles)[4],
                   const uint32_t (&ipitches)[4], const uint32_t (&ioffsets)[4]);
+  /**
+  * Remove framebuffer that's registered using the num_planes and igem_handles.
+  *
+  * @param num_planes number of planes to represent.
+  * @param igem_handle array of graphics execution manager handles from image.
+  * @return 0 if framebuffer is owned by buffer manager.
+  * @return error code if removing framebuffer is unsuccessful.
+  */
   int RemoveFB(uint32_t num_planes, const uint32_t (&igem_handles)[4]);
 
  private:
   SpinLock lock_;
+  /**
+  * Release and remove all framebuffers in the hash fb_map_
+  */
   void PurgeAllFBs();
 
   std::unordered_map<FBKey, FBValue, FBHash, FBEqual> fb_map_;
