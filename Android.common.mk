@@ -20,8 +20,28 @@ HWC_PATH := $(call my-dir)
 HWC_VERSION_GIT_BRANCH := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
 HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
 
-# Obtain Android Version
-ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
+#------------------------------------------------------------------------
+#  1. Evaluate ANDROID_VERSION from PLATFORM_VERSION
+#  2. First letter may be the major version or the dessert letter
+#------------------------------------------------------------------------
+ANDROID_M := 6
+ANDROID_N := 7
+ANDROID_O := 8
+ANDROID_VERSION_6 := $(ANDROID_M)
+ANDROID_VERSION_7 := $(ANDROID_N)
+ANDROID_VERSION_8 := $(ANDROID_O)
+ANDROID_VERSION_O := $(ANDROID_O)
+ANDROID_VERSION_OMR1 := $(ANDROID_O)
+ANDROID_SUPPORTED_VERSIONS := 6 7 O 8 OMR1
+
+ANDROID_MAJOR_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+$(info "PLATFORM_VERSION $(PLATFORM_VERSION)")
+$(info "ANDROID_MAJOR_VERSION $(ANDROID_MAJOR_VERSION)")
+$(foreach item, $(ANDROID_SUPPORTED_VERSIONS),\
+$(if $(call streq,$(ANDROID_MAJOR_VERSION),$(item)),\
+$(eval ANDROID_VERSION := $(ANDROID_VERSION_$(item))),))
+
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
