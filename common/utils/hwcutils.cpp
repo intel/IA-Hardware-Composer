@@ -166,4 +166,62 @@ std::string StringifyRegion(HwcRegion region) {
   return ss.str();
 }
 
+HwcRect<int> RotateRect(HwcRect<int> rect, int disp_width, int disp_height,
+                        uint32_t transform) {
+  int ox = 0, oy = 0;
+  HwcRect<int> rotated_rect;
+
+  if (transform == 0)
+    return rect;
+
+  if (transform == hwcomposer::HWCTransform::kTransform270) {
+    ox = 0;
+    oy = disp_width;
+    rotated_rect.left = ox + rect.top;
+    rotated_rect.top = oy - rect.right;
+    rotated_rect.right = ox + rect.bottom;
+    rotated_rect.bottom = oy - rect.left;
+  } else if (transform == hwcomposer::HWCTransform::kTransform180) {
+    ox = disp_width;
+    oy = disp_height;
+    rotated_rect.left = ox - rect.right;
+    rotated_rect.top = oy - rect.bottom;
+    rotated_rect.right = ox - rect.left;
+    rotated_rect.bottom = oy - rect.top;
+  } else if (transform & hwcomposer::HWCTransform::kTransform90) {
+    if (transform & hwcomposer::HWCTransform::kReflectY) {
+      ox = 0;
+      oy = 0;
+      rotated_rect.left = ox + rect.top;
+      rotated_rect.top = oy + rect.left;
+      rotated_rect.right = ox + rect.bottom;
+      rotated_rect.bottom = oy + rect.right;
+    } else if (transform & hwcomposer::HWCTransform::kReflectX) {
+      ox = disp_height;
+      oy = disp_width;
+      rotated_rect.left = ox - rect.bottom;
+      rotated_rect.top = oy - rect.right;
+      rotated_rect.right = ox - rect.top;
+      rotated_rect.bottom = oy - rect.left;
+    } else {
+      ox = disp_height;
+      oy = 0;
+      rotated_rect.left = ox - rect.bottom;
+      rotated_rect.top = oy + rect.left;
+      rotated_rect.right = ox - rect.top;
+      rotated_rect.bottom = oy + rect.right;
+    }
+  }
+
+  return rotated_rect;
+}
+
+HwcRect<int> ScaleRect(HwcRect<int> rect, float x_scale, float y_scale) {
+  rect.left = rect.left * x_scale;
+  rect.top = rect.top * y_scale;
+  rect.right = rect.right * x_scale;
+  rect.bottom = rect.bottom * y_scale;
+
+  return rect;
+}
 }  // namespace hwcomposer

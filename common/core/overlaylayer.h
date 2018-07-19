@@ -21,6 +21,7 @@
 #include <platformdefines.h>
 
 #include <hwclayer.h>
+#include <nativedisplay.h>
 #include <memory>
 
 #include "overlaybuffer.h"
@@ -50,13 +51,15 @@ struct OverlayLayer {
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
                               uint32_t rotation, bool handle_constraints,
-                              FrameBufferManager* frame_buffer_manager);
+                              FrameBufferManager* frame_buffer_manager,
+                              NativeDisplay* native_display);
 
   void InitializeFromScaledHwcLayer(
       HwcLayer* layer, ResourceManager* buffer_manager,
       OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
       const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
-      bool handle_constraints, FrameBufferManager* frame_buffer_manager);
+      bool handle_constraints, FrameBufferManager* frame_buffer_manager,
+      NativeDisplay* native_display);
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
@@ -270,6 +273,8 @@ struct OverlayLayer {
   LayerComposition supported_composition_ = kAll;
   LayerComposition actual_composition_ = kAll;
   HWCLayerType type_ = kLayerNormal;
+  int display_width_ = 0;
+  int display_height_ = 0;
 };
 
 }  // namespace hwcomposer

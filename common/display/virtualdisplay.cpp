@@ -110,7 +110,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints, fb_manager_);
+        height_, kIdentity, handle_constraints, fb_manager_, this);
     index.emplace_back(z_order);
     layers_rects.emplace_back(layer->GetDisplayFrame());
     z_order++;
