@@ -16,7 +16,6 @@
 
 #include <hwclayer.h>
 #include <libsync.h>
-
 #include <cmath>
 
 #include <hwcutils.h>
@@ -172,8 +171,9 @@ void HwcLayer::SetReleaseFence(int32_t fd) {
     } else {
       release_fd_ = -1;
     }
-  } else
+  } else {
     release_fd_ = fd;
+  }
 }
 
 int32_t HwcLayer::GetReleaseFence() {
