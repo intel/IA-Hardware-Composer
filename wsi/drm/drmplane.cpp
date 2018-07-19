@@ -497,7 +497,7 @@ uint32_t DrmPlane::GetPreferredFormat() const {
 }
 
 uint64_t DrmPlane::GetPreferredFormatModifier() const {
-  return prefered_modifier_;
+  return DRM_FORMAT_MOD_NONE;//prefered_modifier_;
 }
 
 void DrmPlane::SetInUse(bool in_use) {

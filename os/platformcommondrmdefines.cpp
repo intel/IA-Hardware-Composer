@@ -90,6 +90,8 @@ int CreateFrameBuffer(
            iwidth, iheight, iframe_buffer_format, iframe_buffer_format >> 8,
            iframe_buffer_format >> 16, iframe_buffer_format >> 24,
            m_igem_handles[0], m_ipitches[0], strerror(-ret));
+    if(modifier > 0)
+    ETRACE("with modifier %x\n", modifier);
     *fb_id = 0;
   }
 

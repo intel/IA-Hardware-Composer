@@ -92,6 +92,8 @@ class DisplayPlaneState {
 
   NativeSurface *GetOffScreenTarget() const;
 
+  size_t GetSourceLayerCount() const;
+
   // Returns all NativeSurfaces associated with this plane.
   // These can be empty if the plane doesn't need to go
   // through any composition pass before being scanned out.

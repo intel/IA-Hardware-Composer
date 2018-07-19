@@ -170,8 +170,11 @@ void HwcLayer::SetReleaseFence(int32_t fd) {
         release_fd_ = -1;
       }
     }
-  } else
+    else
+    release_fd_ = -1;
+  } else {
     release_fd_ = fd;
+  }
 }
 
 int32_t HwcLayer::GetReleaseFence() {

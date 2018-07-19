@@ -244,6 +244,11 @@ void DisplayPlaneState::RefreshLayerRects(
   HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
   bool only_cursor_layer = true;
   for (const size_t &index : current_layers) {
+    if(index >= layers.size())
+    {
+       ETRACE("RefreshLayerRects layer index larger than count of incoming layers, index %d, layersize %d", index, layers.size());
+       break;
+    }
     const OverlayLayer &layer = layers.at(index);
     const HwcRect<int> &df = layer.GetDisplayFrame();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
@@ -305,6 +310,17 @@ void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
 
 const OverlayLayer *DisplayPlaneState::GetOverlayLayer() const {
   return private_data_->layer_;
+}
+
+size_t DisplayPlaneState::GetSourceLayerCount() const {
+  //return private_data_->source_layers_.size();
+    const std::vector<size_t> &current_layers = private_data_->source_layers_;
+    size_t max = 0;
+    for (const size_t &index : current_layers) {
+      if(index > max)
+        max = index;
+    }
+    return max;
 }
 
 void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
