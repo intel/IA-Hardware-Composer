@@ -90,6 +90,9 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   GLuint left = 0;
   GLuint top = 0;
 
+  // GL rendere should not support protected
+  surface->GetLayer()->SetProtected(false);
+
   if (!surface->MakeCurrent())
     return false;
 #ifdef COMPOSITOR_TRACING
