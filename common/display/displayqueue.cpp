@@ -858,7 +858,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects,
+                          plane_transform_)) {
       ETRACE("Failed to prepare for the frame composition. ");
       composition_passed = false;
     }
@@ -1124,7 +1125,8 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
 
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects,
+                          plane_transform_)) {
       ETRACE("Failed to prepare for the frame composition. ");
       composition_passed = false;
     }
