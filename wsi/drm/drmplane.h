@@ -112,7 +112,7 @@ class DrmPlane : public DisplayPlane {
   Property alpha_prop_;
   Property in_fence_fd_prop_;
   Property in_formats_prop_;
-  Property rrb2_prop_;
+  Property decryption_prop_;
 
   uint32_t id_;
 
