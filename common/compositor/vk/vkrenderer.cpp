@@ -470,6 +470,8 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
   VkResult res;
   uint32_t frame_width = surface->GetWidth();
   uint32_t frame_height = surface->GetHeight();
+  // vk renderer should not support protected
+  surface->GetLayer()->SetProtected(false);
   surface->MakeCurrent();
 
   src_image_infos_.clear();

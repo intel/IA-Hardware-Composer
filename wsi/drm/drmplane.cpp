@@ -194,10 +194,10 @@ bool DrmPlane::Initialize(uint32_t gpu_fd,
     in_fence_fd_prop_.id = 0;
   }
 
-  ret = rrb2_prop_.Initialize(gpu_fd, "RRB2", plane_propes);
+  ret = decryption_prop_.Initialize(gpu_fd, "DECRYPTION", plane_props);
   if (!ret) {
-    ETRACE("Cound not get RRB2 property");
-    rrb2_prop_.id = 0;
+    ETRACE("Cound not get decryption property");
+    decryption_prop_.id = 0;
   }
 
   // query and store supported modifiers for format, from in_formats
@@ -321,10 +321,14 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                         layer->GetSourceCropHeight() << 16) < 0;
   }
 
-  if (layer->IsProtected()) {
-    sucess |= drmModeAtomicAddProperty(property_set, id_, rrb2_prop_.id, 1) < 0;
-  } else {
-    sucess |= drmModeAtomicAddProperty(property_set, id_, rrb2_prop_.id, 0) < 0;
+  if (decryption_prop_.id != 0) {
+    if (layer->IsProtected()) {
+      success |= drmModeAtomicAddProperty(property_set, id_,
+                                          decryption_prop_.id, 1) < 0;
+    } else {
+      success |= drmModeAtomicAddProperty(property_set, id_,
+                                          decryption_prop_.id, 0) < 0;
+    }
   }
 
   if (rotation_prop_.id) {

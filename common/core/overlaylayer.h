@@ -180,10 +180,10 @@ struct OverlayLayer {
     return type_ == kLayerProtected;
   }
 
-  void SetProtected(bool protected) {
-    if (protected && type_ == kLayerVideo)
-      type_ = kLayerProtcted;
-    if (!protected && type == kLayerProtected)
+  void SetProtected(bool isProtected) {
+    if (isProtected && type_ == kLayerVideo)
+      type_ = kLayerProtected;
+    if (!isProtected && type_ == kLayerProtected)
       type_ = kLayerVideo;
     else
       type_ = kLayerNormal;
