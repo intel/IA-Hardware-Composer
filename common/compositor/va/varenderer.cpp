@@ -505,10 +505,13 @@ void VARenderer::HWCTransformToVA(uint32_t transform, uint32_t& rotation,
     switch (transform) {
       case kTransform270:
         rotation = VA_ROTATION_270;
+        break;
       case kTransform180:
         rotation = VA_ROTATION_180;
+        break;
       case kTransform90:
         rotation = VA_ROTATION_90;
+        break;
       default:
         break;
     }
