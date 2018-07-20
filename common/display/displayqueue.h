@@ -129,6 +129,10 @@ class DisplayQueue {
     return NULL;
   }
 
+  std::vector<HwcLayer*>* GetSourceLayers() {
+    return source_layers_;
+  }
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
@@ -370,6 +374,7 @@ class DisplayQueue {
   // frame.
   std::vector<NativeSurface*> surfaces_not_inuse_;
   FrameBufferManager* fb_manager_ = NULL;
+  std::vector<HwcLayer*>* source_layers_ = NULL;
 };
 
 }  // namespace hwcomposer

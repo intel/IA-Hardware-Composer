@@ -552,6 +552,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (tracker.IgnoreUpdate()) {
     return true;
   }
+  source_layers_ = &source_layers;
 
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
@@ -1188,6 +1189,9 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
 
   if (fence > 0) {
     kms_fence_ = fence;
+    std::vector<HwcLayer*>* source_layers = queue->GetSourceLayers();
+    if (source_layers != NULL)
+      SetReleaseFenceToLayers(fence, *source_layers);
   }
 }
 
