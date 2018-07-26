@@ -1,171 +1,227 @@
-language: c++
-sudo: required
+language: cpp
+
+sudo: false
 dist: trusty
+
+cache:
+  apt: true
+  ccache: true
+
+env:
+  global:
+    - LIBPCIACCESS_VERSION=libpciaccess-0.13.4
+    - LIBDRM_VERSION=libdrm-2.4.92
+    - LIBWAYLAND_VERSION=wayland-1.15.92
+    - WAYLAND_PROTOCOLS_VERSION=wayland-protocols-1.15
+    - MESA_VERSION=mesa-18.1.5
+    - LIBVA_VERSION=libva-1.7.0
+    - VULKAN_SDK_VERSION=sdk-1.1.77.0
+    - LIBEVDEV_VERSION=libevdev-1.5.9
+    - LIBUNWIND_VERSION=libunwind-1.2.1
+    - PKG_CONFIG_PATH=$HOME/prefix/lib/pkgconfig:$HOME/prefix/share/pkgconfig
+    - LD_LIBRARY_PATH=$HOME/prefix/lib:$LD_LIBRARY_PATH
+    - PATH=$HOME/prefix/bin:$PATH
+    - OVERRIDE_CC="gcc-4.9"
+    - OVERRIDE_CXX="g++-4.9"
+    - MAKEFLAGS="-j4"
+    - HWC_FLAGS=""
+
+matrix:
+  include:
+    - env:
+        - LABEL="Static analysis"
+        - BUILD=static
+      addons:
+        apt:
+          packages:
+            - clang-format-3.9
+            - cppcheck
+      install: true
+      script: true
+    - env:
+        - LABEL="Default"
+        - BUILD=make
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+            - g++-4.9
+            - libelf-dev
+    - env:
+        - LABEL="Disable hotplug"
+        - BUILD=make
+        - HWC_FLAGS="--disable-hotplug-support"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+            - g++-4.9
+            - libelf-dev
+    - env:
+        - LABEL="Dummy compositor"
+        - BUILD=make
+        - HWC_FLAGS="--enable-dummy-compositor"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+            - g++-4.9
+            - libelf-dev
+    - env:
+        - LABEL="Vulkan compositor"
+        - BUILD=make
+        - HWC_FLAGS="--enable-vulkan"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+            - g++-4.9
+            - libelf-dev
+    - env:
+        - LABEL="Weston plugin"
+        - BUILD=weston
+        - HWC_FLAGS=""
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+            - g++-4.9
+            - libelf-dev
+            - xutils-dev
+            - libxcb*
+            - libx11-xcb-dev
+            - libxkbcommon-dev
+            - x11proto-*-dev
+            - libxdamage*
+            - libxext-dev
+            - libxshmfence-dev
+            - libwacom-dev
+            - libgtk-3-dev
+            - check
+            - libpam0g-dev
+            - python3
+            - python3-pip
+            - libudev-dev
+            - libevdev-dev
+            - libmtdev-dev
+            - mtdev-tools
+
+before_install:
+  - if test "x$BUILD" = xstatic; then
+      ./travisci/check_patch.py;
+    fi
+
 install:
-- sudo apt-get update
-- sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-- sudo sh -c "echo \"deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse\" >> /etc/apt/sources.list"
-- sudo apt-get update
-- sudo apt-get install automake autoconf libtool xutils-dev libpciaccess-dev python-mako bison flex libomxil-bellagio-dev libexpat1-dev llvm-dev gcc-4.9 g++-4.9 python3 python3-pip libudev-dev libmtdev-dev mtdev-tools libevdev-dev libx11-xcb-dev libxkbcommon-dev libxrandr-dev x11proto-*-dev libxcb* libxdamage* libx11-xcb-dev libxext-dev libxshmfence-dev libwacom-dev libgtk-3-dev check libpam0g-dev clang-format-3.9 cppcheck/trusty-backports
-- ./travisci/check_patch.py
-- sudo pip3 install pathlib
-- sudo pip3 install meson==0.43.0
-- sudo dpkg -s python-mako
-- wget https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip -O /tmp/ninja.zip
-- sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
-- sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
+  - |
+    test -n "$OVERRIDE_CC" && export CC="$OVERRIDE_CC"
+    test -n "$OVERRIDE_CXX" && export CXX="$OVERRIDE_CXX"
+
+    wget http://xorg.freedesktop.org/releases/individual/lib/$LIBPCIACCESS_VERSION.tar.bz2
+    tar -jxvf $LIBPCIACCESS_VERSION.tar.bz2
+    (cd $LIBPCIACCESS_VERSION && ./configure --prefix=$HOME/prefix && make install)
+
+    wget http://dri.freedesktop.org/libdrm/$LIBDRM_VERSION.tar.bz2
+    tar -jxvf $LIBDRM_VERSION.tar.bz2
+    (cd $LIBDRM_VERSION && ./configure --prefix=$HOME/prefix && make install)
+
+    # Generate this header since one is missing on the Travis instance
+    mkdir -p $HOME/prefix/include/linux
+    printf "%s\n" \
+         "#ifndef _LINUX_MEMFD_H" \
+         "#define _LINUX_MEMFD_H" \
+         "" \
+         "#define __NR_memfd_create 319" \
+         "#define SYS_memfd_create __NR_memfd_create" \
+         "" \
+         "#define MFD_CLOEXEC             0x0001U" \
+         "#define MFD_ALLOW_SEALING       0x0002U" \
+         "" \
+         "#endif /* _LINUX_MEMFD_H */" > $HOME/prefix/include/linux/memfd.h
+
+    wget http://wayland.freedesktop.org/releases/$LIBWAYLAND_VERSION.tar.xz
+    tar -axvf $LIBWAYLAND_VERSION.tar.xz
+    (cd $LIBWAYLAND_VERSION && ./configure --prefix=$HOME/prefix \
+     --enable-libraries --without-host-scanner --disable-documentation \
+     --disable-dtd-validation && make install)
+
+    wget http://wayland.freedesktop.org/releases/$WAYLAND_PROTOCOLS_VERSION.tar.xz
+    tar -axvf $WAYLAND_PROTOCOLS_VERSION.tar.xz
+    (cd $WAYLAND_PROTOCOLS_VERSION && ./configure --prefix=$HOME/prefix && \
+     make install)
+
+    wget https://mesa.freedesktop.org/archive/$MESA_VERSION.tar.gz
+    tar -zxvf $MESA_VERSION.tar.gz
+    (cd $MESA_VERSION && ./configure --prefix=$HOME/prefix --disable-glx \
+     --with-platforms=surfaceless,wayland --without-gallium-drivers \
+     --with-vulkan-drivers=intel && make install)
+
+    wget http://www.freedesktop.org/software/vaapi/releases/libva/$LIBVA_VERSION.tar.bz2
+    tar -jxvf $LIBVA_VERSION.tar.bz2
+    (cd $LIBVA_VERSION && ./configure --prefix=$HOME/prefix && make install)
+
+    wget https://github.com/KhronosGroup/Vulkan-Headers/archive/$VULKAN_SDK_VERSION.tar.gz
+    mv $VULKAN_SDK_VERSION.tar.gz Vulkan-Headers-$VULKAN_SDK_VERSION.tar.gz
+    tar -zxvf Vulkan-Headers-$VULKAN_SDK_VERSION.tar.gz
+    (cd Vulkan-Headers-$VULKAN_SDK_VERSION && \
+     cmake -DCMAKE_INSTALL_PREFIX=$HOME/prefix && make install)
+
+    wget https://github.com/KhronosGroup/Vulkan-Loader/archive/$VULKAN_SDK_VERSION.tar.gz
+    mv $VULKAN_SDK_VERSION.tar.gz Vulkan-Loader-$VULKAN_SDK_VERSION.tar.gz
+    tar -zxvf Vulkan-Loader-$VULKAN_SDK_VERSION.tar.gz
+    (cd Vulkan-Loader-$VULKAN_SDK_VERSION && \
+     cmake -DCMAKE_INSTALL_PREFIX=$HOME/prefix -DBUILD_TESTS=OFF \
+     -DBUILD_WSI_MIR_SUPPORT=Off -DBUILD_WSI_WAYLAND_SUPPORT=Off \
+     -DBUILD_WSI_XCB_SUPPORT=Off -DBUILD_WSI_XLIB_SUPPORT=Off && make install)
+
+    wget https://www.freedesktop.org/software/libevdev/$LIBEVDEV_VERSION.tar.xz
+    tar -axvf $LIBEVDEV_VERSION.tar.xz
+    (cd $LIBEVDEV_VERSION && ./configure --prefix=$HOME/prefix && make install)
+
+    wget https://download.savannah.nongnu.org/releases/libunwind/$LIBUNWIND_VERSION.tar.gz
+    tar -xzvf $LIBUNWIND_VERSION.tar.gz
+    (cd $LIBUNWIND_VERSION && ./configure --prefix=$HOME/prefix && make install)
+
 script:
-- export LLVM_CONFIG=/usr/bin/llvm-config
-- export HWC_BUILD_DIR=/tmp/
-- export WLD=/tmp/hwc-install
-- export LD_LIBRARY_PATH=$WLD/lib
-- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/lib/x86_64-linux-gnu/pkgconfig:$WLD/share/pkgconfig
-- export PATH=$WLD/bin:$PATH
-- export ACLOCAL_PATH=$WLD/share/aclocal
-- export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- tar -xvf travisci/resources/hwc-install.tar.xz -C $HWC_BUILD_DIR
-- mkdir -p $WLD/share/aclocal
+  - if test "x$BUILD" = xmake; then
+      ./autogen.sh $HWC_FLAGS && make;
+    fi
 
-#install realpath
-- sudo cp $WLD/realpath /usr/bin/
+  - |
+    if test "x$BUILD" = xweston; then
+      cp travisci/realpath $HOME/prefix/bin
 
-#install ninja
-- pushd /tmp
-- unzip ninja.zip
-- sudo cp ninja /usr/bin/
-- popd
+      wget https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip
+      unzip ninja-linux.zip
+      cp ninja $HOME/prefix/bin
 
-#clone and build libvulkan : dependency
-- git clone -b sdk-1.1.73 https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers.git /tmp/libvulkan
-- pushd /tmp/libvulkan
-- ./update_external_sources.sh
-- cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$WLD -DBUILD_DEMOS=Off -DBUILD_TESTS=Off -DBUILD_WSI_MIR_SUPPORT=Off -DBUILD_WSI_WAYLAND_SUPPORT=Off -DBUILD_WSI_XCB_SUPPORT=Off -DBUILD_WSI_XLIB_SUPPORT=Off
-- cd build
-- make -j5 && make install
-- popd
+      pip3 install --user pathlib
+      pip3 install --user meson==0.43.0
 
-#clone and build libdrm : dependency
-- git clone https://github.com/intel/external-libdrm /tmp/libdrm
-- pushd /tmp/libdrm
-- ./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
-- make -j5 && make install
-- popd
+      export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$HOME/prefix/lib/x86_64-linux-gnu/pkgconfig
+      git clone git://anongit.freedesktop.org/git/wayland/libinput libinput
+      (cd libinput && meson --prefix=$HOME/prefix -Dlibwacom=false \
+       -Ddocumentation=false -Ddebug-gui=false -Dtests=false builddir/ && \
+       ninja -C builddir/ && ninja -C builddir/ install)
 
-# #clone and build mesa : dependency
-- git clone https://github.com/intel/external-mesa /tmp/mesa
-- pushd /tmp/mesa
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --without-gallium-drivers --with-dri-drivers=i965 --with-vulkan-drivers=intel
-- make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
-- popd
-
-#clone and build libva : dependency
-- git clone https://github.com/projectceladon/libva.git /tmp/libva
-- pushd /tmp/libva
-- ./autogen.sh --prefix=$WLD
-- make -j5 && make install
-- popd
-
-#clone and build vaapi : dependency
-- git clone https://github.com/projectceladon/vaapi.git /tmp/vaapi
-- pushd /tmp/vaapi
-- ./autogen.sh --prefix=$WLD
-- make -j5 && make install
-- popd
-
-# finally, build the hardware composer itself
-- ./autogen.sh --prefix=$WLD
-- make -j5
-- make clean
-- ./autogen.sh --prefix=$WLD --disable-hotplug-support
-- make -j5
-- make clean
-- ./autogen.sh --prefix=$WLD --enable-dummy-compositor
-- make -j5
-- make clean
-- ./autogen.sh --prefix=$WLD --enable-vulkan
-- make -j5
-
-# Test Weston plugin
-- export WLD=/tmp/wl-install
-- export LD_LIBRARY_PATH=$WLD/lib
-- export PKG_CONFIG_PATH=$WLD/lib/pkgconfig/:$WLD/lib/x86_64-linux-gnu/pkgconfig:$WLD/share/pkgconfig
-- export PATH=$WLD/bin:$PATH
-- export ACLOCAL_PATH=$WLD/share/aclocal
-- export ACLOCAL="aclocal -I $ACLOCAL_PATH"
-- mkdir -p $WLD/share/aclocal
-
-#clone and build libdrm : dependency
-- pushd /tmp/libdrm
-- git clean -xfd > /dev/null
-- ./autogen.sh --disable-radeon --disable-nouveau --disable-amdgpu --enable-udev --enable-libkms --prefix=$WLD
-- make -j5 && make install
-- popd
-
-- git clone https://anongit.freedesktop.org/git/libevdev.git /tmp/libevdev
-- pushd /tmp/libevdev
-- ./autogen.sh --prefix=$WLD
-- make && make install
-- popd
-
-- git clone https://github.com/intel/external-wayland.git /tmp/wayland
-- pushd .
-- cd /tmp/wayland
-- ./autogen.sh --prefix=$WLD --disable-documentation
-- make && make install
-- popd
-
-- git clone https://github.com/intel/external-wayland-protocols.git /tmp/wayland-protocols
-- pushd .
-- cd /tmp/wayland-protocols
-- ./autogen.sh --prefix=$WLD
-- make install
-- popd
-
-- git clone git://git.sv.gnu.org/libunwind /tmp/libunwind
-- pushd .
-- cd /tmp/libunwind
-- ./autogen.sh --prefix=$WLD
-- make && make install
-- popd
-
-- git clone git://anongit.freedesktop.org/git/wayland/libinput /tmp/libinput
-- pushd .
-- cd /tmp/libinput
-- meson --prefix=$WLD -Dlibwacom=false -Ddocumentation=false -Ddebug-gui=false -Dtests=false builddir/
-- ninja -C builddir/
-- ninja -C builddir/ install
-- popd
-
-#Build mesa with gbm
-- pushd .
-- cd /tmp/mesa
-- git clean -xfd > /dev/null
-- ./autogen.sh --prefix=$WLD --with-platforms=surfaceless,drm,wayland,x11 --disable-dri3 --enable-shared-glapi --disable-glx --disable-glx-tls --enable-gbm --without-gallium-drivers --with-dri-drivers=i965
-- make CFLAGS=-DSYS_memfd_create=319 CPPFLAGS=--std=c11 -j5 && make install
-- popd
-
-#clone and build libva : dependency
-- pushd /tmp/libva
-- git clean -xfd > /dev/null
-- ./autogen.sh --prefix=$WLD
-- make -j5 && make install
-- popd
-
-#clone and build vaapi : dependency
-- pushd /tmp/vaapi
-- git clean -xfd > /dev/null
-- ./autogen.sh --prefix=$WLD
-- make -j5 && make install
-- popd
-
-#Build weston and weston plugin
-- git clone -b iahwc-plugin https://github.com/intel/external-weston.git ../weston
-- cd ../weston
-#HACK: Weston's paths are hardcoded to ../iahwc/..
-- cp -r ../IA-Hardware-Composer ../iahwc
-- cd -
-- os/linux/weston/build_script.sh --weston-dir=../weston --iahwc-dir=$(pwd) --build
+      export WLD=$HOME/prefix
+      git clone -b iahwc-plugin https://github.com/intel/external-weston.git ../weston
+      cd ../weston
+      #HACK: Weston's paths are hardcoded to ../iahwc/..
+      cp -r ../IA-Hardware-Composer ../iahwc
+      cd -
+      os/linux/weston/build_script.sh --weston-dir=../weston --iahwc-dir=$(pwd) --build
+    fi
 
 branches:
   only:
-  - master
+    - master

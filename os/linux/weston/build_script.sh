@@ -77,21 +77,20 @@ function build_iahwc() {
     # Build IAHWC
     pushd . > /dev/null
     cd $IAHWC_DIR
-    git clean -xfd
-    ./autogen.sh $AUTOGEN_CMDLINE --enable-gbm --enable-linux-frontend && \
+    ./autogen.sh $AUTOGEN_CMDLINE --enable-linux-frontend && \
         make -j$PARALLEL install
     popd
 }
 
 function build_weston() {
     # Build weston
-    git clean -xfd
     export WESTON_NATIVE_BACKEND=iahwc-backend.so
-    ./autogen.sh $AUTOGEN_CMDLINE --enable-iahwc-compositor --disable-wayland-compositor --disable-rdp-compositor \
-        --disable-headless-compositor --disable-x11-compositor --disable-fbdev-compositor \
-	--disable-drm-compositor --enable-demo-clients-install --enable-clients && \
-        make -j$PARALLEL && \
-        sudo make install
+    ./autogen.sh $AUTOGEN_CMDLINE --enable-iahwc-compositor \
+      --disable-wayland-compositor --disable-rdp-compositor \
+        --disable-headless-compositor --disable-x11-compositor \
+        --disable-fbdev-compositor --disable-drm-compositor \
+        --enable-demo-clients-install --enable-clients \
+        --disable-setuid-install && make -j$PARALLEL && make install
 }
 
 BKR=71c4f70e08faad6002ec8fe8cd1c7930bee8373b
