@@ -702,7 +702,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
   supported(__func__);
-  vsync_worker_.VSyncControl(enabled);
+  vsync_worker_.VSyncControl(HWC2_VSYNC_ENABLE == enabled);
   return HWC2::Error::None;
 }
 
