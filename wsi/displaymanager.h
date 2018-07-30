@@ -63,6 +63,8 @@ class DisplayManager {
 
   virtual void RegisterHotPlugEventCallback(
       std::shared_ptr<DisplayHotPlugEventCallback> callback) = 0;
+
+  virtual uint32_t GetConnectedPhysicalDisplayCount() = 0;
 };
 
 }  // namespace hwcomposer
