@@ -114,6 +114,11 @@ endif
 
 LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
 
+ifeq ($(strip $(BOARD_THREEDIS_UNDERRUN_WA)), true)
+LOCAL_CPPFLAGS += \
+        -DTHREEDIS_UNDERRUN_WA
+endif
+
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default
 LOCAL_LDFLAGS += -no-undefined
