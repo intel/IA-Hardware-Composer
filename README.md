@@ -19,6 +19,12 @@ To install doxygen on ubuntu simply run:
 sudo apt install doxygen
 ```
 
+Note: You may also need to install graphviz if you do not have it already.
+
+```
+sudo apt install graphviz
+```
+
 Once installed, you should provide documentation to any new features you add to
 the project or modify/create documentation for any big changes in methods,
 classes, etc that you change.
