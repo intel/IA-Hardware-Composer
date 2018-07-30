@@ -85,9 +85,10 @@ DrmPlane::~DrmPlane() {
   SetNativeFence(-1);
 }
 
-bool DrmPlane::Initialize(uint32_t gpu_fd,
-                          const std::vector<uint32_t>& formats) {
+bool DrmPlane::Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats,
+                          bool use_modifier) {
   supported_formats_ = formats;
+  use_modifier_ = use_modifier;
   uint32_t total_size = supported_formats_.size();
   for (uint32_t j = 0; j < total_size; j++) {
     uint32_t format = supported_formats_.at(j);
@@ -497,7 +498,10 @@ uint32_t DrmPlane::GetPreferredFormat() const {
 }
 
 uint64_t DrmPlane::GetPreferredFormatModifier() const {
-  return prefered_modifier_;
+  if (!use_modifier_)
+    return DRM_FORMAT_MOD_NONE;
+  else
+    return prefered_modifier_;
 }
 
 void DrmPlane::SetInUse(bool in_use) {

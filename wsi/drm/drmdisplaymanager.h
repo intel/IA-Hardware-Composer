@@ -72,6 +72,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void HandleLazyInitialization();
 
+  uint32_t GetConnectedPhysicalDisplayCount();
+
  protected:
   void HandleWait() override;
   void HandleRoutine() override;

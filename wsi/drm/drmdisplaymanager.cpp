@@ -449,6 +449,16 @@ void DrmDisplayManager::HandleLazyInitialization() {
   spin_lock_.unlock();
 }
 
+uint32_t DrmDisplayManager::GetConnectedPhysicalDisplayCount() {
+  if (device_) {
+    std::vector<NativeDisplay *> connected_displays_;
+    device_->GetConnectedPhysicalDisplays(connected_displays_);
+    return connected_displays_.size();
+  } else {
+    return 0;
+  }
+}
+
 DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {
   return new DrmDisplayManager(device);
 }

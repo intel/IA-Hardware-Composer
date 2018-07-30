@@ -40,7 +40,8 @@ class DrmPlane : public DisplayPlane {
 
   ~DrmPlane();
 
-  bool Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats);
+  bool Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats,
+                  bool use_modifer);
 
   bool UpdateProperties(drmModeAtomicReqPtr property_set, uint32_t crtc_id,
                         const OverlayLayer* layer,
@@ -136,6 +137,7 @@ class DrmPlane : public DisplayPlane {
   } format_mods;
   std::vector<format_mods> formats_modifiers_;
   std::shared_ptr<OverlayBuffer> buffer_ = NULL;
+  bool use_modifier_ = true;
 };
 
 }  // namespace hwcomposer
