@@ -57,41 +57,53 @@ DrmHwcTwo::DrmHwcTwo() {
   getFunction = HookDevGetFunction;
 }
 
-HWC2::Error DrmHwcTwo::Init() {
-  int ret = resource_manager_.Init();
-  if (ret) {
-    ALOGE("Can't initialize the resource manager %d", ret);
-    return HWC2::Error::NoResources;
-  }
-
-  DrmDevice *drm = resource_manager_.GetDrmDevice(HWC_DISPLAY_PRIMARY);
-  std::shared_ptr<Importer> importer = resource_manager_.GetImporter(
-      HWC_DISPLAY_PRIMARY);
+HWC2::Error DrmHwcTwo::CreateDisplay(hwc2_display_t displ,
+                                     HWC2::DisplayType type) {
+  DrmDevice *drm = resource_manager_.GetDrmDevice(displ);
+  std::shared_ptr<Importer> importer = resource_manager_.GetImporter(displ);
   if (!drm || !importer) {
     ALOGE("Failed to get a valid drmresource and importer");
     return HWC2::Error::NoResources;
   }
-
-  displays_.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
+  displays_.emplace(std::piecewise_construct, std::forward_as_tuple(displ),
                     std::forward_as_tuple(&resource_manager_, drm, importer,
-                                          HWC_DISPLAY_PRIMARY,
-                                          HWC2::DisplayType::Physical));
+                                          displ, type));
 
-  DrmCrtc *crtc = drm->GetCrtcForDisplay(static_cast<int>(HWC_DISPLAY_PRIMARY));
+  DrmCrtc *crtc = drm->GetCrtcForDisplay(static_cast<int>(displ));
   if (!crtc) {
-    ALOGE("Failed to get crtc for display %d",
-          static_cast<int>(HWC_DISPLAY_PRIMARY));
+    ALOGE("Failed to get crtc for display %d", static_cast<int>(displ));
     return HWC2::Error::BadDisplay;
   }
-
   std::vector<DrmPlane *> display_planes;
   for (auto &plane : drm->planes()) {
     if (plane->GetCrtcSupported(*crtc))
       display_planes.push_back(plane.get());
   }
-  displays_.at(HWC_DISPLAY_PRIMARY).Init(&display_planes);
+  displays_.at(displ).Init(&display_planes);
   return HWC2::Error::None;
+}
+
+HWC2::Error DrmHwcTwo::Init() {
+  int rv = resource_manager_.Init();
+  if (rv) {
+    ALOGE("Can't initialize the resource manager %d", rv);
+    return HWC2::Error::NoResources;
+  }
+
+  HWC2::Error ret = HWC2::Error::None;
+  for (int i = 0; i < resource_manager_.getDisplayCount(); i++) {
+    ret = CreateDisplay(i, HWC2::DisplayType::Physical);
+    if (ret != HWC2::Error::None) {
+      ALOGE("Failed to create display %d with error %d", i, ret);
+      return ret;
+    }
+  }
+
+  auto &drmDevices = resource_manager_.getDrmDevices();
+  for (auto &device : drmDevices) {
+    device->RegisterHotplugHandler(new DrmHotplugHandler(this, device.get()));
+  }
+  return ret;
 }
 
 template <typename... Args>
@@ -132,6 +144,12 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
                                         hwc2_function_pointer_t function) {
   supported(__func__);
   auto callback = static_cast<HWC2::Callback>(descriptor);
+
+  if (!function) {
+    callbacks_.erase(callback);
+    return HWC2::Error::None;
+  }
+
   callbacks_.emplace(callback, HwcCallback(data, function));
 
   switch (callback) {
@@ -139,6 +157,9 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
       auto hotplug = reinterpret_cast<HWC2_PFN_HOTPLUG>(function);
       hotplug(data, HWC_DISPLAY_PRIMARY,
               static_cast<int32_t>(HWC2::Connection::Connected));
+      auto &drmDevices = resource_manager_.getDrmDevices();
+      for (auto &device : drmDevices)
+        HandleInitialHotplugState(device.get());
       break;
     }
     case HWC2::Callback::Vsync: {
@@ -163,6 +184,10 @@ DrmHwcTwo::HwcDisplay::HwcDisplay(ResourceManager *resource_manager,
       handle_(handle),
       type_(type) {
   supported(__func__);
+}
+
+void DrmHwcTwo::HwcDisplay::ClearDisplay() {
+  compositor_.ClearDisplay();
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
@@ -204,6 +229,16 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
     return HWC2::Error::BadDisplay;
   }
 
+  ret = vsync_worker_.Init(drm_, display);
+  if (ret) {
+    ALOGE("Failed to create event worker for d=%d %d\n", display, ret);
+    return HWC2::Error::BadDisplay;
+  }
+
+  return ChosePreferredConfig();
+}
+
+HWC2::Error DrmHwcTwo::HwcDisplay::ChosePreferredConfig() {
   // Fetch the number of modes from the display
   uint32_t num_configs;
   HWC2::Error err = GetDisplayConfigs(&num_configs, NULL);
@@ -217,13 +252,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
   err = GetDisplayConfigs(&num_configs, &default_config);
   if (err != HWC2::Error::None)
     return err;
-
-  ret = vsync_worker_.Init(drm_, display);
-  if (ret) {
-    ALOGE("Failed to create event worker for d=%d %d\n", display, ret);
-    return HWC2::Error::BadDisplay;
-  }
-
   return SetActiveConfig(default_config);
 }
 
@@ -617,8 +645,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
     ALOGE("Failed to queue dpms composition on %d", ret);
     return HWC2::Error::BadConfig;
   }
-  if (connector_->active_mode().id() == 0)
-    connector_->set_active_mode(*mode);
+
+  connector_->set_active_mode(*mode);
 
   // Setup the client layer's dimensions
   hwc_rect_t display_frame = {.left = 0,
@@ -878,6 +906,52 @@ void DrmHwcTwo::HwcLayer::PopulateDrmLayer(DrmHwcLayer *layer) {
   layer->alpha = static_cast<uint16_t>(65535.0f * alpha_ + 0.5f);
   layer->SetSourceCrop(source_crop_);
   layer->SetTransform(static_cast<int32_t>(transform_));
+}
+
+void DrmHwcTwo::HandleDisplayHotplug(hwc2_display_t displayid, int state) {
+  auto cb = callbacks_.find(HWC2::Callback::Hotplug);
+  if (cb == callbacks_.end())
+    return;
+
+  auto hotplug = reinterpret_cast<HWC2_PFN_HOTPLUG>(cb->second.func);
+  hotplug(cb->second.data, displayid,
+          (state == DRM_MODE_CONNECTED ? HWC2_CONNECTION_CONNECTED
+                                       : HWC2_CONNECTION_DISCONNECTED));
+}
+
+void DrmHwcTwo::HandleInitialHotplugState(DrmDevice *drmDevice) {
+  for (auto &conn : drmDevice->connectors()) {
+    if (conn->state() != DRM_MODE_CONNECTED)
+      continue;
+    HandleDisplayHotplug(conn->display(), conn->state());
+  }
+}
+
+void DrmHwcTwo::DrmHotplugHandler::HandleEvent(uint64_t timestamp_us) {
+  for (auto &conn : drm_->connectors()) {
+    drmModeConnection old_state = conn->state();
+    drmModeConnection cur_state = conn->UpdateModes()
+                                      ? DRM_MODE_UNKNOWNCONNECTION
+                                      : conn->state();
+
+    if (cur_state == old_state)
+      continue;
+
+    ALOGI("%s event @%" PRIu64 " for connector %u on display %d",
+          cur_state == DRM_MODE_CONNECTED ? "Plug" : "Unplug", timestamp_us,
+          conn->id(), conn->display());
+
+    int display_id = conn->display();
+    if (cur_state == DRM_MODE_CONNECTED) {
+      auto &display = hwc2_->displays_.at(display_id);
+      display.ChosePreferredConfig();
+    } else {
+      auto &display = hwc2_->displays_.at(display_id);
+      display.ClearDisplay();
+    }
+
+    hwc2_->HandleDisplayHotplug(display_id, cur_state);
+  }
 }
 
 // static
