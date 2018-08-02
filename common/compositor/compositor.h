@@ -50,7 +50,8 @@ class Compositor {
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
-                     ResourceManager *resource_manager, uint32_t width,
+                     ResourceManager *resource_manager,
+                     FrameBufferManager *framebuffer_manager, uint32_t width,
                      uint32_t height, HWCNativeHandle output_handle,
                      int32_t acquire_fence, int32_t *retire_fence);
   void FreeResources();

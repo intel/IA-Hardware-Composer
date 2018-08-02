@@ -97,7 +97,8 @@ class SocketThread : public HWCThread {
 
 class NestedDisplay : public NativeDisplay {
  public:
-  NestedDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler);
+  NestedDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
+                FrameBufferManager *framebuffermanager);
   ~NestedDisplay() override;
 
   void InitNestedDisplay(uint32_t width, uint32_t height,

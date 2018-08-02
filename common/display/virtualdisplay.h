@@ -33,7 +33,8 @@ class NativeBufferHandler;
 class VirtualDisplay : public NativeDisplay {
  public:
   VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-                 uint32_t pipe_id, uint32_t crtc_id);
+                 FrameBufferManager *framebuffermanager, uint32_t pipe_id,
+                 uint32_t crtc_id);
   VirtualDisplay(const VirtualDisplay &) = delete;
   VirtualDisplay &operator=(const VirtualDisplay &) = delete;
   ~VirtualDisplay() override;
@@ -94,6 +95,7 @@ class VirtualDisplay : public NativeDisplay {
   HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
   FrameBufferManager *fb_manager_ = NULL;
+  uint32_t gpu_fd_ = 0;
 };
 
 }  // namespace hwcomposer
