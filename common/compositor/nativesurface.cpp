@@ -94,8 +94,10 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    HWCNativeHandle native_handle, ResourceManager *resource_manager) {
+    HWCNativeHandle native_handle, ResourceManager *resource_manager,
+    FrameBufferManager *framebuffer_manager) {
   resource_manager_ = resource_manager;
+  fb_manager_ = framebuffer_manager;
   InitializeLayer(native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));

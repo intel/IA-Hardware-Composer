@@ -47,8 +47,9 @@ class NativeSurface {
             uint64_t modifier, bool* modifier_succeeded,
             FrameBufferManager* frame_buffer_manager);
 
-  bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
-                                       ResourceManager* resource_manager);
+  bool InitializeForOffScreenRendering(
+      HWCNativeHandle native_handle, ResourceManager* resource_manager,
+      FrameBufferManager* frame_buffer_manager);
 
   virtual bool MakeCurrent() {
     return false;

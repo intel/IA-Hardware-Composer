@@ -70,13 +70,15 @@ void SocketThread::HandleRoutine() {
 #endif
 
 NestedDisplay::NestedDisplay(uint32_t gpu_fd,
-                             NativeBufferHandler *buffer_handler) {
+                             NativeBufferHandler *buffer_handler,
+                             FrameBufferManager *framebuffermanager) {
 #ifdef NESTED_DISPLAY_SUPPORT
   int ret;
   struct ioctl_hyper_dmabuf_tx_ch_setup msg;
   memset(&msg, 0, sizeof(ioctl_hyper_dmabuf_tx_ch_setup));
 
   resource_manager_.reset(new ResourceManager(buffer_handler));
+  fb_manager_ = framebuffermanager;
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
