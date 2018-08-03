@@ -161,10 +161,6 @@ script:
 #Build weston and weston plugin
 - git clone -b iahwc-plugin https://github.com/intel/external-weston.git ../weston
 - cd ../weston
-#HACK: Weston's paths are hardcoded to ../iahwc/..
-- cp -r ../IA-Hardware-Composer ../iahwc
-- cd -
-- os/linux/weston/build_script.sh --weston-dir=../weston --iahwc-dir=$(pwd) --build
 
 branches:
   only:
