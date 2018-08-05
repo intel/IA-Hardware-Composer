@@ -462,6 +462,8 @@ void DisplayPlaneManager::ValidateCursorLayer(
       }
 
       last_plane = GetLastUsedOverlay(composition);
+      if (last_plane == NULL)
+        break;
       bool reset_overlay = false;
       if (!last_plane->GetOffScreenTarget())
         reset_overlay = true;
@@ -498,7 +500,8 @@ void DisplayPlaneManager::ValidateCursorLayer(
       }
 
       last_plane = GetLastUsedOverlay(composition);
-      is_video = last_plane->IsVideoPlane();
+      if (last_plane)
+        is_video = last_plane->IsVideoPlane();
     }
 
     cursor_index++;
@@ -510,8 +513,9 @@ void DisplayPlaneManager::ValidateCursorLayer(
   if (!last_plane && (cursor_index < total_size))
     last_plane = GetLastUsedOverlay(composition);
 
-  for (uint32_t i = cursor_index; i < total_size; i++) {
-    OverlayLayer *cursor_layer = cursor_layers.at(i);
+  uint32_t i = cursor_index;
+  while (last_plane && i < total_size) {
+    OverlayLayer *cursor_layer = cursor_layers.at(i++);
 #ifdef SURFACE_TRACING
     ISURFACETRACE("Added CursorLayer: %d \n", cursor_layer->GetZorder());
 #endif
@@ -526,7 +530,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
     last_plane = GetLastUsedOverlay(composition);
   }
 
-  if (last_layer) {
+  if (last_layer && last_plane) {
     PreparePlaneForCursor(last_plane, mark_later, validate_final_layers,
                           last_plane->IsVideoPlane(), recycle_resources);
     last_plane->UsePlaneScalar(false);
