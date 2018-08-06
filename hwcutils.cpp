@@ -59,11 +59,14 @@ int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
   return 0;
 }
 
-int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle) {
+int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle, int width,
+                                         int height, int layerCount,
+                                         int format, int usage, int stride) {
   native_handle_t *handle_copy;
   GraphicBufferMapper &gm(GraphicBufferMapper::get());
   int ret =
-      gm.importBuffer(handle, const_cast<buffer_handle_t *>(&handle_copy));
+      gm.importBuffer(handle, width, height, layerCount, format, usage,
+                      stride, const_cast<buffer_handle_t *>(&handle_copy));
   if (ret) {
     ALOGE("Failed to import buffer handle %d", ret);
     return ret;
@@ -96,11 +99,15 @@ int DrmHwcLayer::ImportBuffer(Importer *importer) {
   if (ret)
     return ret;
 
-  ret = handle.CopyBufferHandle(sf_handle);
+  const hwc_drm_bo *bo = buffer.operator->();
+
+  // FIXME: Add layerCount and a pixel stride to the hwc_drm_bo
+  ret = handle.CopyBufferHandle(sf_handle, bo->width, bo->height,
+                                1, bo->format, bo->usage, bo->width);
   if (ret)
     return ret;
 
-  gralloc_buffer_usage = buffer.operator->()->usage;
+  gralloc_buffer_usage = bo->usage;
 
   return 0;
 }
