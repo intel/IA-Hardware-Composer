@@ -21,6 +21,8 @@
 #include "framebuffermanager.h"
 #include "overlaybuffer.h"
 
+#define METADATA(x) image_.handle_->meta_data_.x
+
 namespace hwcomposer {
 
 class NativeBufferHandler;
@@ -39,11 +41,11 @@ class DrmBuffer : public OverlayBuffer {
       FrameBufferManager* frame_buffer_manager) override;
 
   uint32_t GetWidth() const override {
-    return width_;
+    return METADATA(width_);
   }
 
   uint32_t GetHeight() const override {
-    return height_;
+    return METADATA(height_);
   }
 
   uint32_t GetFormat() const override {
@@ -51,7 +53,7 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   HWCLayerType GetUsage() const override {
-    return usage_;
+    return METADATA(usage_);
   }
 
   uint32_t GetFb() const override {
@@ -59,19 +61,19 @@ class DrmBuffer : public OverlayBuffer {
   }
 
   uint32_t GetPrimeFD() const override {
-    return image_.handle_->meta_data_.prime_fds_[0];
+    return METADATA(prime_fds_[0]);
   }
 
   const uint32_t* GetPitches() const override {
-    return pitches_;
+    return METADATA(pitches_);
   }
 
   const uint32_t* GetOffsets() const override {
-    return offsets_;
+    return METADATA(offsets_);
   }
 
   uint32_t GetTilingMode() const override {
-    return tiling_mode_;
+    return METADATA(tiling_mode_);
   }
 
   const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
@@ -97,15 +99,8 @@ class DrmBuffer : public OverlayBuffer {
 
  private:
   void Initialize(const HwcBuffer& bo);
-  uint32_t width_ = 0;
-  uint32_t height_ = 0;
   uint32_t format_ = 0;
-  uint32_t tiling_mode_ = 0;
   uint32_t frame_buffer_format_ = 0;
-  uint32_t pitches_[4];
-  uint32_t offsets_[4];
-  uint32_t gem_handles_[4];
-  HWCLayerType usage_ = kLayerNormal;
   uint32_t previous_width_ = 0;   // For Media usage.
   uint32_t previous_height_ = 0;  // For Media usage.
   ResourceManager* resource_manager_ = 0;
