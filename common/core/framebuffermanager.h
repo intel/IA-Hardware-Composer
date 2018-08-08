@@ -14,7 +14,7 @@
 // limitations under the License.
 */
 
-/*
+/** \file
 Design of ResourceManager:
 The purpose is to add cache magagement to external buffer owned by hwcLayer
 to avoid import buffer and glimage/texture generation overhead
