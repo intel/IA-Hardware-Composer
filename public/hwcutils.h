@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-
+/** \file */
 #ifndef COMMON_UTILS_HWCUTILS_H_
 #define COMMON_UTILS_HWCUTILS_H_
 
