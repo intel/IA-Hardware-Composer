@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-
+/** \file */
 #ifndef PUBLIC_HWCRECT_H_
 #define PUBLIC_HWCRECT_H_
 
