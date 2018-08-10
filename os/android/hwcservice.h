@@ -59,6 +59,8 @@ class HwcService : public BnService {
   status_t SetOption(android::String8 option, android::String8 optionValue);
   status_t EnableLogviewToLogcat(bool enable = true);
 
+  bool GetRBCEnabled();
+`
   class Controls : public BnControls {
    public:
     Controls(IAHWC2& hwc, HwcService& hwcService);

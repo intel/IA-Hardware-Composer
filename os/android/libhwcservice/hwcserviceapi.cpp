@@ -74,6 +74,14 @@ const char* HwcService_GetHwcVersion(HWCSHANDLE hwcs) {
   return version;
 }
 
+bool HwcService_GetRBCEnabled(HWCSHANDLE hwcs) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return false;
+  }
+  return pContext->mHwcService->GetRBCEnabled();
+}
+
 status_t HwcService_Display_SetOverscan(HWCSHANDLE hwcs, uint32_t display,
                                         int32_t xoverscan, int32_t yoverscan) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);

@@ -43,6 +43,8 @@ void HwcService_Disconnect(HWCSHANDLE hwcs);
 
 const char *HwcService_GetHwcVersion(HWCSHANDLE hwcs);
 
+bool HwcService_GetRBCEnabled(HWCSHANDLE hwcs);
+
 // DisplayControl
 
 // Should these be hard coded in the API?
