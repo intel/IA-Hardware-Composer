@@ -42,6 +42,12 @@ int DrmFormatToVAFormat(int format) {
       return VA_FOURCC_YUY2;
     case DRM_FORMAT_P010:
       return VA_FOURCC_P010;
+    case DRM_FORMAT_ABGR8888:
+      return VA_FOURCC_RGBA;
+    case DRM_FORMAT_XBGR8888:
+      return VA_FOURCC_RGBX;
+    case DRM_FORMAT_ARGB8888:
+      return VA_FOURCC_ABGR;
     case DRM_FORMAT_YVYU:
     case DRM_FORMAT_VYUY:
     case DRM_FORMAT_YUV444:
@@ -69,6 +75,12 @@ int DrmFormatToRTFormat(int format) {
       return VA_RT_FORMAT_YUV444;
     case DRM_FORMAT_P010:
       return VA_RT_FORMAT_YUV420_10BPP;
+    case DRM_FORMAT_ABGR8888:
+      return VA_RT_FORMAT_RGB32;
+    case DRM_FORMAT_XBGR8888:
+      return VA_RT_FORMAT_RGB32;
+    case DRM_FORMAT_ARGB8888:
+      return VA_RT_FORMAT_RGB32;
     default:
       ETRACE("Unable to convert to RTFormat from format %x", format);
       break;

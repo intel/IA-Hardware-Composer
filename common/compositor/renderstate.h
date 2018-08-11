@@ -61,7 +61,7 @@ struct RenderState {
 };
 
 struct MediaState {
-  const OverlayLayer *layer_;
+  std::vector<OverlayLayer *> layers_;
   HWCColorMap colors_;
   HWCDeinterlaceProp deinterlace_;
   uint32_t scaling_mode_;

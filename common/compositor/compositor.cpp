@@ -100,15 +100,20 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       media_state.scaling_mode_ = scaling_mode_;
       media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
-      const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
-      media_state.layer_ = &layer;
-      // exclude the media buffer
-      OverlayBuffer *layerbuffer = layer.GetBuffer();
-      for (size_t index = 0; index < draw_buffers.size(); index++) {
-        if (draw_buffers[index] == layerbuffer) {
-          draw_buffers[index] = NULL;
+
+      for (auto layer_id : plane.GetSourceLayers()) {
+        OverlayLayer *layer = &(layers.at(layer_id));
+        media_state.layers_.emplace_back(layer);
+        OverlayBuffer *layerbuffer = layer->GetBuffer();
+        for (size_t index = 0; index < draw_buffers.size(); index++) {
+          if (draw_buffers[index] == layerbuffer) {
+            draw_buffers[index] = NULL;
+          }
         }
       }
+
+      // exclude the media buffer
+
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       plane.SwapSurfaceIfNeeded();
