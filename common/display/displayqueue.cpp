@@ -752,7 +752,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   bool composition_passed = true;
-  bool disable_ovelays = state_ & kDisableOverlayUsage;
+  bool disable_ovelays = true; //state_ & kDisableOverlayUsage;
   if (!validate_layers && tracker.RevalidateLayers()) {
     validate_layers = true;
   }
