@@ -40,7 +40,8 @@ static void usage() {
           "\t-c: Set Contrast\n"
           "\t-e: Set Sharpness\n"
           "\t-d: Set deinterlace\n"
-          "\t-r: Restore all default video colors/deinterlace \n";
+          "\t-r: Restore all default video colors/deinterlace \n"
+          "\t-z: Get if Render Buffer Compression is enabled \n";
   exit(-1);
 }
 
@@ -61,8 +62,9 @@ int main(int argc, char** argv) {
   bool disable_hdcp_for_display = false;
   bool disable_hdcp_for_all_display = false;
   bool restore = false;
+  bool get_rbc_enabled = false;
   int ch;
-  while ((ch = getopt(argc, argv, "gsphijkurabcde")) != -1) {
+  while ((ch = getopt(argc, argv, "gsphijkurabcdez")) != -1) {
     switch (ch) {
       case 'g':
         get_mode = true;
@@ -106,6 +108,9 @@ int main(int argc, char** argv) {
         break;
       case 'k':
         disable_hdcp_for_all_display = true;
+        break;
+      case 'z':
+        get_rbc_enabled = true;
         break;
       default:
         usage();
@@ -236,6 +241,14 @@ int main(int argc, char** argv) {
   if (disable_hdcp_for_all_display) {
     aout << "Disabling HDCP For All Displays. " << endl;
     HwcService_Video_DisableHDCPSession_AllDisplays(hwcs);
+  }
+
+  if (get_rbc_enabled) {
+    if (HwcService_GetRBCEnabled()) {
+      aout << "Render Buffer Compression is enabled. " << endl;
+    } else {
+      aout << "Render Buffer Compression is not enabled. " << endl;
+    }
   }
 
   HwcService_Disconnect(hwcs);

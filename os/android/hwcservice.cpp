@@ -88,6 +88,14 @@ String8 HwcService::GetHwcVersion() {
   return String8((HWC_VERSION_STRING));
 }
 
+bool HwcService::GetRBCEnabled() {
+#ifdef ENABLE_RBC
+  return true;
+#else
+  return false;
+#endif
+}
+
 status_t HwcService::SetOption(String8 option, String8 value) {
   return OK;
 }
