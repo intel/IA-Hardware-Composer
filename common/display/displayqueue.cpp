@@ -526,33 +526,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   }
 }
 
-bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence, bool* ignore_clone_update,
-                               PixelUploaderCallback* call_back,
-                               bool handle_constraints) {
-  CTRACE();
-  ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
-                                 resource_manager_.get(), this);
-  if (tracker.IgnoreUpdate()) {
-    return true;
-  }
-  source_layers_ = &source_layers;
-
+void DisplayQueue::InitializeOverlayLayers(
+    std::vector<HwcLayer*>& source_layers, bool handle_constraints,
+    bool validate_layers, std::vector<OverlayLayer>& layers, int& remove_index,
+    int& add_index, bool& has_video_layer, bool& has_cursor_layer,
+    bool& re_validate_commit, bool& idle_frame) {
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
-  std::vector<OverlayLayer> layers;
-  int remove_index = -1;
-  int add_index = -1;
-  // If last commit failed, lets force full validation as
-  // state might be all wrong in our side.
-  bool idle_frame = tracker.RenderIdleMode();
-  bool validate_layers =
-      last_commit_failed_update_ || previous_plane_state_.empty();
-  *retire_fence = -1;
   uint32_t z_order = 0;
-  bool has_video_layer = false;
-  bool re_validate_commit = false;
-  needs_clone_validation_ = false;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -610,7 +591,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     if (overlay_layer->IsCursorLayer()) {
-      tracker.FrameHasCursor();
+      has_cursor_layer = true;
     }
 
     z_order++;
@@ -658,9 +639,44 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 #endif
     }
   }
+}
+
+bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
+                               int32_t* retire_fence, bool* ignore_clone_update,
+                               PixelUploaderCallback* call_back,
+                               bool handle_constraints) {
+  CTRACE();
+  ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
+                                 resource_manager_.get(), this);
+  if (tracker.IgnoreUpdate()) {
+    return true;
+  }
+  source_layers_ = &source_layers;
+
+  size_t previous_size = in_flight_layers_.size();
+  std::vector<OverlayLayer> layers;
+  int remove_index = -1;
+  int add_index = -1;
+  // If last commit failed, lets force full validation as
+  // state might be all wrong in our side.
+  bool idle_frame = tracker.RenderIdleMode();
+  bool validate_layers =
+      last_commit_failed_update_ || previous_plane_state_.empty();
+  *retire_fence = -1;
+
+  bool has_video_layer = false;
+  bool has_cursor_layer = false;
+  bool re_validate_commit = false;
+  needs_clone_validation_ = false;
+
+  InitializeOverlayLayers(source_layers, handle_constraints, validate_layers,
+                          layers, remove_index, add_index, has_video_layer,
+                          has_cursor_layer, re_validate_commit, idle_frame);
+  if (has_cursor_layer)
+    tracker.FrameHasCursor();
 
   // We may have skipped layers which are not visible.
-  size = layers.size();
+  size_t size = layers.size();
   if ((add_index == 0) || validate_layers) {
     // If index is zero, no point trying for incremental validation.
     validate_layers = true;
