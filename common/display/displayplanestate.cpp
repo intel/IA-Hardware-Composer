@@ -469,8 +469,14 @@ bool DisplayPlaneState::HasCursorLayer() const {
 }
 
 bool DisplayPlaneState::IsVideoPlane() const {
-  return private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo;
+  bool is_video = private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo;
+  bool single_layer = private_data_->source_layers_.size() == 1;
+  return is_video && single_layer;
 }
+
+  bool DisplayPlaneState::HasVideoLayer() const {
+    return private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo;
+  }
 
 void DisplayPlaneState::SetVideoPlane(bool enable_video) {
 #ifndef DISABLE_VA

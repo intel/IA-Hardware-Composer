@@ -130,6 +130,8 @@ class DisplayPlaneState {
 
   bool IsVideoPlane() const;
 
+  bool HasVideoLayer() const;
+
   // Set true if this Plane State is handling Video layer and
   // needs to go through the Media Compositor for any
   // offscreen composition usage.
