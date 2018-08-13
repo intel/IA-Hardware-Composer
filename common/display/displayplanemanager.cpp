@@ -234,6 +234,9 @@ bool DisplayPlaneManager::ValidateLayers(
                           validate_final_layers);
 #endif
             DisplayPlaneState &last_plane = composition.back();
+            if (layer->IsVideoLayer()) {
+              last_plane.SetVideoPlane(true);
+            }
             ResetPlaneTarget(last_plane, commit_planes.back());
             validate_final_layers = true;
             if (display_transform_ != kIdentity) {
@@ -272,6 +275,9 @@ bool DisplayPlaneManager::ValidateLayers(
             }
 
             DisplayPlaneState &last_plane = composition.back();
+            if (layer->IsVideoLayer()) {
+              last_plane.SetVideoPlane(true);
+            }
             if (!validate_final_layers)
               validate_final_layers = !(last_plane.GetOffScreenTarget());
             ResetPlaneTarget(last_plane, commit_planes.back());
@@ -716,7 +722,7 @@ void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
-  bool video_separate = plane.IsVideoPlane();
+  bool video_separate = plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1);
   uint32_t preferred_format = 0;
   uint32_t usage = hwcomposer::kLayerNormal;
   if (video_separate) {
