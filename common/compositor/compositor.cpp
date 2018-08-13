@@ -73,7 +73,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                                 plane.GetSourceLayers().begin(),
                                 plane.GetSourceLayers().end());
       }
-    } else {
+    } else if (plane.IsVideoPlane()) {
       media_state.emplace_back();
       plane.SwapSurfaceIfNeeded();
       DrawState &state = media_state.back();
@@ -84,79 +84,92 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       media_state.scaling_mode_ = scaling_mode_;
       media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
-      for (auto layer_id : plane.GetSourceLayers()) {
-        OverlayLayer *layer = &(layers.at(layer_id));
-        media_state.layers_.emplace_back(layer);
+      OverlayLayer* layer = &(layers[plane.GetSourceLayers().at(0)]);
+      media_state.layers_.emplace_back(layer);
+    } else if (plane.NeedsOffScreenComposition()) {
+      bool content_protected = false;
+
+      // If we have a video layer along with other layers then check
+      // if any of the layers contain protected content.
+      if (plane.HasVideoLayer()) {
+        for (size_t l : plane.GetSourceLayers()) {
+          OverlayLayer& layer = layers.at(l);
+          if (layer.IsProtected()) {
+            content_protected = true;
+            break;
+          }
+        }
+      }
+
+      if (content_protected) {
+        // if we have protected content along with other layers, then we
+        // need to use libva for the blending of the layers.
+        media_state.emplace_back();
+        plane.SwapSurfaceIfNeeded();
+        DrawState &state = media_state.back();
+        state.surface_ = plane.GetOffScreenTarget();
+        MediaState &media_state = state.media_state_;
+        lock_.lock();
+        media_state.colors_ = colors_;
+        media_state.scaling_mode_ = scaling_mode_;
+        media_state.deinterlace_ = deinterlace_;
+        lock_.unlock();
+        for (auto layer_id : plane.GetSourceLayers()) {
+          OverlayLayer *layer = &(layers.at(layer_id));
+          media_state.layers_.emplace_back(layer);
+        }
+      } else {
+        comp = &plane;
+        plane.SwapSurfaceIfNeeded();
+        std::vector<CompositionRegion> &comp_regions =
+          plane.GetCompositionRegion();
+        bool regions_empty = comp_regions.empty();
+        NativeSurface *surface = plane.GetOffScreenTarget();
+        if (surface == NULL) {
+          ETRACE("GetOffScreenTarget() returned NULL pointer 'surface'.");
+          return false;
+        }
+        if (!regions_empty &&
+            (surface->ClearSurface() || surface->IsPartialClear() ||
+             surface->IsSurfaceDamageChanged())) {
+          plane.ResetCompositionRegion();
+          regions_empty = true;
+        }
+
+        if (surface->ClearSurface()) {
+          plane.UpdateDamage(plane.GetDisplayFrame());
+        }
+
+        if (regions_empty) {
+          SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
+                         surface->GetSurfaceDamage(), comp_regions);
+        }
+
+        std::vector<size_t>().swap(dedicated_layers);
+        if (comp_regions.empty())
+          continue;
+
+        draw_state.emplace_back();
+        DrawState &state = draw_state.back();
+        state.surface_ = surface;
+        size_t num_regions = comp_regions.size();
+        state.states_.reserve(num_regions);
+        bool use_plane_transform = false;
+        if (plane.GetRotationType() ==
+            DisplayPlaneState::RotationType::kGPURotation) {
+          use_plane_transform = true;
+        }
+
+        CalculateRenderState(layers, comp_regions, state,
+                             plane.GetDownScalingFactor(),
+                             plane.IsUsingPlaneScalar(), use_plane_transform);
+
+        if (state.states_.empty()) {
+          draw_state.pop_back();
+        }
       }
     }
   }
-  //   } else if (plane.IsVideoPlane()) {
-  //     dedicated_layers.insert(dedicated_layers.end(),
-  //                             plane.GetSourceLayers().begin(),
-  //                             plane.GetSourceLayers().end());
-  //     media_state.emplace_back();
-  //     plane.SwapSurfaceIfNeeded();
-  //     DrawState &state = media_state.back();
-  //     state.surface_ = plane.GetOffScreenTarget();
-  //     MediaState &media_state = state.media_state_;
-  //     lock_.lock();
-  //     media_state.colors_ = colors_;
-  //     media_state.scaling_mode_ = scaling_mode_;
-  //     media_state.deinterlace_ = deinterlace_;
-  //     lock_.unlock();
-  //     const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
-  //     media_state.layer_ = &layer;
-  //   } else if (plane.NeedsOffScreenComposition()) {
-  //     comp = &plane;
-  //     plane.SwapSurfaceIfNeeded();
-  //     std::vector<CompositionRegion> &comp_regions =
-  //         plane.GetCompositionRegion();
-  //     bool regions_empty = comp_regions.empty();
-  //     NativeSurface *surface = plane.GetOffScreenTarget();
-  //     if (surface == NULL) {
-  //       ETRACE("GetOffScreenTarget() returned NULL pointer 'surface'.");
-  //       return false;
-  //     }
-  //     if (!regions_empty &&
-  //         (surface->ClearSurface() || surface->IsPartialClear() ||
-  //          surface->IsSurfaceDamageChanged())) {
-  //       plane.ResetCompositionRegion();
-  //       regions_empty = true;
-  //     }
-
-  //     if (surface->ClearSurface()) {
-  //       plane.UpdateDamage(plane.GetDisplayFrame());
-  //     }
-
-  //     if (regions_empty) {
-  //       SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
-  //                      surface->GetSurfaceDamage(), comp_regions);
-  //     }
-
-  //     std::vector<size_t>().swap(dedicated_layers);
-  //     if (comp_regions.empty())
-  //       continue;
-
-  //     draw_state.emplace_back();
-  //     DrawState &state = draw_state.back();
-  //     state.surface_ = surface;
-  //     size_t num_regions = comp_regions.size();
-  //     state.states_.reserve(num_regions);
-  //     bool use_plane_transform = false;
-  //     if (plane.GetRotationType() ==
-  //         DisplayPlaneState::RotationType::kGPURotation) {
-  //       use_plane_transform = true;
-  //     }
-
-  //     CalculateRenderState(layers, comp_regions, state,
-  //                          plane.GetDownScalingFactor(),
-  //                          plane.IsUsingPlaneScalar(), use_plane_transform);
-
-  //     if (state.states_.empty()) {
-  //       draw_state.pop_back();
-  //     }
-  //   }
-  // }
 
   bool status = true;
   if (!draw_state.empty() || !media_state.empty())
