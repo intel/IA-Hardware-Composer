@@ -79,6 +79,11 @@ int CreateFrameBuffer(
     ret = drmModeAddFB2WithModifiers(
         gpu_fd, iwidth, iheight, iframe_buffer_format, m_igem_handles,
         m_ipitches, m_ioffsets, modifiers, fb_id, DRM_MODE_FB_MODIFIERS);
+
+    if ((ret == 0) && ((modifier == I915_FORMAT_MOD_Y_TILED_CCS) ||
+        (modifier == I915_FORMAT_MOD_Yf_TILED_CCS))) {
+      ITRACE("RBC enabled. Create frame buffer with css modifier successfully.");
+    }
   } else {
     ret = drmModeAddFB2(gpu_fd, iwidth, iheight, iframe_buffer_format,
                         m_igem_handles, m_ipitches, m_ioffsets, fb_id, 0);
