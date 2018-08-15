@@ -156,6 +156,9 @@ bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag) {
   } else {
     // TODO:Need video buffer meta data to judge if the frame really need
     // Deinterlace.
+    if (OverlayBuffer::GetInterlaceMode() != kDeinterlaceNone) {
+      return true;
+    }
   }
   return false;
 }

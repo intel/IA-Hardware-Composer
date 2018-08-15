@@ -78,7 +78,7 @@ NestedDisplay::NestedDisplay(uint32_t gpu_fd,
   memset(&msg, 0, sizeof(ioctl_hyper_dmabuf_tx_ch_setup));
 
   resource_manager_.reset(new ResourceManager(buffer_handler));
-  fb_manger_ = framebuffermanager;
+  fb_manager_ = framebuffermanager;
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
