@@ -215,6 +215,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   handle->meta_data_.format_ = gr_handle->format;
   handle->meta_data_.tiling_mode_ = gr_handle->tiling_mode;
+  handle->meta_data_.interlace_mode_ = gr_handle->interlace_mode;
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.native_format_ = gr_handle->droid_format;
