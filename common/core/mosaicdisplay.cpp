@@ -480,6 +480,8 @@ bool MosaicDisplay::GetDisplayAttribute(uint32_t /*config*/,
 
 bool MosaicDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                       uint32_t *configs) {
+  if (!num_configs)
+    return false;
   *num_configs = 1;
   if (configs) {
     configs[0] = 0;

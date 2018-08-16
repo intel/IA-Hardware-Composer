@@ -615,6 +615,8 @@ bool PhysicalDisplay::SetCustomResolution(const HwcRect<int32_t> &rect) {
 
 bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                         uint32_t *configs) {
+  if (!num_configs)
+    return false;
   *num_configs = 1;
   if (configs) {
     configs[0] = 1;
