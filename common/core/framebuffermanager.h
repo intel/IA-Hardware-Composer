@@ -14,27 +14,7 @@
 // limitations under the License.
 */
 
-/** \file
-Design of ResourceManager:
-The purpose is to add cache magagement to external buffer owned by hwcLayer
-to avoid import buffer and glimage/texture generation overhead
-
-1: the ResourceManager is owned per display, as each display has a
-separate
-GL context
-2: ResourceManager stores a refernce of external buffers in a vector
-   cached_buffers, each vector member is hash map.
-   The vector stores history buffer in this way, vector[0] is for the current
-   frame buffers, vector[1] is for last frame (-1) buffers, vector[2] is -2
-   frames buffers etc. A constant (currently 4) frames of buffers is stored.
-   When a buffer refernce is stored in vector[3] and it is not used in the
-   current frame present, it will go out of scope and be released.
-   If a buffer is fetched from map, it will always re-registered in vector[0]
-map.
-3. By this way, drm_buffer now owns eglImage and gltexture and they
-   can be resued.
-*/
-
+/** \file */
 #ifndef COMMON_CORE_FRAMEBUFFER_MANAGER_H_
 #define COMMON_CORE_FRAMEBUFFER_MANAGER_H_
 
