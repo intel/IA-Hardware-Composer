@@ -23,6 +23,8 @@
 #include <log/log.h>
 #include <ui/GraphicBufferMapper.h>
 
+#define UNUSED(x) (void)(x)
+
 namespace android {
 
 const hwc_drm_bo *DrmHwcBuffer::operator->() const {
@@ -59,11 +61,25 @@ int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
   return 0;
 }
 
-int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle) {
+int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle, int width,
+                                         int height, int layerCount, int format,
+                                         int usage, int stride) {
   native_handle_t *handle_copy;
   GraphicBufferMapper &gm(GraphicBufferMapper::get());
-  int ret = gm.importBuffer(handle,
-                            const_cast<buffer_handle_t *>(&handle_copy));
+  int ret;
+
+#ifdef HWC2_USE_OLD_GB_IMPORT
+  UNUSED(width);
+  UNUSED(height);
+  UNUSED(layerCount);
+  UNUSED(format);
+  UNUSED(usage);
+  UNUSED(stride);
+  ret = gm.importBuffer(handle, const_cast<buffer_handle_t *>(&handle_copy));
+#else
+  ret = gm.importBuffer(handle, width, height, layerCount, format, usage,
+                        stride, const_cast<buffer_handle_t *>(&handle_copy));
+#endif
   if (ret) {
     ALOGE("Failed to import buffer handle %d", ret);
     return ret;
@@ -96,11 +112,19 @@ int DrmHwcLayer::ImportBuffer(Importer *importer) {
   if (ret)
     return ret;
 
-  ret = handle.CopyBufferHandle(sf_handle);
+  const hwc_drm_bo *bo = buffer.operator->();
+
+  unsigned int layer_count;
+  for (layer_count = 0; layer_count < HWC_DRM_BO_MAX_PLANES; ++layer_count)
+    if (bo->gem_handles[layer_count] == 0)
+      break;
+
+  ret = handle.CopyBufferHandle(sf_handle, bo->width, bo->height, layer_count,
+                                bo->hal_format, bo->usage, bo->pixel_stride);
   if (ret)
     return ret;
 
-  gralloc_buffer_usage = buffer.operator->()->usage;
+  gralloc_buffer_usage = bo->usage;
 
   return 0;
 }
