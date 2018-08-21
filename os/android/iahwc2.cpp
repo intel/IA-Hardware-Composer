@@ -166,12 +166,6 @@ HWC2::Error IAHWC2::Init() {
                         scaling_mode_);
   size_t size = displays.size();
 
-  // Add nested display which is expected to use the output of this display and
-  // show it himself. Nested display can be implemented with real HW display.
-  // It's different from virtual display.
-  nested_display_.InitNestedDisplay(device_.GetNestedDisplay(),
-                                    disable_explicit_sync_);
-
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
     if (display == primary_display)
@@ -207,9 +201,15 @@ static inline void supported(char const *func) {
 HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
-  *display = (hwc2_display_t)HWC_DISPLAY_VIRTUAL;
-  virtual_display_.InitVirtualDisplay(device_.GetVirtualDisplay(), width,
-                                      height, disable_explicit_sync_);
+  *display = (hwc2_display_t)(virtual_display_index_ + HWC_DISPLAY_VIRTUAL +
+                              VDS_OFFSET);
+  std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
+  temp->InitVirtualDisplay(device_.CreateVirtualDisplay(virtual_display_index_),
+                           width, height, virtual_display_index_,
+                           disable_explicit_sync_);
+  virtual_displays_.emplace_back(std::move(temp));
+  virtual_display_index_++;
+
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
     *format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -219,10 +219,14 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
 }
 
 HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
-  if (display != (hwc2_display_t)HWC_DISPLAY_VIRTUAL) {
+  if (display <= (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
     ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
     return HWC2::Error::BadDisplay;
   }
+
+  device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
+  virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
+      .reset(nullptr);
 
   return HWC2::Error::None;
 }
@@ -233,7 +237,7 @@ void IAHWC2::Dump(uint32_t *size, char *buffer) {
 }
 
 uint32_t IAHWC2::GetMaxVirtualDisplayCount() {
-  return 2;
+  return 10;
 }
 
 HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
@@ -247,9 +251,6 @@ HWC2::Error IAHWC2::RegisterCallback(int32_t descriptor,
   switch (callback) {
     case HWC2::Callback::Hotplug: {
       primary_display_.RegisterHotPlugCallback(data, function);
-#ifdef NESTED_DISPLAY_SUPPORT
-      nested_display_.RegisterHotPlugCallback(data, function);
-#endif
       for (size_t i = 0; i < size; ++i) {
         IAHWC2::HwcDisplay *display = extended_displays_.at(i).get();
         display->RegisterHotPlugCallback(data, function);
@@ -297,39 +298,12 @@ IAHWC2::HwcDisplay::HwcDisplay()
 // This function will be called only for Virtual Display Init
 HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
     hwcomposer::NativeDisplay *display, uint32_t width, uint32_t height,
-    bool disable_explicit_sync) {
+    uint32_t display_index, bool disable_explicit_sync) {
   supported(__func__);
   display_ = display;
   type_ = HWC2::DisplayType::Virtual;
-  handle_ = HWC_DISPLAY_VIRTUAL;
+  handle_ = display_index + HWC_DISPLAY_VIRTUAL + VDS_OFFSET;
   display_->InitVirtualDisplay(width, height);
-  disable_explicit_sync_ = disable_explicit_sync;
-  display_->SetExplicitSyncSupport(disable_explicit_sync_);
-  return HWC2::Error::None;
-}
-
-// This function will be called only for Nested Display Init
-HWC2::Error IAHWC2::HwcDisplay::InitNestedDisplay(
-    hwcomposer::NativeDisplay *display, bool disable_explicit_sync) {
-  supported(__func__);
-
-  char value[PROPERTY_VALUE_MAX];
-  uint32_t width, height, port;
-  property_get("debug.hwc.nested-display", value, "0");
-  enable_nested_display_compose_ = atoi(value);
-  property_get("debug.hwc.nested-display.width", value, "1920");
-  width = atoi(value);
-  property_get("debug.hwc.nested-display.height", value, "1080");
-  height = atoi(value);
-  property_get("debug.hwc.nested-display.port", value, "2345");
-  port = atoi(value);
-
-  display_ = display;
-#ifdef NESTED_DISPLAY_SUPPORT
-  type_ = HWC2::DisplayType::Nested;
-  handle_ = HWC_DISPLAY_NESTED;
-  display_->InitNestedDisplay(width, height, port);
-#endif
   disable_explicit_sync_ = disable_explicit_sync;
   display_->SetExplicitSyncSupport(disable_explicit_sync_);
   return HWC2::Error::None;
@@ -818,14 +792,6 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   *num_requests = 0;
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     IAHWC2::Hwc2Layer &layer = l.second;
-
-#ifdef NESTED_DISPLAY_SUPPORT
-    /*Cluster will leverage surfaceflinger do compostion*/
-    if (handle_ == HWC_DISPLAY_NESTED && display_->IsConnected()) {
-      layer.set_validated_type(HWC2::Composition::Client);
-      continue;
-    }
-#endif
 
     switch (layer.sf_type()) {
       case HWC2::Composition::Sideband:

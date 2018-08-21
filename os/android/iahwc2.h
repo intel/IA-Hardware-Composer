@@ -28,6 +28,11 @@
 
 #include "hwcservice.h"
 
+/*we have two extend displays,the seconde one's take over virtual
+display ID slot.to simplify ID management,start the virtual display
+ID from 4(HWC_DISPLAY_VIRTUAL+VDS_OFFSET)*/
+#define VDS_OFFSET 2
+
 namespace hwcomposer {
 class GpuDevice;
 class NativeDisplay;
@@ -142,9 +147,8 @@ class IAHWC2 : public hwc2_device_t {
                      bool disable_explicit_sync, uint32_t scaling_mode);
     HWC2::Error InitVirtualDisplay(hwcomposer::NativeDisplay *display,
                                    uint32_t width, uint32_t height,
+                                   uint32_t display_index,
                                    bool disable_explicit_sync);
-    HWC2::Error InitNestedDisplay(hwcomposer::NativeDisplay *display,
-                                  bool disable_explicit_sync);
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
@@ -238,16 +242,16 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
     }
 
-    if (display_handle == HWC_DISPLAY_VIRTUAL) {
+    if (display_handle >= (HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
+      HwcDisplay *display =
+          hwc->virtual_displays_
+              .at(display_handle - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
+              .get();
+
       return static_cast<int32_t>(
-          (hwc->virtual_display_.*func)(std::forward<Args>(args)...));
+          (display->*func)(std::forward<Args>(args)...));
     }
-#ifdef NESTED_DISPLAY_SUPPORT
-    if (display_handle == HWC_DISPLAY_NESTED) {
-      return static_cast<int32_t>(
-          (hwc->nested_display_.*func)(std::forward<Args>(args)...));
-    }
-#endif
+
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       return static_cast<int32_t>(
@@ -268,16 +272,15 @@ class IAHWC2 : public hwc2_device_t {
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
 
-    if (display_handle == HWC_DISPLAY_VIRTUAL) {
-      Hwc2Layer &layer = hwc->virtual_display_.get_layer(layer_handle);
+    if (display_handle >= (HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
+      HwcDisplay *display =
+          hwc->virtual_displays_
+              .at(display_handle - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
+              .get();
+      Hwc2Layer &layer = display->get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
-#ifdef NESTED_DISPLAY_SUPPORT
-    if (display_handle == HWC_DISPLAY_NESTED) {
-      Hwc2Layer &layer = hwc->nested_display_.get_layer(layer_handle);
-      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
-    }
-#endif
+
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
       Hwc2Layer &layer = display->get_layer(layer_handle);
@@ -308,8 +311,8 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::GpuDevice device_;
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
-  HwcDisplay virtual_display_;
-  HwcDisplay nested_display_;
+  std::vector<std::unique_ptr<HwcDisplay>> virtual_displays_;
+  uint32_t virtual_display_index_ = 0;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;

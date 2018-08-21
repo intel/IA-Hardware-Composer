@@ -38,7 +38,6 @@ LOCAL_SRC_FILES := os/alios/hwf_alioshal.cpp \
     common/core/logicaldisplay.cpp \
     common/core/mosaicdisplay.cpp \
     common/core/hwclayer.cpp \
-    common/core/nesteddisplay.cpp \
     common/core/overlaylayer.cpp \
     common/core/resourcemanager.cpp \
     common/core/framebuffermanager.cpp \

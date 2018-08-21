@@ -92,7 +92,6 @@ enum class DisplayType : int32_t {
   kVirtual = 2,
   kLogical = 3,
   kMosaic = 4,
-  kNested = 5
 };
 #endif  //__cplusplus
 

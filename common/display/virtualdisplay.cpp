@@ -34,14 +34,47 @@ namespace hwcomposer {
 VirtualDisplay::VirtualDisplay(uint32_t gpu_fd,
                                NativeBufferHandler *buffer_handler,
                                FrameBufferManager *frame_buffer_manager,
-                               uint32_t /*pipe_id*/, uint32_t /*crtc_id*/)
-    : output_handle_(0), acquire_fence_(-1), width_(0), height_(0) {
+                               uint32_t pipe_id, uint32_t /*crtc_id*/)
+    : output_handle_(0),
+      acquire_fence_(-1),
+      width_(0),
+      height_(0),
+      display_index_(pipe_id) {
   resource_manager_.reset(new ResourceManager(buffer_handler));
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
   fb_manager_ = frame_buffer_manager;
   compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
+#ifdef HYPER_DMABUF_SHARING
+  if (display_index_ == 0) {
+    int ret;
+    struct ioctl_hyper_dmabuf_tx_ch_setup msg;
+    memset(&msg, 0, sizeof(ioctl_hyper_dmabuf_tx_ch_setup));
+
+    mHyperDmaBuf_Fd = open(HYPER_DMABUF_PATH, O_RDWR);
+    if (mHyperDmaBuf_Fd < 0)
+      ETRACE("Hyper DmaBuf: open hyper dmabuf device node %s failed because %s",
+             HYPER_DMABUF_PATH, strerror(errno));
+    else {
+      ITRACE("Hyper DmaBuf: open hyper dmabuf device node %s successfully!",
+             HYPER_DMABUF_PATH);
+      /* TODO: add config option to specify which domains should be used, for
+       * now we share always with dom0 */
+      msg.remote_domain = 0;
+      ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_TX_CH_SETUP, &msg);
+      if (ret) {
+        ETRACE(
+            "Hyper DmaBuf:"
+            "IOCTL_HYPER_DMABUF_TX_CH_SETUP failed with error %d\n",
+            ret);
+        close(mHyperDmaBuf_Fd);
+        mHyperDmaBuf_Fd = -1;
+      } else
+        ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_TX_CH_SETUP Done!\n");
+    }
+  }
+#endif
 }
 
 VirtualDisplay::~VirtualDisplay() {
@@ -60,6 +93,32 @@ VirtualDisplay::~VirtualDisplay() {
 
   resource_manager_->PurgeBuffer();
   compositor_.Reset();
+#ifdef HYPER_DMABUF_SHARING
+  if (mHyperDmaBuf_Fd > 0 && display_index_ == 0) {
+    auto it = mHyperDmaExportedBuffers.begin();
+    for (; it != mHyperDmaExportedBuffers.end(); ++it) {
+      struct ioctl_hyper_dmabuf_unexport msg;
+      int ret;
+      msg.hid = it->second.hyper_dmabuf_id;
+      // Todo: find a reduced dmabuf free delay time
+      msg.delay_ms = 1000;
+      ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_UNEXPORT, &msg);
+      if (ret) {
+        ETRACE(
+            "Hyper DmaBuf:"
+            "IOCTL_HYPER_DMABUF_UNEXPORT ioctl failed %d [0x%x]\n",
+            ret, it->second.hyper_dmabuf_id.id);
+      } else {
+        ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
+               it->second.hyper_dmabuf_id.id);
+        mHyperDmaExportedBuffers.erase(it);
+      }
+    }
+
+    close(mHyperDmaBuf_Fd);
+    mHyperDmaBuf_Fd = -1;
+  }
+#endif
 }
 
 void VirtualDisplay::InitVirtualDisplay(uint32_t width, uint32_t height) {
@@ -83,6 +142,160 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence,
                              PixelUploaderCallback * /*call_back*/,
                              bool handle_constraints) {
+#ifdef HYPER_DMABUF_SHARING
+  if (display_index_ == 0) {
+    int ret = 0;
+    size_t size = source_layers.size();
+    const uint32_t *pitches;
+    const uint32_t *offsets;
+    HWCNativeHandle sf_handle;
+    size_t buffer_number = 0;
+    uint32_t surf_index = 0;
+    size_t info_size = sizeof(vm_buffer_info);
+    size_t header_size = sizeof(vm_header);
+    vm_header header;
+    vm_buffer_info info;
+    memset(&header, 0, header_size);
+    memset(&info, 0, info_size);
+    struct ioctl_hyper_dmabuf_export_remote msg;
+    char meta_data[header_size + info_size];
+    uint32_t imported_fd = 0;
+
+    resource_manager_->RefreshBufferCache();
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      HwcLayer *layer = source_layers.at(layer_index);
+      if (!layer->IsVisible())
+        continue;
+      buffer_number++;
+    }
+
+    header.n_buffers = buffer_number;
+    header.version = 3;
+    header.output = 0;
+    header.counter = frame_count_++;
+    header.disp_w = width_;
+    header.disp_h = height_;
+
+    for (size_t layer_index = 0; layer_index < size; layer_index++) {
+      HwcLayer *layer = source_layers.at(layer_index);
+      if (!layer->IsVisible())
+        continue;
+
+      const HwcRect<int> &display_frame = layer->GetDisplayFrame();
+      sf_handle = layer->GetNativeHandle();
+      std::shared_ptr<OverlayBuffer> buffer(NULL);
+      uint32_t gpu_fd = resource_manager_->GetNativeBufferHandler()->GetFd();
+      uint32_t id = GetNativeBuffer(gpu_fd, sf_handle);
+      buffer = resource_manager_->FindCachedBuffer(id);
+      if (buffer == NULL) {
+        buffer = OverlayBuffer::CreateOverlayBuffer();
+        buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get(),
+                                           fb_manager_);
+        resource_manager_->RegisterBuffer(id, buffer);
+        imported_fd = buffer->GetPrimeFD();
+
+        if (mHyperDmaBuf_Fd > 0 && imported_fd > 0) {
+          mHyperDmaExportedBuffers[imported_fd].width = buffer->GetWidth();
+          mHyperDmaExportedBuffers[imported_fd].height = buffer->GetHeight();
+          mHyperDmaExportedBuffers[imported_fd].format = buffer->GetFormat();
+          pitches = buffer->GetPitches();
+          offsets = buffer->GetOffsets();
+          mHyperDmaExportedBuffers[imported_fd].pitch[0] = pitches[0];
+          mHyperDmaExportedBuffers[imported_fd].pitch[1] = pitches[1];
+          mHyperDmaExportedBuffers[imported_fd].pitch[2] = pitches[2];
+          mHyperDmaExportedBuffers[imported_fd].offset[0] = offsets[0];
+          mHyperDmaExportedBuffers[imported_fd].offset[1] = offsets[1];
+          mHyperDmaExportedBuffers[imported_fd].offset[2] = offsets[2];
+          mHyperDmaExportedBuffers[imported_fd].tile_format =
+              buffer->GetTilingMode();
+          mHyperDmaExportedBuffers[imported_fd].rotation = 0;
+          mHyperDmaExportedBuffers[imported_fd].status = 0;
+          mHyperDmaExportedBuffers[imported_fd].counter = 0;
+          mHyperDmaExportedBuffers[imported_fd].surface_id =
+              (uint64_t)sf_handle;
+          mHyperDmaExportedBuffers[imported_fd].bbox[0] = display_frame.left;
+          mHyperDmaExportedBuffers[imported_fd].bbox[1] = display_frame.top;
+          mHyperDmaExportedBuffers[imported_fd].bbox[2] = buffer->GetWidth();
+          mHyperDmaExportedBuffers[imported_fd].bbox[3] = buffer->GetHeight();
+        }
+      }
+
+      msg.sz_priv = header_size + info_size;
+      msg.priv = meta_data;
+
+      /* TODO: add more flexibility here, instead of hardcoded domain 0*/
+      msg.remote_domain = 0;
+      msg.dmabuf_fd = buffer->GetPrimeFD();
+
+      char index[15];
+      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
+      memset(index, 0, sizeof(index));
+      sprintf(index, "Cluster_%d", surf_index);
+      strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name,
+              index, SURFACE_NAME_LENGTH);
+      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =
+          (hyper_dmabuf_id_t){-1, {-1, -1, -1}};
+      memcpy(meta_data, &header, header_size);
+      memcpy(meta_data + header_size,
+             &mHyperDmaExportedBuffers[buffer->GetPrimeFD()], info_size);
+
+      ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_EXPORT_REMOTE, &msg);
+      if (ret) {
+        ETRACE("Hyper DmaBuf: Exporting hyper_dmabuf failed with error %d\n",
+               ret);
+        return false;
+      }
+      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id = msg.hid;
+      surf_index++;
+    }
+
+    resource_manager_->PreparePurgedResources();
+
+    std::vector<ResourceHandle> purged_gl_resources;
+    std::vector<MediaResourceHandle> purged_media_resources;
+    bool has_gpu_resource = false;
+    resource_manager_->GetPurgedResources(
+        purged_gl_resources, purged_media_resources, &has_gpu_resource);
+    size_t purged_size = purged_gl_resources.size();
+
+    if (purged_size != 0) {
+      const NativeBufferHandler *handler =
+          resource_manager_->GetNativeBufferHandler();
+
+      for (size_t i = 0; i < purged_size; i++) {
+        const ResourceHandle &handle = purged_gl_resources.at(i);
+        if (!handle.handle_) {
+          continue;
+        }
+
+        auto search = mHyperDmaExportedBuffers.find(
+            handle.handle_->imported_handle_->data[0]);
+        if (search != mHyperDmaExportedBuffers.end()) {
+          struct ioctl_hyper_dmabuf_unexport msg;
+          int ret;
+          msg.hid = search->second.hyper_dmabuf_id;
+          msg.delay_ms = 1000;
+          ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_UNEXPORT, &msg);
+          if (ret) {
+            ETRACE(
+                "Hyper DmaBuf:"
+                "IOCTL_HYPER_DMABUF_UNEXPORT ioctl failed %d [0x%x]\n",
+                ret, search->second.hyper_dmabuf_id.id);
+          } else {
+            ITRACE(
+                "Hyper DmaBuf:"
+                "IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
+                search->second.hyper_dmabuf_id.id);
+          }
+          mHyperDmaExportedBuffers.erase(search);
+        }
+        handler->ReleaseBuffer(handle.handle_);
+        handler->DestroyHandle(handle.handle_);
+      }
+    }
+    return true;
+  }
+#endif
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
@@ -160,14 +373,21 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       layer->SetReleaseFence(overlay_layer.ReleaseAcquireFence());
     }
   }
-
-  compositor_.FreeResources();
+  if (resource_manager_->PreparePurgedResources()) {
+    compositor_.FreeResources();
+  }
 
   return true;
 }
 
 void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
+#ifdef HYPER_DMABUF_SHARING
+  if (display_index_ == 0) {
+    return;
+  }
+#endif
+
   if (!output_handle_ || output_handle_ != buffer) {
     const NativeBufferHandler *handler =
         resource_manager_->GetNativeBufferHandler();
@@ -246,7 +466,7 @@ bool VirtualDisplay::GetDisplayConfigs(uint32_t *num_configs,
 
 bool VirtualDisplay::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
-  stream << "Virtual";
+  stream << "Virtual:" << display_index_;
   std::string string = stream.str();
   size_t length = string.length();
   if (!name) {
@@ -279,5 +499,4 @@ bool VirtualDisplay::CheckPlaneFormat(uint32_t /*format*/) {
   // assuming that virtual display supports the format
   return true;
 }
-
 }  // namespace hwcomposer
