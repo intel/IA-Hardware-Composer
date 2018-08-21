@@ -280,11 +280,6 @@ class NativeDisplay {
   virtual void InitVirtualDisplay(uint32_t /*width*/, uint32_t /*height*/) {
   }
 
-  // Nested display related.
-  virtual void InitNestedDisplay(uint32_t /*width*/, uint32_t /*height*/,
-                                 uint32_t /*port*/) {
-  }
-
   /**
    * API for setting output buffer for virtual display.
    * @param buffer ownership is taken by display.

@@ -31,7 +31,6 @@
 #include "drmscopedtypes.h"
 #include "framebuffermanager.h"
 #include "hwcthread.h"
-#include "nesteddisplay.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
 
@@ -52,8 +51,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void StartHotPlugMonitor() override;
 
-  NativeDisplay *GetVirtualDisplay() override;
-  NativeDisplay *GetNestedDisplay() override;
+  NativeDisplay *CreateVirtualDisplay(uint32_t display_index) override;
+  void DestroyVirtualDisplay(uint32_t display_index) override;
 
   std::vector<NativeDisplay *> GetAllDisplays() override;
 
@@ -81,8 +80,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
  private:
   void HotPlugEventHandler();
   bool UpdateDisplayState();
-  std::unique_ptr<NativeDisplay> virtual_display_;
-  std::unique_ptr<NativeDisplay> nested_display_;
+  std::vector<std::unique_ptr<NativeDisplay>> virtual_displays_;
   std::unique_ptr<FrameBufferManager> frame_buffer_manager_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;

@@ -12,7 +12,6 @@ common_SOURCES =              \
     core/logicaldisplay.cpp \
     core/logicaldisplaymanager.cpp \
     core/mosaicdisplay.cpp \
-    core/nesteddisplay.cpp \
     display/displayqueue.cpp \
     display/displayplanemanager.cpp \
     display/displayplanestate.cpp \

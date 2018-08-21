@@ -94,8 +94,8 @@ endif
 
 LOCAL_CPPFLAGS += -DUSE_GRALLOC1
 
-ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
-LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING
 endif
 
 LOCAL_SRC_FILES += os/android/gralloc1bufferhandler.cpp
