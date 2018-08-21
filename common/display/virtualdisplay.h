@@ -95,7 +95,6 @@ class VirtualDisplay : public NativeDisplay {
   HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
   FrameBufferManager *fb_manager_ = NULL;
-  uint32_t gpu_fd_ = 0;
 };
 
 }  // namespace hwcomposer

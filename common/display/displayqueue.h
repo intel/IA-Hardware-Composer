@@ -326,6 +326,12 @@ class DisplayQueue {
   void ResetQueue();
 
   void HandleCommitFailure(DisplayPlaneStateList& current_composition_planes);
+  void InitializeOverlayLayers(std::vector<HwcLayer*>& source_layers,
+                               bool handle_constraints, bool validate_layers,
+                               std::vector<OverlayLayer>& layers,
+                               int& remove_index, int& add_index,
+                               bool& has_video_layer, bool& has_cursor_layer,
+                               bool& re_validate_commit, bool& idle_frame);
 
   Compositor compositor_;
   uint32_t gpu_fd_;
