@@ -59,8 +59,8 @@ LOCAL_SRC_FILES := \
         drm/drmdisplaymanager.cpp \
 	drm/drmscopedtypes.cpp
 
-ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
-LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING
 endif
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)

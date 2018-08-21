@@ -56,8 +56,8 @@ class DisplayManager {
   // Get FD associated with this DisplayManager.
   virtual uint32_t GetFD() const = 0;
 
-  virtual NativeDisplay *GetVirtualDisplay() = 0;
-  virtual NativeDisplay *GetNestedDisplay() = 0;
+  virtual NativeDisplay *CreateVirtualDisplay(uint32_t display_index) = 0;
+  virtual void DestroyVirtualDisplay(uint32_t display_index) = 0;
 
   virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 

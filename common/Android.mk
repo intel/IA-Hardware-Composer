@@ -75,7 +75,6 @@ LOCAL_SRC_FILES := \
 	core/logicaldisplaymanager.cpp \
 	core/mosaicdisplay.cpp \
         core/overlaylayer.cpp \
-	core/nesteddisplay.cpp \
         display/displayplanemanager.cpp \
 	display/displayplanestate.cpp \
         display/displayqueue.cpp \
@@ -100,8 +99,8 @@ else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif
 
-ifeq ($(strip $(ENABLE_NESTED_DISPLAY_SUPPORT)), true)
-LOCAL_CPPFLAGS += -DNESTED_DISPLAY_SUPPORT
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING
 endif
 
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
