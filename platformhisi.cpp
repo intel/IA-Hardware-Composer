@@ -96,6 +96,7 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
 
   bo->width = hnd->width;
   bo->height = hnd->height;
+  bo->hal_format = hnd->req_format;
   bo->format = fmt;
   bo->usage = hnd->usage;
 

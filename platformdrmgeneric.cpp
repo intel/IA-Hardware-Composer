@@ -98,6 +98,7 @@ int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   memset(bo, 0, sizeof(hwc_drm_bo_t));
   bo->width = gr_handle->width;
   bo->height = gr_handle->height;
+  bo->hal_format = gr_handle->format;
   bo->format = ConvertHalFormatToDrm(gr_handle->format);
   bo->usage = gr_handle->usage;
   bo->pitches[0] = gr_handle->stride;
