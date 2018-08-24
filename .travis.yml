@@ -162,8 +162,10 @@ install:
     wget https://mesa.freedesktop.org/archive/$MESA_VERSION.tar.gz
     tar -zxf $MESA_VERSION.tar.gz
     (cd $MESA_VERSION && ./configure --prefix=$HOME/prefix --disable-glx \
-     --with-platforms=surfaceless,wayland --with-dri-drivers=i965 \
-     --without-gallium-drivers --with-vulkan-drivers=intel && make install V=1)
+     --with-platforms=surfaceless --with-dri-drivers=i965 \
+     --disable-dri3 --enable-shared-glapi --enable-texture-float \
+     --disable-glx-tls --enable-gbm \
+     --with-gallium-drivers --with-vulkan-drivers=intel && make install)
 
     wget http://www.freedesktop.org/software/vaapi/releases/libva/$LIBVA_VERSION.tar.bz2
     tar -jxf $LIBVA_VERSION.tar.bz2
