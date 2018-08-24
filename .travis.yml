@@ -1,6 +1,6 @@
 language: cpp
 
-sudo: false
+sudo: required 
 dist: trusty
 
 cache:
@@ -149,46 +149,46 @@ install:
          "#endif /* _LINUX_MEMFD_H */" > $HOME/prefix/include/linux/memfd.h
 
     wget http://wayland.freedesktop.org/releases/$LIBWAYLAND_VERSION.tar.xz
-    tar -axvf $LIBWAYLAND_VERSION.tar.xz
+    tar -axf $LIBWAYLAND_VERSION.tar.xz
     (cd $LIBWAYLAND_VERSION && ./configure --prefix=$HOME/prefix \
      --enable-libraries --without-host-scanner --disable-documentation \
      --disable-dtd-validation && make install)
 
     wget http://wayland.freedesktop.org/releases/$WAYLAND_PROTOCOLS_VERSION.tar.xz
-    tar -axvf $WAYLAND_PROTOCOLS_VERSION.tar.xz
+    tar -axf $WAYLAND_PROTOCOLS_VERSION.tar.xz
     (cd $WAYLAND_PROTOCOLS_VERSION && ./configure --prefix=$HOME/prefix && \
      make install)
 
     wget https://mesa.freedesktop.org/archive/$MESA_VERSION.tar.gz
-    tar -zxvf $MESA_VERSION.tar.gz
+    tar -zxf $MESA_VERSION.tar.gz
     (cd $MESA_VERSION && ./configure --prefix=$HOME/prefix --disable-glx \
-     --with-platforms=surfaceless,wayland --without-gallium-drivers \
-     --with-vulkan-drivers=intel && make install)
+     --with-platforms=surfaceless,wayland --with-dri-drivers=i965 \
+     --without-gallium-drivers --with-vulkan-drivers=intel && make install)
 
     wget http://www.freedesktop.org/software/vaapi/releases/libva/$LIBVA_VERSION.tar.bz2
-    tar -jxvf $LIBVA_VERSION.tar.bz2
+    tar -jxf $LIBVA_VERSION.tar.bz2
     (cd $LIBVA_VERSION && ./configure --prefix=$HOME/prefix && make install)
 
     wget https://github.com/KhronosGroup/Vulkan-Headers/archive/$VULKAN_SDK_VERSION.tar.gz
     mv $VULKAN_SDK_VERSION.tar.gz Vulkan-Headers-$VULKAN_SDK_VERSION.tar.gz
-    tar -zxvf Vulkan-Headers-$VULKAN_SDK_VERSION.tar.gz
+    tar -zxf Vulkan-Headers-$VULKAN_SDK_VERSION.tar.gz
     (cd Vulkan-Headers-$VULKAN_SDK_VERSION && \
      cmake -DCMAKE_INSTALL_PREFIX=$HOME/prefix && make install)
 
     wget https://github.com/KhronosGroup/Vulkan-Loader/archive/$VULKAN_SDK_VERSION.tar.gz
     mv $VULKAN_SDK_VERSION.tar.gz Vulkan-Loader-$VULKAN_SDK_VERSION.tar.gz
-    tar -zxvf Vulkan-Loader-$VULKAN_SDK_VERSION.tar.gz
+    tar -zxf Vulkan-Loader-$VULKAN_SDK_VERSION.tar.gz
     (cd Vulkan-Loader-$VULKAN_SDK_VERSION && \
      cmake -DCMAKE_INSTALL_PREFIX=$HOME/prefix -DBUILD_TESTS=OFF \
      -DBUILD_WSI_MIR_SUPPORT=Off -DBUILD_WSI_WAYLAND_SUPPORT=Off \
      -DBUILD_WSI_XCB_SUPPORT=Off -DBUILD_WSI_XLIB_SUPPORT=Off && make install)
 
     wget https://www.freedesktop.org/software/libevdev/$LIBEVDEV_VERSION.tar.xz
-    tar -axvf $LIBEVDEV_VERSION.tar.xz
+    tar -axf $LIBEVDEV_VERSION.tar.xz
     (cd $LIBEVDEV_VERSION && ./configure --prefix=$HOME/prefix && make install)
 
     wget https://download.savannah.nongnu.org/releases/libunwind/$LIBUNWIND_VERSION.tar.gz
-    tar -xzvf $LIBUNWIND_VERSION.tar.gz
+    tar -xzf $LIBUNWIND_VERSION.tar.gz
     (cd $LIBUNWIND_VERSION && ./configure --prefix=$HOME/prefix && make install)
 
 script:
