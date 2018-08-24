@@ -83,6 +83,24 @@ uint32_t DrmGenericImporter::ConvertHalFormatToDrm(uint32_t hal_format) {
   }
 }
 
+uint32_t DrmGenericImporter::DrmFormatToBitsPerPixel(uint32_t drm_format) {
+  switch (drm_format) {
+    case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_ABGR8888:
+      return 32;
+    case DRM_FORMAT_BGR888:
+      return 24;
+    case DRM_FORMAT_BGR565:
+      return 16;
+    case DRM_FORMAT_YVU420:
+      return 12;
+    default:
+      ALOGE("Cannot convert hal format %u to bpp (returning 32)", drm_format);
+      return 32;
+  }
+}
+
 int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   gralloc_handle_t *gr_handle = gralloc_handle(handle);
   if (!gr_handle)
@@ -101,6 +119,8 @@ int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   bo->hal_format = gr_handle->format;
   bo->format = ConvertHalFormatToDrm(gr_handle->format);
   bo->usage = gr_handle->usage;
+  bo->pixel_stride = (gr_handle->stride * 8) /
+                     DrmFormatToBitsPerPixel(bo->format);
   bo->pitches[0] = gr_handle->stride;
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;

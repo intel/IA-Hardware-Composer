@@ -35,6 +35,7 @@ class DrmGenericImporter : public Importer {
   int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
+  uint32_t DrmFormatToBitsPerPixel(uint32_t drm_format);
 
  private:
   DrmDevice *drm_;

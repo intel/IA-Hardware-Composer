@@ -85,6 +85,7 @@ int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   bo->hal_format = gr_handle->droid_format;
   bo->format = gr_handle->format;
   bo->usage = gr_handle->usage;
+  bo->pixel_stride = gr_handle->pixel_stride;
   bo->pitches[0] = gr_handle->strides[0];
   bo->offsets[0] = gr_handle->offsets[0];
   bo->gem_handles[0] = gem_handle;

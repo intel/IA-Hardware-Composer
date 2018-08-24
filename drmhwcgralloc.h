@@ -26,6 +26,7 @@ typedef struct hwc_drm_bo {
   uint32_t format;     /* DRM_FORMAT_* from drm_fourcc.h */
   uint32_t hal_format; /* HAL_PIXEL_FORMAT_* */
   uint32_t usage;
+  uint32_t pixel_stride;
   uint32_t pitches[HWC_DRM_BO_MAX_PLANES];
   uint32_t offsets[HWC_DRM_BO_MAX_PLANES];
   uint32_t gem_handles[HWC_DRM_BO_MAX_PLANES];

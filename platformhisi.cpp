@@ -99,7 +99,7 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   bo->hal_format = hnd->req_format;
   bo->format = fmt;
   bo->usage = hnd->usage;
-
+  bo->pixel_stride = hnd->stride;
   bo->pitches[0] = hnd->byte_stride;
   bo->gem_handles[0] = gem_handle;
   bo->offsets[0] = 0;
