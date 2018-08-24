@@ -1,6 +1,6 @@
 language: cpp
 
-sudo: false
+sudo: required
 dist: trusty
 
 cache:
@@ -163,7 +163,7 @@ install:
     tar -zxvf $MESA_VERSION.tar.gz
     (cd $MESA_VERSION && ./configure --prefix=$HOME/prefix --disable-glx \
      --with-platforms=surfaceless,wayland --without-gallium-drivers \
-     --with-vulkan-drivers=intel && make install)
+     --with-dri-drivers=i965 --with-vulkan-drivers=intel && make install)
 
     wget http://www.freedesktop.org/software/vaapi/releases/libva/$LIBVA_VERSION.tar.bz2
     tar -jxvf $LIBVA_VERSION.tar.bz2
