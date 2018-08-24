@@ -133,8 +133,10 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   std::vector<int> inv_tmap = {kIdentity, kTransform90, kTransform180,
                                kTransform270};
 
+  int mdisplay_transform = display_transform;
   int mtransform =
       transform & (kIdentity | kTransform90 | kTransform180 | kTransform270);
+
   if (tmap.find(mtransform) != tmap.end()) {
     mtransform = tmap[mtransform];
   } else {
@@ -144,8 +146,14 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
     mtransform = kIdentity;
   }
 
+  if (tmap.find(mdisplay_transform) != tmap.end()) {
+    mdisplay_transform = tmap[mdisplay_transform];
+  } else {
+    mdisplay_transform = kIdentity;
+  }
+
   // The elements {0, 1, 2, 3} form a circulant matrix under mod 4 arithmetic
-  mtransform = (mtransform + display_transform) % 4;
+  mtransform = (mtransform + mdisplay_transform) % 4;
   mtransform = inv_tmap[mtransform];
   plane_transform_ = mtransform;
 
