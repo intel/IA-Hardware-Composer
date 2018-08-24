@@ -71,10 +71,17 @@ int HisiImporter::Init() {
 }
 
 int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
+  memset(bo, 0, sizeof(hwc_drm_bo_t));
+
   private_handle_t const *hnd = reinterpret_cast<private_handle_t const *>(
       handle);
   if (!hnd)
     return -EINVAL;
+
+  // We can't import these types of buffers, so pretend we did and rely on the
+  // planner to skip them when choosing layers for planes
+  if (!(hnd->usage & GRALLOC_USAGE_HW_FB))
+    return 0;
 
   uint32_t gem_handle;
   int ret = drmPrimeFDToHandle(drm_->fd(), hnd->share_fd, &gem_handle);
@@ -87,7 +94,6 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   if (fmt < 0)
     return fmt;
 
-  memset(bo, 0, sizeof(hwc_drm_bo_t));
   bo->width = hnd->width;
   bo->height = hnd->height;
   bo->format = fmt;
@@ -132,9 +138,33 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return ret;
 }
 
+class PlanStageHiSi : public Planner::PlanStage {
+ public:
+  int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
+                      std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
+                      std::vector<DrmPlane *> *planes) {
+    // Fill up as many planes as we can with buffers that do not have HW_FB
+    // usage
+    for (auto i = layers.begin(); i != layers.end(); i = layers.erase(i)) {
+      if (!(i->second->gralloc_buffer_usage & GRALLOC_USAGE_HW_FB))
+        continue;
+
+      int ret = Emplace(composition, planes, DrmCompositionPlane::Type::kLayer,
+                        crtc, i->first);
+      // We don't have any planes left
+      if (ret == -ENOENT)
+        break;
+      else if (ret)
+        ALOGE("Failed to emplace layer %zu, dropping it", i->first);
+    }
+
+    return 0;
+  }
+};
+
 std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   std::unique_ptr<Planner> planner(new Planner);
-  planner->AddStage<PlanStageGreedy>();
+  planner->AddStage<PlanStageHiSi>();
   return planner;
 }
 }  // namespace android
