@@ -1032,6 +1032,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
       }
 
       // Check if we can rotate using Display plane.
+      EnsureOffScreenTarget(last_plane);
       if (FallbacktoGPU(last_plane.GetDisplayPlane(),
                         last_plane.GetOffScreenTarget()->GetLayer(),
                         commit_planes)) {
