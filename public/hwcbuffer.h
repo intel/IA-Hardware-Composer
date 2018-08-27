@@ -26,7 +26,7 @@ struct HwcBuffer {
   HwcBuffer() = default;
 
   HwcBuffer &operator=(const HwcBuffer &rhs) = delete;
-
+  bool is_interlaced_ = false;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   uint32_t format_ = 0;  // Drm format equivalent to native_format.

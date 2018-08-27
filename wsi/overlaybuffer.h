@@ -63,6 +63,10 @@ class OverlayBuffer {
 
   virtual uint32_t GetTilingMode() const = 0;
 
+  virtual bool GetInterlace() = 0;
+
+  virtual void SetInterlace(bool isInterlaced) = 0;
+
   // external_import should be true if this resource is not owned by HWC.
   // If resource is owned by HWC, than the implementation needs to create
   // frame buffer for this buffer.
