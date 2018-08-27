@@ -150,23 +150,36 @@ bool VARenderer::SetVAProcFilterColorValue(HWCColorControl mode,
   }
 }
 
-bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(HWCDeinterlaceFlag flag) {
+bool VARenderer::GetVAProcDeinterlaceFlagFromVideo(
+    const HWCDeinterlaceFlag flag, OverlayBuffer* buffer) {
+  if (buffer == NULL) {
+    ETRACE("Invalid buffer");
+    return false;
+  }
+
   if (flag != HWCDeinterlaceFlag::kDeinterlaceFlagAuto) {
     return false;
   } else {
-    // TODO:Need video buffer meta data to judge if the frame really need
-    // Deinterlace.
+    // Inspect metadata in current layer to determine if
+    // deinterlacing is required.
+    return buffer->GetInterlace();
   }
-  return false;
 }
-bool VARenderer::SetVAProcFilterDeinterlaceMode(
-    const HWCDeinterlaceProp& prop) {
+
+bool VARenderer::SetVAProcFilterDeinterlaceMode(const HWCDeinterlaceProp& prop,
+                                                OverlayBuffer* buffer) {
   VAProcDeinterlacingType mode;
+
+  if (buffer == NULL) {
+    ETRACE("Invalid buffer");
+    return false;
+  }
+
   if (prop.flag_ == HWCDeinterlaceFlag::kDeinterlaceFlagNone) {
     SetVAProcFilterDeinterlaceDefaultMode();
     return true;
   } else if (prop.flag_ == HWCDeinterlaceFlag::kDeinterlaceFlagForce ||
-             GetVAProcDeinterlaceFlagFromVideo(prop.flag_)) {
+             GetVAProcDeinterlaceFlagFromVideo(prop.flag_, buffer)) {
     switch (prop.mode_) {
       case HWCDeinterlaceControl::kDeinterlaceNone:
         mode = VAProcDeinterlacingNone;
@@ -280,7 +293,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
     SetVAProcFilterColorValue(itr->first, itr->second);
   }
-  SetVAProcFilterDeinterlaceMode(state.deinterlace_);
+
+  SetVAProcFilterDeinterlaceMode(state.deinterlace_, buffer_in);
 
   if (!UpdateCaps()) {
     ETRACE("Failed to update capabailities. \n");
