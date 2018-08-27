@@ -22,8 +22,8 @@
 #include "drmproperty.h"
 
 #include <stdint.h>
-#include <vector>
 #include <xf86drmMode.h>
+#include <vector>
 
 namespace android {
 
@@ -98,6 +98,6 @@ class DrmConnector {
 
   std::vector<DrmEncoder *> possible_encoders_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_PLANE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "drmdevice.h"
 #include "drmproperty.h"
+#include "drmdevice.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -99,4 +99,4 @@ int DrmProperty::value(uint64_t *value) const {
       return -EINVAL;
   }
 }
-}
+}  // namespace android

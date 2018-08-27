@@ -16,12 +16,12 @@
 
 #define LOG_TAG "hwc-drm-plane"
 
-#include "drmdevice.h"
 #include "drmplane.h"
+#include "drmdevice.h"
 
-#include <cinttypes>
 #include <errno.h>
 #include <stdint.h>
+#include <cinttypes>
 
 #include <log/log.h>
 #include <xf86drmMode.h>
@@ -196,4 +196,4 @@ const DrmProperty &DrmPlane::alpha_property() const {
 const DrmProperty &DrmPlane::in_fence_fd_property() const {
   return in_fence_fd_property_;
 }
-}
+}  // namespace android

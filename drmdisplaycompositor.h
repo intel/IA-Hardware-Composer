@@ -17,9 +17,9 @@
 #ifndef ANDROID_DRM_DISPLAY_COMPOSITOR_H_
 #define ANDROID_DRM_DISPLAY_COMPOSITOR_H_
 
-#include "drmhwcomposer.h"
 #include "drmdisplaycomposition.h"
 #include "drmframebuffer.h"
+#include "drmhwcomposer.h"
 #include "resourcemanager.h"
 #include "vsyncworker.h"
 
@@ -122,6 +122,6 @@ class DrmDisplayCompositor {
   std::unique_ptr<Planner> planner_;
   int writeback_fence_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_DISPLAY_COMPOSITOR_H_

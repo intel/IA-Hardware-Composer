@@ -78,6 +78,6 @@ class DrmPlane {
   DrmProperty alpha_property_;
   DrmProperty in_fence_fd_property_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_PLANE_H_

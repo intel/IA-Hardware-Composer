@@ -16,17 +16,17 @@
 
 #define LOG_TAG "hwc-platform-drm-generic"
 
+#include "platformdrmgeneric.h"
 #include "drmdevice.h"
 #include "platform.h"
-#include "platformdrmgeneric.h"
 
 #include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <log/log.h>
 #include <gralloc_handle.h>
 #include <hardware/gralloc.h>
+#include <log/log.h>
 
 namespace android {
 

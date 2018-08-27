@@ -16,8 +16,8 @@
 
 #define LOG_TAG "hwc-platform"
 
-#include "drmdevice.h"
 #include "platform.h"
+#include "drmdevice.h"
 
 #include <log/log.h>
 
@@ -41,8 +41,8 @@ std::tuple<int, std::vector<DrmCompositionPlane>> Planner::ProvisionPlanes(
     std::vector<DrmPlane *> *primary_planes,
     std::vector<DrmPlane *> *overlay_planes) {
   std::vector<DrmCompositionPlane> composition;
-  std::vector<DrmPlane *> planes =
-      GetUsablePlanes(crtc, primary_planes, overlay_planes);
+  std::vector<DrmPlane *> planes = GetUsablePlanes(crtc, primary_planes,
+                                                   overlay_planes);
   if (planes.empty()) {
     ALOGE("Display %d has no usable planes", crtc->display());
     return std::make_tuple(-ENODEV, std::vector<DrmCompositionPlane>());
@@ -101,4 +101,4 @@ int PlanStageGreedy::ProvisionPlanes(
 
   return 0;
 }
-}
+}  // namespace android

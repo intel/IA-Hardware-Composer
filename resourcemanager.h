@@ -43,6 +43,6 @@ class ResourceManager {
   std::vector<std::shared_ptr<Importer>> importers_;
   const gralloc_module_t *gralloc_;
 };
-}
+}  // namespace android
 
 #endif  // RESOURCEMANAGER_H

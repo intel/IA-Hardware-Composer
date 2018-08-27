@@ -53,4 +53,4 @@ int AutoLock::Unlock() {
   locked_ = false;
   return 0;
 }
-}
+}  // namespace android

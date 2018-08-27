@@ -16,16 +16,16 @@
 
 #define LOG_TAG "hwc-platform-drm-minigbm"
 
+#include "platformminigbm.h"
 #include "drmresources.h"
 #include "platform.h"
-#include "platformminigbm.h"
 
 #include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <log/log.h>
 #include <hardware/gralloc.h>
+#include <log/log.h>
 
 #include "cros_gralloc_handle.h"
 
@@ -45,7 +45,8 @@ Importer *Importer::CreateInstance(DrmResources *drm) {
   return importer;
 }
 
-DrmMinigbmImporter::DrmMinigbmImporter(DrmResources *drm) : DrmGenericImporter(drm), drm_(drm) {
+DrmMinigbmImporter::DrmMinigbmImporter(DrmResources *drm)
+    : DrmGenericImporter(drm), drm_(drm) {
 }
 
 DrmMinigbmImporter::~DrmMinigbmImporter() {
@@ -103,4 +104,4 @@ std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
   return planner;
 }
 
-}
+}  // namespace android

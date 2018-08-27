@@ -19,10 +19,10 @@
 
 #include "drmcrtc.h"
 
-#include <set>
 #include <stdint.h>
-#include <vector>
 #include <xf86drmMode.h>
+#include <set>
+#include <vector>
 
 namespace android {
 
@@ -54,6 +54,6 @@ class DrmEncoder {
   std::vector<DrmCrtc *> possible_crtcs_;
   std::set<DrmEncoder *> possible_clones_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_ENCODER_H_

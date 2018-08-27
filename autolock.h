@@ -39,4 +39,4 @@ class AutoLock {
   bool locked_ = false;
   const char *const name_;
 };
-}
+}  // namespace android

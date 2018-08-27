@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include "drmencoder.h"
 #include "drmcrtc.h"
 #include "drmdevice.h"
-#include "drmencoder.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>
@@ -59,4 +59,4 @@ int DrmEncoder::display() const {
 bool DrmEncoder::can_bind(int display) const {
   return display_ == -1 || display_ == display;
 }
-}
+}  // namespace android

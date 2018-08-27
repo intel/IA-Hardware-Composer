@@ -20,8 +20,8 @@
 #include "drmdevice.h"
 #include "worker.h"
 
-#include <map>
 #include <stdint.h>
+#include <map>
 
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
@@ -63,6 +63,6 @@ class VSyncWorker : public Worker {
   bool enabled_;
   int64_t last_timestamp_;
 };
-}
+}  // namespace android
 
 #endif

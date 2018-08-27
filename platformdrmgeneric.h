@@ -35,11 +35,12 @@ class DrmGenericImporter : public Importer {
   int ReleaseBuffer(hwc_drm_bo_t *bo) override;
 
   uint32_t ConvertHalFormatToDrm(uint32_t hal_format);
+
  private:
   DrmDevice *drm_;
 
   const gralloc_module_t *gralloc_;
 };
-}
+}  // namespace android
 
 #endif

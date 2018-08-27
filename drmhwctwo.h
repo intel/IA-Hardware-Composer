@@ -255,8 +255,7 @@ class DrmHwcTwo : public hwc2_device_t {
 
   // Device functions
   HWC2::Error CreateVirtualDisplay(uint32_t width, uint32_t height,
-                                   int32_t *format,
-                                   hwc2_display_t *display);
+                                   int32_t *format, hwc2_display_t *display);
   HWC2::Error DestroyVirtualDisplay(hwc2_display_t display);
   void Dump(uint32_t *size, char *buffer);
   uint32_t GetMaxVirtualDisplayCount();
@@ -267,4 +266,4 @@ class DrmHwcTwo : public hwc2_device_t {
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 };
-}
+}  // namespace android

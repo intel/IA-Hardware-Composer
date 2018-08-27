@@ -82,4 +82,4 @@ const DrmProperty &DrmCrtc::mode_property() const {
 const DrmProperty &DrmCrtc::out_fence_ptr_property() const {
   return out_fence_ptr_property_;
 }
-}
+}  // namespace android

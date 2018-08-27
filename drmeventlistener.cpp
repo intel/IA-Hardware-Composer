@@ -16,17 +16,17 @@
 
 #define LOG_TAG "hwc-drm-event-listener"
 
-#include "drmdevice.h"
 #include "drmeventlistener.h"
+#include "drmdevice.h"
 
 #include <assert.h>
 #include <errno.h>
 #include <linux/netlink.h>
 #include <sys/socket.h>
 
-#include <log/log.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
+#include <log/log.h>
 #include <xf86drm.h>
 
 namespace android {
@@ -125,14 +125,14 @@ void DrmEventListener::Routine() {
   } while (ret == -1 && errno == EINTR);
 
   if (FD_ISSET(drm_->fd(), &fds_)) {
-    drmEventContext event_context = {
-        .version = 2,
-        .vblank_handler = NULL,
-        .page_flip_handler = DrmEventListener::FlipHandler};
+    drmEventContext event_context =
+        {.version = 2,
+         .vblank_handler = NULL,
+         .page_flip_handler = DrmEventListener::FlipHandler};
     drmHandleEvent(drm_->fd(), &event_context);
   }
 
   if (FD_ISSET(uevent_fd_.get(), &fds_))
     UEventHandler();
 }
-}
+}  // namespace android

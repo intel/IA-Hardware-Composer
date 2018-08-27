@@ -26,8 +26,8 @@
 #include <sstream>
 #include <vector>
 
-#include <log/log.h>
 #include <drm/drm_mode.h>
+#include <log/log.h>
 #include <sync/sync.h>
 #include <utils/Trace.h>
 
@@ -165,8 +165,8 @@ int DrmDisplayCompositor::DisablePlanes(DrmDisplayComposition *display_comp) {
   }
 
   int ret;
-  std::vector<DrmCompositionPlane> &comp_planes =
-      display_comp->composition_planes();
+  std::vector<DrmCompositionPlane> &comp_planes = display_comp
+                                                      ->composition_planes();
   for (DrmCompositionPlane &comp_plane : comp_planes) {
     DrmPlane *plane = comp_plane.plane();
     ret = drmModeAtomicAddProperty(pset, plane->id(),
@@ -239,8 +239,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   int ret = 0;
 
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
-  std::vector<DrmCompositionPlane> &comp_planes =
-      display_comp->composition_planes();
+  std::vector<DrmCompositionPlane> &comp_planes = display_comp
+                                                      ->composition_planes();
   DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
   uint64_t out_fences[drm->crtcs().size()];
 
@@ -274,8 +274,9 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     }
   }
   if (crtc->out_fence_ptr_property().id() != 0) {
-    ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->out_fence_ptr_property().id(),
-                                   (uint64_t) &out_fences[crtc->pipe()]);
+    ret = drmModeAtomicAddProperty(pset, crtc->id(),
+                                   crtc->out_fence_ptr_property().id(),
+                                   (uint64_t)&out_fences[crtc->pipe()]);
     if (ret < 0) {
       ALOGE("Failed to add OUT_FENCE_PTR property to pset: %d", ret);
       drmModeAtomicFree(pset);
@@ -284,7 +285,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   }
 
   if (mode_.needs_modeset) {
-    ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->active_property().id(), 1);
+    ret = drmModeAtomicAddProperty(pset, crtc->id(),
+                                   crtc->active_property().id(), 1);
     if (ret < 0) {
       ALOGE("Failed to add crtc active to pset\n");
       drmModeAtomicFree(pset);
@@ -356,8 +358,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       if (fence_fd >= 0) {
         int prop_id = plane->in_fence_fd_property().id();
         if (prop_id == 0) {
-                ALOGE("Failed to get IN_FENCE_FD property id");
-                break;
+          ALOGE("Failed to get IN_FENCE_FD property id");
+          break;
         }
         ret = drmModeAtomicAddProperty(pset, plane->id(), prop_id, fence_fd);
         if (ret < 0) {
@@ -404,24 +406,28 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     ret |= drmModeAtomicAddProperty(pset, plane->id(),
                                     plane->crtc_y_property().id(),
                                     display_frame.top) < 0;
-    ret |= drmModeAtomicAddProperty(
-               pset, plane->id(), plane->crtc_w_property().id(),
-               display_frame.right - display_frame.left) < 0;
-    ret |= drmModeAtomicAddProperty(
-               pset, plane->id(), plane->crtc_h_property().id(),
-               display_frame.bottom - display_frame.top) < 0;
+    ret |= drmModeAtomicAddProperty(pset, plane->id(),
+                                    plane->crtc_w_property().id(),
+                                    display_frame.right - display_frame.left) <
+           0;
+    ret |= drmModeAtomicAddProperty(pset, plane->id(),
+                                    plane->crtc_h_property().id(),
+                                    display_frame.bottom - display_frame.top) <
+           0;
     ret |= drmModeAtomicAddProperty(pset, plane->id(),
                                     plane->src_x_property().id(),
                                     (int)(source_crop.left) << 16) < 0;
     ret |= drmModeAtomicAddProperty(pset, plane->id(),
                                     plane->src_y_property().id(),
                                     (int)(source_crop.top) << 16) < 0;
-    ret |= drmModeAtomicAddProperty(
-               pset, plane->id(), plane->src_w_property().id(),
-               (int)(source_crop.right - source_crop.left) << 16) < 0;
-    ret |= drmModeAtomicAddProperty(
-               pset, plane->id(), plane->src_h_property().id(),
-               (int)(source_crop.bottom - source_crop.top) << 16) < 0;
+    ret |= drmModeAtomicAddProperty(pset, plane->id(),
+                                    plane->src_w_property().id(),
+                                    (int)(source_crop.right - source_crop.left)
+                                        << 16) < 0;
+    ret |= drmModeAtomicAddProperty(pset, plane->id(),
+                                    plane->src_h_property().id(),
+                                    (int)(source_crop.bottom - source_crop.top)
+                                        << 16) < 0;
     if (ret) {
       ALOGE("Failed to add plane %d to set", plane->id());
       break;
@@ -440,8 +446,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
 
     if (plane->alpha_property().id()) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
-                                     plane->alpha_property().id(),
-                                     alpha) < 0;
+                                     plane->alpha_property().id(), alpha) < 0;
       if (ret) {
         ALOGE("Failed to add alpha property %d to plane %d",
               plane->alpha_property().id(), plane->id());
@@ -488,7 +493,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   }
 
   if (crtc->out_fence_ptr_property().id()) {
-    display_comp->set_out_fence((int) out_fences[crtc->pipe()]);
+    display_comp->set_out_fence((int)out_fences[crtc->pipe()]);
   }
 
   return ret;
@@ -598,8 +603,8 @@ int DrmDisplayCompositor::ApplyComposition(
     case DRM_COMPOSITION_TYPE_MODESET:
       mode_.mode = composition->display_mode();
       if (mode_.blob_id)
-        resource_manager_->GetDrmDevice(display_)
-            ->DestroyPropertyBlob(mode_.blob_id);
+        resource_manager_->GetDrmDevice(display_)->DestroyPropertyBlob(
+            mode_.blob_id);
       std::tie(ret, mode_.blob_id) = CreateModeBlob(mode_.mode);
       if (ret) {
         ALOGE("Failed to create mode blob for display %d", display_);
@@ -731,8 +736,8 @@ int DrmDisplayCompositor::FlattenSerial(DrmConnector *writeback_conn) {
   ALOGV("FlattenSerial by enabling writeback connector to the same crtc");
   // Flattened composition with only one layer that is obtained
   // using the writeback connector
-  std::unique_ptr<DrmDisplayComposition> writeback_comp =
-      CreateInitializedComposition();
+  std::unique_ptr<DrmDisplayComposition>
+      writeback_comp = CreateInitializedComposition();
   if (!writeback_comp)
     return -EINVAL;
 
@@ -835,12 +840,12 @@ int DrmDisplayCompositor::FlattenConcurrent(DrmConnector *writeback_conn) {
   //    active_composition
   // 2) It will be committed on a crtc that might not be on the same
   //     dri node, so buffers need to be imported on the right node.
-  std::unique_ptr<DrmDisplayComposition> copy_comp =
-      drmdisplaycompositor.CreateInitializedComposition();
+  std::unique_ptr<DrmDisplayComposition>
+      copy_comp = drmdisplaycompositor.CreateInitializedComposition();
 
   // Writeback composition that will be committed to the display.
-  std::unique_ptr<DrmDisplayComposition> writeback_comp =
-      CreateInitializedComposition();
+  std::unique_ptr<DrmDisplayComposition>
+      writeback_comp = CreateInitializedComposition();
 
   if (!copy_comp || !writeback_comp)
     return -EINVAL;
@@ -857,9 +862,10 @@ int DrmDisplayCompositor::FlattenConcurrent(DrmConnector *writeback_conn) {
   std::vector<DrmHwcLayer> copy_layers;
   for (DrmHwcLayer &src_layer : active_composition_->layers()) {
     DrmHwcLayer copy;
-    ret = copy.InitFromDrmHwcLayer(
-        &src_layer,
-        resource_manager_->GetImporter(writeback_conn->display()).get());
+    ret = copy.InitFromDrmHwcLayer(&src_layer,
+                                   resource_manager_
+                                       ->GetImporter(writeback_conn->display())
+                                       .get());
     if (ret) {
       ALOGE("Failed to import buffer ret = %d", ret);
       return -EINVAL;
@@ -915,8 +921,8 @@ int DrmDisplayCompositor::FlattenConcurrent(DrmConnector *writeback_conn) {
 }
 
 int DrmDisplayCompositor::FlattenActiveComposition() {
-  DrmConnector *writeback_conn =
-      resource_manager_->AvailableWritebackConnector(display_);
+  DrmConnector *writeback_conn = resource_manager_->AvailableWritebackConnector(
+      display_);
   if (!active_composition_ || !writeback_conn) {
     ALOGV("No writeback connector available");
     return -EINVAL;
@@ -976,4 +982,4 @@ void DrmDisplayCompositor::Dump(std::ostringstream *out) const {
 
   pthread_mutex_unlock(&lock_);
 }
-}
+}  // namespace android

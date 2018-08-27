@@ -16,22 +16,22 @@
 
 #define LOG_TAG "hwc-drm-device"
 
+#include "drmdevice.h"
 #include "drmconnector.h"
 #include "drmcrtc.h"
 #include "drmencoder.h"
 #include "drmeventlistener.h"
 #include "drmplane.h"
-#include "drmdevice.h"
 
-#include <cinttypes>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <cinttypes>
 
-#include <log/log.h>
 #include <cutils/properties.h>
+#include <log/log.h>
 
 namespace android {
 
@@ -76,10 +76,10 @@ std::tuple<int, int> DrmDevice::Init(const char *path, int num_displays) {
     return std::make_tuple(-ENODEV, 0);
   }
 
-  min_resolution_ =
-      std::pair<uint32_t, uint32_t>(res->min_width, res->min_height);
-  max_resolution_ =
-      std::pair<uint32_t, uint32_t>(res->max_width, res->max_height);
+  min_resolution_ = std::pair<uint32_t, uint32_t>(res->min_width,
+                                                  res->min_height);
+  max_resolution_ = std::pair<uint32_t, uint32_t>(res->max_width,
+                                                  res->max_height);
 
   // Assumes that the primary display will always be in the first
   // drm_device opened.
@@ -483,4 +483,4 @@ int DrmDevice::GetConnectorProperty(const DrmConnector &connector,
   return GetProperty(connector.id(), DRM_MODE_OBJECT_CONNECTOR, prop_name,
                      property);
 }
-}
+}  // namespace android

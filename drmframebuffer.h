@@ -102,6 +102,6 @@ struct DrmFramebuffer {
   sp<GraphicBuffer> buffer_;
   int release_fence_fd_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_FRAMEBUFFER_

@@ -193,6 +193,6 @@ class DrmDisplayComposition {
 
   uint64_t frame_no_ = 0;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_DISPLAY_COMPOSITION_H_

@@ -93,7 +93,8 @@ bool DrmConnector::internal() const {
 }
 
 bool DrmConnector::external() const {
-  return type_ == DRM_MODE_CONNECTOR_HDMIA || type_ == DRM_MODE_CONNECTOR_DisplayPort ||
+  return type_ == DRM_MODE_CONNECTOR_HDMIA ||
+         type_ == DRM_MODE_CONNECTOR_DisplayPort ||
          type_ == DRM_MODE_CONNECTOR_DVID || type_ == DRM_MODE_CONNECTOR_DVII ||
          type_ == DRM_MODE_CONNECTOR_VGA;
 }
@@ -189,4 +190,4 @@ uint32_t DrmConnector::mm_width() const {
 uint32_t DrmConnector::mm_height() const {
   return mm_height_;
 }
-}
+}  // namespace android

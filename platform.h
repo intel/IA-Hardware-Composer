@@ -136,5 +136,5 @@ class PlanStageGreedy : public Planner::PlanStage {
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes);
 };
-}
+}  // namespace android
 #endif

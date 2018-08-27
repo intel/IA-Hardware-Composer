@@ -60,6 +60,6 @@ class DrmEventListener : public Worker {
   DrmDevice *drm_;
   DrmEventHandler *hotplug_handler_ = NULL;
 };
-}
+}  // namespace android
 
 #endif

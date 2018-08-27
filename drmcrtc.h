@@ -60,6 +60,6 @@ class DrmCrtc {
   DrmProperty mode_property_;
   DrmProperty out_fence_ptr_property_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_CRTC_H_

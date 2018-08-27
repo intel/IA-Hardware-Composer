@@ -62,8 +62,8 @@ int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
 int DrmHwcNativeHandle::CopyBufferHandle(buffer_handle_t handle) {
   native_handle_t *handle_copy;
   GraphicBufferMapper &gm(GraphicBufferMapper::get());
-  int ret =
-      gm.importBuffer(handle, const_cast<buffer_handle_t *>(&handle_copy));
+  int ret = gm.importBuffer(handle,
+                            const_cast<buffer_handle_t *>(&handle_copy));
   if (ret) {
     ALOGE("Failed to import buffer handle %d", ret);
     return ret;
@@ -144,4 +144,4 @@ void DrmHwcLayer::SetTransform(int32_t sf_transform) {
       transform |= DrmHwcTransform::kRotate90;
   }
 }
-}
+}  // namespace android

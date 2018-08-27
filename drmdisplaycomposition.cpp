@@ -16,10 +16,10 @@
 
 #define LOG_TAG "hwc-drm-display-composition"
 
-#include "drmdevice.h"
 #include "drmdisplaycomposition.h"
-#include "drmdisplaycompositor.h"
 #include "drmcrtc.h"
+#include "drmdevice.h"
+#include "drmdisplaycompositor.h"
 #include "drmplane.h"
 #include "platform.h"
 
@@ -107,8 +107,10 @@ int DrmDisplayComposition::Plan(std::vector<DrmPlane *> *primary_planes,
     to_composite.emplace(std::make_pair(i, &layers_[i]));
 
   int ret;
-  std::tie(ret, composition_planes_) = planner_->ProvisionPlanes(
-      to_composite, crtc_, primary_planes, overlay_planes);
+  std::tie(ret,
+           composition_planes_) = planner_->ProvisionPlanes(to_composite, crtc_,
+                                                            primary_planes,
+                                                            overlay_planes);
   if (ret) {
     ALOGE("Planner failed provisioning planes ret=%d", ret);
     return ret;
@@ -294,4 +296,4 @@ void DrmDisplayComposition::Dump(std::ostringstream *out) const {
     *out << "\n";
   }
 }
-}
+}  // namespace android

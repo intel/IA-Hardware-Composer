@@ -99,6 +99,6 @@ class DrmDevice {
   std::pair<uint32_t, uint32_t> max_resolution_;
   std::map<int, int> displays_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_H_

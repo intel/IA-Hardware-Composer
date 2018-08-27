@@ -16,19 +16,18 @@
 
 #define LOG_TAG "hwc-platform-hisi"
 
+#include "platformhisi.h"
 #include "drmdevice.h"
 #include "platform.h"
-#include "platformhisi.h"
-
 
 #include <drm/drm_fourcc.h>
-#include <cinttypes>
 #include <stdatomic.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <cinttypes>
 
-#include <log/log.h>
 #include <hardware/gralloc.h>
+#include <log/log.h>
 #include "gralloc_priv.h"
 
 #define MALI_ALIGN(value, base) (((value) + ((base)-1)) & ~((base)-1))
@@ -72,8 +71,8 @@ int HisiImporter::Init() {
 }
 
 int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
-  private_handle_t const *hnd =
-      reinterpret_cast<private_handle_t const *>(handle);
+  private_handle_t const *hnd = reinterpret_cast<private_handle_t const *>(
+      handle);
   if (!hnd)
     return -EINVAL;
 
@@ -138,4 +137,4 @@ std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   planner->AddStage<PlanStageGreedy>();
   return planner;
 }
-}
+}  // namespace android

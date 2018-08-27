@@ -109,4 +109,4 @@ std::shared_ptr<Importer> ResourceManager::GetImporter(int display) {
 const gralloc_module_t *ResourceManager::gralloc() {
   return gralloc_;
 }
-}
+}  // namespace android
