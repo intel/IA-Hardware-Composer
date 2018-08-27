@@ -95,6 +95,7 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
   } else {
     buffer->SetOriginalHandle(handle);
+    buffer->SetInterlace(handle->meta_data_.is_interlaced_);
   }
 
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));

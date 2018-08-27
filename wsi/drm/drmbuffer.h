@@ -76,6 +76,14 @@ class DrmBuffer : public OverlayBuffer {
     return METADATA(tiling_mode_);
   }
 
+  bool GetInterlace() override {
+    return METADATA(is_interlaced_);
+  }
+
+  void SetInterlace(bool isInterlaced) override {
+    METADATA(is_interlaced_) = isInterlaced;
+  }
+
   const ResourceHandle& GetGpuResource(GpuDisplay egl_display,
                                        bool external_import) override;
 

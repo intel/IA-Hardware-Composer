@@ -251,6 +251,9 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   if (handle->meta_data_.format_ == DRM_FORMAT_YVU420_ANDROID)
     handle->meta_data_.format_ = DRM_FORMAT_YVU420;
 
+  // Store is_interlaced flag from Gralloc1
+  handle->meta_data_.is_interlaced_ = gr_handle->is_interlaced;
+
   return true;
 }
 #ifdef __cplusplus
