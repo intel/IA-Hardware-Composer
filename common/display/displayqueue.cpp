@@ -64,6 +64,7 @@ DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
   canvas_.blue = 0x0;
   canvas_.alpha = 0x0;
   state_ |= kNeedsColorCorrection;
+  state_ |= kCanvasColorChanged;
 }
 
 DisplayQueue::~DisplayQueue() {
@@ -106,7 +107,8 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       state_ |= kPoweredOn;
       break;
     case kOn:
-      state_ |= kPoweredOn | kConfigurationChanged | kNeedsColorCorrection;
+      state_ |= kPoweredOn | kConfigurationChanged | kNeedsColorCorrection |
+                kCanvasColorChanged;
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
@@ -868,8 +870,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     state_ &= ~kNeedsColorCorrection;
   }
 
-  display_->SetPipeCanvasColor(canvas_.bpc, canvas_.red, canvas_.green,
-                               canvas_.blue, canvas_.alpha);
+  if (state_ & kCanvasColorChanged) {
+    display_->SetPipeCanvasColor(canvas_.bpc, canvas_.red, canvas_.green,
+                                 canvas_.blue, canvas_.alpha);
+    state_ &= ~kCanvasColorChanged;
+  }
 
   int32_t fence = 0;
   bool fence_released = false;
@@ -1481,6 +1486,7 @@ void DisplayQueue::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
   canvas_.green = green;
   canvas_.blue = blue;
   canvas_.alpha = alpha;
+  state_ |= kCanvasColorChanged;
 }
 
 int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,

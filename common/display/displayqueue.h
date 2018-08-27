@@ -139,7 +139,9 @@ class DisplayQueue {
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kPoweredOn = 1 << 2,
     kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
-    kIgnoreIdleRefresh = 1 << 4  // Ignore refresh request during idle callback.
+    kIgnoreIdleRefresh =
+        1 << 4,  // Ignore refresh request during idle callback.
+    kCanvasColorChanged = 1 << 5  // Update color change
   };
 
   struct ScalingTracker {
