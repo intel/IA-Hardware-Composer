@@ -121,8 +121,8 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
 
   struct drm_gem_close gem_close;
   memset(&gem_close, 0, sizeof(gem_close));
-  int num_gem_handles = sizeof(bo->gem_handles) / sizeof(bo->gem_handles[0]);
-  for (int i = 0; i < num_gem_handles; i++) {
+
+  for (int i = 0; i < HWC_DRM_BO_MAX_PLANES; i++) {
     if (!bo->gem_handles[i])
       continue;
 
@@ -131,7 +131,7 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
     if (ret) {
       ALOGE("Failed to close gem handle %d %d", i, ret);
     } else {
-      for (int j = i + 1; j < num_gem_handles; j++)
+      for (int j = i + 1; j < HWC_DRM_BO_MAX_PLANES; j++)
         if (bo->gem_handles[j] == bo->gem_handles[i])
           bo->gem_handles[j] = 0;
       bo->gem_handles[i] = 0;
