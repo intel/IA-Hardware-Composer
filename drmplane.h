@@ -54,6 +54,7 @@ class DrmPlane {
   const DrmProperty &src_h_property() const;
   const DrmProperty &rotation_property() const;
   const DrmProperty &alpha_property() const;
+  const DrmProperty &blend_property() const;
   const DrmProperty &in_fence_fd_property() const;
 
  private:
@@ -76,6 +77,7 @@ class DrmPlane {
   DrmProperty src_h_property_;
   DrmProperty rotation_property_;
   DrmProperty alpha_property_;
+  DrmProperty blend_property_;
   DrmProperty in_fence_fd_property_;
 };
 }  // namespace android

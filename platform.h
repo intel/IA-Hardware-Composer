@@ -73,16 +73,23 @@ class Planner {
       return plane;
     }
 
+    static int ValidatePlane(DrmPlane *plane, DrmHwcLayer *layer);
+
     // Inserts the given layer:plane in the composition at the back
     static int Emplace(std::vector<DrmCompositionPlane> *composition,
                        std::vector<DrmPlane *> *planes,
                        DrmCompositionPlane::Type type, DrmCrtc *crtc,
-                       size_t source_layer) {
+                       std::pair<size_t, DrmHwcLayer *> layer) {
       DrmPlane *plane = PopPlane(planes);
+      int ret;
       if (!plane)
         return -ENOENT;
 
-      composition->emplace_back(type, plane, crtc, source_layer);
+      ret = ValidatePlane(plane, layer.second);
+      if (ret)
+        return -EINVAL;
+
+      composition->emplace_back(type, plane, crtc, layer.first);
       return 0;
     }
   };

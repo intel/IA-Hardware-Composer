@@ -153,7 +153,7 @@ class PlanStageHiSi : public Planner::PlanStage {
         continue;
 
       int ret = Emplace(composition, planes, DrmCompositionPlane::Type::kLayer,
-                        crtc, i->first);
+                        crtc, std::make_pair(i->first, i->second));
       layers_added++;
       // We don't have any planes left
       if (ret == -ENOENT)

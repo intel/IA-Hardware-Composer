@@ -99,4 +99,15 @@ int DrmProperty::value(uint64_t *value) const {
       return -EINVAL;
   }
 }
+
+std::tuple<uint64_t, int> DrmProperty::GetEnumValueWithName(
+    std::string name) const {
+  for (auto it : enums_) {
+    if (it.name_.compare(name) == 0) {
+      return std::make_tuple(it.value_, 0);
+    }
+  }
+
+  return std::make_tuple(UINT64_MAX, -EINVAL);
+}
 }  // namespace android

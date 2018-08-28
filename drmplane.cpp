@@ -126,6 +126,10 @@ int DrmPlane::Init() {
   if (ret)
     ALOGI("Could not get alpha property");
 
+  ret = drm_->GetPlaneProperty(*this, "pixel blend mode", &blend_property_);
+  if (ret)
+    ALOGI("Could not get pixel blend mode property");
+
   ret = drm_->GetPlaneProperty(*this, "IN_FENCE_FD", &in_fence_fd_property_);
   if (ret)
     ALOGI("Could not get IN_FENCE_FD property");
@@ -191,6 +195,10 @@ const DrmProperty &DrmPlane::rotation_property() const {
 
 const DrmProperty &DrmPlane::alpha_property() const {
   return alpha_property_;
+}
+
+const DrmProperty &DrmPlane::blend_property() const {
+  return blend_property_;
 }
 
 const DrmProperty &DrmPlane::in_fence_fd_property() const {
