@@ -28,20 +28,21 @@ HWC_VERSION_GIT_SHA := $(shell pushd $(HWC_PATH) > /dev/null; git rev-parse HEAD
 ANDROID_M := 6
 ANDROID_N := 7
 ANDROID_O := 8
+ANDROID_P := 9
 ANDROID_VERSION_6 := $(ANDROID_M)
 ANDROID_VERSION_7 := $(ANDROID_N)
 ANDROID_VERSION_8 := $(ANDROID_O)
+ANDROID_VERSION_9 := $(ANDROID_P)
 ANDROID_VERSION_O := $(ANDROID_O)
 ANDROID_VERSION_OMR1 := $(ANDROID_O)
-ANDROID_SUPPORTED_VERSIONS := 6 7 O 8 OMR1
+ANDROID_SUPPORTED_VERSIONS := 6 7 O 8 OMR1 9
 
-ANDROID_MAJOR_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
 $(info "PLATFORM_VERSION $(PLATFORM_VERSION)")
-$(info "ANDROID_MAJOR_VERSION $(ANDROID_MAJOR_VERSION)")
+ANDROID_MAJOR_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
 $(foreach item, $(ANDROID_SUPPORTED_VERSIONS),\
 $(if $(call streq,$(ANDROID_MAJOR_VERSION),$(item)),\
 $(eval ANDROID_VERSION := $(ANDROID_VERSION_$(item))),))
-
+$(info "ANDROID_VERSION $(ANDROID_VERSION)")
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
@@ -151,7 +152,7 @@ endif
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
 
-ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
+ifeq ($(shell test $(ANDROID_VERSION) -ge 9; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow
 endif
 
