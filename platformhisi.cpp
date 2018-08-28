@@ -143,6 +143,8 @@ class PlanStageHiSi : public Planner::PlanStage {
   int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes) {
+    int layers_added = 0;
+    int initial_layers = layers.size();
     // Fill up as many planes as we can with buffers that do not have HW_FB
     // usage
     for (auto i = layers.begin(); i != layers.end(); i = layers.erase(i)) {
@@ -151,12 +153,22 @@ class PlanStageHiSi : public Planner::PlanStage {
 
       int ret = Emplace(composition, planes, DrmCompositionPlane::Type::kLayer,
                         crtc, i->first);
+      layers_added++;
       // We don't have any planes left
       if (ret == -ENOENT)
         break;
       else if (ret)
         ALOGE("Failed to emplace layer %zu, dropping it", i->first);
     }
+    /*
+     * If we only have one layer, but we didn't emplace anything, we
+     * can run into trouble, as we might try to device composite a
+     * buffer we fake-imported, which can cause things to jamb up.
+     * So return an error in this case to ensure we force client
+     * compositing.
+     */
+    if (!layers_added && (initial_layers <= 1))
+      return -EINVAL;
 
     return 0;
   }
