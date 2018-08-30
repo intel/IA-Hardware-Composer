@@ -88,6 +88,7 @@ int CreateFrameBuffer(
     ret = drmModeAddFB2(gpu_fd, iwidth, iheight, iframe_buffer_format,
                         m_igem_handles, m_ipitches, m_ioffsets, fb_id, 0);
   }
+  ITRACE("handle (%d), fb (%d)", m_igem_handles[0], fb_id[0]);
 
   if (ret) {
     ETRACE("%s error (%dx%d, %c%c%c%c, handle %d pitch %d) (%s)",

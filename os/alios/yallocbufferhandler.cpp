@@ -27,18 +27,14 @@
 
 #include "commondrmutils.h"
 
-#include <log/Log.h>
 #include <memory>
 
 #include <utils_alios.h>
-
-#define LOG_TAG "IAHWF"
 
 namespace hwcomposer {
 
 // static
 NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
-  LOG_I("%s:%d", __func__, __LINE__);
   YallocBufferHandler *handler = new YallocBufferHandler(fd);
   if (!handler)
     return NULL;
@@ -132,7 +128,7 @@ bool YallocBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
   if (handle->hwc_buffer_) {
     device_->free(device_, handle->target_);
   } else if (handle->imported_target_) {
-    device_->free(device_, handle->imported_target_);
+    device_->unAuthorizeBuffer(device_, handle->imported_target_);
   }
 
   return true;
@@ -155,21 +151,11 @@ bool YallocBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
 
   device_->authorizeBuffer(device_, handle->imported_target_);
 
-  return ImportGraphicsBuffer(handle, fd_, GetTotalPlanes(handle));
+  return ImportGraphicsBuffer(handle, fd_);
 }
 
 uint32_t YallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
-  auto yr_handle =
-      (struct yalloc_drm_handle_t *)handle->imported_target_->attributes.data;
-  if (!yr_handle) {
-    ETRACE("could not find yalloc drm handle");
-    return false;
-  }
-
-  int plane_num;
-  int bpp[3];
-  yalloc_drm_get_bpp(yr_handle->format, &plane_num, bpp);
-  return plane_num;
+  return handle->meta_data_.num_planes_;
 }
 
 void *YallocBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
