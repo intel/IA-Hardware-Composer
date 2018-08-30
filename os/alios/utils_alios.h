@@ -33,14 +33,9 @@
 #include <yalloc_drm.h>
 #include <yalloc_drm_handle.h>
 
-#include <native_target.h>
-
 #include <hwcdefs.h>
 #include "hwctrace.h"
 #include "hwcutils.h"
-
-#include <log/Log.h>
-#define LOG_TAG "IAHWF"
 
 #ifdef __cplusplus
 extern "C" {
@@ -225,6 +220,7 @@ static native_target_t *dup_buffer_handle(gb_target_t handle) {
 
   for (int i = 0; i < handle->fds.num; i++) {
     *new_data = dup(*old_data);
+    ITRACE("old_fd(%d), new_fd(%d)", *old_data, *new_data);
     old_data++;
     new_data++;
   }
@@ -287,16 +283,16 @@ static struct yalloc_drm_handle_t AttrData2YallocHandle(
   handle.aligned_height[2] = attrib_array->data[17];
   handle.tiling_mode = attrib_array->data[18];
 
-  handle.data_owner = attrib_array->data[8];
-  handle.data = (struct yalloc_drm_bo_t *)attrib_array->data[9];
+  handle.data_owner = attrib_array->data[19];
+  memcpy(&handle.data, &attrib_array->data[20], sizeof(handle.data));
 
   return handle;
 }
 
-static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd,
-                                 uint32_t total_planes) {
+static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   struct yalloc_drm_handle_t handle_data = AttrData2YallocHandle(handle);
   auto gr_handle = &handle_data;
+  int32_t total_planes;
 
   memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
   handle->meta_data_.format_ = GetDrmFormatFromHALFormat(gr_handle->format);
@@ -304,15 +300,22 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd,
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.native_format_ = gr_handle->format;
 
-  for (int32_t p = 0; p < total_planes; p++) {
+  total_planes = gr_handle->plane_num;
+  for (uint32_t p = 0; p < total_planes; p++) {
     // handle->meta_data_.offsets_[p] = gr_handle->offsets[p];
     handle->meta_data_.pitches_[p] = gr_handle->stride;
-    handle->meta_data_.prime_fds_[p] = handle->imported_target_->fds.data[p];
+
+    /* yalloc only return one fd */
+    handle->meta_data_.prime_fds_[p] = handle->imported_target_->fds.data[0];
+
     if (drmPrimeFDToHandle(fd, handle->meta_data_.prime_fds_[p],
                            &handle->meta_data_.gem_handles_[p])) {
-      ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
+      ETRACE("drmPrimeFDToHandle failed. %s prime_fd (%d)", PRINTERROR(),
+             handle->meta_data_.prime_fds_[p]);
       return false;
     }
+    ITRACE("prime_fd (%d), handle (%d)", handle->meta_data_.prime_fds_[p],
+           handle->meta_data_.gem_handles_[p]);
   }
 
   handle->meta_data_.num_planes_ = total_planes;

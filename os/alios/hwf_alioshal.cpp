@@ -19,22 +19,17 @@
 #include <cutils/hwflinger.h>
 #include <cutils/hwflinger_defs.h>
 
-#include <log/Log.h>
 #include <stdint.h>
 #include <memory>
 
 #include "hwctrace.h"
 
-#define LOG_TAG "IAHWF"
-
 namespace hwcomposer {
 
 int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
-  if (!hwc_layer_) {
-    hwc_layer_ = new hwcomposer::HwcLayer();
-  }
-
   bool surface_damage = true;
+  if (!hwc_layer_)
+    hwc_layer_ = new hwcomposer::HwcLayer();
 
   if (hwc_layer_->GetNativeHandle() &&
       (hwc_layer_->GetNativeHandle()->target_ == sf_layer->target))
@@ -43,6 +38,13 @@ int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
   native_handle_.target_ = sf_layer->target;
   hwc_layer_->SetNativeHandle(&native_handle_);
   hwc_layer_->SetAlpha(sf_layer->globalAlpha);
+  if (sf_layer->target->fds.num > 0)
+    ITRACE("prime_fd (%d)", sf_layer->target->fds.data[0]);
+#if 1
+  /* temporary workround for alpha blending */
+  if (sf_layer->globalAlpha == 255)
+    hwc_layer_->SetAlpha(254);
+#endif
   hwc_layer_->SetSourceCrop(hwcomposer::HwcRect<float>(
       sf_layer->srcRect.left, sf_layer->srcRect.top, sf_layer->srcRect.right,
       sf_layer->srcRect.bottom));
@@ -53,12 +55,13 @@ int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
                                sf_layer->destRect.bottom),
       0, 0);
 
+  // Transform
   uint32_t transform = 0;
-  if (sf_layer->transform == HWF_TRANSFORM_ROT_270) {
+  if (sf_layer->transform == HWF_TRANSFORM_ROT_270)
     transform = hwcomposer::HWCTransform::kTransform270;
-  } else if (sf_layer->transform == HWF_TRANSFORM_ROT_180) {
+  else if (sf_layer->transform == HWF_TRANSFORM_ROT_180)
     transform = hwcomposer::HWCTransform::kTransform180;
-  } else {
+  else {
     if (sf_layer->transform & HWF_TRANSFORM_FLIP_H)
       transform |= hwcomposer::HWCTransform::kReflectX;
     if (sf_layer->transform & HWF_TRANSFORM_FLIP_V)
@@ -70,6 +73,7 @@ int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
   hwc_layer_->SetTransform(transform);
   hwc_layer_->SetAcquireFence(dup(sf_layer->acquireSyncFd));
 
+  // Blending
   switch (sf_layer->blendMode) {
     case HWF_BLENDING_NONE:
       hwc_layer_->SetBlending(hwcomposer::HWCBlending::kBlendingNone);
@@ -84,33 +88,26 @@ int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
       break;
 
     default:
-      LOG_E("Invalid blendMode in hwc_layer_1_t %d", sf_layer->blendMode);
+      ETRACE("Invalid blendMode in hwc_layer_1_t %d", sf_layer->blendMode);
       return -EINVAL;
   }
 
-  // TODO: Add the damage detection.
-  if (surface_damage) {
-    hwcomposer::HwcRegion hwc_region;
-#if 0
-	uint32_t num_rects = sf_layer->surfaceDamage.numRects;
-	for (size_t rect = 0; rect < num_rects; ++rect) {
-	    hwc_region.emplace_back(sf_layer->surfaceDamage.rects[rect].left,
-				  sf_layer->surfaceDamage.rects[rect].top,
-				  sf_layer->surfaceDamage.rects[rect].right,
-				  sf_layer->surfaceDamage.rects[rect].bottom);
-	    }
-#endif
-    hwc_layer_->SetSurfaceDamage(hwc_region);
-  } else {
-    hwcomposer::HwcRegion hwc_region;
+  // Damage
+  hwcomposer::HwcRegion hwc_region;
+  if (!surface_damage)
     hwc_region.emplace_back(0, 0, 0, 0);
-    hwc_layer_->SetSurfaceDamage(hwc_region);
-  }
+  hwc_layer_->SetSurfaceDamage(hwc_region);
 
+  // Visible Region
   uint32_t num_rects = sf_layer->visibleRegion.num;
   hwcomposer::HwcRegion visible_region;
 
   for (size_t rect = 0; rect < num_rects; ++rect) {
+    ITRACE("visible_region: (%d) %d %d %d %d", rect,
+           sf_layer->visibleRegion.rects[rect].left,
+           sf_layer->visibleRegion.rects[rect].top,
+           sf_layer->visibleRegion.rects[rect].right,
+           sf_layer->visibleRegion.rects[rect].bottom);
     visible_region.emplace_back(sf_layer->visibleRegion.rects[rect].left,
                                 sf_layer->visibleRegion.rects[rect].top,
                                 sf_layer->visibleRegion.rects[rect].right,
@@ -119,159 +116,180 @@ int HwfLayer::InitFromHwcLayer(hwf_layer_t *sf_layer) {
 
   hwc_layer_->SetVisibleRegion(visible_region);
 
+  ITRACE("%.f %.f %.f %.f -> %d %d %d %d blending(%x) alpha(%d)",
+         sf_layer->srcRect.left, sf_layer->srcRect.top, sf_layer->srcRect.right,
+         sf_layer->srcRect.bottom, sf_layer->destRect.left,
+         sf_layer->destRect.top, sf_layer->destRect.right,
+         sf_layer->destRect.bottom, sf_layer->blendMode, sf_layer->globalAlpha);
   return 0;
 }
 
 /************************/
-
 HwfDisplay *HwfDevice::GetDisplay(int display) {
-  if (display == HWF_DISPLAY_PRIMARY) {
-    return &primary_display_;
-  }
+  int ext_count = extended_displays_.size();
+  switch (display) {
+    case HWF_DISPLAY_PRIMARY:
+      return &primary_display_;
 
-  if (display == HWF_DISPLAY_VIRTUAL) {
-    return &virtual_display_;
-  }
+    case HWF_DISPLAY_VIRTUAL:
+      return &virtual_display_;
 
-  return &extended_displays_.at(0);
+    case HWF_DISPLAY_EXTERNAL:
+      return ext_count > 0 ? &extended_displays_.at(0) : NULL;
+
+    case HWF_DISPLAY_EXTERNAL_EXT_1:
+      return ext_count > 1 ? &extended_displays_.at(1) : NULL;
+
+    case HWF_DISPLAY_EXTERNAL_EXT_2:
+      return ext_count > 2 ? &extended_displays_.at(2) : NULL;
+
+    case HWF_DISPLAY_EXTERNAL_EXT_3:
+      return ext_count > 3 ? &extended_displays_.at(3) : NULL;
+
+    case HWF_DISPLAY_EXTERNAL_EXT_4:
+      return ext_count > 4 ? &extended_displays_.at(4) : NULL;
+
+    default:
+      ETRACE("Error: invalid display %d", display);
+      return NULL;
+  }
 }
 
 int DBG_DumpHwfLayerInfo(struct hwf_device_t *device, int dispCount,
                          hwf_display_t **displays) {
-  LOG_I("DBG_DumpHwfLayerInfo --> Enter.\n");
-
-  int total_displays = (int)dispCount;
-
-  for (int i = 0; i < total_displays; ++i) {
+  for (int i = 0; i < dispCount; ++i) {
     if (!displays[i])
       continue;
 
-    LOG_I("\tDisplay Number: %d.\n", i);
-
+    ITRACE("\tDisplay No: %d", i);
     int num_layers = displays[i]->numLayers;
 
     for (int j = 0; j < num_layers; ++j) {
       hwf_layer_t *layer = &displays[i]->hwfLayers[j];
 
-      LOG_I("\t\tLayer Number: %d.\n", j);
-
-      // Dump Layer info:
+      ITRACE("\t\tLayer No: %d", j);
+      // Dumper Layer info:
       switch (layer->composeMode) {
         case HWF_FB:
-          LOG_I("\t\t\tLayer->composeMode: %s.\n", "HWF_FB");
+          ITRACE("\t\t\tLayer->composeMode: %s.\n", "HWF_FB");
           break;
 
         case HWF_FB_TARGET:
-          LOG_I("\t\t\tLayer->composeMode: %s.\n", "HWF_FB_TARGET");
+          ITRACE("\t\t\tLayer->composeMode: %s.\n", "HWF_FB_TARGET");
           break;
 
         case HWF_OVERLAY:
-          LOG_I("\t\t\tLayer->composeMode: %s.\n", "HWF_OVERLAY");
+          ITRACE("\t\t\tLayer->composeMode: %s.\n", "HWF_OVERLAY");
           break;
 
         default:
-          LOG_I("\t\t\tLayer->composeMode: %s.\n", "Not Set.");
+          ITRACE("\t\t\tLayer->composeMode: %s.\n", "Not Set.");
           break;
       }
     }
   }
-
-  LOG_I("DBG_DumpHwfLayerInfo --> Exit.\n");
   return 0;
 }
 
 int HwfDevice::detect(struct hwf_device_t *device, int dispCount,
                       hwf_display_t **displays) {
   CTRACE();
-  LOG_I("HwfDevice::detect --> dispCount: %d\n", dispCount);
+  ITRACE("dispCount: %d\n", dispCount);
 
   HwfDevice *hwf_device = (HwfDevice *)device;
 
   int total_displays = (int)dispCount;
-  bool disable_overlays = hwf_device->disable_explicit_sync_;  // TODO: review
+  bool disable_overlays = hwf_device->disable_explicit_sync_;
 
   for (int i = 0; i < total_displays; ++i) {
     if (!displays[i])
       continue;
 
-    if (i == HWF_DISPLAY_VIRTUAL) {
+    if (i == HWF_DISPLAY_VIRTUAL)
       disable_overlays = true;
-    } else {
+    else
       disable_overlays = hwf_device->disable_explicit_sync_;
-    }
 
     int num_layers = displays[i]->numLayers;
     HwfDisplay *native_display = hwf_device->GetDisplay(i);
-    native_display->gl_composition_ = disable_overlays;
+    if (native_display)
+      native_display->gl_composition_ = disable_overlays;
 
     for (int j = 0; j < num_layers; ++j) {
       hwf_layer_t *layer = &displays[i]->hwfLayers[j];
 
-      if (!disable_overlays) {
+      if (disable_overlays)
+        layer->composeMode = HWF_FB;
+      else {
         switch (layer->composeMode) {
-          /*
-        //case HWC_BACKGROUND:  // TODO:
-        //case HWC_SIDEBAND:
-          layer->composeMode = HWF_FB;
-          native_display->gl_composition_ = true;
-          break;
-          */
-          case HWF_FB_TARGET:
-            break;
-          default:
+          case HWF_FB:
             layer->composeMode = HWF_OVERLAY;
             break;
+          case HWF_FB_TARGET:
+            break;
+          case HWF_CURSOR_OVERLAY:
+            break;
+          default:
+            break;
         }
-      } else {
-        layer->composeMode = HWF_FB;
       }
     }
   }
 
   DBG_DumpHwfLayerInfo(device, dispCount, displays);
-
   return 0;
 }
 
 int HwfDevice::flip(struct hwf_device_t *device, int dispCount,
                     hwf_display_t **displays) {
   CTRACE();
-  LOG_I("HwfDevice::flip --> enter.\n");
-  LOG_I("HwfDevice::flip --> dispCount: %d\n", dispCount);
+  ITRACE("dispCount: %d\n", dispCount);
 
   HwfDevice *hwf_device = (HwfDevice *)device;
 
   for (int i = 0; i < dispCount; ++i) {
-    LOG_I("\tflip --> display[%d] -- begin.\n", i);
+    ITRACE("begin flip display[%d]", i);
     hwf_display_t *dc = displays[i];
-    if (!dc || i == HWF_DISPLAY_VIRTUAL)
+    if (i == HWF_DISPLAY_VIRTUAL) {
+      ITRACE("skip virtual display");
       continue;
+    }
+
+    if (!dc) {
+      ITRACE("skip empty display");
+      continue;
+    }
 
     size_t num_dc_layers = dc->numLayers;
     HwfDisplay *native_display = hwf_device->GetDisplay(i);
-    dc->retireSyncFd = native_display->timeline_.IncrementTimeLine();
+    if (!native_display)
+      continue;
+    dc->retireSyncFd = -1;
     hwcomposer::NativeDisplay *display = native_display->display_;
-    std::vector<HwfLayer *> &old_layers = native_display->layers_;
     std::vector<HwfLayer *> new_layers;
-    size_t size = old_layers.size();
     std::vector<hwcomposer::HwcLayer *> source_layers;
     for (size_t j = 0; j < num_dc_layers; ++j) {
       hwf_layer_t *sf_layer = &dc->hwfLayers[j];
       if (!sf_layer || !sf_layer->target ||
-          (sf_layer->flags & HWF_LAYER_IGNORED))
+          (sf_layer->flags & HWF_LAYER_IGNORED)) {
+        ITRACE("Skip layer: %p %p %x", sf_layer, sf_layer->target,
+               sf_layer->flags);
+        ITRACE("(%f %f %f %f => %d %d %d %d)", sf_layer->srcRect.left,
+               sf_layer->srcRect.top, sf_layer->srcRect.right,
+               sf_layer->srcRect.bottom, sf_layer->destRect.left,
+               sf_layer->destRect.top, sf_layer->destRect.right,
+               sf_layer->destRect.bottom);
         continue;
+      }
 
       if (!native_display->gl_composition_ &&
           (sf_layer->composeMode == HWF_FB_TARGET)) {
+        ITRACE("Skip layer: %d %d", native_display->gl_composition_,
+               sf_layer->composeMode);
         continue;
       }
 
       HwfLayer *new_layer = new HwfLayer();
-      if (size > j) {
-        HwfLayer *old_layer = old_layers.at(j);
-        new_layer->hwc_layer_ = old_layer->hwc_layer_;
-        old_layer->hwc_layer_ = NULL;
-      }
 
       new_layer->InitFromHwcLayer(sf_layer);
       source_layers.emplace_back(new_layer->hwc_layer_);
@@ -281,48 +299,41 @@ int HwfDevice::flip(struct hwf_device_t *device, int dispCount,
       sf_layer->releaseSyncFd = -1;
     }
 
-    if (source_layers.empty()) {
-      return 0;
-    }
-
     int32_t retire_fence = -1;
-    old_layers.swap(new_layers);
-    size = new_layers.size();
-    for (size_t i = 0; i < size; i++) {
-      HwfLayer *layer = new_layers.at(i);
-      delete layer;
-    }
 
-    std::vector<HwfLayer *>().swap(new_layers);
-
-    LOG_I("\tWill to present.\n");
+    ITRACE("Layers to present: %d", source_layers.size());
     bool success = display->Present(source_layers, &retire_fence);
     if (!success) {
-      LOG_E("Failed to set layers in the composition");
+      ETRACE("Failed to set layers in the composition");
       return -1;
     }
 
-    if (retire_fence > 0)
-      close(retire_fence);
+    ITRACE("retire_fence: %d", retire_fence);
+    dc->retireSyncFd = retire_fence;
 
-    size = old_layers.size();
+    size_t size = new_layers.size();
     for (size_t i = 0; i < size; i++) {
-      hwcomposer::HwcLayer *layer = old_layers.at(i)->hwc_layer_;
+      hwcomposer::HwcLayer *layer = new_layers.at(i)->hwc_layer_;
       int32_t release_fence = layer->GetReleaseFence();
 
+      ITRACE("release_fence: %d", release_fence);
       if (release_fence <= 0)
         continue;
 
-      hwf_layer_t *sf_layer = &dc->hwfLayers[old_layers.at(i)->index_];
+      hwf_layer_t *sf_layer = &dc->hwfLayers[new_layers.at(i)->index_];
       sf_layer->releaseSyncFd = release_fence;
     }
 
     std::vector<hwcomposer::HwcLayer *>().swap(source_layers);
 
-    LOG_I("\tflip --> display[%d] -- end.\n", i);
-  }
+    for (size_t i = 0; i < size; i++) {
+      HwfLayer *layer = new_layers.at(i);
+      delete layer;
+    }
+    std::vector<HwfLayer *>().swap(new_layers);
 
-  LOG_I("HwfDevice::flip --> exit.\n");
+    ITRACE("flip display[%d] end", i);
+  }
 
   return 0;
 }
@@ -330,17 +341,18 @@ int HwfDevice::flip(struct hwf_device_t *device, int dispCount,
 int HwfDevice::setEventState(struct hwf_device_t *device, int disp, int event,
                              int enabled) {
   CTRACE();
-  LOG_I("HwfDevice::setEventState --> disp:%d, event: %d, enabled: %d.\n", disp,
-        event, enabled);
+  ITRACE("disp:%d, event: %d, enabled: %d", disp, event, enabled);
 
   if (event != HWF_EVENT_VSYNC || (enabled != 0 && enabled != 1))
     return -EINVAL;
 
   HwfDevice *hwf_device = (HwfDevice *)device;
-
   HwfDisplay *native_display = hwf_device->GetDisplay(disp);
-  hwcomposer::NativeDisplay *temp = native_display->display_;
-  temp->VSyncControl(enabled);
+  if (!native_display)
+    return -EINVAL;
+
+  hwcomposer::NativeDisplay *nd = native_display->display_;
+  nd->VSyncControl(enabled);
 
   return 0;
 }
@@ -348,7 +360,7 @@ int HwfDevice::setEventState(struct hwf_device_t *device, int disp, int event,
 int HwfDevice::setDisplayState(struct hwf_device_t *device, int disp,
                                int state) {
   CTRACE();
-  LOG_I("HwfDevice::setDisplayState --> disp:%d, state: %d.\n", disp, state);
+  ITRACE("disp:%d, state: %d", disp, state);
 
   HwfDevice *hwf_device = (HwfDevice *)device;
 
@@ -367,11 +379,14 @@ int HwfDevice::setDisplayState(struct hwf_device_t *device, int disp,
       power_mode = hwcomposer::kOn;
       break;
     default:
-      LOG_I("Power mode %d is unsupported\n", state);
+      WTRACE("Power mode %d is unsupported", state);
       return -1;
   };
 
   HwfDisplay *native_display = hwf_device->GetDisplay(disp);
+  if (!native_display)
+    return -1;
+
   hwcomposer::NativeDisplay *temp = native_display->display_;
   temp->SetPowerMode(power_mode);
 
@@ -379,7 +394,19 @@ int HwfDevice::setDisplayState(struct hwf_device_t *device, int disp,
 }
 
 int HwfDevice::lookup(struct hwf_device_t *device, int what, int *value) {
-  LOG_I("HwfDevice::setDisplayState --> called.\n");
+  CTRACE();
+  switch (what) {
+    /* TODO: update Display associated mask bits in hwflinger_defs.h and here */
+    case HWF_SUITABLE_DISPLAY_TYPES:
+      if (value)
+        *value = HWF_DISPLAY_PRIMARY_BIT | HWF_DISPLAY_EXTERNAL_BIT |
+                 HWF_DISPLAY_VIRTUAL_BIT;
+      break;
+
+    default:
+      WTRACE("Warning: lookup %d isn't supported", what);
+      return -1;
+  }
 
   return 0;
 }
@@ -389,11 +416,8 @@ class IAVsyncCallback : public hwcomposer::VsyncCallback {
  public:
   IAVsyncCallback(hwf_callback const *procs) : m_pCB(procs) {
   }
-
   void Callback(uint32_t display, int64_t timestamp) {
-    m_pCB->vsyncEvent(m_pCB,
-                      display > 0 ? HWF_DISPLAY_EXTERNAL : HWF_DISPLAY_PRIMARY,
-                      timestamp);
+    m_pCB->vsyncEvent(m_pCB, display, timestamp);
   }
 
  private:
@@ -404,16 +428,14 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
  public:
   IAHotPlugEventCallback(hwf_callback const *procs) : m_pCB(procs) {
   }
-
-  void Callback(uint32_t /*display*/, bool connected) {
+  void Callback(uint32_t display, bool connected) {
     if (ignore_) {
       ignore_ = false;
       return;
     }
+    ITRACE("IAHotPlugEventCallback is called: %d %d", display, connected);
 
-    LOG_I("IAHotPlugEventCallback --> called.\n");
-
-    m_pCB->hotplugEvent(m_pCB, HWF_DISPLAY_EXTERNAL, connected);
+    m_pCB->hotplugEvent(m_pCB, display, connected);
   }
 
  private:
@@ -422,31 +444,33 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
 };
 
 /* Callback function */
-
 void HwfDevice::registerCallback(struct hwf_device_t *device,
                                  hwf_callback_t const *callback) {
   CTRACE();
-  LOG_I("HwfDevice::registerCallback --> called.\n");
 
   HwfDevice *hwf_device = (HwfDevice *)device;
-
-  hwf_device->m_phwf_callback = (hwf_callback *)callback;
-
   hwcomposer::NativeDisplay *display = hwf_device->primary_display_.display_;
 
   auto vsync_callback = std::make_shared<IAVsyncCallback>(callback);
-  display->RegisterVsyncCallback(std::move(vsync_callback), 0);
+  display->RegisterVsyncCallback(std::move(vsync_callback),
+                                 HWF_DISPLAY_PRIMARY);
 
   std::vector<HwfDisplay> &extended = hwf_device->extended_displays_;
   size_t size = extended.size();
+  int disp_id;
   for (size_t i = 0; i < size; i++) {
+    if (i == 0)
+      disp_id = HWF_DISPLAY_EXTERNAL;
+    else
+      disp_id = HWF_DISPLAY_EXTERNAL_EXT_1 + (i - 1);
+
     auto extended_callback = std::make_shared<IAVsyncCallback>(callback);
-    extended.at(i)
-        .display_->RegisterVsyncCallback(std::move(extended_callback), 1);
+    extended.at(i).display_->RegisterVsyncCallback(std::move(extended_callback),
+                                                   disp_id);
 
     auto hotplug_callback = std::make_shared<IAHotPlugEventCallback>(callback);
-    extended.at(i)
-        .display_->RegisterHotPlugCallback(std::move(hotplug_callback), 1);
+    extended.at(i).display_->RegisterHotPlugCallback(
+        std::move(hotplug_callback), disp_id);
   }
 
   return;
@@ -459,54 +483,54 @@ int HwfDevice::queryDispConfigs(struct hwf_device_t *device, int disp,
 
   uint32_t size = *numConfigs;
   HwfDisplay *native_display = hwf_device->GetDisplay(disp);
+  if (!native_display)
+    return -1;
+
   hwcomposer::NativeDisplay *temp = native_display->display_;
 
   if (!temp->GetDisplayConfigs(&size, configs)) {
-    LOG_E("GetDisplayConfigs failed @ Display: %d, size: %d, configs: %u.",
-          disp, size, *configs);
+    ETRACE("GetDisplayConfigs failed @ Display: %d", disp);
     return -1;
   }
 
   *numConfigs = size;
+  ITRACE("disp: %d, numConfigs: %d", disp, *numConfigs);
 
-  LOG_I("HwfDevice::queryDispConfigs --> disp: %d, numConfigs: %d.\n", disp,
-        *numConfigs);
-
-  return *numConfigs == 0 ? -1 : 0;
+  return *numConfigs <= 0 ? -1 : 0;
 }
 
 int HwfDevice::queryDispAttribs(struct hwf_device_t *device, int disp,
                                 uint32_t config, const uint32_t *attributes,
                                 int32_t *values) {
   CTRACE();
-  LOG_I("    HwfDevice::queryDispAttribs --> disp: %d.\n", disp);
+  ITRACE("disp: %d %d", disp, config);
   HwfDevice *hwf_device = (HwfDevice *)device;
-
   HwfDisplay *native_display = hwf_device->GetDisplay(disp);
+  if (!native_display)
+    return -1;
+
   hwcomposer::NativeDisplay *temp = native_display->display_;
+  bool ret = false;
   for (int i = 0; attributes[i] != HWF_DISPLAY_NO_ATTRIBUTE; ++i) {
     switch (attributes[i]) {
       case HWF_DISPLAY_WIDTH:
-        temp->GetDisplayAttribute(
+        ret = temp->GetDisplayAttribute(
             config, hwcomposer::HWCDisplayAttribute::kWidth, &values[i]);
         break;
       case HWF_DISPLAY_HEIGHT:
-        temp->GetDisplayAttribute(
+        ret = temp->GetDisplayAttribute(
             config, hwcomposer::HWCDisplayAttribute::kHeight, &values[i]);
         break;
-      case HWF_DISPLAY_VSYNC_PERIOD:
-        // in nanoseconds
-        temp->GetDisplayAttribute(
+      case HWF_DISPLAY_VSYNC_PERIOD:  // in nanoseconds
+        ret = temp->GetDisplayAttribute(
             config, hwcomposer::HWCDisplayAttribute::kRefreshRate, &values[i]);
         break;
-      case HWF_DISPLAY_DPI_X:
-        // Dots per 1000 inches
-        temp->GetDisplayAttribute(
+      case HWF_DISPLAY_DPI_X:  // Dots per 1000 inches
+        ret = temp->GetDisplayAttribute(
             config, hwcomposer::HWCDisplayAttribute::kDpiX, &values[i]);
         break;
-      case HWF_DISPLAY_DPI_Y:
-        // Dots per 1000 inches
-        temp->GetDisplayAttribute(
+      case HWF_DISPLAY_DPI_Y:  // Dots per 1000 inches
+        ret = temp->GetDisplayAttribute(
             config, hwcomposer::HWCDisplayAttribute::kDpiY, &values[i]);
         break;
       default:
@@ -514,84 +538,71 @@ int HwfDevice::queryDispAttribs(struct hwf_device_t *device, int disp,
         return -1;
     }
 
-    LOG_I("    HwfDevice::queryDispAttribs --> attributes[%d]: %d.\n", i,
-          values[i]);
+    ITRACE("    attributes[%d]: %d", i, values[i]);
   }
 
-  return 0;
+  return ret ? 0 : -1;
 }
 
 void HwfDevice::dump(struct hwf_device_t *device, char *buff, int buff_len) {
   CTRACE();
-  LOG_I("HwfDevice::dump --> called.\n");
 }
 
 /*************************/
 int32_t hwf_close(VendorDevice *device) {
-  LOG_I("HwfDevice::hwf_close --> called.\n");
+  CTRACE();
 
   HwfDevice *hwf_device = (HwfDevice *)device;
   delete hwf_device;
-
   return 0;
 }
 
 int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
   CTRACE();
-  LOG_I("HwfDevice::hwf_open --> called.\n");
 
   HwfDevice *hwf_device = new HwfDevice();
   if (!hwf_device) {
-    LOG_E("Failed to allocate hwc context");
+    ETRACE("Failed to allocate hwc context");
     return -ENOMEM;
   }
 
   hwcomposer::GpuDevice *p_gpu_device = &(hwf_device->device_);
   if (!p_gpu_device->Initialize()) {
-    LOG_E("Can't initialize drm object.");
+    ETRACE("Can't initialize drm object.");
     return -1;
   }
 
-  const std::vector<hwcomposer::NativeDisplay *> &displays =
+  std::vector<hwcomposer::NativeDisplay *> displays =
       p_gpu_device->GetAllDisplays();
 
-  hwf_device->virtual_display_.display_ = p_gpu_device->GetVirtualDisplay();
-  // TODO: SetExplicitSyncSupport
+  // virtual display
+  hwf_device->virtual_display_.display_ =
+      p_gpu_device->CreateVirtualDisplay(HWF_DISPLAY_VIRTUAL);
   hwf_device->virtual_display_.display_->SetExplicitSyncSupport(
       hwf_device->disable_explicit_sync_);
-  hwf_device->virtual_display_.timeline_.Init();
 
+  // primary display
   size_t size = displays.size();
   hwcomposer::NativeDisplay *primary_display = displays.at(0);
   hwf_device->primary_display_.display_ = primary_display;
-  hwf_device->primary_display_.display_id_ = 0;
-  // TODO: SetExplicitSyncSupport
   hwf_device->primary_display_.display_->SetExplicitSyncSupport(
       hwf_device->disable_explicit_sync_);
-  hwf_device->primary_display_.timeline_.Init();
-
-  // Fetch the number of modes from the display
-  uint32_t num_configs;
-  uint32_t default_config;
-  if (!primary_display->GetDisplayConfigs(&num_configs, NULL))
-    return -1;
 
   // Grab the first mode, we'll choose this as the active mode
-  num_configs = 1;
+  uint32_t num_configs = 1;
+  uint32_t default_config;
   if (!primary_display->GetDisplayConfigs(&num_configs, &default_config))
-    return -1;
-
-  if (!primary_display->SetActiveConfig(default_config)) {
-    LOG_E("Could not find active mode for %d", default_config);
-    return -1;
+    ETRACE("Currently no display is connected");
+  else {
+    if (!primary_display->SetActiveConfig(default_config))
+      ETRACE("Could not find active mode for %d", default_config);
   }
 
+  // extended display
   for (size_t i = 1; i < size; ++i) {
     hwf_device->extended_displays_.emplace_back();
     HwfDisplay &temp = hwf_device->extended_displays_.back();
     temp.display_ = displays.at(i);
-    temp.display_id_ = i;
-    temp.timeline_.Init();
     temp.display_->SetExplicitSyncSupport(hwf_device->disable_explicit_sync_);
   }
 
@@ -615,23 +626,23 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
 static int32_t hwf_device_open(const VendorModule *module, const char *id,
                                VendorDevice **device) {
   CTRACE();
-  LOG_I("open hwf module, id:%s", id);
-  struct hwf_device_t **dev = (struct hwf_device_t **)device;
-  int err = hwf_open(dev, module);
+  ITRACE("open hwf module, id: %s", id);
 
-  return err;
+  struct hwf_device_t **dev = (struct hwf_device_t **)device;
+  return hwf_open(dev, module);
 }
 
 }  // namespace hwcomposer
 
 hwf_module_t hwf_module_entry = {
-    .common = {
-        .version = 1,
-        .id = "Hwf",
-        .name = "Hwf",
-        .author = "intel",
-        .createDevice = &hwcomposer::hwf_device_open,
-    },
+    .common =
+        {
+            .version = 1,
+            .id = "Hwf",
+            .name = "Hwf",
+            .author = "intel",
+            .createDevice = &hwcomposer::hwf_device_open,
+        },
 };
 
 VENDOR_MODULE_ENTRY(hwf_module_entry)
