@@ -71,6 +71,49 @@ VkFormat NativeToVkFormat(int native_format);
 
 #define HWC_UNUSED(x) ((void)&(x))
 
+#ifdef OS_YUNOS
+#define I915_FORMAT_MOD_Y_TILED fourcc_mod_code(INTEL, 2)
+#define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
+#define I915_FORMAT_MOD_Y_TILED_CCS     fourcc_mod_code(INTEL, 4)
+#define I915_FORMAT_MOD_Yf_TILED_CCS    fourcc_mod_code(INTEL, 5)
+
+struct drm_format_modifier_blob {
+#define FORMAT_BLOB_CURRENT 1
+        /* Version of this blob format */
+        __u32 version;
+
+        /* Flags */
+        __u32 flags;
+
+        /* Number of fourcc formats supported */
+        __u32 count_formats;
+
+        /* Where in this blob the formats exist (in bytes) */
+        __u32 formats_offset;
+
+        /* Number of drm_format_modifiers */
+        __u32 count_modifiers;
+
+        /* Where in this blob the modifiers exist (in bytes) */
+        __u32 modifiers_offset;
+
+        /* __u32 formats[] */
+        /* struct drm_format_modifier modifiers[] */
+};
+
+struct drm_format_modifier {
+/* Bitmask of formats in get_plane format list this info applies to. The
+ * offset allows a sliding window of which 64 formats (bits).
+ */
+        __u64 formats;
+        __u32 offset;
+        __u32 pad;
+
+        /* The modifier that applies to the >get_plane format list bitmask. */
+        __u64 modifier;
+};
+#endif
+
 struct drm_color_ctm_post_offset {
   /* Data is U0.16 fixed point format. */
   __u16 red;

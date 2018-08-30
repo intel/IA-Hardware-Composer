@@ -17,6 +17,8 @@ LOCAL_LDFLAGS := -lm -lpthread
 LOCAL_CPPFLAGS += \
 	-DUSE_GL \
 	-DYUN_HAL \
+	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
+	-DHWC_DISPLAY_INI_PATH='"/vendor/etc/hwc_display.ini"'
 
 LOCAL_C_INCLUDES := \
 	system/core/include/utils \
