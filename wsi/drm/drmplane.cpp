@@ -26,7 +26,6 @@
 #include "overlaylayer.h"
 
 namespace hwcomposer {
-
 DrmPlane::Property::Property() {
 }
 
@@ -514,10 +513,17 @@ bool DrmPlane::IsSupportedModifier(uint64_t modifier, uint32_t format) {
     const format_mods& obj = formats_modifiers_.at(i);
     if (obj.format == format) {
       std::vector<uint64_t>::const_iterator it;
+#ifdef OS_YUNOS
+      for (auto mod : obj.mods) {
+        if (mod == modifier)
+          return true;
+      }
+#else
       it = std::find(obj.mods.begin(), obj.mods.end(), modifier);
       if (it != obj.mods.end()) {
         return true;
       }
+#endif
     }
   }
   return false;

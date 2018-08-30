@@ -31,117 +31,42 @@
 
 #define USER_FENCE_SYNC 0
 
-#if 0
-typedef struct hwf_module_wrapper_t
-{
-    hwf_module_t base;
-    void *priv;          /**< Driver private data */
-} hwf_module_wrapper_t;
-#endif
-
 namespace hwcomposer {
-
-class DisplayTimeLine {
- public:
-  int Init() {
-#if USER_FENCE_SYNC
-    timeline_fd_ = open("/dev/sw_sync", O_RDWR);
-    if (timeline_fd_ < 0)
-      return -1;
-
-    return 0;
-
-#else
-    return -1;
-#endif
-  }
-
-  ~DisplayTimeLine() {
-#if USER_FENCE_SYNC
-    if (timeline_fd_ > 0) {
-      close(timeline_fd_);
-    }
-#endif
-  }
-
-  int32_t IncrementTimeLine() {
-#if USER_FENCE_SYNC
-    int ret =
-        sw_sync_fence_create(timeline_fd_, "display fence", timeline_pt_ + 1);
-    if (ret < 0) {
-      LOG_E("Failed to create display fence %d %d", ret, timeline_fd_);
-      return ret;
-    }:
-
-      int32_t ret_fd(ret);
-
-    ret = sw_sync_timeline_inc(timeline_fd_, 1);
-    if (ret) {
-      LOG_E("Failed to increment display sync timeline %d", ret);
-      return ret;
-    }
-
-    ++timeline_pt_;
-    return ret_fd;
-
-#else
-    return -1;
-#endif
-  }
-
- private:
-  int32_t timeline_fd_;
-  int timeline_pt_ = 0;
-};
-
 typedef struct HwfLayer {
   ~HwfLayer() {
-    delete hwc_layer_;  // TO DO
+    delete hwc_layer_;
     hwc_layer_ = NULL;
   }
 
   HwfLayer() = default;
 
-  HwfLayer(const HwfLayer& rhs) = delete;
-  HwfLayer& operator=(const HwfLayer& rhs) = delete;
+  HwfLayer(const HwfLayer &rhs) = delete;
+  HwfLayer &operator=(const HwfLayer &rhs) = delete;
 
-  struct yalloc_handle native_handle_;  // TO DO
-  hwcomposer::HwcLayer* hwc_layer_ = NULL;
+  struct yalloc_handle native_handle_;
+  hwcomposer::HwcLayer *hwc_layer_ = NULL;
   uint32_t index_ = 0;
 
-  int InitFromHwcLayer(hwf_layer_t* sf_layer);
+  int InitFromHwcLayer(hwf_layer_t *sf_layer);
 } HwfLayer;
 
 typedef struct HwfDisplay {
-  // struct HwfDevice *ctx;
-  hwcomposer::NativeDisplay* display_ = NULL;  // TO DO
-  uint32_t display_id_ = 0;
-  int32_t fence_ = -1;
-  int last_render_layers_size = -1;
-  std::vector<HwfLayer*> layers_;
-  DisplayTimeLine timeline_;
+  hwcomposer::NativeDisplay *display_ = NULL;
   bool gl_composition_ = false;
 } HwfDisplay;
 
 struct HwfDevice {
   hwf_device_t base;
 
-  ~HwfDevice() {
-  }
+  ~HwfDevice() {};
 
   hwcomposer::GpuDevice device_;
   std::vector<HwfDisplay> extended_displays_;
   HwfDisplay primary_display_;
   HwfDisplay virtual_display_;
-
-  /* Note: explicit sync isn't implemented currently, set it to 'false' just
-     let the logic run, all the fence is set as -1.
-  */
   bool disable_explicit_sync_ = false;
 
-  hwf_callback* m_phwf_callback;
-
-  HwfDisplay* GetDisplay(int display);
+  HwfDisplay *GetDisplay(int display);
 
   static int detect(struct hwf_device_t* device, int dispCount,
                     hwf_display_t** displays);
@@ -157,28 +82,18 @@ struct HwfDevice {
   static int lookup(struct hwf_device_t* device, int what, int* value);
 
   static void registerCallback(struct hwf_device_t* device,
-                               hwf_callback_t const* callback);
+               hwf_callback_t const* callback);
 
   static int queryDispConfigs(struct hwf_device_t* device, int disp,
-                              uint32_t* configs, int* numConfigs);
+              uint32_t* configs, int* numConfigs);
 
   static int queryDispAttribs(struct hwf_device_t* device, int disp,
                               uint32_t config, const uint32_t* attributes,
                               int32_t* values);
 
-  static void dump(struct hwf_device_t* device, char* buff, int buff_len);
+  static void dump(struct hwf_device_t* device, char *buff, int buff_len);
 };
 
-class ia_hwf_yunhal {
- private:
-  HwfDevice m_Device;
-
- public:
-  ia_hwf_yunhal();
-  ~ia_hwf_yunhal();
-
-  HwfDevice* get_hwf_hw();
-};
-}  // namespace hwcomposer
+}
 
 #endif

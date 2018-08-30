@@ -165,9 +165,9 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
                                      HWCDisplayAttribute attribute,
                                      int32_t *value) {
   SPIN_LOCK(display_lock_);
-  if (modes_.empty()) {
+  if (modes_.empty() || !IsConnected()) {
     SPIN_UNLOCK(display_lock_);
-    return PhysicalDisplay::GetDisplayAttribute(config, attribute, value);
+    return false;
   }
 
   float refresh;
@@ -248,8 +248,8 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   size_t modes_size = modes_.size();
   SPIN_UNLOCK(display_lock_);
 
-  if (modes_size == 0) {
-    return PhysicalDisplay::GetDisplayConfigs(num_configs, configs);
+  if (modes_size == 0 || !IsConnected()) {
+    return false;
   }
 
   if (!configs) {
@@ -267,6 +267,7 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   uint32_t size = *num_configs > modes_size ? modes_size : *num_configs;
   for (uint32_t i = 0; i < size; i++)
     configs[i] = i;
+  *num_configs = size;
 
   return true;
 }

@@ -33,18 +33,14 @@
 #include <yalloc_drm.h>
 #include <yalloc_drm_handle.h>
 
-#include <native_target.h>
-
 #include <hwcdefs.h>
 #include "hwctrace.h"
 #include "hwcutils.h"
 
-#include <log/Log.h>
-#define LOG_TAG "IAHWF"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 // Conversion from HAL to fourcc-based DRM formats
 static uint32_t GetDrmFormatFromHALFormat(int format) {
@@ -225,6 +221,7 @@ static native_target_t *dup_buffer_handle(gb_target_t handle) {
 
   for (int i = 0; i < handle->fds.num; i++) {
     *new_data = dup(*old_data);
+    ITRACE("old_fd(%d), new_fd(%d)", *old_data, *new_data);
     old_data++;
     new_data++;
   }
@@ -287,8 +284,8 @@ static struct yalloc_drm_handle_t AttrData2YallocHandle(
   handle.aligned_height[2] = attrib_array->data[17];
   handle.tiling_mode = attrib_array->data[18];
 
-  handle.data_owner = attrib_array->data[8];
-  handle.data = (struct yalloc_drm_bo_t *)attrib_array->data[9];
+  handle.data_owner = attrib_array->data[19];
+  memcpy(&handle.data, &attrib_array->data[20], sizeof(handle.data));
 
   return handle;
 }
@@ -313,6 +310,8 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd,
       ETRACE("drmPrimeFDToHandle failed. %s", PRINTERROR());
       return false;
     }
+    ITRACE("prime_fd (%d), handle (%d)", handle->meta_data_.prime_fds_[p],
+        handle->meta_data_.gem_handles_[p]);
   }
 
   handle->meta_data_.num_planes_ = total_planes;

@@ -27,18 +27,15 @@
 
 #include "commondrmutils.h"
 
-#include <log/Log.h>
 #include <memory>
 
 #include <utils_alios.h>
 
-#define LOG_TAG "IAHWF"
 
 namespace hwcomposer {
 
 // static
 NativeBufferHandler *NativeBufferHandler::CreateInstance(uint32_t fd) {
-  LOG_I("%s:%d", __func__, __LINE__);
   YallocBufferHandler *handler = new YallocBufferHandler(fd);
   if (!handler)
     return NULL;
@@ -132,7 +129,7 @@ bool YallocBufferHandler::ReleaseBuffer(HWCNativeHandle handle) const {
   if (handle->hwc_buffer_) {
     device_->free(device_, handle->target_);
   } else if (handle->imported_target_) {
-    device_->free(device_, handle->imported_target_);
+	device_->unAuthorizeBuffer(device_, handle->imported_target_);
   }
 
   return true;
@@ -166,10 +163,7 @@ uint32_t YallocBufferHandler::GetTotalPlanes(HWCNativeHandle handle) const {
     return false;
   }
 
-  int plane_num;
-  int bpp[3];
-  yalloc_drm_get_bpp(yr_handle->format, &plane_num, bpp);
-  return plane_num;
+  return drm_bo_get_num_planes(GetDrmFormatFromHALFormat(yr_handle->format));
 }
 
 void *YallocBufferHandler::Map(HWCNativeHandle handle, uint32_t x, uint32_t y,
