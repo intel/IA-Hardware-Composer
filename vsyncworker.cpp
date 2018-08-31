@@ -16,18 +16,18 @@
 
 #define LOG_TAG "hwc-vsync-worker"
 
-#include "drmresources.h"
 #include "vsyncworker.h"
+#include "drmdevice.h"
 #include "worker.h"
 
-#include <map>
 #include <stdlib.h>
 #include <time.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <map>
 
-#include <log/log.h>
 #include <hardware/hardware.h>
+#include <log/log.h>
 
 namespace android {
 
@@ -42,7 +42,7 @@ VSyncWorker::VSyncWorker()
 VSyncWorker::~VSyncWorker() {
 }
 
-int VSyncWorker::Init(DrmResources *drm, int display) {
+int VSyncWorker::Init(DrmDevice *drm, int display) {
   drm_ = drm;
   display_ = display;
 
@@ -99,8 +99,9 @@ int VSyncWorker::SyntheticWaitVBlank(int64_t *timestamp) {
     ALOGW("Vsync worker active with conn=%p refresh=%f\n", conn,
           conn ? conn->active_mode().v_refresh() : 0.0f);
 
-  int64_t phased_timestamp = GetPhasedVSync(
-      kOneSecondNs / refresh, vsync.tv_sec * kOneSecondNs + vsync.tv_nsec);
+  int64_t phased_timestamp = GetPhasedVSync(kOneSecondNs / refresh,
+                                            vsync.tv_sec * kOneSecondNs +
+                                                vsync.tv_nsec);
   vsync.tv_sec = phased_timestamp / kOneSecondNs;
   vsync.tv_nsec = phased_timestamp - (vsync.tv_sec * kOneSecondNs);
   do {
@@ -172,4 +173,4 @@ void VSyncWorker::Routine() {
     callback->Callback(display, timestamp);
   last_timestamp_ = timestamp;
 }
-}
+}  // namespace android

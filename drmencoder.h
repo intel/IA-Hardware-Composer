@@ -20,8 +20,9 @@
 #include "drmcrtc.h"
 
 #include <stdint.h>
-#include <vector>
 #include <xf86drmMode.h>
+#include <set>
+#include <vector>
 
 namespace android {
 
@@ -36,17 +37,23 @@ class DrmEncoder {
 
   DrmCrtc *crtc() const;
   void set_crtc(DrmCrtc *crtc);
+  bool can_bind(int display) const;
+  int display() const;
 
   const std::vector<DrmCrtc *> &possible_crtcs() const {
     return possible_crtcs_;
   }
+  bool CanClone(DrmEncoder *encoder);
+  void AddPossibleClone(DrmEncoder *possible_clone);
 
  private:
   uint32_t id_;
   DrmCrtc *crtc_;
+  int display_;
 
   std::vector<DrmCrtc *> possible_crtcs_;
+  std::set<DrmEncoder *> possible_clones_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_ENCODER_H_

@@ -28,7 +28,7 @@
 
 namespace android {
 
-class DrmResources;
+class DrmDevice;
 
 class Importer {
  public:
@@ -36,7 +36,7 @@ class Importer {
   }
 
   // Creates a platform-specific importer instance
-  static Importer *CreateInstance(DrmResources *drm);
+  static Importer *CreateInstance(DrmDevice *drm);
 
   // Imports the buffer referred to by handle into bo.
   //
@@ -88,7 +88,7 @@ class Planner {
   };
 
   // Creates a planner instance with platform-specific planning stages
-  static std::unique_ptr<Planner> CreateInstance(DrmResources *drm);
+  static std::unique_ptr<Planner> CreateInstance(DrmDevice *drm);
 
   // Takes a stack of layers and provisions hardware planes for them. If the
   // entire stack can't fit in hardware, FIXME
@@ -136,5 +136,5 @@ class PlanStageGreedy : public Planner::PlanStage {
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes);
 };
-}
+}  // namespace android
 #endif

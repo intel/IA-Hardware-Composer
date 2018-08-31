@@ -22,16 +22,16 @@
 #include "drmproperty.h"
 
 #include <stdint.h>
-#include <vector>
 #include <xf86drmMode.h>
+#include <vector>
 
 namespace android {
 
-class DrmResources;
+class DrmDevice;
 
 class DrmConnector {
  public:
-  DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
+  DrmConnector(DrmDevice *drm, drmModeConnectorPtr c,
                DrmEncoder *current_encoder,
                std::vector<DrmEncoder *> &possible_encoders);
   DrmConnector(const DrmProperty &) = delete;
@@ -46,6 +46,7 @@ class DrmConnector {
 
   bool internal() const;
   bool external() const;
+  bool writeback() const;
   bool valid_type() const;
 
   int UpdateModes();
@@ -58,6 +59,9 @@ class DrmConnector {
 
   const DrmProperty &dpms_property() const;
   const DrmProperty &crtc_id_property() const;
+  const DrmProperty &writeback_pixel_formats() const;
+  const DrmProperty &writeback_fb_id() const;
+  const DrmProperty &writeback_out_fence() const;
 
   const std::vector<DrmEncoder *> &possible_encoders() const {
     return possible_encoders_;
@@ -71,7 +75,7 @@ class DrmConnector {
   uint32_t mm_height() const;
 
  private:
-  DrmResources *drm_;
+  DrmDevice *drm_;
 
   uint32_t id_;
   DrmEncoder *encoder_;
@@ -88,9 +92,12 @@ class DrmConnector {
 
   DrmProperty dpms_property_;
   DrmProperty crtc_id_property_;
+  DrmProperty writeback_pixel_formats_;
+  DrmProperty writeback_fb_id_;
+  DrmProperty writeback_out_fence_;
 
   std::vector<DrmEncoder *> possible_encoders_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_PLANE_H_
