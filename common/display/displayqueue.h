@@ -365,7 +365,7 @@ class DisplayQueue {
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
-  bool applied_video_effect_ = false;
+  bool video_effect_changed_ = false;
   // Set to true when layers are validated and commit fails.
   bool last_commit_failed_update_ = false;
   // Set to true if cloned display needs to be validated.

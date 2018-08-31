@@ -696,6 +696,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
+  if (has_video_layer && video_effect_changed_) {
+    video_effect_changed_ = false;
+    idle_frame = false;
+  }
+
   if (!validate_layers)
     validate_layers = idle_frame;
 #ifdef SURFACE_TRACING
@@ -723,10 +728,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool requested_video_effect = false;
   if (has_video_layer) {
     video_lock_.lock();
-    if (requested_video_effect_ != applied_video_effect_) {
+    if (requested_video_effect_) {
       // Let's ensure Media planes take this into account.
       force_media_composition = true;
-      applied_video_effect_ = requested_video_effect_;
       requested_video_effect = requested_video_effect_;
       idle_frame = false;
       validate_layers = true;
@@ -1440,7 +1444,8 @@ void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
 
 void DisplayQueue::SetVideoScalingMode(uint32_t mode) {
   video_lock_.lock();
-  // requested_video_effect_ = true;
+  requested_video_effect_ = true;
+  video_effect_changed_ = true;
   compositor_.SetVideoScalingMode(mode);
   video_lock_.unlock();
 }
@@ -1448,6 +1453,7 @@ void DisplayQueue::SetVideoScalingMode(uint32_t mode) {
 void DisplayQueue::SetVideoColor(HWCColorControl color, float value) {
   video_lock_.lock();
   requested_video_effect_ = true;
+  video_effect_changed_ = true;
   compositor_.SetVideoColor(color, value);
   video_lock_.unlock();
 }
@@ -1460,6 +1466,7 @@ void DisplayQueue::GetVideoColor(HWCColorControl color, float* value,
 void DisplayQueue::RestoreVideoDefaultColor(HWCColorControl color) {
   video_lock_.lock();
   requested_video_effect_ = false;
+  video_effect_changed_ = true;
   compositor_.RestoreVideoDefaultColor(color);
   video_lock_.unlock();
 }
@@ -1468,6 +1475,7 @@ void DisplayQueue::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
                                        HWCDeinterlaceControl mode) {
   video_lock_.lock();
   requested_video_effect_ = true;
+  video_effect_changed_ = true;
   compositor_.SetVideoDeinterlace(flag, mode);
   video_lock_.unlock();
 }
@@ -1475,6 +1483,7 @@ void DisplayQueue::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 void DisplayQueue::RestoreVideoDefaultDeinterlace() {
   video_lock_.lock();
   requested_video_effect_ = false;
+  video_effect_changed_ = true;
   compositor_.RestoreVideoDefaultDeinterlace();
   video_lock_.unlock();
 }
@@ -1579,7 +1588,6 @@ void DisplayQueue::UpdateScalingRatio(uint32_t primary_width,
 }
 
 void DisplayQueue::ResetQueue() {
-  applied_video_effect_ = false;
   last_commit_failed_update_ = false;
   std::vector<OverlayLayer>().swap(in_flight_layers_);
   DisplayPlaneStateList().swap(previous_plane_state_);
