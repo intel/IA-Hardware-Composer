@@ -49,6 +49,9 @@ class GbmBufferHandler : public NativeBufferHandler {
   uint32_t GetFd() const override {
     return fd_;
   }
+  bool GetInterlace(HWCNativeHandle handle) const override {
+    return false;
+  }
 
  private:
   uint32_t fd_;

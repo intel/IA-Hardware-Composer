@@ -49,6 +49,9 @@ class YallocBufferHandler : public NativeBufferHandler {
   int32_t UnMap(HWCNativeHandle handle, void *map_data) const override;
 
   uint32_t GetFd() const override;
+  bool GetInterlace(HWCNativeHandle handle) const override {
+    return false;
+  }
 
  private:
   uint32_t fd_;
