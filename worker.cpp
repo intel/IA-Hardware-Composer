@@ -91,4 +91,4 @@ void Worker::InternalRoutine() {
     Routine();
   }
 }
-}
+}  // namespace android

@@ -18,8 +18,8 @@
 #define ANDROID_DRM_MODE_H_
 
 #include <stdint.h>
-#include <string>
 #include <xf86drmMode.h>
+#include <string>
 
 namespace android {
 
@@ -77,6 +77,6 @@ class DrmMode {
 
   std::string name_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_MODE_H_

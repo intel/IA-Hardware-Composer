@@ -2,7 +2,7 @@ image: ubuntu:16.04
 
 before_script:
   - apt-get --quiet update --yes >/dev/null
-  - apt-get --quiet install --yes clang-format-3.5 git >/dev/null
+  - apt-get --quiet install --yes clang-format-5.0 git >/dev/null
 
 stages:
   - style
@@ -11,7 +11,7 @@ clang-format:
   stage: style
   script:
     - git fetch https://gitlab.freedesktop.org/drm-hwcomposer/drm-hwcomposer.git
-    - git diff -U0 --no-color FETCH_HEAD...HEAD -- | clang-format-diff-3.5 -p 1 -style=file > format-fixup.patch
+    - git diff -U0 --no-color FETCH_HEAD...HEAD -- | clang-format-diff-5.0 -p 1 -style=file > format-fixup.patch
     - if [ -s format-fixup.patch ]; then cat format-fixup.patch && exit 1; fi
   artifacts:
     when: on_failure

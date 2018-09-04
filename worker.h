@@ -77,5 +77,5 @@ class Worker {
   bool exit_;
   bool initialized_;
 };
-}
+}  // namespace android
 #endif

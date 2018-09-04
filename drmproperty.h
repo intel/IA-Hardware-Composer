@@ -18,8 +18,8 @@
 #define ANDROID_DRM_PROPERTY_H_
 
 #include <stdint.h>
-#include <string>
 #include <xf86drmMode.h>
+#include <string>
 #include <vector>
 
 namespace android {
@@ -67,6 +67,6 @@ class DrmProperty {
   std::vector<DrmPropertyEnum> enums_;
   std::vector<uint32_t> blob_ids_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_PROPERTY_H_
