@@ -12,5 +12,4 @@ checkstyle:
   script: "./.gitlab-ci-checkcommit.sh"
   artifacts:
     when: on_failure
-    paths:
-      - format-fixup.patch
+    untracked: true
