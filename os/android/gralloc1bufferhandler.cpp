@@ -60,7 +60,8 @@ Gralloc1BufferHandler::Gralloc1BufferHandler(uint32_t fd)
       set_format_(nullptr),
       set_producer_usage_(nullptr),
       allocate_(nullptr),
-      set_modifier_(nullptr) {
+      set_modifier_(nullptr),
+      get_interlace_(nullptr) {
 }
 
 Gralloc1BufferHandler::~Gralloc1BufferHandler() {
@@ -122,6 +123,9 @@ bool Gralloc1BufferHandler::Init() {
   set_modifier_ = reinterpret_cast<GRALLOC1_PFN_SET_MODIFIER>(
       gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_SET_MODIFIER));
 #endif
+
+  get_interlace_ = reinterpret_cast<GRALLOC1_PFN_GET_INTERLACE>(
+      gralloc1_dvc->getFunction(gralloc1_dvc, GRALLOC1_FUNCTION_GET_INTERLACE));
   return true;
 }
 
@@ -245,6 +249,15 @@ bool Gralloc1BufferHandler::ImportBuffer(HWCNativeHandle handle) const {
     return false;
   }
 
+  if (handle->meta_data_.usage_ == hwcomposer::kLayerVideo) {
+    uint32_t interlace = 0;
+    get_interlace_(gralloc1_dvc, handle->imported_handle_, &interlace);
+    if (interlace > 0) {
+      handle->meta_data_.is_interlaced_ = true;
+    } else
+      handle->meta_data_.is_interlaced_ = false;
+  }
+
   return true;
 }
 
@@ -295,6 +308,16 @@ int32_t Gralloc1BufferHandler::UnMap(HWCNativeHandle handle,
   gralloc1_device_t *gralloc1_dvc =
       reinterpret_cast<gralloc1_device_t *>(device_);
   return unlock_(gralloc1_dvc, handle->imported_handle_, &releaseFence);
+}
+
+bool Gralloc1BufferHandler::GetInterlace(HWCNativeHandle handle) const {
+  uint32_t interlace = 0;
+  gralloc1_device_t *gralloc1_dvc =
+      reinterpret_cast<gralloc1_device_t *>(device_);
+  get_interlace_(gralloc1_dvc, handle->imported_handle_, &interlace);
+  if (interlace > 0)
+    return true;
+  return false;
 }
 
 }  // namespace hwcomposer
