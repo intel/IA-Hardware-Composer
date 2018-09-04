@@ -14,16 +14,13 @@
 
 ifeq ($(strip $(BOARD_USES_DRM_HWCOMPOSER)),true)
 
+DRM_HWC_ANDROID_MAJOR_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
 LOCAL_PATH := $(call my-dir)
 
 common_drm_hwcomposer_cflags := \
     -Wall \
     -Werror \
-    -Wno-unused-function \
-    -Wno-unused-label \
-    -Wno-unused-parameter \
-    -Wno-unused-private-field \
-    -Wno-unused-variable \
 
 # =====================
 # libdrmhwc_utils.a
@@ -61,7 +58,8 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_SRC_FILES := \
 	autolock.cpp \
-	drmresources.cpp \
+	resourcemanager.cpp \
+	drmdevice.cpp \
 	drmconnector.cpp \
 	drmcrtc.cpp \
 	drmdisplaycomposition.cpp \
@@ -82,6 +80,10 @@ LOCAL_CFLAGS := $(common_drm_hwcomposer_cflags)
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \
 	-DHWC2_INCLUDE_STRINGIFICATION
+
+ifneq ($(filter 2 3 4 5 6 7 8, $(DRM_HWC_ANDROID_MAJOR_VERSION)),)
+LOCAL_CPPFLAGS += -DHWC2_USE_OLD_GB_IMPORT
+endif
 
 
 ifeq ($(TARGET_PRODUCT),hikey960)

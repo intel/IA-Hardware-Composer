@@ -17,19 +17,19 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 #define LOG_TAG "hwc-drm-two"
 
+#include "drmhwctwo.h"
 #include "drmdisplaycomposition.h"
 #include "drmhwcomposer.h"
-#include "drmhwctwo.h"
 #include "platform.h"
 #include "vsyncworker.h"
 
 #include <inttypes.h>
 #include <string>
 
-#include <log/log.h>
 #include <cutils/properties.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
+#include <log/log.h>
 
 namespace android {
 
@@ -58,24 +58,27 @@ DrmHwcTwo::DrmHwcTwo() {
 }
 
 HWC2::Error DrmHwcTwo::Init() {
-  int ret = drm_.Init();
+  int ret = resource_manager_.Init();
   if (ret) {
-    ALOGE("Can't initialize drm object %d", ret);
+    ALOGE("Can't initialize the resource manager %d", ret);
     return HWC2::Error::NoResources;
   }
 
-  importer_.reset(Importer::CreateInstance(&drm_));
-  if (!importer_) {
-    ALOGE("Failed to create importer instance");
+  DrmDevice *drm = resource_manager_.GetDrmDevice(HWC_DISPLAY_PRIMARY);
+  std::shared_ptr<Importer> importer = resource_manager_.GetImporter(
+      HWC_DISPLAY_PRIMARY);
+  if (!drm || !importer) {
+    ALOGE("Failed to get a valid drmresource and importer");
     return HWC2::Error::NoResources;
   }
 
   displays_.emplace(std::piecewise_construct,
                     std::forward_as_tuple(HWC_DISPLAY_PRIMARY),
-                    std::forward_as_tuple(&drm_, importer_, HWC_DISPLAY_PRIMARY,
+                    std::forward_as_tuple(&resource_manager_, drm, importer,
+                                          HWC_DISPLAY_PRIMARY,
                                           HWC2::DisplayType::Physical));
 
-  DrmCrtc *crtc = drm_.GetCrtcForDisplay(static_cast<int>(HWC_DISPLAY_PRIMARY));
+  DrmCrtc *crtc = drm->GetCrtcForDisplay(static_cast<int>(HWC_DISPLAY_PRIMARY));
   if (!crtc) {
     ALOGE("Failed to get crtc for display %d",
           static_cast<int>(HWC_DISPLAY_PRIMARY));
@@ -83,7 +86,7 @@ HWC2::Error DrmHwcTwo::Init() {
   }
 
   std::vector<DrmPlane *> display_planes;
-  for (auto &plane : drm_.planes()) {
+  for (auto &plane : drm->planes()) {
     if (plane->GetCrtcSupported(*crtc))
       display_planes.push_back(plane.get());
   }
@@ -150,10 +153,15 @@ HWC2::Error DrmHwcTwo::RegisterCallback(int32_t descriptor,
   return HWC2::Error::None;
 }
 
-DrmHwcTwo::HwcDisplay::HwcDisplay(DrmResources *drm,
+DrmHwcTwo::HwcDisplay::HwcDisplay(ResourceManager *resource_manager,
+                                  DrmDevice *drm,
                                   std::shared_ptr<Importer> importer,
                                   hwc2_display_t handle, HWC2::DisplayType type)
-    : drm_(drm), importer_(importer), handle_(handle), type_(type) {
+    : resource_manager_(resource_manager),
+      drm_(drm),
+      importer_(importer),
+      handle_(handle),
+      type_(type) {
   supported(__func__);
 }
 
@@ -166,7 +174,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::Init(std::vector<DrmPlane *> *planes) {
   }
 
   int display = static_cast<int>(handle_);
-  int ret = compositor_.Init(drm_, display);
+  int ret = compositor_.Init(resource_manager_, display);
   if (ret) {
     ALOGE("Failed display compositor init for display %d (%d)", display, ret);
     return HWC2::Error::NoResources;
@@ -314,9 +322,11 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
                                                        int32_t attribute_in,
                                                        int32_t *value) {
   supported(__func__);
-  auto mode =
-      std::find_if(connector_->modes().begin(), connector_->modes().end(),
-                   [config](DrmMode const &m) { return m.id() == config; });
+  auto mode = std::find_if(connector_->modes().begin(),
+                           connector_->modes().end(),
+                           [config](DrmMode const &m) {
+                             return m.id() == config;
+                           });
   if (mode == connector_->modes().end()) {
     ALOGE("Could not find active mode for %d", config);
     return HWC2::Error::BadConfig;
@@ -425,8 +435,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetDozeSupport(int32_t *support) {
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::GetHdrCapabilities(
-    uint32_t *num_types, int32_t */*types*/, float */*max_luminance*/,
-    float */*max_average_luminance*/, float */*min_luminance*/) {
+    uint32_t *num_types, int32_t * /*types*/, float * /*max_luminance*/,
+    float * /*max_average_luminance*/, float * /*min_luminance*/) {
   supported(__func__);
   *num_types = 0;
   return HWC2::Error::None;
@@ -517,8 +527,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     map.layers.emplace_back(std::move(layer));
   }
 
-  std::unique_ptr<DrmDisplayComposition> composition =
-      compositor_.CreateComposition();
+  std::unique_ptr<DrmDisplayComposition> composition = compositor_
+                                                           .CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
 
   // TODO: Don't always assume geometry changed
@@ -584,16 +594,18 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
 HWC2::Error DrmHwcTwo::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
   supported(__func__);
-  auto mode =
-      std::find_if(connector_->modes().begin(), connector_->modes().end(),
-                   [config](DrmMode const &m) { return m.id() == config; });
+  auto mode = std::find_if(connector_->modes().begin(),
+                           connector_->modes().end(),
+                           [config](DrmMode const &m) {
+                             return m.id() == config;
+                           });
   if (mode == connector_->modes().end()) {
     ALOGE("Could not find active mode for %d", config);
     return HWC2::Error::BadConfig;
   }
 
-  std::unique_ptr<DrmDisplayComposition> composition =
-      compositor_.CreateComposition();
+  std::unique_ptr<DrmDisplayComposition> composition = compositor_
+                                                           .CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   int ret = composition->SetDisplayMode(*mode);
   ret = compositor_.ApplyComposition(std::move(composition));
@@ -672,8 +684,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetPowerMode(int32_t mode_in) {
       return HWC2::Error::Unsupported;
   };
 
-  std::unique_ptr<DrmDisplayComposition> composition =
-      compositor_.CreateComposition();
+  std::unique_ptr<DrmDisplayComposition> composition = compositor_
+                                                           .CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
   composition->SetDpmsMode(dpms_value);
   int ret = compositor_.ApplyComposition(std::move(composition));
@@ -693,10 +705,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
                                                    uint32_t *num_requests) {
   supported(__func__);
-  size_t plane_count = 0;
   *num_types = 0;
   *num_requests = 0;
   size_t avail_planes = primary_planes_.size() + overlay_planes_.size();
+  bool comp_failed = false;
 
   HWC2::Error ret;
 
@@ -705,8 +717,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
   ret = CreateComposition(true);
   if (ret != HWC2::Error::None)
-    // Assume the test failed due to overlay planes
-    avail_planes = 1;
+    comp_failed = true;
 
   std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
@@ -722,7 +733,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     avail_planes--;
 
   for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
-    if (!avail_planes--)
+    if (comp_failed || !avail_planes--)
       break;
     l.second->set_validated_type(HWC2::Composition::Device);
   }
@@ -896,7 +907,7 @@ hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
       return ToHook<HWC2_PFN_CREATE_VIRTUAL_DISPLAY>(
           DeviceHook<int32_t, decltype(&DrmHwcTwo::CreateVirtualDisplay),
                      &DrmHwcTwo::CreateVirtualDisplay, uint32_t, uint32_t,
-                     int32_t*, hwc2_display_t *>);
+                     int32_t *, hwc2_display_t *>);
     case HWC2::FunctionDescriptor::DestroyVirtualDisplay:
       return ToHook<HWC2_PFN_DESTROY_VIRTUAL_DISPLAY>(
           DeviceHook<int32_t, decltype(&DrmHwcTwo::DestroyVirtualDisplay),
@@ -947,13 +958,15 @@ hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
           DisplayHook<decltype(&HwcDisplay::GetColorModes),
                       &HwcDisplay::GetColorModes, uint32_t *, int32_t *>);
     case HWC2::FunctionDescriptor::GetDisplayAttribute:
-      return ToHook<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(DisplayHook<
-          decltype(&HwcDisplay::GetDisplayAttribute),
-          &HwcDisplay::GetDisplayAttribute, hwc2_config_t, int32_t, int32_t *>);
+      return ToHook<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayAttribute),
+                      &HwcDisplay::GetDisplayAttribute, hwc2_config_t, int32_t,
+                      int32_t *>);
     case HWC2::FunctionDescriptor::GetDisplayConfigs:
-      return ToHook<HWC2_PFN_GET_DISPLAY_CONFIGS>(DisplayHook<
-          decltype(&HwcDisplay::GetDisplayConfigs),
-          &HwcDisplay::GetDisplayConfigs, uint32_t *, hwc2_config_t *>);
+      return ToHook<HWC2_PFN_GET_DISPLAY_CONFIGS>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayConfigs),
+                      &HwcDisplay::GetDisplayConfigs, uint32_t *,
+                      hwc2_config_t *>);
     case HWC2::FunctionDescriptor::GetDisplayName:
       return ToHook<HWC2_PFN_GET_DISPLAY_NAME>(
           DisplayHook<decltype(&HwcDisplay::GetDisplayName),
@@ -990,9 +1003,10 @@ hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
           DisplayHook<decltype(&HwcDisplay::SetActiveConfig),
                       &HwcDisplay::SetActiveConfig, hwc2_config_t>);
     case HWC2::FunctionDescriptor::SetClientTarget:
-      return ToHook<HWC2_PFN_SET_CLIENT_TARGET>(DisplayHook<
-          decltype(&HwcDisplay::SetClientTarget), &HwcDisplay::SetClientTarget,
-          buffer_handle_t, int32_t, int32_t, hwc_region_t>);
+      return ToHook<HWC2_PFN_SET_CLIENT_TARGET>(
+          DisplayHook<decltype(&HwcDisplay::SetClientTarget),
+                      &HwcDisplay::SetClientTarget, buffer_handle_t, int32_t,
+                      int32_t, hwc_region_t>);
     case HWC2::FunctionDescriptor::SetColorMode:
       return ToHook<HWC2_PFN_SET_COLOR_MODE>(
           DisplayHook<decltype(&HwcDisplay::SetColorMode),
@@ -1052,9 +1066,10 @@ hwc2_function_pointer_t DrmHwcTwo::HookDevGetFunction(
           LayerHook<decltype(&HwcLayer::SetLayerPlaneAlpha),
                     &HwcLayer::SetLayerPlaneAlpha, float>);
     case HWC2::FunctionDescriptor::SetLayerSidebandStream:
-      return ToHook<HWC2_PFN_SET_LAYER_SIDEBAND_STREAM>(LayerHook<
-          decltype(&HwcLayer::SetLayerSidebandStream),
-          &HwcLayer::SetLayerSidebandStream, const native_handle_t *>);
+      return ToHook<HWC2_PFN_SET_LAYER_SIDEBAND_STREAM>(
+          LayerHook<decltype(&HwcLayer::SetLayerSidebandStream),
+                    &HwcLayer::SetLayerSidebandStream,
+                    const native_handle_t *>);
     case HWC2::FunctionDescriptor::SetLayerSourceCrop:
       return ToHook<HWC2_PFN_SET_LAYER_SOURCE_CROP>(
           LayerHook<decltype(&HwcLayer::SetLayerSourceCrop),
@@ -1107,7 +1122,7 @@ int DrmHwcTwo::HookDevOpen(const struct hw_module_t *module, const char *name,
   ctx.release();
   return 0;
 }
-}
+}  // namespace android
 
 static struct hw_module_methods_t hwc2_module_methods = {
     .open = android::DrmHwcTwo::HookDevOpen,

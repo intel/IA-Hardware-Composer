@@ -16,8 +16,8 @@
 
 #include "drmdisplaycompositor.h"
 #include "drmhwcomposer.h"
-#include "drmresources.h"
 #include "platform.h"
+#include "resourcemanager.h"
 #include "vsyncworker.h"
 
 #include <hardware/hwcomposer2.h>
@@ -135,8 +135,9 @@ class DrmHwcTwo : public hwc2_device_t {
 
   class HwcDisplay {
    public:
-    HwcDisplay(DrmResources *drm, std::shared_ptr<Importer> importer,
-               hwc2_display_t handle, HWC2::DisplayType type);
+    HwcDisplay(ResourceManager *resource_manager, DrmDevice *drm,
+               std::shared_ptr<Importer> importer, hwc2_display_t handle,
+               HWC2::DisplayType type);
     HwcDisplay(const HwcDisplay &) = delete;
     HWC2::Error Init(std::vector<DrmPlane *> *planes);
 
@@ -188,7 +189,8 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Error CreateComposition(bool test);
     void AddFenceToRetireFence(int fd);
 
-    DrmResources *drm_;
+    ResourceManager *resource_manager_;
+    DrmDevice *drm_;
     DrmDisplayCompositor compositor_;
     std::shared_ptr<Importer> importer_;
     std::unique_ptr<Planner> planner_;
@@ -253,17 +255,15 @@ class DrmHwcTwo : public hwc2_device_t {
 
   // Device functions
   HWC2::Error CreateVirtualDisplay(uint32_t width, uint32_t height,
-                                   int32_t *format,
-                                   hwc2_display_t *display);
+                                   int32_t *format, hwc2_display_t *display);
   HWC2::Error DestroyVirtualDisplay(hwc2_display_t display);
   void Dump(uint32_t *size, char *buffer);
   uint32_t GetMaxVirtualDisplayCount();
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
 
-  DrmResources drm_;
-  std::shared_ptr<Importer> importer_;  // Shared with HwcDisplay
+  ResourceManager resource_manager_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
   std::map<HWC2::Callback, HwcCallback> callbacks_;
 };
-}
+}  // namespace android

@@ -101,6 +101,6 @@ struct OutputFd {
  private:
   int *fd_ = NULL;
 };
-}
+}  // namespace android
 
 #endif

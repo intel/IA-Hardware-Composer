@@ -26,11 +26,11 @@
 
 namespace android {
 
-class DrmResources;
+class DrmDevice;
 
 class DrmPlane {
  public:
-  DrmPlane(DrmResources *drm, drmModePlanePtr p);
+  DrmPlane(DrmDevice *drm, drmModePlanePtr p);
   DrmPlane(const DrmPlane &) = delete;
   DrmPlane &operator=(const DrmPlane &) = delete;
 
@@ -57,7 +57,7 @@ class DrmPlane {
   const DrmProperty &in_fence_fd_property() const;
 
  private:
-  DrmResources *drm_;
+  DrmDevice *drm_;
   uint32_t id_;
 
   uint32_t possible_crtc_mask_;
@@ -78,6 +78,6 @@ class DrmPlane {
   DrmProperty alpha_property_;
   DrmProperty in_fence_fd_property_;
 };
-}
+}  // namespace android
 
 #endif  // ANDROID_DRM_PLANE_H_
