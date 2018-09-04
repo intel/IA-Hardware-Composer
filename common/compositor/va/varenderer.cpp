@@ -216,14 +216,17 @@ bool VARenderer::SetVAProcFilterDeinterlaceMode(const HWCDeinterlaceProp& prop,
 }
 
 unsigned int VARenderer::GetVAProcFilterScalingMode(uint32_t mode) {
-  switch (mode) {
-    case 1:
-      return VA_FILTER_SCALING_FAST;
-    case 2:
-      return VA_FILTER_SCALING_HQ;
-    default:
-      return VA_FILTER_SCALING_HQ;
-  }
+  if (deinterlace_caps_.mode_ == VAProcDeinterlacingNone) {
+    switch (mode) {
+      case 1:
+        return VA_FILTER_SCALING_FAST;
+      case 2:
+        return VA_FILTER_SCALING_HQ;
+      default:
+        return VA_FILTER_SCALING_FAST;
+    }
+  } else
+    return VA_FILTER_SCALING_FAST;
 }
 
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
