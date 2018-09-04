@@ -1,4 +1,7 @@
 BasedOnStyle: Google
+AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
+PenaltyBreakAssignment: 10000000
+PenaltyBreakBeforeFirstCallParameter: 1000

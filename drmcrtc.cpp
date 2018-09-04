@@ -17,7 +17,7 @@
 #define LOG_TAG "hwc-drm-crtc"
 
 #include "drmcrtc.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>
@@ -26,12 +26,8 @@
 
 namespace android {
 
-DrmCrtc::DrmCrtc(DrmResources *drm, drmModeCrtcPtr c, unsigned pipe)
-    : drm_(drm),
-      id_(c->crtc_id),
-      pipe_(pipe),
-      display_(-1),
-      mode_(&c->mode) {
+DrmCrtc::DrmCrtc(DrmDevice *drm, drmModeCrtcPtr c, unsigned pipe)
+    : drm_(drm), id_(c->crtc_id), pipe_(pipe), display_(-1), mode_(&c->mode) {
 }
 
 int DrmCrtc::Init() {
@@ -86,4 +82,4 @@ const DrmProperty &DrmCrtc::mode_property() const {
 const DrmProperty &DrmCrtc::out_fence_ptr_property() const {
   return out_fence_ptr_property_;
 }
-}
+}  // namespace android

@@ -16,16 +16,16 @@
 
 #define LOG_TAG "hwc-platform-drm-minigbm"
 
+#include "platformminigbm.h"
 #include "drmresources.h"
 #include "platform.h"
-#include "platformminigbm.h"
 
 #include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#include <log/log.h>
 #include <hardware/gralloc.h>
+#include <log/log.h>
 
 #include "cros_gralloc_handle.h"
 
@@ -45,7 +45,8 @@ Importer *Importer::CreateInstance(DrmResources *drm) {
   return importer;
 }
 
-DrmMinigbmImporter::DrmMinigbmImporter(DrmResources *drm) : DrmGenericImporter(drm), drm_(drm) {
+DrmMinigbmImporter::DrmMinigbmImporter(DrmResources *drm)
+    : DrmGenericImporter(drm), drm_(drm) {
 }
 
 DrmMinigbmImporter::~DrmMinigbmImporter() {
@@ -81,8 +82,10 @@ int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   memset(bo, 0, sizeof(hwc_drm_bo_t));
   bo->width = gr_handle->width;
   bo->height = gr_handle->height;
+  bo->hal_format = gr_handle->droid_format;
   bo->format = gr_handle->format;
   bo->usage = gr_handle->usage;
+  bo->pixel_stride = gr_handle->pixel_stride;
   bo->pitches[0] = gr_handle->strides[0];
   bo->offsets[0] = gr_handle->offsets[0];
   bo->gem_handles[0] = gem_handle;
@@ -103,4 +106,4 @@ std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
   return planner;
 }
 
-}
+}  // namespace android
