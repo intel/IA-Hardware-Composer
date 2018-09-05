@@ -17,7 +17,7 @@
 #define LOG_TAG "hwc-drm-connector"
 
 #include "drmconnector.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@
 
 namespace android {
 
-DrmConnector::DrmConnector(DrmResources *drm, drmModeConnectorPtr c,
+DrmConnector::DrmConnector(DrmDevice *drm, drmModeConnectorPtr c,
                            DrmEncoder *current_encoder,
                            std::vector<DrmEncoder *> &possible_encoders)
     : drm_(drm),
@@ -52,6 +52,26 @@ int DrmConnector::Init() {
     ALOGE("Could not get CRTC_ID property\n");
     return ret;
   }
+  if (writeback()) {
+    ret = drm_->GetConnectorProperty(*this, "WRITEBACK_PIXEL_FORMATS",
+                                     &writeback_pixel_formats_);
+    if (ret) {
+      ALOGE("Could not get WRITEBACK_PIXEL_FORMATS connector_id = %d\n", id_);
+      return ret;
+    }
+    ret = drm_->GetConnectorProperty(*this, "WRITEBACK_FB_ID",
+                                     &writeback_fb_id_);
+    if (ret) {
+      ALOGE("Could not get WRITEBACK_FB_ID connector_id = %d\n", id_);
+      return ret;
+    }
+    ret = drm_->GetConnectorProperty(*this, "WRITEBACK_OUT_FENCE_PTR",
+                                     &writeback_out_fence_);
+    if (ret) {
+      ALOGE("Could not get WRITEBACK_OUT_FENCE_PTR connector_id = %d\n", id_);
+      return ret;
+    }
+  }
   return 0;
 }
 
@@ -73,13 +93,22 @@ bool DrmConnector::internal() const {
 }
 
 bool DrmConnector::external() const {
-  return type_ == DRM_MODE_CONNECTOR_HDMIA || type_ == DRM_MODE_CONNECTOR_DisplayPort ||
+  return type_ == DRM_MODE_CONNECTOR_HDMIA ||
+         type_ == DRM_MODE_CONNECTOR_DisplayPort ||
          type_ == DRM_MODE_CONNECTOR_DVID || type_ == DRM_MODE_CONNECTOR_DVII ||
          type_ == DRM_MODE_CONNECTOR_VGA;
 }
 
+bool DrmConnector::writeback() const {
+#ifdef DRM_MODE_CONNECTOR_WRITEBACK
+  return type_ == DRM_MODE_CONNECTOR_WRITEBACK;
+#else
+  return false;
+#endif
+}
+
 bool DrmConnector::valid_type() const {
-  return internal() || external();
+  return internal() || external() || writeback();
 }
 
 int DrmConnector::UpdateModes() {
@@ -130,6 +159,18 @@ const DrmProperty &DrmConnector::crtc_id_property() const {
   return crtc_id_property_;
 }
 
+const DrmProperty &DrmConnector::writeback_pixel_formats() const {
+  return writeback_pixel_formats_;
+}
+
+const DrmProperty &DrmConnector::writeback_fb_id() const {
+  return writeback_fb_id_;
+}
+
+const DrmProperty &DrmConnector::writeback_out_fence() const {
+  return writeback_out_fence_;
+}
+
 DrmEncoder *DrmConnector::encoder() const {
   return encoder_;
 }
@@ -149,4 +190,4 @@ uint32_t DrmConnector::mm_width() const {
 uint32_t DrmConnector::mm_height() const {
   return mm_height_;
 }
-}
+}  // namespace android

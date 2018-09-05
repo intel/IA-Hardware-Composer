@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "drmcrtc.h"
 #include "drmencoder.h"
-#include "drmresources.h"
+#include "drmcrtc.h"
+#include "drmdevice.h"
 
 #include <stdint.h>
 #include <xf86drmMode.h>
@@ -27,6 +27,7 @@ DrmEncoder::DrmEncoder(drmModeEncoderPtr e, DrmCrtc *current_crtc,
                        const std::vector<DrmCrtc *> &possible_crtcs)
     : id_(e->encoder_id),
       crtc_(current_crtc),
+      display_(-1),
       possible_crtcs_(possible_crtcs) {
 }
 
@@ -38,7 +39,24 @@ DrmCrtc *DrmEncoder::crtc() const {
   return crtc_;
 }
 
+bool DrmEncoder::CanClone(DrmEncoder *possible_clone) {
+  return possible_clones_.find(possible_clone) != possible_clones_.end();
+}
+
+void DrmEncoder::AddPossibleClone(DrmEncoder *possible_clone) {
+  possible_clones_.insert(possible_clone);
+}
+
 void DrmEncoder::set_crtc(DrmCrtc *crtc) {
   crtc_ = crtc;
+  display_ = crtc->display();
 }
+
+int DrmEncoder::display() const {
+  return display_;
 }
+
+bool DrmEncoder::can_bind(int display) const {
+  return display_ == -1 || display_ == display;
+}
+}  // namespace android

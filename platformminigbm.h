@@ -40,6 +40,6 @@ class DrmMinigbmImporter : public DrmGenericImporter {
   const gralloc_module_t *gralloc_;
 };
 
-}
+}  // namespace android
 
 #endif

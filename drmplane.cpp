@@ -17,18 +17,18 @@
 #define LOG_TAG "hwc-drm-plane"
 
 #include "drmplane.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 
-#include <cinttypes>
 #include <errno.h>
 #include <stdint.h>
+#include <cinttypes>
 
 #include <log/log.h>
 #include <xf86drmMode.h>
 
 namespace android {
 
-DrmPlane::DrmPlane(DrmResources *drm, drmModePlanePtr p)
+DrmPlane::DrmPlane(DrmDevice *drm, drmModePlanePtr p)
     : drm_(drm), id_(p->plane_id), possible_crtc_mask_(p->possible_crtcs) {
 }
 
@@ -196,4 +196,4 @@ const DrmProperty &DrmPlane::alpha_property() const {
 const DrmProperty &DrmPlane::in_fence_fd_property() const {
   return in_fence_fd_property_;
 }
-}
+}  // namespace android
