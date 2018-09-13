@@ -218,6 +218,11 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.native_format_ = gr_handle->droid_format;
+  if (gr_handle->is_interlaced > 0) {
+    handle->meta_data_.is_interlaced_ = true;
+  } else {
+    handle->meta_data_.is_interlaced_ = false;
+  }
 
   int32_t numplanes = gr_handle->base.numFds;
   handle->meta_data_.num_planes_ = numplanes;
