@@ -696,11 +696,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  if (has_video_layer && video_effect_changed_) {
-    video_effect_changed_ = false;
-    idle_frame = false;
-  }
-
   if (!validate_layers)
     validate_layers = idle_frame;
 #ifdef SURFACE_TRACING
@@ -728,12 +723,16 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   bool requested_video_effect = false;
   if (has_video_layer) {
     video_lock_.lock();
+    if (video_effect_changed_) {
+      idle_frame = false;
+      video_effect_changed_ = false;
+      validate_layers = true;
+    }
     if (requested_video_effect_) {
       // Let's ensure Media planes take this into account.
       force_media_composition = true;
       requested_video_effect = requested_video_effect_;
       idle_frame = false;
-      validate_layers = true;
     }
     video_lock_.unlock();
   }

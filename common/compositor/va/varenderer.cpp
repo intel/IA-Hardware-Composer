@@ -223,7 +223,7 @@ unsigned int VARenderer::GetVAProcFilterScalingMode(uint32_t mode) {
       case 2:
         return VA_FILTER_SCALING_HQ;
       default:
-        return VA_FILTER_SCALING_FAST;
+        return VA_FILTER_SCALING_HQ;
     }
   } else
     return VA_FILTER_SCALING_FAST;

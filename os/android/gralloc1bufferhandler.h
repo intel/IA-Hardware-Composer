@@ -72,7 +72,6 @@ class Gralloc1BufferHandler : public NativeBufferHandler {
   GRALLOC1_PFN_SET_FORMAT set_format_;
   GRALLOC1_PFN_SET_PRODUCER_USAGE set_producer_usage_;
   GRALLOC1_PFN_ALLOCATE allocate_;
-  GRALLOC1_PFN_GET_INTERLACE get_interlace_;
 #ifdef USE_GRALLOC1
   GRALLOC1_PFN_SET_MODIFIER set_modifier_;
 #endif
