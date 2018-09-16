@@ -411,6 +411,10 @@ class NativeDisplay {
   virtual void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
   }
 
+  virtual bool GetDCIP3Support() {
+    return false;
+  }
+
   virtual const NativeBufferHandler *GetNativeBufferHandler() const {
     return NULL;
   }
@@ -436,6 +440,7 @@ class NativeDisplay {
   }
 
   // Rotates content shown by this diplay as specified by
+  }
   // rotation. This is on top of any transformations applied
   // to individual layers shown by this display.
   virtual void RotateDisplay(HWCRotation /*rotation*/) {
