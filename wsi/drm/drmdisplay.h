@@ -93,6 +93,10 @@ class DrmDisplay : public PhysicalDisplay {
 
   void ForceRefresh();
 
+  bool GetDCIP3Support() {
+    return dcip3_;
+  }
+
   void IgnoreUpdates();
 
   void HandleLazyInitialization() override;
@@ -126,6 +130,9 @@ class DrmDisplay : public PhysicalDisplay {
                    uint16_t alpha) const;
   std::unique_ptr<DrmPlane> CreatePlane(uint32_t plane_id,
                                         uint32_t possible_crtcs);
+  std::vector<uint8_t *> FindExtendedBlocksForTag(uint8_t *edid,
+                                                  uint8_t block_tag);
+  void DrmConnectorGetDCIP3Support(const ScopedDrmObjectPropertyPtr &props);
 
   uint32_t crtc_id_ = 0;
   uint32_t mmWidth_ = 0;
@@ -143,8 +150,10 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t mode_id_prop_ = 0;
   uint32_t hdcp_id_prop_ = 0;
   uint32_t hdcp_srm_id_prop_ = 0;
+  uint32_t edid_prop_ = 0;
   uint32_t canvas_color_prop_ = 0;
   uint32_t connector_ = 0;
+  bool dcip3_ = false;
   uint64_t lut_size_ = 0;
   int64_t broadcastrgb_full_ = -1;
   int64_t broadcastrgb_automatic_ = -1;
