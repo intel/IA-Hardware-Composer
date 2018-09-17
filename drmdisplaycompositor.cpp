@@ -359,6 +359,17 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         }
       }
 
+      if (plane->zpos_property().id() && !plane->zpos_property().immutable()) {
+        ret = drmModeAtomicAddProperty(pset, plane->id(),
+                                       plane->zpos_property().id(),
+                                       source_layers.front()) < 0;
+        if (ret) {
+          ALOGE("Failed to add zpos property %d to plane %d",
+                plane->zpos_property().id(), plane->id());
+          break;
+        }
+      }
+
       rotation = 0;
       if (layer.transform & DrmHwcTransform::kFlipH)
         rotation |= DRM_MODE_REFLECT_X;

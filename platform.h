@@ -81,16 +81,24 @@ class Planner {
                        DrmCompositionPlane::Type type, DrmCrtc *crtc,
                        std::pair<size_t, DrmHwcLayer *> layer) {
       DrmPlane *plane = PopPlane(planes);
-      int ret;
-      if (!plane)
-        return -ENOENT;
+      std::vector<DrmPlane *> unused_planes;
+      int ret = -ENOENT;
+      while (plane) {
+        ret = ValidatePlane(plane, layer.second);
+        if (!ret)
+          break;
+        if (!plane->zpos_property().immutable())
+          unused_planes.push_back(plane);
+        plane = PopPlane(planes);
+      }
 
-      ret = ValidatePlane(plane, layer.second);
-      if (ret)
-        return -EINVAL;
+      if (!ret) {
+        composition->emplace_back(type, plane, crtc, layer.first);
+        planes->insert(planes->begin(), unused_planes.begin(),
+                       unused_planes.end());
+      }
 
-      composition->emplace_back(type, plane, crtc, layer.first);
-      return 0;
+      return ret;
     }
   };
 

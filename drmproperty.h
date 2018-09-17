@@ -46,6 +46,7 @@ class DrmProperty {
   std::string name() const;
 
   int value(uint64_t *value) const;
+  bool immutable() const;
 
  private:
   class DrmPropertyEnum {
