@@ -17,7 +17,7 @@
 #ifndef ANDROID_PLATFORM_DRM_MINIGBM_H_
 #define ANDROID_PLATFORM_DRM_MINIGBM_H_
 
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 #include "platformdrmgeneric.h"
 
@@ -27,7 +27,7 @@ namespace android {
 
 class DrmMinigbmImporter : public DrmGenericImporter {
  public:
-  DrmMinigbmImporter(DrmResources *drm);
+  DrmMinigbmImporter(DrmDevice *drm);
   ~DrmMinigbmImporter() override;
 
   int Init();
@@ -35,7 +35,7 @@ class DrmMinigbmImporter : public DrmGenericImporter {
   int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
 
  private:
-  DrmResources *drm_;
+  DrmDevice *drm_;
 
   const gralloc_module_t *gralloc_;
 };
