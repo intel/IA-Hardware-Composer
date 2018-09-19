@@ -104,6 +104,8 @@ LOCAL_CPPFLAGS += \
         -DUSE_GL
 endif
 
+LOCAL_CPPFLAGS += -DUSE_BLOCKING_COMMIT
+
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
 
