@@ -788,6 +788,9 @@ void DisplayPlaneManager::ValidateFinalLayers(
 bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const std::vector<OverlayPlane> &commit_planes) const {
+  // SolidColor can't be scanout directly
+  if (layer->IsSolidColor())
+    return true;
   // For Video, we always want to support Display Composition.
   if (layer->IsVideoLayer()) {
     layer->SupportedDisplayComposition(OverlayLayer::kAll);

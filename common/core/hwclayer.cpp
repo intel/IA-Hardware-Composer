@@ -177,6 +177,8 @@ void HwcLayer::SetReleaseFence(int32_t fd) {
 }
 
 int32_t HwcLayer::GetReleaseFence() {
+  if (!sf_handle_)
+    return -1;
   int32_t old_fd = release_fd_;
   release_fd_ = -1;
   return old_fd;
@@ -192,6 +194,8 @@ void HwcLayer::SetAcquireFence(int32_t fd) {
 }
 
 int32_t HwcLayer::GetAcquireFence() {
+  if (!sf_handle_)
+    return -1;
   int32_t old_fd = acquire_fence_;
   acquire_fence_ = -1;
   return old_fd;
