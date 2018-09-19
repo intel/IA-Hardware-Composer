@@ -44,28 +44,41 @@ OverlayLayer::ImportedBuffer::ImportedBuffer(
 
 void OverlayLayer::SetAcquireFence(int32_t acquire_fence) {
   // Release any existing fence.
-  if (imported_buffer_->acquire_fence_ > 0) {
-    close(imported_buffer_->acquire_fence_);
-  }
+  if (imported_buffer_.get()) {
+    if (imported_buffer_->acquire_fence_ > 0) {
+      close(imported_buffer_->acquire_fence_);
+    }
 
-  imported_buffer_->acquire_fence_ = acquire_fence;
+    imported_buffer_->acquire_fence_ = acquire_fence;
+  }
 }
 
 int32_t OverlayLayer::GetAcquireFence() const {
-  return imported_buffer_->acquire_fence_;
+  if (imported_buffer_.get()) {
+    return imported_buffer_->acquire_fence_;
+  } else
+    return -1;
 }
 
 int32_t OverlayLayer::ReleaseAcquireFence() const {
-  int32_t fence = imported_buffer_->acquire_fence_;
-  imported_buffer_->acquire_fence_ = -1;
-  return fence;
+  if (imported_buffer_.get()) {
+    int32_t fence = imported_buffer_->acquire_fence_;
+    imported_buffer_->acquire_fence_ = -1;
+    return fence;
+  } else {
+    return -1;
+  }
 }
 
 OverlayBuffer* OverlayLayer::GetBuffer() const {
-  if (imported_buffer_->buffer_.get() == NULL)
-    ETRACE("hwc layer get NullBuffer");
+  if (imported_buffer_.get()) {
+    if (imported_buffer_->buffer_.get() == NULL)
+      ETRACE("hwc layer get NullBuffer");
 
-  return imported_buffer_->buffer_.get();
+    return imported_buffer_->buffer_.get();
+  } else {
+    return NULL;
+  }
 }
 
 std::shared_ptr<OverlayBuffer>& OverlayLayer::GetSharedBuffer() const {
@@ -212,8 +225,22 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     }
   }
 
-  SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
-            resource_manager, true, frame_buffer_manager);
+  if (layer->GetNativeHandle()) {
+    SetBuffer(layer->GetNativeHandle(), layer->GetAcquireFence(),
+              resource_manager, true, frame_buffer_manager);
+  } else if (Composition_SolidColor == layer->GetLayerCompositionType()) {
+    type_ = kLayerSolidColor;
+    source_crop_width_ = layer->GetDisplayFrameWidth();
+    source_crop_height_ = layer->GetDisplayFrameHeight();
+    source_crop_.left = source_crop_.top = 0;
+    source_crop_.right = source_crop_width_;
+    source_crop_.top = source_crop_height_;
+    imported_buffer_.reset(NULL);
+  } else {
+    ETRACE(
+        "HWC don't support a layer with no buffer handle except in SolidColor "
+        "type");
+  }
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -351,7 +378,10 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
                                               HwcLayer* layer) {
-  OverlayBuffer* buffer = imported_buffer_->buffer_.get();
+  OverlayBuffer* buffer = NULL;
+  if (imported_buffer_.get())
+    buffer = imported_buffer_->buffer_.get();
+
   supported_composition_ = rhs->supported_composition_;
   actual_composition_ = rhs->actual_composition_;
 
@@ -362,7 +392,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     state_ |= kSourceRectChanged;
 
   // We expect cursor plane to support alpha always.
-  if ((actual_composition_ & kGpu) || (type_ == kLayerCursor)) {
+  if ((actual_composition_ & kGpu) || (type_ == kLayerCursor) ||
+      (type_ == kLayerSolidColor)) {
     if (actual_composition_ & kGpu) {
       content_changed = rect_changed || source_rect_changed;
       // This layer has replaced an existing layer, let's make sure
@@ -371,8 +402,9 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
         content_changed = true;
         CalculateRect(rhs->display_frame_, surface_damage_);
       } else if (!content_changed) {
-        if ((buffer->GetFormat() !=
-             rhs->imported_buffer_->buffer_->GetFormat()) ||
+        if ((buffer && rhs->imported_buffer_.get() &&
+             (buffer->GetFormat() !=
+              rhs->imported_buffer_->buffer_->GetFormat())) ||
             (alpha_ != rhs->alpha_) || (blending_ != rhs->blending_) ||
             (transform_ != rhs->transform_)) {
           content_changed = true;
@@ -386,7 +418,11 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
   } else {
     // Ensure the buffer can be supported by display for direct
     // scanout.
-    if (buffer->GetFormat() != rhs->imported_buffer_->buffer_->GetFormat()) {
+    if (!rhs->imported_buffer_.get()) {
+      state_ |= kNeedsReValidation;
+      return;
+    } else if (buffer->GetFormat() !=
+               rhs->imported_buffer_->buffer_->GetFormat()) {
       state_ |= kNeedsReValidation;
       return;
     }
@@ -500,7 +536,8 @@ void OverlayLayer::Dump() {
   DUMPTRACE("Source crop %s", StringifyRect(source_crop_).c_str());
   DUMPTRACE("Display frame %s", StringifyRect(display_frame_).c_str());
   DUMPTRACE("Surface Damage %s", StringifyRect(surface_damage_).c_str());
-  DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
+  if (imported_buffer_)
+    DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
 
   imported_buffer_->buffer_->Dump();
 }

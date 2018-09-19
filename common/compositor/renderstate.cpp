@@ -124,8 +124,16 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
       }
     }
 
-    float tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
-    float tex_height = static_cast<float>(layer.GetBuffer()->GetHeight());
+    float tex_width = 0;
+    float tex_height = 0;
+    if (layer.GetBuffer()) {
+      tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
+      tex_height = static_cast<float>(layer.GetBuffer()->GetHeight());
+    } else {
+      tex_width = static_cast<float>(layer.GetSourceCropWidth());
+      tex_height = static_cast<float>(layer.GetSourceCropHeight());
+    }
+
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
 
     HwcRect<float> crop_rect(

@@ -176,6 +176,10 @@ struct OverlayLayer {
     return type_ == kLayerVideo;
   }
 
+  bool IsSolidColor() const {
+    return type_ == kLayerSolidColor;
+  }
+
   // Returns true if we should prefer
   // a separate plane for this layer
   // when validating layers in

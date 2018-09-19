@@ -75,7 +75,8 @@ enum HWCLayerType {
   kLayerNormal = 0,
   kLayerCursor = 1,
   kLayerProtected = 2,
-  kLayerVideo = 3
+  kLayerVideo = 3,
+  kLayerSolidColor = 4,
 };
 
 enum class HWCDisplayAttribute : int32_t {

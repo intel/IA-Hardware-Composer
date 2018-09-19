@@ -426,6 +426,12 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       const OverlayLayer* layer =
           &(layers.at(last_plane.GetSourceLayers().front()));
 
+      if (layer->IsSolidColor()) {
+        *force_full_validation = true;
+        *can_ignore_commit = false;
+        return;
+      }
+
       OverlayBuffer* buffer = layer->GetBuffer();
       if (buffer->GetFb() == 0) {
         buffer->CreateFrameBuffer();

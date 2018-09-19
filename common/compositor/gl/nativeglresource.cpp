@@ -29,15 +29,18 @@ bool NativeGLResource::PrepareResources(
   EGLDisplay egl_display = eglGetCurrentDisplay();
   for (auto& buffer : buffers) {
     // Create EGLImage.
-    const ResourceHandle& import_image =
-        buffer->GetGpuResource(egl_display, true);
+    if (buffer) {
+      const ResourceHandle& import_image =
+          buffer->GetGpuResource(egl_display, true);
 
-    if (import_image.image_ == EGL_NO_IMAGE_KHR) {
-      ETRACE("Failed to make import image.");
-      return false;
-    }
+      if (import_image.image_ == EGL_NO_IMAGE_KHR) {
+        ETRACE("Failed to make import image.");
+        return false;
+      }
 
-    layer_textures_.emplace_back(import_image.texture_);
+      layer_textures_.emplace_back(import_image.texture_);
+    } else
+      layer_textures_.emplace_back(0);
   }
 
   return true;

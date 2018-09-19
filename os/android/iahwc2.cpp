@@ -620,6 +620,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
+      case HWC2::Composition::SolidColor:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
         break;
       case HWC2::Composition::Client:
@@ -862,6 +863,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
   // We only support Opaque colors so far.
   if (color.r == 0 && color.g == 0 && color.b == 0 && color.a == 255) {
     sf_type_ = HWC2::Composition::SolidColor;
+    hwc_layer_.SetLayerCompositionType(hwcomposer::Composition_SolidColor);
     return HWC2::Error::None;
   }
 
