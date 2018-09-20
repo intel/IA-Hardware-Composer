@@ -17,7 +17,7 @@
 #define LOG_TAG "hwc-platform-drm-minigbm"
 
 #include "platformminigbm.h"
-#include "drmresources.h"
+#include "drmdevice.h"
 #include "platform.h"
 
 #include <drm/drm_fourcc.h>
@@ -31,7 +31,7 @@
 
 namespace android {
 
-Importer *Importer::CreateInstance(DrmResources *drm) {
+Importer *Importer::CreateInstance(DrmDevice *drm) {
   DrmMinigbmImporter *importer = new DrmMinigbmImporter(drm);
   if (!importer)
     return NULL;
@@ -45,7 +45,7 @@ Importer *Importer::CreateInstance(DrmResources *drm) {
   return importer;
 }
 
-DrmMinigbmImporter::DrmMinigbmImporter(DrmResources *drm)
+DrmMinigbmImporter::DrmMinigbmImporter(DrmDevice *drm)
     : DrmGenericImporter(drm), drm_(drm) {
 }
 
@@ -100,7 +100,7 @@ int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return ret;
 }
 
-std::unique_ptr<Planner> Planner::CreateInstance(DrmResources *) {
+std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   std::unique_ptr<Planner> planner(new Planner);
   planner->AddStage<PlanStageGreedy>();
   return planner;
