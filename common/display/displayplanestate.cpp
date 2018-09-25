@@ -300,6 +300,18 @@ void DisplayPlaneState::DisableGPURendering() {
 
 void DisplayPlaneState::SetOverlayLayer(const OverlayLayer *layer) {
   private_data_->layer_ = layer;
+  bool update_rect = true;
+  if ((private_data_->display_frame_ == layer->GetDisplayFrame()) &&
+      (private_data_->source_crop_ == layer->GetSourceCrop())) {
+    update_rect = false;
+  } else {
+    private_data_->display_frame_ = layer->GetDisplayFrame();
+    private_data_->source_crop_ = layer->GetSourceCrop();
+  }
+
+  if (!private_data_->rect_updated_)
+    private_data_->rect_updated_ = update_rect;
+
   recycled_surface_ = false;
 }
 
