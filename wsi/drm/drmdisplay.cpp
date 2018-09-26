@@ -393,9 +393,7 @@ bool DrmDisplay::Commit(
     display_state_ &= ~kNeedsModeset;
     if (!disable_explicit_fence) {
       flags_ = 0;
-#ifndef USE_BLOCKING_COMMIT
       flags_ |= DRM_MODE_ATOMIC_NONBLOCK;
-#endif
     }
   }
 
