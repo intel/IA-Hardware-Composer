@@ -59,7 +59,8 @@ void Compositor::Reset() {
 
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
                       std::vector<OverlayLayer> &layers,
-                      const std::vector<HwcRect<int>> &display_frame) {
+                      const std::vector<HwcRect<int>> &display_frame,
+                      uint32_t plane_transform) {
   CTRACE();
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
@@ -111,9 +112,29 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         plane.UpdateDamage(plane.GetDisplayFrame());
       }
 
+      size_t first_layer = plane.GetSourceLayers().at(0);
+      uint32_t transform = layers.at(first_layer).GetPlaneTransform();
+      bool is_display_rotation =
+          (plane.GetRotationType() ==
+           DisplayPlaneState::RotationType::kDisplayRotation);
+      HwcRect<int> surface_damage = surface->GetSurfaceDamage();
+      if (is_display_rotation && (plane_transform != 0)) {
+        int width = surface->GetWidth();
+        int height = surface->GetHeight();
+        HwcRect<int> rect =
+            RotateRect(surface_damage, width, height, transform);
+        if (plane_transform & (hwcomposer::HWCTransform::kTransform270 |
+                               hwcomposer::HWCTransform::kTransform90)) {
+          float x_scale = float(width) / height;
+          float y_scale = float(height) / width;
+          rect = ScaleRect(rect, x_scale, y_scale);
+        }
+        surface_damage = rect;
+      }
+
       if (regions_empty) {
         SeparateLayers(dedicated_layers, comp->GetSourceLayers(), display_frame,
-                       surface->GetSurfaceDamage(), comp_regions);
+                       surface_damage, comp_regions);
       }
 
       std::vector<size_t>().swap(dedicated_layers);

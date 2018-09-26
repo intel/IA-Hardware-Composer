@@ -184,6 +184,37 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   }
 }
 
+void OverlayLayer::TransformSurfaceDamage(HwcLayer* layer, uint32_t rotation) {
+  HwcRect<int> layer_damage = layer->GetSurfaceDamage();
+  HwcRect<int> disp_frame = layer->GetDisplayFrame();
+  int width = layer->GetSourceCropWidth();
+  int height = layer->GetSourceCropHeight();
+
+  if (layer_damage == disp_frame) {
+    surface_damage_ = layer_damage;
+    return;
+  }
+
+  bool enclosed =
+      Intersection(display_frame_, layer->GetSourceCrop()) == display_frame_;
+
+  surface_damage_ = RotateRect(layer_damage, width, height, plane_transform_);
+
+  if (rotation & (hwcomposer::HWCTransform::kTransform270 |
+                  hwcomposer::HWCTransform::kTransform90)) {
+    float x_scale = float(display_width_) / display_height_;
+    float y_scale = float(display_height_) / display_width_;
+    surface_damage_ = ScaleRect(surface_damage_, x_scale, y_scale);
+  }
+
+  if (!enclosed) {
+    surface_damage_ =
+        TranslateRect(surface_damage_, display_frame_.left, display_frame_.top);
+  }
+
+  return;
+}
+
 void OverlayLayer::InitializeState(HwcLayer* layer,
                                    ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
@@ -194,6 +225,15 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
+    HwcRect<int> rect = RotateRect(layer->GetDisplayFrame(), display_width_,
+                                   display_height_, rotation);
+    if (rotation & (hwcomposer::HWCTransform::kTransform270 |
+                            hwcomposer::HWCTransform::kTransform90)) {
+      float x_scale = float(display_width_) / display_height_;
+      float y_scale = float(display_height_) / display_width_;
+      rect = ScaleRect(rect, x_scale, y_scale);
+    }
+    SetDisplayFrame(rect);
   } else {
     plane_transform_ = transform_;
   }
@@ -205,7 +245,6 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
   blending_ = layer->GetBlending();
-  surface_damage_ = layer->GetLayerDamage();
   if (previous_layer && layer->HasZorderChanged()) {
     if (previous_layer->actual_composition_ == kGpu) {
       CalculateRect(previous_layer->display_frame_, surface_damage_);
@@ -241,6 +280,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
         "HWC don't support a layer with no buffer handle except in SolidColor "
         "type");
   }
+
+  TransformSurfaceDamage(layer, rotation);
 
   if (!surface_damage_.empty()) {
     if (type_ == kLayerCursor) {
@@ -356,10 +397,12 @@ void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     uint32_t max_height, uint32_t rotation, bool handle_constraints,
-    FrameBufferManager* frame_buffer_manager) {
+    FrameBufferManager* frame_buffer_manager, NativeDisplay* native_display) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
+  display_width_ = native_display->Width();
+  display_height_ = native_display->Height();
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
                   max_height, rotation, handle_constraints,
                   frame_buffer_manager);
@@ -369,8 +412,11 @@ void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
     const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
-    bool handle_constraints, FrameBufferManager* frame_buffer_manager) {
+    bool handle_constraints, FrameBufferManager* frame_buffer_manager,
+    NativeDisplay* native_display) {
   SetDisplayFrame(display_frame);
+  display_width_ = native_display->Width();
+  display_height_ = native_display->Height();
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
                   max_height, rotation, handle_constraints,
                   frame_buffer_manager);
@@ -514,15 +560,15 @@ void OverlayLayer::Dump() {
       break;
   }
 
-  if (transform_ & kReflectX)
+  if (plane_transform_ & kReflectX)
     DUMPTRACE("Transform: kReflectX.");
-  if (transform_ & kReflectY)
+  if (plane_transform_ & kReflectY)
     DUMPTRACE("Transform: kReflectY.");
-  if (transform_ & kTransform90)
+  if (plane_transform_ & kTransform90)
     DUMPTRACE("Transform: kTransform90.");
-  else if (transform_ & kTransform180)
+  else if (plane_transform_ & kTransform180)
     DUMPTRACE("Transform: kTransform180.");
-  else if (transform_ & kTransform270)
+  else if (plane_transform_ & kTransform270)
     DUMPTRACE("Transform: kTransform270.");
   else
     DUMPTRACE("Transform: kTransform0.");

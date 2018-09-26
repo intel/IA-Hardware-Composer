@@ -261,12 +261,6 @@ struct HwcLayer {
   void MarkAsCursorLayer();
   bool IsCursorLayer() const;
 
-  /**
-   * API for getting damage area caused by this layer for current
-   * frame update.
-   */
-  const HwcRect<int>& GetLayerDamage();
-
  private:
   void Validate();
   void SetTotalDisplays(uint32_t total_displays);

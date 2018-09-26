@@ -46,7 +46,8 @@ class Compositor {
   void Reset();
   void BeginFrame(bool disable_explicit_sync);
   bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
-            const std::vector<HwcRect<int>> &display_frame);
+            const std::vector<HwcRect<int>> &display_frame,
+            uint32_t plane_transform);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,

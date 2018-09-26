@@ -575,12 +575,12 @@ void DisplayQueue::InitializeOverlayLayers(
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_frame, display_plane_manager_->GetHeight(), plane_transform_,
-          handle_constraints, fb_manager_);
+          handle_constraints, fb_manager_, display_);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_plane_manager_->GetHeight(), plane_transform_,
-          handle_constraints, fb_manager_);
+          handle_constraints, fb_manager_, display_);
     }
 
     if (!overlay_layer->IsVisible()) {
@@ -853,6 +853,32 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (render_layers) {
     compositor_.BeginFrame(disable_ovelays);
 
+    DisplayPlaneState& last_plane = current_composition_planes.back();
+    bool needs_composition = last_plane.NeedsOffScreenComposition();
+    bool is_device_rotation =
+        (last_plane.GetRotationType() ==
+         DisplayPlaneState::RotationType::kDisplayRotation);
+    bool local_rotation_applied = false;
+
+    if (needs_composition && is_device_rotation && (plane_transform_ != 0)) {
+      local_rotation_applied = true;
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        OverlayLayer& layer = layers.at(layer_index);
+        int width = display_->Width();
+        int height = display_->Height();
+        uint32_t transform = layer.GetPlaneTransform();
+        HwcRect<int> rect =
+            RotateRect(layer.GetDisplayFrame(), width, height, transform);
+        if (transform & (hwcomposer::HWCTransform::kTransform270 |
+                         hwcomposer::HWCTransform::kTransform90)) {
+          float x_scale = float(width) / height;
+          float y_scale = float(height) / width;
+          rect = ScaleRect(rect, x_scale, y_scale);
+        }
+        layer.SetDisplayFrame(rect);
+      }
+    }
+
     std::vector<HwcRect<int>> layers_rects;
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
       const OverlayLayer& layer = layers.at(layer_index);
@@ -860,9 +886,43 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects,
+                          plane_transform_)) {
       ETRACE("Failed to prepare for the frame composition. ");
       composition_passed = false;
+    }
+
+    if (local_rotation_applied) {
+      for (size_t layer_index = 0; layer_index < size; layer_index++) {
+        OverlayLayer& layer = layers.at(layer_index);
+        int width = display_->Width();
+        int height = display_->Height();
+        uint32_t transform = layer.GetPlaneTransform();
+        HwcRect<int> rect =
+            RotateRect(layer.GetDisplayFrame(), width, height, transform);
+        if (transform & (hwcomposer::HWCTransform::kTransform270 |
+                         hwcomposer::HWCTransform::kTransform90)) {
+          float x_scale = float(width) / height;
+          float y_scale = float(height) / width;
+          rect = ScaleRect(rect, x_scale, y_scale);
+        }
+        layer.SetDisplayFrame(rect);
+      }
+
+      const OverlayLayer* layer = last_plane.GetOverlayLayer();
+      NativeSurface* surface = last_plane.GetOffScreenTarget();
+      int width = display_->Width();
+      int height = display_->Height();
+      uint32_t transform = layer->GetPlaneTransform();
+      HwcRect<int> rect =
+          RotateRect(layer->GetDisplayFrame(), width, height, transform);
+      if (transform & (hwcomposer::HWCTransform::kTransform270 |
+                       hwcomposer::HWCTransform::kTransform90)) {
+        float x_scale = float(width) / height;
+        float y_scale = float(height) / width;
+        rect = ScaleRect(rect, x_scale, y_scale);
+      }
+      surface->ResetSourceCrop(rect);
     }
   }
 
@@ -1132,7 +1192,8 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
 
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers, layers_rects,
+                          plane_transform_)) {
       ETRACE("Failed to prepare for the frame composition. ");
       composition_passed = false;
     }
