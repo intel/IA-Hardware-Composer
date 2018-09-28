@@ -40,18 +40,21 @@ void HwcLayer::SetTransform(int32_t transform) {
   if (transform != transform_) {
     layer_cache_ |= kLayerAttributesChanged;
     transform_ = transform;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
 void HwcLayer::SetAlpha(uint8_t alpha) {
   if (alpha_ != alpha) {
     alpha_ = alpha;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
 void HwcLayer::SetBlending(HWCBlending blending) {
   if (blending != blending_) {
     blending_ = blending;
+    UpdateRenderingDamage(display_frame_, display_frame_, true);
   }
 }
 
@@ -81,11 +84,11 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
     frame.right += translate_x_pos;
     frame.top += translate_y_pos;
     frame.bottom += translate_y_pos;
+    UpdateRenderingDamage(display_frame_, frame, false);
 
     display_frame_ = frame;
     display_frame_width_ = display_frame_.right - display_frame_.left;
     display_frame_height_ = display_frame_.bottom - display_frame_.top;
-    damage_dirty_ = true;
   }
 
   if (!(state_ & kVisibleRegionSet)) {
@@ -103,10 +106,8 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
       state_ &= ~kSurfaceDamageChanged;
-      if (!surface_damage_.empty()) {
-        damage_dirty_ = true;
-        surface_damage_.reset();
-      }
+      UpdateRenderingDamage(rect, rect, true);
+      surface_damage_.reset();
       return;
     }
   } else if (rects == 0) {
@@ -121,8 +122,8 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   }
 
   state_ |= kSurfaceDamageChanged;
-  damage_dirty_ = true;
 
+  UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
 }
 
@@ -149,7 +150,7 @@ void HwcLayer::SetVisibleRegion(const HwcRegion& visible_region) {
   }
 
   state_ |= kVisibleRegionChanged;
-  damage_dirty_ = true;
+  UpdateRenderingDamage(visible_rect_, new_visible_rect, false);
   visible_rect_ = new_visible_rect;
 
   if ((visible_rect_.top == 0) && (visible_rect_.bottom == 0) &&
@@ -211,6 +212,22 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
+
+    // From observation: In Android, when the source crop doesn't
+    // begin from (0, 0) the surface damage is already translated
+    // to global display co-ordinates
+    if (!surface_damage_.empty() &&
+        ((source_crop_.left == 0) && (source_crop_.top == 0))) {
+      current_rendering_damage_.left =
+          surface_damage_.left + display_frame_.left;
+      current_rendering_damage_.top = surface_damage_.top + display_frame_.top;
+      current_rendering_damage_.right =
+          surface_damage_.right + display_frame_.left;
+      current_rendering_damage_.bottom =
+          surface_damage_.bottom + display_frame_.top;
+    } else {
+      current_rendering_damage_ = surface_damage_;
+    }
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
@@ -237,6 +254,7 @@ void HwcLayer::SetLayerZOrder(uint32_t order) {
   if (z_order_ != static_cast<int>(order)) {
     z_order_ = order;
     state_ |= kZorderChanged;
+    UpdateRenderingDamage(display_frame_, visible_rect_, false);
   }
 }
 
@@ -336,75 +354,22 @@ bool HwcLayer::IsCursorLayer() const {
   return is_cursor_layer_;
 }
 
+void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
+                                     const HwcRect<int>& newrect,
+                                     bool same_rect) {
+  if (current_rendering_damage_.empty()) {
+    current_rendering_damage_ = old_rect;
+  } else {
+    CalculateRect(old_rect, current_rendering_damage_);
+  }
+
+  if (same_rect)
+    return;
+
+  CalculateRect(newrect, current_rendering_damage_);
+}
+
 const HwcRect<int>& HwcLayer::GetLayerDamage() {
-  if (!damage_dirty_) {
-    return current_rendering_damage_;
-  }
-
-  if (surface_damage_ == display_frame_) {
-    current_rendering_damage_ = display_frame_;
-    return current_rendering_damage_;
-  }
-
-  current_rendering_damage_.reset();
-
-  int ox = 0, oy = 0;
-  HwcRect<int> translated_damage =
-      TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
-
-  if (transform_ == hwcomposer::HWCTransform::kTransform270) {
-    ox = display_frame_.left;
-    oy = display_frame_.bottom;
-    current_rendering_damage_.left = ox + translated_damage.top;
-    current_rendering_damage_.top = oy - translated_damage.right;
-    current_rendering_damage_.right = ox + translated_damage.bottom;
-    current_rendering_damage_.bottom = oy - translated_damage.left;
-  } else if (transform_ == hwcomposer::HWCTransform::kTransform180) {
-    ox = display_frame_.right;
-    oy = display_frame_.bottom;
-    current_rendering_damage_.left = ox - translated_damage.right;
-    current_rendering_damage_.top = oy - translated_damage.bottom;
-    current_rendering_damage_.right = ox - translated_damage.left;
-    current_rendering_damage_.bottom = oy - translated_damage.top;
-  } else if (transform_ & hwcomposer::HWCTransform::kTransform90) {
-    if (transform_ & hwcomposer::HWCTransform::kReflectX) {
-      ox = display_frame_.left;
-      oy = display_frame_.top;
-      current_rendering_damage_.left = ox + translated_damage.top;
-      current_rendering_damage_.top = oy + translated_damage.left;
-      current_rendering_damage_.right = ox + translated_damage.bottom;
-      current_rendering_damage_.bottom = oy + translated_damage.right;
-    } else if (transform_ & hwcomposer::HWCTransform::kReflectY) {
-      ox = display_frame_.right;
-      oy = display_frame_.bottom;
-      current_rendering_damage_.left = ox - translated_damage.bottom;
-      current_rendering_damage_.top = oy - translated_damage.right;
-      current_rendering_damage_.right = ox - translated_damage.top;
-      current_rendering_damage_.bottom = oy - translated_damage.left;
-    } else {
-      ox = display_frame_.right;
-      oy = display_frame_.top;
-      current_rendering_damage_.left = ox - translated_damage.bottom;
-      current_rendering_damage_.top = oy + translated_damage.left;
-      current_rendering_damage_.right = ox - translated_damage.top;
-      current_rendering_damage_.bottom = oy + translated_damage.right;
-    }
-  } else if (transform_ == 0) {
-    ox = display_frame_.left;
-    oy = display_frame_.top;
-    current_rendering_damage_.left = ox + translated_damage.left;
-    current_rendering_damage_.top = oy + translated_damage.top;
-    current_rendering_damage_.right = ox + translated_damage.right;
-    current_rendering_damage_.bottom = oy + translated_damage.bottom;
-  }
-
-  if (state_ & kVisibleRegionSet) {
-    current_rendering_damage_ =
-        Intersection(current_rendering_damage_, visible_rect_);
-  }
-
-  damage_dirty_ = false;
-
   return current_rendering_damage_;
 }
 
