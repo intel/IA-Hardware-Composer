@@ -422,7 +422,22 @@ bool DrmDisplay::CommitFrame(
 
   for (const DisplayPlaneState &comp_plane : comp_planes) {
     DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
-    const OverlayLayer *layer = comp_plane.GetOverlayLayer();
+
+    OverlayLayer *layer = (OverlayLayer *)comp_plane.GetOverlayLayer();
+    const HwcRect<int> &display_rect = layer->GetDisplayFrame();
+
+    // Recalculate the layer's display frame position before drm commit
+    // if there is plane transform with the type display rotation.
+    uint32_t plane_transform = layer->GetPlaneTransform();
+    hwcomposer::DisplayPlaneState::RotationType rotation_type =
+        comp_plane.GetRotationType();
+    if ((plane_transform != kIdentity) &&
+        (rotation_type == DisplayPlaneState::RotationType::kDisplayRotation)) {
+      HwcRect<int> rotated_rect =
+          RotateScaleRect(display_rect, width_, height_, plane_transform);
+      layer->SetDisplayFrame(rotated_rect);
+    }
+
     int32_t fence = layer->GetAcquireFence();
     if (fence > 0) {
       plane->SetNativeFence(dup(fence));

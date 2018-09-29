@@ -85,6 +85,10 @@ class DisplayPlaneManager {
     return height_;
   }
 
+  uint32_t GetWidth() const {
+    return width_;
+  }
+
   uint32_t GetTotalOverlays() const {
     return total_overlays_;
   }
