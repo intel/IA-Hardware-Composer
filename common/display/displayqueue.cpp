@@ -853,6 +853,27 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   if (render_layers) {
     compositor_.BeginFrame(disable_ovelays);
 
+    // if the plane is to be composited by GPU and requires GPU rotation,
+    // its source layers should be re-calculated the display frame (position)
+    DisplayPlaneState& last_plane = current_composition_planes.back();
+    bool is_gpu_rotation = (last_plane.GetRotationType() ==
+                            DisplayPlaneState::RotationType::kGPURotation);
+    if (last_plane.NeedsOffScreenComposition() &&
+        (plane_transform_ != kIdentity)) {
+      if (is_gpu_rotation) {
+        const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
+        for (const size_t& index : source_layers) {
+          OverlayLayer& layer = layers.at(index);
+          int width = display_plane_manager_->GetWidth();
+          int height = display_plane_manager_->GetHeight();
+          uint32_t transform = layer.GetPlaneTransform();
+          HwcRect<int> rect = RotateScaleRect(layer.GetDisplayFrame(), width,
+                                              height, transform);
+          layer.SetDisplayFrame(rect);
+        }
+      }
+    }
+
     std::vector<HwcRect<int>> layers_rects;
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
       const OverlayLayer& layer = layers.at(layer_index);
