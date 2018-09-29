@@ -393,9 +393,8 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
         resource_manager_->GetNativeBufferHandler();
 
     if (handle_) {
-      ResourceHandle temp;
-      temp.handle_ = handle_;
-      resource_manager_->MarkResourceForDeletion(temp, false);
+      handler->ReleaseBuffer(handle_);
+      handler->DestroyHandle(handle_);
     }
 
     delete output_handle_;
