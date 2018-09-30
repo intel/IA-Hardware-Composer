@@ -549,6 +549,14 @@ void DisplayQueue::InitializeOverlayLayers(
     if (!layer->IsVisible())
       continue;
 
+    // Discard protected video for tear down
+    if (state_ & kVideoDiscardProtected) {
+      if (layer->GetNativeHandle() != NULL &&
+          (layer->GetNativeHandle()->meta_data_.usage_ &
+           hwcomposer::kLayerProtected))
+        continue;
+    }
+
     layers.emplace_back();
     OverlayLayer* overlay_layer = &(layers.back());
     OverlayLayer* previous_layer = NULL;
@@ -1041,7 +1049,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
                      resource_manager_.get(), layers.size() - 1, fb_manager_);
 
     if (add_index != 0 && layer.IsVideoLayer()) {
-      if (previous_layer && !previous_layer->IsVideoLayer() ||
+      if ((previous_layer && !previous_layer->IsVideoLayer()) ||
           !previous_layer) {
         add_index = 0;
         continue;

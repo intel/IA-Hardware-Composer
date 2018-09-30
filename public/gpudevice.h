@@ -82,6 +82,9 @@ class GpuDevice : public HWCThread {
   // feature on all connected displays.
   void DisableHDCPSessionForAllDisplays();
 
+  void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                            uint32_t pavp_instance_id);
+
  private:
   enum InitializationType {
     kUnInitialized = 0,    // Nothing Initialized.

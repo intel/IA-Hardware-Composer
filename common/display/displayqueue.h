@@ -133,6 +133,15 @@ class DisplayQueue {
     return source_layers_;
   }
 
+  void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                            uint32_t pavp_instance_id) {
+    if (enabled) {
+      state_ &= ~kVideoDiscardProtected;
+    } else {
+      state_ |= kVideoDiscardProtected;
+    }
+  }
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
@@ -141,7 +150,9 @@ class DisplayQueue {
     kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
     kIgnoreIdleRefresh =
         1 << 4,  // Ignore refresh request during idle callback.
-    kCanvasColorChanged = 1 << 5  // Update color change
+    kCanvasColorChanged = 1 << 5,  // Update color change
+    kVideoDiscardProtected =
+        1 << 6,  // Need to discard protected video due to tearing down
   };
 
   struct ScalingTracker {

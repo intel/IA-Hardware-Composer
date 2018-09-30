@@ -388,18 +388,18 @@ status_t HwcService::Controls::DisableHDCPSessionForAllDisplays() {
 
 status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
-  // TO DO
+  mHwc.SetPAVPSessionStatus(true, sessionID, instanceID);
   return OK;
 }
 
 status_t HwcService::Controls::VideoDisableAllEncryptedSessions(
     uint32_t sessionID) {
-  // TO DO
+  mHwc.SetPAVPSessionStatus(false, -1, -1);
   return OK;
 }
 
 status_t HwcService::Controls::VideoDisableAllEncryptedSessions() {
-  // TO DO
+  mHwc.SetPAVPSessionStatus(false, -1, -1);
   return OK;
 }
 
