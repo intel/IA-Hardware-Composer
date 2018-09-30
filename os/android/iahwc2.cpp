@@ -1248,6 +1248,11 @@ void IAHWC2::DisableHDCPSessionForAllDisplays() {
   device_.DisableHDCPSessionForAllDisplays();
 }
 
+void IAHWC2::SetPAVPSessionStatus(bool enabled, uint32_t papv_session_id,
+                                  uint32_t pavp_instance_id) {
+  device_.SetPAVPSessionStatus(enabled, papv_session_id, pavp_instance_id);
+}
+
 }  // namespace android
 
 static struct hw_module_methods_t hwc2_module_methods = {
