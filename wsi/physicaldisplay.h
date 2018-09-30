@@ -151,6 +151,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   const NativeBufferHandler *GetNativeBufferHandler() const override;
 
+  void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                            uint32_t pavp_instance_id) override;
+
   /**
    * API for setting color correction for display.
    */

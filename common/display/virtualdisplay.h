@@ -122,6 +122,14 @@ class VirtualDisplay : public NativeDisplay {
 
   void VSyncControl(bool enabled) override;
   bool CheckPlaneFormat(uint32_t format) override;
+  void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                            uint32_t pavp_instance_id) override {
+    if (enabled) {
+      discard_protected_video_ = false;
+    } else {
+      discard_protected_video_ = true;
+    }
+  }
 
  private:
   HWCNativeHandle output_handle_;
@@ -134,6 +142,7 @@ class VirtualDisplay : public NativeDisplay {
   std::unique_ptr<ResourceManager> resource_manager_;
   FrameBufferManager *fb_manager_ = NULL;
   uint32_t display_index_ = 0;
+  bool discard_protected_video_ = false;
 
 #ifdef HYPER_DMABUF_SHARING
   int mHyperDmaBuf_Fd = -1;
