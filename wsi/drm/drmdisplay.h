@@ -55,6 +55,7 @@ class DrmDisplay : public PhysicalDisplay {
 
   void SetHDCPState(HWCContentProtection state,
                     HWCContentType content_type) override;
+  void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
   bool InitializeDisplay() override;
   void PowerOn() override;
@@ -141,6 +142,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t active_prop_ = 0;
   uint32_t mode_id_prop_ = 0;
   uint32_t hdcp_id_prop_ = 0;
+  uint32_t hdcp_srm_id_prop_ = 0;
   uint32_t canvas_color_prop_ = 0;
   uint32_t connector_ = 0;
   uint64_t lut_size_ = 0;

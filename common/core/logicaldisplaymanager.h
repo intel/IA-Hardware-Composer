@@ -97,6 +97,8 @@ class LogicalDisplayManager {
    */
   void SetHDCPState(HWCContentProtection state, HWCContentType content_type);
 
+  void SetHDCPSRM(const int8_t* SRM, uint32_t SRMLength);
+
  private:
   NativeDisplay* physical_display_;
   std::vector<std::unique_ptr<LogicalDisplay>> displays_;

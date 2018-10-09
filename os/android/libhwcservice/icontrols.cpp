@@ -54,6 +54,8 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_ALL_DISPLAYS,
     TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY,
     TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS,
+    TRANSACT_VIDEO_SET_HDCP_SRM_FOR_ALL_DISPLAYS,
+    TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
     TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS,
@@ -360,6 +362,34 @@ class BpControls : public BpInterface<IControls> {
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
     status_t ret = remote()->transact(
         TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return reply.readInt32();
+  }
+
+  status_t SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeByteArray(SRMLength, (const uint8_t *)SRM);
+    status_t ret = remote()->transact(
+        TRANSACT_VIDEO_SET_HDCP_SRM_FOR_ALL_DISPLAYS, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return reply.readInt32();
+  }
+
+  status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+                                uint32_t SRMLength) {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(display);
+    data.writeByteArray(SRMLength, (const uint8_t *)SRM);
+    status_t ret = remote()->transact(TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
+                                      data, &reply);
     if (ret != NO_ERROR) {
       ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
     }
@@ -675,6 +705,26 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       reply->writeInt32(ret);
       return NO_ERROR;
     }
+    case BpControls::TRANSACT_VIDEO_SET_HDCP_SRM_FOR_ALL_DISPLAYS: {
+      CHECK_INTERFACE(IControls, data, reply);
+      std::vector<int8_t> srmvec;
+      data.readByteVector(&srmvec);
+      status_t ret = this->SetHDCPSRMForAllDisplays(
+          (const int8_t *)(srmvec.data()), srmvec.size());
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY: {
+      CHECK_INTERFACE(IControls, data, reply);
+      std::vector<int8_t> srmvec;
+      uint32_t display = data.readInt32();
+      data.readByteVector(&srmvec);
+      status_t ret = this->SetHDCPSRMForDisplay(
+          display, (const int8_t *)(srmvec.data()), srmvec.size());
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+
     case BpControls::TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t sessionID = data.readInt32();
