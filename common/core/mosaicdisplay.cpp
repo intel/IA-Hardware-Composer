@@ -512,4 +512,11 @@ void MosaicDisplay::SetHDCPState(HWCContentProtection state,
   }
 }
 
+void MosaicDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
+  }
+}
+
 }  // namespace hwcomposer

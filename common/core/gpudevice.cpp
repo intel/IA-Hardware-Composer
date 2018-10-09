@@ -630,6 +630,25 @@ void GpuDevice::SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
   }
 }
 
+void GpuDevice::SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                         uint32_t SRMLength) {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    total_displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
+  }
+}
+
+void GpuDevice::SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+                                     uint32_t SRMLength) {
+  if (total_displays_.size() <= display) {
+    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
+    return;
+  }
+
+  NativeDisplay *native_display = total_displays_.at(display);
+  native_display->SetHDCPSRM(SRM, SRMLength);
+}
+
 void GpuDevice::HandleRoutine() {
   bool update_ignored = false;
 

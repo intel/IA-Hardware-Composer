@@ -386,6 +386,19 @@ status_t HwcService::Controls::DisableHDCPSessionForAllDisplays() {
   return OK;
 }
 
+status_t HwcService::Controls::SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                                        uint32_t SRMLength) {
+  mHwc.SetHDCPSRMForAllDisplays(SRM, SRMLength);
+  return OK;
+}
+
+status_t HwcService::Controls::SetHDCPSRMForDisplay(uint32_t display,
+                                                    const int8_t *SRM,
+                                                    uint32_t SRMLength) {
+  mHwc.SetHDCPSRMForDisplay(display, SRM, SRMLength);
+  return OK;
+}
+
 status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
   mHwc.SetPAVPSessionStatus(true, sessionID, instanceID);

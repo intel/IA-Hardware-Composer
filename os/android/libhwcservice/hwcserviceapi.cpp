@@ -242,6 +242,29 @@ status_t HwcService_Video_EnableHDCPSession_AllDisplays(
   return pContext->mControls->EnableHDCPSessionForAllDisplays(content_type);
 }
 
+status_t HwcService_Video_SetHDCPSRM_AllDisplays(HWCSHANDLE hwcs,
+                                                 const int8_t* SRM,
+                                                 uint32_t SRMLength) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+
+  return pContext->mControls->SetHDCPSRMForAllDisplays(SRM, SRMLength);
+}
+
+status_t HwcService_Video_SetHDCPSRM_ForDisplay(HWCSHANDLE hwcs,
+                                                uint32_t display,
+                                                const int8_t* SRM,
+                                                uint32_t SRMLength) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+  return pContext->mControls->SetHDCPSRMForDisplay(display, SRM, SRMLength);
+}
+
 status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
                                                         uint32_t display) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
