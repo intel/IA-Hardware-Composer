@@ -411,6 +411,28 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
     }
   }
 
+  bool EnableHDCP(hwcomposer::HWCContentType type) {
+    bool ret = true;
+    for (auto &display : connected_displays_) {
+      ret = ret &&
+            display->SetHDCPState(hwcomposer::HWCContentProtection::kDesired,
+                                  type);
+    }
+
+    return ret;
+  }
+
+  bool DisableHDCP() {
+    bool ret = true;
+    for (auto &display : connected_displays_) {
+      ret = ret &&
+            display->SetHDCPState(hwcomposer::HWCContentProtection::kUnDesired,
+                                  hwcomposer::HWCContentType::kInvalid);
+    }
+
+    return ret;
+  }
+
  private:
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
   hwcomposer::GpuDevice *device_;
@@ -963,6 +985,28 @@ int main(int argc, char *argv[]) {
   callback->SetBrightness(0x80, 0x80, 0x80);
   callback->SetContrast(0x80, 0x80, 0x80);
   callback->SetCanvasColor(0x0, 8);
+
+  // Test for HDCP 1.4: TYPE 0 content
+
+  fprintf(stderr, "Trying to enable HDCP 1.4\n");
+  ret = callback->EnableHDCP(hwcomposer::HWCContentType::kCONTENT_TYPE0);
+  if (!ret) {
+    fprintf(stderr, "Unable to enable HDCP 1.4\n");
+  } else {
+    fprintf(stderr, "HDCP 1.4 successfully enabled\n");
+    callback->DisableHDCP();
+  }
+
+  // Test for HDCP 2.2: TYPE 1 content
+
+  fprintf(stderr, "Trying to enable HDCP 2.2\n");
+  ret = callback->EnableHDCP(hwcomposer::HWCContentType::kCONTENT_TYPE1);
+  if (!ret) {
+    fprintf(stderr, "Unable to enable HDCP 2.2\n");
+  } else {
+    fprintf(stderr, "HDCP 2.2 successfully enabled\n");
+    callback->DisableHDCP();
+  }
 
   for (size_t i = 0; i < ARRAY_SIZE(frames); ++i) {
     struct frame *frame = &frames[i];
