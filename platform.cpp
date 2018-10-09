@@ -118,8 +118,10 @@ int PlanStageProtected::ProvisionPlanes(
 
     ret = Emplace(composition, planes, DrmCompositionPlane::Type::kLayer, crtc,
                   std::make_pair(i->first, i->second));
-    if (ret)
+    if (ret) {
       ALOGE("Failed to dedicate protected layer! Dropping it.");
+      return ret;
+    }
 
     protected_zorder = i->first;
     i = layers.erase(i);
@@ -139,8 +141,10 @@ int PlanStageGreedy::ProvisionPlanes(
     // We don't have any planes left
     if (ret == -ENOENT)
       break;
-    else if (ret)
+    else if (ret) {
       ALOGE("Failed to emplace layer %zu, dropping it", i->first);
+      return ret;
+    }
   }
 
   return 0;

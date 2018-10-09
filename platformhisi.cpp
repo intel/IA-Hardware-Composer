@@ -158,8 +158,10 @@ class PlanStageHiSi : public Planner::PlanStage {
       // We don't have any planes left
       if (ret == -ENOENT)
         break;
-      else if (ret)
+      else if (ret) {
         ALOGE("Failed to emplace layer %zu, dropping it", i->first);
+        return ret;
+      }
     }
     /*
      * If we only have one layer, but we didn't emplace anything, we
