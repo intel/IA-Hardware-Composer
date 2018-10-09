@@ -123,6 +123,9 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
     }
   }
 
+  GetDrmHDCPObjectProperty("CP_SRM", connector, connector_props,
+                           &hdcp_srm_id_prop_, &value);
+
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
@@ -358,6 +361,27 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state,
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
   ETRACE("Ignored Content type. \n");
+}
+
+void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
+  if (hdcp_srm_id_prop_ <= 0) {
+    ETRACE("Cannot set HDCP state as Connector property is not supported \n");
+    return;
+  }
+
+  if (!(connection_state_ & kConnected)) {
+    return;
+  }
+
+  uint32_t srm_id = 0;
+  drmModeCreatePropertyBlob(gpu_fd_, SRM, SRMLength, &srm_id);
+  if (srm_id == 0) {
+    ETRACE("srm_id == 0");
+    return;
+  }
+
+  drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_srm_id_prop_, srm_id);
+  drmModeDestroyPropertyBlob(gpu_fd_, srm_id);
 }
 
 bool DrmDisplay::Commit(

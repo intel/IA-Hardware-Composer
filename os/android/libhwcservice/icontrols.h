@@ -65,6 +65,12 @@ class IControls : public android::IInterface {
 
   virtual status_t DisableHDCPSessionForAllDisplays() = 0;
 
+  virtual status_t SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                            uint32_t SRMLength) = 0;
+
+  virtual status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+                                        uint32_t SRMLength) = 0;
+
   virtual status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                                uint32_t instanceID) = 0;
   virtual status_t VideoDisableAllEncryptedSessions(uint32_t sessionID) = 0;

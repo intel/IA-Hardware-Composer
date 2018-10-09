@@ -408,6 +408,9 @@ class NativeDisplay {
                                     uint32_t pavp_instance_id) {
   }
 
+  virtual void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
+  }
+
   virtual const NativeBufferHandler *GetNativeBufferHandler() const {
     return NULL;
   }
