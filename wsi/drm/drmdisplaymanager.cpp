@@ -365,7 +365,9 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 
   for (auto &display : displays_) {
     display->NotifyDisplayWA(disable_last_plane_usage);
-    display->ForceRefresh();
+    if (!ignore_updates_) {
+      display->ForceRefresh();
+    }
   }
 
   for (auto &display : displays_) {
@@ -422,6 +424,7 @@ void DrmDisplayManager::RegisterHotPlugEventCallback(
 
 void DrmDisplayManager::ForceRefresh() {
   spin_lock_.lock();
+  ignore_updates_ = false;
   size_t size = displays_.size();
   for (size_t i = 0; i < size; ++i) {
     displays_.at(i)->ForceRefresh();
@@ -432,6 +435,10 @@ void DrmDisplayManager::ForceRefresh() {
 }
 
 void DrmDisplayManager::IgnoreUpdates() {
+  spin_lock_.lock();
+  ignore_updates_ = true;
+  spin_lock_.unlock();
+
   size_t size = displays_.size();
   for (size_t i = 0; i < size; ++i) {
     displays_.at(i)->IgnoreUpdates();
