@@ -621,6 +621,15 @@ void GpuDevice::DisableHDCPSessionForAllDisplays() {
   }
 }
 
+void GpuDevice::SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                                     uint32_t pavp_instance_id) {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    total_displays_.at(i)->SetPAVPSessionStatus(enabled, pavp_session_id,
+                                                pavp_instance_id);
+  }
+}
+
 void GpuDevice::HandleRoutine() {
   bool update_ignored = false;
 

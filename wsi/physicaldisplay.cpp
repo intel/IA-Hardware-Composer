@@ -467,6 +467,13 @@ void PhysicalDisplay::SetCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
   display_queue_->SetCanvasColor(bpc, red, green, blue, alpha);
 }
 
+void PhysicalDisplay::SetPAVPSessionStatus(bool enabled,
+                                           uint32_t pavp_session_id,
+                                           uint32_t pavp_instance_id) {
+  display_queue_->SetPAVPSessionStatus(enabled, pavp_session_id,
+                                       pavp_instance_id);
+}
+
 bool PhysicalDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> & /*overlay_planes*/) {
   ETRACE("PopulatePlanes unimplemented in PhysicalDisplay.");

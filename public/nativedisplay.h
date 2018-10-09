@@ -404,6 +404,10 @@ class NativeDisplay {
                             HWCContentType /*content_type*/) {
   }
 
+  virtual void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                                    uint32_t pavp_instance_id) {
+  }
+
   virtual const NativeBufferHandler *GetNativeBufferHandler() const {
     return NULL;
   }

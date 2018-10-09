@@ -166,6 +166,14 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       HwcLayer *layer = source_layers.at(layer_index);
       if (!layer->IsVisible())
         continue;
+      // Discard protected video for tear down
+      if (discard_protected_video_) {
+        if (layer->GetNativeHandle() != NULL &&
+            (layer->GetNativeHandle()->meta_data_.usage_ &
+             hwcomposer::kLayerProtected))
+          continue;
+      }
+
       buffer_number++;
     }
 
@@ -180,6 +188,13 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       HwcLayer *layer = source_layers.at(layer_index);
       if (!layer->IsVisible())
         continue;
+
+      if (discard_protected_video_) {
+        if (layer->GetNativeHandle() != NULL &&
+            (layer->GetNativeHandle()->meta_data_.usage_ &
+             hwcomposer::kLayerProtected))
+          continue;
+      }
 
       const HwcRect<int> &display_frame = layer->GetDisplayFrame();
       sf_handle = layer->GetNativeHandle();
@@ -314,6 +329,12 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     layer->SetReleaseFence(-1);
     if (!layer->IsVisible())
       continue;
+    if (discard_protected_video_) {
+      if (layer->GetNativeHandle() != NULL &&
+          (layer->GetNativeHandle()->meta_data_.usage_ &
+           hwcomposer::kLayerProtected))
+        continue;
+    }
 
     layers.emplace_back();
     OverlayLayer &overlay_layer = layers.back();

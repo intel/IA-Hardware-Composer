@@ -60,6 +60,9 @@ class IAHWC2 : public hwc2_device_t {
 
   void DisableHDCPSessionForAllDisplays();
 
+  void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
+                            uint32_t pavp_instance_id);
+
  public:
   class Hwc2Layer {
    public:
