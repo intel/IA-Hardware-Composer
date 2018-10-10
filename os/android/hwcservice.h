@@ -97,6 +97,11 @@ class HwcService : public BnService {
 
     status_t DisableHDCPSessionForAllDisplays();
 
+    status_t SetHDCPSRMForAllDisplays(const int8_t* SRM, uint32_t SRMLength);
+
+    status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t* SRM,
+                                  uint32_t SRMLength);
+
     status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                          uint32_t instanceID);
     status_t VideoDisableAllEncryptedSessions(uint32_t sessionID);

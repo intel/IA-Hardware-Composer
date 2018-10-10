@@ -124,6 +124,7 @@ class LogicalDisplay : public NativeDisplay {
 
   void SetHDCPState(HWCContentProtection state,
                     HWCContentType content_type) override;
+  void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
  private:
   LogicalDisplayManager *logical_display_manager_;
