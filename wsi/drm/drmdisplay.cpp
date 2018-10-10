@@ -209,12 +209,16 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
+  GetDrmObjectProperty("max bpc", connector_props, &max_bpc_prop_);
 
   DrmConnectorGetDCIP3Support(connector_props);
-  if (dcip3_)
+  if (dcip3_) {
     ITRACE("DCIP3 support available");
-  else
+    if (!SetPipeMaxBpc(PIPE_BPC_TWELVE))
+      ETRACE("Failed to set Max Bpc for the Pipe\n");
+  } else {
     ITRACE("DCIP3 support not available");
+  }
 
   PhysicalDisplay::Connect();
   SetHDCPState(desired_protection_support_, content_type_);
@@ -780,6 +784,20 @@ void DrmDisplay::SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
 
   drmModeObjectSetProperty(gpu_fd_, crtc_id_, DRM_MODE_OBJECT_CRTC,
                            canvas_color_prop_, canvas_color);
+}
+
+bool DrmDisplay::SetPipeMaxBpc(uint16_t max_bpc) const {
+  int ret;
+
+  if (max_bpc_prop_ == 0)
+    return false;
+
+  ret = drmModeConnectorSetProperty(gpu_fd_, connector_, max_bpc_prop_,
+                                    (uint64_t)max_bpc);
+  if (ret < 0)
+    return false;
+
+  return true;
 }
 
 float DrmDisplay::TransformContrastBrightness(float value, float brightness,
