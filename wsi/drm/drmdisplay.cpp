@@ -34,6 +34,10 @@
 #include "drmdisplaymanager.h"
 #include "wsi_utils.h"
 
+#define CTA_EXTENSION_TAG 0x02
+#define CTA_EXTENDED_TAG_CODE 0x07
+#define CTA_COLORIMETRY_CODE 0x05
+
 namespace hwcomposer {
 
 static const int32_t kUmPerInch = 25400;
@@ -71,6 +75,78 @@ bool DrmDisplay::InitializeDisplay() {
   GetDrmObjectProperty("background_color", crtc_props, &canvas_color_prop_);
 
   return true;
+}
+
+std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
+                                                            uint8_t block_tag) {
+  int current_block;
+  uint8_t *cta_ext_blk;
+  uint8_t dblen;
+  uint8_t d;
+  uint8_t *cta_db_start;
+  uint8_t *cta_db_end;
+  uint8_t *dbptr;
+  uint8_t tag;
+  std::vector<uint8_t *> addrs;
+
+  int num_blocks = edid[126];
+  if (!num_blocks) {
+    return addrs;
+  }
+
+  for (current_block = 1; current_block <= num_blocks; current_block++) {
+    cta_ext_blk = edid + 128 * current_block;
+    if (cta_ext_blk[0] != CTA_EXTENSION_TAG)
+      continue;
+
+    d = cta_ext_blk[2];
+    cta_db_start = cta_ext_blk + 4;
+    cta_db_end = cta_ext_blk + d - 1;
+    for (dbptr = cta_db_start; dbptr < cta_db_end; dbptr++) {
+      tag = dbptr[0] >> 0x05;
+      dblen = dbptr[0] & 0x1F;
+
+      // Check if the extension has an extended block
+      if (tag == block_tag)
+        addrs.emplace_back(dbptr);
+    }
+  }
+
+  return addrs;
+}
+
+void DrmDisplay::DrmConnectorGetDCIP3Support(
+    const ScopedDrmObjectPropertyPtr &props) {
+  uint8_t *edid = NULL;
+  uint64_t edid_blob_id;
+  drmModePropertyBlobPtr blob;
+  uint8_t block_tag;
+  std::vector<uint8_t *> blocks;
+
+  dcip3_ = false;
+
+  GetDrmObjectPropertyValue("EDID", props, &edid_blob_id);
+  blob = drmModeGetPropertyBlob(gpu_fd_, edid_blob_id);
+  if (!blob) {
+    return;
+  }
+
+  edid = (uint8_t *)blob->data;
+  blocks = FindExtendedBlocksForTag(edid, CTA_EXTENDED_TAG_CODE);
+
+  for (uint8_t *ext_block : blocks) {
+    block_tag = ext_block[1];
+
+    if (block_tag == CTA_COLORIMETRY_CODE) {
+      dcip3_ = !!(ext_block[3] & 0x80);
+      if (dcip3_)
+        break;
+    }
+  }
+
+  drmModeFreePropertyBlob(blob);
+
+  return;
 }
 
 bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
@@ -126,6 +202,12 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
+
+  DrmConnectorGetDCIP3Support(connector_props);
+  if (dcip3_)
+    ITRACE("DCIP3 support available");
+  else
+    ITRACE("DCIP3 support not available");
 
   PhysicalDisplay::Connect();
   SetHDCPState(desired_protection_support_, content_type_);

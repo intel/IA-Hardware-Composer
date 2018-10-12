@@ -408,6 +408,10 @@ class NativeDisplay {
                                     uint32_t pavp_instance_id) {
   }
 
+  virtual bool GetDCIP3Support() {
+    return false;
+  }
+
   virtual const NativeBufferHandler *GetNativeBufferHandler() const {
     return NULL;
   }
