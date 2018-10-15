@@ -445,6 +445,13 @@ void DrmDisplayManager::IgnoreUpdates() {
   }
 }
 
+void DrmDisplayManager::setDrmMaster() {
+  int ret = drmSetMaster(fd_);
+  if (ret) {
+    ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+  }
+}
+
 void DrmDisplayManager::HandleLazyInitialization() {
   spin_lock_.lock();
   if (release_lock_) {
