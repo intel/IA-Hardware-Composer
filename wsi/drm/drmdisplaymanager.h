@@ -63,6 +63,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void IgnoreUpdates() override;
 
+  void setDrmMaster() override;
+
   uint32_t GetFD() const override {
     return fd_;
   }

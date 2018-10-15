@@ -670,6 +670,8 @@ void GpuDevice::HandleRoutine() {
       ITRACE("Successfully grabbed the hwc lock.");
     }
 
+    display_manager_->setDrmMaster();
+
     close(lock_fd_);
     lock_fd_ = -1;
   }
