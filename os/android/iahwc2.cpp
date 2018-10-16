@@ -219,7 +219,7 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
 }
 
 HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
-  if (display <= (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
+  if (display < (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
     ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
     return HWC2::Error::BadDisplay;
   }
