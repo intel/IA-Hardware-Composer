@@ -202,6 +202,79 @@ int32_t HwcLayer::GetAcquireFence() {
   return old_fd;
 }
 
+void HwcLayer::SufaceDamageTransfrom() {
+  int ox = 0, oy = 0;
+  HwcRect<int> translated_damage =
+      TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
+
+  int display_width = display_frame_.right - display_frame_.left;
+  int display_height = display_frame_.bottom - display_frame_.top;
+  int source_width = source_crop_.right - source_crop_.left;
+  int source_height = source_crop_.bottom - source_crop_.top;
+
+  // From observation: In Android, when the source crop doesn't
+  // begin from (0, 0) the surface damage is already translated
+  // to global display co-ordinates
+  if (!surface_damage_.empty() &&
+      ((source_crop_.left == 0) && (source_crop_.top == 0))) {
+    if (display_width != source_width || display_height != source_height) {
+      float ratiow = display_width * 1.0 / source_width;
+      float ratioh = display_height * 1.0 / source_height;
+      translated_damage.left = translated_damage.left * ratiow + 0.5;
+      translated_damage.right = translated_damage.right * ratiow + 0.5;
+      translated_damage.top = translated_damage.right * ratioh + 0.5;
+      translated_damage.bottom = translated_damage.bottom * ratioh + 0.5;
+    }
+    if (transform_ == hwcomposer::HWCTransform::kTransform270) {
+      ox = display_frame_.left;
+      oy = display_frame_.bottom;
+      current_rendering_damage_.left = ox + translated_damage.top;
+      current_rendering_damage_.top = oy - translated_damage.right;
+      current_rendering_damage_.right = ox + translated_damage.bottom;
+      current_rendering_damage_.bottom = oy - translated_damage.left;
+    } else if (transform_ == hwcomposer::HWCTransform::kTransform180) {
+      ox = display_frame_.right;
+      oy = display_frame_.bottom;
+      current_rendering_damage_.left = ox - translated_damage.right;
+      current_rendering_damage_.top = oy - translated_damage.bottom;
+      current_rendering_damage_.right = ox - translated_damage.left;
+      current_rendering_damage_.bottom = oy - translated_damage.top;
+    } else if (transform_ & hwcomposer::HWCTransform::kTransform90) {
+      if (transform_ & hwcomposer::HWCTransform::kReflectX) {
+        ox = display_frame_.left;
+        oy = display_frame_.top;
+        current_rendering_damage_.left = ox + translated_damage.top;
+        current_rendering_damage_.top = oy + translated_damage.left;
+        current_rendering_damage_.right = ox + translated_damage.bottom;
+        current_rendering_damage_.bottom = oy + translated_damage.right;
+      } else if (transform_ & hwcomposer::HWCTransform::kReflectY) {
+        ox = display_frame_.right;
+        oy = display_frame_.bottom;
+        current_rendering_damage_.left = ox - translated_damage.bottom;
+        current_rendering_damage_.top = oy - translated_damage.right;
+        current_rendering_damage_.right = ox - translated_damage.top;
+        current_rendering_damage_.bottom = oy - translated_damage.left;
+      } else {
+        ox = display_frame_.right;
+        oy = display_frame_.top;
+        current_rendering_damage_.left = ox - translated_damage.bottom;
+        current_rendering_damage_.top = oy + translated_damage.left;
+        current_rendering_damage_.right = ox - translated_damage.top;
+        current_rendering_damage_.bottom = oy + translated_damage.right;
+      }
+    } else if (transform_ == 0) {
+      ox = display_frame_.left;
+      oy = display_frame_.top;
+      current_rendering_damage_.left = ox + translated_damage.left;
+      current_rendering_damage_.top = oy + translated_damage.top;
+      current_rendering_damage_.right = ox + translated_damage.right;
+      current_rendering_damage_.bottom = oy + translated_damage.bottom;
+    }
+  } else {
+    current_rendering_damage_ = translated_damage;
+  }
+}
+
 void HwcLayer::Validate() {
   if (total_displays_ == 1) {
     state_ &= ~kVisibleRegionChanged;
@@ -213,21 +286,7 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
 
-    // From observation: In Android, when the source crop doesn't
-    // begin from (0, 0) the surface damage is already translated
-    // to global display co-ordinates
-    if (!surface_damage_.empty() &&
-        ((source_crop_.left == 0) && (source_crop_.top == 0))) {
-      current_rendering_damage_.left =
-          surface_damage_.left + display_frame_.left;
-      current_rendering_damage_.top = surface_damage_.top + display_frame_.top;
-      current_rendering_damage_.right =
-          surface_damage_.right + display_frame_.left;
-      current_rendering_damage_.bottom =
-          surface_damage_.bottom + display_frame_.top;
-    } else {
-      current_rendering_damage_ = surface_damage_;
-    }
+    SufaceDamageTransfrom();
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
