@@ -57,6 +57,8 @@ class DrmDisplay : public PhysicalDisplay {
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
+  bool ContainConnector(const uint32_t connector_id) override;
+
   bool InitializeDisplay() override;
   void PowerOn() override;
   void UpdateDisplayConfig() override;

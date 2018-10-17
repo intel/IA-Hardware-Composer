@@ -466,6 +466,10 @@ void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
   drmModeDestroyPropertyBlob(gpu_fd_, srm_id);
 }
 
+bool DrmDisplay::ContainConnector(const uint32_t connector_id) {
+  return (connector_ == connector_id);
+}
+
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,

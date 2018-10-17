@@ -209,6 +209,9 @@ status_t HwcService_Video_SetHDCPSRM_AllDisplays(HWCSHANDLE hwcs,
                                                  const int8_t *SRM,
                                                  uint32_t SRMLengh);
 
+uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
+                                                uint32_t connector_id);
+
 // The control enables a the protected video subsystem to control when to
 // replace any
 // encrypted content with a default bitmap (usually black).

@@ -232,10 +232,11 @@ void LogicalDisplayManager::SetHDCPState(HWCContentProtection state,
 }
 
 void LogicalDisplayManager::SetHDCPSRM(const int8_t* SRM, uint32_t SRMLength) {
-  uint32_t size = displays_.size();
-  for (uint32_t i = 0; i < size; i++) {
-    displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
-  }
+  physical_display_->SetHDCPSRM(SRM, SRMLength);
+}
+
+bool LogicalDisplayManager::ContainConnector(const uint32_t connector_id) {
+  return physical_display_->ContainConnector(connector_id);
 }
 
 }  // namespace hwcomposer

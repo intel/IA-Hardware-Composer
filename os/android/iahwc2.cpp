@@ -1261,6 +1261,10 @@ void IAHWC2::SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) {
   device_.SetHDCPSRMForAllDisplays(SRM, SRMLength);
 }
 
+uint32_t IAHWC2::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
+  return device_.GetDisplayIDFromConnectorID(connector_id);
+}
+
 void IAHWC2::SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
                                   uint32_t SRMLength) {
   if (SRM == NULL) {

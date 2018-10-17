@@ -99,6 +99,8 @@ class LogicalDisplayManager {
 
   void SetHDCPSRM(const int8_t* SRM, uint32_t SRMLength);
 
+  bool ContainConnector(const uint32_t connector_id);
+
  private:
   NativeDisplay* physical_display_;
   std::vector<std::unique_ptr<LogicalDisplay>> displays_;
