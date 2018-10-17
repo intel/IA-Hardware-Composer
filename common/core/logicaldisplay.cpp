@@ -77,6 +77,10 @@ void LogicalDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
   logical_display_manager_->SetHDCPSRM(SRM, SRMLength);
 }
 
+bool LogicalDisplay::ContainConnector(const uint32_t connector_id) {
+  return logical_display_manager_->ContainConnector(connector_id);
+}
+
 bool LogicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              int32_t *retire_fence,
                              PixelUploaderCallback *call_back,

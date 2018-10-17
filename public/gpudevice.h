@@ -87,6 +87,7 @@ class GpuDevice : public HWCThread {
   void SetHDCPSRMForAllDisplays(const int8_t* SRM, uint32_t SRMLength);
   void SetHDCPSRMForDisplay(uint32_t display, const int8_t* SRM,
                             uint32_t SRMLength);
+  uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
  private:
   enum InitializationType {

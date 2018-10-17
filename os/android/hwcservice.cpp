@@ -399,6 +399,11 @@ status_t HwcService::Controls::SetHDCPSRMForDisplay(uint32_t display,
   return OK;
 }
 
+uint32_t HwcService::Controls::GetDisplayIDFromConnectorID(
+    uint32_t connector_id) {
+  return mHwc.GetDisplayIDFromConnectorID(connector_id);
+}
+
 status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
   mHwc.SetPAVPSessionStatus(true, sessionID, instanceID);

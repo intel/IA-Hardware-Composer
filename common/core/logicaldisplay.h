@@ -126,6 +126,8 @@ class LogicalDisplay : public NativeDisplay {
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
+  bool ContainConnector(const uint32_t connector_id) override;
+
  private:
   LogicalDisplayManager *logical_display_manager_;
   NativeDisplay *physical_display_;

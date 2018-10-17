@@ -649,6 +649,15 @@ void GpuDevice::SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
   native_display->SetHDCPSRM(SRM, SRMLength);
 }
 
+uint32_t GpuDevice::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (total_displays_.at(i)->ContainConnector(connector_id))
+      return i;
+  }
+  return -1;
+}
+
 void GpuDevice::HandleRoutine() {
   bool update_ignored = false;
 

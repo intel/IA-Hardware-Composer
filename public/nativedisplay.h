@@ -419,6 +419,12 @@ class NativeDisplay {
     return NULL;
   }
 
+  // return true if connector_id is one of the connector_ids of the physical
+  // connections
+  virtual bool ContainConnector(const uint32_t connector_id) {
+    return false;
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;
