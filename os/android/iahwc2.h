@@ -66,6 +66,7 @@ class IAHWC2 : public hwc2_device_t {
 
   void SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
                             uint32_t SRMLength);
+  uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
  public:
   class Hwc2Layer {

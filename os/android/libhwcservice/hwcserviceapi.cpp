@@ -275,6 +275,16 @@ status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
   return pContext->mControls->DisableHDCPSessionForDisplay(display);
 }
 
+uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
+                                                uint32_t connector_id) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+
+  return pContext->mControls->GetDisplayIDFromConnectorID(connector_id);
+}
+
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
