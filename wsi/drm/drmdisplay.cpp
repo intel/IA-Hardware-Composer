@@ -182,22 +182,12 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmHDCPObjectProperty("Content Protection", connector, connector_props,
                            &hdcp_id_prop_, &value);
 
-  if (value >= 0) {
-    switch (value) {
-      case 0:
-        current_protection_support_ = HWCContentProtection::kUnDesired;
-        break;
-      case 1:
-        current_protection_support_ = HWCContentProtection::kDesired;
-        break;
-      default:
-        break;
-    }
+  current_protection_support_ = static_cast<HWCContentProtection>(value);
 
-    if (desired_protection_support_ == HWCContentProtection::kUnSupported) {
-      desired_protection_support_ = current_protection_support_;
-    }
-  }
+  GetDrmHDCPObjectProperty("CP_Content_Type", connector, connector_props,
+                           &hdcp_type_prop_, &value);
+
+  current_content_type_ = static_cast<HWCContentType>(value);
 
   GetDrmHDCPObjectProperty("CP_SRM", connector, connector_props,
                            &hdcp_srm_id_prop_, &value);
@@ -213,7 +203,6 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
     ITRACE("DCIP3 support not available");
 
   PhysicalDisplay::Connect();
-  SetHDCPState(desired_protection_support_, content_type_);
 
   drmModePropertyPtr broadcastrgb_props =
       drmModeGetProperty(gpu_fd_, broadcastrgb_id_);
@@ -419,30 +408,81 @@ bool DrmDisplay::SetBroadcastRGB(const char *range_property) {
   return true;
 }
 
-void DrmDisplay::SetHDCPState(HWCContentProtection state,
+bool DrmDisplay::CheckHDCPStatus() {
+  int val = -1;
+  uint32_t i;
+  ScopedDrmObjectPropertyPtr cprops(drmModeObjectGetProperties(
+      gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
+  for (i = 0; i < cprops->count_props; i++) {
+    if (cprops->props[i] == hdcp_id_prop_) {
+      val = cprops->prop_values[i];
+      break;
+    }
+  }
+
+  if ((current_protection_support_ && val == HWCContentProtection::kEnabled) ||
+      (!current_protection_support_ && val == HWCContentProtection::kDesired))
+    return true;
+
+  return false;
+}
+
+bool DrmDisplay::SetHDCPState(HWCContentProtection state,
                               HWCContentType content_type) {
   desired_protection_support_ = state;
-  content_type_ = content_type;
-  if (desired_protection_support_ == current_protection_support_)
-    return;
+  desired_content_type_ = content_type;
+
+  if (desired_protection_support_ == current_protection_support_ &&
+      desired_content_type_ == current_content_type_)
+    return true;
 
   if (hdcp_id_prop_ <= 0) {
     ETRACE("Cannot set HDCP state as Connector property is not supported \n");
-    return;
+    return false;
+  }
+  if ((hdcp_type_prop_ <= 0) && (desired_content_type_ == 1)) {
+    ETRACE("Content type property unavailable. HDCP 2.2 cannot be enabled\n");
+    return false;
   }
 
   if (!(connection_state_ & kConnected)) {
-    return;
+    return false;
   }
 
-  current_protection_support_ = desired_protection_support_;
-  uint32_t value = 0;
-  if (current_protection_support_ == kDesired) {
-    value = 1;
+  ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
+  int ret = drmModeAtomicAddProperty(pset.get(), connector_, hdcp_id_prop_,
+                                     desired_protection_support_) < 0;
+  if (current_protection_support_ && (hdcp_type_prop_ > 0))
+    ret = ret ||
+          drmModeAtomicAddProperty(pset.get(), connector_, hdcp_type_prop_,
+                                   desired_content_type_) < 0;
+  if (ret) {
+    ETRACE("Unable to fill pset for HDCP\n");
+    return false;
+  }
+  ret = drmModeAtomicCommit(gpu_fd_, pset.get(), DRM_MODE_ATOMIC_ALLOW_MODESET,
+                            NULL);
+  if (ret) {
+    ETRACE("Failed to commit HDCP ret %d errno %d : %s\n", ret, errno,
+           PRINTERROR());
+    return false;
   }
 
-  drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
-  ETRACE("Ignored Content type. \n");
+  /* Wait for Enable should be 5.1 Sec * 3(kernel reattempt cnt) */
+  for (uint8_t i = 0; i < 160; i++) {
+    if (CheckHDCPStatus()) {
+      current_protection_support_ = desired_protection_support_;
+      current_content_type_ = desired_content_type_;
+      return true;
+    }
+    usleep(100 * 1000);
+  }
+
+  // HDCP failed to enable, mark it as undesired
+  drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_,
+                              HWCContentProtection::kUnDesired);
+
+  return false;
 }
 
 void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {

@@ -400,8 +400,9 @@ class NativeDisplay {
    * tries to take advantage of any HDCP support advertised by
    * the Kernel.
    */
-  virtual void SetHDCPState(HWCContentProtection /*state*/,
+  virtual bool SetHDCPState(HWCContentProtection /*state*/,
                             HWCContentType /*content_type*/) {
+    return false;
   }
 
   virtual void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,

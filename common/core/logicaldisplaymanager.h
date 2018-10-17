@@ -95,7 +95,7 @@ class LogicalDisplayManager {
    * @param state an enum named HWCContentProtection
    * @param content_type an enum of HWCContentType
    */
-  void SetHDCPState(HWCContentProtection state, HWCContentType content_type);
+  bool SetHDCPState(HWCContentProtection state, HWCContentType content_type);
 
   void SetHDCPSRM(const int8_t* SRM, uint32_t SRMLength);
 

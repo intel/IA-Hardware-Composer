@@ -109,7 +109,7 @@ class MosaicDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected);
 
-  void SetHDCPState(HWCContentProtection state,
+  bool SetHDCPState(HWCContentProtection state,
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 

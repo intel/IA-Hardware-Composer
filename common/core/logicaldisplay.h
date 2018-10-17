@@ -122,7 +122,7 @@ class LogicalDisplay : public NativeDisplay {
 
   void HotPlugUpdate(bool connected) override;
 
-  void SetHDCPState(HWCContentProtection state,
+  bool SetHDCPState(HWCContentProtection state,
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 

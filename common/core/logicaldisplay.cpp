@@ -68,9 +68,9 @@ bool LogicalDisplay::SetPowerMode(uint32_t power_mode) {
   return true;
 }
 
-void LogicalDisplay::SetHDCPState(HWCContentProtection state,
+bool LogicalDisplay::SetHDCPState(HWCContentProtection state,
                                   HWCContentType content_type) {
-  logical_display_manager_->SetHDCPState(state, content_type);
+  return logical_display_manager_->SetHDCPState(state, content_type);
 }
 
 void LogicalDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
