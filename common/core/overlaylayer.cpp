@@ -108,11 +108,6 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     }
   } else {
     buffer->SetOriginalHandle(handle);
-    // need to update interlace info since interlace info is update frame by
-    // frame
-    if (buffer->GetUsage() == kLayerVideo)
-      buffer->SetInterlace(
-          resource_manager->GetNativeBufferHandler()->GetInterlace(handle));
   }
 
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
