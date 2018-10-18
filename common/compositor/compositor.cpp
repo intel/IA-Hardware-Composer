@@ -33,8 +33,8 @@
 namespace hwcomposer {
 
 Compositor::Compositor() {
-  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
-  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagAuto;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceMotionAdaptive;
 }
 
 Compositor::~Compositor() {
@@ -264,8 +264,8 @@ void Compositor::SetVideoDeinterlace(HWCDeinterlaceFlag flag,
 
 void Compositor::RestoreVideoDefaultDeinterlace() {
   lock_.lock();
-  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagNone;
-  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceNone;
+  deinterlace_.flag_ = HWCDeinterlaceFlag::kDeinterlaceFlagAuto;
+  deinterlace_.mode_ = HWCDeinterlaceControl::kDeinterlaceMotionAdaptive;
   lock_.unlock();
 }
 
