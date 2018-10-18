@@ -476,4 +476,60 @@ DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {
   return new DrmDisplayManager(device);
 }
 
+void DrmDisplayManager::EnableHDCPSessionForDisplay(
+    uint32_t connector, HWCContentType content_type) {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (displays_.at(i)->GetConnectorID() == connector) {
+      displays_.at(i)->SetHDCPState(HWCContentProtection::kDesired,
+                                    content_type);
+    }
+  }
+}
+
+void DrmDisplayManager::EnableHDCPSessionForAllDisplays(
+    HWCContentType content_type) {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    displays_.at(i)->SetHDCPState(HWCContentProtection::kDesired, content_type);
+  }
+}
+
+void DrmDisplayManager::DisableHDCPSessionForDisplay(uint32_t connector) {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (displays_.at(i)->GetConnectorID() == connector) {
+      displays_.at(i)->SetHDCPState(HWCContentProtection::kUnDesired,
+                                    HWCContentType::kInvalid);
+    }
+  }
+}
+
+void DrmDisplayManager::DisableHDCPSessionForAllDisplays() {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    displays_.at(i)->SetHDCPState(HWCContentProtection::kUnDesired,
+                                  HWCContentType::kInvalid);
+  }
+}
+
+void DrmDisplayManager::SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                                 uint32_t SRMLength) {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
+  }
+}
+
+void DrmDisplayManager::SetHDCPSRMForDisplay(uint32_t connector,
+                                             const int8_t *SRM,
+                                             uint32_t SRMLength) {
+  size_t size = displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (displays_.at(i)->GetConnectorID() == connector) {
+      displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
+    }
+  }
+}
+
 }  // namespace hwcomposer
