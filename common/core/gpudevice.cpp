@@ -583,42 +583,21 @@ void GpuDevice::HandleHWCSettings() {
   }
 }
 
-void GpuDevice::EnableHDCPSessionForDisplay(uint32_t display,
+void GpuDevice::EnableHDCPSessionForDisplay(uint32_t connector,
                                             HWCContentType content_type) {
-  if (total_displays_.size() <= display) {
-    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
-    return;
-  }
-
-  NativeDisplay *native_display = total_displays_.at(display);
-  native_display->SetHDCPState(HWCContentProtection::kDesired, content_type);
+  display_manager_->EnableHDCPSessionForDisplay(connector, content_type);
 }
 
 void GpuDevice::EnableHDCPSessionForAllDisplays(HWCContentType content_type) {
-  size_t size = total_displays_.size();
-  for (size_t i = 0; i < size; i++) {
-    total_displays_.at(i)
-        ->SetHDCPState(HWCContentProtection::kDesired, content_type);
-  }
+  display_manager_->EnableHDCPSessionForAllDisplays(content_type);
 }
 
-void GpuDevice::DisableHDCPSessionForDisplay(uint32_t display) {
-  if (total_displays_.size() <= display) {
-    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
-    return;
-  }
-
-  NativeDisplay *native_display = total_displays_.at(display);
-  native_display->SetHDCPState(HWCContentProtection::kUnDesired,
-                               HWCContentType::kInvalid);
+void GpuDevice::DisableHDCPSessionForDisplay(uint32_t connector) {
+  display_manager_->DisableHDCPSessionForDisplay(connector);
 }
 
 void GpuDevice::DisableHDCPSessionForAllDisplays() {
-  size_t size = total_displays_.size();
-  for (size_t i = 0; i < size; i++) {
-    total_displays_.at(i)->SetHDCPState(HWCContentProtection::kUnDesired,
-                                        HWCContentType::kInvalid);
-  }
+  display_manager_->DisableHDCPSessionForAllDisplays();
 }
 
 void GpuDevice::SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
@@ -632,21 +611,12 @@ void GpuDevice::SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
 
 void GpuDevice::SetHDCPSRMForAllDisplays(const int8_t *SRM,
                                          uint32_t SRMLength) {
-  size_t size = total_displays_.size();
-  for (size_t i = 0; i < size; i++) {
-    total_displays_.at(i)->SetHDCPSRM(SRM, SRMLength);
-  }
+  display_manager_->SetHDCPSRMForAllDisplays(SRM, SRMLength);
 }
 
-void GpuDevice::SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+void GpuDevice::SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                      uint32_t SRMLength) {
-  if (total_displays_.size() <= display) {
-    ETRACE("Tried to enable HDCP for invalid display %u \n", display);
-    return;
-  }
-
-  NativeDisplay *native_display = total_displays_.at(display);
-  native_display->SetHDCPSRM(SRM, SRMLength);
+  display_manager_->SetHDCPSRMForDisplay(connector, SRM, SRMLength);
 }
 
 uint32_t GpuDevice::GetDisplayIDFromConnectorID(const uint32_t connector_id) {

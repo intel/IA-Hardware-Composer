@@ -313,12 +313,12 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t EnableHDCPSessionForDisplay(uint32_t display,
+  status_t EnableHDCPSessionForDisplay(uint32_t connector,
                                        EHwcsContentType content_type) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     data.writeInt32(content_type);
     status_t ret = remote()->transact(
         TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
@@ -344,11 +344,11 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t DisableHDCPSessionForDisplay(uint32_t display) override {
+  status_t DisableHDCPSessionForDisplay(uint32_t connector) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     status_t ret = remote()->transact(
         TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
     if (ret != NO_ERROR) {
@@ -384,12 +384,12 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+  status_t SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                 uint32_t SRMLength) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     data.writeByteArray(SRMLength, (const uint8_t *)SRM);
     status_t ret = remote()->transact(TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
                                       data, &reply);
@@ -696,9 +696,9 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     }
     case BpControls::TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
-      uint32_t display = data.readInt32();
+      uint32_t connector = data.readInt32();
       EHwcsContentType content_type = (EHwcsContentType)data.readInt32();
-      status_t ret = this->EnableHDCPSessionForDisplay(display, content_type);
+      status_t ret = this->EnableHDCPSessionForDisplay(connector, content_type);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -711,8 +711,8 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     }
     case BpControls::TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
-      uint32_t display = data.readInt32();
-      status_t ret = this->DisableHDCPSessionForDisplay(display);
+      uint32_t connector = data.readInt32();
+      status_t ret = this->DisableHDCPSessionForDisplay(connector);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -734,10 +734,10 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     case BpControls::TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
       std::vector<int8_t> srmvec;
-      uint32_t display = data.readInt32();
+      uint32_t connector = data.readInt32();
       data.readByteVector(&srmvec);
       status_t ret = this->SetHDCPSRMForDisplay(
-          display, (const int8_t *)(srmvec.data()), srmvec.size());
+          connector, (const int8_t *)(srmvec.data()), srmvec.size());
       reply->writeInt32(ret);
       return NO_ERROR;
     }

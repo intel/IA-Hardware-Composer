@@ -101,6 +101,10 @@ class DrmDisplay : public PhysicalDisplay {
 
   void IgnoreUpdates();
 
+  uint32_t GetConnectorID() {
+    return connector_;
+  }
+
   void HandleLazyInitialization() override;
 
  private:
