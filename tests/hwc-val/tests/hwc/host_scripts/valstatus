@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# Gather the Android test results, and start a new test with a clean state
+#
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+shims_not_installed=`$ADB shell /system/bin/valhwc_util | grep -c "SHIMS NOT INSTALLED"`
+if [ $shims_not_installed -gt 0 ]
+then
+  echo "Shims not installed."
+else
+
+    # Set target run configuration
+    setprops
+
+  $ADB shell /system/bin/valhwc_util restart $@
+  echo "+++++++++++++++++++++++ RESTART $@ ++++++++++++++++++++++++++++++++" >> $CLIENT_LOGS/runandroid.log
+fi
+

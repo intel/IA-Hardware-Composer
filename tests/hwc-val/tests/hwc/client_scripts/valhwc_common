@@ -1,0 +1,91 @@
+#!/system/bin/sh
+#
+# Contains library functions and global variables to be used in the client scripts
+#
+#
+
+
+# Add busybox path to PATH for advanced unix commands
+PATH=$PATH:/system/xbin/busybox:/system/xbin/busybox/busybox:/data/xbin/busybox
+
+
+# Detection of target type - keep this check in sync with host_scripts/valcommon
+TARGETSHIM=`getprop ro.board.platform`
+if [[ $TARGETSHIM == *coho ]]
+then
+    TARGETSHIM=coho
+fi
+
+# Get the major version number
+VERSION=`getprop ro.build.version.release`
+VERSION="${VERSION%%.*}"
+
+# HWCVAL directory on the target, used in all the target scripts
+HWCVAL_DIR=/data/validation/hwc
+
+
+# Are we a 64-bit build?
+if [ -e /vendor/lib64 ]
+then
+    LIBDIR=/vendor/lib64
+else
+    LIBDIR=/vendor/lib
+fi
+
+
+##############################################################################
+# Function to kill a process
+# Arguments:
+#   $1: process to be killed
+# Returns:
+#   None
+##############################################################################
+if [ ! -f /system/xbin/killall ]
+then
+    killproc()
+    {
+        while [ ${1:0:1} == "-" ]
+        do
+            shift
+        done
+        ps | grep $1 | grep -v grep | while read arg1 arg2 otherargs; do kill $arg2; done
+    }
+else
+    killproc()
+    {
+        killall -q $1 2> /dev/null
+    }
+fi
+
+##############################################################################
+# Function to copy a file
+# Arguments:
+#   $1: source
+#   #2: destination
+# Returns:
+#   None
+##############################################################################
+val_copy()
+{
+    ECHO="echo Copying $1 to $2"
+    if [ ${VERSION} -lt 7 ]
+    then
+        test -e $1 && $ECHO && cp -L $1 $2
+    else
+        test -e $1 && $ECHO && cp -L --preserve=a $1 $2
+    fi
+}
+
+##############################################################################
+# Function to move a file
+# Arguments:
+#   $1: source
+#   #2: destination
+# Returns:
+#   None
+##############################################################################
+val_move()
+{
+    ECHO="echo Moving $1 to $2"
+    test -e $1 && $ECHO && mv $1 $2
+}

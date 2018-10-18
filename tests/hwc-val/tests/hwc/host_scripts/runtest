@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+##############################################################################
+# Script which launches the tests used for the GFT Test Cycle
+#
+# Arguments:
+#   $1: name of the set of tests to be executed (i.e. hwcval)
+# Returns:
+#   None
+##############################################################################
+
+# Definition of test pool.
+HWCVAL_TESTS=( "Api" "Camera" "Dialog" "Flicker1" \
+        "Flicker2" "Flicker3" "FlipRot" "Gallery" "Game" "Home" \
+        "MovieStudio" "NetflixStepped" "Notification" "NV12FullVideo" \
+        "NV12FullVideo2" "NV12PartVideo" "NV12PartVideo2" "PanelFitter" "PartComp" "Png" \
+        "RandomModes" "Skip" "Smoke" "TransparencyComposition" "VideoModes" )
+
+HWCVAL_HWCCOMP=( "Api"  "FlipRot" "NV12PartVideo2" "Smoke" "TransparencyComposition" )
+
+
+if [ "$1" == "" ]
+then
+    echo "Missing block of tests to be performed."
+    echo "For Test Cycles: hwcval, hwcval_cp, hwccomp, all"
+    echo ""
+    return
+fi
+
+
+if [[ "$1" == "hwcval" || "$1" == "all" ]]
+then
+    echo "Run hwcval tests"
+    for ((i = 0; i < ${#HWCVAL_TESTS[@]}; i++))
+    do
+        valhwch -t ${HWCVAL_TESTS[i]}
+    done
+fi
+
+
+if [[ $1 == "hwcval_cp" || "$1" == "all" ]]
+then
+    echo "Run hwcval_cp tests"
+    for ((i = 0; i < ${#HWCVAL_CP_TESTS[@]}; i++))
+    do
+        valhwch -t ${HWCVAL_CP_TESTS[i]}
+    done
+fi
+
+if [[ $1 == "hwccomp" || "$1" == "all" ]]
+then
+    echo "Run hwcval hwccomp tests"
+    for ((i = 0; i < ${#HWCVAL_HWCCOMP[@]}; i++))
+    do
+        valhwch -t ${HWCVAL_HWCCOMP[i]} -val_hwc_composition -no_val_hwc
+    done
+fi
+
+echo "End of tests. Exit."
+return

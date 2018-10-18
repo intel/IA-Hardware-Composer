@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Run HWC harness with debugging.
+#
+# Must be sourced - usage:
+# source $HWCVAL_ROOT/host_scripts/valhwchgdb <usual harness arguments>
+#
+
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+define_target
+
+if [ "$TARGETSHIM" == "" ]
+then
+  echo "Failed to detect TARGETSHIM"
+  return
+fi
+
+echo "TARGETSHIM: $TARGETSHIM"
+mkdir -p $CLIENT_LOGS
+valinstall
+
+# install the symbols files
+if [ -e $ANDROID_PRODUCT_OUT/symbols/system/lib64 ]
+then
+  SYMLIBDIR=$ANDROID_PRODUCT_OUT/symbols/system/lib64
+else
+  SYMLIBDIR=$ANDROID_PRODUCT_OUT/symbols/system/lib
+fi
+
+drm_is_shim=`grep -c drmshim $SYMLIBDIR/libdrm.so`
+if [ $drm_is_shim -eq 0 ]
+then
+  echo "Copying symbols libdrm.so to libdrm.real.so"
+  cp $SYMLIBDIR/libdrm.so $SYMLIBDIR/libdrm.real.so
+else
+  echo "symbols libdrm.so is already shim"
+fi
+
+hwc_is_shim=`grep -c valhwc_composershim $SYMLIBDIR/hw/hwcomposer.$TARGETSHIM.so`
+
+if [ $hwc_is_shim -eq 0 ]
+then
+  echo "Copying symbols hwcomposer.$TARGETSHIM.so to hwcomposer.real.so"
+  cp $SYMLIBDIR/hw/hwcomposer.$TARGETSHIM.so $SYMLIBDIR/hw/hwcomposer.real.so
+else
+  echo "symbols hwcomposer.$TARGETSHIM.so is already shim"
+fi
+
+cp $SYMLIBDIR/libvalhwc_drmshim.so $SYMLIBDIR/libdrm.so
+cp $SYMLIBDIR/valhwc_composershim.so $SYMLIBDIR/hw/hwcomposer.$TARGETSHIM.so
+
+# Set target run configuration
+setprops
+
+gdbwrapper ()  {   local GDB_CMD="$1"; shift 1;   gdb -x "$@"; }
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_run_harness.sh -debug_mode $* &
+sleep 2
+gdbclient valhwcharness 5039
+
+echo "Uninstalling symbol shims"
+cp $SYMLIBDIR/libdrm.real.so $SYMLIBDIR/libdrm.so
+cp $SYMLIBDIR/hw/hwcomposer.real.so $SYMLIBDIR/hw/hwcomposer.$TARGETSHIM.so
+
+$ADB pull ${HWCVAL_TARGET_DIR}/hwclog_hwch.log $CLIENT_LOGS >& /dev/null
+$ADB pull ${HWCVAL_TARGET_DIR}/logcat_hwch.log $CLIENT_LOGS >& /dev/null
+$ADB pull ${HWCVAL_TARGET_DIR}/dump.tgz $CLIENT_LOGS  >& /dev/null
+

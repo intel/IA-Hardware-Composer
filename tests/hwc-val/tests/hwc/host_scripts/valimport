@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Usage: source valimport $1
+#
+# Extracts archive $1 to directory $1
+# Pushes the necessary HWC validation scripts and binaries to the client.
+# Adds host_scripts directory to the path on the host.
+#
+
+echo "$0 $@"
+
+function pushdir()
+{
+    # This is a sanity check on the directory
+    if [ ! -d $1 ]; then
+        echo >&2 "No directory $1 found"
+        return 1
+    fi
+    # This is a adb-version-independent function to push the contents of directory $1 on the host to $2 on the target.
+    # if you use adb "push a/b c", some versions will push all files in a/b to c, some will push all files in a/b to c/b.
+    SAVED_DIR=$PWD
+    cd $1
+    $ADB shell mkdir -p $2
+    $ADB push . $2
+    cd $SAVED_DIR
+}
+
+if [ "$ADB" == "" ]
+then
+    export ADB=`which adb`
+fi
+
+TARFILE_FULLPATH=`readlink -f $1`
+TARFILE="$(basename ${TARFILE_FULLPATH})"
+TARFILE_EXT="${TARFILE##*.}"
+TARFILE_NAME="${TARFILE_FULLPATH%.$TARFILE_EXT}"
+TARFILE_DIR="${TARFILE_NAME%.tar}"
+
+mkdir -p ${TARFILE_DIR}
+tar xz -C ${TARFILE_DIR} -f ${TARFILE_FULLPATH}
+
+export HWCVAL_ROOT=$TARFILE_DIR/val_hwc
+export PATH=$HWCVAL_ROOT/host_scripts:$PATH
+export HWCVAL_TARGET_DIR=/data/validation/hwc
+
+$ADB root>/dev/null
+$ADB wait-for-device
+# NB $ADB remount does NOT necessarily work
+$ADB shell mount -o rw,remount /system
+
+$ADB shell mkdir -p ${HWCVAL_TARGET_DIR}
+
+# We are overwriting coreu executable
+$ADB shell setenforce 0
+pushdir ${HWCVAL_ROOT}/bin /vendor/bin
+$ADB shell setenforce 1
+pushdir ${HWCVAL_ROOT}/lib /vendor/lib
+pushdir ${HWCVAL_ROOT}/lib64 /vendor/lib64
+pushdir ${HWCVAL_ROOT}/client_scripts ${HWCVAL_TARGET_DIR}
+pushdir ${HWCVAL_ROOT}/images ${HWCVAL_TARGET_DIR}/images
+
+# Make exes and scripts executable
+$ADB shell chmod 777 /vendor/bin/*
+$ADB shell chmod 777 ${HWCVAL_TARGET_DIR}/*.sh
+
+# Make sure the logs go somewhere
+if [[ -z $CLIENT_LOGS ]]
+then
+    export CLIENT_LOGS=$HOME/client_logs
+fi

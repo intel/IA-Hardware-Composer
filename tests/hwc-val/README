@@ -1,0 +1,84 @@
+BUILD:
+
+hwc-val is only built for "eng" flavor Android images, check the output of the
+"lunch ..." command when you are building and ensure it contains this line:
+TARGET_BUILD_VARIANT=eng
+
+PREPARE:
+
+Connect to the test device via adb:
+adb connect <dut ip>
+
+Run this script on the host to push validation binaries to the test device:
+cd tests/hwc-val/tests/hwc
+./host_scripts/valpush hwc hwcval
+
+TEST:
+
+Option 1: from the host:
+./host_scripts/valhwch -t <test name> # see AVAILABLE TESTS
+
+Option 2: from the test device:
+adb shell
+cd /data/validation/hwc
+./valhwc_install.sh
+./valhwc_run_harness.sh -t <test names # see AVAILABLE TESTS
+
+CLEANUP:
+
+The hwc-val tests will install shims that disable booting to Android home. To
+restore the test device to its default state run one of the available scripts
+
+Option 1: from the host:
+./host_scripts/valuninstall
+
+Option 2: from the test device:
+adb shell
+cd /data/validation/hwc
+./valhwc_unins.sh
+
+AVAILABLE TESTS:
+
+Home
+Basic
+Flicker1
+Flicker2
+Flicker3
+VideoModes
+GlBasicLine
+GlBasicClear
+GlBasicTexture
+GlBasicCombo1
+GlBasicCombo2
+GlBasicCombo3
+GlBasicPixelDiscard
+GlBasicViewport
+GlBasicMovingLine
+GlBasicPixelDiscardNOP
+RandomModes
+Camera
+Dialog
+Gallery
+Game
+Notification
+Nv12FullVideo
+Nv12FullVideo2
+NetflixScaled
+NetflixStepped
+MovieStudio
+PanelFitter
+FlipRot
+Smoke
+PartComp
+Png
+TransparencyComposition
+Skip
+PanelFitterStress
+SmallDf
+RenderCompression
+SSIMCompare
+BufferStres
+DirectPlanes
+Api -> Fd leak
+BufferStress
+

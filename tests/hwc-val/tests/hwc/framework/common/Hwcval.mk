@@ -1,0 +1,108 @@
+ifeq ($(VAL_HWC_HARDWARE_COMPOSER_PATH_PRINTED),)
+    $(info VAL_HWC_HARDWARE_COMPOSER_PATH $(VAL_HWC_HARDWARE_COMPOSER_PATH))
+    VAL_HWC_HARDWARE_COMPOSER_PATH_PRINTED=Y
+endif
+
+VAL_HWC_HWCSERVICE_INC_PATH=$(VAL_HWC_HARDWARE_COMPOSER_PATH)/os/android/libhwcservice
+VAL_HWC_LIBHW_INC_PATH=hardware/libhardware/include/hardware
+
+# Path for binaries
+ifeq ($(VAL_HWC_EXTERNAL_BUILD),)
+    VAL_HWC_TARGET_TEST_PATH := $(TARGET_OUT_VENDOR)
+endif
+
+VAL_HWC_FEATURE := hwc
+
+ifeq ($(strip $(HWCVAL_ENABLE_SYSTRACE)),true)
+LOCAL_CFLAGS += \
+    -DHWCVAL_SYSTRACE=1 \
+    -DHAVE_ANDROID_OS
+endif
+
+LOCAL_CFLAGS += \
+    -DHWCVAL_LOG_$(HWCVAL_LOG_VERBOSITY) \
+    -DHWCVAL_LOG_$(HWCVAL_LOG_DESTINATION)
+
+ifneq ($(HWCVAL_INTERNAL_BO_VALIDATION),)
+    LOCAL_CFLAGS += -DHWCVAL_INTERNAL_BO_VALIDATION=$(HWCVAL_INTERNAL_BO_VALIDATION)
+endif
+
+ifeq ($(TARGET_PRODUCT), gordon_peak)
+LIBDRM_PATH := $(VAL_HWC_HARDWARE_COMPOSER_PATH)/../drm-intel
+else
+LIBDRM_PATH := $(VAL_HWC_HARDWARE_COMPOSER_PATH)/../libdrm
+endif
+
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/tests/hwc-val/regex-re2_temp
+LOCAL_C_INCLUDES += $(LIBDRM_PATH)
+LOCAL_C_INCLUDES += $(LIBDRM_PATH)/include/drm
+LOCAL_C_INCLUDES += $(LIBDRM_PATH)/intel
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/common/utils
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/val
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/wsi
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/wsi/drm
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/os
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/os/android
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/public
+LOCAL_C_INCLUDES += $(VAL_HWC_HWCSERVICE_INC_PATH)
+LOCAL_C_INCLUDES += $(INTEL_MINIGBM)
+LOCAL_C_INCLUDES += $(INTEL_MINIGBM)/cros_gralloc
+LOCAL_C_INCLUDES += $(VAL_HWC_HARDWARE_COMPOSER_PATH)/common/utils/val
+LOCAL_C_INCLUDES += system/core/libsync/include/sync
+LOCAL_C_INCLUDES += system/core/libsync
+LOCAL_C_INCLUDES += frameworks/native/libs/ui/include
+LOCAL_C_INCLUDES += frameworks/native/libs/arect/include 
+LOCAL_C_INCLUDES += frameworks/native/libs/ui/include
+LOCAL_C_INCLUDES += frameworks/native/libs/nativebase/include
+LOCAL_C_INCLUDES += frameworks/native/libs/binder/include
+LOCAL_C_INCLUDES += frameworks/native/opengl/include
+LOCAL_C_INCLUDES += frameworks/native/libs/nativewindow/include
+
+
+BUILD_SHIM_HWCSERVICE := 0
+BUILD_HWCSERVICE_API := 1
+
+ifeq ($(HWCVAL_NO_FRAME_CONTROL),X)
+    LOCAL_CFLAGS += -DHWCVAL_FRAME_CONTROL=1
+endif
+
+ifneq ($(HWCVAL_RESOURCE_LEAK_CHECKING),)
+    LOCAL_CFLAGS += -DHWCVAL_RESOURCE_LEAK_CHECKING
+endif
+
+LOCAL_CFLAGS += -DHWCVAL_ENABLE_GRALLOC1
+
+# Enable private interfaces in HWC include files
+LOCAL_CFLAGS += -DINTEL_HWC_INTERNAL_BUILD
+
+# Enable ALOG_ASSERT
+LOCAL_CFLAGS += -DLOG_NDEBUG=0
+
+# Enable C++11 features
+LOCAL_CFLAGS += -std=gnu++14
+
+ifeq ($(VAL_HWC_EXTERNAL_BUILD),)
+    LOCAL_STRIP_MODULE := false
+endif
+
+# No optimize, for debugging
+#LOCAL_CFLAGS += -O0
+
+LOCAL_CFLAGS += -DANDROID_VERSION=$(major)$(minor)$(rev)
+
+LOCAL_STATIC_LIBRARIES += libregex-re2-tmp-gnustl-rtti
+
+PROPRIETARY_MODULE := true
+LOCAL_CLANG := true
+
+# Version number stuff
+HWC_VERSION_GIT_BRANCH := $(shell pushd $(VAL_HWC_HARDWARE_COMPOSER_PATH) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
+HWC_VERSION_GIT_SHA := $(shell pushd $(VAL_HWC_HARDWARE_COMPOSER_PATH) > /dev/null; git rev-parse HEAD; popd > /dev/null)
+HWCVAL_VERSION_GIT_BRANCH := $(shell pushd $(HWCVAL_ROOT) > /dev/null; git rev-parse --abbrev-ref HEAD; popd > /dev/null)
+HWCVAL_VERSION_GIT_SHA := $(shell pushd $(HWCVAL_ROOT) > /dev/null; git rev-parse HEAD; popd > /dev/null)
+LOCAL_CFLAGS += -DHWC_VERSION_GIT_BRANCH=$(HWC_VERSION_GIT_BRANCH) -DHWC_VERSION_GIT_SHA=$(HWC_VERSION_GIT_SHA) \
+  -DHWCVAL_VERSION_GIT_BRANCH=$(HWCVAL_VERSION_GIT_BRANCH) -DHWCVAL_VERSION_GIT_SHA=$(HWCVAL_VERSION_GIT_SHA)
+
+LOCAL_CFLAGS += -Wall
+

@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# Start surface flinger on the client and run all the tests, with the HWC log viewer output being collected
+# into HOST file $CLIENT_LOGS/test_all.log
+#
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+mkdir -p $CLIENT_LOGS
+valinstall
+
+# Set target run configuration
+setprops
+
+$ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_remote_test_all.sh $@ > $CLIENT_LOGS/test_all.log
+$ADB pull ${HWCVAL_TARGET_DIR}/summary.txt $CLIENT_LOGS/summary.txt >& /dev/null
+cat $CLIENT_LOGS/summary.txt
+

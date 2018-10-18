@@ -1,0 +1,15 @@
+#!/bin/bash
+#
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+echo "Setting up keybox"
+$ADB root>/dev/null
+$ADB remount
+$ADB push $HWCVAL_ROOT/data/TXEI_SEC_TOOLS /system/bin/.
+$ADB push $HWCVAL_ROOT/data/goodkb.bin /data/keybox.bin
+$ADB shell chmod 777 /system/bin/TXEI_SEC_TOOLS
+$ADB shell TXEI_SEC_TOOLS -acd-write 1 /data/keybox.bin 128 128
+$ADB reboot
+

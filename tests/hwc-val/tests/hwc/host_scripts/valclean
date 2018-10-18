@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# valclean [ host | target ]
+#
+# Perform a clean of the HWC and HWCVAL binaries. This is particularly
+# useful for switching between binary locations in the Android tree i.e.
+# the vendor subdirectory and the 'out' directory.
+#
+# In default mode, cleans both host and target. The argument can be used
+# to restrict cleaning to one or other.
+#
+
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+get_binary_file_lists $1
+
+# Functions to perform the actual cleaning
+clean_target()
+{
+    for FILE in $1;
+    do
+        $ADB shell rm -f /vendor/$FILE
+        $ADB shell rm -f /system/$FILE
+    done
+}
+clean_host()
+{
+    for FILE in $1;
+    do
+        rm -f $ANDROID_PRODUCT_OUT/symbols/vendor/$FILE
+        rm -f $ANDROID_PRODUCT_OUT/symbols/system/$FILE
+        rm -f $ANDROID_PRODUCT_OUT/vendor/$FILE
+        rm -f $ANDROID_PRODUCT_OUT/system/$FILE
+    done
+}
+
+#clean up target
+if [[ ${BASH_ARGV[0]} != "host" ]]
+then
+    $ADB wait-for-device
+    $ADB root
+    $ADB wait-for-device
+    $ADB disable-verity
+    $ADB remount
+    if [[ $ECHOS_ON -eq 1 ]]
+    then
+        echo "Calling valhwcbackup revert"
+    fi
+    valhwcbackup revert
+    if [[ $ECHOS_ON -eq 1 ]]
+    then
+        echo "Cleaning target HWCVAL files"
+    fi
+    clean_target "$HWCVAL_BINARY_FILES"
+fi
+
+# Clean up host
+if [[ ${BASH_ARGV[0]} != "target" ]]
+then
+    if [[ $ECHOS_ON -eq 1 ]]
+    then
+        echo "Cleaning host HWC files"
+    fi
+    clean_host "$HWC_BINARY_FILES"
+    #clean_host "$ADDITIONAL_BINARY_FILES"
+    if [[ $ECHOS_ON -eq 1 ]]
+    then
+        echo "Cleaning host HWCVAL files"
+    fi
+    clean_host "$HWCVAL_BINARY_FILES"
+
+fi
+

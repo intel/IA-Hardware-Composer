@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# valhwcbackup [ backup | revert ]
+#
+# Creates a 'golden reference' (backup) of the HWC binaries on the target.
+# These can be reverted to with the command 'valbackup revert'.
+
+echo "$0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+HWCVAL_AVERSION=`$ADB shell getprop ro.build.version.release`
+HWCVAL_AVERSION="${HWCVAL_AVERSION%%.*}"
+
+function copy_file()
+{
+    if [[ $HWCVAL_AVERSION < 7 ]]
+    then
+        CPCMD="cp -f $1 $2"
+    else 
+        CPCMD="cp -f --preserve=a $1 $2"
+    fi
+
+    local dst_date=`adb shell test -e $2 \&\& stat -c \"\%s \%Y\" $2 | tr -d '\r'`
+    local src_date=`adb shell test -e $1 \&\& stat -c \"\%s \%Y\" $1 | tr -d '\r'`
+
+    if [ "$dst_date" != "$src_date" ]
+    then
+	if [[ "$ECHOS_ON" -eq 1 ]]
+        then
+            # If not jenkins, tell the user what's happening
+            $ADB shell test -e $1 \&\& echo \"Copying $1 to $2\" \&\& $CPCMD
+        else
+            $ADB shell test -e $1 \&\& $CPCMD
+        fi
+    fi
+
+
+}
+
+function move_file()
+{
+    if [[ "$ECHOS_ON" -eq 1 ]]
+    then
+        # If not jenkins, tell the user what's happening
+        $ADB shell test -e $1 \&\& echo \"Moving $1 to $2\" \&\& mv $1 $2
+    else
+        ECHO=""
+        $ADB shell test -e $1 \&\& mv $1 $2
+    fi
+}
+
+get_binary_file_lists target
+
+# Backup / revert the HWC binaries
+if [[ ${BASH_ARGV[0]} == "backup" ]] || [[ ${BASH_ARGV[0]} == "revert" ]] || [[ ${BASH_ARGV[0]} == "compare" ]]
+then
+    $ADB root >& /dev/null
+    $ADB remount >& /dev/null
+
+    FILES=$HWC_BINARY_FILES
+    FILES+=$ADDITIONAL_BINARY_FILES
+
+    for FILE in $FILES;
+    do
+        if [[ ${BASH_ARGV[0]} == "backup" ]]
+        then
+            move_file /system/$FILE /vendor/$FILE
+            copy_file /vendor/$FILE /vendor/$FILE.backup
+        elif [[ ${BASH_ARGV[0]} == "compare" ]]
+        then
+            RESULT=`$ADB shell "if [[ -e /vendor/$FILE ]]; then cmp /vendor/$FILE /vendor/$FILE.backup; fi"`
+            if [[ "$RESULT" != "" ]]
+            then
+                echo "$FILE different"
+                exit
+            fi
+        else
+            copy_file /vendor/$FILE.backup /vendor/$FILE
+        fi
+    done
+
+    if [[ ${BASH_ARGV[0]} == "revert" ]]
+    then
+        move_file /vendor/lib/libdrm.real.so /vendor/lib/libdrm.so
+
+        move_file /vendor/lib64/libdrm.real.so /vendor/lib64/libdrm.so
+
+    fi
+fi
+
+# Ensure any memory-resident files get committed to disk
+$ADB shell sync
+$ADB shell sync
+

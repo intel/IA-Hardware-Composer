@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+$ADB shell content insert --uri content://settings/system --bind name:s:accelerometer_rotation --bind value:i:0
+$ADB shell content insert --uri content://settings/system --bind name:s:user_rotation --bind value:i:$1

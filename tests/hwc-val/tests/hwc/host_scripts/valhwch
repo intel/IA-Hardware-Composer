@@ -1,0 +1,273 @@
+#!/bin/bash
+#
+# Run a harness test, with the HWC log viewer output being collected
+# into $CLIENT_LOGS/hwclog_hwch.txt
+#
+echo "*** $0 $@"
+proc_path="${BASH_SOURCE[0]}"
+proc_dir=$( dirname ${proc_path})
+source ${proc_dir}/valcommon
+
+function pull_and_parse_logfiles()
+{
+    $ADB wait-for-device >& /dev/null
+    $ADB pull ${HWCVAL_TARGET_DIR}/hwclog_hwch.log $HWCLOG_HOSTFILE >& /dev/null
+    $ADB pull ${HWCVAL_TARGET_DIR}/logcat_hwch.log $LOGCAT_HOSTFILE >& /dev/null
+    $ADB pull ${HWCVAL_TARGET_DIR}/kmsg_hwch.log $KMSG_HOSTFILE >& /dev/null
+    $ADB pull ${HWCVAL_TARGET_DIR}/dump.tgz $DUMP_HOSTFILE >&/dev/null
+    $ADB pull ${HWCVAL_TARGET_DIR}/statistics.csv $STATS_HOSTFILE >&/dev/null
+
+    ABORTED=0
+
+    # Calculate how many tests were attempted
+    TESTS_ATTEMPTED=`grep "RUNNING TESTS:" $OUTFIL | cut -f3- --delimiter=" " | wc -w`
+    TESTS_PASSED=`grep -c "\*\*\* Test PASSED:" $OUTFIL`
+    TESTS_FAILED=`grep -c "\*\*\* Test FAILED:" $OUTFIL`
+
+    # Any tests which the harness was supposed to run, but where no pass or fail was reported, must have aborted.
+    let TESTS_ABORTED=(${TESTS_ATTEMPTED}-${TESTS_PASSED})-${TESTS_FAILED}
+
+    if [[ $TESTS_ATTEMPTED -eq 0 || $TESTS_ABORTED -gt 0 ]]
+    then
+        # TESTS_ATTEMPTED=0 implies that the device crashed before the initialization stage of the test, because
+        # it didn't get as far as printing out which tests it was going to run.
+        #
+        # TESTS_ABORTED>0 means that the harness did not run all the tests it intended to, probably because a
+        # SEGV or SIGILL took place during the test.
+        ABORTED=1
+    fi
+
+    if [[ $TESTS_TO_RUN -eq 0 ]]
+    then
+        # Nothing to run, we didn't really have an abort.
+        # e.g. valhwch -h
+       ABORTED=0
+    fi
+
+}
+
+function gzip_logs()
+{
+    if [[ "$UPSTREAM_BUILD_NUMBER" != "" ]]
+    then
+        # We are Jenkins - compress the logs
+        gzip $1 $2
+    fi
+}
+
+function push_config()
+{
+    # Push registry config, if defined
+    if [[ "$HWC_CONFIG" != "" ]]
+    then
+        echo "Setting HWC config $HWC_CONFIG"
+        $ADB push $HWC_CONFIG /cache/hwc.reg
+    fi
+}
+
+# START OF MAIN SCRIPT
+
+$ADB root>/dev/null
+$ADB remount
+
+systrace=0
+LOG_PRI="W"
+LOGNAME=""
+NO_SHIMS=0
+logpath=$CLIENT_LOGS
+logsuffix=hwch
+harness_args=
+TESTS_TO_RUN=0
+NOHUP=0
+
+# Process arguments
+for i in `seq 1 $#`
+do
+    eval arg=\${$i}
+    if [[ "${arg:0:9}" == "-systrace" ]]
+    then
+        systrace=1
+        if [[ ${arg:9:1} == "=" ]]
+        then
+            SYSTRACE_SECONDS_TOTAL=${arg:10}
+        fi
+    elif [[ "${arg:0:12}" == "-hwc_config=" ]]
+    then
+        HWC_CONFIG=${arg:12}
+    elif [[ "${arg:0:9}" == "-logname=" ]]
+    then
+        LOGNAME=${arg:9}
+        logsuffix=$LOGNAME
+        # This argument is also needed by the harness
+        harness_args="$harness_args $arg"
+    elif [[ "${arg:0:9}" == "-log_pri=" ]]
+    then
+        LOG_PRI=${arg:9:1}
+    elif [[ "${arg:0:8}" == "-hwclog=" ]]
+    then
+        hwclog_option="${arg:8}"
+        hwclog_option=${hwclog_option// /_}
+        harness_args="$harness_args -hwclog=$hwclog_option"
+    elif [[ "${arg:0:9}" == "-logpath=" ]]
+    then
+        export logpath="${arg:9}"
+    elif [[ "$arg" == "-no_shims" ]]
+    then
+        NO_SHIMS=1
+        harness_args="$harness_args $arg"
+    elif [[ "$arg" == "-all" ]]
+    then
+        TESTS_TO_RUN=1
+        harness_args="$harness_args $arg"
+    elif [[ "$arg" == "-t" ]]
+    then
+        TESTS_TO_RUN=1
+        harness_args="$harness_args $arg"
+    elif [[ "${arg:0:7}" == "-replay" ]]
+    then
+        TESTS_TO_RUN=1
+        harness_args="$harness_args $arg"
+    elif [[ "$arg" == "-recover_logs" ]]
+    then
+        HWCLOG_HOSTFILE=$logpath/hwclog_${logsuffix}.log
+        LOGCAT_HOSTFILE=$logpath/logcat_${logsuffix}.log
+        KMSG_HOSTFILE=$logpath/kmsg_${logsuffix}.log
+        DUMP_HOSTFILE=$logpath/dump_${logsuffix}.tgz
+        STATS_HOSTFILE=$logpath/statistics_${logsuffix}.csv
+        OUTFIL="`ls -t $CLIENT_LOGS/out_*.log |head -1`"
+        echo $OUTFIL
+        pull_and_parse_logfiles
+
+        # Report the standard output from the final attempt (successful or otherwise)
+        grep -v "##" $OUTFIL
+
+        exit
+
+    elif [[ "$arg" == "-nohup" ]]
+    then
+        NOHUP=1
+        harness_args="$harness_args $arg"
+    else
+        harness_args="$harness_args $arg"
+    fi
+done
+
+# Determine what we are going to tell the user where the hwclog is
+if [[ "$UPSTREAM_BUILD_NUMBER" != "" ]]
+then
+    # We are Jenkins
+    hwclogname="${UPSTREAM_JOB_URL%?}/ws/$UPSTREAM_BUILD_NUMBER/hwclog_${logsuffix}.log.gz"
+else
+    hwclogname="${logpath}/hwclog_${logsuffix}.log"
+fi
+
+harness_args="$harness_args -hwclogpath=$hwclogname"
+
+# Install or uninstall the shims, as required
+mkdir -p $CLIENT_LOGS
+if [ $NO_SHIMS -eq 1 ]
+then
+    $ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_unins.sh
+else
+    valinstall
+fi
+
+# Clear any persistent HWC properties from the device so we have a known initial state
+if [[ "$KEEP_PERSISTENT_PROPERTIES" == "" ]]
+then
+    removePersistentProperties
+fi
+
+if [ $systrace == 1 ]
+then
+    echo
+    runsystrace &
+    sleep 2
+    echo
+fi
+
+# Determine file name of CSV results file
+if [[ "$LOGNAME" == "" ]]
+then
+    CSV_NAME="results.csv"
+else
+    CSV_NAME="results_${LOGNAME}.csv"
+fi
+
+$ADB logcat -c
+$ADB shell rm -f ${HWCVAL_TARGET_DIR}/$CSV_NAME
+rm -f $logpath/$CSV_NAME
+
+# Determine file names
+OUTFIL=${logpath}/out_${logsuffix}.log
+HWCLOG_HOSTFILE=$logpath/hwclog_${logsuffix}.log
+LOGCAT_HOSTFILE=$logpath/logcat_${logsuffix}.log
+KMSG_HOSTFILE=$logpath/kmsg_${logsuffix}.log
+DUMP_HOSTFILE=$logpath/dump_${logsuffix}.tgz
+STATS_HOSTFILE=$logpath/statistics_${logsuffix}.csv
+
+if [[ $NOHUP -eq 1 ]]
+then
+    push_config
+    echo "Issuing harness command to client"
+    $ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_run_harness_nohup.sh $harness_args
+    sleep 10
+    echo "Reconnect on completion of test"
+    $ADB wait-for-device
+    $ADB pull ${HWCVAL_TARGET_DIR}/out_hwch.log $logpath/out_${logsuffix}.log >& /dev/null
+    cat $logpath/out_${logsuffix}.log
+    pull_and_parse_logfiles
+else
+    # Push registry config, if defined
+    push_config
+
+    $ADB shell ${HWCVAL_TARGET_SCRIPT_DIR}/valhwc_run_harness.sh $harness_args |& tee $OUTFIL
+    pull_and_parse_logfiles
+
+    if [[ $TESTS_FAILED -gt 0 || $ABORTED -eq 1 ]]
+    then
+        if [[ "$HWCVAL_LOG_ENABLE" != "" ]]
+        then
+            echo "HWCVAL options: $HWCVAL_LOG_ENABLE"
+        fi
+    fi
+
+    if [ $systrace == 1 ]
+    then
+        wait
+    fi
+fi
+
+if [[ $ABORTED -eq 1 || $TESTS_FAILED -gt 0 ]]
+then
+    # If in valsmoke, ensure we get an abort logged.
+    stdoutname=${hwclogname/hwclog/out}
+    stdoutname=${stdoutname/.gz/}
+    if [[ $ABORTED -eq 1 ]]
+    then
+        echo "*** Test ABORTED (P:$TESTS_PASSED F:$TESTS_FAILED A:$TESTS_ABORTED T:$TESTS_TO_RUN) ***"
+    fi
+    echo "HWC Log file: $hwclogname"
+    echo "logcat is   : ${hwclogname/hwclog/logcat}"
+    echo "raw output  : $stdoutname"
+    echo
+
+    # Did we have a kernel lockup?
+    DETECTED_KERNEL_LOCK=`grep -c "timed out after 15000.000000ms" $LOGCAT_HOSTFILE`
+    if [[ $DETECTED_KERNEL_LOCK -gt 0 ]]
+    then
+        echo "*** Detected kernel lockup, must reboot board before continuing"
+        if [[ $JENKINS_PLATFORM != "" ]]
+        then
+            echo "*** Rebooting board"
+            reboot_and_wait
+            wait_for_boot_complete
+            echo "*** Reboot successful"
+        fi
+    fi
+
+fi
+
+removePersistentProperties
+
+gzip_logs $HWCLOG_HOSTFILE $LOGCAT_HOSTFILE
