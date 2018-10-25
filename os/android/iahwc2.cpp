@@ -618,6 +618,13 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       continue;
     }
 
+    if ((l.second.validated_type() != HWC2::Composition::SolidColor) &&
+        (l.second.GetLayer()->GetNativeHandle() == NULL)) {
+      ETRACE(
+          "HWC don't support layer without buffer if not in type SolidColor");
+      continue;
+    }
+
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
       case HWC2::Composition::SolidColor:
