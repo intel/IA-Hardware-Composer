@@ -95,6 +95,8 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
 
 LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
 	           compositor/va/vautils.cpp
+
+LOCAL_CPPFLAGS += -DVA_WITH_PAVP
 else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif
