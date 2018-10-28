@@ -347,6 +347,13 @@ const MediaResourceHandle& DrmBuffer::GetMediaResource(MediaDisplay display,
   external.num_buffers = total_planes;
   external.buffers = prime_fds;
 
+#ifdef VA_WITH_PAVP
+  if (METADATA(usage_) == kLayerProtected) {
+    external.flags =
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME | VA_SURFACE_EXTBUF_DESC_PROTECTED;
+  }
+#endif
+
   VASurfaceAttrib attribs[2];
   attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
   attribs[0].type = VASurfaceAttribMemoryType;

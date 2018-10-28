@@ -179,6 +179,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER |
              GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET |
              GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
+    layer_type = hwcomposer::kLayerNormal;
   } else if (layer_type == hwcomposer::kLayerVideo) {
     switch (pixel_format) {
       case HAL_PIXEL_FORMAT_YCbCr_422_I:
@@ -207,6 +208,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   temp->hwc_buffer_ = true;
+  temp->meta_data_.usage_ = (hwcomposer::HWCLayerType)layer_type;
   *handle = temp;
 
   return true;
