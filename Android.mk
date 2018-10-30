@@ -77,6 +77,9 @@ LOCAL_SRC_FILES := \
 
 LOCAL_CFLAGS := $(common_drm_hwcomposer_cflags)
 
+# Suppress warnings until they are fixed in drmhwctwo.cpp
+LOCAL_CFLAGS += -Wno-error=implicit-fallthrough
+
 LOCAL_CPPFLAGS += \
 	-DHWC2_USE_CPP11 \
 	-DHWC2_INCLUDE_STRINGIFICATION
