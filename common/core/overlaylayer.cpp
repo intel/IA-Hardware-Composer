@@ -416,8 +416,8 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
     if (!rhs->imported_buffer_.get()) {
       state_ |= kNeedsReValidation;
       return;
-    } else if (buffer->GetFormat() !=
-               rhs->imported_buffer_->buffer_->GetFormat()) {
+    } else if (buffer && (buffer->GetFormat() !=
+                          rhs->imported_buffer_->buffer_->GetFormat())) {
       state_ |= kNeedsReValidation;
       return;
     }
