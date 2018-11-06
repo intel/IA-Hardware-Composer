@@ -132,6 +132,10 @@ void DrmDisplay::DrmConnectorGetDCIP3Support(
   }
 
   edid = (uint8_t *)blob->data;
+  if (!edid) {
+    return;
+  }
+
   blocks = FindExtendedBlocksForTag(edid, CTA_EXTENDED_TAG_CODE);
 
   for (uint8_t *ext_block : blocks) {
