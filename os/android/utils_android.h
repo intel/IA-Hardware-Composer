@@ -214,7 +214,7 @@ static void DestroyBufferHandle(HWCNativeHandle handle) {
 
 static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = (struct cros_gralloc_handle *)handle->imported_handle_;
-  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
+  memset(&(handle->meta_data_), 0, sizeof(struct HwcMeta));
   handle->meta_data_.format_ = gr_handle->format;
   handle->meta_data_.tiling_mode_ = gr_handle->tiling_mode;
   handle->meta_data_.width_ = gr_handle->width;

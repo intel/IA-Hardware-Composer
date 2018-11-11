@@ -1,7 +1,7 @@
 #ifndef OS_ALIOS_PLATFORMDEFINES_H_
 #define OS_ALIOS_PLATFORMDEFINES_H_
 
-#include <hwcbuffer.h>
+#include <hwcmeta.h>
 #include <log/Log.h>
 #include <string.h>
 #include <cstdint>
@@ -74,7 +74,7 @@ struct yalloc_handle {
   gb_target_t target_;
   native_target_t* imported_target_;
   bool hwc_buffer_ = false;
-  HwcBuffer meta_data_;
+  HwcMeta meta_data_;
   void* pixel_memory_ = NULL;
 };
 
