@@ -268,22 +268,22 @@ void GbmBufferHandler::CopyHandle(HWCNativeHandle source,
 
 bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   uint32_t gem_handle = 0;
-  HwcBuffer *bo = &(handle->meta_data_);
+  HwcMeta *meta = &(handle->meta_data_);
   bool use_modifier = true;
   uint64_t mod = 0;
 
   if (!handle->imported_bo) {
     if (!handle->meta_data_.fb_modifiers_[0]) {
       use_modifier = false;
-      bo->format_ = handle->import_data.fd_data.format;
-      bo->native_format_ = handle->import_data.fd_data.format;
+      meta->format_ = handle->import_data.fd_data.format;
+      meta->native_format_ = handle->import_data.fd_data.format;
 
       handle->imported_bo =
           gbm_bo_import(device_, GBM_BO_IMPORT_FD, &handle->import_data.fd_data,
                         handle->gbm_flags);
     } else {
-      bo->format_ = handle->import_data.fd_modifier_data.format;
-      bo->native_format_ = handle->import_data.fd_modifier_data.format;
+      meta->format_ = handle->import_data.fd_modifier_data.format;
+      meta->native_format_ = handle->import_data.fd_modifier_data.format;
       handle->imported_bo = gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER,
                                           &handle->import_data.fd_modifier_data,
                                           handle->gbm_flags);
@@ -323,7 +323,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
   handle->meta_data_.num_planes_ = total_planes;
 
   if (!use_modifier) {
-    bo->prime_fds_[0] = handle->import_data.fd_data.fd;
+    meta->prime_fds_[0] = handle->import_data.fd_data.fd;
     for (size_t i = 0; i < total_planes; i++) {
       handle->meta_data_.gem_handles_[i] = gem_handle;
       handle->meta_data_.offsets_[i] =
@@ -333,7 +333,7 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
       handle->meta_data_.prime_fds_[i] = handle->import_data.fd_data.fd;
     }
   } else {
-    bo->prime_fds_[0] = handle->import_data.fd_modifier_data.fds[0];
+    meta->prime_fds_[0] = handle->import_data.fd_modifier_data.fds[0];
 
     mod = gbm_bo_get_modifier(handle->imported_bo);
     uint32_t modifier_low = static_cast<uint32_t>(mod >> 32);
@@ -347,8 +347,8 @@ bool GbmBufferHandler::ImportBuffer(HWCNativeHandle handle) const {
           gbm_bo_get_stride_for_plane(handle->imported_bo, i);
       handle->meta_data_.prime_fds_[i] =
           handle->import_data.fd_modifier_data.fds[0];
-      bo->fb_modifiers_[2 * i] = modifier_low;
-      bo->fb_modifiers_[2 * i + 1] = modifier_high;
+      meta->fb_modifiers_[2 * i] = modifier_low;
+      meta->fb_modifiers_[2 * i + 1] = modifier_high;
     }
   }
 

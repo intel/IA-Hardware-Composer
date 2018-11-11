@@ -106,7 +106,7 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
-  void Initialize(const HwcBuffer& bo);
+  void Initialize(const HwcMeta& meta);
   uint32_t format_ = 0;
   uint32_t frame_buffer_format_ = 0;
   uint32_t previous_width_ = 0;   // For Media usage.

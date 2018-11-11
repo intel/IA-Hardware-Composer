@@ -77,8 +77,8 @@ DrmBuffer::~DrmBuffer() {
 #endif
 }
 
-void DrmBuffer::Initialize(const HwcBuffer& bo) {
-  format_ = bo.format_;
+void DrmBuffer::Initialize(const HwcMeta& meta) {
+  format_ = meta.format_;
   if (format_ == DRM_FORMAT_NV12_Y_TILED_INTEL || format_ == DRM_FORMAT_NV21)
     format_ = DRM_FORMAT_NV12;
   else if (format_ == DRM_FORMAT_YVU420_ANDROID)
