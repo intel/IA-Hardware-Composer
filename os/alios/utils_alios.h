@@ -294,7 +294,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   auto gr_handle = &handle_data;
   int32_t total_planes;
 
-  memset(&(handle->meta_data_), 0, sizeof(struct HwcBuffer));
+  memset(&(handle->meta_data_), 0, sizeof(struct HwcMeta));
   handle->meta_data_.format_ = GetDrmFormatFromHALFormat(gr_handle->format);
   handle->meta_data_.width_ = gr_handle->width;
   handle->meta_data_.height_ = gr_handle->height;

@@ -14,18 +14,18 @@
 // limitations under the License.
 */
 
-#ifndef PUBLIC_HWCBUFFER_H_
-#define PUBLIC_HWCBUFFER_H_
+#ifndef PUBLIC_HWCMETA_H_
+#define PUBLIC_HWCMETA_H_
 
 #include <stdint.h>
 #include <unistd.h>
 
 #include <hwcdefs.h>
 
-struct HwcBuffer {
-  HwcBuffer() = default;
+struct HwcMeta {
+  HwcMeta() = default;
 
-  HwcBuffer &operator=(const HwcBuffer &rhs) = delete;
+  HwcMeta &operator=(const HwcMeta &rhs) = delete;
   bool is_interlaced_ = false;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
@@ -41,4 +41,4 @@ struct HwcBuffer {
   hwcomposer::HWCLayerType usage_ = hwcomposer::kLayerNormal;
 };
 
-#endif  // PUBLIC_HWCBUFFER_H_
+#endif  // PUBLIC_HWCMETA_H_

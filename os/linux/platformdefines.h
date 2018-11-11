@@ -41,7 +41,7 @@ struct gbm_handle {
   } import_data;
   struct gbm_bo* bo = NULL;
   struct gbm_bo* imported_bo = NULL;
-  HwcBuffer meta_data_;
+  HwcMeta meta_data_;
   bool hwc_buffer_ = false;
   void* pixel_memory_ = NULL;
   uint32_t gbm_flags = 0;
