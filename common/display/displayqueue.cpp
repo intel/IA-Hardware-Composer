@@ -34,14 +34,14 @@
 
 namespace hwcomposer {
 
-DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
+DisplayQueue::DisplayQueue(uint32_t gpu_fd, bool disable_explictsync,
                            NativeBufferHandler* buffer_handler,
                            PhysicalDisplay* display)
     : gpu_fd_(gpu_fd), display_(display) {
-  if (disable_overlay) {
-    state_ |= kDisableOverlayUsage;
+  if (disable_explictsync) {
+    state_ |= kDisableExplictSync;
   } else {
-    state_ &= ~kDisableOverlayUsage;
+    state_ &= ~kDisableExplictSync;
   }
 
   vblank_handler_.reset(new VblankEventHandler(this));
@@ -752,7 +752,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   bool composition_passed = true;
-  bool disable_ovelays = state_ & kDisableOverlayUsage;
+
+  bool disable_overlays = state_ & kDisableOverlay;
+  bool disable_explictsync = state_ & kDisableExplictSync;
+
   if (!validate_layers && tracker.RevalidateLayers()) {
     validate_layers = true;
   }
@@ -773,7 +776,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     if (!validate_layers && add_index > 0) {
       bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, disable_ovelays, &commit_checked,
+          layers, add_index, disable_overlays, &commit_checked,
           &needs_plane_validation, current_composition_planes,
           previous_plane_state_, surfaces_not_inuse_);
 
@@ -833,7 +836,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
     // We are doing a full re-validation.
     add_index = 0;
-    bool force_gpu = disable_ovelays || idle_frame ||
+    bool force_gpu = disable_overlays || idle_frame ||
                      ((state_ & kConfigurationChanged) && (layers.size() > 1));
     bool test_commit = false;
     render_layers = display_plane_manager_->ValidateLayers(
@@ -859,7 +862,7 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
   // Handle any 3D Composition.
   if (render_layers) {
-    compositor_.BeginFrame(disable_ovelays);
+    compositor_.BeginFrame(disable_explictsync);
 
     // if the plane is to be composited by GPU and requires GPU rotation,
     // its source layers should be re-calculated the display frame (position)
@@ -916,9 +919,9 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   int32_t fence = 0;
   bool fence_released = false;
-  composition_passed =
-      display_->Commit(current_composition_planes, previous_plane_state_,
-                       disable_ovelays, kms_fence_, &fence, &fence_released);
+  composition_passed = display_->Commit(
+      current_composition_planes, previous_plane_state_, disable_explictsync,
+      kms_fence_, &fence, &fence_released);
 
   if (fence_released) {
     kms_fence_ = 0;
@@ -1417,14 +1420,14 @@ void DisplayQueue::HandleExit() {
     kms_fence_ = 0;
   }
 
-  bool disable_overlay = false;
-  if (state_ & kDisableOverlayUsage) {
-    disable_overlay = true;
+  bool disable_explictsync = false;
+  if (state_ & kDisableExplictSync) {
+    disable_explictsync = true;
   }
 
   state_ = kConfigurationChanged;
-  if (disable_overlay) {
-    state_ |= kDisableOverlayUsage;
+  if (disable_explictsync) {
+    state_ |= kDisableExplictSync;
   }
 
   ResetQueue();
@@ -1470,9 +1473,9 @@ void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
 
 void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
   if (disable_explicit_sync) {
-    state_ |= kDisableOverlayUsage;
+    state_ |= kDisableExplictSync;
   } else {
-    state_ &= ~kDisableOverlayUsage;
+    state_ &= ~kDisableExplictSync;
   }
 }
 
