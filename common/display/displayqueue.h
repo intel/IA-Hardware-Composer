@@ -57,7 +57,7 @@ class NativeBufferHandler;
 static uint32_t kidleframes = 250;
 class DisplayQueue {
  public:
-  DisplayQueue(uint32_t gpu_fd, bool disable_overlay,
+  DisplayQueue(uint32_t gpu_fd, bool disable_explictsync,
                NativeBufferHandler* buffer_handler, PhysicalDisplay* display);
   ~DisplayQueue();
 
@@ -147,12 +147,13 @@ class DisplayQueue {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
     kConfigurationChanged = 1 << 1,  // Layers need to be re-validated.
     kPoweredOn = 1 << 2,
-    kDisableOverlayUsage = 1 << 3,  // Disable Overlays.
+    kDisableExplictSync = 1 << 3,  // Disable explict sync.
     kIgnoreIdleRefresh =
         1 << 4,  // Ignore refresh request during idle callback.
     kCanvasColorChanged = 1 << 5,  // Update color change
     kVideoDiscardProtected =
         1 << 6,  // Need to discard protected video due to tearing down
+    kDisableOverlay = 1 << 7,  // Disable HW overlay
   };
 
   struct ScalingTracker {
