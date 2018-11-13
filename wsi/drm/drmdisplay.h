@@ -53,7 +53,7 @@ class DrmDisplay : public PhysicalDisplay {
 
   bool SetBroadcastRGB(const char *range_property) override;
 
-  void SetHDCPState(HWCContentProtection state,
+  bool SetHDCPState(HWCContentProtection state,
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
@@ -139,6 +139,7 @@ class DrmDisplay : public PhysicalDisplay {
   std::vector<uint8_t *> FindExtendedBlocksForTag(uint8_t *edid,
                                                   uint8_t block_tag);
   void DrmConnectorGetDCIP3Support(const ScopedDrmObjectPropertyPtr &props);
+  bool CheckHDCPStatus();
 
   uint32_t crtc_id_ = 0;
   uint32_t mmWidth_ = 0;
@@ -155,6 +156,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t active_prop_ = 0;
   uint32_t mode_id_prop_ = 0;
   uint32_t hdcp_id_prop_ = 0;
+  uint32_t hdcp_type_prop_ = 0;
   uint32_t hdcp_srm_id_prop_ = 0;
   uint32_t edid_prop_ = 0;
   uint32_t canvas_color_prop_ = 0;
@@ -169,7 +171,8 @@ class DrmDisplay : public PhysicalDisplay {
   HWCContentProtection desired_protection_support_ =
       HWCContentProtection::kUnSupported;
   drmModeModeInfo current_mode_;
-  HWCContentType content_type_ = kCONTENT_TYPE0;
+  HWCContentType current_content_type_ = kCONTENT_TYPE0;
+  HWCContentType desired_content_type_ = kInvalid;
   std::vector<drmModeModeInfo> modes_;
   SpinLock display_lock_;
   DrmDisplayManager *manager_;

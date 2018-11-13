@@ -223,12 +223,18 @@ void LogicalDisplayManager::GetLogicalDisplays(
   }
 }
 
-void LogicalDisplayManager::SetHDCPState(HWCContentProtection state,
+bool LogicalDisplayManager::SetHDCPState(HWCContentProtection state,
                                          HWCContentType content_type) {
   uint32_t size = displays_.size();
+  bool ret = true;
   for (uint32_t i = 0; i < size; i++) {
-    displays_.at(i)->SetHDCPState(state, content_type);
+    if (ret)
+      ret = displays_.at(i)->SetHDCPState(state, content_type);
+    else
+      break;
   }
+
+  return ret;
 }
 
 void LogicalDisplayManager::SetHDCPSRM(const int8_t* SRM, uint32_t SRMLength) {
