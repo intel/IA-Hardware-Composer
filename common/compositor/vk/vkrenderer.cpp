@@ -42,7 +42,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugReportCallback(
       strcmp(pMessage,
              "vkCreateImage: value of pCreateInfo->pNext must be NULL") == 0)
     return VK_FALSE;
-  ETRACE("vulkan(%d): %s\n", (int)objectType, pMessage);
   return VK_FALSE;
 }
 
@@ -238,7 +237,7 @@ bool VKRenderer::Init() {
   if (vkCreateDebugReportCallbackEXT) {
     vkCreateDebugReportCallbackEXT(inst_, &debug_create, NULL, &callback);
   } else {
-    ETRACE("Failed to create vulkan debug callback\n");
+    ITRACE("Failed to create vulkan debug callback\n");
   }
 
   uint32_t count;

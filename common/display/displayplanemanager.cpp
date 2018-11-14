@@ -1052,7 +1052,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
       validation_done |= DisplayPlaneState::ReValidationType::kDownScaling;
       // Make sure we are not handling upscaling.
       if (last_plane.IsUsingPlaneScalar()) {
-        ETRACE(
+        ITRACE(
             "We are using upscaling and also trying to validate for "
             "downscaling \n");
         if (last_plane.GetDownScalingFactor() > 1)

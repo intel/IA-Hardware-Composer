@@ -57,7 +57,7 @@ uint32_t FrameBufferManager::FindFB(
 
     fb_id = it->second.fb_id;
   } else {
-    ETRACE("Handle not found in Cache \n");
+    ITRACE("Handle not found in Cache \n");
   }
 
   lock_.unlock();
@@ -83,7 +83,7 @@ int FrameBufferManager::RemoveFB(uint32_t num_planes,
   if (it == fb_map_.end()) {
     if (igem_handles[0] != 0 || igem_handles[1] != 0 || igem_handles[2] != 0 ||
         igem_handles[3] != 0) {
-      ETRACE("Unable to find fb in cache. %d %d %d %d \n", igem_handles[0],
+      ITRACE("Unable to find fb in cache. %d %d %d %d \n", igem_handles[0],
              igem_handles[1], igem_handles[2], igem_handles[3]);
     }
   }

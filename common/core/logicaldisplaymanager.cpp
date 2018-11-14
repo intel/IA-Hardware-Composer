@@ -160,7 +160,7 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     std::vector<HwcLayer*>().swap(cursor_layers_);
     std::vector<HwcLayer*>().swap(layers_);
     queued_displays_ = 0;
-    ETRACE("logical dpm total_size == 0 \n");
+    ITRACE("logical dpm total_size == 0 \n");
     return true;
   }
 

@@ -446,7 +446,7 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state,
   }
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
-  ETRACE("Ignored Content type. \n");
+  ITRACE("Ignored Content type. \n");
 }
 
 void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
