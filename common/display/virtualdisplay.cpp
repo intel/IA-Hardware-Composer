@@ -252,7 +252,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       char index[15];
       mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
       memset(index, 0, sizeof(index));
-      sprintf(index, "Cluster_%d", surf_index);
+      snprintf(index, sizeof(index), "Cluster_%d", surf_index);
       strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name,
               index, SURFACE_NAME_LENGTH);
       mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =
