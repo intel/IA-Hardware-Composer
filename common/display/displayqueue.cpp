@@ -1017,8 +1017,8 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   std::vector<OverlayLayer> layers;
   int add_index = -1;
   int remove_index = -1;
-  int z_order = 0;
-  int previous_size = in_flight_layers_.size();
+  size_t z_order = 0;
+  size_t previous_size = in_flight_layers_.size();
   for (const DisplayPlaneState& previous_plane : source_planes) {
     layers.emplace_back();
 

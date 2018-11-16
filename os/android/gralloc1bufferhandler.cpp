@@ -300,7 +300,7 @@ int32_t Gralloc1BufferHandler::UnMap(HWCNativeHandle handle,
 }
 
 bool Gralloc1BufferHandler::GetInterlace(HWCNativeHandle handle) const {
-  if (((struct cros_gralloc_handle *)handle->handle_)->is_interlaced > 0)
+  if (((const struct cros_gralloc_handle *)handle->handle_)->is_interlaced > 0)
     return true;
   else
     return false;
