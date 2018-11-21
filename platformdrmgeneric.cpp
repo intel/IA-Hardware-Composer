@@ -161,6 +161,12 @@ int DrmGenericImporter::ReleaseBuffer(hwc_drm_bo_t *bo) {
   return 0;
 }
 
+bool DrmGenericImporter::CanImportBuffer(buffer_handle_t handle) {
+  if (handle == NULL)
+    return false;
+  return true;
+}
+
 #ifdef USE_DRM_GENERIC_IMPORTER
 std::unique_ptr<Planner> Planner::CreateInstance(DrmDevice *) {
   std::unique_ptr<Planner> planner(new Planner);

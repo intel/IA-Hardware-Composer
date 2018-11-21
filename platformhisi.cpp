@@ -139,6 +139,12 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return ret;
 }
 
+bool HisiImporter::CanImportBuffer(buffer_handle_t handle) {
+  private_handle_t const *hnd = reinterpret_cast<private_handle_t const *>(
+      handle);
+  return hnd && (hnd->usage & GRALLOC_USAGE_HW_FB);
+}
+
 class PlanStageHiSi : public Planner::PlanStage {
  public:
   int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
