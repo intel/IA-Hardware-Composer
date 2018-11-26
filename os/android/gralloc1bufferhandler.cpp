@@ -180,7 +180,8 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
              GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET |
              GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
     layer_type = hwcomposer::kLayerNormal;
-  } else if (layer_type == hwcomposer::kLayerVideo) {
+  } else if (layer_type == hwcomposer::kLayerVideo ||
+             layer_type == hwcomposer::kLayerProtected) {
     switch (pixel_format) {
       case HAL_PIXEL_FORMAT_YCbCr_422_I:
       case HAL_PIXEL_FORMAT_Y8:

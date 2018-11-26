@@ -82,17 +82,12 @@ void CompositorThread::Wait() {
 
 bool CompositorThread::Draw(std::vector<DrawState> &states,
                             std::vector<DrawState> &media_states,
-                            const std::vector<OverlayLayer> &layers) {
+                            const std::vector<OverlayBuffer *> &buffers) {
   states_.swap(states);
   tasks_lock_.lock();
 
   if (!states_.empty()) {
-    std::vector<OverlayBuffer *>().swap(buffers_);
-    buffers_.reserve(layers.size());
-    for (auto &layer : layers) {
-      buffers_.emplace_back(layer.GetBuffer());
-    }
-
+    buffers_ = buffers;
     tasks_ |= kRender3D;
   }
 
