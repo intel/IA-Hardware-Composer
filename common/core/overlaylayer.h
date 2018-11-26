@@ -227,6 +227,14 @@ struct OverlayLayer {
     return state_ & kForcePartialClear;
   }
 
+  uint32_t GetSolidColor() {
+    return solid_color_;
+  }
+
+  uint8_t* GetSolidColorArray() {
+    return (uint8_t*)&solid_color_;
+  }
+
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
                   ResourceManager* resource_manager, uint32_t z_order,
                   FrameBufferManager* frame_buffer_manager);
@@ -278,6 +286,9 @@ struct OverlayLayer {
   uint32_t display_frame_width_ = 0;
   uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
+
+  uint32_t solid_color_ = 0;
+
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;

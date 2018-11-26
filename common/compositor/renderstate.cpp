@@ -47,6 +47,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     layer_state_.emplace_back();
     RenderState::LayerState &src = layer_state_.back();
     src.layer_index_ = texture_index;
+    src.solid_color_array_ = layer.GetSolidColorArray();
     bool swap_xy = false;
     bool flip_xy[2] = {false, false};
     uint32_t transform = layer.GetTransform();

@@ -40,6 +40,7 @@ struct RenderState {
     float premult_;
     float texture_matrix_[4];
     uint32_t layer_index_;
+    uint8_t *solid_color_array_;
     GpuResourceHandle handle_;
   };
 
