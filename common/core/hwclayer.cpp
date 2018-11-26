@@ -198,6 +198,11 @@ void HwcLayer::SetAcquireFence(int32_t fd) {
   acquire_fence_ = fd;
 }
 
+void HwcLayer::SetSolidColor(hwc_color_t color) {
+  solid_color_ = (uint32_t)color.r << 24 | (uint32_t)color.g << 16 |
+                 (uint32_t)color.b << 8 | (uint32_t)color.a;
+}
+
 int32_t HwcLayer::GetAcquireFence() {
   if (!sf_handle_)
     return -1;
