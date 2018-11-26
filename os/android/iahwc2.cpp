@@ -867,14 +867,12 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 }
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
-  // We only support Opaque colors so far.
-  if (color.r == 0 && color.g == 0 && color.b == 0 && color.a == 255) {
-    sf_type_ = HWC2::Composition::SolidColor;
+  if (sf_type_ == HWC2::Composition::SolidColor) {
     hwc_layer_.SetLayerCompositionType(hwcomposer::Composition_SolidColor);
-    return HWC2::Error::None;
+    hwc_layer_.SetSolidColor(color);
+  } else {
+    sf_type_ = HWC2::Composition::Client;
   }
-
-  sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
 
