@@ -48,7 +48,7 @@ class CompositorThread : public HWCThread {
 
   bool Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
-            const std::vector<OverlayLayer>& layers);
+            const std::vector<OverlayBuffer*>& buffers);
 
   void SetExplicitSyncSupport(bool disable_explicit_sync);
   void FreeResources();

@@ -65,6 +65,11 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
   std::vector<size_t> dedicated_layers;
   std::vector<DrawState> draw_state;
   std::vector<DrawState> media_state;
+  std::vector<OverlayBuffer *> draw_buffers;
+
+  for (auto &layer : layers) {
+    draw_buffers.emplace_back(layer.GetBuffer());
+  }
 
   for (DisplayPlaneState &plane : comp_planes) {
     if (plane.Scanout()) {
@@ -72,6 +77,14 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
         dedicated_layers.insert(dedicated_layers.end(),
                                 plane.GetSourceLayers().begin(),
                                 plane.GetSourceLayers().end());
+      }
+      // exclude the scanout layer
+      const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
+      OverlayBuffer *layerbuffer = layer.GetBuffer();
+      for (size_t index = 0; index < draw_buffers.size(); index++) {
+        if (draw_buffers[index] == layerbuffer) {
+          draw_buffers[index] = NULL;
+        }
       }
     } else if (plane.IsVideoPlane()) {
       dedicated_layers.insert(dedicated_layers.end(),
@@ -89,6 +102,13 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       lock_.unlock();
       const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
       media_state.layer_ = &layer;
+      // exclude the media buffer
+      OverlayBuffer *layerbuffer = layer.GetBuffer();
+      for (size_t index = 0; index < draw_buffers.size(); index++) {
+        if (draw_buffers[index] == layerbuffer) {
+          draw_buffers[index] = NULL;
+        }
+      }
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       plane.SwapSurfaceIfNeeded();
@@ -143,7 +163,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
 
   bool status = true;
   if (!draw_state.empty() || !media_state.empty())
-    status = thread_->Draw(draw_state, media_state, layers);
+    status = thread_->Draw(draw_state, media_state, draw_buffers);
 
   return status;
 }
@@ -156,6 +176,15 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {
+  std::vector<OverlayBuffer *> draw_buffers;
+  OverlayBuffer *nullbuffer = NULL;
+  for (auto &layer : layers) {
+    if (layer.IsProtected()) {
+      draw_buffers.emplace_back(nullbuffer);
+    } else
+      draw_buffers.emplace_back(layer.GetBuffer());
+  }
+
   std::vector<CompositionRegion> comp_regions;
   SeparateLayers(std::vector<size_t>(), source_layers, display_frame,
                  HwcRect<int>(0, 0, width, height), comp_regions);
@@ -188,7 +217,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     draw_state.acquire_fences_.emplace_back(acquire_fence);
   }
 
-  bool status = thread_->Draw(draw, media, layers);
+  bool status = thread_->Draw(draw, media, draw_buffers);
   if (status) {
     *retire_fence = draw_state.retire_fence_;
   } else {
