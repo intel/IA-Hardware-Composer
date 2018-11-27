@@ -110,6 +110,8 @@ void OverlayLayer::SetBuffer(HWCNativeHandle handle, int32_t acquire_fence,
     buffer->SetOriginalHandle(handle);
   }
 
+  buffer->SetDataSpace(dataspace_);
+
   imported_buffer_.reset(new ImportedBuffer(buffer, acquire_fence));
   ValidateForOverlayUsage();
 }
@@ -199,6 +201,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_width_ = layer->GetSourceCropWidth();
   source_crop_height_ = layer->GetSourceCropHeight();
   source_crop_ = layer->GetSourceCrop();
+  dataspace_ = layer->GetDataSpace();
   blending_ = layer->GetBlending();
   surface_damage_ = layer->GetLayerDamage();
 

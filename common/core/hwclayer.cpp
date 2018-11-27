@@ -44,6 +44,12 @@ void HwcLayer::SetTransform(int32_t transform) {
   }
 }
 
+void HwcLayer::SetDataSpace(uint32_t dataspace) {
+  if (dataspace_ != dataspace) {
+    dataspace_ = dataspace;
+  }
+}
+
 void HwcLayer::SetAlpha(uint8_t alpha) {
   if (alpha_ != alpha) {
     alpha_ = alpha;
