@@ -234,6 +234,18 @@ struct HwcLayer {
     return z_order_;
   }
 
+  /**
+   * API for setting SolidColor for this layer.
+   */
+  void SetSolidColor(uint32_t color);
+
+  /**
+   * API for getting SolidColor.
+   */
+  uint32_t GetSolidColor() {
+    return solid_color_;
+  }
+
   bool HasZorderChanged() const {
     return state_ & kZorderChanged;
   }
@@ -323,6 +335,8 @@ struct HwcLayer {
       kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
+  uint32_t solid_color_ = 0;
+
   HWCLayerCompositionType composition_type_ = Composition_Device;
 };
 
