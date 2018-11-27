@@ -78,10 +78,10 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   if (!hnd)
     return -EINVAL;
 
-  // We can't import these types of buffers, so pretend we did and rely on the
-  // planner to skip them when choosing layers for planes
+  // We can't import these types of buffers.
+  // These buffers should have been filtered out with CanImportBuffer()
   if (!(hnd->usage & GRALLOC_USAGE_HW_FB))
-    return 0;
+    return -EINVAL;
 
   uint32_t gem_handle;
   int ret = drmPrimeFDToHandle(drm_->fd(), hnd->share_fd, &gem_handle);
@@ -151,9 +151,9 @@ class PlanStageHiSi : public Planner::PlanStage {
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes) {
     int layers_added = 0;
-    int initial_layers = layers.size();
-    // Fill up as many planes as we can with buffers that do not have HW_FB
-    // usage
+    // Fill up as many DRM planes as we can with buffers that have HW_FB usage.
+    // Buffers without HW_FB should have been filtered out with
+    // CanImportBuffer(), if we meet one here, just skip it.
     for (auto i = layers.begin(); i != layers.end(); i = layers.erase(i)) {
       if (!(i->second->gralloc_buffer_usage & GRALLOC_USAGE_HW_FB))
         continue;
@@ -169,14 +169,9 @@ class PlanStageHiSi : public Planner::PlanStage {
         return ret;
       }
     }
-    /*
-     * If we only have one layer, but we didn't emplace anything, we
-     * can run into trouble, as we might try to device composite a
-     * buffer we fake-imported, which can cause things to jamb up.
-     * So return an error in this case to ensure we force client
-     * compositing.
-     */
-    if (!layers_added && (initial_layers <= 1))
+    // If we didn't emplace anything, return an error to ensure we force client
+    // compositing.
+    if (!layers_added)
       return -EINVAL;
 
     return 0;
