@@ -237,7 +237,7 @@ struct HwcLayer {
   /**
    * API for setting SolidColor for this layer.
    */
-  void SetSolidColor(hwc_color_t color);
+  void SetSolidColor(uint32_t color);
 
   /**
    * API for getting SolidColor.

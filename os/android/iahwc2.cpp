@@ -869,7 +869,10 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
   if (sf_type_ == HWC2::Composition::SolidColor) {
     hwc_layer_.SetLayerCompositionType(hwcomposer::Composition_SolidColor);
-    hwc_layer_.SetSolidColor(color);
+    uint32_t hwc_layer_color = (uint32_t)color.r << 24 |
+                               (uint32_t)color.g << 16 |
+                               (uint32_t)color.b << 8 | (uint32_t)color.a;
+    hwc_layer_.SetSolidColor(hwc_layer_color);
   } else {
     sf_type_ = HWC2::Composition::Client;
   }
