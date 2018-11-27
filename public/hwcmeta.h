@@ -38,6 +38,7 @@ struct HwcMeta {
   int prime_fds_[4];
   uint32_t num_planes_ = 0;
   uint32_t fb_modifiers_[8];
+  uint32_t dataspace_ = 0;
   hwcomposer::HWCLayerType usage_ = hwcomposer::kLayerNormal;
 };
 
