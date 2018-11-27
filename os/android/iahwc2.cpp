@@ -891,6 +891,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerDataspace(int32_t dataspace) {
   supported(__func__);
   dataspace_ = static_cast<android_dataspace_t>(dataspace);
+  hwc_layer_.SetDataSpace(dataspace_);
   return HWC2::Error::None;
 }
 

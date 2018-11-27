@@ -90,6 +90,8 @@ LOCAL_CPPFLAGS += \
         -Wno-unused-parameter \
         -O3
 
+LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
+
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
         libvulkan

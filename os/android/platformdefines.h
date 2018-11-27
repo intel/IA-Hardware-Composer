@@ -29,6 +29,7 @@
 #include <cros_gralloc_handle.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
+#include <system/graphics.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/Trace.h>
 #include "platformcommondefines.h"

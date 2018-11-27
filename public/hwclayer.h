@@ -42,6 +42,8 @@ struct HwcLayer {
     return sf_handle_;
   }
 
+  void SetDataSpace(uint32_t dataspace);
+
   void SetTransform(int32_t sf_transform);
 
   uint32_t GetTransform() const {
@@ -67,6 +69,10 @@ struct HwcLayer {
 
   void SetDisplayFrame(const HwcRect<int>& display_frame, int translate_x_pos,
                        int translate_y_pos);
+
+  uint32_t GetDataSpace() const {
+    return dataspace_;
+  }
 
   const HwcRect<int>& GetDisplayFrame() const {
     return display_frame_;
@@ -316,6 +322,7 @@ struct HwcLayer {
   uint32_t display_frame_width_ = 0;
   uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
+  uint32_t dataspace_ = 0;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;

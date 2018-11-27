@@ -32,6 +32,8 @@
 
 #include "platformcommondefines.h"
 
+#define HAL_DATASPACE_RANGE_FULL 0x8000000
+
 struct gbm_handle {
   union {
     // for GBM_BO_IMPORT_FD

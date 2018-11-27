@@ -246,6 +246,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Input Surface.
   OverlayBuffer* buffer_in = state.layer_->GetBuffer();
+  uint32_t dataspace = buffer_in->GetDataSpace();
   const MediaResourceHandle& resource = buffer_in->GetMediaResource(
       va_display_, state.layer_->GetSourceCropWidth(),
       state.layer_->GetSourceCropHeight());
@@ -295,6 +296,12 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   pipe_param.surface_color_standard = VAProcColorStandardBT601;
   pipe_param.output_region = &output_region;
   pipe_param.output_color_standard = VAProcColorStandardBT601;
+
+#ifdef VA_SUPPORT_COLOR_RANGE
+  if ((dataspace & HAL_DATASPACE_RANGE_FULL) != 0) {
+    pipe_param.input_color_properties.color_range = VA_SOURCE_RANGE_FULL;
+  }
+#endif
 
 #ifdef VA_WITH_PAVP
   if (state.layer_->IsProtected()) {
