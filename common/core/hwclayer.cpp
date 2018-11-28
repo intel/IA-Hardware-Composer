@@ -216,6 +216,11 @@ int32_t HwcLayer::GetAcquireFence() {
   return old_fd;
 }
 
+// On GP2.0 the transform is not necessary as the Frame work translate already.
+// Just leave the code here to be compatible with multi platform
+
+#ifdef SURFACE_DAMAGE_TRANSFORM
+
 void HwcLayer::SufaceDamageTransfrom() {
   int ox = 0, oy = 0;
   HwcRect<int> translated_damage =
@@ -278,6 +283,7 @@ void HwcLayer::SufaceDamageTransfrom() {
     current_rendering_damage_ = translated_damage;
   }
 }
+#endif
 
 void HwcLayer::Validate() {
   if (total_displays_ == 1) {
@@ -290,7 +296,9 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
 
+#ifdef SURFACE_DAMAGE_TRANSFORM
     SufaceDamageTransfrom();
+#endif
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
