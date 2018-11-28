@@ -172,6 +172,13 @@ struct OverlayLayer {
     return type_ == kLayerCursor;
   }
 
+  void SetVideoLayer(bool isVideo) {
+    if (isVideo)
+      type_ = kLayerVideo;
+    else
+      type_ = kLayerNormal;
+  }
+
   bool IsVideoLayer() const {
     return (type_ == kLayerVideo || type_ == kLayerProtected);
   }

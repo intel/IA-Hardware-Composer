@@ -233,6 +233,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   // TODO: Clear surface ?
   surface->SetClearSurface(NativeSurface::kNone);
+  surface->GetLayer()->SetVideoLayer(true);
 
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
