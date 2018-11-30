@@ -102,7 +102,8 @@ static std::string GenerateFragmentShader(int layer_count) {
                          << "  vec3 color = vec3(0.0, 0.0, 0.0);\n"
                          << "  float alphaCover = 1.0;\n"
                          << "  vec4 texSample;\n"
-                         << "  vec3 multRgb;\n";
+                         << "  vec3 multRgb;\n"
+                         << "  float tempAlpha;\n";
   for (int i = 0; i < layer_count; ++i) {
     if (i > 0)
       fragment_shader_stream << "  if (alphaCover > 0.5/255.0) {\n";
@@ -111,10 +112,12 @@ static std::string GenerateFragmentShader(int layer_count) {
                            << ",\n"
                            << "                        fTexCoords[" << i
                            << "]);\n"
-                           << "  texSample = texSample + uLayerColor[" << i
-                           << "];\n"
+                           << "  texSample.rgb = texSample.rgb + uLayerColor[" << i
+                           << "].rgb;\n"
+                           << "  tempAlpha = min(texSample.a, uLayerColor[" << i
+                           << "].a);\n"
                            << "  multRgb = texSample.rgb *\n"
-                           << "            max(texSample.a, uLayerPremult[" << i
+                           << "            max(tempAlpha, uLayerPremult[" << i
                            << "]);\n"
                            << "  color += multRgb * uLayerAlpha[" << i
                            << "] * alphaCover;\n"
