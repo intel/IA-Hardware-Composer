@@ -283,6 +283,11 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
 
   IDISPLAYMANAGERTRACE("buffer->GetFb() ---------------------- STARTS %d",
                        buffer->GetFb());
+  if (!property_set) {
+    ETRACE("Failed to allocate property set %d", -ENOMEM);
+    return false;
+  }
+
   int success =
       drmModeAtomicAddProperty(property_set, id_, crtc_prop_.id, crtc_id) < 0;
   success |= drmModeAtomicAddProperty(property_set, id_, fb_prop_.id,
