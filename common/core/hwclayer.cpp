@@ -216,21 +216,16 @@ int32_t HwcLayer::GetAcquireFence() {
   return old_fd;
 }
 
-// On GP2.0 the transform is not necessary as the Frame work translate already.
-// Just leave the code here to be compatible with multi platform
-
-#ifdef SURFACE_DAMAGE_TRANSFORM
-
 void HwcLayer::SufaceDamageTransfrom() {
   int ox = 0, oy = 0;
   HwcRect<int> translated_damage =
       TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
 
-  // From observation: In Android, when the source crop coordinate
-  // is (0, 0), the surface damage is already translated to global display
-  // coordinate. Therefore, no translation is needed.
-  // The rotation scenario is not verified as the rotation is not supported on P
-  // Leave the rotation scenario code here temporary.
+  // From observation: In Android, when the source crop is not (0, 0),
+  // the surface damage is already translated to global display coordinate.
+  // Therefore, no translation is needed.
+  // When the source crop coordinate is (0, 0), no scaling is needed, just
+  // transform the coordinate according to the rotation scenario.
 
   if (!surface_damage_.empty() &&
       ((source_crop_.left == 0) && (source_crop_.top == 0))) {
@@ -279,11 +274,8 @@ void HwcLayer::SufaceDamageTransfrom() {
       current_rendering_damage_.right = ox + translated_damage.right;
       current_rendering_damage_.bottom = oy + translated_damage.bottom;
     }
-  } else {
-    current_rendering_damage_ = translated_damage;
   }
 }
-#endif
 
 void HwcLayer::Validate() {
   if (total_displays_ == 1) {
@@ -296,9 +288,7 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
 
-#ifdef SURFACE_DAMAGE_TRANSFORM
     SufaceDamageTransfrom();
-#endif
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
