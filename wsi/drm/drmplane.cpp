@@ -271,6 +271,11 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                 bool test_commit) const {
   uint64_t alpha = 0xFF;
   OverlayBuffer* buffer = layer->GetBuffer();
+  if (!buffer) {
+    ETRACE("Fail to allocate buffer memory for layer!");
+    return false;
+  }
+
   const HwcRect<int>& display_frame = layer->GetDisplayFrame();
   const HwcRect<float>& source_crop = layer->GetSourceCrop();
   int fence = kms_fence_;
