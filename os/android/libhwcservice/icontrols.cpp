@@ -20,7 +20,7 @@
 
 // For AID_ROOT & AID_MEDIA - various vendor code and utils include this despite
 // the path.
-#include <private/android_filesystem_config.h>
+#include <cutils/android_filesystem_config.h>
 
 namespace hwcomposer {
 
