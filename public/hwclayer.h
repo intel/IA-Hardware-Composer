@@ -289,14 +289,13 @@ struct HwcLayer {
   void Validate();
   void UpdateRenderingDamage(const HwcRect<int>& old_rect,
                              const HwcRect<int>& newrect, bool same_rect);
-/*
- Get Rendering Damage from source surface damage
- Apply transform here
-*/
 
-#ifdef SURFACE_DAMAGE_TRANSFORM
+  /*
+   Get Rendering Damage from source surface damage
+   Apply transform here
+  */
+
   void SufaceDamageTransfrom();
-#endif
 
   void SetTotalDisplays(uint32_t total_displays);
   friend class VirtualDisplay;
