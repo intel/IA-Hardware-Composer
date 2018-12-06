@@ -164,9 +164,7 @@ LOCAL_CPPFLAGS += \
 	-DDISABLE_CURSOR_PLANE
 endif
 
-ifeq ($(strip $(BOARD_THREEDIS_UNDERRUN_WA)), true)
 LOCAL_CPPFLAGS += \
-        -DTHREEDIS_UNDERRUN_WA
-endif
+       -DMODIFICATOR_WA
 
 endif

@@ -1028,8 +1028,10 @@ bool DrmDisplay::PopulatePlanes(
       supported_formats[j] = drm_plane->formats[j];
 
     bool use_modifier = true;
-#ifdef THREEDIS_UNDERRUN_WA
+#ifdef MODIFICATOR_WA
     use_modifier = (manager_->GetConnectedPhysicalDisplayCount() < 3);
+    if (i >= 2)
+      use_modifier = false;
 #endif
     if (plane->Initialize(gpu_fd_, supported_formats, use_modifier)) {
       if (plane->type() == DRM_PLANE_TYPE_CURSOR) {
