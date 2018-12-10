@@ -88,7 +88,10 @@ VirtualDisplay::~VirtualDisplay() {
     resource_manager_->MarkResourceForDeletion(temp, false);
   }
 
-  delete output_handle_;
+  if (output_handle_) {
+    delete output_handle_;
+  }
+
   std::vector<OverlayLayer>().swap(in_flight_layers_);
 
   resource_manager_->PurgeBuffer();
@@ -111,9 +114,12 @@ VirtualDisplay::~VirtualDisplay() {
       } else {
         ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
                it->second.hyper_dmabuf_id.id);
-        mHyperDmaExportedBuffers.erase(it);
       }
     }
+    /* Clear up the map of exported buffers whatever if the ioctl of
+     * IOCTL_HYPER_DMABUF_UNEXPORTED success or fail.
+     */
+    mHyperDmaExportedBuffers.clear();
 
     close(mHyperDmaBuf_Fd);
     mHyperDmaBuf_Fd = -1;
