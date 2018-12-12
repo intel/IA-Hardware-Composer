@@ -37,6 +37,7 @@
 #define CTA_EXTENSION_TAG 0x02
 #define CTA_EXTENDED_TAG_CODE 0x07
 #define CTA_COLORIMETRY_CODE 0x05
+int FirstFrame=1;
 
 namespace hwcomposer {
 
@@ -590,6 +591,13 @@ bool DrmDisplay::CommitFrame(
   if (ret) {
     ETRACE("Failed to commit pset ret=%s\n", PRINTERROR());
     return false;
+  }
+  else
+  {
+    if (FirstFrame) {
+      FirstFrame = 0;
+	  ETRACE(" hwc first frame commited \n");
+    }
   }
 
   return true;
