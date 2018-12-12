@@ -365,9 +365,7 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 
   for (auto &display : displays_) {
     display->NotifyDisplayWA(disable_last_plane_usage);
-    if (!ignore_updates_) {
-      display->ForceRefresh();
-    }
+    display->ForceRefresh();
   }
 
   for (auto &display : displays_) {
@@ -447,8 +445,12 @@ void DrmDisplayManager::IgnoreUpdates() {
 
 void DrmDisplayManager::setDrmMaster() {
   int ret = drmSetMaster(fd_);
-  if (ret) {
-    ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+  while (ret) {
+    usleep(10000);
+    ret = drmSetMaster(fd_);
+    if (ret) {
+      ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+    }
   }
 }
 
