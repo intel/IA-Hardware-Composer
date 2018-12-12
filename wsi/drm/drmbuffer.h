@@ -40,6 +40,10 @@ class DrmBuffer : public OverlayBuffer {
       HWCNativeHandle handle, ResourceManager* buffer_manager,
       FrameBufferManager* frame_buffer_manager) override;
 
+  uint32_t GetDataSpace() const override {
+    return METADATA(dataspace_);
+  }
+
   uint32_t GetWidth() const override {
     return METADATA(width_);
   }
@@ -76,6 +80,10 @@ class DrmBuffer : public OverlayBuffer {
     return METADATA(tiling_mode_);
   }
 
+  void SetDataSpace(uint32_t dataspace) override {
+    METADATA(dataspace_) = dataspace;
+  }
+
   bool GetInterlace() override {
     return METADATA(is_interlaced_);
   }
@@ -106,7 +114,7 @@ class DrmBuffer : public OverlayBuffer {
   void Dump() override;
 
  private:
-  void Initialize(const HwcBuffer& bo);
+  void Initialize(const HwcMeta& meta);
   uint32_t format_ = 0;
   uint32_t frame_buffer_format_ = 0;
   uint32_t previous_width_ = 0;   // For Media usage.

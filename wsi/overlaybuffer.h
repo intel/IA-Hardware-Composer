@@ -45,6 +45,8 @@ class OverlayBuffer {
       HWCNativeHandle handle, ResourceManager* buffer_manager,
       FrameBufferManager* frame_buffer_manager) = 0;
 
+  virtual uint32_t GetDataSpace() const = 0;
+
   virtual uint32_t GetWidth() const = 0;
 
   virtual uint32_t GetHeight() const = 0;
@@ -62,6 +64,8 @@ class OverlayBuffer {
   virtual const uint32_t* GetOffsets() const = 0;
 
   virtual uint32_t GetTilingMode() const = 0;
+
+  virtual void SetDataSpace(uint32_t dataspace) = 0;
 
   virtual bool GetInterlace() = 0;
 

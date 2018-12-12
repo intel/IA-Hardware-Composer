@@ -154,8 +154,10 @@ bool DisplayPlaneManager::ValidateLayers(
 #endif
 
     // Handle layers for overlays.
-    for (auto j = overlay_begin; j < overlay_end; ++j) {
+    auto j = overlay_begin;
+    while (j < overlay_end) {
       DisplayPlane *plane = j->get();
+      j++;
       if (previous_layer && !composition.empty()) {
         DisplayPlaneState &last_plane = composition.back();
         if (last_plane.NeedsOffScreenComposition()) {
@@ -278,6 +280,36 @@ bool DisplayPlaneManager::ValidateLayers(
           }
         }
       }
+
+      /* NeedSquash
+           * 1) last plane is video plane, but has source layer left unsigned,
+         then need to squash due to
+              can't add left layers to video plane, that will make it go to 3D
+           * 2) Same reason if all planes are signed, but sitll left video
+         planes
+           */
+      if (j == overlay_end) {
+        bool needsquash =
+            composition.back().IsVideoPlane() && (layer_begin != layer_end);
+        if (!needsquash) {
+          auto temp_iter = layer_begin;
+          while (temp_iter != layer_end) {
+            if ((*temp_iter).IsVideoLayer()) {
+              needsquash = true;
+              break;
+            }
+            temp_iter++;
+          }
+        }
+        if (needsquash) {
+          // squash no video plane and return the
+          ITRACE("ValidateLayers Squash non video planes need");
+          size_t squashed_planes =
+              SquashNonVideoPlanes(layers, composition, commit_planes,
+                                   mark_later, &validate_final_layers);
+          j -= squashed_planes;
+        }
+      }
     }
 
     if ((layer_begin != layer_end) && (!composition.empty())) {
@@ -359,7 +391,6 @@ bool DisplayPlaneManager::ValidateLayers(
   bool render_layers = false;
   FinalizeValidation(composition, commit_planes, &render_layers,
                      re_validation_needed);
-
   *commit_checked = test_commit_done;
   return render_layers;
 }
@@ -1052,7 +1083,7 @@ bool DisplayPlaneManager::ReValidatePlanes(
       validation_done |= DisplayPlaneState::ReValidationType::kDownScaling;
       // Make sure we are not handling upscaling.
       if (last_plane.IsUsingPlaneScalar()) {
-        ETRACE(
+        ITRACE(
             "We are using upscaling and also trying to validate for "
             "downscaling \n");
         if (last_plane.GetDownScalingFactor() > 1)
@@ -1101,6 +1132,59 @@ void DisplayPlaneManager::FinalizeValidation(
 
   if (render_layers)
     *render_layers = needs_gpu;
+}
+
+size_t DisplayPlaneManager::SquashNonVideoPlanes(
+    const std::vector<OverlayLayer> &layers, DisplayPlaneStateList &composition,
+    std::vector<OverlayPlane> &commit_planes,
+    std::vector<NativeSurface *> &mark_later, bool *validate_final_layers) {
+  size_t composition_index = composition.size() - 1;
+  size_t squashed_count = 0;
+
+  while (composition_index > 0) {
+    DisplayPlaneState &last_plane = composition.at(composition_index);
+    DisplayPlaneState &scanout_plane = composition.at(composition_index - 1);
+
+    if (!last_plane.IsVideoPlane() && !scanout_plane.IsVideoPlane()) {
+#ifdef SURFACE_TRACING
+      ISURFACETRACE("Squasing non video planes. \n");
+#endif
+      const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();
+      for (const size_t &index : new_layers) {
+        scanout_plane.AddLayer(&(layers.at(index)));
+      }
+
+      scanout_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
+      last_plane.GetDisplayPlane()->SetInUse(false);
+      MarkSurfacesForRecycling(&last_plane, mark_later, true);
+      size_t top = composition.size() - 1;
+
+      while (top > composition_index) {
+        DisplayPlaneState &temp = composition.at(top);
+        DisplayPlaneState &temp1 = composition.at(top - 1);
+        temp.SetDisplayPlane(temp1.GetDisplayPlane());
+        top--;
+      }
+      composition.erase(composition.begin() + composition_index);
+      squashed_count++;
+      if (scanout_plane.NeedsSurfaceAllocation()) {
+        SetOffScreenPlaneTarget(scanout_plane);
+        *validate_final_layers = true;
+      }
+    }
+    composition_index--;
+  }
+
+  if (!commit_planes.empty() && squashed_count) {
+    // Layer for the plane should have changed, reset commit planes.
+    std::vector<OverlayPlane>().swap(commit_planes);
+    for (DisplayPlaneState &temp : composition) {
+      commit_planes.emplace_back(
+          OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
+    }
+  }
+
+  return squashed_count;
 }
 
 bool DisplayPlaneManager::SquashPlanesAsNeeded(

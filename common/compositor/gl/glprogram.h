@@ -44,6 +44,7 @@ class GLProgram {
   GLint alpha_loc_;
   GLint premult_loc_;
   GLint tex_matrix_loc_;
+  GLint solid_color_loc_;
   bool initialized_;
 };
 

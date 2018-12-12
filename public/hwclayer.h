@@ -42,6 +42,8 @@ struct HwcLayer {
     return sf_handle_;
   }
 
+  void SetDataSpace(uint32_t dataspace);
+
   void SetTransform(int32_t sf_transform);
 
   uint32_t GetTransform() const {
@@ -67,6 +69,10 @@ struct HwcLayer {
 
   void SetDisplayFrame(const HwcRect<int>& display_frame, int translate_x_pos,
                        int translate_y_pos);
+
+  uint32_t GetDataSpace() const {
+    return dataspace_;
+  }
 
   const HwcRect<int>& GetDisplayFrame() const {
     return display_frame_;
@@ -234,6 +240,18 @@ struct HwcLayer {
     return z_order_;
   }
 
+  /**
+   * API for setting SolidColor for this layer.
+   */
+  void SetSolidColor(uint32_t color);
+
+  /**
+   * API for getting SolidColor.
+   */
+  uint32_t GetSolidColor() {
+    return solid_color_;
+  }
+
   bool HasZorderChanged() const {
     return state_ & kZorderChanged;
   }
@@ -271,10 +289,12 @@ struct HwcLayer {
   void Validate();
   void UpdateRenderingDamage(const HwcRect<int>& old_rect,
                              const HwcRect<int>& newrect, bool same_rect);
+
   /*
    Get Rendering Damage from source surface damage
    Apply transform here
   */
+
   void SufaceDamageTransfrom();
 
   void SetTotalDisplays(uint32_t total_displays);
@@ -304,6 +324,7 @@ struct HwcLayer {
   uint32_t display_frame_width_ = 0;
   uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
+  uint32_t dataspace_ = 0;
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;
@@ -323,6 +344,8 @@ struct HwcLayer {
       kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
+  uint32_t solid_color_ = 0;
+
   HWCLayerCompositionType composition_type_ = Composition_Device;
 };
 

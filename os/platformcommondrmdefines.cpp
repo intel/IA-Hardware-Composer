@@ -63,9 +63,9 @@ int CreateFrameBuffer(
     const uint32_t (&igem_handles)[4], const uint32_t (&ipitches)[4],
     const uint32_t (&ioffsets)[4], uint32_t gpu_fd, uint32_t *fb_id) {
   int ret = 0;
-  uint32_t *m_igem_handles = (uint32_t *)igem_handles;
-  uint32_t *m_ipitches = (uint32_t *)ipitches;
-  uint32_t *m_ioffsets = (uint32_t *)ioffsets;
+  const uint32_t *m_igem_handles = igem_handles;
+  const uint32_t *m_ipitches = ipitches;
+  const uint32_t *m_ioffsets = ioffsets;
   if (modifier > 0) {
     uint64_t modifiers[4];
     for (uint32_t i = 0; i < num_planes; i++) {

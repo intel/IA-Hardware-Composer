@@ -44,6 +44,12 @@ void HwcLayer::SetTransform(int32_t transform) {
   }
 }
 
+void HwcLayer::SetDataSpace(uint32_t dataspace) {
+  if (dataspace_ != dataspace) {
+    dataspace_ = dataspace;
+  }
+}
+
 void HwcLayer::SetAlpha(uint8_t alpha) {
   if (alpha_ != alpha) {
     alpha_ = alpha;
@@ -198,6 +204,10 @@ void HwcLayer::SetAcquireFence(int32_t fd) {
   acquire_fence_ = fd;
 }
 
+void HwcLayer::SetSolidColor(uint32_t color) {
+  solid_color_ = color;
+}
+
 int32_t HwcLayer::GetAcquireFence() {
   if (!sf_handle_)
     return -1;
@@ -211,24 +221,14 @@ void HwcLayer::SufaceDamageTransfrom() {
   HwcRect<int> translated_damage =
       TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
 
-  int display_width = display_frame_.right - display_frame_.left;
-  int display_height = display_frame_.bottom - display_frame_.top;
-  int source_width = source_crop_.right - source_crop_.left;
-  int source_height = source_crop_.bottom - source_crop_.top;
+  // From observation: In Android, when the source crop is not (0, 0),
+  // the surface damage is already translated to global display coordinate.
+  // Therefore, no translation is needed.
+  // When the source crop coordinate is (0, 0), no scaling is needed, just
+  // transform the coordinate according to the rotation scenario.
 
-  // From observation: In Android, when the source crop doesn't
-  // begin from (0, 0) the surface damage is already translated
-  // to global display co-ordinates
   if (!surface_damage_.empty() &&
       ((source_crop_.left == 0) && (source_crop_.top == 0))) {
-    if (display_width != source_width || display_height != source_height) {
-      float ratiow = display_width * 1.0 / source_width;
-      float ratioh = display_height * 1.0 / source_height;
-      translated_damage.left = translated_damage.left * ratiow + 0.5;
-      translated_damage.right = translated_damage.right * ratiow + 0.5;
-      translated_damage.top = translated_damage.right * ratioh + 0.5;
-      translated_damage.bottom = translated_damage.bottom * ratioh + 0.5;
-    }
     if (transform_ == hwcomposer::HWCTransform::kTransform270) {
       ox = display_frame_.left;
       oy = display_frame_.bottom;
@@ -274,8 +274,6 @@ void HwcLayer::SufaceDamageTransfrom() {
       current_rendering_damage_.right = ox + translated_damage.right;
       current_rendering_damage_.bottom = oy + translated_damage.bottom;
     }
-  } else {
-    current_rendering_damage_ = translated_damage;
   }
 }
 

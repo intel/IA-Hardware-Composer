@@ -867,14 +867,15 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 }
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
-  // We only support Opaque colors so far.
-  if (color.r == 0 && color.g == 0 && color.b == 0 && color.a == 255) {
-    sf_type_ = HWC2::Composition::SolidColor;
+  if (sf_type_ == HWC2::Composition::SolidColor) {
     hwc_layer_.SetLayerCompositionType(hwcomposer::Composition_SolidColor);
-    return HWC2::Error::None;
+    uint32_t hwc_layer_color = (uint32_t)color.r << 24 |
+                               (uint32_t)color.g << 16 |
+                               (uint32_t)color.b << 8 | (uint32_t)color.a;
+    hwc_layer_.SetSolidColor(hwc_layer_color);
+  } else {
+    sf_type_ = HWC2::Composition::Client;
   }
-
-  sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
 
@@ -890,6 +891,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerDataspace(int32_t dataspace) {
   supported(__func__);
   dataspace_ = static_cast<android_dataspace_t>(dataspace);
+  hwc_layer_.SetDataSpace(dataspace_);
   return HWC2::Error::None;
 }
 

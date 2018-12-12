@@ -172,6 +172,13 @@ struct OverlayLayer {
     return type_ == kLayerCursor;
   }
 
+  void SetVideoLayer(bool isVideo) {
+    if (isVideo)
+      type_ = kLayerVideo;
+    else
+      type_ = kLayerNormal;
+  }
+
   bool IsVideoLayer() const {
     return (type_ == kLayerVideo || type_ == kLayerProtected);
   }
@@ -185,9 +192,9 @@ struct OverlayLayer {
   }
 
   void SetProtected(bool isProtected) {
-    if (isProtected && type_ == kLayerVideo)
+    if (isProtected && (type_ == kLayerVideo || type_ == kLayerProtected))
       type_ = kLayerProtected;
-    else if (!isProtected && type_ == kLayerProtected)
+    else if (!isProtected && (type_ == kLayerProtected || type_ == kLayerVideo))
       type_ = kLayerVideo;
     else
       type_ = kLayerNormal;
@@ -225,6 +232,14 @@ struct OverlayLayer {
 
   bool NeedsPartialClear() const {
     return state_ & kForcePartialClear;
+  }
+
+  uint32_t GetSolidColor() {
+    return solid_color_;
+  }
+
+  uint8_t* GetSolidColorArray() {
+    return (uint8_t*)&solid_color_;
   }
 
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
@@ -278,6 +293,10 @@ struct OverlayLayer {
   uint32_t display_frame_width_ = 0;
   uint32_t display_frame_height_ = 0;
   uint8_t alpha_ = 0xff;
+  uint32_t dataspace_ = 0;
+
+  uint32_t solid_color_ = 0;
+
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
   HwcRect<int> surface_damage_;

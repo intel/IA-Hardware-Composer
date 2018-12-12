@@ -92,7 +92,7 @@ bool YallocBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   bool force_normal_usage = false;
   if ((layer_type == hwcomposer::kLayerVideo) &&
       !IsSupportedMediaFormat(format)) {
-    ETRACE("Forcing normal usage for Video Layer. \n");
+    ITRACE("Forcing normal usage for Video Layer. \n");
     force_normal_usage = true;
   }
 

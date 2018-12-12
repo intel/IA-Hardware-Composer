@@ -457,6 +457,11 @@ DisplayPlane *DisplayPlaneState::GetDisplayPlane() const {
   return private_data_->plane_;
 }
 
+void DisplayPlaneState::SetDisplayPlane(DisplayPlane *plane) {
+  private_data_->plane_ = plane;
+  plane->SetInUse(true);
+}
+
 const std::vector<size_t> &DisplayPlaneState::GetSourceLayers() const {
   return private_data_->source_layers_;
 }
