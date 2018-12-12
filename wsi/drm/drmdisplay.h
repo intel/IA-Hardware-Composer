@@ -32,6 +32,16 @@
 #endif
 
 namespace hwcomposer {
+
+enum pipe_bpc {
+  PIPE_BPC_INVALID = -1,
+  PIPE_BPC_SIX = 6,
+  PIPE_BPC_EIGHT = 8,
+  PIPE_BPC_TEN = 10,
+  PIPE_BPC_TWELVE = 12,
+  PIPE_BPC_SIXTEEN = 16
+};
+
 class DrmDisplayManager;
 class DisplayPlaneState;
 class DisplayQueue;
@@ -57,6 +67,8 @@ class DrmDisplay : public PhysicalDisplay {
                     HWCContentType content_type) override;
   void SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) override;
 
+  bool ContainConnector(const uint32_t connector_id) override;
+
   bool InitializeDisplay() override;
   void PowerOn() override;
   void UpdateDisplayConfig() override;
@@ -64,6 +76,7 @@ class DrmDisplay : public PhysicalDisplay {
                           uint32_t brightness) const override;
   void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
                           uint16_t blue, uint16_t alpha) const override;
+  bool SetPipeMaxBpc(uint16_t max_bpc) const override;
   void SetColorTransformMatrix(
       const float *color_transform_matrix,
       HWCColorTransform color_transform_hint) const override;
@@ -98,6 +111,10 @@ class DrmDisplay : public PhysicalDisplay {
   }
 
   void IgnoreUpdates();
+
+  uint32_t GetConnectorID() {
+    return connector_;
+  }
 
   void HandleLazyInitialization() override;
 
@@ -154,6 +171,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t canvas_color_prop_ = 0;
   uint32_t connector_ = 0;
   bool dcip3_ = false;
+  uint32_t max_bpc_prop_ = 0;
   uint64_t lut_size_ = 0;
   int64_t broadcastrgb_full_ = -1;
   int64_t broadcastrgb_automatic_ = -1;

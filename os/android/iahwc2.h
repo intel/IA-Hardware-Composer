@@ -51,12 +51,12 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::NativeDisplay *GetPrimaryDisplay();
   hwcomposer::NativeDisplay *GetExtendedDisplay(uint32_t);
 
-  void EnableHDCPSessionForDisplay(uint32_t display,
+  void EnableHDCPSessionForDisplay(uint32_t connector,
                                    EHwcsContentType content_type);
 
   void EnableHDCPSessionForAllDisplays(EHwcsContentType content_type);
 
-  void DisableHDCPSessionForDisplay(uint32_t display);
+  void DisableHDCPSessionForDisplay(uint32_t connector);
 
   void DisableHDCPSessionForAllDisplays();
 
@@ -64,8 +64,9 @@ class IAHWC2 : public hwc2_device_t {
                             uint32_t pavp_instance_id);
   void SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength);
 
-  void SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+  void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                             uint32_t SRMLength);
+  uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
  public:
   class Hwc2Layer {

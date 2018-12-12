@@ -132,6 +132,10 @@ void DrmDisplay::DrmConnectorGetDCIP3Support(
   }
 
   edid = (uint8_t *)blob->data;
+  if (!edid) {
+    return;
+  }
+
   blocks = FindExtendedBlocksForTag(edid, CTA_EXTENDED_TAG_CODE);
 
   for (uint8_t *ext_block : blocks) {
@@ -205,12 +209,16 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmObjectProperty("CRTC_ID", connector_props, &crtc_prop_);
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
+  GetDrmObjectProperty("max bpc", connector_props, &max_bpc_prop_);
 
   DrmConnectorGetDCIP3Support(connector_props);
-  if (dcip3_)
+  if (dcip3_) {
     ITRACE("DCIP3 support available");
-  else
+    if (!SetPipeMaxBpc(PIPE_BPC_TWELVE))
+      ETRACE("Failed to set Max Bpc for the Pipe\n");
+  } else {
     ITRACE("DCIP3 support not available");
+  }
 
   PhysicalDisplay::Connect();
   SetHDCPState(desired_protection_support_, content_type_);
@@ -442,7 +450,7 @@ void DrmDisplay::SetHDCPState(HWCContentProtection state,
   }
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_id_prop_, value);
-  ETRACE("Ignored Content type. \n");
+  ITRACE("Ignored Content type. \n");
 }
 
 void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
@@ -464,6 +472,10 @@ void DrmDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
 
   drmModeConnectorSetProperty(gpu_fd_, connector_, hdcp_srm_id_prop_, srm_id);
   drmModeDestroyPropertyBlob(gpu_fd_, srm_id);
+}
+
+bool DrmDisplay::ContainConnector(const uint32_t connector_id) {
+  return (connector_ == connector_id);
 }
 
 bool DrmDisplay::Commit(
@@ -774,6 +786,20 @@ void DrmDisplay::SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
                            canvas_color_prop_, canvas_color);
 }
 
+bool DrmDisplay::SetPipeMaxBpc(uint16_t max_bpc) const {
+  int ret;
+
+  if (max_bpc_prop_ == 0)
+    return false;
+
+  ret = drmModeConnectorSetProperty(gpu_fd_, connector_, max_bpc_prop_,
+                                    (uint64_t)max_bpc);
+  if (ret < 0)
+    return false;
+
+  return true;
+}
+
 float DrmDisplay::TransformContrastBrightness(float value, float brightness,
                                               float contrast) const {
   float result;
@@ -1002,8 +1028,10 @@ bool DrmDisplay::PopulatePlanes(
       supported_formats[j] = drm_plane->formats[j];
 
     bool use_modifier = true;
-#ifdef THREEDIS_UNDERRUN_WA
+#ifdef MODIFICATOR_WA
     use_modifier = (manager_->GetConnectedPhysicalDisplayCount() < 3);
+    if (i >= 2)
+      use_modifier = false;
 #endif
     if (plane->Initialize(gpu_fd_, supported_formats, use_modifier)) {
       if (plane->type() == DRM_PLANE_TYPE_CURSOR) {

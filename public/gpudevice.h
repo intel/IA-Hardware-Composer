@@ -63,7 +63,7 @@ class GpuDevice : public HWCThread {
   // have ability to fallback to older specifications i.e. HDCP 2.2 and 1.4
   // in case latest speicification cannot be supported for some reason.
   // Content type is defined by content_type.
-  void EnableHDCPSessionForDisplay(uint32_t display,
+  void EnableHDCPSessionForDisplay(uint32_t connector,
                                    HWCContentType content_type);
 
   // Enables the usage of HDCP for all planes supporting this feature
@@ -76,7 +76,7 @@ class GpuDevice : public HWCThread {
 
   // The control disables the usage of HDCP for all planes supporting this
   // feature on display.
-  void DisableHDCPSessionForDisplay(uint32_t display);
+  void DisableHDCPSessionForDisplay(uint32_t connector);
 
   // The control disables the usage of HDCP for all planes supporting this
   // feature on all connected displays.
@@ -85,8 +85,9 @@ class GpuDevice : public HWCThread {
   void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
                             uint32_t pavp_instance_id);
   void SetHDCPSRMForAllDisplays(const int8_t* SRM, uint32_t SRMLength);
-  void SetHDCPSRMForDisplay(uint32_t display, const int8_t* SRM,
+  void SetHDCPSRMForDisplay(uint32_t connector, const int8_t* SRM,
                             uint32_t SRMLength);
+  uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
  private:
   enum InitializationType {

@@ -49,6 +49,7 @@ LOCAL_SHARED_LIBRARIES += \
 	libva
 LOCAL_C_INCLUDES += \
 	$(TARGET_OUT_HEADERS)/libva
+LOCAL_CPPFLAGS += -DVA_WITH_PAVP
 endif
 
 LOCAL_SRC_FILES := \
@@ -74,6 +75,8 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_CPPFLAGS += -DENABLE_DOUBLE_BUFFERING
 endif
 
+LOCAL_CPPFLAGS += -DMODIFICATOR_WA
+
 LOCAL_CPPFLAGS += \
         -DHWC2_INCLUDE_STRINGIFICATION \
         -DHWC2_USE_CPP11 \
@@ -86,7 +89,10 @@ LOCAL_CPPFLAGS += \
         -Wall -Wsign-compare -Wpointer-arith \
         -Wcast-qual -Wcast-align \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+        -Wno-unused-parameter \
         -O3
+
+LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
 
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
@@ -113,11 +119,6 @@ LOCAL_CPPFLAGS += \
 endif
 
 LOCAL_CPPFLAGS += -DENABLE_ANDROID_WA
-
-ifeq ($(strip $(BOARD_THREEDIS_UNDERRUN_WA)), true)
-LOCAL_CPPFLAGS += \
-        -DTHREEDIS_UNDERRUN_WA
-endif
 
 LOCAL_MODULE := libhwcomposer_wsi
 LOCAL_CFLAGS += -fvisibility=default

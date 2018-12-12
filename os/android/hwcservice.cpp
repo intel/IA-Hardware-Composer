@@ -365,8 +365,8 @@ status_t HwcService::Controls::DisplayModeSetMode(uint32_t display,
 }
 
 status_t HwcService::Controls::EnableHDCPSessionForDisplay(
-    uint32_t display, EHwcsContentType content_type) {
-  mHwc.EnableHDCPSessionForDisplay(display, content_type);
+    uint32_t connector, EHwcsContentType content_type) {
+  mHwc.EnableHDCPSessionForDisplay(connector, content_type);
   return OK;
 }
 
@@ -376,8 +376,9 @@ status_t HwcService::Controls::EnableHDCPSessionForAllDisplays(
   return OK;
 }
 
-status_t HwcService::Controls::DisableHDCPSessionForDisplay(uint32_t display) {
-  mHwc.DisableHDCPSessionForDisplay(display);
+status_t HwcService::Controls::DisableHDCPSessionForDisplay(
+    uint32_t connector) {
+  mHwc.DisableHDCPSessionForDisplay(connector);
   return OK;
 }
 
@@ -392,11 +393,16 @@ status_t HwcService::Controls::SetHDCPSRMForAllDisplays(const int8_t *SRM,
   return OK;
 }
 
-status_t HwcService::Controls::SetHDCPSRMForDisplay(uint32_t display,
+status_t HwcService::Controls::SetHDCPSRMForDisplay(uint32_t connector,
                                                     const int8_t *SRM,
                                                     uint32_t SRMLength) {
-  mHwc.SetHDCPSRMForDisplay(display, SRM, SRMLength);
+  mHwc.SetHDCPSRMForDisplay(connector, SRM, SRMLength);
   return OK;
+}
+
+uint32_t HwcService::Controls::GetDisplayIDFromConnectorID(
+    uint32_t connector_id) {
+  return mHwc.GetDisplayIDFromConnectorID(connector_id);
 }
 
 status_t HwcService::Controls::VideoEnableEncryptedSession(

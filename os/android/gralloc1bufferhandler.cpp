@@ -179,7 +179,9 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
     usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER |
              GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET |
              GRALLOC1_CONSUMER_USAGE_GPU_TEXTURE;
-  } else if (layer_type == hwcomposer::kLayerVideo) {
+    layer_type = hwcomposer::kLayerNormal;
+  } else if (layer_type == hwcomposer::kLayerVideo ||
+             layer_type == hwcomposer::kLayerProtected) {
     switch (pixel_format) {
       case HAL_PIXEL_FORMAT_YCbCr_422_I:
       case HAL_PIXEL_FORMAT_Y8:
@@ -207,6 +209,7 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   }
 
   temp->hwc_buffer_ = true;
+  temp->meta_data_.usage_ = (hwcomposer::HWCLayerType)layer_type;
   *handle = temp;
 
   return true;
@@ -298,7 +301,7 @@ int32_t Gralloc1BufferHandler::UnMap(HWCNativeHandle handle,
 }
 
 bool Gralloc1BufferHandler::GetInterlace(HWCNativeHandle handle) const {
-  if (((struct cros_gralloc_handle *)handle->handle_)->is_interlaced > 0)
+  if (((const struct cros_gralloc_handle *)handle->handle_)->is_interlaced > 0)
     return true;
   else
     return false;

@@ -115,6 +115,8 @@ class DisplayPlaneState {
 
   DisplayPlane *GetDisplayPlane() const;
 
+  void SetDisplayPlane(DisplayPlane *plane);
+
   // Returns source layers for this plane.
   const std::vector<size_t> &GetSourceLayers() const;
 

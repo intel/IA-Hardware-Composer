@@ -56,6 +56,7 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_ALL_DISPLAYS,
     TRANSACT_VIDEO_SET_HDCP_SRM_FOR_ALL_DISPLAYS,
     TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
+    TRANSACT_GET_DISPLAYID_FROM_CONNECTORID,
     TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS,
@@ -312,12 +313,12 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t EnableHDCPSessionForDisplay(uint32_t display,
-                                       EHwcsContentType content_type) {
+  status_t EnableHDCPSessionForDisplay(uint32_t connector,
+                                       EHwcsContentType content_type) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     data.writeInt32(content_type);
     status_t ret = remote()->transact(
         TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
@@ -328,7 +329,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t EnableHDCPSessionForAllDisplays(EHwcsContentType content_type) {
+  status_t EnableHDCPSessionForAllDisplays(
+      EHwcsContentType content_type) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -342,11 +344,11 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t DisableHDCPSessionForDisplay(uint32_t display) {
+  status_t DisableHDCPSessionForDisplay(uint32_t connector) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     status_t ret = remote()->transact(
         TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY, data, &reply);
     if (ret != NO_ERROR) {
@@ -356,7 +358,7 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t DisableHDCPSessionForAllDisplays() {
+  status_t DisableHDCPSessionForAllDisplays() override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -368,7 +370,8 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) {
+  status_t SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                    uint32_t SRMLength) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
@@ -381,12 +384,12 @@ class BpControls : public BpInterface<IControls> {
     return reply.readInt32();
   }
 
-  status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
-                                uint32_t SRMLength) {
+  status_t SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
+                                uint32_t SRMLength) override {
     Parcel data;
     Parcel reply;
     data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(display);
+    data.writeInt32(connector);
     data.writeByteArray(SRMLength, (const uint8_t *)SRM);
     status_t ret = remote()->transact(TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
                                       data, &reply);
@@ -394,6 +397,20 @@ class BpControls : public BpInterface<IControls> {
       ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
     }
     return reply.readInt32();
+  }
+
+  uint32_t GetDisplayIDFromConnectorID(uint32_t connector_id) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(connector_id);
+
+    status_t ret = remote()->transact(TRANSACT_GET_DISPLAYID_FROM_CONNECTORID,
+                                      data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return (uint32_t)(reply.readInt32());
   }
 
   status_t VideoEnableEncryptedSession(uint32_t sessionID,
@@ -679,9 +696,9 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     }
     case BpControls::TRANSACT_VIDEO_ENABLE_HDCP_SESSION_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
-      uint32_t display = data.readInt32();
+      uint32_t connector = data.readInt32();
       EHwcsContentType content_type = (EHwcsContentType)data.readInt32();
-      status_t ret = this->EnableHDCPSessionForDisplay(display, content_type);
+      status_t ret = this->EnableHDCPSessionForDisplay(connector, content_type);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -694,8 +711,8 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     }
     case BpControls::TRANSACT_VIDEO_DISABLE_HDCP_SESSION_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
-      uint32_t display = data.readInt32();
-      status_t ret = this->DisableHDCPSessionForDisplay(display);
+      uint32_t connector = data.readInt32();
+      status_t ret = this->DisableHDCPSessionForDisplay(connector);
       reply->writeInt32(ret);
       return NO_ERROR;
     }
@@ -717,14 +734,20 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
     case BpControls::TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY: {
       CHECK_INTERFACE(IControls, data, reply);
       std::vector<int8_t> srmvec;
-      uint32_t display = data.readInt32();
+      uint32_t connector = data.readInt32();
       data.readByteVector(&srmvec);
       status_t ret = this->SetHDCPSRMForDisplay(
-          display, (const int8_t *)(srmvec.data()), srmvec.size());
+          connector, (const int8_t *)(srmvec.data()), srmvec.size());
       reply->writeInt32(ret);
       return NO_ERROR;
     }
-
+    case BpControls::TRANSACT_GET_DISPLAYID_FROM_CONNECTORID: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t connector_id = data.readInt32();
+      uint32_t display_id = this->GetDisplayIDFromConnectorID(connector_id);
+      reply->writeInt32(display_id);
+      return NO_ERROR;
+    }
     case BpControls::TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t sessionID = data.readInt32();

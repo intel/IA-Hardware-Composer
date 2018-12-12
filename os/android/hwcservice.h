@@ -88,20 +88,20 @@ class HwcService : public BnService {
     status_t DisplayModeGetMode(uint32_t display, HwcsDisplayModeInfo* pMode);
     status_t DisplayModeSetMode(uint32_t display, const uint32_t config);
 
-    status_t EnableHDCPSessionForDisplay(uint32_t display,
+    status_t EnableHDCPSessionForDisplay(uint32_t connector,
                                          EHwcsContentType content_type);
 
     status_t EnableHDCPSessionForAllDisplays(EHwcsContentType content_type);
 
-    status_t DisableHDCPSessionForDisplay(uint32_t display);
+    status_t DisableHDCPSessionForDisplay(uint32_t connector);
 
     status_t DisableHDCPSessionForAllDisplays();
 
     status_t SetHDCPSRMForAllDisplays(const int8_t* SRM, uint32_t SRMLength);
 
-    status_t SetHDCPSRMForDisplay(uint32_t display, const int8_t* SRM,
+    status_t SetHDCPSRMForDisplay(uint32_t connector, const int8_t* SRM,
                                   uint32_t SRMLength);
-
+    uint32_t GetDisplayIDFromConnectorID(uint32_t connector_id);
     status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                          uint32_t instanceID);
     status_t VideoDisableAllEncryptedSessions(uint32_t sessionID);

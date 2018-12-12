@@ -219,7 +219,7 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
 }
 
 HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
-  if (display <= (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
+  if (display < (hwc2_display_t)(HWC_DISPLAY_VIRTUAL + VDS_OFFSET)) {
     ALOGE("Not Virtual Display Type in DestroyVirtualDisplay");
     return HWC2::Error::BadDisplay;
   }
@@ -618,6 +618,13 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       continue;
     }
 
+    if ((l.second.validated_type() != HWC2::Composition::SolidColor) &&
+        (l.second.GetLayer()->GetNativeHandle() == NULL)) {
+      ETRACE(
+          "HWC don't support layer without buffer if not in type SolidColor");
+      continue;
+    }
+
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
       case HWC2::Composition::SolidColor:
@@ -860,14 +867,15 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 }
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerColor(hwc_color_t color) {
-  // We only support Opaque colors so far.
-  if (color.r == 0 && color.g == 0 && color.b == 0 && color.a == 255) {
-    sf_type_ = HWC2::Composition::SolidColor;
+  if (sf_type_ == HWC2::Composition::SolidColor) {
     hwc_layer_.SetLayerCompositionType(hwcomposer::Composition_SolidColor);
-    return HWC2::Error::None;
+    uint32_t hwc_layer_color = (uint32_t)color.r << 24 |
+                               (uint32_t)color.g << 16 |
+                               (uint32_t)color.b << 8 | (uint32_t)color.a;
+    hwc_layer_.SetSolidColor(hwc_layer_color);
+  } else {
+    sf_type_ = HWC2::Composition::Client;
   }
-
-  sf_type_ = HWC2::Composition::Client;
   return HWC2::Error::None;
 }
 
@@ -883,6 +891,7 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerCompositionType(int32_t type) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerDataspace(int32_t dataspace) {
   supported(__func__);
   dataspace_ = static_cast<android_dataspace_t>(dataspace);
+  hwc_layer_.SetDataSpace(dataspace_);
   return HWC2::Error::None;
 }
 
@@ -1222,14 +1231,14 @@ hwcomposer::NativeDisplay *IAHWC2::HwcDisplay::GetDisplay() {
   return display_;
 }
 
-void IAHWC2::EnableHDCPSessionForDisplay(uint32_t display,
+void IAHWC2::EnableHDCPSessionForDisplay(uint32_t connector,
                                          EHwcsContentType content_type) {
   HWCContentType type = kCONTENT_TYPE0;
   if (content_type == HWCS_CP_CONTENT_TYPE1) {
     type = kCONTENT_TYPE1;
   }
 
-  device_.EnableHDCPSessionForDisplay(display, type);
+  device_.EnableHDCPSessionForDisplay(connector, type);
 }
 
 void IAHWC2::EnableHDCPSessionForAllDisplays(EHwcsContentType content_type) {
@@ -1240,8 +1249,8 @@ void IAHWC2::EnableHDCPSessionForAllDisplays(EHwcsContentType content_type) {
   device_.EnableHDCPSessionForAllDisplays(type);
 }
 
-void IAHWC2::DisableHDCPSessionForDisplay(uint32_t display) {
-  device_.DisableHDCPSessionForDisplay(display);
+void IAHWC2::DisableHDCPSessionForDisplay(uint32_t connector) {
+  device_.DisableHDCPSessionForDisplay(connector);
 }
 
 void IAHWC2::DisableHDCPSessionForAllDisplays() {
@@ -1261,13 +1270,17 @@ void IAHWC2::SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) {
   device_.SetHDCPSRMForAllDisplays(SRM, SRMLength);
 }
 
-void IAHWC2::SetHDCPSRMForDisplay(uint32_t display, const int8_t *SRM,
+uint32_t IAHWC2::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
+  return device_.GetDisplayIDFromConnectorID(connector_id);
+}
+
+void IAHWC2::SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                   uint32_t SRMLength) {
   if (SRM == NULL) {
     ETRACE("Error:HDCP Set NULL SRM");
     return;
   }
-  device_.SetHDCPSRMForDisplay(display, SRM, SRMLength);
+  device_.SetHDCPSRMForDisplay(connector, SRM, SRMLength);
 }
 
 }  // namespace android

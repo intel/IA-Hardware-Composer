@@ -95,6 +95,8 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
 
 LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
 	           compositor/va/vautils.cpp
+
+LOCAL_CPPFLAGS += -DVA_WITH_PAVP
 else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif
@@ -128,7 +130,10 @@ LOCAL_CPPFLAGS += \
 	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
         -DHWC_DISPLAY_INI_PATH='"/vendor/etc/hwc_display.ini"' \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
+        -Wno-unused-parameter \
         -O3
+
+LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
 
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \

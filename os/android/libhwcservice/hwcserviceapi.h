@@ -181,7 +181,7 @@ status_t HwcService_DisplayMode_SetMode(HWCSHANDLE hwcs, uint32_t display,
 // in case latest specification cannot be supported for some reason. Type
 // of content can be set by content_type.
 status_t HwcService_Video_EnableHDCPSession_ForDisplay(
-    HWCSHANDLE hwcs, uint32_t display, EHwcsContentType content_type);
+    HWCSHANDLE hwcs, uint32_t connector, EHwcsContentType content_type);
 
 // The control enables the usage of HDCP for all planes supporting this
 // feature on all connected displays. Some displays can support latest HDCP
@@ -194,20 +194,23 @@ status_t HwcService_Video_EnableHDCPSession_AllDisplays(
 // The control disables the usage of HDCP for all planes supporting this feature
 // on display.
 status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
-                                                        uint32_t display);
+                                                        uint32_t connector);
 
 // The control disables the usage of HDCP for all planes supporting this feature
 // on all connected displays.
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs);
 
 status_t HwcService_Video_SetHDCPSRM_ForDisplay(HWCSHANDLE hwcs,
-                                                uint32_t display,
+                                                uint32_t connector,
                                                 const int8_t *SRM,
                                                 uint32_t SRMLengh);
 
 status_t HwcService_Video_SetHDCPSRM_AllDisplays(HWCSHANDLE hwcs,
                                                  const int8_t *SRM,
                                                  uint32_t SRMLengh);
+
+uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
+                                                uint32_t connector_id);
 
 // The control enables a the protected video subsystem to control when to
 // replace any

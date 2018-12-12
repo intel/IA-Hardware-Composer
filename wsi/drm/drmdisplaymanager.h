@@ -63,6 +63,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void IgnoreUpdates() override;
 
+  void setDrmMaster() override;
+
   uint32_t GetFD() const override {
     return fd_;
   }
@@ -72,6 +74,15 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void HandleLazyInitialization();
 
   uint32_t GetConnectedPhysicalDisplayCount();
+
+  void EnableHDCPSessionForDisplay(uint32_t connector,
+                                   HWCContentType content_type) override;
+  void EnableHDCPSessionForAllDisplays(HWCContentType content_type) override;
+  void DisableHDCPSessionForDisplay(uint32_t connector) override;
+  void DisableHDCPSessionForAllDisplays() override;
+  void SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) override;
+  void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
+                            uint32_t SRMLength) override;
 
  protected:
   void HandleWait() override;

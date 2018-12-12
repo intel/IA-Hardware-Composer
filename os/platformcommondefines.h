@@ -23,7 +23,7 @@
 VkFormat NativeToVkFormat(int native_format);
 #endif
 
-#include <hwcbuffer.h>
+#include <hwcmeta.h>
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>

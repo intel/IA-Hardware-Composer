@@ -88,7 +88,10 @@ VirtualDisplay::~VirtualDisplay() {
     resource_manager_->MarkResourceForDeletion(temp, false);
   }
 
-  delete output_handle_;
+  if (output_handle_) {
+    delete output_handle_;
+  }
+
   std::vector<OverlayLayer>().swap(in_flight_layers_);
 
   resource_manager_->PurgeBuffer();
@@ -111,9 +114,12 @@ VirtualDisplay::~VirtualDisplay() {
       } else {
         ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
                it->second.hyper_dmabuf_id.id);
-        mHyperDmaExportedBuffers.erase(it);
       }
     }
+    /* Clear up the map of exported buffers whatever if the ioctl of
+     * IOCTL_HYPER_DMABUF_UNEXPORTED success or fail.
+     */
+    mHyperDmaExportedBuffers.clear();
 
     close(mHyperDmaBuf_Fd);
     mHyperDmaBuf_Fd = -1;
@@ -198,6 +204,13 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
       const HwcRect<int> &display_frame = layer->GetDisplayFrame();
       sf_handle = layer->GetNativeHandle();
+
+      if (NULL == sf_handle) {
+        ITRACE("Skip layer index: %u for Hyper DMA buffer sharing",
+               layer_index);
+        continue;
+      }
+
       std::shared_ptr<OverlayBuffer> buffer(NULL);
       uint32_t gpu_fd = resource_manager_->GetNativeBufferHandler()->GetFd();
       uint32_t id = GetNativeBuffer(gpu_fd, sf_handle);
@@ -245,7 +258,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       char index[15];
       mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
       memset(index, 0, sizeof(index));
-      sprintf(index, "Cluster_%d", surf_index);
+      snprintf(index, sizeof(index), "Cluster_%d", surf_index);
       strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name,
               index, SURFACE_NAME_LENGTH);
       mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =

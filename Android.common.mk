@@ -121,6 +121,8 @@ LOCAL_CPPFLAGS += \
 	-Wno-unused-parameter \
 	-Wno-unused-variable
 
+LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
+
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
 	libvulkan
@@ -145,6 +147,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
+LOCAL_CPPFLAGS += -DVA_WITH_PAVP
 else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif
@@ -161,9 +164,7 @@ LOCAL_CPPFLAGS += \
 	-DDISABLE_CURSOR_PLANE
 endif
 
-ifeq ($(strip $(BOARD_THREEDIS_UNDERRUN_WA)), true)
 LOCAL_CPPFLAGS += \
-        -DTHREEDIS_UNDERRUN_WA
-endif
+       -DMODIFICATOR_WA
 
 endif

@@ -72,7 +72,7 @@ endif
 libiahwcincdir = $(includedir)/libiahwc
 libiahwcinc_HEADERS =	\
 	$(top_srcdir)/public/gpudevice.h	\
-	$(top_srcdir)/public/hwcbuffer.h	\
+	$(top_srcdir)/public/hwcmeta.h	\
 	$(top_srcdir)/public/hwcdefs.h	\
 	$(top_srcdir)/public/hwclayer.h	\
 	$(top_srcdir)/public/hwcrect.h	\

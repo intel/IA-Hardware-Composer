@@ -213,6 +213,11 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
                                   uint16_t blue, uint16_t alpha) const = 0;
 
   /**
+   * API for setting the colordepth of the pipe.
+   */
+  virtual bool SetPipeMaxBpc(uint16_t max_bpc) const = 0;
+
+  /**
    * API for informing the display that it might be disconnected in near
    * future.
    */

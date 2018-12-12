@@ -6,7 +6,8 @@ from subprocess import Popen, PIPE, STDOUT
 cmd = "git show origin/master..@ | clang-format-diff-3.9 -p 1 -style=file"
 diff = Popen(cmd, stdout=PIPE, shell=True).communicate()[0]
 if diff:
-    print("Code formatting is not according to style guidelines. Read https://github.com/intel/IA-Hardware-Composer/wiki/Contributions#coding_style")
+    print("Code formatting is not according to style guidelines. Read:\n"
+          "https://github.com/intel/IA-Hardware-Composer/wiki/Contributions#conformance-and-documentation-requirements")
     exit(1)
 
 # Run cppcheck, on fail return msg and exit code 1.

@@ -95,13 +95,15 @@ static std::string GenerateFragmentShader(int layer_count) {
   }
   fragment_shader_stream << "uniform float uLayerAlpha[LAYER_COUNT];\n"
                          << "uniform float uLayerPremult[LAYER_COUNT];\n"
+                         << "uniform vec4 uLayerColor[LAYER_COUNT];\n"
                          << "in vec2 fTexCoords[LAYER_COUNT];\n"
                          << "out vec4 oFragColor;\n"
                          << "void main() {\n"
                          << "  vec3 color = vec3(0.0, 0.0, 0.0);\n"
                          << "  float alphaCover = 1.0;\n"
                          << "  vec4 texSample;\n"
-                         << "  vec3 multRgb;\n";
+                         << "  vec3 multRgb;\n"
+                         << "  float tempAlpha;\n";
   for (int i = 0; i < layer_count; ++i) {
     if (i > 0)
       fragment_shader_stream << "  if (alphaCover > 0.5/255.0) {\n";
@@ -110,8 +112,12 @@ static std::string GenerateFragmentShader(int layer_count) {
                            << ",\n"
                            << "                        fTexCoords[" << i
                            << "]);\n"
+                           << "  texSample.rgb = texSample.rgb + uLayerColor[" << i
+                           << "].rgb;\n"
+                           << "  tempAlpha = min(texSample.a, uLayerColor[" << i
+                           << "].a);\n"
                            << "  multRgb = texSample.rgb *\n"
-                           << "            max(texSample.a, uLayerPremult[" << i
+                           << "            max(tempAlpha, uLayerPremult[" << i
                            << "]);\n"
                            << "  color += multRgb * uLayerAlpha[" << i
                            << "] * alphaCover;\n"
@@ -324,6 +330,7 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
     alpha_loc_ = glGetUniformLocation(program_, "uLayerAlpha");
     premult_loc_ = glGetUniformLocation(program_, "uLayerPremult");
     tex_matrix_loc_ = glGetUniformLocation(program_, "uTexMatrix");
+    solid_color_loc_ = glGetUniformLocation(program_, "uLayerColor");
     for (unsigned src_index = 0; src_index < size; src_index++) {
       std::ostringstream texture_name_formatter;
       texture_name_formatter << "uLayerTexture" << src_index;
@@ -351,6 +358,10 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
                        src.texture_matrix_);
     glActiveTexture(GL_TEXTURE0 + src_index);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, src.handle_);
+    glUniform4f(solid_color_loc_ + src_index, (float)src.solid_color_array_[3],
+                (float)src.solid_color_array_[2],
+                (float)src.solid_color_array_[1],
+                (float)src.solid_color_array_[0]);
   }
 }
 

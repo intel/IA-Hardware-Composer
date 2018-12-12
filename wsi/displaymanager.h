@@ -53,6 +53,8 @@ class DisplayManager {
   // manager until ForceRefresh is called.
   virtual void IgnoreUpdates() = 0;
 
+  virtual void setDrmMaster() = 0;
+
   // Get FD associated with this DisplayManager.
   virtual uint32_t GetFD() const = 0;
 
@@ -65,6 +67,16 @@ class DisplayManager {
       std::shared_ptr<DisplayHotPlugEventCallback> callback) = 0;
 
   virtual uint32_t GetConnectedPhysicalDisplayCount() = 0;
+
+  virtual void EnableHDCPSessionForDisplay(uint32_t connector,
+                                           HWCContentType content_type) = 0;
+  virtual void EnableHDCPSessionForAllDisplays(HWCContentType content_type) = 0;
+  virtual void DisableHDCPSessionForDisplay(uint32_t connector) = 0;
+  virtual void DisableHDCPSessionForAllDisplays() = 0;
+  virtual void SetHDCPSRMForAllDisplays(const int8_t *SRM,
+                                        uint32_t SRMLength) = 0;
+  virtual void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
+                                    uint32_t SRMLength) = 0;
 };
 
 }  // namespace hwcomposer

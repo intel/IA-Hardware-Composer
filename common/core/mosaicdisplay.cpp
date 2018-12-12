@@ -519,4 +519,13 @@ void MosaicDisplay::SetHDCPSRM(const int8_t *SRM, uint32_t SRMLength) {
   }
 }
 
+bool MosaicDisplay::ContainConnector(const uint32_t connector_id) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++) {
+    if (physical_displays_.at(i)->ContainConnector(connector_id))
+      return true;
+  }
+  return false;
+}
+
 }  // namespace hwcomposer
