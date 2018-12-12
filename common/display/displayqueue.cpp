@@ -919,9 +919,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   int32_t fence = 0;
   bool fence_released = false;
-  composition_passed = display_->Commit(
-      current_composition_planes, previous_plane_state_, disable_explictsync,
-      kms_fence_, &fence, &fence_released);
+  if (!IsIgnoreUpdates())
+    composition_passed = display_->Commit(
+        current_composition_planes, previous_plane_state_, disable_explictsync,
+        kms_fence_, &fence, &fence_released);
 
   if (fence_released) {
     kms_fence_ = 0;
