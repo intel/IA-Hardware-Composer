@@ -78,10 +78,10 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   if (!hnd)
     return -EINVAL;
 
-  // We can't import these types of buffers, so pretend we did and rely on the
-  // planner to skip them when choosing layers for planes
+  // We can't import these types of buffers.
+  // These buffers should have been filtered out with CanImportBuffer()
   if (!(hnd->usage & GRALLOC_USAGE_HW_FB))
-    return 0;
+    return -EINVAL;
 
   uint32_t gem_handle;
   int ret = drmPrimeFDToHandle(drm_->fd(), hnd->share_fd, &gem_handle);
@@ -139,36 +139,39 @@ int HisiImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   return ret;
 }
 
+bool HisiImporter::CanImportBuffer(buffer_handle_t handle) {
+  private_handle_t const *hnd = reinterpret_cast<private_handle_t const *>(
+      handle);
+  return hnd && (hnd->usage & GRALLOC_USAGE_HW_FB);
+}
+
 class PlanStageHiSi : public Planner::PlanStage {
  public:
   int ProvisionPlanes(std::vector<DrmCompositionPlane> *composition,
                       std::map<size_t, DrmHwcLayer *> &layers, DrmCrtc *crtc,
                       std::vector<DrmPlane *> *planes) {
     int layers_added = 0;
-    int initial_layers = layers.size();
-    // Fill up as many planes as we can with buffers that do not have HW_FB
-    // usage
+    // Fill up as many DRM planes as we can with buffers that have HW_FB usage.
+    // Buffers without HW_FB should have been filtered out with
+    // CanImportBuffer(), if we meet one here, just skip it.
     for (auto i = layers.begin(); i != layers.end(); i = layers.erase(i)) {
       if (!(i->second->gralloc_buffer_usage & GRALLOC_USAGE_HW_FB))
         continue;
 
       int ret = Emplace(composition, planes, DrmCompositionPlane::Type::kLayer,
-                        crtc, i->first);
+                        crtc, std::make_pair(i->first, i->second));
       layers_added++;
       // We don't have any planes left
       if (ret == -ENOENT)
         break;
-      else if (ret)
+      else if (ret) {
         ALOGE("Failed to emplace layer %zu, dropping it", i->first);
+        return ret;
+      }
     }
-    /*
-     * If we only have one layer, but we didn't emplace anything, we
-     * can run into trouble, as we might try to device composite a
-     * buffer we fake-imported, which can cause things to jamb up.
-     * So return an error in this case to ensure we force client
-     * compositing.
-     */
-    if (!layers_added && (initial_layers <= 1))
+    // If we didn't emplace anything, return an error to ensure we force client
+    // compositing.
+    if (!layers_added)
       return -EINVAL;
 
     return 0;

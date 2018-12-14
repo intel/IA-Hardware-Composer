@@ -49,6 +49,9 @@ class Importer {
   // Note: This can be called from a different thread than ImportBuffer. The
   //       implementation is responsible for ensuring thread safety.
   virtual int ReleaseBuffer(hwc_drm_bo_t *bo) = 0;
+
+  // Checks if importer can import the buffer.
+  virtual bool CanImportBuffer(buffer_handle_t handle) = 0;
 };
 
 class Planner {
@@ -73,17 +76,32 @@ class Planner {
       return plane;
     }
 
+    static int ValidatePlane(DrmPlane *plane, DrmHwcLayer *layer);
+
     // Inserts the given layer:plane in the composition at the back
     static int Emplace(std::vector<DrmCompositionPlane> *composition,
                        std::vector<DrmPlane *> *planes,
                        DrmCompositionPlane::Type type, DrmCrtc *crtc,
-                       size_t source_layer) {
+                       std::pair<size_t, DrmHwcLayer *> layer) {
       DrmPlane *plane = PopPlane(planes);
-      if (!plane)
-        return -ENOENT;
+      std::vector<DrmPlane *> unused_planes;
+      int ret = -ENOENT;
+      while (plane) {
+        ret = ValidatePlane(plane, layer.second);
+        if (!ret)
+          break;
+        if (!plane->zpos_property().immutable())
+          unused_planes.push_back(plane);
+        plane = PopPlane(planes);
+      }
 
-      composition->emplace_back(type, plane, crtc, source_layer);
-      return 0;
+      if (!ret) {
+        composition->emplace_back(type, plane, crtc, layer.first);
+        planes->insert(planes->begin(), unused_planes.begin(),
+                       unused_planes.end());
+      }
+
+      return ret;
     }
   };
 
