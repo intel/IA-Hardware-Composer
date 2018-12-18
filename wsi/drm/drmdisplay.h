@@ -116,7 +116,17 @@ class DrmDisplay : public PhysicalDisplay {
     return connector_;
   }
 
+  void ReleaseUnreservedPlanes(std::vector<uint32_t> &reserved_planes);
+
   void HandleLazyInitialization() override;
+
+  void SetPlanesUpdated(bool updated) {
+    planes_updated_ = updated;
+  }
+
+  bool IsPlanesUpdated() {
+    return planes_updated_;
+  }
 
  private:
   void ShutDownPipe();
@@ -176,6 +186,7 @@ class DrmDisplay : public PhysicalDisplay {
   int64_t broadcastrgb_full_ = -1;
   int64_t broadcastrgb_automatic_ = -1;
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
+  bool planes_updated_ = false;
   HWCContentProtection current_protection_support_ =
       HWCContentProtection::kUnSupported;
   HWCContentProtection desired_protection_support_ =

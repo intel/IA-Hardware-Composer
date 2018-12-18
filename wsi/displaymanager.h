@@ -77,6 +77,7 @@ class DisplayManager {
                                         uint32_t SRMLength) = 0;
   virtual void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                     uint32_t SRMLength) = 0;
+  virtual void RemoveUnreservedPlanes() = 0;
 };
 
 }  // namespace hwcomposer

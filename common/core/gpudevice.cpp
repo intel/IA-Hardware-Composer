@@ -53,6 +53,10 @@ bool GpuDevice::Initialize() {
 
   HandleHWCSettings();
 
+  if (reserve_plane_) {
+    display_manager_->RemoveUnreservedPlanes();
+  }
+
   lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
   if (-1 != lock_fd_) {
     if (!InitWorker()) {
@@ -103,6 +107,62 @@ void GpuDevice::RegisterHotPlugEventCallback(
   display_manager_->RegisterHotPlugEventCallback(callback);
 }
 
+bool GpuDevice::IsReservedDrmPlane() {
+  return reserve_plane_;
+}
+
+std::vector<uint32_t> GpuDevice::GetDisplayReservedPlanes(uint32_t display_id) {
+  std::map<uint8_t, std::vector<uint32_t>>::const_iterator pos =
+      reserved_drm_display_planes_map_.find(display_id);
+  if (pos == reserved_drm_display_planes_map_.end())
+    return std::vector<uint32_t>();
+  else
+    return pos->second;
+}
+
+void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
+  std::string display_line_str;
+  std::string reserved_plane_index_str;
+  std::istringstream i_value(value);
+
+  // Get each display setting
+  while (std::getline(i_value, display_line_str, ';')) {
+    if (display_line_str.empty() ||
+        display_line_str.find_first_not_of("0123:+") != std::string::npos)
+      continue;
+    std::string display_index_str =
+        display_line_str.substr(0, display_line_str.find(":"));
+    uint8_t display_index = atoi(display_index_str.c_str());
+    std::string tmp = display_line_str.substr(display_line_str.find(":") + 1);
+    std::vector<uint32_t> reserved_drm_planes_;
+    std::istringstream planes_index_value(
+        display_line_str.substr(display_line_str.find(":") + 1));
+    // Get reversed drm plane index
+    while (std::getline(planes_index_value, reserved_plane_index_str, '+')) {
+      if (reserved_plane_index_str.empty() ||
+          reserved_plane_index_str.find_first_not_of("0123") !=
+              std::string::npos)
+        continue;
+      uint32_t reserved_plane_index_num =
+          atoi(reserved_plane_index_str.c_str());
+      // Check if the plane index is duplicated
+      bool skip_duplicate_plane = false;
+      size_t reserved_plane_size = reserved_drm_planes_.size();
+      for (size_t i = 0; i < reserved_plane_size; i++) {
+        if (reserved_drm_planes_.at(i) == reserved_plane_index_num) {
+          skip_duplicate_plane = true;
+          break;
+        }
+      }
+      if (skip_duplicate_plane) {
+        continue;
+      }
+      reserved_drm_planes_.emplace_back(reserved_plane_index_num);
+    }
+    reserved_drm_display_planes_map_[display_index] = reserved_drm_planes_;
+  }
+}
+
 void GpuDevice::HandleHWCSettings() {
   // Handle config file reading
   const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
@@ -127,12 +187,16 @@ void GpuDevice::HandleHWCSettings() {
   std::string key_clone("CLONE");
   std::string key_rotate("ROTATION");
   std::string key_float("FLOAT");
+  std::string key_plane_reserved("PLANE_RESERVED");
   std::string key_logical_display("LOGICAL_DISPLAY");
   std::string key_mosaic_display("MOSAIC_DISPLAY");
   std::string key_physical_display("PHYSICAL_DISPLAY");
   std::string key_physical_display_rotation("PHYSICAL_DISPLAY_ROTATION");
   std::string key_clone_display("CLONE_DISPLAY");
   std::string key_float_display("FLOAT_DISPLAY");
+
+  std::string key_reserved_drm_plane("DRM_PLANE_RESERVED");
+
   std::vector<uint32_t> mosaic_duplicate_check;
   std::vector<uint32_t> clone_duplicate_check;
   std::vector<uint32_t> physical_duplicate_check;
@@ -175,6 +239,10 @@ void GpuDevice::HandleHWCSettings() {
         } else if (!key.compare(key_float)) {
           if (!value.compare(enable_str)) {
             use_float = true;
+          }
+        } else if (!key.compare(key_plane_reserved)) {
+          if (!value.compare(enable_str)) {
+            reserve_plane_ = true;
           }
         } else if (!key.compare(key_logical_display)) {
           std::string physical_index_str;
@@ -358,6 +426,8 @@ void GpuDevice::HandleHWCSettings() {
                                  float_rect.at(2), float_rect.at(3));
             float_displays.emplace_back(rect);
           }
+        } else if (!key.compare(key_reserved_drm_plane)) {
+          ParsePlaneReserveSettings(value);
         }
       }
     }

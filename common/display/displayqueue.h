@@ -142,6 +142,8 @@ class DisplayQueue {
     }
   }
 
+  void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.

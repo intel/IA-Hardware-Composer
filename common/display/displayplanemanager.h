@@ -123,6 +123,8 @@ class DisplayPlaneManager {
                           const DisplayPlaneState &last_plane,
                           const OverlayLayer *target_layer);
 
+  void ReleaseUnreservedPlanes(std::vector<uint32_t> &reserved_planes);
+
  private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
@@ -178,6 +180,8 @@ class DisplayPlaneManager {
   void FinalizeValidation(DisplayPlaneStateList &composition,
                           std::vector<OverlayPlane> &commit_planes,
                           bool *render_layers, bool *re_validation_needed);
+
+  void ResizeOverlays();
 
   DisplayPlaneHandler *plane_handler_;
   ResourceManager *resource_manager_;
