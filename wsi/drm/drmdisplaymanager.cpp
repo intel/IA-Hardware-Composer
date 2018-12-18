@@ -216,6 +216,8 @@ bool DrmDisplayManager::UpdateDisplayState() {
   spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
+    if (device_->IsReservedDrmPlane() && !display->IsConnected())
+      display->SetPlanesUpdated(false);
     display->MarkForDisconnect();
   }
 
@@ -357,6 +359,10 @@ bool DrmDisplayManager::UpdateDisplayState() {
                        notify_client_, displays_.at(0)->IsConnected());
     NotifyClientsOfDisplayChangeStatus();
   }
+
+  // update plane list for reservation
+  if (device_->IsReservedDrmPlane())
+    RemoveUnreservedPlanes();
 
   return true;
 }
@@ -541,4 +547,16 @@ void DrmDisplayManager::SetHDCPSRMForDisplay(uint32_t connector,
   }
 }
 
+void DrmDisplayManager::RemoveUnreservedPlanes() {
+  size_t size = displays_.size();
+  for (uint8_t i = 0; i < size; i++) {
+    if (!displays_.at(i)->IsConnected() || displays_.at(i)->IsPlanesUpdated())
+      continue;
+    std::vector<uint32_t> reserved_planes =
+        device_->GetDisplayReservedPlanes(i);
+    if (!reserved_planes.empty() && reserved_planes.size() < 4)
+      displays_.at(i)->ReleaseUnreservedPlanes(reserved_planes);
+    displays_.at(i)->SetPlanesUpdated(true);
+  }
+}
 }  // namespace hwcomposer

@@ -160,6 +160,11 @@ bool DisplayQueue::ForcePlaneValidation(int add_index, int remove_index,
   return true;
 }
 
+void DisplayQueue::ReleaseUnreservedPlanes(
+    std::vector<uint32_t>& reserved_planes) {
+  display_plane_manager_->ReleaseUnreservedPlanes(reserved_planes);
+}
+
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    int remove_index,
                                    DisplayPlaneStateList* composition,

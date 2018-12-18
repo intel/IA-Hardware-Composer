@@ -83,6 +83,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) override;
   void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                             uint32_t SRMLength) override;
+  void RemoveUnreservedPlanes() override;
 
  protected:
   void HandleWait() override;
