@@ -316,6 +316,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     hwc_frect_t source_crop;
     uint64_t rotation = 0;
     uint64_t alpha = 0xFFFF;
+    uint64_t blend;
 
     if (comp_plane.type() != DrmCompositionPlane::Type::kDisable) {
       if (source_layers.size() > 1) {
@@ -338,8 +339,36 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       fence_fd = layer.acquire_fence.get();
       display_frame = layer.display_frame;
       source_crop = layer.source_crop;
-      if (layer.blending == DrmHwcBlending::kPreMult)
-        alpha = layer.alpha;
+      alpha = layer.alpha;
+
+      if (plane->blend_property().id()) {
+        switch (layer.blending) {
+          case DrmHwcBlending::kPreMult:
+            std::tie(blend, ret) = plane->blend_property().GetEnumValueWithName(
+                "Pre-multiplied");
+            break;
+          case DrmHwcBlending::kCoverage:
+            std::tie(blend, ret) = plane->blend_property().GetEnumValueWithName(
+                "Coverage");
+            break;
+          case DrmHwcBlending::kNone:
+          default:
+            std::tie(blend, ret) = plane->blend_property().GetEnumValueWithName(
+                "None");
+            break;
+        }
+      }
+
+      if (plane->zpos_property().id() && !plane->zpos_property().immutable()) {
+        ret = drmModeAtomicAddProperty(pset, plane->id(),
+                                       plane->zpos_property().id(),
+                                       source_layers.front()) < 0;
+        if (ret) {
+          ALOGE("Failed to add zpos property %d to plane %d",
+                plane->zpos_property().id(), plane->id());
+          break;
+        }
+      }
 
       rotation = 0;
       if (layer.transform & DrmHwcTransform::kFlipH)
@@ -380,20 +409,6 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         break;
       }
       continue;
-    }
-
-    // TODO: Once we have atomic test, this should fall back to GL
-    if (rotation != DRM_MODE_ROTATE_0 && plane->rotation_property().id() == 0) {
-      ALOGV("Rotation is not supported on plane %d", plane->id());
-      ret = -EINVAL;
-      break;
-    }
-
-    // TODO: Once we have atomic test, this should fall back to GL
-    if (alpha != 0xFFFF && plane->alpha_property().id() == 0) {
-      ALOGV("Alpha is not supported on plane %d", plane->id());
-      ret = -EINVAL;
-      break;
     }
 
     ret = drmModeAtomicAddProperty(pset, plane->id(),
@@ -450,6 +465,16 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       if (ret) {
         ALOGE("Failed to add alpha property %d to plane %d",
               plane->alpha_property().id(), plane->id());
+        break;
+      }
+    }
+
+    if (plane->blend_property().id()) {
+      ret = drmModeAtomicAddProperty(pset, plane->id(),
+                                     plane->blend_property().id(), blend) < 0;
+      if (ret) {
+        ALOGE("Failed to add pixel blend mode property %d to plane %d",
+              plane->blend_property().id(), plane->id());
         break;
       }
     }
