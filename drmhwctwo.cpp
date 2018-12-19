@@ -491,9 +491,13 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     HWC2::Composition comp_type;
-    if (test)
+    if (test) {
       comp_type = l.second.sf_type();
-    else
+      if (comp_type == HWC2::Composition::Device) {
+        if (!importer_->CanImportBuffer(l.second.buffer()))
+          comp_type = HWC2::Composition::Client;
+      }
+    } else
       comp_type = l.second.validated_type();
 
     switch (comp_type) {
@@ -735,7 +739,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
     if (comp_failed || !avail_planes--)
       break;
-    l.second->set_validated_type(HWC2::Composition::Device);
+    if (importer_->CanImportBuffer(l.second->buffer()))
+      l.second->set_validated_type(HWC2::Composition::Device);
   }
 
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
