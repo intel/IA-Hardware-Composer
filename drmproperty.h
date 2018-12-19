@@ -40,11 +40,13 @@ class DrmProperty {
   DrmProperty &operator=(const DrmProperty &) = delete;
 
   void Init(drmModePropertyPtr p, uint64_t value);
+  std::tuple<uint64_t, int> GetEnumValueWithName(std::string name) const;
 
   uint32_t id() const;
   std::string name() const;
 
   int value(uint64_t *value) const;
+  bool immutable() const;
 
  private:
   class DrmPropertyEnum {
