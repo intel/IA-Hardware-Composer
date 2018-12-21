@@ -103,6 +103,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   bool notify_client_ = false;
   bool release_lock_ = false;
   SpinLock spin_lock_;
+  int connected_display_count_ = 0;
 };
 
 }  // namespace hwcomposer
