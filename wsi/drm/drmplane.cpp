@@ -269,7 +269,7 @@ bool DrmPlane::Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats,
 bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                 uint32_t crtc_id, const OverlayLayer* layer,
                                 bool test_commit) const {
-  uint64_t alpha = 0xFF;
+  uint32_t alpha = 0xFFFF;
   OverlayBuffer* buffer = layer->GetBuffer();
   if (!buffer) {
     ETRACE("Fail to allocate buffer memory for layer!");
@@ -283,8 +283,9 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
     fence = layer->GetAcquireFence();
   }
 
+  // i915 driver reads high 8bit of 16bit value
   if (layer->GetBlending() == HWCBlending::kBlendingPremult)
-    alpha = layer->GetAlpha();
+    alpha = static_cast<uint32_t>(layer->GetAlpha()) << 8;
 
   IDISPLAYMANAGERTRACE("buffer->GetFb() ---------------------- STARTS %d",
                        buffer->GetFb());
