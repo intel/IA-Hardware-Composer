@@ -342,7 +342,7 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   SPIN_UNLOCK(display_lock_);
 
   if (modes_size == 0) {
-    return PhysicalDisplay::GetDisplayConfigs(num_configs, configs);
+    return false;
   }
 
   if (!configs) {
