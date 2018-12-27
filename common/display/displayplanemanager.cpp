@@ -833,9 +833,7 @@ bool DisplayPlaneManager::FallbacktoGPU(
     return true;
 
   if (layer->GetBuffer()->GetFb() == 0) {
-    if (!layer->GetBuffer()->CreateFrameBuffer()) {
-      return true;
-    }
+    return true;
   }
 
   // TODO(kalyank): Take relevant factors into consideration to determine if
