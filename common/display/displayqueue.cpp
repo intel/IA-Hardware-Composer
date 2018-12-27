@@ -433,19 +433,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       OverlayBuffer* buffer = layer->GetBuffer();
-      if (buffer->GetFb() == 0) {
-        buffer->CreateFrameBuffer();
-
-        // FB creation failed, we need to re-validate the
-        // whole commit.
-        if (buffer->GetFb() == 0) {
-          *force_full_validation = true;
-          *can_ignore_commit = false;
-          return;
-        }
-
-        reset_composition_regions = true;
+      bool isNewCreated = false;
+      if (buffer->GetFb(&isNewCreated) == 0) {
+        *force_full_validation = true;
+        *can_ignore_commit = false;
+        return;
       }
+      if (isNewCreated)
+        reset_composition_regions = true;
 
       last_plane.SetOverlayLayer(layer);
       if (layer->HasLayerContentChanged()) {

@@ -55,7 +55,7 @@ class OverlayBuffer {
 
   virtual HWCLayerType GetUsage() const = 0;
 
-  virtual uint32_t GetFb() const = 0;
+  virtual uint32_t GetFb(bool* isNewCreated = NULL) = 0;
 
   virtual uint32_t GetPrimeFD() const = 0;
 
@@ -85,8 +85,6 @@ class OverlayBuffer {
   virtual const MediaResourceHandle& GetMediaResource(MediaDisplay display,
                                                       uint32_t width,
                                                       uint32_t height) = 0;
-
-  virtual bool CreateFrameBuffer() = 0;
 
   // Creates Framebuffer taking into account any Modifiers.
   virtual bool CreateFrameBufferWithModifier(uint64_t modifier) = 0;

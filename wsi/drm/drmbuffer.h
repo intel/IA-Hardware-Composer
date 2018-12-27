@@ -60,7 +60,13 @@ class DrmBuffer : public OverlayBuffer {
     return METADATA(usage_);
   }
 
-  uint32_t GetFb() const override {
+  uint32_t GetFb(bool* isNewCreated = NULL) override {
+    if (image_.drm_fd_ == 0) {
+      CreateFrameBuffer();
+      if (isNewCreated && image_.drm_fd_)
+        *isNewCreated = true;
+    } else if (isNewCreated)
+      *isNewCreated = false;
     return image_.drm_fd_;
   }
 
@@ -101,8 +107,6 @@ class DrmBuffer : public OverlayBuffer {
                                               uint32_t width,
                                               uint32_t height) override;
 
-  bool CreateFrameBuffer() override;
-
   bool CreateFrameBufferWithModifier(uint64_t modifier) override;
 
   HWCNativeHandle GetOriginalHandle() const override {
@@ -115,6 +119,7 @@ class DrmBuffer : public OverlayBuffer {
 
  private:
   void Initialize(const HwcMeta& meta);
+  bool CreateFrameBuffer();
   uint32_t format_ = 0;
   uint32_t frame_buffer_format_ = 0;
   uint32_t previous_width_ = 0;   // For Media usage.
