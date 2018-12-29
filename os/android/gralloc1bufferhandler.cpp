@@ -153,8 +153,6 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
   if (set_modifier_) {
     if (preferred_modifier != -1) {
       modifier = preferred_modifier;
-    } else {
-      modifier = choose_drm_modifier(format);
     }
     set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, modifier);
   }
