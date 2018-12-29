@@ -115,8 +115,6 @@ bool GbmBufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 #ifdef ENABLE_RBC
   if (preferred_modifier != -1) {
     modifier = preferred_modifier;
-  } else {
-    modifier = choose_drm_modifier(gbm_format);
   }
 
   if (modifier_used) {
