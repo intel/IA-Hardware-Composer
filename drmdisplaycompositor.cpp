@@ -361,9 +361,14 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
 
       if (plane->zpos_property().id() &&
           !plane->zpos_property().is_immutable()) {
+        uint64_t min_zpos = 0;
+
+        // Ignore ret and use min_zpos as 0 by default
+        std::tie(std::ignore, min_zpos) = plane->zpos_property().range_min();
+
         ret = drmModeAtomicAddProperty(pset, plane->id(),
                                        plane->zpos_property().id(),
-                                       source_layers.front()) < 0;
+                                       source_layers.front() + min_zpos) < 0;
         if (ret) {
           ALOGE("Failed to add zpos property %d to plane %d",
                 plane->zpos_property().id(), plane->id());

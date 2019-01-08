@@ -99,6 +99,28 @@ bool DrmProperty::is_immutable() const {
   return id_ && (flags_ & DRM_MODE_PROP_IMMUTABLE);
 }
 
+bool DrmProperty::is_range() const {
+  return id_ && (flags_ & DRM_MODE_PROP_RANGE);
+}
+
+std::tuple<int, uint64_t> DrmProperty::range_min() const {
+  if (!is_range())
+    return std::make_tuple(-EINVAL, 0);
+  if (values_.size() < 1)
+    return std::make_tuple(-ENOENT, 0);
+
+  return std::make_tuple(0, values_[0]);
+}
+
+std::tuple<int, uint64_t> DrmProperty::range_max() const {
+  if (!is_range())
+    return std::make_tuple(-EINVAL, 0);
+  if (values_.size() < 2)
+    return std::make_tuple(-ENOENT, 0);
+
+  return std::make_tuple(0, values_[1]);
+}
+
 std::tuple<uint64_t, int> DrmProperty::GetEnumValueWithName(
     std::string name) const {
   for (auto it : enums_) {
