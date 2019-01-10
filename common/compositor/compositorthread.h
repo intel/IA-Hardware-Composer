@@ -50,7 +50,7 @@ class CompositorThread : public HWCThread {
             std::vector<DrawState>& media_states,
             const std::vector<OverlayBuffer*>& buffers);
 
-  void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetDisableExplicitSync(bool disable_explicit_sync);
   void FreeResources();
 
   void HandleRoutine() override;

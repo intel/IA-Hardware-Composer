@@ -685,7 +685,7 @@ bool VKRenderer::Draw(const std::vector<RenderState> &render_states,
 void VKRenderer::InsertFence(int32_t kms_fence) {
 }
 
-void VKRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void VKRenderer::SetDisableExplicitSync(bool disable_explicit_sync) {
 }
 
 VKProgram *VKRenderer::GetProgram(unsigned texture_count) {
