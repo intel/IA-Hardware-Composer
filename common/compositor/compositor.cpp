@@ -49,7 +49,7 @@ void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd,
 }
 
 void Compositor::BeginFrame(bool disable_explicit_sync) {
-  thread_->SetExplicitSyncSupport(disable_explicit_sync);
+  thread_->SetDisableExplicitSync(disable_explicit_sync);
 }
 
 void Compositor::Reset() {

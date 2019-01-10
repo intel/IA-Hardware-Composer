@@ -207,7 +207,7 @@ void GLRenderer::InsertFence(int32_t kms_fence) {
   }
 }
 
-void GLRenderer::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void GLRenderer::SetDisableExplicitSync(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 

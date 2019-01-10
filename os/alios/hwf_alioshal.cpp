@@ -578,14 +578,14 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
   // virtual display
   hwf_device->virtual_display_.display_ =
       p_gpu_device->CreateVirtualDisplay(HWF_DISPLAY_VIRTUAL);
-  hwf_device->virtual_display_.display_->SetExplicitSyncSupport(
+  hwf_device->virtual_display_.display_->SetDisableExplicitSync(
       hwf_device->disable_explicit_sync_);
 
   // primary display
   size_t size = displays.size();
   hwcomposer::NativeDisplay *primary_display = displays.at(0);
   hwf_device->primary_display_.display_ = primary_display;
-  hwf_device->primary_display_.display_->SetExplicitSyncSupport(
+  hwf_device->primary_display_.display_->SetDisableExplicitSync(
       hwf_device->disable_explicit_sync_);
 
   // Grab the first mode, we'll choose this as the active mode
@@ -603,7 +603,7 @@ int32_t hwf_open(struct hwf_device_t **device, const VendorModule *module) {
     hwf_device->extended_displays_.emplace_back();
     HwfDisplay &temp = hwf_device->extended_displays_.back();
     temp.display_ = displays.at(i);
-    temp.display_->SetExplicitSyncSupport(hwf_device->disable_explicit_sync_);
+    temp.display_->SetDisableExplicitSync(hwf_device->disable_explicit_sync_);
   }
 
   hwf_device->base.common.module = module;
