@@ -305,7 +305,7 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   handle_ = display_index + HWC_DISPLAY_VIRTUAL + VDS_OFFSET;
   display_->InitVirtualDisplay(width, height);
   disable_explicit_sync_ = disable_explicit_sync;
-  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_->SetDisableExplicitSync(disable_explicit_sync_);
   return HWC2::Error::None;
 }
 
@@ -320,7 +320,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
 
   disable_explicit_sync_ = disable_explicit_sync;
   scaling_mode_ = scaling_mode;
-  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_->SetDisableExplicitSync(disable_explicit_sync_);
   display_->SetVideoScalingMode(scaling_mode_);
 
   if (!display_->IsConnected()) {

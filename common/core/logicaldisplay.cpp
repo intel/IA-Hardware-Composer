@@ -156,8 +156,8 @@ void LogicalDisplay::SetBrightness(uint32_t red, uint32_t green,
   physical_display_->SetBrightness(red, green, blue);
 }
 
-void LogicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
-  physical_display_->SetExplicitSyncSupport(disable_explicit_sync);
+void LogicalDisplay::SetDisableExplicitSync(bool disable_explicit_sync) {
+  physical_display_->SetDisableExplicitSync(disable_explicit_sync);
 }
 
 void LogicalDisplay::SetVideoScalingMode(uint32_t mode) {

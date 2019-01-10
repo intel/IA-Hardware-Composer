@@ -1467,7 +1467,7 @@ void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
   state_ |= kNeedsColorCorrection;
 }
 
-void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void DisplayQueue::SetDisableExplicitSync(bool disable_explicit_sync) {
   if (disable_explicit_sync) {
     state_ |= kDisableExplictSync;
   } else {

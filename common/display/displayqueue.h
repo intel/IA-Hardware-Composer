@@ -74,7 +74,7 @@ class DisplayQueue {
   void SetColorTransform(const float* matrix, HWCColorTransform hint);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
-  void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetDisableExplicitSync(bool disable_explicit_sync);
   void SetVideoScalingMode(uint32_t mode);
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float* value, float* start,

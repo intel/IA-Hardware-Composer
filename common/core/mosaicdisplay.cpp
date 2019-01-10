@@ -393,10 +393,10 @@ void MosaicDisplay::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
   }
 }
 
-void MosaicDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void MosaicDisplay::SetDisableExplicitSync(bool disable_explicit_sync) {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
-    physical_displays_.at(i)->SetExplicitSyncSupport(disable_explicit_sync);
+    physical_displays_.at(i)->SetDisableExplicitSync(disable_explicit_sync);
   }
 }
 
