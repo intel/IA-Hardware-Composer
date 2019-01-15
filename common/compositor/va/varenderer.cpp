@@ -236,6 +236,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   surface->GetLayer()->SetVideoLayer(true);
 
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
+  if (!buffer_out) {
+    ETRACE("Get DRM buffer failed for buffer_out.\n");
+    return false;
+  }
+
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
     render_target_format_ = rt_format;
@@ -247,6 +252,10 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Input Surface.
   OverlayBuffer* buffer_in = state.layer_->GetBuffer();
+  if (!buffer_in) {
+    ETRACE("Get DRM buffer failed for buffer_in.\n");
+    return false;
+  }
   uint32_t dataspace = buffer_in->GetDataSpace();
   const MediaResourceHandle& resource = buffer_in->GetMediaResource(
       va_display_, state.layer_->GetSourceCropWidth(),
