@@ -219,9 +219,23 @@ bool DrmDisplayManager::UpdateDisplayState() {
     display->MarkForDisconnect();
   }
 
+  connected_display_count_ = 0;
   std::vector<NativeDisplay *> connected_displays;
   std::vector<uint32_t> no_encoder;
   uint32_t total_connectors = res->count_connectors;
+  for (uint32_t i = 0; i < total_connectors; ++i) {
+    ScopedDrmConnectorPtr connector(
+        drmModeGetConnector(fd_, res->connectors[i]));
+    if (!connector) {
+      ETRACE("Failed to get connector %d", res->connectors[i]);
+      break;
+    }
+    // check if a monitor is connected.
+    if (connector->connection != DRM_MODE_CONNECTED)
+      continue;
+    connected_display_count_++;
+  }
+
   for (uint32_t i = 0; i < total_connectors; ++i) {
     ScopedDrmConnectorPtr connector(
         drmModeGetConnector(fd_, res->connectors[i]));
@@ -365,9 +379,7 @@ void DrmDisplayManager::NotifyClientsOfDisplayChangeStatus() {
 
   for (auto &display : displays_) {
     display->NotifyDisplayWA(disable_last_plane_usage);
-    if (!ignore_updates_) {
-      display->ForceRefresh();
-    }
+    display->ForceRefresh();
   }
 
   for (auto &display : displays_) {
@@ -447,8 +459,12 @@ void DrmDisplayManager::IgnoreUpdates() {
 
 void DrmDisplayManager::setDrmMaster() {
   int ret = drmSetMaster(fd_);
-  if (ret) {
-    ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+  while (ret) {
+    usleep(10000);
+    ret = drmSetMaster(fd_);
+    if (ret) {
+      ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+    }
   }
 }
 
@@ -462,14 +478,7 @@ void DrmDisplayManager::HandleLazyInitialization() {
 }
 
 uint32_t DrmDisplayManager::GetConnectedPhysicalDisplayCount() {
-  size_t size = displays_.size();
-  uint32_t count = 0;
-  for (size_t i = 0; i < size; i++) {
-    if (displays_[i]->IsConnected()) {
-      count++;
-    }
-  }
-  return count;
+  return connected_display_count_;
 }
 
 DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {

@@ -43,6 +43,7 @@ extern "C" {
 // #define SURFACE_DUPLICATE_LAYER_TRACING 1
 // #define SURFACE_BASIC_TRACING 1
 // #define COMPOSITOR_TRACING 1
+// #define RECT_DAMAGE_TRACING 1
 
 // Function call tracing
 #ifdef FUNCTION_CALL_TRACING
@@ -116,6 +117,12 @@ class TraceFunc {
 #define ICOMPOSITORTRACE ITRACE
 #else
 #define ICOMPOSITORTRACE(fmt, ...) ((void)0)
+#endif
+
+#ifdef RECT_DAMAGE_TRACING
+#define IRECTDAMAGETRACE ITRACE
+#else
+#define IRECTDAMAGETRACE(fmt, ...) ((void)0)
 #endif
 
 #ifdef RESOURCE_CACHE_TRACING

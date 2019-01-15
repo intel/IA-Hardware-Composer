@@ -433,19 +433,14 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       }
 
       OverlayBuffer* buffer = layer->GetBuffer();
-      if (buffer->GetFb() == 0) {
-        buffer->CreateFrameBuffer();
-
-        // FB creation failed, we need to re-validate the
-        // whole commit.
-        if (buffer->GetFb() == 0) {
-          *force_full_validation = true;
-          *can_ignore_commit = false;
-          return;
-        }
-
-        reset_composition_regions = true;
+      bool isNewCreated = false;
+      if (buffer->GetFb(&isNewCreated) == 0) {
+        *force_full_validation = true;
+        *can_ignore_commit = false;
+        return;
       }
+      if (isNewCreated)
+        reset_composition_regions = true;
 
       last_plane.SetOverlayLayer(layer);
       if (layer->HasLayerContentChanged()) {
@@ -919,9 +914,10 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   int32_t fence = 0;
   bool fence_released = false;
-  composition_passed = display_->Commit(
-      current_composition_planes, previous_plane_state_, disable_explictsync,
-      kms_fence_, &fence, &fence_released);
+  if (!IsIgnoreUpdates())
+    composition_passed = display_->Commit(
+        current_composition_planes, previous_plane_state_, disable_explictsync,
+        kms_fence_, &fence, &fence_released);
 
   if (fence_released) {
     kms_fence_ = 0;

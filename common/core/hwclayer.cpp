@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include <hwcutils.h>
+#include "hwctrace.h"
 
 namespace hwcomposer {
 
@@ -115,9 +116,12 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       UpdateRenderingDamage(rect, rect, true);
       surface_damage_.reset();
       return;
+    } else {
+      state_ |= kSurfaceDamageChanged;
     }
   } else if (rects == 0) {
     rect = display_frame_;
+    state_ &= ~kSurfaceDamageChanged;
   }
 
   if ((surface_damage_.left == rect.left) &&
@@ -126,8 +130,6 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       (surface_damage_.bottom == rect.bottom)) {
     return;
   }
-
-  state_ |= kSurfaceDamageChanged;
 
   UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
@@ -229,6 +231,37 @@ void HwcLayer::SufaceDamageTransfrom() {
 
   if (!surface_damage_.empty() &&
       ((source_crop_.left == 0) && (source_crop_.top == 0))) {
+#ifdef RECT_DAMAGE_TRACING
+    IRECTDAMAGETRACE("Calculating Damage for layer[%d]", z_order_);
+    IRECTDAMAGETRACE("Surface_damage (LTWH): %d, %d, %d, %d",
+                     surface_damage_.left, surface_damage_.top,
+                     (surface_damage_.right - surface_damage_.left),
+                     (surface_damage_.bottom - surface_damage_.top));
+    IRECTDAMAGETRACE(
+        "Original current_rendering_damage_ (LTWH): %d, %d, %d, %d",
+        current_rendering_damage_.left, current_rendering_damage_.top,
+        (current_rendering_damage_.right - current_rendering_damage_.left),
+        (current_rendering_damage_.bottom - current_rendering_damage_.top));
+    IRECTDAMAGETRACE("display_frame_ (LTWH): %d, %d, %d, %d",
+                     display_frame_.left, display_frame_.top,
+                     (display_frame_.right - display_frame_.left),
+                     (display_frame_.bottom - display_frame_.top));
+    IRECTDAMAGETRACE("source_crop_ (LTWH): %f, %f, %f, %f", source_crop_.left,
+                     source_crop_.top, (source_crop_.right - source_crop_.left),
+                     (source_crop_.bottom - source_crop_.top));
+#endif
+    int display_width = display_frame_.right - display_frame_.left;
+    int display_height = display_frame_.bottom - display_frame_.top;
+    int source_width = source_crop_.right - source_crop_.left;
+    int source_height = source_crop_.bottom - source_crop_.top;
+
+    float ratiow = display_width * 1.0 / source_width;
+    float ratioh = display_height * 1.0 / source_height;
+    translated_damage.left = translated_damage.left * ratiow + 0.5;
+    translated_damage.right = translated_damage.right * ratiow + 0.5;
+    translated_damage.top = translated_damage.top * ratioh + 0.5;
+    translated_damage.bottom = translated_damage.bottom * ratioh + 0.5;
+
     if (transform_ == hwcomposer::HWCTransform::kTransform270) {
       ox = display_frame_.left;
       oy = display_frame_.bottom;
@@ -274,6 +307,13 @@ void HwcLayer::SufaceDamageTransfrom() {
       current_rendering_damage_.right = ox + translated_damage.right;
       current_rendering_damage_.bottom = oy + translated_damage.bottom;
     }
+#ifdef RECT_DAMAGE_TRACING
+    IRECTDAMAGETRACE(
+        "Re-calucated current_rendering_damage_ (LTWH): %d, %d, %d, %d",
+        current_rendering_damage_.left, current_rendering_damage_.top,
+        (current_rendering_damage_.right - current_rendering_damage_.left),
+        (current_rendering_damage_.bottom - current_rendering_damage_.top));
+#endif
   }
 }
 
@@ -282,13 +322,14 @@ void HwcLayer::Validate() {
     state_ &= ~kVisibleRegionChanged;
     state_ |= kLayerValidated;
     state_ &= ~kLayerContentChanged;
-    state_ &= ~kSurfaceDamageChanged;
     state_ &= ~kZorderChanged;
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
-
-    SufaceDamageTransfrom();
+    if (state_ & kSurfaceDamageChanged) {
+      SufaceDamageTransfrom();
+      state_ &= ~kSurfaceDamageChanged;
+    }
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
