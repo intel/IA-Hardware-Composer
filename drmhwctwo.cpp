@@ -745,18 +745,11 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     DrmHwcTwo::HwcLayer &layer = l.second;
-    switch (layer.sf_type()) {
-      case HWC2::Composition::Device:
-        if (layer.validated_type() == HWC2::Composition::Device)
-          break;
-      // fall thru
-      case HWC2::Composition::SolidColor:
-      case HWC2::Composition::Cursor:
-      case HWC2::Composition::Sideband:
-      default:
-        layer.set_validated_type(HWC2::Composition::Client);
-        ++*num_types;
-        break;
+    // We can only handle layers of Device type, send everything else to SF
+    if (layer.sf_type() != HWC2::Composition::Device ||
+        layer.validated_type() != HWC2::Composition::Device) {
+      layer.set_validated_type(HWC2::Composition::Client);
+      ++*num_types;
     }
   }
   return *num_types ? HWC2::Error::HasChanges : HWC2::Error::None;
