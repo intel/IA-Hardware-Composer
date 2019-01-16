@@ -1589,7 +1589,10 @@ void DisplayQueue::HandleIdleCase() {
   power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
 }
+
 void DisplayQueue::ForceRefresh() {
+  if (idle_tracker_.state_ & FrameStateTracker::kForceIgnoreUpdates)
+    return;
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
@@ -1600,6 +1603,16 @@ void DisplayQueue::ForceRefresh() {
     refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
+}
+
+void DisplayQueue::ForceIgnoreUpdates(bool force) {
+  if (force) {
+    idle_tracker_.state_ |= FrameStateTracker::kForceIgnoreUpdates;
+    IgnoreUpdates();
+  } else {
+    idle_tracker_.state_ &= ~FrameStateTracker::kForceIgnoreUpdates;
+    ForceRefresh();
+  }
 }
 
 void DisplayQueue::DisplayConfigurationChanged() {

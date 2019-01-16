@@ -68,6 +68,8 @@ class IAHWC2 : public hwc2_device_t {
                             uint32_t SRMLength);
   uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
+  bool EnableDRMCommit(bool enable, uint32_t display_id);
+
  public:
   class Hwc2Layer {
    public:

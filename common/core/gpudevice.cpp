@@ -98,6 +98,15 @@ void GpuDevice::GetConnectedPhysicalDisplays(
   }
 }
 
+bool GpuDevice::EnableDRMCommit(bool enable, uint32_t display_id) {
+  // TODO clean all display for commit status
+  size_t size = total_displays_.size();
+  bool ret = false;
+  if (size > display_id)
+    ret = total_displays_.at(display_id)->EnableDRMCommit(enable);
+  return ret;
+}
+
 const std::vector<NativeDisplay *> &GpuDevice::GetAllDisplays() {
   return total_displays_;
 }
