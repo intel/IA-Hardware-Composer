@@ -425,6 +425,10 @@ class NativeDisplay {
     return false;
   }
 
+  virtual bool EnableDRMCommit(bool enable) {
+    return false;
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;

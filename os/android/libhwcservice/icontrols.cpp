@@ -57,6 +57,7 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_VIDEO_SET_HDCP_SRM_FOR_ALL_DISPLAYS,
     TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
     TRANSACT_GET_DISPLAYID_FROM_CONNECTORID,
+    TRANSACT_ENABLE_DRM_COMMIT,
     TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS,
@@ -413,6 +414,20 @@ class BpControls : public BpInterface<IControls> {
     return (uint32_t)(reply.readInt32());
   }
 
+  bool EnableDRMCommit(bool enable, uint32_t display_id) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(enable);
+    data.writeInt32(display_id);
+
+    status_t ret = remote()->transact(TRANSACT_ENABLE_DRM_COMMIT, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return (uint32_t)(reply.readInt32());
+  }
+
   status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                        uint32_t instanceID) override {
     Parcel data;
@@ -746,6 +761,14 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       uint32_t connector_id = data.readInt32();
       uint32_t display_id = this->GetDisplayIDFromConnectorID(connector_id);
       reply->writeInt32(display_id);
+      return NO_ERROR;
+    }
+    case BpControls::TRANSACT_ENABLE_DRM_COMMIT: {
+      CHECK_INTERFACE(IControls, data, reply);
+      bool enable = data.readInt32();
+      uint32_t display_id = data.readInt32();
+      bool ret = this->EnableDRMCommit(enable, display_id);
+      reply->writeInt32(ret);
       return NO_ERROR;
     }
     case BpControls::TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION: {

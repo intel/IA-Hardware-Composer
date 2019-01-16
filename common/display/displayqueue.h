@@ -100,6 +100,8 @@ class DisplayQueue {
 
   void ForceRefresh();
 
+  void ForceIgnoreUpdates(bool force);
+
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
                           uint32_t display_width, uint32_t display_height);
 
@@ -179,10 +181,11 @@ class DisplayQueue {
                                     // if we are continously updating
       // frames, revalidate layers to use planes.
       kTrackingFrames =
-          1 << 4,              // Tracking frames to see when layers need to be
-                               // revalidated after
-                               // disabling overlays for idle case scenario.
-      kIgnoreUpdates = 1 << 5  // Ignore present display calls.
+          1 << 4,               // Tracking frames to see when layers need to be
+                                // revalidated after
+                                // disabling overlays for idle case scenario.
+      kIgnoreUpdates = 1 << 5,  // Ignore present display calls.
+      kForceIgnoreUpdates = 1 << 6  // Ignore all commits/updates.
     };
 
     uint32_t idle_frames_ = 0;
@@ -228,7 +231,11 @@ class DisplayQueue {
 
     void ResetTrackerState() {
       if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-        tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+        if (tracker_.state_ & FrameStateTracker::kForceIgnoreUpdates) {
+          tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+          tracker_.state_ |= FrameStateTracker::kForceIgnoreUpdates;
+        } else
+          tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
       } else {
         tracker_.state_ = 0;
       }
