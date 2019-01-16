@@ -72,6 +72,9 @@ class IControls : public android::IInterface {
                                         uint32_t SRMLength) = 0;
 
   virtual uint32_t GetDisplayIDFromConnectorID(uint32_t connector_id) = 0;
+
+  virtual bool EnableDRMCommit(bool enable, uint32_t display_id) = 0;
+
   virtual status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                                uint32_t instanceID) = 0;
   virtual status_t VideoDisableAllEncryptedSessions(uint32_t sessionID) = 0;

@@ -123,6 +123,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
+  bool EnableDRMCommit(bool enable) override;
+
   /**
    * API for composition to non-zero X coordinate.
    * This is applicable when float mode is enabled.

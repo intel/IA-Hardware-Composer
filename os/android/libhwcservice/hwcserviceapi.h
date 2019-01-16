@@ -18,9 +18,9 @@
 #define OS_ANDROID_HWC_HWCSERVICEAPI_H_
 
 #include <stdint.h>
-#include <vector>
 
 #ifdef __cplusplus
+#include <vector>
 extern "C" {
 #endif
 
@@ -158,12 +158,14 @@ typedef struct _HwcsDisplayModeInfo {
   uint32_t ydpi;
 } HwcsDisplayModeInfo;
 
+#ifdef __cplusplus
 /// query all available modes
 // If non-NULL: fills pModeList with up to modeCount modes.
 // Returns the number of modes available.
 status_t HwcService_DisplayMode_GetAvailableModes(
     HWCSHANDLE hwcs, uint32_t display,
     std::vector<HwcsDisplayModeInfo> &pModeList);
+#endif
 
 /// get current mode
 status_t HwcService_DisplayMode_GetMode(HWCSHANDLE hwcs, uint32_t display,
@@ -211,6 +213,9 @@ status_t HwcService_Video_SetHDCPSRM_AllDisplays(HWCSHANDLE hwcs,
 
 uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
                                                 uint32_t connector_id);
+
+status_t HwcService_EnableDRMCommit(HWCSHANDLE hwcs, uint32_t enable,
+                                    uint32_t display_id);
 
 // The control enables a the protected video subsystem to control when to
 // replace any

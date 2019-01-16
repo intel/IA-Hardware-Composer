@@ -199,6 +199,14 @@ int PhysicalDisplay::GetDisplayPipe() {
   return pipe_;
 }
 
+bool PhysicalDisplay::EnableDRMCommit(bool enable) {
+  display_queue_->ForceIgnoreUpdates(!enable);
+  if (enable)
+    return !display_queue_->IsIgnoreUpdates();
+  else
+    return display_queue_->IsIgnoreUpdates();
+}
+
 bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
   // update the activeConfig
   IHOTPLUGEVENTTRACE(
