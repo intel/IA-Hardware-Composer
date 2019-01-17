@@ -1293,12 +1293,18 @@ bool DisplayPlaneManager::ForceSeparatePlane(
   HwcRect<int> target_display_frame = display_frame;
   uint32_t total_width = 0;
   uint32_t total_height = 0;
-  if (target_layer) {
-    total_width = target_layer->GetDisplayFrameWidth();
-    total_height = target_layer->GetDisplayFrameHeight();
-    target_display_frame = target_layer->GetDisplayFrame();
-    CalculateRect(display_frame, target_display_frame);
+
+  if (!target_layer) {
+    if (!(last_plane.IsVideoPlane() || last_plane.IsCursorPlane()))
+      return false;
+    else
+      return true;
   }
+
+  total_width = target_layer->GetDisplayFrameWidth();
+  total_height = target_layer->GetDisplayFrameHeight();
+  target_display_frame = target_layer->GetDisplayFrame();
+  CalculateRect(display_frame, target_display_frame);
 
   bool force_separate = false;
   for (const size_t &index : new_layers) {
