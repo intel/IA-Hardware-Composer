@@ -113,7 +113,7 @@ struct hwc_context_t {
   hwc_composer_device_1_t device;
   hwc_procs_t const *procs = NULL;
 
-  hwcomposer::GpuDevice device_;
+  hwcomposer::GpuDevice &device_ = GpuDevice::getInstance();
   std::vector<HwcDisplay> extended_displays_;
   HwcDisplay primary_display_;
   HwcDisplay virtual_display_;

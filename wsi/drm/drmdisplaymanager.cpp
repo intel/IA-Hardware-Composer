@@ -38,8 +38,7 @@
 
 namespace hwcomposer {
 
-DrmDisplayManager::DrmDisplayManager(GpuDevice *device)
-    : HWCThread(-8, "DisplayManager"), device_(device) {
+DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
   CTRACE();
 }
 
@@ -216,7 +215,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
   spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
-    if (device_->IsReservedDrmPlane() && !display->IsConnected())
+    if (device_.IsReservedDrmPlane() && !display->IsConnected())
       display->SetPlanesUpdated(false);
     display->MarkForDisconnect();
   }
@@ -361,7 +360,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
   }
 
   // update plane list for reservation
-  if (device_->IsReservedDrmPlane())
+  if (device_.IsReservedDrmPlane())
     RemoveUnreservedPlanes();
 
   return true;
@@ -477,7 +476,7 @@ void DrmDisplayManager::setDrmMaster() {
 void DrmDisplayManager::HandleLazyInitialization() {
   spin_lock_.lock();
   if (release_lock_) {
-    device_->DisableWatch();
+    device_.DisableWatch();
     release_lock_ = false;
   }
   spin_lock_.unlock();
@@ -487,8 +486,8 @@ uint32_t DrmDisplayManager::GetConnectedPhysicalDisplayCount() {
   return connected_display_count_;
 }
 
-DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {
-  return new DrmDisplayManager(device);
+DisplayManager *DisplayManager::CreateDisplayManager() {
+  return new DrmDisplayManager();
 }
 
 void DrmDisplayManager::EnableHDCPSessionForDisplay(
@@ -552,8 +551,7 @@ void DrmDisplayManager::RemoveUnreservedPlanes() {
   for (uint8_t i = 0; i < size; i++) {
     if (!displays_.at(i)->IsConnected() || displays_.at(i)->IsPlanesUpdated())
       continue;
-    std::vector<uint32_t> reserved_planes =
-        device_->GetDisplayReservedPlanes(i);
+    std::vector<uint32_t> reserved_planes = device_.GetDisplayReservedPlanes(i);
     if (!reserved_planes.empty() && reserved_planes.size() < 4)
       displays_.at(i)->ReleaseUnreservedPlanes(reserved_planes);
     displays_.at(i)->SetPlanesUpdated(true);

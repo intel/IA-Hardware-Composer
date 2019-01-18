@@ -30,6 +30,7 @@
 #include "drmdisplay.h"
 #include "drmscopedtypes.h"
 #include "framebuffermanager.h"
+#include "gpudevice.h"
 #include "hwcthread.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
@@ -45,7 +46,7 @@ class NativeDisplay;
 
 class DrmDisplayManager : public HWCThread, public DisplayManager {
  public:
-  DrmDisplayManager(GpuDevice *device);
+  DrmDisplayManager();
   ~DrmDisplayManager() override;
 
   bool Initialize() override;
@@ -104,7 +105,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
   std::unique_ptr<NativeBufferHandler> buffer_handler_;
-  GpuDevice *device_ = NULL;
+  GpuDevice &device_ = GpuDevice::getInstance();
   bool ignore_updates_ = false;
   int fd_ = -1;
   int hotplug_fd_ = -1;

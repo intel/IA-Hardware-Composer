@@ -26,7 +26,7 @@ namespace hwcomposer {
 class GpuDevice;
 class DisplayManager {
  public:
-  static DisplayManager *CreateDisplayManager(GpuDevice *device);
+  static DisplayManager *CreateDisplayManager();
   DisplayManager() = default;
   virtual ~DisplayManager() {
   }

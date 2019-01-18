@@ -41,7 +41,7 @@ bool GpuDevice::Initialize() {
   initialization_state_ |= kInitialized;
   initialization_state_lock_.unlock();
 
-  display_manager_.reset(DisplayManager::CreateDisplayManager(this));
+  display_manager_.reset(DisplayManager::CreateDisplayManager());
 
   bool success = display_manager_->Initialize();
   if (!success) {
@@ -920,6 +920,11 @@ void GpuDevice::HandleWait() {
 
 void GpuDevice::DisableWatch() {
   HWCThread::Exit();
+}
+
+GpuDevice &GpuDevice::getInstance() {
+  static GpuDevice gpu_device_;
+  return gpu_device_;
 }
 
 }  // namespace hwcomposer
