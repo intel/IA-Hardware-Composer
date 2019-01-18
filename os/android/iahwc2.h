@@ -318,7 +318,7 @@ class IAHWC2 : public hwc2_device_t {
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
 
-  hwcomposer::GpuDevice device_;
+  hwcomposer::GpuDevice &device_ = GpuDevice::getInstance();
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
   std::vector<std::unique_ptr<HwcDisplay>> virtual_displays_;

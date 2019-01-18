@@ -159,7 +159,7 @@ class IAHWC : public iahwc_device {
   int GetNumDisplays(int* num_displays);
   int RegisterCallback(int32_t description, uint32_t display_handle,
                        iahwc_callback_data_t data, iahwc_function_ptr_t hook);
-  hwcomposer::GpuDevice device_;
+  hwcomposer::GpuDevice& device_ = GpuDevice::getInstance();
   std::vector<IAHWCDisplay*> displays_;
 };
 
