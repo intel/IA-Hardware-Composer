@@ -225,7 +225,7 @@ class DisplayVSyncCallback : public hwcomposer::VsyncCallback {
 
 class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
  public:
-  HotPlugEventCallback(hwcomposer::GpuDevice *device) : device_(device) {
+  HotPlugEventCallback() {
   }
 
   void Callback(std::vector<hwcomposer::NativeDisplay *> connected_displays) {
@@ -401,7 +401,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
   void PopulateConnectedDisplays() {
     if (connected_displays_.empty()) {
-      device_->GetConnectedPhysicalDisplays(connected_displays_);
+      device_.GetConnectedPhysicalDisplays(connected_displays_);
 
       for (auto &display : connected_displays_) {
         auto callback = std::make_shared<DisplayVSyncCallback>();
@@ -413,7 +413,7 @@ class HotPlugEventCallback : public hwcomposer::DisplayHotPlugEventCallback {
 
  private:
   std::vector<hwcomposer::NativeDisplay *> connected_displays_;
-  hwcomposer::GpuDevice *device_;
+  hwcomposer::GpuDevice &device_ = hwcomposer::GpuDevice::getInstance();
   hwcomposer::SpinLock spin_lock_;
   uint16_t GetRGBABits(uint64_t color, uint16_t bpc, RGBA comp) const;
 };
@@ -800,9 +800,9 @@ int main(int argc, char *argv[]) {
 #ifndef DISABLE_TTY
   setup_tty();
 #endif
-  hwcomposer::GpuDevice device;
+  hwcomposer::GpuDevice &device = hwcomposer::GpuDevice::getInstance();
   device.Initialize();
-  auto callback = std::make_shared<HotPlugEventCallback>(&device);
+  auto callback = std::make_shared<HotPlugEventCallback>();
   device.RegisterHotPlugEventCallback(callback);
   const std::vector<hwcomposer::NativeDisplay *> &displays =
       device.GetAllDisplays();
