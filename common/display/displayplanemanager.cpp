@@ -135,6 +135,21 @@ bool DisplayPlaneManager::ValidateLayers(
     j->get()->SetInUse(false);
   }
 
+  size_t video_layers = 0;
+  for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
+    if (layers[lindex].IsVideoLayer())
+      video_layers++;
+  }
+  // If video layers is more than available planes
+  // We are going to force all the layers bo be composited by VA path
+  if (video_layers >= overlay_planes_.size() - composition.size()) {
+    ForceVppForAllLayers(commit_planes, composition, layers, add_index,
+                         mark_later, false);
+    *re_validation_needed = false;
+    *commit_checked = true;
+    return true;
+  }
+
   std::vector<OverlayLayer *> cursor_layers;
   auto layer_begin = layers.begin();
   auto layer_end = layers.end();
@@ -870,6 +885,64 @@ bool DisplayPlaneManager::FallbacktoGPU(
 
 bool DisplayPlaneManager::CheckPlaneFormat(uint32_t format) {
   return overlay_planes_.at(0)->IsSupportedFormat(format);
+}
+
+void DisplayPlaneManager::ForceVppForAllLayers(
+    std::vector<OverlayPlane> &commit_planes,
+    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
+    size_t add_index, std::vector<NativeSurface *> &mark_later,
+    bool recycle_resources) {
+  auto layer_begin = layers.begin() + add_index;
+  // all planes already assigned, let's reset them into one plane VPP
+  if (composition.size() >= overlay_planes_.size()) {
+    layer_begin = layers.begin();
+    for (DisplayPlaneState &plane : composition) {
+      MarkSurfacesForRecycling(&plane, mark_later, recycle_resources);
+    }
+    DisplayPlaneStateList().swap(composition);
+    std::vector<OverlayPlane>().swap(commit_planes);
+    auto overlay_begin = overlay_planes_.begin();
+    // Let's mark all planes as free to be used.
+    for (auto j = overlay_begin; j < overlay_planes_.end(); ++j) {
+      j->get()->SetInUse(false);
+    }
+  }
+
+  auto layer_end = layers.end();
+  OverlayLayer *primary_layer = &(*(layer_begin));
+  DisplayPlane *current_plane = overlay_planes_.at(composition.size()).get();
+  composition.emplace_back(current_plane, primary_layer, this,
+                           primary_layer->GetZorder(), display_transform_);
+  DisplayPlaneState &last_plane = composition.back();
+  last_plane.ForceGPURendering();
+  layer_begin++;
+#ifdef SURFACE_TRACING
+  ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
+                primary_layer->GetZorder());
+#endif
+
+  for (auto i = layer_begin; i != layer_end; ++i) {
+#ifdef SURFACE_TRACING
+    ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n", i->GetZorder());
+#endif
+    last_plane.AddLayer(&(*(i)));
+    i->SetLayerComposition(OverlayLayer::kGpu);
+  }
+  last_plane.SetVideoPlane(true);
+  EnsureOffScreenTarget(last_plane);
+  current_plane->SetInUse(true);
+
+  commit_planes.emplace_back(
+      OverlayPlane(last_plane.GetDisplayPlane(), last_plane.GetOverlayLayer()));
+  // Check for Any display transform to be applied.
+  ValidateForDisplayTransform(last_plane, commit_planes);
+  // Check for any change to scalar usage.
+  ValidateForDisplayScaling(last_plane, commit_planes);
+  // Check for Downscaling.
+  ValidateForDownScaling(last_plane, commit_planes);
+  // Reset andy Scanout validation state.
+  uint32_t validation_done = DisplayPlaneState::ReValidationType::kScanout;
+  last_plane.RevalidationDone(validation_done);
 }
 
 void DisplayPlaneManager::ForceGpuForAllLayers(

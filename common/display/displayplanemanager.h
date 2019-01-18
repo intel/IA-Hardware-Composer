@@ -163,6 +163,12 @@ class DisplayPlaneManager {
                             std::vector<NativeSurface *> &mark_later,
                             bool recycle_resources);
 
+  void ForceVppForAllLayers(std::vector<OverlayPlane> &commit_planes,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayLayer> &layers, size_t add_index,
+                            std::vector<NativeSurface *> &mark_later,
+                            bool recycle_resources);
+
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.

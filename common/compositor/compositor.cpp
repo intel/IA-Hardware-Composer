@@ -104,6 +104,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       for (auto layer_id : plane.GetSourceLayers()) {
         OverlayLayer *layer = &(layers.at(layer_id));
         media_state.layers_.emplace_back(layer);
+        // exclude the media buffer
         OverlayBuffer *layerbuffer = layer->GetBuffer();
         for (size_t index = 0; index < draw_buffers.size(); index++) {
           if (draw_buffers[index] == layerbuffer) {
@@ -111,9 +112,6 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
           }
         }
       }
-
-      // exclude the media buffer
-
     } else if (plane.NeedsOffScreenComposition()) {
       comp = &plane;
       plane.SwapSurfaceIfNeeded();
