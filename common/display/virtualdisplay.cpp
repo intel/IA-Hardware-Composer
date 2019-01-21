@@ -418,6 +418,7 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
                                      int32_t acquire_fence) {
 #ifdef HYPER_DMABUF_SHARING
   if (display_index_ == 0) {
+    delete buffer;
     return;
   }
 #endif
