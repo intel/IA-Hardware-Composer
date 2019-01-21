@@ -172,6 +172,137 @@ void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
   }
 }
 
+#ifdef ENABLE_PANORAMA
+void GpuDevice::ParsePanoramaDisplayConfig(
+    std::string &value, std::vector<std::vector<uint32_t>> &panorama_displays) {
+  std::istringstream i_value(value);
+  std::string i_panorama_split_str;
+  std::vector<uint32_t> panorama_duplicate_check;
+  // Got panorama sub display num
+  std::vector<uint32_t> panorama_display;
+  while (std::getline(i_value, i_panorama_split_str, '+')) {
+    if (i_panorama_split_str.empty() ||
+        i_panorama_split_str.find_first_not_of("0123456789") !=
+            std::string::npos)
+      continue;
+    size_t i_panorama_split_num = atoi(i_panorama_split_str.c_str());
+    // Check and skip if the display already been used in other panorama
+    bool skip_duplicate_display = false;
+    size_t panorama_size = panorama_duplicate_check.size();
+    for (size_t i = 0; i < panorama_size; i++) {
+      if (panorama_duplicate_check.at(i) == i_panorama_split_num) {
+        skip_duplicate_display = true;
+        break;
+      }
+    }
+    if (!skip_duplicate_display) {
+      // save the sub display num for the panorama display (don't care if
+      // the physical/logical display is existing/connected here)
+      panorama_display.emplace_back(i_panorama_split_num);
+      panorama_duplicate_check.emplace_back(i_panorama_split_num);
+    }
+  }
+  panorama_displays.emplace_back(panorama_display);
+}
+
+void GpuDevice::ParsePanoramaSOSDisplayConfig(
+    std::string &value,
+    std::vector<std::vector<uint32_t>> &panorama_sos_displays) {
+  std::istringstream i_value(value);
+  std::string i_panorama_sos_split_str;
+
+  std::vector<uint32_t> panorama_sos_duplicate_check;
+  // Got panorama sub display num
+  std::vector<uint32_t> panorama_sos_display;
+  while (std::getline(i_value, i_panorama_sos_split_str, '+')) {
+    if (i_panorama_sos_split_str.empty() ||
+        i_panorama_sos_split_str.find_first_not_of("0123456789") !=
+            std::string::npos)
+      continue;
+    size_t i_panorama_sos_split_num = atoi(i_panorama_sos_split_str.c_str());
+    // Check and skip if the display already been used in other panorama
+    bool skip_duplicate_display = false;
+    size_t panorama_sos_size = panorama_sos_duplicate_check.size();
+    for (size_t i = 0; i < panorama_sos_size; i++) {
+      if (panorama_sos_duplicate_check.at(i) == i_panorama_sos_split_num) {
+        skip_duplicate_display = true;
+        break;
+      }
+    }
+    if (!skip_duplicate_display) {
+      // save the sub display num for the panorama display (don't care if
+      // the physical/logical display is existing/connected here)
+      panorama_sos_display.emplace_back(i_panorama_sos_split_num);
+      panorama_sos_duplicate_check.emplace_back(i_panorama_sos_split_num);
+    }
+  }
+  panorama_sos_displays.emplace_back(panorama_sos_display);
+}
+
+void GpuDevice::PanoramaInit(
+    std::vector<NativeDisplay *> &total_displays_,
+    std::vector<NativeDisplay *> &temp_displays,
+    std::vector<std::vector<uint32_t>> &panorama_displays,
+    std::vector<std::vector<uint32_t>> &panorama_sos_displays,
+    std::vector<bool> &available_displays) {
+  std::vector<NativeDisplay *> i_available_panorama_displays;
+  temp_displays.swap(total_displays_);
+  // Add the virtual panorama displays mapping the SOS virtual displays.
+  size_t sos_displays_size = panorama_sos_displays.size();
+  for (size_t sos_it = 0; sos_it < sos_displays_size; sos_it++) {
+    NativeDisplay *virtualdisp = display_manager_->CreateVirtualPanoramaDisplay(
+        panorama_sos_displays.at(0).at(sos_it));
+    virtualdisp->InitVirtualDisplay(1920, 1080);
+    i_available_panorama_displays.emplace_back(virtualdisp);
+  }
+
+  // Add the native displays
+  size_t displays_size = temp_displays.size();
+  for (size_t t = 0; t < displays_size; t++) {
+    // Skip the displays which already be marked in other panorama
+    if (!available_displays.at(t)) {
+      ETRACE("display: %u is not present in the vector of avaialble_displays");
+      continue;
+    }
+    bool skip_display = false;
+    size_t panorama_size = panorama_displays.size();
+    for (size_t m = 0; m < panorama_size; m++) {
+      size_t panorama_inner_size = panorama_displays.at(m).size();
+      for (size_t l = 0; l < panorama_inner_size; l++) {
+        // Check if the logical display is in panorama, keep the order of
+        // logical displays list
+        // Get the smallest logical num of the panorama for order keeping
+        if (t == panorama_displays.at(m).at(l)) {
+          if (panorama_displays.at(m).at(l) < displays_size) {
+            // Skip the disconnected display here
+            i_available_panorama_displays.emplace_back(
+                temp_displays.at(panorama_displays.at(m).at(l)));
+            // Add tag for panorama-ed displays
+            available_displays.at(panorama_displays.at(m).at(l)) = false;
+          }
+          skip_display = true;
+          break;
+        }
+      }
+      if (skip_display)
+        break;
+    }
+  }
+  // Create panorama for those logical displays
+  if (i_available_panorama_displays.size() > 0) {
+    std::unique_ptr<MosaicDisplay> panorama(
+        new MosaicDisplay(i_available_panorama_displays));
+    panorama->SetPanoramaMode(true);
+    panorama->SetExtraDispInfo((int)panorama_displays.size(),
+                               (int)panorama_sos_displays.size());
+    panorama_displays_.emplace_back(std::move(panorama));
+    // Save the panorama to the final displays list
+    total_displays_.emplace_back(panorama_displays_.back().get());
+  }
+}
+
+#endif
+
 void GpuDevice::HandleHWCSettings() {
   // Handle config file reading
   const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
@@ -189,6 +320,12 @@ void GpuDevice::HandleHWCSettings() {
   std::vector<HwcRect<int32_t>> float_displays;
   std::vector<std::vector<uint32_t>> cloned_displays;
   std::vector<std::vector<uint32_t>> mosaic_displays;
+#ifdef ENABLE_PANORAMA
+  bool use_panorama = false;
+  std::vector<std::vector<uint32_t>> panorama_displays;
+  std::vector<std::vector<uint32_t>> panorama_sos_displays;
+#endif
+
   std::ifstream fin(hwc_dp_cfg_path);
   std::string cfg_line;
   std::string key_logical("LOGICAL");
@@ -203,6 +340,11 @@ void GpuDevice::HandleHWCSettings() {
   std::string key_physical_display_rotation("PHYSICAL_DISPLAY_ROTATION");
   std::string key_clone_display("CLONE_DISPLAY");
   std::string key_float_display("FLOAT_DISPLAY");
+#ifdef ENABLE_PANORAMA
+  std::string key_panorama("PANORAMA");
+  std::string key_panorama_display("PANORAMA_DISPLAY");
+  std::string key_panorama_sos_display("PANORAMA_SOS_DISPLAY");
+#endif
 
   std::string key_reserved_drm_plane("DRM_PLANE_RESERVED");
 
@@ -234,6 +376,13 @@ void GpuDevice::HandleHWCSettings() {
           if (!value.compare(enable_str)) {
             use_mosaic = true;
           }
+#ifdef ENABLE_PANORAMA
+          // Got panorama switch
+        } else if (!key.compare(key_panorama)) {
+          if (!value.compare(enable_str)) {
+            use_panorama = true;
+          }
+#endif
           // Got clone switch
         } else if (!key.compare(key_clone)) {
           if (!value.compare(enable_str)) {
@@ -310,6 +459,16 @@ void GpuDevice::HandleHWCSettings() {
             }
           }
           mosaic_displays.emplace_back(mosaic_display);
+#ifdef ENABLE_PANORAMA
+          // Got panorama config
+        } else if (!key.compare(key_panorama_display)) {
+          ParsePanoramaDisplayConfig(value, panorama_displays);
+          size_t panorama_displays_size = panorama_displays.size();
+          // Got panorama sos config
+        } else if (!key.compare(key_panorama_sos_display)) {
+          ParsePanoramaSOSDisplayConfig(value, panorama_sos_displays);
+          size_t panorama_sos_displays_size = panorama_sos_displays.size();
+#endif
         } else if (!key.compare(key_physical_display)) {
           std::istringstream i_value(value);
           std::string physical_split_str;
@@ -598,7 +757,18 @@ void GpuDevice::HandleHWCSettings() {
     total_displays_.swap(temp_displays);
   }
 
+#ifdef ENABLE_PANORAMA
+  if (use_panorama && !use_mosaic && !use_cloned && !use_float) {
+    PanoramaInit(total_displays_, temp_displays, panorama_displays,
+                 panorama_sos_displays, available_displays);
+  }
+#endif
+
+#ifdef ENABLE_PANORAMA
+  if (use_cloned && !use_mosaic && !use_logical && !use_panorama) {
+#else
   if (use_cloned && !use_mosaic && !use_logical) {
+#endif
     std::vector<NativeDisplay *> temp_displays;
     size_t displays_size = total_displays_.size();
     size_t cloned_displays_size = cloned_displays.size();
@@ -641,10 +811,14 @@ void GpuDevice::HandleHWCSettings() {
     temp_displays.swap(total_displays_);
   }
 
-  // Now set floating display configuration
-  // Get the floating display index and the respective rectangle
-  // TODO Logical display on & mosaic display on scenario
+// Now set floating display configuration
+// Get the floating display index and the respective rectangle
+// TODO Logical display on & mosaic display on scenario
+#ifdef ENABLE_PANORAMA
+  if (use_float && !use_logical && !use_mosaic && !use_panorama) {
+#else
   if (use_float && !use_logical && !use_mosaic) {
+#endif
     bool ret = false;
     size_t size = float_display_indices.size();
     size_t num_displays = total_displays_.size();

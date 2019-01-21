@@ -61,6 +61,11 @@ class DisplayManager {
   virtual NativeDisplay *CreateVirtualDisplay(uint32_t display_index) = 0;
   virtual void DestroyVirtualDisplay(uint32_t display_index) = 0;
 
+#ifdef ENABLE_PANORAMA
+  virtual NativeDisplay *CreateVirtualPanoramaDisplay(
+      uint32_t display_index) = 0;
+#endif
+
   virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 
   virtual void RegisterHotPlugEventCallback(
