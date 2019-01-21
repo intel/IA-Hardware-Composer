@@ -552,8 +552,7 @@ void DisplayQueue::InitializeOverlayLayers(
     // Discard protected video for tear down
     if (state_ & kVideoDiscardProtected) {
       if (layer->GetNativeHandle() != NULL &&
-          (layer->GetNativeHandle()->meta_data_.usage_ &
-           hwcomposer::kLayerProtected))
+          IsBufferProtected(layer->GetNativeHandle()))
         continue;
     }
 

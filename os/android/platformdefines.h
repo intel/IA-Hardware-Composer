@@ -27,6 +27,7 @@
 
 #include <android/log.h>
 #include <cros_gralloc_handle.h>
+#include <hardware/gralloc1.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <system/graphics.h>
@@ -66,6 +67,14 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
     ETRACE("Error generate handle from prime fd %d", prime_fd);
   }
   return id;
+}
+
+inline bool IsBufferProtected(HWCNativeHandle handle) {
+  auto gr_handle = (struct cros_gralloc_handle*)handle->handle_;
+  if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
+    return true;
+  }
+  return false;
 }
 
 // _cplusplus
