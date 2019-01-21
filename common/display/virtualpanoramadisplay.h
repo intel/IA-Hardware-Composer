@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#ifndef COMMON_DISPLAY_VIRTUALDISPLAY_H_
-#define COMMON_DISPLAY_VIRTUALDISPLAY_H_
+#ifndef COMMON_DISPLAY_VIRTUALPANORAMADISPLAY_H_
+#define COMMON_DISPLAY_VIRTUALPANORAMADISPLAY_H_
 
 #include <nativedisplay.h>
 
@@ -33,14 +33,14 @@ struct HwcLayer;
 class FrameBufferManager;
 class NativeBufferHandler;
 
-class VirtualDisplay : public NativeDisplay {
+class VirtualPanoramaDisplay : public NativeDisplay {
  public:
-  VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-                 FrameBufferManager *framebuffermanager, uint32_t pipe_id,
-                 uint32_t crtc_id);
-  VirtualDisplay(const VirtualDisplay &) = delete;
-  VirtualDisplay &operator=(const VirtualDisplay &) = delete;
-  ~VirtualDisplay() override;
+  VirtualPanoramaDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
+                         FrameBufferManager *framebuffermanager,
+                         uint32_t pipe_id, uint32_t crtc_id);
+  VirtualPanoramaDisplay(const VirtualPanoramaDisplay &) = delete;
+  VirtualPanoramaDisplay &operator=(const VirtualPanoramaDisplay &) = delete;
+  ~VirtualPanoramaDisplay() override;
 
   void InitVirtualDisplay(uint32_t width, uint32_t height) override;
 
@@ -56,6 +56,14 @@ class VirtualDisplay : public NativeDisplay {
 
   bool Initialize(NativeBufferHandler *buffer_handler,
                   FrameBufferManager *frame_buffer_manager) override;
+
+  bool IsConnected() const override {
+    return true;
+  }
+
+  void CreateOutBuffer();
+
+  void HyperDmaExport();
 
   DisplayType Type() const override {
     return DisplayType::kVirtual;
@@ -97,6 +105,7 @@ class VirtualDisplay : public NativeDisplay {
   }
 
  private:
+  void InitHyperDmaBuf();
   HWCNativeHandle output_handle_;
   int32_t acquire_fence_ = -1;
   Compositor compositor_;
@@ -108,6 +117,7 @@ class VirtualDisplay : public NativeDisplay {
   FrameBufferManager *fb_manager_ = NULL;
   uint32_t display_index_ = 0;
   bool discard_protected_video_ = false;
+  bool hyper_dmabuf_initialized = false;
 
 #ifdef HYPER_DMABUF_SHARING
   int mHyperDmaBuf_Fd = -1;
@@ -118,4 +128,4 @@ class VirtualDisplay : public NativeDisplay {
 };
 
 }  // namespace hwcomposer
-#endif  // COMMON_DISPLAY_VIRTUALDISPLAY_H_
+#endif  // COMMON_DISPLAY_VIRTUALMOSAICDISPLAY_H_
