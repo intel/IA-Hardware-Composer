@@ -77,6 +77,10 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   return id;
 }
 
+inline bool IsBufferProtected(HWCNativeHandle handle) {
+  return false;
+}
+
 // _cplusplus
 #ifdef _cplusplus
 }
