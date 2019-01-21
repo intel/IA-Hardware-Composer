@@ -109,6 +109,20 @@ class GpuDevice : public HWCThread {
   std::unique_ptr<DisplayManager> display_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
+#ifdef ENABLE_PANORAMA
+  std::vector<std::unique_ptr<NativeDisplay>> panorama_displays_;
+  void ParsePanoramaDisplayConfig(
+      std::string& value,
+      std::vector<std::vector<uint32_t>>& panorama_displays);
+  void ParsePanoramaSOSDisplayConfig(
+      std::string& value,
+      std::vector<std::vector<uint32_t>>& panorama_sos_displays);
+  void PanoramaInit(std::vector<NativeDisplay*>& total_displays_,
+                    std::vector<NativeDisplay*>& temp_displays,
+                    std::vector<std::vector<uint32_t>>& panorama_displays,
+                    std::vector<std::vector<uint32_t>>& panorama_sos_displays,
+                    std::vector<bool>& available_displays);
+#endif
   std::vector<NativeDisplay*> total_displays_;
 
   bool reserve_plane_ = false;

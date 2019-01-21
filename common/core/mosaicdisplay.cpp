@@ -349,7 +349,19 @@ void MosaicDisplay::HotPlugUpdate(bool connected) {
   }
 
   vsync_counter_ = total_connected_displays;
+
+#ifdef ENABLE_PANORAMA
+  if (panorama_mode_) {
+    vsync_divisor_ = num_physical_displays_;
+    if (vsync_divisor_ < 1) {
+      vsync_divisor_ = 1;
+    }
+  } else {
+    vsync_divisor_ = vsync_counter_;
+  }
+#else
   vsync_divisor_ = vsync_counter_;
+#endif
 
   if (connected_ == connected) {
     lock_.unlock();
@@ -527,5 +539,17 @@ bool MosaicDisplay::ContainConnector(const uint32_t connector_id) {
   }
   return false;
 }
+
+#ifdef ENABLE_PANORAMA
+void MosaicDisplay::SetPanoramaMode(bool mode) {
+  panorama_mode_ = mode;
+}
+
+void MosaicDisplay::SetExtraDispInfo(int num_physical_displays,
+                                     int num_virtual_displays) {
+  num_physical_displays_ = num_physical_displays;
+  num_virtual_displays_ = num_virtual_displays;
+}
+#endif
 
 }  // namespace hwcomposer

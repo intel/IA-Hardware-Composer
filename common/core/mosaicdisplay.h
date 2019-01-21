@@ -115,6 +115,11 @@ class MosaicDisplay : public NativeDisplay {
 
   bool ContainConnector(const uint32_t connector_id) override;
 
+#ifdef ENABLE_PANORAMA
+  void SetPanoramaMode(bool mode);
+  void SetExtraDispInfo(int num_physical_displays, int num_virtual_displays);
+#endif
+
  private:
   std::vector<NativeDisplay *> physical_displays_;
   std::vector<NativeDisplay *> connected_displays_;
@@ -136,6 +141,11 @@ class MosaicDisplay : public NativeDisplay {
   bool connected_ = false;
   bool pending_vsync_ = false;
   bool update_connected_displays_ = true;
+#ifdef ENABLE_PANORAMA
+  bool panorama_mode_ = false;
+  int32_t num_physical_displays_ = 1;
+  int32_t num_virtual_displays_ = 1;
+#endif
   SpinLock lock_;
 };
 
