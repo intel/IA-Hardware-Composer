@@ -1,0 +1,53 @@
+From e9d99a2c9e080a2668f264efd27313ad5a716da9 Mon Sep 17 00:00:00 2001
+From: Shaofeng Tang <shaofeng.tang@intel.com>
+Date: Wed, 26 Dec 2018 15:28:09 +0800
+Subject: [PATCH] Build libminigbm.so for compiling kmscube
+
+Change-Id: I6eb9a7385987216388ea56f5acfc8a568e11c1c4
+---
+ Android.mk | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/Android.mk b/Android.mk
+index 3757f71..30b2961 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -9,7 +9,7 @@ LOCAL_PATH := $(call my-dir)
+ intel_drivers := i915 i965
+ include $(CLEAR_VARS)
+ 
+-SUBDIRS := cros_gralloc
++#SUBDIRS := cros_gralloc
+ 
+ LOCAL_SHARED_LIBRARIES := \
+ 	libcutils \
+@@ -23,6 +23,8 @@ LOCAL_SRC_FILES := \
+ 	drv.c \
+ 	evdi.c \
+ 	exynos.c \
++        gbm.c \
++        gbm_helpers.c \
+ 	gma500.c \
+ 	helpers.c \
+ 	i915.c \
+@@ -30,6 +32,7 @@ LOCAL_SRC_FILES := \
+ 	marvell.c \
+ 	mediatek.c \
+ 	nouveau.c \
++        radeon.c \
+ 	rockchip.c \
+ 	tegra.c \
+ 	udl.c \
+@@ -64,7 +67,8 @@ LOCAL_CFLAGS += -DUSE_VNDK
+ endif
+ 
+ LOCAL_CFLAGS += -Wno-error
+-LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
++#LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
++LOCAL_MODULE := libminigbm
+ LOCAL_MODULE_TAGS := optional
+ # The preferred path for vendor HALs is /vendor/lib/hw
+ LOCAL_PROPRIETARY_MODULE := true
+-- 
+1.9.1
+
