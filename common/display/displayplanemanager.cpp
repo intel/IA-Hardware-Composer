@@ -788,7 +788,9 @@ void DisplayPlaneManager::SetDisplayTransform(uint32_t transform) {
 
 void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   NativeSurface *surface = NULL;
-  bool video_separate = plane.IsVideoPlane();
+  // We only use media formats when video compostion for 1 layer
+  bool video_separate =
+      plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1);
   uint32_t preferred_format = 0;
   uint32_t usage = hwcomposer::kLayerNormal;
   if (video_separate) {
@@ -798,6 +800,8 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   uint64_t modifier = plane.GetDisplayPlane()->GetPreferredFormatModifier();
+  if (plane.IsVideoPlane())
+    modifier = 0;
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() == -1) {
       uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
