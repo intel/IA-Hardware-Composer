@@ -797,10 +797,10 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   if (!surface) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
-      new_surface = CreateVideoBuffer(width_, height_);
+      new_surface = CreateVideoSurface(width_, height_);
       usage = hwcomposer::kLayerVideo;
     } else {
-      new_surface = Create3DBuffer(width_, height_);
+      new_surface = Create3DSurface(width_, height_);
     }
 
     bool modifer_succeeded = false;

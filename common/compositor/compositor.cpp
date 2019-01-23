@@ -196,7 +196,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     return false;
   }
 
-  NativeSurface *surface = Create3DBuffer(width, height);
+  NativeSurface *surface = Create3DSurface(width, height);
   surface->InitializeForOffScreenRendering(output_handle, resource_manager,
                                            framebuffer_manager);
   std::vector<DrawState> draw;
