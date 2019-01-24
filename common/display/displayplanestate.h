@@ -132,6 +132,8 @@ class DisplayPlaneState {
 
   bool IsVideoPlane() const;
 
+  bool HasVideoLayer() const;
+
   // Set true if this Plane State is handling Video layer and
   // needs to go through the Media Compositor for any
   // offscreen composition usage.
@@ -282,6 +284,8 @@ class DisplayPlaneState {
     bool refresh_surface_ = true;
 
     bool supports_video_ = false;
+
+    bool has_video_layer_ = false;
 
     // Display cannot support the required rotation.
     bool unsupported_display_rotation_ = false;

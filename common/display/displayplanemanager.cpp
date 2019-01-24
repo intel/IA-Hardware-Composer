@@ -800,7 +800,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   }
 
   uint64_t modifier = plane.GetDisplayPlane()->GetPreferredFormatModifier();
-  if (plane.IsVideoPlane())
+  if (plane.HasVideoLayer())
     modifier = 0;
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() == -1) {

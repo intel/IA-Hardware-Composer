@@ -126,6 +126,10 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   private_data_->apply_effects_ = false;
 
+  if (layer->IsVideoLayer()){
+    private_data_->has_video_layer_ = true;
+  }
+
   // Reset Validation state.
   if (re_validate_layer_ & ReValidationType::kScanout)
     re_validate_layer_ &= ~ReValidationType::kScanout;
@@ -143,6 +147,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   std::vector<size_t> &new_layers = private_data_->source_layers_;
 
   private_data_->has_cursor_layer_ = false;
+  private_data_->has_video_layer_ = false;
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   bool has_video = false;
@@ -164,6 +169,9 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
       private_data_->has_cursor_layer_ = true;
     } else if (!has_video) {
       has_video = layer.IsVideoLayer();
+      if (!private_data_->has_video_layer_){
+        private_data_->has_video_layer_ = has_video;
+      }
     }
 
     const HwcRect<int> &df = layer.GetDisplayFrame();
@@ -489,11 +497,16 @@ bool DisplayPlaneState::IsVideoPlane() const {
   return private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo;
 }
 
+bool DisplayPlaneState::HasVideoLayer() const {
+  return private_data_->has_video_layer_;
+}
+
 void DisplayPlaneState::SetVideoPlane(bool enable_video) {
 #ifndef DISABLE_VA
   if (enable_video) {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
     private_data_->supports_video_ = true;
+    private_data_->has_video_layer_ = true;
   } else {
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   }
