@@ -140,9 +140,12 @@ bool DisplayPlaneManager::ValidateLayers(
     if (layers[lindex].IsVideoLayer())
       video_layers++;
   }
+  size_t avail_planes = overlay_planes_.size() - composition.size();
+  if (!(overlay_planes_[overlay_planes_.size() - 1]->IsUniversal()))
+    avail_planes--;
   // If video layers is more than available planes
   // We are going to force all the layers bo be composited by VA path
-  if (video_layers >= overlay_planes_.size() - composition.size()) {
+  if (video_layers >= avail_planes) {
     ForceVppForAllLayers(commit_planes, composition, layers, add_index,
                          mark_later, false);
     *re_validation_needed = false;
