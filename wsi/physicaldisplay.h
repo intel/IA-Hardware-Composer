@@ -266,6 +266,12 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void RefreshClones();
   void HandleClonedDisplays(NativeDisplay *display);
 
+#ifdef ENABLE_ANDROID_WA
+  uint32_t config_ = 1;
+#else
+  uint32_t config_ = 0;
+#endif
+
  protected:
   enum DisplayConnectionStatus {
     kDisconnected = 1 << 0,
@@ -287,11 +293,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   };
 
   uint32_t pipe_;
-#ifdef ENABLE_ANDROID_WA
-  uint32_t config_ = 1;
-#else
-  uint32_t config_ = 0;
-#endif
   int32_t width_;
   int32_t height_;
   HwcRect<int32_t> rect_;

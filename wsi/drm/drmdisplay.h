@@ -91,7 +91,7 @@ class DrmDisplay : public PhysicalDisplay {
   }
 
   bool ConnectDisplay(const drmModeModeInfo &mode_info,
-                      const drmModeConnector *connector, uint32_t config);
+                      const drmModeConnector *connector);
 
   void SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info);
   void SetDisplayAttribute(const drmModeModeInfo &mode_info);

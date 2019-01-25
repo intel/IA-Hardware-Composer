@@ -154,8 +154,7 @@ void DrmDisplay::DrmConnectorGetDCIP3Support(
 }
 
 bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
-                                const drmModeConnector *connector,
-                                uint32_t config) {
+                                const drmModeConnector *connector) {
   IHOTPLUGEVENTTRACE("DrmDisplay::Connect recieved.");
   // TODO(kalyan): Add support for multi monitor case.
   if (connector_ && connector->connector_id == connector_) {
@@ -173,7 +172,6 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   mmWidth_ = connector->mmWidth;
   mmHeight_ = connector->mmHeight;
   SetDisplayAttribute(mode_info);
-  config_ = config;
 
   ScopedDrmObjectPropertyPtr connector_props(drmModeObjectGetProperties(
       gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
@@ -393,7 +391,9 @@ void DrmDisplay::UpdateDisplayConfig() {
     return;
   }
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-  SetDisplayAttribute(modes_[config_]);
+  uint32_t activeconfig = 0;
+  PhysicalDisplay::GetActiveConfig(&activeconfig);
+  SetDisplayAttribute(modes_[activeconfig]);
   SPIN_UNLOCK(display_lock_);
 }
 

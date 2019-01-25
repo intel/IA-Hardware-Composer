@@ -278,8 +278,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
             encoder->crtc_id, display->CrtcId(), display->IsConnected());
         // At initilaization  preferred mode is set!
         if (!display->IsConnected() && encoder->crtc_id == display->CrtcId() &&
-            display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
-                                    preferred_mode)) {
+            display->ConnectDisplay(mode.at(preferred_mode), connector.get())) {
           IHOTPLUGEVENTTRACE("Connected %d with crtc: %d pipe:%d \n",
                              encoder->crtc_id, display->CrtcId(),
                              display->GetDisplayPipe());
@@ -324,8 +323,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
       for (auto &display : displays_) {
         if (!display->IsConnected() &&
             (encoder->possible_crtcs & (1 << display->GetDisplayPipe())) &&
-            display->ConnectDisplay(mode.at(preferred_mode), connector.get(),
-                                    preferred_mode)) {
+            display->ConnectDisplay(mode.at(preferred_mode), connector.get())) {
           IHOTPLUGEVENTTRACE("Connected with crtc: %d pipe:%d \n",
                              display->CrtcId(), display->GetDisplayPipe());
           // Set the modes supported for each display
