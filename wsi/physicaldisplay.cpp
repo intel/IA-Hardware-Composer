@@ -634,7 +634,8 @@ bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
     return false;
   *num_configs = 1;
   if (configs) {
-    configs[0] = 1;
+    configs[0] = FAKE_DISPLAY_CONFIG_ID;
+    config_ = FAKE_DISPLAY_CONFIG_ID;
   }
   return true;
 }

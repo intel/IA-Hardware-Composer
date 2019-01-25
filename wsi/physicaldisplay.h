@@ -17,6 +17,8 @@
 #ifndef WSI_PHYSICALDISPLAY_H_
 #define WSI_PHYSICALDISPLAY_H_
 
+#define FAKE_DISPLAY_CONFIG_ID 0
+
 #include <stdint.h>
 #include <stdlib.h>
 
