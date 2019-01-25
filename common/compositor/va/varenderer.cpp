@@ -271,6 +271,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   for (uint32_t i = 0; i < total_layers; i++) {
     layer_in = state.layers_.at(i);
+    if (layer_in->IsSolidColor())
+      continue;
     ScopedVABufferID& pipeline_buffer = pipeline_buffers.at(i);
     // Get Input Surface.
     OverlayBuffer* buffer_in = layer_in->GetBuffer();
@@ -374,7 +376,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   ret |= vaEndPicture(va_display_, va_context_);
 
   surface->ResetDamage();
-
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 

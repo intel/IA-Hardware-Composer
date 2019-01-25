@@ -210,11 +210,12 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   *rects_updated = rect_updated;
 
+  if (has_video)
+    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
+
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
-    } else if (has_video) {
-      private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
     } else {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }
