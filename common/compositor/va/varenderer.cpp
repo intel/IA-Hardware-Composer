@@ -308,9 +308,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     output_region.width = layer_in->GetDisplayFrameWidth();
     output_region.height = layer_in->GetDisplayFrameHeight();
 
-    VABlendState bs = {};
-    bs.flags = VA_BLEND_PREMULTIPLIED_ALPHA;
-
     VAProcPipelineParameterBuffer pipe_param = {};
     pipe_param.surface = surface_in;
     pipe_param.surface_region = &surface_region;
@@ -330,7 +327,11 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     }
 #endif
 
+#ifdef VA_WITH_VPP
+    VABlendState bs = {};
+    bs.flags = VA_BLEND_PREMULTIPLIED_ALPHA;
     pipe_param.blend_state = &bs;
+#endif
 
     DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
               surface_region.y, surface_region.width, surface_region.height);
