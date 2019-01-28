@@ -23,6 +23,7 @@
 #include <string>
 
 #include "displaymanager.h"
+#include "framebuffermanager.h"
 #include "hwcthread.h"
 #include "logicaldisplaymanager.h"
 #include "nativedisplay.h"
@@ -40,6 +41,8 @@ class GpuDevice : public HWCThread {
 
   // Open device.
   bool Initialize();
+
+  FrameBufferManager* GetFrameBufferManager();
 
   uint32_t GetFD() const;
 

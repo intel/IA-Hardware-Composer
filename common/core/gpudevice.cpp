@@ -69,6 +69,10 @@ bool GpuDevice::Initialize() {
   return true;
 }
 
+FrameBufferManager *GpuDevice::GetFrameBufferManager() {
+  return display_manager_->GetFrameBufferManager();
+}
+
 uint32_t GpuDevice::GetFD() const {
   return display_manager_->GetFD();
 }

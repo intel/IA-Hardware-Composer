@@ -71,9 +71,7 @@ DisplayQueue::~DisplayQueue() {
 }
 
 bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
-                              DisplayPlaneHandler* plane_handler,
-                              FrameBufferManager* frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+                              DisplayPlaneHandler* plane_handler) {
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
     return false;
@@ -81,7 +79,7 @@ bool DisplayQueue::Initialize(uint32_t pipe, uint32_t width, uint32_t height,
 
   display_plane_manager_.reset(
       new DisplayPlaneManager(plane_handler, resource_manager_.get()));
-  if (!display_plane_manager_->Initialize(width, height, fb_manager_)) {
+  if (!display_plane_manager_->Initialize(width, height)) {
     ETRACE("Failed to initialize DisplayPlane Manager.");
     return false;
   }
@@ -112,7 +110,7 @@ bool DisplayQueue::SetPowerMode(uint32_t power_mode) {
       vblank_handler_->SetPowerMode(kOn);
       power_mode_lock_.lock();
       state_ &= ~kIgnoreIdleRefresh;
-      compositor_.Init(resource_manager_.get(), gpu_fd_, fb_manager_);
+      compositor_.Init(resource_manager_.get(), gpu_fd_);
       power_mode_lock_.unlock();
       break;
     default:
@@ -582,12 +580,12 @@ void DisplayQueue::InitializeOverlayLayers(
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_frame, display_plane_manager_->GetHeight(), plane_transform_,
-          handle_constraints, fb_manager_);
+          handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
           display_plane_manager_->GetHeight(), plane_transform_,
-          handle_constraints, fb_manager_);
+          handle_constraints);
     }
 
     if (!overlay_layer->IsVisible()) {
@@ -1049,7 +1047,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
 
     layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame,
-                     resource_manager_.get(), layers.size() - 1, fb_manager_);
+                     resource_manager_.get(), layers.size() - 1);
 
     if (add_index != 0 && layer.IsVideoLayer()) {
       if ((previous_layer && !previous_layer->IsVideoLayer()) ||

@@ -43,8 +43,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id);
   ~PhysicalDisplay() override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler,
-                  FrameBufferManager *frame_buffer_manager) override;
+  bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
     return DisplayType::kInternal;
@@ -311,7 +310,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
-  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

@@ -93,6 +93,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
                             uint32_t SRMLength) override;
   void RemoveUnreservedPlanes() override;
 
+  FrameBufferManager *GetFrameBufferManager() override;
+
  protected:
   void HandleWait() override;
   void HandleRoutine() override;

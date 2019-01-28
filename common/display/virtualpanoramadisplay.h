@@ -36,7 +36,6 @@ class NativeBufferHandler;
 class VirtualPanoramaDisplay : public NativeDisplay {
  public:
   VirtualPanoramaDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-                         FrameBufferManager *framebuffermanager,
                          uint32_t pipe_id, uint32_t crtc_id);
   VirtualPanoramaDisplay(const VirtualPanoramaDisplay &) = delete;
   VirtualPanoramaDisplay &operator=(const VirtualPanoramaDisplay &) = delete;
@@ -54,8 +53,7 @@ class VirtualPanoramaDisplay : public NativeDisplay {
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler,
-                  FrameBufferManager *frame_buffer_manager) override;
+  bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   bool IsConnected() const override {
     return true;
@@ -114,7 +112,6 @@ class VirtualPanoramaDisplay : public NativeDisplay {
   std::vector<OverlayLayer> in_flight_layers_;
   HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
-  FrameBufferManager *fb_manager_ = NULL;
   uint32_t display_index_ = 0;
   bool discard_protected_video_ = false;
   bool hyper_dmabuf_initialized = false;

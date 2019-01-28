@@ -43,8 +43,7 @@ class CompositorThread : public HWCThread {
   CompositorThread();
   ~CompositorThread() override;
 
-  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd,
-                  FrameBufferManager* frame_buffer_manager);
+  void Initialize(ResourceManager* resource_manager, uint32_t gpu_fd);
 
   bool Draw(std::vector<DrawState>& states,
             std::vector<DrawState>& media_states,
