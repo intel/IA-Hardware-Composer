@@ -45,9 +45,7 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
 PhysicalDisplay::~PhysicalDisplay() {
 }
 
-bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler,
-                                 FrameBufferManager *frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
   display_queue_.reset(new DisplayQueue(gpu_fd_, false, buffer_handler, this));
   InitializeDisplay();
   return true;
@@ -167,7 +165,7 @@ void PhysicalDisplay::Connect() {
   display_state_ |= kNotifyClient;
   IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
 
-  if (!display_queue_->Initialize(pipe_, width_, height_, this, fb_manager_)) {
+  if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
   } else {
     display_state_ |= kInitialized;

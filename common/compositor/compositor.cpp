@@ -40,12 +40,11 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd,
-                      FrameBufferManager *frame_buffer_manager) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(resource_manager, gpu_fd, frame_buffer_manager);
+  thread_->Initialize(resource_manager, gpu_fd);
 }
 
 void Compositor::BeginFrame(bool disable_explicit_sync) {
@@ -175,7 +174,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
                                ResourceManager *resource_manager,
-                               FrameBufferManager *framebuffer_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {
@@ -200,8 +198,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   }
 
   NativeSurface *surface = Create3DSurface(width, height);
-  surface->InitializeForOffScreenRendering(output_handle, resource_manager,
-                                           framebuffer_manager);
+  surface->InitializeForOffScreenRendering(output_handle, resource_manager);
   std::vector<DrawState> draw;
   std::vector<DrawState> media;
   draw.emplace_back();

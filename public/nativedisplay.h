@@ -72,8 +72,7 @@ class NativeDisplay {
   NativeDisplay(const NativeDisplay &rhs) = delete;
   NativeDisplay &operator=(const NativeDisplay &rhs) = delete;
 
-  virtual bool Initialize(NativeBufferHandler *buffer_handler,
-                          FrameBufferManager *frame_buffer_manager) = 0;
+  virtual bool Initialize(NativeBufferHandler *buffer_handler) = 0;
 
   virtual DisplayType Type() const = 0;
 
