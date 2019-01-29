@@ -172,8 +172,18 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   connector_ = connector->connector_id;
   mmWidth_ = connector->mmWidth;
   mmHeight_ = connector->mmHeight;
+
+#ifdef ENABLE_ANDROID_WA
+  if (ordered_display_id_ == 0 && IsFakeConnected()) {
+    SetFakeAttribute(mode_info);
+  } else {
+    SetDisplayAttribute(mode_info);
+    config_ = config;
+  }
+#else
   SetDisplayAttribute(mode_info);
   config_ = config;
+#endif
 
   ScopedDrmObjectPropertyPtr connector_props(drmModeObjectGetProperties(
       gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
@@ -609,6 +619,18 @@ void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
   }
 
   SPIN_UNLOCK(display_lock_);
+}
+
+void DrmDisplay::SetFakeAttribute(const drmModeModeInfo &mode_info) {
+  int32_t value = 0;
+  PhysicalDisplay::GetDisplayAttribute(DEFAULT_CONFIG_ID,
+                                       HWCDisplayAttribute::kWidth, &value);
+  width_ = value;
+  PhysicalDisplay::GetDisplayAttribute(DEFAULT_CONFIG_ID,
+                                       HWCDisplayAttribute::kHeight, &value);
+  height_ = value;
+  // current_mode_ must be assigned for real drm mode
+  current_mode_ = mode_info;
 }
 
 void DrmDisplay::SetDisplayAttribute(const drmModeModeInfo &mode_info) {

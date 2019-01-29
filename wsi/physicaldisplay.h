@@ -17,6 +17,10 @@
 #ifndef WSI_PHYSICALDISPLAY_H_
 #define WSI_PHYSICALDISPLAY_H_
 
+#ifndef DEFAULT_CONFIG_ID
+#define DEFAULT_CONFIG_ID 0
+#endif
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -260,6 +264,10 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   virtual void HandleLazyInitialization() {
   }
 
+  bool IsFakeConnected() {
+    return connection_state_ & kFakeConnected;
+  }
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
@@ -269,7 +277,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   enum DisplayConnectionStatus {
     kDisconnected = 1 << 0,
     kConnected = 1 << 1,
-    kDisconnectionInProgress = 1 << 2
+    kDisconnectionInProgress = 1 << 2,
+    kFakeConnected = 1 << 3
   };
 
   enum DisplayState {
@@ -286,11 +295,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   };
 
   uint32_t pipe_;
-#ifdef ENABLE_ANDROID_WA
-  uint32_t config_ = 1;
-#else
-  uint32_t config_ = 0;
-#endif
   int32_t width_;
   int32_t height_;
   HwcRect<int32_t> rect_;
@@ -310,6 +314,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   NativeDisplay *source_display_ = NULL;
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
+  uint32_t config_ = DEFAULT_CONFIG_ID;
 };
 
 }  // namespace hwcomposer
