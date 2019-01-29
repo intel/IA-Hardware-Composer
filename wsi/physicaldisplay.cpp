@@ -84,7 +84,6 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
   SPIN_LOCK(modeset_lock_);
-
   if (hotplug_callback_ && !(connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -632,8 +631,9 @@ bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
     return false;
   *num_configs = 1;
   if (configs) {
-    configs[0] = 1;
+    configs[0] = DEFAULT_CONFIG_ID;
   }
+  connection_state_ |= kFakeConnected;
   return true;
 }
 
