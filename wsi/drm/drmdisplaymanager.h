@@ -33,6 +33,9 @@
 #include "hwcthread.h"
 #include "vblankeventhandler.h"
 #include "virtualdisplay.h"
+#ifdef ENABLE_PANORAMA
+#include "virtualpanoramadisplay.h"
+#endif
 
 namespace hwcomposer {
 
@@ -53,6 +56,10 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   NativeDisplay *CreateVirtualDisplay(uint32_t display_index) override;
   void DestroyVirtualDisplay(uint32_t display_index) override;
+
+#ifdef ENABLE_PANORAMA
+  NativeDisplay *CreateVirtualPanoramaDisplay(uint32_t display_index) override;
+#endif
 
   std::vector<NativeDisplay *> GetAllDisplays() override;
 
@@ -83,6 +90,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   void SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) override;
   void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                             uint32_t SRMLength) override;
+  void RemoveUnreservedPlanes() override;
 
  protected:
   void HandleWait() override;

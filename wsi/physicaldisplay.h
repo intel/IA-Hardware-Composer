@@ -87,7 +87,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetColorTransform(const float *matrix, HWCColorTransform hint) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
-  void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetDisableExplicitSync(bool disable_explicit_sync) override;
   void SetVideoScalingMode(uint32_t mode) override;
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
@@ -122,6 +122,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
+
+  bool EnableDRMCommit(bool enable) override;
 
   /**
    * API for composition to non-zero X coordinate.

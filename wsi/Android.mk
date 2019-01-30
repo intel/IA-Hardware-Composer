@@ -64,6 +64,10 @@ ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
 LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING
 endif
 
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DENABLE_PANORAMA
+endif
+
 ifeq ($(strip $(TARGET_USES_HWC2)), false)
 LOCAL_C_INCLUDES += \
         system/core/libsync \

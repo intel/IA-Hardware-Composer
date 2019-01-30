@@ -69,7 +69,7 @@ class MosaicDisplay : public NativeDisplay {
   void SetGamma(float red, float green, float blue) override;
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
-  void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetDisableExplicitSync(bool disable_explicit_sync) override;
   void SetVideoScalingMode(uint32_t mode) override;
   void SetVideoColor(HWCColorControl color, float value) override;
   void GetVideoColor(HWCColorControl color, float *value, float *start,
@@ -115,6 +115,11 @@ class MosaicDisplay : public NativeDisplay {
 
   bool ContainConnector(const uint32_t connector_id) override;
 
+#ifdef ENABLE_PANORAMA
+  void SetPanoramaMode(bool mode);
+  void SetExtraDispInfo(int num_physical_displays, int num_virtual_displays);
+#endif
+
  private:
   std::vector<NativeDisplay *> physical_displays_;
   std::vector<NativeDisplay *> connected_displays_;
@@ -136,6 +141,11 @@ class MosaicDisplay : public NativeDisplay {
   bool connected_ = false;
   bool pending_vsync_ = false;
   bool update_connected_displays_ = true;
+#ifdef ENABLE_PANORAMA
+  bool panorama_mode_ = false;
+  int32_t num_physical_displays_ = 1;
+  int32_t num_virtual_displays_ = 1;
+#endif
   SpinLock lock_;
 };
 

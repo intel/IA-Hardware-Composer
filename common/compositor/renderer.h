@@ -63,7 +63,7 @@ class Renderer {
 
   virtual void InsertFence(int32_t kms_fence) = 0;
 
-  virtual void SetExplicitSyncSupport(bool disable_explicit_sync) = 0;
+  virtual void SetDisableExplicitSync(bool disable_explicit_sync) = 0;
 };
 
 }  // namespace hwcomposer

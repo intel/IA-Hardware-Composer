@@ -14,6 +14,8 @@
 // limitations under the License.
 */
 
+#include <algorithm>
+
 #include "displayplanemanager.h"
 
 #include "displayplane.h"
@@ -46,12 +48,7 @@ DisplayPlaneManager::DisplayPlaneManager(DisplayPlaneHandler *plane_handler,
 DisplayPlaneManager::~DisplayPlaneManager() {
 }
 
-bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height,
-                                     FrameBufferManager *frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
-  width_ = width;
-  height_ = height;
-  bool status = plane_handler_->PopulatePlanes(overlay_planes_);
+void DisplayPlaneManager::ResizeOverlays() {
   if (!overlay_planes_.empty()) {
     total_overlays_ = overlay_planes_.size();
     if (total_overlays_ > 1) {
@@ -65,7 +62,15 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height,
       }
     }
   }
+}
 
+bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height,
+                                     FrameBufferManager *frame_buffer_manager) {
+  fb_manager_ = frame_buffer_manager;
+  width_ = width;
+  height_ = height;
+  bool status = plane_handler_->PopulatePlanes(overlay_planes_);
+  ResizeOverlays();
   return status;
 }
 
@@ -682,6 +687,23 @@ void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane,
   overlay_plane.layer = plane.GetOverlayLayer();
 }
 
+void DisplayPlaneManager::ReleaseUnreservedPlanes(
+    std::vector<uint32_t> &reserved_planes) {
+  uint32_t plane_index = 0;
+  for (std::vector<std::unique_ptr<DisplayPlane>>::iterator iter =
+           overlay_planes_.begin();
+       iter != overlay_planes_.end();) {
+    if (std::find(reserved_planes.begin(), reserved_planes.end(),
+                  plane_index) != reserved_planes.end())
+      iter++;
+    else {
+      iter = overlay_planes_.erase(iter);
+    }
+    plane_index++;
+  }
+  ResizeOverlays();
+}
+
 void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
   if (plane.NeedsSurfaceAllocation()) {
     EnsureOffScreenTarget(plane);
@@ -1271,12 +1293,18 @@ bool DisplayPlaneManager::ForceSeparatePlane(
   HwcRect<int> target_display_frame = display_frame;
   uint32_t total_width = 0;
   uint32_t total_height = 0;
-  if (target_layer) {
-    total_width = target_layer->GetDisplayFrameWidth();
-    total_height = target_layer->GetDisplayFrameHeight();
-    target_display_frame = target_layer->GetDisplayFrame();
-    CalculateRect(display_frame, target_display_frame);
+
+  if (!target_layer) {
+    if (!(last_plane.IsVideoPlane() || last_plane.IsCursorPlane()))
+      return false;
+    else
+      return true;
   }
+
+  total_width = target_layer->GetDisplayFrameWidth();
+  total_height = target_layer->GetDisplayFrameHeight();
+  target_display_frame = target_layer->GetDisplayFrame();
+  CalculateRect(display_frame, target_display_frame);
 
   bool force_separate = false;
   for (const size_t &index : new_layers) {

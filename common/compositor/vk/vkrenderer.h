@@ -32,7 +32,7 @@ class VKRenderer : public Renderer {
   bool Draw(const std::vector<RenderState> &commands,
             NativeSurface *surface) override;
   void InsertFence(int32_t kms_fence) override;
-  void SetExplicitSyncSupport(bool disable_explicit_sync) override;
+  void SetDisableExplicitSync(bool disable_explicit_sync) override;
 
  private:
   VKProgram *GetProgram(unsigned texture_count);

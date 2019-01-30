@@ -86,6 +86,11 @@ LOCAL_SRC_FILES := \
         utils/hwcutils.cpp \
         utils/disjoint_layers.cpp
 
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DENABLE_PANORAMA
+LOCAL_SRC_FILES += display/virtualpanoramadisplay.cpp
+endif
+
 ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
 LOCAL_SHARED_LIBRARIES += \
 	libva \

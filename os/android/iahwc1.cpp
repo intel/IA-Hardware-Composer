@@ -603,7 +603,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   const std::vector<hwcomposer::NativeDisplay *> &displays =
       ctx->device_.GetAllDisplays();
   ctx->virtual_display_.display_ = ctx->device_.CreateVirtualDisplay(0);
-  ctx->virtual_display_.display_->SetExplicitSyncSupport(
+  ctx->virtual_display_.display_->SetDisableExplicitSync(
       ctx->disable_explicit_sync_);
   ctx->virtual_display_.timeline_.Init();
 
@@ -611,7 +611,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
   hwcomposer::NativeDisplay *primary_display = displays.at(0);
   ctx->primary_display_.display_ = primary_display;
   ctx->primary_display_.display_id_ = 0;
-  ctx->primary_display_.display_->SetExplicitSyncSupport(
+  ctx->primary_display_.display_->SetDisableExplicitSync(
       ctx->disable_explicit_sync_);
   ctx->primary_display_.timeline_.Init();
   // Fetch the number of modes from the display
@@ -636,7 +636,7 @@ static int hwc_device_open(const struct hw_module_t *module, const char *name,
     temp.display_ = displays.at(i);
     temp.display_id_ = i;
     temp.timeline_.Init();
-    temp.display_->SetExplicitSyncSupport(ctx->disable_explicit_sync_);
+    temp.display_->SetDisableExplicitSync(ctx->disable_explicit_sync_);
   }
 
   ctx->device.common.tag = HARDWARE_DEVICE_TAG;

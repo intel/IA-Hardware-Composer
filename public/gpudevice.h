@@ -89,6 +89,12 @@ class GpuDevice : public HWCThread {
                             uint32_t SRMLength);
   uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
 
+  bool IsReservedDrmPlane();
+
+  bool EnableDRMCommit(bool enable, uint32_t display_id);
+
+  std::vector<uint32_t> GetDisplayReservedPlanes(uint32_t display_id);
+
  private:
   enum InitializationType {
     kUnInitialized = 0,    // Nothing Initialized.
@@ -99,10 +105,28 @@ class GpuDevice : public HWCThread {
   void DisableWatch();
   void HandleRoutine() override;
   void HandleWait() override;
+  void ParsePlaneReserveSettings(std::string& value);
   std::unique_ptr<DisplayManager> display_manager_;
   std::vector<std::unique_ptr<LogicalDisplayManager>> logical_display_manager_;
   std::vector<std::unique_ptr<NativeDisplay>> mosaic_displays_;
+#ifdef ENABLE_PANORAMA
+  std::vector<std::unique_ptr<NativeDisplay>> panorama_displays_;
+  void ParsePanoramaDisplayConfig(
+      std::string& value,
+      std::vector<std::vector<uint32_t>>& panorama_displays);
+  void ParsePanoramaSOSDisplayConfig(
+      std::string& value,
+      std::vector<std::vector<uint32_t>>& panorama_sos_displays);
+  void PanoramaInit(std::vector<NativeDisplay*>& total_displays_,
+                    std::vector<NativeDisplay*>& temp_displays,
+                    std::vector<std::vector<uint32_t>>& panorama_displays,
+                    std::vector<std::vector<uint32_t>>& panorama_sos_displays,
+                    std::vector<bool>& available_displays);
+#endif
   std::vector<NativeDisplay*> total_displays_;
+
+  bool reserve_plane_ = false;
+  std::map<uint8_t, std::vector<uint32_t>> reserved_drm_display_planes_map_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
   int lock_fd_ = -1;

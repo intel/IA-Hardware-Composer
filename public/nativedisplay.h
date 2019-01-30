@@ -293,7 +293,7 @@ class NativeDisplay {
    */
   virtual bool CheckPlaneFormat(uint32_t format) = 0;
 
-  virtual void SetExplicitSyncSupport(bool /*explicit_sync_enabled*/) {
+  virtual void SetDisableExplicitSync(bool /*explicit_sync_enabled*/) {
   }
 
   /**
@@ -422,6 +422,10 @@ class NativeDisplay {
   // return true if connector_id is one of the connector_ids of the physical
   // connections
   virtual bool ContainConnector(const uint32_t connector_id) {
+    return false;
+  }
+
+  virtual bool EnableDRMCommit(bool enable) {
     return false;
   }
 

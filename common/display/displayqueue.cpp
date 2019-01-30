@@ -160,6 +160,11 @@ bool DisplayQueue::ForcePlaneValidation(int add_index, int remove_index,
   return true;
 }
 
+void DisplayQueue::ReleaseUnreservedPlanes(
+    std::vector<uint32_t>& reserved_planes) {
+  display_plane_manager_->ReleaseUnreservedPlanes(reserved_planes);
+}
+
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
                                    int remove_index,
                                    DisplayPlaneStateList* composition,
@@ -547,8 +552,7 @@ void DisplayQueue::InitializeOverlayLayers(
     // Discard protected video for tear down
     if (state_ & kVideoDiscardProtected) {
       if (layer->GetNativeHandle() != NULL &&
-          (layer->GetNativeHandle()->meta_data_.usage_ &
-           hwcomposer::kLayerProtected))
+          IsBufferProtected(layer->GetNativeHandle()))
         continue;
     }
 
@@ -1467,7 +1471,7 @@ void DisplayQueue::SetBrightness(uint32_t red, uint32_t green, uint32_t blue) {
   state_ |= kNeedsColorCorrection;
 }
 
-void DisplayQueue::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void DisplayQueue::SetDisableExplicitSync(bool disable_explicit_sync) {
   if (disable_explicit_sync) {
     state_ |= kDisableExplictSync;
   } else {
@@ -1584,7 +1588,10 @@ void DisplayQueue::HandleIdleCase() {
   power_mode_lock_.unlock();
   idle_tracker_.idle_lock_.unlock();
 }
+
 void DisplayQueue::ForceRefresh() {
+  if (idle_tracker_.state_ & FrameStateTracker::kForceIgnoreUpdates)
+    return;
   idle_tracker_.idle_lock_.lock();
   idle_tracker_.state_ &= ~FrameStateTracker::kIgnoreUpdates;
   idle_tracker_.state_ |= FrameStateTracker::kRevalidateLayers;
@@ -1595,6 +1602,16 @@ void DisplayQueue::ForceRefresh() {
     refresh_callback_->Callback(refrsh_display_id_);
   }
   power_mode_lock_.unlock();
+}
+
+void DisplayQueue::ForceIgnoreUpdates(bool force) {
+  if (force) {
+    idle_tracker_.state_ |= FrameStateTracker::kForceIgnoreUpdates;
+    IgnoreUpdates();
+  } else {
+    idle_tracker_.state_ &= ~FrameStateTracker::kForceIgnoreUpdates;
+    ForceRefresh();
+  }
 }
 
 void DisplayQueue::DisplayConfigurationChanged() {

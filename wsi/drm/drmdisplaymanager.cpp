@@ -216,6 +216,8 @@ bool DrmDisplayManager::UpdateDisplayState() {
   spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
+    if (device_->IsReservedDrmPlane() && !display->IsConnected())
+      display->SetPlanesUpdated(false);
     display->MarkForDisconnect();
   }
 
@@ -357,6 +359,10 @@ bool DrmDisplayManager::UpdateDisplayState() {
                        notify_client_, displays_.at(0)->IsConnected());
     NotifyClientsOfDisplayChangeStatus();
   }
+
+  // update plane list for reservation
+  if (device_->IsReservedDrmPlane())
+    RemoveUnreservedPlanes();
 
   return true;
 }
@@ -540,5 +546,34 @@ void DrmDisplayManager::SetHDCPSRMForDisplay(uint32_t connector,
     }
   }
 }
+
+void DrmDisplayManager::RemoveUnreservedPlanes() {
+  size_t size = displays_.size();
+  for (uint8_t i = 0; i < size; i++) {
+    if (!displays_.at(i)->IsConnected() || displays_.at(i)->IsPlanesUpdated())
+      continue;
+    std::vector<uint32_t> reserved_planes =
+        device_->GetDisplayReservedPlanes(i);
+    if (!reserved_planes.empty() && reserved_planes.size() < 4)
+      displays_.at(i)->ReleaseUnreservedPlanes(reserved_planes);
+    displays_.at(i)->SetPlanesUpdated(true);
+  }
+}
+
+#ifdef ENABLE_PANORAMA
+NativeDisplay *DrmDisplayManager::CreateVirtualPanoramaDisplay(
+    uint32_t display_index) {
+  spin_lock_.lock();
+  NativeDisplay *latest_display;
+  std::unique_ptr<VirtualPanoramaDisplay> display(new VirtualPanoramaDisplay(
+      fd_, buffer_handler_.get(), frame_buffer_manager_.get(), display_index,
+      0));
+  virtual_displays_.emplace_back(std::move(display));
+  size_t size = virtual_displays_.size();
+  latest_display = virtual_displays_.at(size - 1).get();
+  spin_lock_.unlock();
+  return latest_display;
+}
+#endif
 
 }  // namespace hwcomposer

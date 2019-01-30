@@ -305,7 +305,7 @@ HWC2::Error IAHWC2::HwcDisplay::InitVirtualDisplay(
   handle_ = display_index + HWC_DISPLAY_VIRTUAL + VDS_OFFSET;
   display_->InitVirtualDisplay(width, height);
   disable_explicit_sync_ = disable_explicit_sync;
-  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_->SetDisableExplicitSync(disable_explicit_sync_);
   return HWC2::Error::None;
 }
 
@@ -320,7 +320,7 @@ HWC2::Error IAHWC2::HwcDisplay::Init(hwcomposer::NativeDisplay *display,
 
   disable_explicit_sync_ = disable_explicit_sync;
   scaling_mode_ = scaling_mode;
-  display_->SetExplicitSyncSupport(disable_explicit_sync_);
+  display_->SetDisableExplicitSync(disable_explicit_sync_);
   display_->SetVideoScalingMode(scaling_mode_);
 
   if (!display_->IsConnected()) {
@@ -1275,6 +1275,10 @@ void IAHWC2::SetHDCPSRMForAllDisplays(const int8_t *SRM, uint32_t SRMLength) {
 
 uint32_t IAHWC2::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
   return device_.GetDisplayIDFromConnectorID(connector_id);
+}
+
+bool IAHWC2::EnableDRMCommit(bool enable, uint32_t display_id) {
+  return device_.EnableDRMCommit(enable, display_id);
 }
 
 void IAHWC2::SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,

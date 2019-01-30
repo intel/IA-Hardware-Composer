@@ -74,7 +74,7 @@ class DisplayQueue {
   void SetColorTransform(const float* matrix, HWCColorTransform hint);
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue);
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue);
-  void SetExplicitSyncSupport(bool disable_explicit_sync);
+  void SetDisableExplicitSync(bool disable_explicit_sync);
   void SetVideoScalingMode(uint32_t mode);
   void SetVideoColor(HWCColorControl color, float value);
   void GetVideoColor(HWCColorControl color, float* value, float* start,
@@ -99,6 +99,8 @@ class DisplayQueue {
   bool IsIgnoreUpdates();
 
   void ForceRefresh();
+
+  void ForceIgnoreUpdates(bool force);
 
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
                           uint32_t display_width, uint32_t display_height);
@@ -142,6 +144,8 @@ class DisplayQueue {
     }
   }
 
+  void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
+
  private:
   enum QueueState {
     kNeedsColorCorrection = 1 << 0,  // Needs Color correction.
@@ -177,10 +181,11 @@ class DisplayQueue {
                                     // if we are continously updating
       // frames, revalidate layers to use planes.
       kTrackingFrames =
-          1 << 4,              // Tracking frames to see when layers need to be
-                               // revalidated after
-                               // disabling overlays for idle case scenario.
-      kIgnoreUpdates = 1 << 5  // Ignore present display calls.
+          1 << 4,               // Tracking frames to see when layers need to be
+                                // revalidated after
+                                // disabling overlays for idle case scenario.
+      kIgnoreUpdates = 1 << 5,  // Ignore present display calls.
+      kForceIgnoreUpdates = 1 << 6  // Ignore all commits/updates.
     };
 
     uint32_t idle_frames_ = 0;
@@ -226,7 +231,11 @@ class DisplayQueue {
 
     void ResetTrackerState() {
       if (tracker_.state_ & FrameStateTracker::kIgnoreUpdates) {
-        tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+        if (tracker_.state_ & FrameStateTracker::kForceIgnoreUpdates) {
+          tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
+          tracker_.state_ |= FrameStateTracker::kForceIgnoreUpdates;
+        } else
+          tracker_.state_ = FrameStateTracker::kIgnoreUpdates;
       } else {
         tracker_.state_ = 0;
       }

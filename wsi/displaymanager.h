@@ -61,6 +61,11 @@ class DisplayManager {
   virtual NativeDisplay *CreateVirtualDisplay(uint32_t display_index) = 0;
   virtual void DestroyVirtualDisplay(uint32_t display_index) = 0;
 
+#ifdef ENABLE_PANORAMA
+  virtual NativeDisplay *CreateVirtualPanoramaDisplay(
+      uint32_t display_index) = 0;
+#endif
+
   virtual std::vector<NativeDisplay *> GetAllDisplays() = 0;
 
   virtual void RegisterHotPlugEventCallback(
@@ -77,6 +82,7 @@ class DisplayManager {
                                         uint32_t SRMLength) = 0;
   virtual void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                     uint32_t SRMLength) = 0;
+  virtual void RemoveUnreservedPlanes() = 0;
 };
 
 }  // namespace hwcomposer

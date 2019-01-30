@@ -56,7 +56,7 @@ void CompositorThread::Initialize(ResourceManager *resource_manager,
   }
 }
 
-void CompositorThread::SetExplicitSyncSupport(bool disable_explicit_sync) {
+void CompositorThread::SetDisableExplicitSync(bool disable_explicit_sync) {
   disable_explicit_sync_ = disable_explicit_sync;
 }
 
@@ -213,7 +213,7 @@ void CompositorThread::Handle3DDrawRequest() {
     return;
   }
 
-  gl_renderer_->SetExplicitSyncSupport(disable_explicit_sync_);
+  gl_renderer_->SetDisableExplicitSync(disable_explicit_sync_);
 
   if (!gpu_resource_handler_->PrepareResources(buffers_)) {
     ETRACE(

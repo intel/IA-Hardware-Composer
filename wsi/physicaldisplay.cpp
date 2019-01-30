@@ -199,6 +199,14 @@ int PhysicalDisplay::GetDisplayPipe() {
   return pipe_;
 }
 
+bool PhysicalDisplay::EnableDRMCommit(bool enable) {
+  display_queue_->ForceIgnoreUpdates(!enable);
+  if (enable)
+    return !display_queue_->IsIgnoreUpdates();
+  else
+    return display_queue_->IsIgnoreUpdates();
+}
+
 bool PhysicalDisplay::SetActiveConfig(uint32_t config) {
   // update the activeConfig
   IHOTPLUGEVENTTRACE(
@@ -432,8 +440,8 @@ void PhysicalDisplay::SetBrightness(uint32_t red, uint32_t green,
   display_queue_->SetBrightness(red, green, blue);
 }
 
-void PhysicalDisplay::SetExplicitSyncSupport(bool disable_explicit_sync) {
-  display_queue_->SetExplicitSyncSupport(disable_explicit_sync);
+void PhysicalDisplay::SetDisableExplicitSync(bool disable_explicit_sync) {
+  display_queue_->SetDisableExplicitSync(disable_explicit_sync);
 }
 
 void PhysicalDisplay::SetVideoScalingMode(uint32_t mode) {

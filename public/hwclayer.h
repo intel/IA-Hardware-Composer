@@ -302,6 +302,10 @@ struct HwcLayer {
   friend class PhysicalDisplay;
   friend class MosaicDisplay;
 
+#ifdef ENABLE_PANORAMA
+  friend class VirtualPanoramaDisplay;
+#endif
+
   enum LayerState {
     kSurfaceDamageChanged = 1 << 0,
     kLayerContentChanged = 1 << 1,

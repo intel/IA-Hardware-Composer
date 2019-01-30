@@ -996,6 +996,11 @@ void DrmDisplay::Disable(const DisplayPlaneStateList &composition_planes) {
                               DRM_MODE_DPMS_OFF);
 }
 
+void DrmDisplay::ReleaseUnreservedPlanes(
+    std::vector<uint32_t> &reserved_planes) {
+  display_queue_->ReleaseUnreservedPlanes(reserved_planes);
+}
+
 bool DrmDisplay::PopulatePlanes(
     std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) {
   ScopedDrmPlaneResPtr plane_resources(drmModeGetPlaneResources(gpu_fd_));

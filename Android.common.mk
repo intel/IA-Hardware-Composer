@@ -47,6 +47,10 @@ $(info "ANDROID_VERSION $(ANDROID_VERSION)")
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CPPFLAGS += -DENABLE_PANORAMA
+endif
+
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libdrm \

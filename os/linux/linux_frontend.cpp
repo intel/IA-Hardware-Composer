@@ -397,12 +397,12 @@ int IAHWC::IAHWCDisplay::PresentDisplay(int32_t* release_fd) {
 }
 
 int IAHWC::IAHWCDisplay::DisableOverlayUsage() {
-  native_display_->SetExplicitSyncSupport(false);
+  native_display_->SetDisableExplicitSync(false);
   return 0;
 }
 
 int IAHWC::IAHWCDisplay::EnableOverlayUsage() {
-  native_display_->SetExplicitSyncSupport(true);
+  native_display_->SetDisableExplicitSync(true);
   return 0;
 }
 

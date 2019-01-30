@@ -106,6 +106,14 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   return id;
 }
 
+inline bool IsBufferProtected(HWCNativeHandle handle) {
+  native_array_t* attrib_array = &native_handle->target_->attributes;
+  if (attrib_array->data[4] & YALLOC_FLAG_PROTECTED) {
+    return true;
+  }
+  return false;
+}
+
 // _cplusplus
 #ifdef _cplusplus
 }
