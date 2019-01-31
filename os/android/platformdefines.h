@@ -69,6 +69,8 @@ inline uint32_t GetNativeBuffer(uint32_t gpu_fd, HWCNativeHandle handle) {
   return id;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
 inline bool IsBufferProtected(HWCNativeHandle handle) {
   auto gr_handle = (struct cros_gralloc_handle*)handle->handle_;
   if (gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) {
@@ -76,6 +78,7 @@ inline bool IsBufferProtected(HWCNativeHandle handle) {
   }
   return false;
 }
+#pragma GCC diagnostic pop
 
 // _cplusplus
 #ifdef _cplusplus
