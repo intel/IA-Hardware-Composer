@@ -114,6 +114,16 @@ class VARenderer : public Renderer {
   void DestroyContext();
   bool LoadCaps();
   bool UpdateCaps();
+
+  bool GetVideoLayerRect(OverlayLayer* layer_out, OverlayLayer* layer_in,
+                         VARectangle* surface_region,
+                         VARectangle* output_region);
+  bool GetNormalLayerRect(OverlayLayer* layer_out, OverlayLayer* layer_in,
+                          VARectangle* surface_region,
+                          VARectangle* output_region);
+  bool GetLayerRect(OverlayLayer* layer_out, OverlayLayer* layer_in,
+                    VARectangle* surface_region, VARectangle* output_region);
+
 #if VA_MAJOR_VERSION >= 1
   void HWCTransformToVA(uint32_t transform, uint32_t& rotation,
                         uint32_t& mirror);

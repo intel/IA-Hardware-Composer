@@ -230,6 +230,76 @@ unsigned int VARenderer::GetVAProcFilterScalingMode(uint32_t mode) {
     return VA_FILTER_SCALING_FAST;
 }
 
+bool VARenderer::GetVideoLayerRect(OverlayLayer* layer_out,
+                                   OverlayLayer* layer_in,
+                                   VARectangle* surface_region,
+                                   VARectangle* output_region) {
+  // Get Input Surface.
+  OverlayBuffer* buffer_in = layer_in->GetBuffer();
+  if (!buffer_in) {
+    ETRACE("Get DRM buffer failed for buffer_in.\n");
+    return false;
+  }
+
+  const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
+  surface_region->x = static_cast<int>(source_crop.left);
+  surface_region->y = static_cast<int>(source_crop.top);
+  surface_region->width = layer_in->GetSourceCropWidth();
+  surface_region->height = layer_in->GetSourceCropHeight();
+
+  const HwcRect<float>& source_crop_out = layer_out->GetSourceCrop();
+  output_region->x = static_cast<int>(source_crop_out.left);
+  output_region->y = static_cast<int>(source_crop_out.top);
+  output_region->width = layer_out->GetSourceCropWidth();
+  output_region->height = layer_out->GetSourceCropHeight();
+
+  return true;
+}
+
+bool VARenderer::GetNormalLayerRect(OverlayLayer* layer_out,
+                                    OverlayLayer* layer_in,
+                                    VARectangle* surface_region,
+                                    VARectangle* output_region) {
+  // Get Output Surface.
+  HwcRect<int> layer_out_display_frame = layer_out->GetDisplayFrame();
+  int xtranslation = layer_out_display_frame.left;
+  int ytranslation = layer_out_display_frame.top;
+
+  // Get Input Surface.
+  OverlayBuffer* buffer_in = layer_in->GetBuffer();
+  if (!buffer_in) {
+    ETRACE("Get DRM buffer failed for buffer_in.\n");
+    return false;
+  }
+
+  const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
+  surface_region->x = static_cast<int>(source_crop.left);
+  surface_region->y = static_cast<int>(source_crop.top);
+  surface_region->width = layer_in->GetSourceCropWidth();
+  surface_region->height = layer_in->GetSourceCropHeight();
+
+  HwcRect<int> display_frame = layer_in->GetDisplayFrame();
+  display_frame = TranslateRect(display_frame, -xtranslation, -ytranslation);
+  output_region->x = display_frame.left;
+  output_region->y = display_frame.top;
+  output_region->width = layer_in->GetDisplayFrameWidth();
+  output_region->height = layer_in->GetDisplayFrameHeight();
+
+  return true;
+}
+
+bool VARenderer::GetLayerRect(OverlayLayer* layer_out, OverlayLayer* layer_in,
+                              VARectangle* surface_region,
+                              VARectangle* output_region) {
+  if (layer_out->IsVideoLayer()) {
+    return GetVideoLayerRect(layer_out, layer_in, surface_region,
+                             output_region);
+  } else {
+    return GetNormalLayerRect(layer_out, layer_in, surface_region,
+                              output_region);
+  }
+}
+
 bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   // TODO: Clear surface ?
@@ -246,15 +316,20 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Output Surface.
   OverlayLayer* layer_out = surface->GetLayer();
-  HwcRect<int> layer_out_disp_frame = layer_out->GetDisplayFrame();
-  int xtranslation = layer_out_disp_frame.left;
-  int ytranslation = layer_out_disp_frame.top;
-
-  const MediaResourceHandle& out_resource =
-      layer_out->GetBuffer()->GetMediaResource(
-          va_display_, layer_out->GetDisplayFrameWidth(),
-          layer_out->GetDisplayFrameWidth());
-  VASurfaceID surface_out = out_resource.surface_;
+  VASurfaceID surface_out = VA_INVALID_ID;
+  if (layer_out->IsVideoLayer()) {
+    const MediaResourceHandle& out_resource =
+        layer_out->GetBuffer()->GetMediaResource(
+            va_display_, layer_out->GetSourceCropWidth(),
+            layer_out->GetSourceCropHeight());
+    surface_out = out_resource.surface_;
+  } else {
+    const MediaResourceHandle& out_resource =
+        layer_out->GetBuffer()->GetMediaResource(
+            va_display_, layer_out->GetDisplayFrameWidth(),
+            layer_out->GetDisplayFrameHeight());
+    surface_out = out_resource.surface_;
+  }
   if (surface_out == VA_INVALID_ID) {
     ETRACE("Failed to create Va Output Surface. \n");
     return false;
@@ -276,10 +351,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     ScopedVABufferID& pipeline_buffer = pipeline_buffers.at(i);
     // Get Input Surface.
     OverlayBuffer* buffer_in = layer_in->GetBuffer();
-    if (!buffer_in) {
-      ETRACE("Get DRM buffer failed for buffer_in.\n");
-      return false;
-    }
+    VARectangle surface_region;
+    VARectangle output_region;
     uint32_t dataspace = buffer_in->GetDataSpace();
     const MediaResourceHandle& resource =
         buffer_in->GetMediaResource(va_display_, layer_in->GetSourceCropWidth(),
@@ -290,25 +363,12 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
       return false;
     }
 
+    GetLayerRect(layer_out, layer_in, &surface_region, &output_region);
+
     // Set the protected status to output layer if input layer is protected
     if (layer_in->IsProtected()) {
       layer_out->SetProtected(true);
     }
-
-    VARectangle surface_region;
-    const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
-    surface_region.x = static_cast<int>(source_crop.left);
-    surface_region.y = static_cast<int>(source_crop.top);
-    surface_region.width = layer_in->GetSourceCropWidth();
-    surface_region.height = layer_in->GetSourceCropHeight();
-
-    VARectangle output_region;
-    HwcRect<int> display_frame = layer_in->GetDisplayFrame();
-    display_frame = TranslateRect(display_frame, -xtranslation, -ytranslation);
-    output_region.x = display_frame.left;
-    output_region.y = display_frame.top;
-    output_region.width = layer_in->GetDisplayFrameWidth();
-    output_region.height = layer_in->GetDisplayFrameHeight();
 
     VAProcPipelineParameterBuffer pipe_param = {};
     pipe_param.surface = surface_in;
@@ -337,8 +397,8 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
     DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
               surface_region.y, surface_region.width, surface_region.height);
-    DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
-              output_region.y, output_region.width, output_region.height);
+    DUMPTRACE("Layer Rect:(%d,%d,%d,%d)\n", output_region.x, output_region.y,
+              output_region.width, output_region.height);
 
     for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
       SetVAProcFilterColorValue(itr->first, itr->second);
