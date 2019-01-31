@@ -143,7 +143,8 @@ bool DisplayPlaneManager::ValidateLayers(
     avail_planes--;
   // If video layers is more than available planes
   // We are going to force all the layers bo be composited by VA path
-  if (video_layers >= avail_planes) {
+  // cursor layer should not be handle by VPP
+  if (video_layers >= avail_planes && video_layers > 0) {
     ForceVppForAllLayers(commit_planes, composition, layers, add_index,
                          mark_later, false);
     *re_validation_needed = false;
