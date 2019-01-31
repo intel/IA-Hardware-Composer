@@ -210,16 +210,13 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       if (index >= threshold) {
         removed_layers = true;
-#ifdef SURFACE_TRACING
         size_t original_size = source_layers_size;
-#endif
         bool has_one_layer = source_layers_size == 1 ? true : false;
         if (!has_one_layer) {
           last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
         }
 
         source_layers_size = source_layers.size();
-#ifdef SURFACE_TRACING
         ISURFACETRACE(
             "Layers removed. Total old Layers: %d Total new Layers: %d "
             "Threshold: "
@@ -227,7 +224,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             "%d \n",
             original_size, source_layers_size, threshold, index,
             composition->size(), previous_plane_state_.size());
-#endif
         // We need to force re-validation of commit to ensure we update any
         // Scalar usage with the new combination of layers.
         ignore_commit = false;
@@ -241,9 +237,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           // and ensure primary has a buffer.
           if (last_plane.GetDisplayPlane() ==
               previous_plane_state_.begin()->GetDisplayPlane()) {
-#ifdef SURFACE_TRACING
             ISURFACETRACE("Primary plane is empty forcing full validation. \n");
-#endif
             *force_full_validation = true;
             *can_ignore_commit = false;
             return;
@@ -253,7 +247,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           composition->pop_back();
           pop_plane = ForcePlaneValidation(*add_index, remove_index,
                                            layers.size(), composition->size());
-#ifdef SURFACE_TRACING
           ISURFACETRACE(
               "Plane removed. Total old Layers: %d Total new Layers: %d "
               "Threshold: "
@@ -261,7 +254,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               "%d \n",
               original_size, source_layers_size, threshold, index,
               composition->size(), previous_plane_state_.size());
-#endif
           continue;
         }
 
@@ -485,11 +477,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       if (old_plane.CanSquash() && last_overlay.CanSquash() &&
           source_layers.size() == 1) {
-#ifdef SURFACE_TRACING
         ISURFACETRACE(
             "Moving layer index %d from plane index: %d to plane idex: %d. \n",
             source_layers.at(0), total_planes - 1, total_planes - 2);
-#endif
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
         if (display_plane_manager_->ForceSeparatePlane(layers, old_plane,
                                                        layer)) {
@@ -615,13 +605,11 @@ void DisplayQueue::InitializeOverlayLayers(
       if ((previous_layer && !previous_layer->IsVideoLayer()) ||
           !previous_layer) {
         add_index = 0;
-#ifdef SURFACE_TRACING
         ISURFACETRACE(
             "Video layer has changed between frames: remove_index: %d "
             "add_index: "
             "%d \n",
             remove_index, add_index);
-#endif
         continue;
       }
     }
@@ -643,13 +631,11 @@ void DisplayQueue::InitializeOverlayLayers(
       if (add_index == -1)
         add_index = overlay_layer->GetZorder();
 
-#ifdef SURFACE_TRACING
       ISURFACETRACE(
           "Cursor layer has changed between frames: remove_index: %d "
           "add_index: "
           "%d \n",
           remove_index, add_index);
-#endif
     }
   }
 }
@@ -709,7 +695,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   if (!validate_layers)
     validate_layers = idle_frame;
-#ifdef SURFACE_TRACING
   if ((remove_index != -1) || (add_index != -1)) {
     ISURFACETRACE(
         "Remove index For this Frame: %d Add index For this Frame: %d Total "
@@ -726,7 +711,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
         add_index, last_commit_failed_update_, tracker.RevalidateLayers(),
         previous_plane_state_.empty(), tracker.RenderIdleMode());
   }
-#endif
 
   DisplayPlaneStateList current_composition_planes;
   bool render_layers;
