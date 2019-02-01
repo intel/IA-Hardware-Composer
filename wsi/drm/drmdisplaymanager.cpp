@@ -38,8 +38,7 @@
 
 namespace hwcomposer {
 
-DrmDisplayManager::DrmDisplayManager(GpuDevice *device)
-    : HWCThread(-8, "DisplayManager"), device_(device) {
+DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
   CTRACE();
 }
 
@@ -171,15 +170,16 @@ void DrmDisplayManager::HandleWait() {
 void DrmDisplayManager::InitializeDisplayResources() {
   buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
   frame_buffer_manager_.reset(new FrameBufferManager(fd_));
+  ETRACE("frame buffer manager is %d", frame_buffer_manager_.get());
   if (!buffer_handler_) {
     ETRACE("Failed to create native buffer handler instance");
     return;
   }
 
   int size = displays_.size();
+  ETRACE("display size is %d", size);
   for (int i = 0; i < size; ++i) {
-    if (!displays_.at(i)->Initialize(buffer_handler_.get(),
-                                     frame_buffer_manager_.get())) {
+    if (!displays_.at(i)->Initialize(buffer_handler_.get())) {
       ETRACE("Failed to Initialize Display %d", i);
     }
   }
@@ -216,7 +216,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
   spin_lock_.lock();
   // Start of assuming no displays are connected
   for (auto &display : displays_) {
-    if (device_->IsReservedDrmPlane() && !display->IsConnected())
+    if (device_.IsReservedDrmPlane() && !display->IsConnected())
       display->SetPlanesUpdated(false);
     display->MarkForDisconnect();
   }
@@ -361,7 +361,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
   }
 
   // update plane list for reservation
-  if (device_->IsReservedDrmPlane())
+  if (device_.IsReservedDrmPlane())
     RemoveUnreservedPlanes();
 
   return true;
@@ -407,8 +407,7 @@ NativeDisplay *DrmDisplayManager::CreateVirtualDisplay(uint32_t display_index) {
   spin_lock_.lock();
   NativeDisplay *latest_display;
   std::unique_ptr<VirtualDisplay> display(
-      new VirtualDisplay(fd_, buffer_handler_.get(),
-                         frame_buffer_manager_.get(), display_index, 0));
+      new VirtualDisplay(fd_, buffer_handler_.get(), display_index, 0));
   virtual_displays_.emplace_back(std::move(display));
   size_t size = virtual_displays_.size();
   latest_display = virtual_displays_.at(size - 1).get();
@@ -477,7 +476,7 @@ void DrmDisplayManager::setDrmMaster() {
 void DrmDisplayManager::HandleLazyInitialization() {
   spin_lock_.lock();
   if (release_lock_) {
-    device_->DisableWatch();
+    device_.DisableWatch();
     release_lock_ = false;
   }
   spin_lock_.unlock();
@@ -487,8 +486,8 @@ uint32_t DrmDisplayManager::GetConnectedPhysicalDisplayCount() {
   return connected_display_count_;
 }
 
-DisplayManager *DisplayManager::CreateDisplayManager(GpuDevice *device) {
-  return new DrmDisplayManager(device);
+DisplayManager *DisplayManager::CreateDisplayManager() {
+  return new DrmDisplayManager();
 }
 
 void DrmDisplayManager::EnableHDCPSessionForDisplay(
@@ -552,12 +551,15 @@ void DrmDisplayManager::RemoveUnreservedPlanes() {
   for (uint8_t i = 0; i < size; i++) {
     if (!displays_.at(i)->IsConnected() || displays_.at(i)->IsPlanesUpdated())
       continue;
-    std::vector<uint32_t> reserved_planes =
-        device_->GetDisplayReservedPlanes(i);
+    std::vector<uint32_t> reserved_planes = device_.GetDisplayReservedPlanes(i);
     if (!reserved_planes.empty() && reserved_planes.size() < 4)
       displays_.at(i)->ReleaseUnreservedPlanes(reserved_planes);
     displays_.at(i)->SetPlanesUpdated(true);
   }
+}
+
+FrameBufferManager *DrmDisplayManager::GetFrameBufferManager() {
+  return frame_buffer_manager_.get();
 }
 
 #ifdef ENABLE_PANORAMA

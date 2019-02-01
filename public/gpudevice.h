@@ -23,6 +23,7 @@
 #include <string>
 
 #include "displaymanager.h"
+#include "framebuffermanager.h"
 #include "hwcthread.h"
 #include "logicaldisplaymanager.h"
 #include "nativedisplay.h"
@@ -33,12 +34,15 @@ class NativeDisplay;
 
 class GpuDevice : public HWCThread {
  public:
-  GpuDevice();
+  static GpuDevice& getInstance();
 
+ public:
   virtual ~GpuDevice();
 
   // Open device.
   bool Initialize();
+
+  FrameBufferManager* GetFrameBufferManager();
 
   uint32_t GetFD() const;
 
@@ -96,6 +100,8 @@ class GpuDevice : public HWCThread {
   std::vector<uint32_t> GetDisplayReservedPlanes(uint32_t display_id);
 
  private:
+  GpuDevice();
+
   enum InitializationType {
     kUnInitialized = 0,    // Nothing Initialized.
     kInitialized = 1 << 1  // Everything Initialized

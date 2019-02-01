@@ -40,12 +40,11 @@ Compositor::Compositor() {
 Compositor::~Compositor() {
 }
 
-void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd,
-                      FrameBufferManager *frame_buffer_manager) {
+void Compositor::Init(ResourceManager *resource_manager, uint32_t gpu_fd) {
   if (!thread_)
     thread_.reset(new CompositorThread());
 
-  thread_->Initialize(resource_manager, gpu_fd, frame_buffer_manager);
+  thread_->Initialize(resource_manager, gpu_fd);
 }
 
 void Compositor::BeginFrame(bool disable_explicit_sync) {
@@ -100,13 +99,16 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
       media_state.scaling_mode_ = scaling_mode_;
       media_state.deinterlace_ = deinterlace_;
       lock_.unlock();
-      const OverlayLayer &layer = layers[plane.GetSourceLayers().at(0)];
-      media_state.layer_ = &layer;
-      // exclude the media buffer
-      OverlayBuffer *layerbuffer = layer.GetBuffer();
-      for (size_t index = 0; index < draw_buffers.size(); index++) {
-        if (draw_buffers[index] == layerbuffer) {
-          draw_buffers[index] = NULL;
+
+      for (auto layer_id : plane.GetSourceLayers()) {
+        OverlayLayer *layer = &(layers.at(layer_id));
+        media_state.layers_.emplace_back(layer);
+        // exclude the media buffer
+        OverlayBuffer *layerbuffer = layer->GetBuffer();
+        for (size_t index = 0; index < draw_buffers.size(); index++) {
+          if (draw_buffers[index] == layerbuffer) {
+            draw_buffers[index] = NULL;
+          }
         }
       }
     } else if (plane.NeedsOffScreenComposition()) {
@@ -172,7 +174,6 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
                                const std::vector<HwcRect<int>> &display_frame,
                                const std::vector<size_t> &source_layers,
                                ResourceManager *resource_manager,
-                               FrameBufferManager *framebuffer_manager,
                                uint32_t width, uint32_t height,
                                HWCNativeHandle output_handle,
                                int32_t acquire_fence, int32_t *retire_fence) {
@@ -196,9 +197,8 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     return false;
   }
 
-  NativeSurface *surface = Create3DBuffer(width, height);
-  surface->InitializeForOffScreenRendering(output_handle, resource_manager,
-                                           framebuffer_manager);
+  NativeSurface *surface = Create3DSurface(width, height);
+  surface->InitializeForOffScreenRendering(output_handle, resource_manager);
   std::vector<DrawState> draw;
   std::vector<DrawState> media;
   draw.emplace_back();

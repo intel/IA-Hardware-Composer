@@ -41,9 +41,8 @@ class OverlayBuffer {
   virtual ~OverlayBuffer() {
   }
 
-  virtual void InitializeFromNativeHandle(
-      HWCNativeHandle handle, ResourceManager* buffer_manager,
-      FrameBufferManager* frame_buffer_manager) = 0;
+  virtual void InitializeFromNativeHandle(HWCNativeHandle handle,
+                                          ResourceManager* buffer_manager) = 0;
 
   virtual uint32_t GetDataSpace() const = 0;
 

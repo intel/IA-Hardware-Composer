@@ -44,12 +44,10 @@ class NativeSurface {
   virtual ~NativeSurface();
 
   bool Init(ResourceManager* resource_manager, uint32_t format, uint32_t usage,
-            uint64_t modifier, bool* modifier_succeeded,
-            FrameBufferManager* frame_buffer_manager);
+            uint64_t modifier, bool* modifier_succeeded);
 
-  bool InitializeForOffScreenRendering(
-      HWCNativeHandle native_handle, ResourceManager* resource_manager,
-      FrameBufferManager* frame_buffer_manager);
+  bool InitializeForOffScreenRendering(HWCNativeHandle native_handle,
+                                       ResourceManager* resource_manager);
 
   virtual bool MakeCurrent() {
     return false;
@@ -153,7 +151,6 @@ class NativeSurface {
   bool on_screen_ = false;
   HwcRect<int> previous_damage_;
   HwcRect<int> previous_nc_damage_;
-  FrameBufferManager* fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

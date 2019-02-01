@@ -17,11 +17,12 @@
 #include "varenderer.h"
 #include "platformdefines.h"
 
-#include <xf86drm.h>
 #include <drm_fourcc.h>
 #include <math.h>
+#include <xf86drm.h>
 
 #include "hwctrace.h"
+#include "hwcutils.h"
 #include "nativesurface.h"
 #include "overlaybuffer.h"
 #include "renderstate.h"
@@ -233,14 +234,7 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   CTRACE();
   // TODO: Clear surface ?
   surface->SetClearSurface(NativeSurface::kNone);
-  surface->GetLayer()->SetVideoLayer(true);
-
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
-  if (!buffer_out) {
-    ETRACE("Get DRM buffer failed for buffer_out.\n");
-    return false;
-  }
-
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
     render_target_format_ = rt_format;
@@ -250,127 +244,139 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     }
   }
 
-  // Get Input Surface.
-  OverlayBuffer* buffer_in = state.layer_->GetBuffer();
-  if (!buffer_in) {
-    ETRACE("Get DRM buffer failed for buffer_in.\n");
-    return false;
-  }
-  uint32_t dataspace = buffer_in->GetDataSpace();
-  const MediaResourceHandle& resource = buffer_in->GetMediaResource(
-      va_display_, state.layer_->GetSourceCropWidth(),
-      state.layer_->GetSourceCropHeight());
-  VASurfaceID surface_in = resource.surface_;
-  if (surface_in == VA_INVALID_ID) {
-    ETRACE("Failed to create Va Input Surface. \n");
-    return false;
-  }
-
   // Get Output Surface.
   OverlayLayer* layer_out = surface->GetLayer();
+  HwcRect<int> layer_out_disp_frame = layer_out->GetDisplayFrame();
+  int xtranslation = layer_out_disp_frame.left;
+  int ytranslation = layer_out_disp_frame.top;
+
   const MediaResourceHandle& out_resource =
       layer_out->GetBuffer()->GetMediaResource(
-          va_display_, layer_out->GetSourceCropWidth(),
-          layer_out->GetSourceCropHeight());
+          va_display_, layer_out->GetDisplayFrameWidth(),
+          layer_out->GetDisplayFrameWidth());
   VASurfaceID surface_out = out_resource.surface_;
   if (surface_out == VA_INVALID_ID) {
     ETRACE("Failed to create Va Output Surface. \n");
     return false;
   }
 
-  // Set the protected status to output layer if input layer is protected
-  if (state.layer_->IsProtected()) {
-    layer_out->SetProtected(true);
-  } else {
-    layer_out->SetProtected(false);
-  }
-
-  VARectangle surface_region;
-  const OverlayLayer* layer_in = state.layer_;
-  const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
-  surface_region.x = static_cast<int>(source_crop.left);
-  surface_region.y = static_cast<int>(source_crop.top);
-  surface_region.width = layer_in->GetSourceCropWidth();
-  surface_region.height = layer_in->GetSourceCropHeight();
-
-  VARectangle output_region;
-  const HwcRect<float>& source_crop_out = layer_out->GetSourceCrop();
-  output_region.x = static_cast<int>(source_crop_out.left);
-  output_region.y = static_cast<int>(source_crop_out.top);
-  output_region.width = layer_out->GetSourceCropWidth();
-  output_region.height = layer_out->GetSourceCropHeight();
-
-  VAProcPipelineParameterBuffer pipe_param = {};
-  pipe_param.surface = surface_in;
-  pipe_param.surface_region = &surface_region;
-  pipe_param.surface_color_standard = VAProcColorStandardBT601;
-  pipe_param.output_region = &output_region;
-  pipe_param.output_color_standard = VAProcColorStandardBT601;
-
-#ifdef VA_SUPPORT_COLOR_RANGE
-  if ((dataspace & HAL_DATASPACE_RANGE_FULL) != 0) {
-    pipe_param.input_color_properties.color_range = VA_SOURCE_RANGE_FULL;
-  }
-#endif
-
-#ifdef VA_WITH_PAVP
-  if (state.layer_->IsProtected()) {
-    /*Turn on protected flag*/
-    pipe_param.input_surface_flag = 1;
-  }
-#endif
-
-  DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
-            surface_region.y, surface_region.width, surface_region.height);
-  DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
-            output_region.y, output_region.width, output_region.height);
-
-  for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
-    SetVAProcFilterColorValue(itr->first, itr->second);
-  }
-
-  SetVAProcFilterDeinterlaceMode(state.deinterlace_, buffer_in);
-
-  if (!UpdateCaps()) {
-    ETRACE("Failed to update capabailities. \n");
-    return false;
-  }
-
-  pipe_param.filter_flags = GetVAProcFilterScalingMode(state.scaling_mode_);
-  if (filters_.size()) {
-    pipe_param.filters = filters_.data();
-  }
-  pipe_param.num_filters = static_cast<unsigned int>(filters_.size());
-
-#if VA_MAJOR_VERSION >= 1
-  // currently rotation is only supported by VA on Android.
-  uint32_t rotation = 0, mirror = 0;
-  HWCTransformToVA(state.layer_->GetTransform(), rotation, mirror);
-  pipe_param.rotation_state = rotation;
-  pipe_param.mirror_state = mirror;
-#endif
-
-  ScopedVABufferID pipeline_buffer(va_display_);
-  if (!pipeline_buffer.CreateBuffer(
-          va_context_, VAProcPipelineParameterBufferType,
-          sizeof(VAProcPipelineParameterBuffer), 1, &pipe_param)) {
-    return false;
-  }
+  layer_out->SetProtected(false);
 
   VAStatus ret = VA_STATUS_SUCCESS;
   ret = vaBeginPicture(va_display_, va_context_, surface_out);
-  ret |=
-      vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
-  ret |= vaEndPicture(va_display_, va_context_);
 
-  if (surface_region.width == 1920 && surface_region.height == 1080) {
-    // FIXME: WA for OAM-63127. Not sure why this is needed but seems
-    // to ensure we have consistent 60 fps.
-    vaSyncSurface(va_display_, surface_out);
+  OverlayLayer* layer_in = NULL;
+  uint32_t total_layers = state.layers_.size();
+  std::vector<ScopedVABufferID> pipeline_buffers(total_layers, va_display_);
+
+  for (uint32_t i = 0; i < total_layers; i++) {
+    layer_in = state.layers_.at(i);
+    if (layer_in->IsSolidColor())
+      continue;
+    ScopedVABufferID& pipeline_buffer = pipeline_buffers.at(i);
+    // Get Input Surface.
+    OverlayBuffer* buffer_in = layer_in->GetBuffer();
+    if (!buffer_in) {
+      ETRACE("Get DRM buffer failed for buffer_in.\n");
+      return false;
+    }
+    uint32_t dataspace = buffer_in->GetDataSpace();
+    const MediaResourceHandle& resource =
+        buffer_in->GetMediaResource(va_display_, layer_in->GetSourceCropWidth(),
+                                    layer_in->GetSourceCropHeight());
+    VASurfaceID surface_in = resource.surface_;
+    if (surface_in == VA_INVALID_ID) {
+      ETRACE("Failed to create Va Input Surface. \n");
+      return false;
+    }
+
+    // Set the protected status to output layer if input layer is protected
+    if (layer_in->IsProtected()) {
+      layer_out->SetProtected(true);
+    }
+
+    VARectangle surface_region;
+    const HwcRect<float>& source_crop = layer_in->GetSourceCrop();
+    surface_region.x = static_cast<int>(source_crop.left);
+    surface_region.y = static_cast<int>(source_crop.top);
+    surface_region.width = layer_in->GetSourceCropWidth();
+    surface_region.height = layer_in->GetSourceCropHeight();
+
+    VARectangle output_region;
+    HwcRect<int> display_frame = layer_in->GetDisplayFrame();
+    display_frame = TranslateRect(display_frame, -xtranslation, -ytranslation);
+    output_region.x = display_frame.left;
+    output_region.y = display_frame.top;
+    output_region.width = layer_in->GetDisplayFrameWidth();
+    output_region.height = layer_in->GetDisplayFrameHeight();
+
+    VAProcPipelineParameterBuffer pipe_param = {};
+    pipe_param.surface = surface_in;
+    pipe_param.surface_region = &surface_region;
+    pipe_param.surface_color_standard = VAProcColorStandardBT601;
+    pipe_param.output_region = &output_region;
+    pipe_param.output_color_standard = VAProcColorStandardBT601;
+#ifdef VA_SUPPORT_COLOR_RANGE
+    if ((dataspace & HAL_DATASPACE_RANGE_FULL) != 0) {
+      pipe_param.input_color_properties.color_range = VA_SOURCE_RANGE_FULL;
+    }
+#endif
+
+#ifdef VA_WITH_PAVP
+    if (layer_in->IsProtected()) {
+      /*Turn on protected flag*/
+      pipe_param.input_surface_flag = 1;
+    }
+#endif
+
+#ifdef VA_WITH_VPP
+    VABlendState bs = {};
+    bs.flags = VA_BLEND_PREMULTIPLIED_ALPHA;
+    pipe_param.blend_state = &bs;
+#endif
+
+    DUMPTRACE("surface_region: (%d, %d, %d, %d)\n", surface_region.x,
+              surface_region.y, surface_region.width, surface_region.height);
+    DUMPTRACE("Layer DisplayFrame:(%d,%d,%d,%d)\n", output_region.x,
+              output_region.y, output_region.width, output_region.height);
+
+    for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
+      SetVAProcFilterColorValue(itr->first, itr->second);
+    }
+    SetVAProcFilterDeinterlaceMode(state.deinterlace_, buffer_in);
+
+    if (!UpdateCaps()) {
+      ETRACE("Failed to update capabailities. \n");
+      return false;
+    }
+
+    pipe_param.filter_flags = GetVAProcFilterScalingMode(state.scaling_mode_);
+    if (filters_.size()) {
+      pipe_param.filters = filters_.data();
+    }
+    pipe_param.num_filters = static_cast<unsigned int>(filters_.size());
+
+#if VA_MAJOR_VERSION >= 1
+    // currently rotation is only supported by VA on Android.
+    uint32_t rotation = 0, mirror = 0;
+    HWCTransformToVA(layer_in->GetTransform(), rotation, mirror);
+    pipe_param.rotation_state = rotation;
+    pipe_param.mirror_state = mirror;
+#endif
+
+    if (!pipeline_buffer.CreateBuffer(
+            va_context_, VAProcPipelineParameterBufferType,
+            sizeof(VAProcPipelineParameterBuffer), 1, &pipe_param)) {
+      return false;
+    }
+
+    ret |=
+        vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
   }
 
-  surface->ResetDamage();
+  ret |= vaEndPicture(va_display_, va_context_);
 
+  surface->ResetDamage();
   return ret == VA_STATUS_SUCCESS ? true : false;
 }
 

@@ -36,9 +36,8 @@ class DrmBuffer : public OverlayBuffer {
 
   ~DrmBuffer() override;
 
-  void InitializeFromNativeHandle(
-      HWCNativeHandle handle, ResourceManager* buffer_manager,
-      FrameBufferManager* frame_buffer_manager) override;
+  void InitializeFromNativeHandle(HWCNativeHandle handle,
+                                  ResourceManager* buffer_manager) override;
 
   uint32_t GetDataSpace() const override {
     return METADATA(dataspace_);

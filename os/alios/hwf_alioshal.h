@@ -60,7 +60,7 @@ struct HwfDevice {
 
   ~HwfDevice(){};
 
-  hwcomposer::GpuDevice device_;
+  hwcomposer::GpuDevice& device_ = GpuDevice::getInstance();
   std::vector<HwfDisplay> extended_displays_;
   HwfDisplay primary_display_;
   HwfDisplay virtual_display_;

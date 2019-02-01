@@ -16,8 +16,10 @@
 
 #include "compositorthread.h"
 
+#include <nativebufferhandler.h>
 #include "displayplanemanager.h"
 #include "framebuffermanager.h"
+#include "gpudevice.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "nativegpuresource.h"
@@ -25,8 +27,6 @@
 #include "overlaylayer.h"
 #include "renderer.h"
 #include "resourcemanager.h"
-
-#include <nativebufferhandler.h>
 
 namespace hwcomposer {
 
@@ -41,9 +41,8 @@ CompositorThread::~CompositorThread() {
 }
 
 void CompositorThread::Initialize(ResourceManager *resource_manager,
-                                  uint32_t gpu_fd,
-                                  FrameBufferManager *frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+                                  uint32_t gpu_fd) {
+  fb_manager_ = GpuDevice::getInstance().GetFrameBufferManager();
   tasks_lock_.lock();
   if (!gpu_resource_handler_)
     gpu_resource_handler_.reset(CreateNativeGpuResourceHandler());

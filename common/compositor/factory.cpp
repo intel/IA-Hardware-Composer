@@ -35,7 +35,7 @@
 
 namespace hwcomposer {
 
-NativeSurface* Create3DBuffer(uint32_t width, uint32_t height) {
+NativeSurface* Create3DSurface(uint32_t width, uint32_t height) {
 #ifdef USE_GL
   return new GLSurface(width, height);
 #elif USE_VK
@@ -45,7 +45,7 @@ NativeSurface* Create3DBuffer(uint32_t width, uint32_t height) {
 #endif
 }
 
-NativeSurface* CreateVideoBuffer(uint32_t width, uint32_t height) {
+NativeSurface* CreateVideoSurface(uint32_t width, uint32_t height) {
   return new NativeSurface(width, height);
 }
 
