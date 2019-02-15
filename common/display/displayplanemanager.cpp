@@ -660,7 +660,10 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
 
   // Display frame and Source rect are different, let's check if
   // we can take advantage of scalars attached to this plane.
-  last_plane.UsePlaneScalar(true, false);
+  if (last_plane.IsVideoPlane())
+    last_plane.UsePlaneScalar(false, false);
+  else
+    last_plane.UsePlaneScalar(true, false);
 
   OverlayPlane &last_overlay_plane = commit_planes.back();
   last_overlay_plane.layer = last_plane.GetOverlayLayer();
