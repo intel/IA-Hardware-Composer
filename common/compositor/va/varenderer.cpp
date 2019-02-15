@@ -249,11 +249,16 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   HwcRect<int> layer_out_disp_frame = layer_out->GetDisplayFrame();
   int xtranslation = layer_out_disp_frame.left;
   int ytranslation = layer_out_disp_frame.top;
+  HwcRect<float> source_rect;
+  source_rect.top = source_rect.left = 0.0;
+  source_rect.right = layer_out->GetDisplayFrameWidth();
+  source_rect.bottom = layer_out->GetDisplayFrameHeight();
+  layer_out->SetSourceCrop(source_rect);
 
   const MediaResourceHandle& out_resource =
       layer_out->GetBuffer()->GetMediaResource(
           va_display_, layer_out->GetDisplayFrameWidth(),
-          layer_out->GetDisplayFrameWidth());
+          layer_out->GetDisplayFrameHeight());
   VASurfaceID surface_out = out_resource.surface_;
   if (surface_out == VA_INVALID_ID) {
     ETRACE("Failed to create Va Output Surface. \n");
