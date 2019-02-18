@@ -112,8 +112,6 @@ class DisplayQueue {
 
   void PresentClonedCommit(DisplayQueue* queue);
 
-  void NotifyDisplayWA(bool enable_wa);
-
   const DisplayPlaneStateList& GetCurrentCompositionPlanes() const {
     return previous_plane_state_;
   }
@@ -381,7 +379,6 @@ class DisplayQueue {
   SpinLock power_mode_lock_;
   // to disable hwclock monitoring.
   bool handle_display_initializations_ = true;
-  bool enable_wa_ = false;
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
