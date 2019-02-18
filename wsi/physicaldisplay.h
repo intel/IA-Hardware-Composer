@@ -241,17 +241,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   void NotifyClientOfDisConnectedState();
 
   /**
-  * API for ensuring DisplayQueue can handle any W/A needed for
-  * Multi plane/multi port cases.
-  */
-  void NotifyDisplayWA(bool enable_wa);
-
-  /**
-  * API to refresh display in case of hot plug event.
-  */
-  void ForceRefresh();
-
-  /**
   * API to disconnect the display. This is called when this display
   * is physically disconnected.
   */
