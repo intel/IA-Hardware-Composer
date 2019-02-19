@@ -33,6 +33,10 @@ GLSurface::~GLSurface() {
 bool GLSurface::InitializeGPUResources() {
   EGLDisplay egl_display = eglGetCurrentDisplay();
   // Create EGLImage.
+  if (!layer_.GetBuffer()) {
+    ETRACE("Failed to get layer buffer for EGL image");
+    return false;
+  }
   const ResourceHandle& import =
       layer_.GetBuffer()->GetGpuResource(egl_display, false);
 

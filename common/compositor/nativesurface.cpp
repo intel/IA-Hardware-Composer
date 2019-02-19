@@ -67,7 +67,8 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
   InitializeLayer(native_handle);
 
   if (modifier_used && modifier > 0) {
-    if (!layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier)) {
+    if (!layer_.GetBuffer() ||
+        !layer_.GetBuffer()->CreateFrameBufferWithModifier(modifier)) {
       WTRACE("FB creation failed with modifier, removing modifier usage\n");
       ResourceHandle temp;
       temp.handle_ = native_handle;
@@ -142,7 +143,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
   damage_changed_ = true;
   on_screen_ = false;
   surface_age_ = 0;
-  if (layer_.GetBuffer()->GetFb() == 0) {
+  if (layer_.GetBuffer() && layer_.GetBuffer()->GetFb() == 0) {
     ETRACE("SetPlaneTarget unable to create framebuffer for nativesurface");
   }
 }

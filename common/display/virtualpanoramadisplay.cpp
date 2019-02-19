@@ -91,8 +91,9 @@ VirtualPanoramaDisplay::~VirtualPanoramaDisplay() {
     temp.handle_ = handle_;
     resource_manager_->MarkResourceForDeletion(temp, false);
   }
-
-  delete output_handle_;
+  if (output_handle_) {
+    delete output_handle_;
+  }
   std::vector<OverlayLayer>().swap(in_flight_layers_);
 
   resource_manager_->PurgeBuffer();
@@ -213,7 +214,7 @@ void VirtualPanoramaDisplay::HyperDmaExport() {
   char index[15];
   mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
   memset(index, 0, sizeof(index));
-  sprintf(index, "Cluster_%d", surf_index);
+  snprintf(index, sizeof(index), "Cluster_%d", surf_index);
   strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name, index,
           SURFACE_NAME_LENGTH);
   mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =
