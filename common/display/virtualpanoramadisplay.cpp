@@ -343,8 +343,8 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
     compositor_.BeginFrame(false);
     // Prepare for final composition.
     if (!compositor_.DrawOffscreen(
-            layers, layers_rects, index, resource_manager_.get(), fb_manager_,
-            width_, height_, output_handle_, acquire_fence_, retire_fence)) {
+            layers, layers_rects, index, resource_manager_.get(), width_,
+            height_, output_handle_, acquire_fence_, retire_fence)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
       return false;
     }

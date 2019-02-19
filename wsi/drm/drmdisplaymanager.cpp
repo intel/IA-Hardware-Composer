@@ -170,14 +170,12 @@ void DrmDisplayManager::HandleWait() {
 void DrmDisplayManager::InitializeDisplayResources() {
   buffer_handler_.reset(NativeBufferHandler::CreateInstance(fd_));
   frame_buffer_manager_.reset(new FrameBufferManager(fd_));
-  ETRACE("frame buffer manager is %d", frame_buffer_manager_.get());
   if (!buffer_handler_) {
     ETRACE("Failed to create native buffer handler instance");
     return;
   }
 
   int size = displays_.size();
-  ETRACE("display size is %d", size);
   for (int i = 0; i < size; ++i) {
     if (!displays_.at(i)->Initialize(buffer_handler_.get())) {
       ETRACE("Failed to Initialize Display %d", i);
@@ -567,9 +565,8 @@ NativeDisplay *DrmDisplayManager::CreateVirtualPanoramaDisplay(
     uint32_t display_index) {
   spin_lock_.lock();
   NativeDisplay *latest_display;
-  std::unique_ptr<VirtualPanoramaDisplay> display(new VirtualPanoramaDisplay(
-      fd_, buffer_handler_.get(), frame_buffer_manager_.get(), display_index,
-      0));
+  std::unique_ptr<VirtualPanoramaDisplay> display(
+      new VirtualPanoramaDisplay(fd_, buffer_handler_.get(), display_index, 0));
   virtual_displays_.emplace_back(std::move(display));
   size_t size = virtual_displays_.size();
   latest_display = virtual_displays_.at(size - 1).get();
