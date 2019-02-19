@@ -245,14 +245,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ChosePreferredConfig() {
   if (err != HWC2::Error::None || !num_configs)
     return err;
 
-  // Grab the first mode, we'll choose this as the active mode
-  // TODO: Should choose the preferred mode here
-  hwc2_config_t default_config;
-  num_configs = 1;
-  err = GetDisplayConfigs(&num_configs, &default_config);
-  if (err != HWC2::Error::None)
-    return err;
-  return SetActiveConfig(default_config);
+  return SetActiveConfig(connector_->get_preferred_mode_id());
 }
 
 HWC2::Error DrmHwcTwo::HwcDisplay::RegisterVsyncCallback(
