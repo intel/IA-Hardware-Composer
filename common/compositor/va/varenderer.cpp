@@ -268,6 +268,10 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Output Surface.
   OverlayLayer* layer_out = surface->GetLayer();
+  if (!layer_out->GetBuffer()) {
+    ETRACE("Failed to get layer_out Buffer.");
+    return false;
+  }
   const MediaResourceHandle& out_resource =
       layer_out->GetBuffer()->GetMediaResource(
           va_display_, layer_out->GetSourceCropWidth(),

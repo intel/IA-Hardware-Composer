@@ -854,6 +854,9 @@ bool DisplayPlaneManager::FallbacktoGPU(
   if (!target_plane->ValidateLayer(layer))
     return true;
 
+  if (!layer->GetBuffer())
+    return true;
+
   if (layer->GetBuffer()->GetFb() == 0) {
     return true;
   }
