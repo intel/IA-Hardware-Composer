@@ -53,11 +53,6 @@ LOCAL_CFLAGS += \
 	-DUSE_VNDK
 endif
 
-ifeq ($(strip $(BOARD_CURSOR_WA)), true)
-LOCAL_CPPFLAGS += \
-	-DDISABLE_CURSOR_PLANE
-endif
-
 #LOCAL_CPPFLAGS += \
 #	-DENABLE_DOWNSCALING
 
