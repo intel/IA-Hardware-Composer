@@ -210,6 +210,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
   CalculateRenderState(layers, comp_regions, draw_state, 1, false);
 
   if (draw_state.states_.empty()) {
+    delete surface;
     return true;
   }
 
@@ -224,6 +225,7 @@ bool Compositor::DrawOffscreen(std::vector<OverlayLayer> &layers,
     *retire_fence = -1;
   }
 
+  delete surface;
   return status;
 }
 
