@@ -48,17 +48,11 @@ void DisplayPlaneManager::ResizeOverlays() {
     total_overlays_ = overlay_planes_.size();
     if (total_overlays_ > 1) {
       cursor_plane_ = overlay_planes_.back().get();
-      bool needs_cursor_wa = false;
-#ifdef DISABLE_CURSOR_PLANE
-      needs_cursor_wa = overlay_planes_.size() > 3;
-#endif
       // If this is a universal plane, let's not restrict it to
       // cursor usage only.
-      if (!needs_cursor_wa && cursor_plane_->IsUniversal()) {
+      if (cursor_plane_->IsUniversal()) {
         cursor_plane_ = NULL;
-      }
-
-      if (needs_cursor_wa || (cursor_plane_ && !cursor_plane_->IsUniversal())) {
+      } else {
         total_overlays_--;
       }
     }
@@ -163,13 +157,7 @@ bool DisplayPlaneManager::ValidateLayers(
   if (layer_begin != layer_end) {
     auto overlay_end = overlay_planes_.end();
     if (cursor_plane_) {
-#ifdef DISABLE_CURSOR_PLANE
       overlay_end = overlay_planes_.end() - 1;
-#else
-      if (!cursor_plane_->IsUniversal()) {
-        overlay_end = overlay_planes_.end() - 1;
-      }
-#endif
     }
 
     // Handle layers for overlays.
@@ -467,11 +455,6 @@ void DisplayPlaneManager::ValidateCursorLayer(
     overlay_begin = overlay_planes_.begin() + composition.size();
   }
 
-#ifdef DISABLE_CURSOR_PLANE
-  overlay_end = overlay_planes_.end() - 1;
-  if (total_size == 1)
-    overlay_begin = overlay_planes_.begin() + composition.size();
-#endif
   for (auto j = overlay_begin; j < overlay_end; ++j) {
     if (cursor_index == total_size)
       break;
