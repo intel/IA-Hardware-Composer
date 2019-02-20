@@ -165,11 +165,6 @@ ifeq ($(shell test $(ANDROID_VERSION) -ge 9; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow
 endif
 
-ifeq ($(strip $(BOARD_CURSOR_WA)), true)
-LOCAL_CPPFLAGS += \
-	-DDISABLE_CURSOR_PLANE
-endif
-
 LOCAL_CPPFLAGS += \
        -DMODIFICATOR_WA
 
