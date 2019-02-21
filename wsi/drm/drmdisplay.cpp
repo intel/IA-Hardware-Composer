@@ -892,6 +892,7 @@ void DrmDisplay::SetColorTransformMatrix(
     }
   }
   free(ctm);
+  free(ctm_post_offset);
 }
 void DrmDisplay::SetColorCorrection(struct gamma_colors gamma,
                                     uint32_t contrast_c,
