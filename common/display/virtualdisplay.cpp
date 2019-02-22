@@ -436,6 +436,8 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
     if (output_handle_) {
       handler->CopyHandle(output_handle_, &handle_);
     }
+  } else {
+    delete buffer;
   }
 
   if (acquire_fence_ > 0) {
