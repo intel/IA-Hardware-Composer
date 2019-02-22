@@ -175,11 +175,14 @@ void HwcLayer::SetReleaseFence(int32_t fd) {
       int ret = sync_accumulate("iahwc_release_layerfence", &release_fd_, fd);
       if (ret) {
         ETRACE("Unable to merge layer release fence");
+        close(release_fd_);
         release_fd_ = -1;
       }
     } else {
+      close(release_fd_);
       release_fd_ = -1;
     }
+    close(fd);
   } else {
     release_fd_ = fd;
   }
