@@ -451,7 +451,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
   uint32_t cursor_index = 0;
   auto overlay_end = overlay_planes_.end();
   auto overlay_begin = overlay_end - 1;
-  if (total_size > 1) {
+  if (total_size > 1 || !cursor_plane_) {
     overlay_begin = overlay_planes_.begin() + composition.size();
   }
 
