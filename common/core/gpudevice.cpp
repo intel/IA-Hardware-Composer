@@ -500,7 +500,7 @@ void GpuDevice::HandleHWCSettings() {
         } else if (!key.compare(key_clone_display)) {
           std::istringstream i_value(value);
           std::string i_clone_split_str;
-          // Got mosaic sub display num
+          // Got clone sub display num
           std::vector<uint32_t> clone_display;
           while (std::getline(i_value, i_clone_split_str, '+')) {
             if (i_clone_split_str.empty() ||
@@ -778,10 +778,16 @@ void GpuDevice::HandleHWCSettings() {
     size_t cloned_displays_size = cloned_displays.size();
     for (size_t c = 0; c < cloned_displays_size; c++) {
       std::vector<uint32_t> &temp = cloned_displays.at(c);
-      size_t c_size = temp.size();
-      NativeDisplay *physical_display = total_displays_.at(temp.at(0));
-      for (size_t clone = 1; clone < c_size; clone++) {
-        total_displays_.at(temp.at(clone))->CloneDisplay(physical_display);
+      if (!temp.empty() && temp.size() >= 2) {
+        size_t c_size = temp.size();
+        if (total_displays_.size() > temp.at(0)) {
+          NativeDisplay *physical_display = total_displays_.at(temp.at(0));
+          for (size_t clone = 1; clone < c_size; clone++) {
+            if (total_displays_.size() > temp.at(clone))
+              total_displays_.at(temp.at(clone))
+                  ->CloneDisplay(physical_display);
+          }
+        }
       }
     }
 
