@@ -80,12 +80,6 @@ VirtualDisplay::~VirtualDisplay() {
     close(acquire_fence_);
   }
 
-  if (handle_) {
-    ResourceHandle temp;
-    temp.handle_ = handle_;
-    resource_manager_->MarkResourceForDeletion(temp, false);
-  }
-
   if (output_handle_) {
     delete output_handle_;
   }
@@ -421,21 +415,8 @@ void VirtualDisplay::SetOutputBuffer(HWCNativeHandle buffer,
 #endif
 
   if (!output_handle_ || output_handle_ != buffer) {
-    const NativeBufferHandler *handler =
-        resource_manager_->GetNativeBufferHandler();
-
-    if (handle_) {
-      handler->ReleaseBuffer(handle_);
-      handler->DestroyHandle(handle_);
-    }
-
     delete output_handle_;
     output_handle_ = buffer;
-    handle_ = 0;
-
-    if (output_handle_) {
-      handler->CopyHandle(output_handle_, &handle_);
-    }
   } else {
     delete buffer;
   }
