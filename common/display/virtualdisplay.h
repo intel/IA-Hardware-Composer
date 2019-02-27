@@ -95,13 +95,12 @@ class VirtualDisplay : public NativeDisplay {
   }
 
  private:
-  HWCNativeHandle output_handle_;
+  HWCNativeHandle output_handle_ = 0;
   int32_t acquire_fence_ = -1;
   Compositor compositor_;
   uint32_t width_ = 1;
   uint32_t height_ = 1;
   std::vector<OverlayLayer> in_flight_layers_;
-  HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
   uint32_t display_index_ = 0;
   bool discard_protected_video_ = false;
