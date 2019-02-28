@@ -70,6 +70,7 @@ int HisiImporter::Init() {
   return 0;
 }
 
+#ifdef MALI_GRALLOC_INTFMT_AFBC_BASIC
 uint64_t HisiImporter::ConvertGrallocFormatToDrmModifiers(uint64_t flags,
                                                           bool is_rgb) {
   uint64_t features = 0UL;
@@ -95,6 +96,12 @@ uint64_t HisiImporter::ConvertGrallocFormatToDrmModifiers(uint64_t flags,
 
   return 0;
 }
+#else
+uint64_t HisiImporter::ConvertGrallocFormatToDrmModifiers(uint64_t /* flags */,
+                                                          bool /* is_rgb */) {
+  return 0;
+}
+#endif
 
 bool HisiImporter::IsDrmFormatRgb(uint32_t drm_format) {
   switch (drm_format) {
