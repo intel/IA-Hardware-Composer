@@ -111,7 +111,7 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Composition validated_type_ = HWC2::Composition::Invalid;
 
     HWC2::BlendMode blending_ = HWC2::BlendMode::None;
-    buffer_handle_t buffer_;
+    buffer_handle_t buffer_ = NULL;
     UniqueFd acquire_fence_;
     int release_fence_raw_ = -1;
     UniqueFd release_fence_;
