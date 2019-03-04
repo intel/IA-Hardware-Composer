@@ -268,14 +268,14 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
 
   // Get Output Surface.
   OverlayLayer* layer_out = surface->GetLayer();
-  if (!layer_out->GetBuffer()) {
+  OverlayBuffer* layer_out_buffer = layer_out->GetBuffer();
+  if (!layer_out_buffer) {
     ETRACE("Failed to get layer_out Buffer.");
     return false;
   }
-  const MediaResourceHandle& out_resource =
-      layer_out->GetBuffer()->GetMediaResource(
-          va_display_, layer_out->GetSourceCropWidth(),
-          layer_out->GetSourceCropHeight());
+  const MediaResourceHandle& out_resource = layer_out_buffer->GetMediaResource(
+      va_display_, layer_out->GetSourceCropWidth(),
+      layer_out->GetSourceCropHeight());
   VASurfaceID surface_out = out_resource.surface_;
   if (surface_out == VA_INVALID_ID) {
     ETRACE("Failed to create Va Output Surface. \n");

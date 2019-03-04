@@ -854,10 +854,11 @@ bool DisplayPlaneManager::FallbacktoGPU(
   if (!target_plane->ValidateLayer(layer))
     return true;
 
-  if (!layer->GetBuffer())
+  OverlayBuffer *layer_buffer = layer->GetBuffer();
+  if (!layer_buffer)
     return true;
 
-  if (layer->GetBuffer()->GetFb() == 0) {
+  if (layer_buffer->GetFb() == 0) {
     return true;
   }
 

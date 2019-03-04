@@ -467,12 +467,13 @@ bool DrmPlane::ValidateLayer(const OverlayLayer* layer) {
     return false;
   }
 
-  if (!layer->GetBuffer()) {
+  OverlayBuffer* layer_buffer = layer->GetBuffer();
+  if (!layer_buffer) {
     IDISPLAYMANAGERTRACE("Layer buffer is not available for using Overlay");
     return false;
   }
 
-  if (!IsSupportedFormat(layer->GetBuffer()->GetFormat())) {
+  if (!IsSupportedFormat(layer_buffer->GetFormat())) {
     IDISPLAYMANAGERTRACE(
         "Layer cannot be supported as format is not supported.");
     return false;

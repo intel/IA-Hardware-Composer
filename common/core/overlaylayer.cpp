@@ -505,9 +505,10 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
   }
   SetDisplayFrame(display_frame);
   SetSourceCrop(layer->GetSourceCrop());
-  if (layer->GetBuffer()) {
-  	SetBuffer(layer->GetBuffer()->GetOriginalHandle(), aquire_fence,
-            	resource_manager, true, frame_buffer_manager);
+  OverlayBuffer* layer_buffer = layer->GetBuffer();
+  if (layer_buffer) {
+    SetBuffer(layer_buffer->GetOriginalHandle(), aquire_fence, resource_manager,
+              true, frame_buffer_manager);
   }
   ValidateForOverlayUsage();
   surface_damage_ = layer->GetSurfaceDamage();
