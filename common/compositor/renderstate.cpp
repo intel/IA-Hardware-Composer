@@ -127,9 +127,10 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
 
     float tex_width = 0;
     float tex_height = 0;
-    if (layer.GetBuffer()) {
-      tex_width = static_cast<float>(layer.GetBuffer()->GetWidth());
-      tex_height = static_cast<float>(layer.GetBuffer()->GetHeight());
+    OverlayBuffer *layer_buffer = layer.GetBuffer();
+    if (layer_buffer) {
+      tex_width = static_cast<float>(layer_buffer->GetWidth());
+      tex_height = static_cast<float>(layer_buffer->GetHeight());
     } else {
       tex_width = static_cast<float>(layer.GetSourceCropWidth());
       tex_height = static_cast<float>(layer.GetSourceCropHeight());
