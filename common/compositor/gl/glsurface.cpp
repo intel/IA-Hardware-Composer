@@ -32,13 +32,14 @@ GLSurface::~GLSurface() {
 
 bool GLSurface::InitializeGPUResources() {
   EGLDisplay egl_display = eglGetCurrentDisplay();
+  OverlayBuffer* layer_buffer = layer_.GetBuffer();
   // Create EGLImage.
-  if (!layer_.GetBuffer()) {
+  if (!layer_buffer) {
     ETRACE("Failed to get layer buffer for EGL image");
     return false;
   }
   const ResourceHandle& import =
-      layer_.GetBuffer()->GetGpuResource(egl_display, false);
+      layer_buffer->GetGpuResource(egl_display, false);
 
   if (import.image_ == EGL_NO_IMAGE_KHR) {
     ETRACE("Failed to make EGL image.");
