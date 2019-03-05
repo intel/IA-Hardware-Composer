@@ -243,7 +243,7 @@ void GpuDevice::ParsePanoramaSOSDisplayConfig(
   panorama_sos_displays.emplace_back(panorama_sos_display);
 }
 
-void GpuDevice::PanoramaInit(
+void GpuDevice::InitializePanorama(
     std::vector<NativeDisplay *> &total_displays_,
     std::vector<NativeDisplay *> &temp_displays,
     std::vector<std::vector<uint32_t>> &panorama_displays,
@@ -307,6 +307,435 @@ void GpuDevice::PanoramaInit(
 
 #endif
 
+void GpuDevice::ParseLogicalDisplaySetting(
+    std::string &value, std::vector<uint32_t> &logical_displays) {
+  std::istringstream i_value(value);
+  std::string physical_index_str;
+  std::getline(i_value, physical_index_str, ':');
+  if (physical_index_str.empty() ||
+      physical_index_str.find_first_not_of("0123456789") != std::string::npos)
+    return;
+  std::string logical_split_str;
+  // Got split num
+  std::getline(i_value, logical_split_str, ':');
+  if (logical_split_str.empty() ||
+      logical_split_str.find_first_not_of("0123456789") != std::string::npos)
+    return;
+  uint32_t physical_index = atoi(physical_index_str.c_str());
+  uint32_t logical_split_num = atoi(logical_split_str.c_str());
+  if (logical_split_num <= 1)
+    return;
+  // Set logical num 1 for physical display which is not in config
+  while (physical_index > logical_displays.size()) {
+    logical_displays.emplace_back(1);
+  }
+  // Save logical split num for the physical display (don't care if the
+  // physical display is disconnected/connected here)
+  logical_displays.emplace_back(logical_split_num);
+  // Got mosaic config
+}
+
+void GpuDevice::ParseMosaicDisplaySetting(
+    std::string &value, std::vector<std::vector<uint32_t>> &mosaic_displays) {
+  std::istringstream i_value(value);
+  std::string i_mosaic_split_str;
+  std::vector<uint32_t> mosaic_duplicate_check;
+
+  // Got mosaic sub display num
+  std::vector<uint32_t> mosaic_display;
+  while (std::getline(i_value, i_mosaic_split_str, '+')) {
+    if (i_mosaic_split_str.empty() ||
+        i_mosaic_split_str.find_first_not_of("0123456789") != std::string::npos)
+      continue;
+    size_t i_mosaic_split_num = atoi(i_mosaic_split_str.c_str());
+    // Check and skip if the display already been used in other mosaic
+    bool skip_duplicate_display = false;
+    size_t mosaic_size = mosaic_duplicate_check.size();
+    for (size_t i = 0; i < mosaic_size; i++) {
+      if (mosaic_duplicate_check.at(i) == i_mosaic_split_num) {
+        skip_duplicate_display = true;
+        break;
+      }
+    }
+    if (!skip_duplicate_display) {
+      // save the sub display num for the mosaic display (don't care
+      // if
+      // the physical/logical display is existing/connected here)
+      mosaic_display.emplace_back(i_mosaic_split_num);
+      mosaic_duplicate_check.emplace_back(i_mosaic_split_num);
+    }
+  }
+  mosaic_displays.emplace_back(mosaic_display);
+}
+
+void GpuDevice::ParsePhysicalDisplaySetting(
+    std::string &value, std::vector<uint32_t> &physical_displays) {
+  std::istringstream i_value(value);
+  std::string physical_split_str;
+  std::vector<uint32_t> physical_duplicate_check;
+
+  // Got physical display num
+  while (std::getline(i_value, physical_split_str, ':')) {
+    if (physical_split_str.empty() ||
+        physical_split_str.find_first_not_of("0123456789") != std::string::npos)
+      continue;
+    size_t physical_split_num = atoi(physical_split_str.c_str());
+    // Check and skip if the display already been used in other mosaic
+    bool skip_duplicate_display = false;
+    size_t physical_size = physical_duplicate_check.size();
+    for (size_t i = 0; i < physical_size; i++) {
+      if (physical_duplicate_check.at(i) == physical_split_num) {
+        skip_duplicate_display = true;
+        break;
+      }
+    }
+    if (!skip_duplicate_display) {
+      physical_displays.emplace_back(physical_split_num);
+      physical_duplicate_check.emplace_back(physical_split_num);
+    }
+  }
+}
+
+void GpuDevice::ParseCloneDisplaySetting(
+    std::string &value, std::vector<std::vector<uint32_t>> &cloned_displays) {
+  std::istringstream i_value(value);
+  std::string i_clone_split_str;
+  std::vector<uint32_t> clone_duplicate_check;
+
+  // Got clone sub display num
+  std::vector<uint32_t> clone_display;
+  while (std::getline(i_value, i_clone_split_str, '+')) {
+    if (i_clone_split_str.empty() ||
+        i_clone_split_str.find_first_not_of("0123456789") != std::string::npos)
+      continue;
+    size_t i_clone_split_num = atoi(i_clone_split_str.c_str());
+    // Check and skip if the display already been used in other clone
+    bool skip_duplicate_display = false;
+    size_t clone_size = clone_duplicate_check.size();
+    for (size_t i = 0; i < clone_size; i++) {
+      if (clone_duplicate_check.at(i) == i_clone_split_num) {
+        skip_duplicate_display = true;
+        break;
+      }
+    }
+    if (!skip_duplicate_display) {
+      // save the sub display num for the mosaic display (don't care
+      // if
+      // the physical/logical display is existing/connected here)
+      clone_display.emplace_back(i_clone_split_num);
+      clone_duplicate_check.emplace_back(i_clone_split_num);
+    }
+  }
+  cloned_displays.emplace_back(clone_display);
+}
+
+void GpuDevice::ParsePhysicalDisplayRotation(
+    std::string &value, std::vector<uint32_t> &display_rotation,
+    std::vector<uint32_t> &rotation_display_index) {
+  std::istringstream i_value(value);
+  std::string physical_index_str;
+  std::getline(i_value, physical_index_str, ':');
+  if (physical_index_str.empty() ||
+      physical_index_str.find_first_not_of("0123456789") != std::string::npos)
+    return;
+
+  uint32_t physical_index = atoi(physical_index_str.c_str());
+  // Check and skip if the display is already in use.
+  bool skip_duplicate_display = false;
+  size_t rotation_size = rotation_display_index.size();
+  for (size_t i = 0; i < rotation_size; i++) {
+    if (rotation_display_index.at(i) == physical_index) {
+      skip_duplicate_display = true;
+      break;
+    }
+  }
+
+  if (skip_duplicate_display) {
+    return;
+  }
+
+  std::string rotation_str;
+  // Got split num
+  std::getline(i_value, rotation_str, ':');
+  if (rotation_str.empty() ||
+      rotation_str.find_first_not_of("0123") != std::string::npos)
+    return;
+
+  uint32_t rotation_num = atoi(rotation_str.c_str());
+  display_rotation.emplace_back(rotation_num);
+  rotation_display_index.emplace_back(physical_index);
+}
+
+void GpuDevice::ParseFloatDisplaySetting(
+    std::string &value, std::vector<HwcRect<int32_t>> &float_displays,
+    std::vector<uint32_t> &float_display_indices) {
+  std::istringstream i_value(value);
+  std::string index_str;
+  std::string float_rect_str;
+  std::vector<int32_t> float_rect;
+
+  // Got display index
+  std::getline(i_value, index_str, ':');
+  if (index_str.empty() ||
+      index_str.find_first_not_of("0123456789") != std::string::npos) {
+    return;
+  }
+
+  int32_t index = atoi(index_str.c_str());
+
+  // Got rectangle configuration
+  while (std::getline(i_value, float_rect_str, '+')) {
+    if (float_rect_str.empty() ||
+        float_rect_str.find_first_not_of("0123456789") != std::string::npos) {
+      continue;
+    }
+    size_t float_rect_val = atoi(float_rect_str.c_str());
+
+    // Save the rectangle - left, top, right & bottom
+    float_rect.emplace_back(float_rect_val);
+  }
+
+  // If entire rect is available, store the parameters
+  // TODO remove hard code
+  if (float_rect.size() == 4) {
+    float_display_indices.emplace_back(index);
+    HwcRect<int32_t> rect = HwcRect<int32_t>(
+        float_rect.at(0), float_rect.at(1), float_rect.at(2), float_rect.at(3));
+    float_displays.emplace_back(rect);
+  }
+}
+
+void GpuDevice::InitializeDisplayIndex(std::vector<uint32_t> &physical_displays,
+                                       std::vector<NativeDisplay *> &displays) {
+  std::vector<NativeDisplay *> unordered_displays =
+      display_manager_->GetAllDisplays();
+  size_t size = unordered_displays.size();
+  uint32_t dispmgr_display_size = (uint32_t)size;
+
+  if (physical_displays.empty()) {
+    displays.swap(unordered_displays);
+  } else {
+    size = physical_displays.size();
+    for (size_t i = 0; i < size; i++) {
+      uint32_t pdisp_index = physical_displays.at(i);
+      // Add the physical display only if it has been enumerated from DRM API.
+      // Skip the non-existence display defined in hwc_display.ini file.
+      if (pdisp_index < dispmgr_display_size) {
+        displays.emplace_back(unordered_displays.at(pdisp_index));
+      } else {
+        ETRACE(
+            "Physical display number: %u defined in hwc_display.ini "
+            "doesn't exist in enumerated DRM display list (total: %u).",
+            pdisp_index, dispmgr_display_size);
+      }
+    }
+
+    if (displays.size() != unordered_displays.size()) {
+      size = unordered_displays.size();
+      for (size_t i = 0; i < size; i++) {
+        NativeDisplay *display = unordered_displays.at(i);
+        uint32_t temp = displays.size();
+        for (size_t i = 0; i < temp; i++) {
+          if (displays.at(i) == display) {
+            display = NULL;
+            break;
+          }
+        }
+
+        if (display) {
+          displays.emplace_back(display);
+        }
+      }
+    }
+  }
+  // Re-order displays based on connection status.
+  std::vector<NativeDisplay *> connected_displays;
+  std::vector<NativeDisplay *> un_connected_displays;
+  size = displays.size();
+  for (size_t i = 0; i < size; i++) {
+    NativeDisplay *temp = displays.at(i);
+    if (temp->IsConnected()) {
+      connected_displays.emplace_back(temp);
+    } else {
+      un_connected_displays.emplace_back(temp);
+    }
+  }
+
+  displays.swap(connected_displays);
+
+  if (!un_connected_displays.empty()) {
+    size_t temp = un_connected_displays.size();
+    for (size_t i = 0; i < temp; i++) {
+      displays.emplace_back(un_connected_displays.at(i));
+    }
+  }
+
+  for (size_t i = 0; i < size; i++) {
+    displays.at(i)->SetDisplayOrder(i);
+  }
+}
+void GpuDevice::InitializeDisplayRotation(
+    std::vector<uint32_t> &display_rotation,
+    std::vector<uint32_t> &rotation_display_index,
+    std::vector<NativeDisplay *> &displays) {
+  size_t rotation_size = rotation_display_index.size();
+  for (size_t i = 0; i < rotation_size; i++) {
+    HWCRotation rotation = static_cast<HWCRotation>(display_rotation.at(i));
+    displays.at(rotation_display_index.at(i))->RotateDisplay(rotation);
+  }
+}
+
+void GpuDevice::InitializeLogicalDisplay(
+    std::vector<uint32_t> &logical_displays,
+    std::vector<NativeDisplay *> &displays,
+    std::vector<NativeDisplay *> &temp_displays, bool use_logical) {
+  size_t size = displays.size();
+  for (size_t i = 0; i < size; i++) {
+    hwcomposer::NativeDisplay *display = displays.at(i);
+    // Save logical displays to temp_displays, skip the physical display
+    if (use_logical && (logical_displays.size() >= i + 1) &&
+        logical_displays[i] > 1) {
+      std::unique_ptr<LogicalDisplayManager> manager(
+          new LogicalDisplayManager(display));
+      logical_display_manager_.emplace_back(std::move(manager));
+      // don't care if the displays is connected/disconnected here
+      logical_display_manager_.back()->InitializeLogicalDisplays(
+          logical_displays[i]);
+      std::vector<LogicalDisplay *> temp_logical_displays;
+      logical_display_manager_.back()->GetLogicalDisplays(
+          temp_logical_displays);
+      size_t logical_display_total_size = temp_logical_displays.size();
+      for (size_t j = 0; j < logical_display_total_size; j++) {
+        temp_displays.emplace_back(temp_logical_displays.at(j));
+      }
+      // Save no split physical displays to temp_displays
+    } else {
+      temp_displays.emplace_back(display);
+    }
+  }
+}
+
+void GpuDevice::InitializeMosaicDisplay(
+    std::vector<NativeDisplay *> &total_displays_,
+    std::vector<std::vector<uint32_t>> &mosaic_displays,
+    std::vector<NativeDisplay *> &temp_displays) {
+  std::vector<bool> available_displays(temp_displays.size(), true);
+  size_t displays_size = temp_displays.size();
+  for (size_t t = 0; t < displays_size; t++) {
+    // Skip the displays which already be marked in other mosaic
+    if (!available_displays.at(t))
+      continue;
+    bool skip_display = false;
+    size_t mosaic_size = mosaic_displays.size();
+    for (size_t m = 0; m < mosaic_size; m++) {
+      std::vector<NativeDisplay *> i_available_mosaic_displays;
+      size_t mosaic_inner_size = mosaic_displays.at(m).size();
+      for (size_t l = 0; l < mosaic_inner_size; l++) {
+        // Check if the logical display is in mosaic, keep the order of
+        // logical displays list
+        // Get the smallest logical num of the mosaic for order keeping
+        if (t == mosaic_displays.at(m).at(l)) {
+          // Loop to get logical displays of mosaic, keep the order of config
+          for (size_t i = 0; i < mosaic_inner_size; i++) {
+            // Verify the logical display num
+            if (mosaic_displays.at(m).at(i) < displays_size) {
+              // Skip the disconnected display here
+              i_available_mosaic_displays.emplace_back(
+                  temp_displays.at(mosaic_displays.at(m).at(i)));
+              // Add tag for mosaic-ed displays
+              available_displays.at(mosaic_displays.at(m).at(i)) = false;
+            }
+          }
+          // Create mosaic for those logical displays
+          if (i_available_mosaic_displays.size() > 0) {
+            std::unique_ptr<MosaicDisplay> mosaic(
+                new MosaicDisplay(i_available_mosaic_displays));
+            mosaic_displays_.emplace_back(std::move(mosaic));
+            // Save the mosaic to the final displays list
+            total_displays_.emplace_back(mosaic_displays_.back().get());
+          }
+          skip_display = true;
+          break;
+        }
+      }
+      if (skip_display)
+        break;
+    }
+    if (!skip_display) {
+      total_displays_.emplace_back(temp_displays.at(t));
+    }
+  }
+}
+
+void GpuDevice::InitializeCloneDisplay(
+    std::vector<NativeDisplay *> &total_displays_,
+    std::vector<std::vector<uint32_t>> &cloned_displays) {
+  std::vector<NativeDisplay *> temp_displays;
+  size_t displays_size = total_displays_.size();
+  size_t cloned_displays_size = cloned_displays.size();
+  for (size_t c = 0; c < cloned_displays_size; c++) {
+    std::vector<uint32_t> &temp = cloned_displays.at(c);
+    if (!temp.empty() && temp.size() >= 2) {
+      size_t c_size = temp.size();
+      if (total_displays_.size() > temp.at(0)) {
+        NativeDisplay *physical_display = total_displays_.at(temp.at(0));
+        for (size_t clone = 1; clone < c_size; clone++) {
+          if (total_displays_.size() > temp.at(clone))
+            total_displays_.at(temp.at(clone))->CloneDisplay(physical_display);
+        }
+      }
+    }
+  }
+
+  for (size_t t = 0; t < displays_size; t++) {
+    bool found = false;
+    for (size_t c = 0; c < cloned_displays_size; c++) {
+      std::vector<uint32_t> &temp = cloned_displays.at(c);
+      size_t c_size = temp.size();
+      for (size_t clone = 1; clone < c_size; clone++) {
+        uint32_t temp_clone = temp.at(clone);
+        if (temp_clone == t) {
+          found = true;
+          break;
+        }
+      }
+
+      if (found) {
+        break;
+      }
+    }
+
+    // Don't advertise cloned display as another independent
+    // Physical Display.
+    if (found) {
+      continue;
+    }
+
+    temp_displays.emplace_back(total_displays_.at(t));
+  }
+  temp_displays.swap(total_displays_);
+}
+
+void GpuDevice::InitializeFloatDisplay(
+    std::vector<NativeDisplay *> &total_displays_,
+    std::vector<HwcRect<int32_t>> &float_displays,
+    std::vector<uint32_t> &float_display_indices) {
+  bool ret = false;
+  size_t size = float_display_indices.size();
+  size_t num_displays = total_displays_.size();
+
+  // Set custom resolution to desired display instance
+  for (size_t i = 0; i < size; i++) {
+    int index = float_display_indices.at(i);
+
+    // Ignore float index if out of range of connected displays
+    if ((size_t)index < num_displays) {
+      const HwcRect<int32_t> &rect = float_displays.at(i);
+      ret = total_displays_.at(index)->SetCustomResolution(rect);
+    }
+  }
+}
+
 void GpuDevice::HandleHWCSettings() {
   // Handle config file reading
   const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
@@ -321,6 +750,7 @@ void GpuDevice::HandleHWCSettings() {
   std::vector<uint32_t> physical_displays;
   std::vector<uint32_t> display_rotation;
   std::vector<uint32_t> float_display_indices;
+  std::vector<uint32_t> rotation_display_index;
   std::vector<HwcRect<int32_t>> float_displays;
   std::vector<std::vector<uint32_t>> cloned_displays;
   std::vector<std::vector<uint32_t>> mosaic_displays;
@@ -352,10 +782,6 @@ void GpuDevice::HandleHWCSettings() {
 
   std::string key_reserved_drm_plane("DRM_PLANE_RESERVED");
 
-  std::vector<uint32_t> mosaic_duplicate_check;
-  std::vector<uint32_t> clone_duplicate_check;
-  std::vector<uint32_t> physical_duplicate_check;
-  std::vector<uint32_t> rotation_display_index;
   while (std::getline(fin, cfg_line)) {
     std::istringstream i_line(cfg_line);
     std::string key;
@@ -406,63 +832,12 @@ void GpuDevice::HandleHWCSettings() {
           if (!value.compare(enable_str)) {
             reserve_plane_ = true;
           }
+          // Got logical display index
         } else if (!key.compare(key_logical_display)) {
-          std::string physical_index_str;
-          std::istringstream i_value(value);
-          // Got physical display index
-          std::getline(i_value, physical_index_str, ':');
-          if (physical_index_str.empty() ||
-              physical_index_str.find_first_not_of("0123456789") !=
-                  std::string::npos)
-            continue;
-          std::string logical_split_str;
-          // Got split num
-          std::getline(i_value, logical_split_str, ':');
-          if (logical_split_str.empty() ||
-              logical_split_str.find_first_not_of("0123456789") !=
-                  std::string::npos)
-            continue;
-          uint32_t physical_index = atoi(physical_index_str.c_str());
-          uint32_t logical_split_num = atoi(logical_split_str.c_str());
-          if (logical_split_num <= 1)
-            continue;
-          // Set logical num 1 for physical display which is not in config
-          while (physical_index > logical_displays.size()) {
-            logical_displays.emplace_back(1);
-          }
-          // Save logical split num for the physical display (don't care if the
-          // physical display is disconnected/connected here)
-          logical_displays.emplace_back(logical_split_num);
+          ParseLogicalDisplaySetting(value, logical_displays);
           // Got mosaic config
         } else if (!key.compare(key_mosaic_display)) {
-          std::istringstream i_value(value);
-          std::string i_mosaic_split_str;
-          // Got mosaic sub display num
-          std::vector<uint32_t> mosaic_display;
-          while (std::getline(i_value, i_mosaic_split_str, '+')) {
-            if (i_mosaic_split_str.empty() ||
-                i_mosaic_split_str.find_first_not_of("0123456789") !=
-                    std::string::npos)
-              continue;
-            size_t i_mosaic_split_num = atoi(i_mosaic_split_str.c_str());
-            // Check and skip if the display already been used in other mosaic
-            bool skip_duplicate_display = false;
-            size_t mosaic_size = mosaic_duplicate_check.size();
-            for (size_t i = 0; i < mosaic_size; i++) {
-              if (mosaic_duplicate_check.at(i) == i_mosaic_split_num) {
-                skip_duplicate_display = true;
-                break;
-              }
-            }
-            if (!skip_duplicate_display) {
-              // save the sub display num for the mosaic display (don't care
-              // if
-              // the physical/logical display is existing/connected here)
-              mosaic_display.emplace_back(i_mosaic_split_num);
-              mosaic_duplicate_check.emplace_back(i_mosaic_split_num);
-            }
-          }
-          mosaic_displays.emplace_back(mosaic_display);
+          ParseMosaicDisplaySetting(value, mosaic_displays);
 #ifdef ENABLE_PANORAMA
           // Got panorama config
         } else if (!key.compare(key_panorama_display)) {
@@ -473,131 +848,21 @@ void GpuDevice::HandleHWCSettings() {
           ParsePanoramaSOSDisplayConfig(value, panorama_sos_displays);
           size_t panorama_sos_displays_size = panorama_sos_displays.size();
 #endif
+          // Got physical display config
         } else if (!key.compare(key_physical_display)) {
-          std::istringstream i_value(value);
-          std::string physical_split_str;
-          // Got physical display num
-          while (std::getline(i_value, physical_split_str, ':')) {
-            if (physical_split_str.empty() ||
-                physical_split_str.find_first_not_of("0123456789") !=
-                    std::string::npos)
-              continue;
-            size_t physical_split_num = atoi(physical_split_str.c_str());
-            // Check and skip if the display already been used in other mosaic
-            bool skip_duplicate_display = false;
-            size_t physical_size = physical_duplicate_check.size();
-            for (size_t i = 0; i < physical_size; i++) {
-              if (physical_duplicate_check.at(i) == physical_split_num) {
-                skip_duplicate_display = true;
-                break;
-              }
-            }
-            if (!skip_duplicate_display) {
-              physical_displays.emplace_back(physical_split_num);
-              physical_duplicate_check.emplace_back(physical_split_num);
-            }
-          }
+          ParsePhysicalDisplaySetting(value, physical_displays);
+          // Got clone display config
         } else if (!key.compare(key_clone_display)) {
-          std::istringstream i_value(value);
-          std::string i_clone_split_str;
-          // Got clone sub display num
-          std::vector<uint32_t> clone_display;
-          while (std::getline(i_value, i_clone_split_str, '+')) {
-            if (i_clone_split_str.empty() ||
-                i_clone_split_str.find_first_not_of("0123456789") !=
-                    std::string::npos)
-              continue;
-            size_t i_clone_split_num = atoi(i_clone_split_str.c_str());
-            // Check and skip if the display already been used in other clone
-            bool skip_duplicate_display = false;
-            size_t clone_size = clone_duplicate_check.size();
-            for (size_t i = 0; i < clone_size; i++) {
-              if (clone_duplicate_check.at(i) == i_clone_split_num) {
-                skip_duplicate_display = true;
-                break;
-              }
-            }
-            if (!skip_duplicate_display) {
-              // save the sub display num for the mosaic display (don't care
-              // if
-              // the physical/logical display is existing/connected here)
-              clone_display.emplace_back(i_clone_split_num);
-              clone_duplicate_check.emplace_back(i_clone_split_num);
-            }
-          }
-          cloned_displays.emplace_back(clone_display);
+          ParseCloneDisplaySetting(value, cloned_displays);
+          // Got physical display rotation config
         } else if (!key.compare(key_physical_display_rotation)) {
-          std::string physical_index_str;
-          std::istringstream i_value(value);
-          // Got physical display index
-          std::getline(i_value, physical_index_str, ':');
-          if (physical_index_str.empty() ||
-              physical_index_str.find_first_not_of("0123456789") !=
-                  std::string::npos)
-            continue;
-
-          uint32_t physical_index = atoi(physical_index_str.c_str());
-          // Check and skip if the display is already in use.
-          bool skip_duplicate_display = false;
-          size_t rotation_size = rotation_display_index.size();
-          for (size_t i = 0; i < rotation_size; i++) {
-            if (rotation_display_index.at(i) == physical_index) {
-              skip_duplicate_display = true;
-              break;
-            }
-          }
-
-          if (skip_duplicate_display) {
-            continue;
-          }
-
-          std::string rotation_str;
-          // Got split num
-          std::getline(i_value, rotation_str, ':');
-          if (rotation_str.empty() ||
-              rotation_str.find_first_not_of("0123") != std::string::npos)
-            continue;
-
-          uint32_t rotation_num = atoi(rotation_str.c_str());
-          display_rotation.emplace_back(rotation_num);
-          rotation_display_index.emplace_back(physical_index);
+          ParsePhysicalDisplayRotation(value, display_rotation,
+                                       rotation_display_index);
+          // Got float display config
         } else if (!key.compare(key_float_display)) {
-          std::string index_str;
-          std::string float_rect_str;
-          std::vector<int32_t> float_rect;
-          std::istringstream i_value(value);
-
-          // Got display index
-          std::getline(i_value, index_str, ':');
-          if (index_str.empty() ||
-              index_str.find_first_not_of("0123456789") != std::string::npos) {
-            continue;
-          }
-
-          int32_t index = atoi(index_str.c_str());
-
-          // Got rectangle configuration
-          while (std::getline(i_value, float_rect_str, '+')) {
-            if (float_rect_str.empty() ||
-                float_rect_str.find_first_not_of("0123456789") !=
-                    std::string::npos) {
-              continue;
-            }
-            size_t float_rect_val = atoi(float_rect_str.c_str());
-
-            // Save the rectangle - left, top, right & bottom
-            float_rect.emplace_back(float_rect_val);
-          }
-
-          // If entire rect is available, store the parameters
-          // TODO remove hard code
-          if (float_rect.size() == 4) {
-            float_display_indices.emplace_back(index);
-            HwcRect<int32_t> rect =
-                HwcRect<int32_t>(float_rect.at(0), float_rect.at(1),
-                                 float_rect.at(2), float_rect.at(3));
-            float_displays.emplace_back(rect);
-          }
+          ParseFloatDisplaySetting(value, float_displays,
+                                   float_display_indices);
+          // Got plan reserve config
         } else if (!key.compare(key_reserved_drm_plane)) {
           ParsePlaneReserveSettings(value);
         }
@@ -606,165 +871,30 @@ void GpuDevice::HandleHWCSettings() {
   };
 
   std::vector<NativeDisplay *> displays;
-  std::vector<NativeDisplay *> unordered_displays =
-      display_manager_->GetAllDisplays();
-  size_t size = unordered_displays.size();
-  uint32_t dispmgr_display_size = (uint32_t) size;
-
-  if (physical_displays.empty()) {
-    displays.swap(unordered_displays);
-  } else {
-    size = physical_displays.size();
-    for (size_t i = 0; i < size; i++) {
-      uint32_t pdisp_index = physical_displays.at(i);
-      // Add the physical display only if it has been enumerated from DRM API.
-      // Skip the non-existence display defined in hwc_display.ini file.
-      if (pdisp_index < dispmgr_display_size) {
-        displays.emplace_back(unordered_displays.at(pdisp_index));
-      } else {
-        ETRACE(
-            "Physical display number: %u defined in hwc_display.ini "
-            "doesn't exist in enumerated DRM display list (total: %u).",
-            pdisp_index, dispmgr_display_size);
-      }
-    }
-
-    if (displays.size() != unordered_displays.size()) {
-      size = unordered_displays.size();
-      for (size_t i = 0; i < size; i++) {
-        NativeDisplay *display = unordered_displays.at(i);
-        uint32_t temp = displays.size();
-        for (size_t i = 0; i < temp; i++) {
-          if (displays.at(i) == display) {
-            display = NULL;
-            break;
-          }
-        }
-
-        if (display) {
-          displays.emplace_back(display);
-        }
-      }
-    }
-  }
-
-  // Re-order displays based on connection status.
-  std::vector<NativeDisplay *> connected_displays;
-  std::vector<NativeDisplay *> un_connected_displays;
-  size = displays.size();
-  for (size_t i = 0; i < size; i++) {
-    NativeDisplay *temp = displays.at(i);
-    if (temp->IsConnected()) {
-      connected_displays.emplace_back(temp);
-    } else {
-      un_connected_displays.emplace_back(temp);
-    }
-  }
-
-  displays.swap(connected_displays);
-
-  if (!un_connected_displays.empty()) {
-    size_t temp = un_connected_displays.size();
-    for (size_t i = 0; i < temp; i++) {
-      displays.emplace_back(un_connected_displays.at(i));
-    }
-  }
-
-  for (size_t i = 0; i < size; i++) {
-    displays.at(i)->SetDisplayOrder(i);
-  }
+  InitializeDisplayIndex(physical_displays, displays);
 
   // We should have all displays ordered. Apply rotation settings.
   if (rotate_display) {
-    size_t rotation_size = rotation_display_index.size();
-    for (size_t i = 0; i < rotation_size; i++) {
-      HWCRotation rotation = static_cast<HWCRotation>(display_rotation.at(i));
-      displays.at(rotation_display_index.at(i))->RotateDisplay(rotation);
-    }
+    InitializeDisplayRotation(display_rotation, rotation_display_index,
+                              displays);
   }
 
   // Now, we should have all physical displays ordered as required.
   // Let's handle any Logical Display combinations or Mosaic.
   std::vector<NativeDisplay *> temp_displays;
-  for (size_t i = 0; i < size; i++) {
-    hwcomposer::NativeDisplay *display = displays.at(i);
-    // Save logical displays to temp_displays, skip the physical display
-    if (use_logical && (logical_displays.size() >= i + 1) &&
-        logical_displays[i] > 1) {
-      std::unique_ptr<LogicalDisplayManager> manager(
-          new LogicalDisplayManager(display));
-      logical_display_manager_.emplace_back(std::move(manager));
-      // don't care if the displays is connected/disconnected here
-      logical_display_manager_.back()->InitializeLogicalDisplays(
-          logical_displays[i]);
-      std::vector<LogicalDisplay *> temp_logical_displays;
-      logical_display_manager_.back()->GetLogicalDisplays(
-          temp_logical_displays);
-      size_t logical_display_total_size = temp_logical_displays.size();
-      for (size_t j = 0; j < logical_display_total_size; j++) {
-        temp_displays.emplace_back(temp_logical_displays.at(j));
-      }
-      // Save no split physical displays to temp_displays
-    } else {
-      temp_displays.emplace_back(display);
-    }
-  }
+  InitializeLogicalDisplay(logical_displays, displays, temp_displays,
+                           use_logical);
 
-  std::vector<bool> available_displays(temp_displays.size(), true);
   if (use_mosaic) {
-    size_t displays_size = temp_displays.size();
-    for (size_t t = 0; t < displays_size; t++) {
-      // Skip the displays which already be marked in other mosaic
-      if (!available_displays.at(t))
-        continue;
-      bool skip_display = false;
-      size_t mosaic_size = mosaic_displays.size();
-      for (size_t m = 0; m < mosaic_size; m++) {
-        std::vector<NativeDisplay *> i_available_mosaic_displays;
-        size_t mosaic_inner_size = mosaic_displays.at(m).size();
-        for (size_t l = 0; l < mosaic_inner_size; l++) {
-          // Check if the logical display is in mosaic, keep the order of
-          // logical displays list
-          // Get the smallest logical num of the mosaic for order keeping
-          if (t == mosaic_displays.at(m).at(l)) {
-            // Loop to get logical displays of mosaic, keep the order of config
-            for (size_t i = 0; i < mosaic_inner_size; i++) {
-              // Verify the logical display num
-              if (mosaic_displays.at(m).at(i) < displays_size) {
-                // Skip the disconnected display here
-                i_available_mosaic_displays.emplace_back(
-                    temp_displays.at(mosaic_displays.at(m).at(i)));
-                // Add tag for mosaic-ed displays
-                available_displays.at(mosaic_displays.at(m).at(i)) = false;
-              }
-            }
-            // Create mosaic for those logical displays
-            if (i_available_mosaic_displays.size() > 0) {
-              std::unique_ptr<MosaicDisplay> mosaic(
-                  new MosaicDisplay(i_available_mosaic_displays));
-              mosaic_displays_.emplace_back(std::move(mosaic));
-              // Save the mosaic to the final displays list
-              total_displays_.emplace_back(mosaic_displays_.back().get());
-            }
-            skip_display = true;
-            break;
-          }
-        }
-        if (skip_display)
-          break;
-      }
-      if (!skip_display) {
-        total_displays_.emplace_back(temp_displays.at(t));
-      }
-    }
+    InitializeMosaicDisplay(total_displays_, mosaic_displays, temp_displays);
   } else {
     total_displays_.swap(temp_displays);
   }
 
 #ifdef ENABLE_PANORAMA
   if (use_panorama && !use_mosaic && !use_cloned && !use_float) {
-    PanoramaInit(total_displays_, temp_displays, panorama_displays,
-                 panorama_sos_displays, available_displays);
+    InitializePanorama(total_displays_, temp_displays, panorama_displays,
+                       panorama_sos_displays, available_displays);
   }
 #endif
 
@@ -773,52 +903,7 @@ void GpuDevice::HandleHWCSettings() {
 #else
   if (use_cloned && !use_mosaic && !use_logical) {
 #endif
-    std::vector<NativeDisplay *> temp_displays;
-    size_t displays_size = total_displays_.size();
-    size_t cloned_displays_size = cloned_displays.size();
-    for (size_t c = 0; c < cloned_displays_size; c++) {
-      std::vector<uint32_t> &temp = cloned_displays.at(c);
-      if (!temp.empty() && temp.size() >= 2) {
-        size_t c_size = temp.size();
-        if (total_displays_.size() > temp.at(0)) {
-          NativeDisplay *physical_display = total_displays_.at(temp.at(0));
-          for (size_t clone = 1; clone < c_size; clone++) {
-            if (total_displays_.size() > temp.at(clone))
-              total_displays_.at(temp.at(clone))
-                  ->CloneDisplay(physical_display);
-          }
-        }
-      }
-    }
-
-    for (size_t t = 0; t < displays_size; t++) {
-      bool found = false;
-      for (size_t c = 0; c < cloned_displays_size; c++) {
-        std::vector<uint32_t> &temp = cloned_displays.at(c);
-        size_t c_size = temp.size();
-        for (size_t clone = 1; clone < c_size; clone++) {
-          uint32_t temp_clone = temp.at(clone);
-          if (temp_clone == t) {
-            found = true;
-            break;
-          }
-        }
-
-        if (found) {
-          break;
-        }
-      }
-
-      // Don't advertise cloned display as another independent
-      // Physical Display.
-      if (found) {
-        continue;
-      }
-
-      temp_displays.emplace_back(total_displays_.at(t));
-    }
-
-    temp_displays.swap(total_displays_);
+    InitializeCloneDisplay(total_displays_, cloned_displays);
   }
 
 // Now set floating display configuration
@@ -829,20 +914,8 @@ void GpuDevice::HandleHWCSettings() {
 #else
   if (use_float && !use_logical && !use_mosaic) {
 #endif
-    bool ret = false;
-    size_t size = float_display_indices.size();
-    size_t num_displays = total_displays_.size();
-
-    // Set custom resolution to desired display instance
-    for (size_t i = 0; i < size; i++) {
-      int index = float_display_indices.at(i);
-
-      // Ignore float index if out of range of connected displays
-      if ((size_t)index < num_displays) {
-        const HwcRect<int32_t> &rect = float_displays.at(i);
-        ret = total_displays_.at(index)->SetCustomResolution(rect);
-      }
-    }
+    InitializeFloatDisplay(total_displays_, float_displays,
+                           float_display_indices);
   }
 }
 

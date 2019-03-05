@@ -123,12 +123,47 @@ class GpuDevice : public HWCThread {
   void ParsePanoramaSOSDisplayConfig(
       std::string& value,
       std::vector<std::vector<uint32_t>>& panorama_sos_displays);
-  void PanoramaInit(std::vector<NativeDisplay*>& total_displays_,
-                    std::vector<NativeDisplay*>& temp_displays,
-                    std::vector<std::vector<uint32_t>>& panorama_displays,
-                    std::vector<std::vector<uint32_t>>& panorama_sos_displays,
-                    std::vector<bool>& available_displays);
+  void InitializePanorama(
+      std::vector<NativeDisplay*>& total_displays_,
+      std::vector<NativeDisplay*>& temp_displays,
+      std::vector<std::vector<uint32_t>>& panorama_displays,
+      std::vector<std::vector<uint32_t>>& panorama_sos_displays,
+      std::vector<bool>& available_displays);
 #endif
+  void ParseLogicalDisplaySetting(std::string& value,
+                                  std::vector<uint32_t>& logical_displays);
+  void ParseMosaicDisplaySetting(
+      std::string& value, std::vector<std::vector<uint32_t>>& mosaic_displays);
+  void ParsePhysicalDisplaySetting(std::string& value,
+                                   std::vector<uint32_t>& physical_displays);
+  void ParseCloneDisplaySetting(
+      std::string& value, std::vector<std::vector<uint32_t>>& cloned_displays);
+  void ParsePhysicalDisplayRotation(
+      std::string& value, std::vector<uint32_t>& display_rotation,
+      std::vector<uint32_t>& rotation_display_index);
+  void ParseFloatDisplaySetting(std::string& value,
+                                std::vector<HwcRect<int32_t>>& float_displays,
+                                std::vector<uint32_t>& float_display_indices);
+
+  void InitializeDisplayIndex(std::vector<uint32_t>& physical_displays,
+                              std::vector<NativeDisplay*>& displays);
+  void InitializeLogicalDisplay(std::vector<uint32_t>& logical_displays,
+                                std::vector<NativeDisplay*>& displays,
+                                std::vector<NativeDisplay*>& temp_displays,
+                                bool use_logical);
+  void InitializeDisplayRotation(std::vector<uint32_t>& display_rotation,
+                                 std::vector<uint32_t>& rotation_display_index,
+                                 std::vector<NativeDisplay*>& displays);
+  void InitializeMosaicDisplay(
+      std::vector<NativeDisplay*>& total_displays_,
+      std::vector<std::vector<uint32_t>>& mosaic_displays,
+      std::vector<NativeDisplay*>& temp_displays);
+  void InitializeCloneDisplay(
+      std::vector<NativeDisplay*>& total_displays_,
+      std::vector<std::vector<uint32_t>>& cloned_displays);
+  void InitializeFloatDisplay(std::vector<NativeDisplay*>& total_displays_,
+                              std::vector<HwcRect<int32_t>>& float_displays,
+                              std::vector<uint32_t>& float_display_indices);
   std::vector<NativeDisplay*> total_displays_;
 
   bool reserve_plane_ = false;
