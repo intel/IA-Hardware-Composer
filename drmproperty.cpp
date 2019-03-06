@@ -70,33 +70,28 @@ std::string DrmProperty::name() const {
   return name_;
 }
 
-int DrmProperty::value(uint64_t *value) const {
-  if (type_ == DRM_PROPERTY_TYPE_BLOB) {
-    *value = value_;
-    return 0;
-  }
+std::tuple<int, uint64_t> DrmProperty::value() const {
+  if (type_ == DRM_PROPERTY_TYPE_BLOB)
+    return std::make_tuple(0, value_);
 
   if (values_.size() == 0)
-    return -ENOENT;
+    return std::make_tuple(-ENOENT, 0);
 
   switch (type_) {
     case DRM_PROPERTY_TYPE_INT:
-      *value = value_;
-      return 0;
+      return std::make_tuple(0, value_);
 
     case DRM_PROPERTY_TYPE_ENUM:
       if (value_ >= enums_.size())
-        return -ENOENT;
+        return std::make_tuple(-ENOENT, 0);
 
-      *value = enums_[value_].value_;
-      return 0;
+      return std::make_tuple(0, enums_[value_].value_);
 
     case DRM_PROPERTY_TYPE_OBJECT:
-      *value = value_;
-      return 0;
+      return std::make_tuple(0, value_);
 
     default:
-      return -EINVAL;
+      return std::make_tuple(-EINVAL, 0);
   }
 }
 
