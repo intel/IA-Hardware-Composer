@@ -409,6 +409,10 @@ bool HwcService::Controls::EnableDRMCommit(bool enable, uint32_t display_id) {
   return mHwc.EnableDRMCommit(enable, display_id);
 }
 
+bool HwcService::Controls::ResetDrmMaster(bool drop_master) {
+  return mHwc.ResetDrmMaster(drop_master);
+}
+
 status_t HwcService::Controls::VideoEnableEncryptedSession(
     uint32_t sessionID, uint32_t instanceID) {
   mHwc.SetPAVPSessionStatus(true, sessionID, instanceID);

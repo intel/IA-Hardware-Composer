@@ -71,7 +71,13 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void IgnoreUpdates() override;
 
-  void setDrmMaster() override;
+  void setDrmMaster(bool must_set) override;
+
+  void DropDrmMaster() override;
+
+  bool IsDrmMaster() override {
+    return drm_master_;
+  }
 
   uint32_t GetFD() const override {
     return fd_;
@@ -115,6 +121,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   bool release_lock_ = false;
   SpinLock spin_lock_;
   int connected_display_count_ = 0;
+  bool drm_master_ = false;
 };
 
 }  // namespace hwcomposer

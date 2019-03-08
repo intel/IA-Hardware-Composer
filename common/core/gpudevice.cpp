@@ -29,6 +29,21 @@ GpuDevice::GpuDevice() : HWCThread(-8, "GpuDevice") {
 
 GpuDevice::~GpuDevice() {
   display_manager_.reset(nullptr);
+  HWCThread::Exit();
+
+  if (-1 != lock_fd_) {
+    close(lock_fd_);
+    lock_fd_ = -1;
+  }
+}
+
+void GpuDevice::ResetAllDisplayCommit(bool enable) {
+  if (enable == enable_all_display_)
+    return;
+  enable_all_display_ = enable;
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++)
+    total_displays_.at(i)->EnableDRMCommit(enable);
 }
 
 bool GpuDevice::Initialize() {
@@ -57,13 +72,19 @@ bool GpuDevice::Initialize() {
     display_manager_->RemoveUnreservedPlanes();
   }
 
-  lock_fd_ = open("/vendor/hwc.lock", O_RDONLY);
+  // Ignore all updates by default
+  ResetAllDisplayCommit(false);
+  lock_fd_ = open(HWC_LOCK_FILE, O_RDONLY);
   if (-1 != lock_fd_) {
     if (!InitWorker()) {
       ETRACE("Failed to initalize thread for GpuDevice. %s", PRINTERROR());
     }
   } else {
-    ITRACE("Failed to open " LOCK_DIR_PREFIX "/hwc.lock file!");
+    ITRACE("Failed to open %s", HWC_LOCK_FILE);
+    // HWC should become drm master and start to commit.
+    // if hwc.lock is not available
+    display_manager_->setDrmMaster(true);
+    ResetAllDisplayCommit(true);
   }
 
   return true;
@@ -103,11 +124,38 @@ void GpuDevice::GetConnectedPhysicalDisplays(
 }
 
 bool GpuDevice::EnableDRMCommit(bool enable, uint32_t display_id) {
-  // TODO clean all display for commit status
   size_t size = total_displays_.size();
   bool ret = false;
   if (size > display_id)
     ret = total_displays_.at(display_id)->EnableDRMCommit(enable);
+  return ret;
+}
+
+bool GpuDevice::ResetDrmMaster(bool drop_master) {
+  bool ret = true;
+  if (drop_master) {
+    ResetAllDisplayCommit(false);
+    display_manager_->DropDrmMaster();
+    ITRACE("locking %s and monitoring if %s is unlocked.", HWC_LOCK_FILE,
+           HWC_LOCK_FILE);
+    // Resume GpuDevice thread to check hwc.lock and re-apply drm master.
+    lock_fd_ = open(HWC_LOCK_FILE, O_RDONLY);
+    if (-1 != lock_fd_) {
+      // Only resume GpuDevice thread for dropping DRM Master and
+      // the lock file exist.
+      Resume();
+      return !display_manager_->IsDrmMaster();
+    }
+  }
+  // In case of setDrmMaster or the lock file is not exist.
+  // Re-set DRM Master true.
+  display_manager_->setDrmMaster(false);
+  ResetAllDisplayCommit(true);
+  DisableWatch();
+  if (drop_master)
+    ret = !display_manager_->IsDrmMaster();
+  else
+    ret = display_manager_->IsDrmMaster();
   return ret;
 }
 
@@ -892,8 +940,6 @@ uint32_t GpuDevice::GetDisplayIDFromConnectorID(const uint32_t connector_id) {
 }
 
 void GpuDevice::HandleRoutine() {
-  bool update_ignored = false;
-
   // Iniitialize resources to monitor external events.
   // These can be two types:
   // 1) We are showing splash screen and another App
@@ -904,22 +950,21 @@ void GpuDevice::HandleRoutine() {
   // TODO: Add splash screen support.
   if (lock_fd_ != -1) {
     display_manager_->IgnoreUpdates();
-    update_ignored = true;
 
     if (flock(lock_fd_, LOCK_EX) != 0) {
-      ETRACE("Failed to wait on the hwc lock.");
+      ITRACE("Fail to grab the hwc lock.");
     } else {
       ITRACE("Successfully grabbed the hwc lock.");
+      // Set DRM master
+      if (!display_manager_->IsDrmMaster())
+        display_manager_->setDrmMaster(true);
+      // stop ignoring and force refresh
+      ResetAllDisplayCommit(true);
+      flock(lock_fd_, LOCK_UN);
+      close(lock_fd_);
+      lock_fd_ = -1;
     }
-
-    display_manager_->setDrmMaster();
-
-    close(lock_fd_);
-    lock_fd_ = -1;
   }
-
-  if (update_ignored)
-    display_manager_->ForceRefresh();
 }
 
 void GpuDevice::HandleWait() {
@@ -929,7 +974,10 @@ void GpuDevice::HandleWait() {
 }
 
 void GpuDevice::DisableWatch() {
-  HWCThread::Exit();
+  if (lock_fd_ != -1) {
+    close(lock_fd_);
+    lock_fd_ = -1;
+  }
 }
 
 GpuDevice &GpuDevice::getInstance() {
