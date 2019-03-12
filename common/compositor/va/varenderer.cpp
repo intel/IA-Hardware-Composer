@@ -38,6 +38,7 @@ VARenderer::~VARenderer() {
 }
 
 bool VARenderer::Init(int gpu_fd) {
+  ETRACE("For test");
   va_display_ = GetVADisplay(gpu_fd);
   if (!va_display_) {
     ETRACE("vaGetDisplay failed\n");
