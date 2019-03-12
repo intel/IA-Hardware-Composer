@@ -1022,8 +1022,6 @@ void GpuDevice::HandleRoutine() {
   //    we need to take control.
   // TODO: Add splash screen support.
   if (lock_fd_ != -1) {
-    display_manager_->IgnoreUpdates();
-
     if (flock(lock_fd_, LOCK_EX) != 0) {
       ITRACE("Fail to grab the hwc lock.");
     } else {
