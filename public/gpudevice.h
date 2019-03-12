@@ -165,7 +165,8 @@ class GpuDevice : public HWCThread {
   void InitializeMosaicDisplay(
       std::vector<NativeDisplay*>& total_displays_,
       std::vector<std::vector<uint32_t>>& mosaic_displays,
-      std::vector<NativeDisplay*>& temp_displays);
+      std::vector<NativeDisplay*>& temp_displays,
+      std::vector<bool>& available_displays);
   void InitializeCloneDisplay(
       std::vector<NativeDisplay*>& total_displays_,
       std::vector<std::vector<uint32_t>>& cloned_displays);
