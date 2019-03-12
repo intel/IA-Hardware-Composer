@@ -618,8 +618,8 @@ void GpuDevice::InitializeLogicalDisplay(
 void GpuDevice::InitializeMosaicDisplay(
     std::vector<NativeDisplay *> &total_displays_,
     std::vector<std::vector<uint32_t>> &mosaic_displays,
-    std::vector<NativeDisplay *> &temp_displays) {
-  std::vector<bool> available_displays(temp_displays.size(), true);
+    std::vector<NativeDisplay *> &temp_displays,
+    std::vector<bool> &available_displays) {
   size_t displays_size = temp_displays.size();
   for (size_t t = 0; t < displays_size; t++) {
     // Skip the displays which already be marked in other mosaic
@@ -885,8 +885,10 @@ void GpuDevice::HandleHWCSettings() {
   InitializeLogicalDisplay(logical_displays, displays, temp_displays,
                            use_logical);
 
+  std::vector<bool> available_displays(temp_displays.size(), true);
   if (use_mosaic) {
-    InitializeMosaicDisplay(total_displays_, mosaic_displays, temp_displays);
+    InitializeMosaicDisplay(total_displays_, mosaic_displays, temp_displays,
+                            available_displays);
   } else {
     total_displays_.swap(temp_displays);
   }
