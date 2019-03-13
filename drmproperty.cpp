@@ -95,7 +95,7 @@ std::tuple<int, uint64_t> DrmProperty::value() const {
   }
 }
 
-bool DrmProperty::immutable() const {
+bool DrmProperty::is_immutable() const {
   return id_ && (flags_ & DRM_MODE_PROP_IMMUTABLE);
 }
 

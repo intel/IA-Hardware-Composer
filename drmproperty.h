@@ -46,7 +46,7 @@ class DrmProperty {
   std::string name() const;
 
   std::tuple<int, uint64_t> value() const;
-  bool immutable() const;
+  bool is_immutable() const;
 
  private:
   class DrmPropertyEnum {

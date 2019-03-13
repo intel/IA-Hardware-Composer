@@ -359,7 +359,8 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         }
       }
 
-      if (plane->zpos_property().id() && !plane->zpos_property().immutable()) {
+      if (plane->zpos_property().id() &&
+          !plane->zpos_property().is_immutable()) {
         ret = drmModeAtomicAddProperty(pset, plane->id(),
                                        plane->zpos_property().id(),
                                        source_layers.front()) < 0;

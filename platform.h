@@ -90,7 +90,7 @@ class Planner {
         ret = ValidatePlane(plane, layer.second);
         if (!ret)
           break;
-        if (!plane->zpos_property().immutable())
+        if (!plane->zpos_property().is_immutable())
           unused_planes.push_back(plane);
         plane = PopPlane(planes);
       }
