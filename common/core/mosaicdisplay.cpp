@@ -110,6 +110,13 @@ int MosaicDisplay::GetDisplayPipe() {
   return physical_displays_.at(0)->GetDisplayPipe();
 }
 
+bool MosaicDisplay::EnableDRMCommit(bool enable) {
+  uint32_t size = physical_displays_.size();
+  for (uint32_t i = 0; i < size; i++)
+    physical_displays_.at(i)->EnableDRMCommit(enable);
+  return true;
+}
+
 bool MosaicDisplay::SetActiveConfig(uint32_t config) {
   config_ = config;
   width_ = 0;

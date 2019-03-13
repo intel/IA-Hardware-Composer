@@ -152,6 +152,7 @@ bool GpuDevice::ResetDrmMaster(bool drop_master) {
   display_manager_->setDrmMaster(false);
   ResetAllDisplayCommit(true);
   DisableWatch();
+
   if (drop_master)
     ret = !display_manager_->IsDrmMaster();
   else
@@ -1024,8 +1025,6 @@ void GpuDevice::HandleRoutine() {
   //    we need to take control.
   // TODO: Add splash screen support.
   if (lock_fd_ != -1) {
-    display_manager_->IgnoreUpdates();
-
     if (flock(lock_fd_, LOCK_EX) != 0) {
       ITRACE("Fail to grab the hwc lock.");
     } else {
