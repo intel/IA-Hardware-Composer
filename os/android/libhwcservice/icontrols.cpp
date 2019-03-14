@@ -58,7 +58,6 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_VIDEO_SET_HDCP_SRM_FOR_DISPLAY,
     TRANSACT_GET_DISPLAYID_FROM_CONNECTORID,
     TRANSACT_ENABLE_DRM_COMMIT,
-    TRANSACT_RESET_DRM_MASTER,
     TRANSACT_VIDEO_ENABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ENCRYPTED_SESSION,
     TRANSACT_VIDEO_DISABLE_ALL_ENCRYPTED_SESSIONS,
@@ -429,19 +428,6 @@ class BpControls : public BpInterface<IControls> {
     return (uint32_t)(reply.readInt32());
   }
 
-  bool ResetDrmMaster(bool drop_master) override {
-    Parcel data;
-    Parcel reply;
-    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
-    data.writeInt32(drop_master);
-
-    status_t ret = remote()->transact(TRANSACT_RESET_DRM_MASTER, data, &reply);
-    if (ret != NO_ERROR) {
-      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
-    }
-    return (uint32_t)(reply.readInt32());
-  }
-
   status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                        uint32_t instanceID) override {
     Parcel data;
@@ -782,13 +768,6 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       bool enable = data.readInt32();
       uint32_t display_id = data.readInt32();
       bool ret = this->EnableDRMCommit(enable, display_id);
-      reply->writeInt32(ret);
-      return NO_ERROR;
-    }
-    case BpControls::TRANSACT_RESET_DRM_MASTER: {
-      CHECK_INTERFACE(IControls, data, reply);
-      bool drop_master = data.readInt32();
-      bool ret = this->ResetDrmMaster(drop_master);
       reply->writeInt32(ret);
       return NO_ERROR;
     }

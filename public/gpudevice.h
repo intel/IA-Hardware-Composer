@@ -17,10 +17,6 @@
 #ifndef PUBLIC_GPUDEVICE_H_
 #define PUBLIC_GPUDEVICE_H_
 
-#ifndef HWC_LOCK_FILE
-#define HWC_LOCK_FILE "/vendor/hwc.lock"
-#endif
-
 #include <stdint.h>
 #include <fstream>
 #include <sstream>
@@ -101,14 +97,10 @@ class GpuDevice : public HWCThread {
 
   bool EnableDRMCommit(bool enable, uint32_t display_id);
 
-  bool ResetDrmMaster(bool drop_master);
-
   std::vector<uint32_t> GetDisplayReservedPlanes(uint32_t display_id);
 
  private:
   GpuDevice();
-
-  void ResetAllDisplayCommit(bool enable);
 
   enum InitializationType {
     kUnInitialized = 0,    // Nothing Initialized.
@@ -176,11 +168,9 @@ class GpuDevice : public HWCThread {
   std::vector<NativeDisplay*> total_displays_;
 
   bool reserve_plane_ = false;
-  bool enable_all_display_ = true;
   std::map<uint8_t, std::vector<uint32_t>> reserved_drm_display_planes_map_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
-  SpinLock drm_master_lock_;
   int lock_fd_ = -1;
   friend class DrmDisplayManager;
 };
