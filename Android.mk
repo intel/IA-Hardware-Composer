@@ -99,7 +99,6 @@ LOCAL_SRC_FILES += platformminigbm.cpp
 LOCAL_C_INCLUDES += external/minigbm/cros_gralloc/
 else
 LOCAL_CPPFLAGS += -DUSE_DRM_GENERIC_IMPORTER
-LOCAL_C_INCLUDES += external/libdrm/android/
 endif
 
 LOCAL_MODULE := hwcomposer.drm
