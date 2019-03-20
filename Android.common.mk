@@ -151,7 +151,9 @@ LOCAL_C_INCLUDES += \
 LOCAL_SHARED_LIBRARIES += \
 	libva \
 	libva-android
-LOCAL_CPPFLAGS += -DVA_WITH_PAVP
+LOCAL_CPPFLAGS += \
+	-DVA_WITH_PAVP \
+        -DVA_WITH_VPP
 else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif
@@ -161,11 +163,6 @@ LOCAL_C_INCLUDES += \
 
 ifeq ($(shell test $(ANDROID_VERSION) -ge 9; echo $$?), 0)
 LOCAL_SHARED_LIBRARIES += libnativewindow
-endif
-
-ifeq ($(strip $(BOARD_CURSOR_WA)), true)
-LOCAL_CPPFLAGS += \
-	-DDISABLE_CURSOR_PLANE
 endif
 
 LOCAL_CPPFLAGS += \

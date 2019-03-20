@@ -53,11 +53,6 @@ LOCAL_CFLAGS += \
 	-DUSE_VNDK
 endif
 
-ifeq ($(strip $(BOARD_CURSOR_WA)), true)
-LOCAL_CPPFLAGS += \
-	-DDISABLE_CURSOR_PLANE
-endif
-
 #LOCAL_CPPFLAGS += \
 #	-DENABLE_DOWNSCALING
 
@@ -101,7 +96,9 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
 LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
 	           compositor/va/vautils.cpp
 
-LOCAL_CPPFLAGS += -DVA_WITH_PAVP
+LOCAL_CPPFLAGS += \
+	-DVA_WITH_PAVP \
+	-DVA_WITH_VPP
 else
 LOCAL_CPPFLAGS += -DDISABLE_VA
 endif

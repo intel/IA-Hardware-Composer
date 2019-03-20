@@ -26,7 +26,7 @@ namespace hwcomposer {
 class GpuDevice;
 class DisplayManager {
  public:
-  static DisplayManager *CreateDisplayManager(GpuDevice *device);
+  static DisplayManager *CreateDisplayManager();
   DisplayManager() = default;
   virtual ~DisplayManager() {
   }
@@ -83,6 +83,8 @@ class DisplayManager {
   virtual void SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                     uint32_t SRMLength) = 0;
   virtual void RemoveUnreservedPlanes() = 0;
+
+  virtual FrameBufferManager *GetFrameBufferManager() = 0;
 };
 
 }  // namespace hwcomposer

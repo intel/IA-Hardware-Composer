@@ -23,8 +23,8 @@
 
 #include <hwcdefs.h>
 #include <nativebufferhandler.h>
-
 #include "framebuffermanager.h"
+#include "gpudevice.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "resourcemanager.h"
@@ -95,10 +95,9 @@ void DrmBuffer::Initialize(const HwcMeta& meta) {
                                   METADATA(gem_handles_));
 }
 
-void DrmBuffer::InitializeFromNativeHandle(
-    HWCNativeHandle handle, ResourceManager* resource_manager,
-    FrameBufferManager* frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
+                                           ResourceManager* resource_manager) {
+  fb_manager_ = GpuDevice::getInstance().GetFrameBufferManager();
   resource_manager_ = resource_manager;
   const NativeBufferHandler* handler =
       resource_manager_->GetNativeBufferHandler();

@@ -18,6 +18,7 @@
 
 #include "displayplane.h"
 #include "displayplanestate.h"
+#include "gpudevice.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "nativebufferhandler.h"
@@ -44,9 +45,7 @@ NativeSurface::~NativeSurface() {
 
 bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
                          uint32_t usage, uint64_t modifier,
-                         bool *modifier_succeeded,
-                         FrameBufferManager *frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+                         bool *modifier_succeeded) {
   const NativeBufferHandler *handler =
       resource_manager->GetNativeBufferHandler();
   resource_manager_ = resource_manager;
@@ -96,10 +95,8 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
 }
 
 bool NativeSurface::InitializeForOffScreenRendering(
-    HWCNativeHandle native_handle, ResourceManager *resource_manager,
-    FrameBufferManager *framebuffer_manager) {
+    HWCNativeHandle native_handle, ResourceManager *resource_manager) {
   resource_manager_ = resource_manager;
-  fb_manager_ = framebuffer_manager;
   InitializeLayer(native_handle);
   layer_.SetSourceCrop(HwcRect<float>(0, 0, width_, height_));
   layer_.SetDisplayFrame(HwcRect<int>(0, 0, width_, height_));
@@ -217,7 +214,7 @@ void NativeSurface::ResetDamage() {
 
 void NativeSurface::InitializeLayer(HWCNativeHandle native_handle) {
   layer_.SetBlending(HWCBlending::kBlendingPremult);
-  layer_.SetBuffer(native_handle, -1, resource_manager_, false, fb_manager_);
+  layer_.SetBuffer(native_handle, -1, resource_manager_, false);
 }
 
 }  // namespace hwcomposer

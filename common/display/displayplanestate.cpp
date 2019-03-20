@@ -149,10 +149,8 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   bool layer_removed = false;
   for (const size_t &index : current_layers) {
     if (index >= remove_index) {
-#ifdef SURFACE_TRACING
       ISURFACETRACE("Reset breaks index: %d remove_index %d \n", index,
                     remove_index);
-#endif
       layer_removed = true;
       break;
     }
@@ -170,19 +168,15 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
     CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
-#ifdef SURFACE_TRACING
     ISURFACETRACE("Reset adds index: %d \n", layer.GetZorder());
-#endif
     new_layers.emplace_back(layer.GetZorder());
   }
 
-#ifdef SURFACE_TRACING
   ISURFACETRACE(
       "Reset called has_video: %d Source Layers Size: %d Previous Source "
       "Layers Size: %d Has Cursor: %d Total Layers Size: %d \n",
       has_video, private_data_->source_layers_.size(), current_layers.size(),
       private_data_->has_cursor_layer_, layers.size());
-#endif
 
   if (private_data_->source_layers_.empty()) {
     return;
@@ -210,11 +204,12 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   *rects_updated = rect_updated;
 
+  if (has_video)
+    private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
+
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
-    } else if (has_video) {
-      private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
     } else {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }

@@ -32,8 +32,7 @@
 namespace hwcomposer {
 
 VirtualPanoramaDisplay::VirtualPanoramaDisplay(
-    uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-    FrameBufferManager *frame_buffer_manager, uint32_t pipe_id,
+    uint32_t gpu_fd, NativeBufferHandler *buffer_handler, uint32_t pipe_id,
     uint32_t /*crtc_id*/)
     : output_handle_(0),
       acquire_fence_(-1),
@@ -44,8 +43,7 @@ VirtualPanoramaDisplay::VirtualPanoramaDisplay(
   if (!resource_manager_) {
     ETRACE("Failed to construct hwc layer buffer manager");
   }
-  fb_manager_ = frame_buffer_manager;
-  compositor_.Init(resource_manager_.get(), gpu_fd, fb_manager_);
+  compositor_.Init(resource_manager_.get(), gpu_fd);
 }
 
 void VirtualPanoramaDisplay::InitHyperDmaBuf() {
@@ -178,8 +176,7 @@ void VirtualPanoramaDisplay::HyperDmaExport() {
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
-    buffer->InitializeFromNativeHandle(output_handle_, resource_manager_.get(),
-                                       fb_manager_);
+    buffer->InitializeFromNativeHandle(output_handle_, resource_manager_.get());
     resource_manager_->RegisterBuffer(id, buffer);
     imported_fd = buffer->GetPrimeFD();
     if (mHyperDmaBuf_Fd > 0 && imported_fd > 0) {
@@ -323,7 +320,7 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints, fb_manager_);
+        height_, kIdentity, handle_constraints);
     index.emplace_back(z_order);
     layers_rects.emplace_back(overlay_layer.GetDisplayFrame());
 
@@ -346,8 +343,8 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
     compositor_.BeginFrame(false);
     // Prepare for final composition.
     if (!compositor_.DrawOffscreen(
-            layers, layers_rects, index, resource_manager_.get(), fb_manager_,
-            width_, height_, output_handle_, acquire_fence_, retire_fence)) {
+            layers, layers_rects, index, resource_manager_.get(), width_,
+            height_, output_handle_, acquire_fence_, retire_fence)) {
       ETRACE("Failed to prepare for the frame composition ret=%d", ret);
       return false;
     }
@@ -415,6 +412,8 @@ void VirtualPanoramaDisplay::SetOutputBuffer(HWCNativeHandle buffer,
     if (output_handle_) {
       handler->CopyHandle(output_handle_, &handle_);
     }
+  } else {
+    delete buffer;
   }
 
   if (acquire_fence_ > 0) {
@@ -428,8 +427,7 @@ void VirtualPanoramaDisplay::SetOutputBuffer(HWCNativeHandle buffer,
 }
 
 bool VirtualPanoramaDisplay::Initialize(
-    NativeBufferHandler * /*buffer_manager*/,
-    FrameBufferManager *frame_buffer_manager) {
+    NativeBufferHandler * /*buffer_manager*/) {
   return true;
 }
 

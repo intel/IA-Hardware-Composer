@@ -41,8 +41,7 @@ class DisplayPlaneManager {
 
   virtual ~DisplayPlaneManager();
 
-  bool Initialize(uint32_t width, uint32_t height,
-                  FrameBufferManager *frame_buffer_manager);
+  bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
                       bool disable_overlay, bool *commit_checked,
@@ -92,8 +91,6 @@ class DisplayPlaneManager {
   uint32_t GetTotalOverlays() const {
     return total_overlays_;
   }
-
-  void SetLastPlaneUsage(bool enable);
 
   // Transform to be applied to all planes associated
   // with pipe of this displayplanemanager.
@@ -163,6 +160,12 @@ class DisplayPlaneManager {
                             std::vector<NativeSurface *> &mark_later,
                             bool recycle_resources);
 
+  void ForceVppForAllLayers(std::vector<OverlayPlane> &commit_planes,
+                            DisplayPlaneStateList &composition,
+                            std::vector<OverlayLayer> &layers, size_t add_index,
+                            std::vector<NativeSurface *> &mark_later,
+                            bool recycle_resources);
+
   // This should be called only in case of a new cursor layer
   // being added and all other layers are same as previous
   // frame.
@@ -194,10 +197,6 @@ class DisplayPlaneManager {
   uint32_t total_overlays_;
   uint32_t display_transform_;
   bool release_surfaces_;
-#ifdef DISABLE_CURSOR_PLANE
-  bool enable_last_plane_;
-#endif
-  FrameBufferManager *fb_manager_ = NULL;
 };
 
 }  // namespace hwcomposer

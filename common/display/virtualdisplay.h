@@ -36,8 +36,7 @@ class NativeBufferHandler;
 class VirtualDisplay : public NativeDisplay {
  public:
   VirtualDisplay(uint32_t gpu_fd, NativeBufferHandler *buffer_handler,
-                 FrameBufferManager *framebuffermanager, uint32_t pipe_id,
-                 uint32_t crtc_id);
+                 uint32_t pipe_id, uint32_t crtc_id);
   VirtualDisplay(const VirtualDisplay &) = delete;
   VirtualDisplay &operator=(const VirtualDisplay &) = delete;
   ~VirtualDisplay() override;
@@ -54,8 +53,7 @@ class VirtualDisplay : public NativeDisplay {
 
   void SetOutputBuffer(HWCNativeHandle buffer, int32_t acquire_fence) override;
 
-  bool Initialize(NativeBufferHandler *buffer_handler,
-                  FrameBufferManager *frame_buffer_manager) override;
+  bool Initialize(NativeBufferHandler *buffer_handler) override;
 
   DisplayType Type() const override {
     return DisplayType::kVirtual;
@@ -97,15 +95,13 @@ class VirtualDisplay : public NativeDisplay {
   }
 
  private:
-  HWCNativeHandle output_handle_;
+  HWCNativeHandle output_handle_ = 0;
   int32_t acquire_fence_ = -1;
   Compositor compositor_;
   uint32_t width_ = 1;
   uint32_t height_ = 1;
   std::vector<OverlayLayer> in_flight_layers_;
-  HWCNativeHandle handle_ = 0;
   std::unique_ptr<ResourceManager> resource_manager_;
-  FrameBufferManager *fb_manager_ = NULL;
   uint32_t display_index_ = 0;
   bool discard_protected_video_ = false;
 

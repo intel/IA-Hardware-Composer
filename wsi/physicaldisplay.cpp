@@ -45,9 +45,7 @@ PhysicalDisplay::PhysicalDisplay(uint32_t gpu_fd, uint32_t pipe_id)
 PhysicalDisplay::~PhysicalDisplay() {
 }
 
-bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler,
-                                 FrameBufferManager *frame_buffer_manager) {
-  fb_manager_ = frame_buffer_manager;
+bool PhysicalDisplay::Initialize(NativeBufferHandler *buffer_handler) {
   display_queue_.reset(new DisplayQueue(gpu_fd_, false, buffer_handler, this));
   InitializeDisplay();
   return true;
@@ -72,6 +70,7 @@ void PhysicalDisplay::MarkForDisconnect() {
 
 void PhysicalDisplay::NotifyClientOfConnectedState() {
   SPIN_LOCK(modeset_lock_);
+  bool refresh_needed = false;
   if (hotplug_callback_ && (connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -80,13 +79,23 @@ void PhysicalDisplay::NotifyClientOfConnectedState() {
         this, hot_plug_display_id_);
     hotplug_callback_->Callback(hot_plug_display_id_, true);
     display_state_ &= ~kNotifyClient;
+#ifdef ENABLE_ANDROID_WA
+    if (ordered_display_id_ == 0) {
+      refresh_needed = true;
+    }
+#endif
   }
   SPIN_UNLOCK(modeset_lock_);
+
+  if (refresh_needed) {
+    if (!display_queue_->IsIgnoreUpdates()) {
+      display_queue_->ForceRefresh();
+    }
+  }
 }
 
 void PhysicalDisplay::NotifyClientOfDisConnectedState() {
   SPIN_LOCK(modeset_lock_);
-
   if (hotplug_callback_ && !(connection_state_ & kConnected) &&
       (display_state_ & kNotifyClient)) {
     IHOTPLUGEVENTTRACE(
@@ -124,21 +133,6 @@ void PhysicalDisplay::DisConnect() {
   SPIN_UNLOCK(modeset_lock_);
 }
 
-void PhysicalDisplay::NotifyDisplayWA(bool enable_wa) {
-  SPIN_LOCK(modeset_lock_);
-  display_queue_->NotifyDisplayWA(enable_wa);
-  SPIN_UNLOCK(modeset_lock_);
-}
-
-void PhysicalDisplay::ForceRefresh() {
-  SPIN_LOCK(modeset_lock_);
-  if ((connection_state_ & kConnected) &&
-      (!display_queue_->IsIgnoreUpdates())) {
-    display_queue_->ForceRefresh();
-  }
-  SPIN_UNLOCK(modeset_lock_);
-}
-
 void PhysicalDisplay::Connect() {
   SPIN_LOCK(modeset_lock_);
 
@@ -167,7 +161,7 @@ void PhysicalDisplay::Connect() {
   display_state_ |= kNotifyClient;
   IHOTPLUGEVENTTRACE("PhysicalDisplay::Connect recieved. %p \n", this);
 
-  if (!display_queue_->Initialize(pipe_, width_, height_, this, fb_manager_)) {
+  if (!display_queue_->Initialize(pipe_, width_, height_, this)) {
     ETRACE("Failed to initialize Display Queue.");
   } else {
     display_state_ |= kInitialized;
@@ -634,8 +628,9 @@ bool PhysicalDisplay::GetDisplayConfigs(uint32_t *num_configs,
     return false;
   *num_configs = 1;
   if (configs) {
-    configs[0] = 1;
+    configs[0] = DEFAULT_CONFIG_ID;
   }
+  connection_state_ |= kFakeConnected;
   return true;
 }
 

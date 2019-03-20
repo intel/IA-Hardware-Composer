@@ -35,8 +35,7 @@ LogicalDisplay::LogicalDisplay(LogicalDisplayManager *display_manager,
 LogicalDisplay::~LogicalDisplay() {
 }
 
-bool LogicalDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/,
-                                FrameBufferManager * /*frame_buffer_manager*/) {
+bool LogicalDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
   return true;
 }
 

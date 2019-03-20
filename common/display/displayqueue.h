@@ -62,8 +62,7 @@ class DisplayQueue {
   ~DisplayQueue();
 
   bool Initialize(uint32_t pipe, uint32_t width, uint32_t height,
-                  DisplayPlaneHandler* plane_manager,
-                  FrameBufferManager* frame_buffer_manager);
+                  DisplayPlaneHandler* plane_manager);
 
   bool QueueUpdate(std::vector<HwcLayer*>& source_layers, int32_t* retire_fence,
                    bool* ignore_clone_update, PixelUploaderCallback* call_back,
@@ -112,8 +111,6 @@ class DisplayQueue {
   void IgnoreUpdates();
 
   void PresentClonedCommit(DisplayQueue* queue);
-
-  void NotifyDisplayWA(bool enable_wa);
 
   const DisplayPlaneStateList& GetCurrentCompositionPlanes() const {
     return previous_plane_state_;
@@ -382,7 +379,6 @@ class DisplayQueue {
   SpinLock power_mode_lock_;
   // to disable hwclock monitoring.
   bool handle_display_initializations_ = true;
-  bool enable_wa_ = false;
   uint32_t plane_transform_ = kIdentity;
   SpinLock video_lock_;
   bool requested_video_effect_ = false;
@@ -402,7 +398,6 @@ class DisplayQueue {
   // need to be marked as not in use during next
   // frame.
   std::vector<NativeSurface*> surfaces_not_inuse_;
-  FrameBufferManager* fb_manager_ = NULL;
   std::vector<HwcLayer*>* source_layers_ = NULL;
 };
 

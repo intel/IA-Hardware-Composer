@@ -26,10 +26,10 @@ class NativeSurface;
 class Renderer;
 
 // Return buffer which can be used to render 3D content.
-NativeSurface* Create3DBuffer(uint32_t width, uint32_t height);
+NativeSurface* Create3DSurface(uint32_t width, uint32_t height);
 
 // Return buffer which can be used to render Media content.
-NativeSurface* CreateVideoBuffer(uint32_t width, uint32_t height);
+NativeSurface* CreateVideoSurface(uint32_t width, uint32_t height);
 
 // Return 3D renderer implementation to be used on this platform.
 Renderer* Create3DRenderer();
