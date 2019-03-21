@@ -102,7 +102,7 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
  private:
   void HotPlugEventHandler();
   bool UpdateDisplayState();
-  std::vector<std::unique_ptr<NativeDisplay>> virtual_displays_;
+  std::map<uint32_t, std::unique_ptr<NativeDisplay>> virtual_displays_;
   std::unique_ptr<FrameBufferManager> frame_buffer_manager_;
   std::vector<std::unique_ptr<DrmDisplay>> displays_;
   std::shared_ptr<DisplayHotPlugEventCallback> callback_ = NULL;
