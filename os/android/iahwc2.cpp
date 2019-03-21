@@ -207,7 +207,7 @@ HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
   temp->InitVirtualDisplay(device_.CreateVirtualDisplay(virtual_display_index_),
                            width, height, virtual_display_index_,
                            disable_explicit_sync_);
-  virtual_displays_.emplace_back(std::move(temp));
+  virtual_displays_.emplace(virtual_display_index_, std::move(temp));
   virtual_display_index_++;
 
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
@@ -227,6 +227,8 @@ HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
   device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
   virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
       .reset(nullptr);
+  virtual_displays_.erase(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
+  virtual_display_index_--;
 
   return HWC2::Error::None;
 }

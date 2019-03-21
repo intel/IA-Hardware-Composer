@@ -390,9 +390,8 @@ NativeDisplay *DrmDisplayManager::CreateVirtualDisplay(uint32_t display_index) {
   NativeDisplay *latest_display;
   std::unique_ptr<VirtualDisplay> display(
       new VirtualDisplay(fd_, buffer_handler_.get(), display_index, 0));
-  virtual_displays_.emplace_back(std::move(display));
-  size_t size = virtual_displays_.size();
-  latest_display = virtual_displays_.at(size - 1).get();
+  virtual_displays_.emplace(display_index, std::move(display));
+  latest_display = virtual_displays_.at(display_index).get();
   spin_lock_.unlock();
   return latest_display;
 }
@@ -400,6 +399,7 @@ NativeDisplay *DrmDisplayManager::CreateVirtualDisplay(uint32_t display_index) {
 void DrmDisplayManager::DestroyVirtualDisplay(uint32_t display_index) {
   spin_lock_.lock();
   virtual_displays_.at(display_index).reset(nullptr);
+  virtual_displays_.erase(display_index);
   spin_lock_.unlock();
 }
 
@@ -581,14 +581,9 @@ FrameBufferManager *DrmDisplayManager::GetFrameBufferManager() {
 #ifdef ENABLE_PANORAMA
 NativeDisplay *DrmDisplayManager::CreateVirtualPanoramaDisplay(
     uint32_t display_index) {
-  spin_lock_.lock();
   NativeDisplay *latest_display;
-  std::unique_ptr<VirtualPanoramaDisplay> display(
-      new VirtualPanoramaDisplay(fd_, buffer_handler_.get(), display_index, 0));
-  virtual_displays_.emplace_back(std::move(display));
-  size_t size = virtual_displays_.size();
-  latest_display = virtual_displays_.at(size - 1).get();
-  spin_lock_.unlock();
+  latest_display = (NativeDisplay *)new VirtualPanoramaDisplay(
+      fd_, buffer_handler_.get(), display_index, 0);
   return latest_display;
 }
 #endif

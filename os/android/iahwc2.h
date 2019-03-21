@@ -323,7 +323,7 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::GpuDevice &device_ = GpuDevice::getInstance();
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
-  std::vector<std::unique_ptr<HwcDisplay>> virtual_displays_;
+  std::map<uint32_t, std::unique_ptr<HwcDisplay>> virtual_displays_;
   uint32_t virtual_display_index_ = 0;
 
   bool disable_explicit_sync_ = false;
