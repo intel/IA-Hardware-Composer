@@ -143,6 +143,7 @@ class DrmHwcTwo : public hwc2_device_t {
 
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
+    void ClearDisplay();
 
     // HWC Hooks
     HWC2::Error AcceptDisplayChanges();
@@ -173,6 +174,7 @@ class DrmHwcTwo : public hwc2_device_t {
                                  int32_t *fences);
     HWC2::Error PresentDisplay(int32_t *retire_fence);
     HWC2::Error SetActiveConfig(hwc2_config_t config);
+    HWC2::Error ChosePreferredConfig();
     HWC2::Error SetClientTarget(buffer_handle_t target, int32_t acquire_fence,
                                 int32_t dataspace, hwc_region_t damage);
     HWC2::Error SetColorMode(int32_t mode);
@@ -211,6 +213,18 @@ class DrmHwcTwo : public hwc2_device_t {
     int32_t color_mode_;
 
     uint32_t frame_no_ = 0;
+  };
+
+  class DrmHotplugHandler : public DrmEventHandler {
+   public:
+    DrmHotplugHandler(DrmHwcTwo *hwc2, DrmDevice *drm)
+        : hwc2_(hwc2), drm_(drm) {
+    }
+    void HandleEvent(uint64_t timestamp_us);
+
+   private:
+    DrmHwcTwo *hwc2_;
+    DrmDevice *drm_;
   };
 
   static DrmHwcTwo *toDrmHwcTwo(hwc2_device_t *dev) {
@@ -261,6 +275,9 @@ class DrmHwcTwo : public hwc2_device_t {
   uint32_t GetMaxVirtualDisplayCount();
   HWC2::Error RegisterCallback(int32_t descriptor, hwc2_callback_data_t data,
                                hwc2_function_pointer_t function);
+  HWC2::Error CreateDisplay(hwc2_display_t displ, HWC2::DisplayType type);
+  void HandleDisplayHotplug(hwc2_display_t displayid, int state);
+  void HandleInitialHotplugState(DrmDevice *drmDevice);
 
   ResourceManager resource_manager_;
   std::map<hwc2_display_t, HwcDisplay> displays_;
