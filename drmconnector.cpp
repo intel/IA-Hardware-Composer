@@ -122,6 +122,7 @@ int DrmConnector::UpdateModes() {
 
   state_ = c->connection;
 
+  bool preferred_mode_found = false;
   std::vector<DrmMode> new_modes;
   for (int i = 0; i < c->count_modes; ++i) {
     bool exists = false;
@@ -132,14 +133,20 @@ int DrmConnector::UpdateModes() {
         break;
       }
     }
-    if (exists)
-      continue;
-
-    DrmMode m(&c->modes[i]);
-    m.set_id(drm_->next_mode_id());
-    new_modes.push_back(m);
+    if (!exists) {
+      DrmMode m(&c->modes[i]);
+      m.set_id(drm_->next_mode_id());
+      new_modes.push_back(m);
+    }
+    if (new_modes.back().type() & DRM_MODE_TYPE_PREFERRED) {
+      preferred_mode_id_ = new_modes.back().id();
+      preferred_mode_found = true;
+    }
   }
   modes_.swap(new_modes);
+  if ((!preferred_mode_found) && (modes_.size() != 0)) {
+    preferred_mode_id_ = modes_[0].id();
+  }
   return 0;
 }
 
