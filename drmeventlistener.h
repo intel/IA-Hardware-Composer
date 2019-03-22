@@ -58,7 +58,7 @@ class DrmEventListener : public Worker {
   int max_fd_ = -1;
 
   DrmDevice *drm_;
-  DrmEventHandler *hotplug_handler_ = NULL;
+  std::unique_ptr<DrmEventHandler> hotplug_handler_;
 };
 }  // namespace android
 
