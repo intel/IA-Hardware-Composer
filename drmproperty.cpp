@@ -70,38 +70,55 @@ std::string DrmProperty::name() const {
   return name_;
 }
 
-int DrmProperty::value(uint64_t *value) const {
-  if (type_ == DRM_PROPERTY_TYPE_BLOB) {
-    *value = value_;
-    return 0;
-  }
+std::tuple<int, uint64_t> DrmProperty::value() const {
+  if (type_ == DRM_PROPERTY_TYPE_BLOB)
+    return std::make_tuple(0, value_);
 
   if (values_.size() == 0)
-    return -ENOENT;
+    return std::make_tuple(-ENOENT, 0);
 
   switch (type_) {
     case DRM_PROPERTY_TYPE_INT:
-      *value = value_;
-      return 0;
+      return std::make_tuple(0, value_);
 
     case DRM_PROPERTY_TYPE_ENUM:
       if (value_ >= enums_.size())
-        return -ENOENT;
+        return std::make_tuple(-ENOENT, 0);
 
-      *value = enums_[value_].value_;
-      return 0;
+      return std::make_tuple(0, enums_[value_].value_);
 
     case DRM_PROPERTY_TYPE_OBJECT:
-      *value = value_;
-      return 0;
+      return std::make_tuple(0, value_);
 
     default:
-      return -EINVAL;
+      return std::make_tuple(-EINVAL, 0);
   }
 }
 
-bool DrmProperty::immutable() const {
+bool DrmProperty::is_immutable() const {
   return id_ && (flags_ & DRM_MODE_PROP_IMMUTABLE);
+}
+
+bool DrmProperty::is_range() const {
+  return id_ && (flags_ & DRM_MODE_PROP_RANGE);
+}
+
+std::tuple<int, uint64_t> DrmProperty::range_min() const {
+  if (!is_range())
+    return std::make_tuple(-EINVAL, 0);
+  if (values_.size() < 1)
+    return std::make_tuple(-ENOENT, 0);
+
+  return std::make_tuple(0, values_[0]);
+}
+
+std::tuple<int, uint64_t> DrmProperty::range_max() const {
+  if (!is_range())
+    return std::make_tuple(-EINVAL, 0);
+  if (values_.size() < 2)
+    return std::make_tuple(-ENOENT, 0);
+
+  return std::make_tuple(0, values_[1]);
 }
 
 std::tuple<uint64_t, int> DrmProperty::GetEnumValueWithName(

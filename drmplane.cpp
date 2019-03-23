@@ -42,7 +42,7 @@ int DrmPlane::Init() {
   }
 
   uint64_t type;
-  ret = p.value(&type);
+  std::tie(ret, type) = p.value();
   if (ret) {
     ALOGE("Failed to get plane type property value");
     return ret;

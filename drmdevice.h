@@ -76,6 +76,9 @@ class DrmDevice {
   int CreatePropertyBlob(void *data, size_t length, uint32_t *blob_id);
   int DestroyPropertyBlob(uint32_t blob_id);
   bool HandlesDisplay(int display) const;
+  void RegisterHotplugHandler(DrmEventHandler *handler) {
+    event_listener_.RegisterHotplugHandler(handler);
+  }
 
  private:
   int TryEncoderForDisplay(int display, DrmEncoder *enc);
