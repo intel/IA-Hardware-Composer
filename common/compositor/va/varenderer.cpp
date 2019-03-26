@@ -235,6 +235,10 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   // TODO: Clear surface ?
   surface->SetClearSurface(NativeSurface::kNone);
   OverlayBuffer* buffer_out = surface->GetLayer()->GetBuffer();
+  if (!buffer_out) {
+    ETRACE("Layer buffer is empty. faile to create VA context.\n");
+    return false;
+  }
   int rt_format = DrmFormatToRTFormat(buffer_out->GetFormat());
   if (va_context_ == VA_INVALID_ID || render_target_format_ != rt_format) {
     render_target_format_ = rt_format;

@@ -428,7 +428,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 
       OverlayBuffer* buffer = layer->GetBuffer();
       bool isNewCreated = false;
-      if (buffer->GetFb(&isNewCreated) == 0) {
+      if (!buffer || buffer->GetFb(&isNewCreated) == 0) {
         *force_full_validation = true;
         *can_ignore_commit = false;
         return;

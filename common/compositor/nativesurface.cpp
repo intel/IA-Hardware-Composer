@@ -145,7 +145,7 @@ void NativeSurface::SetPlaneTarget(const DisplayPlaneState &plane) {
   on_screen_ = false;
   surface_age_ = 0;
   OverlayBuffer *layer_buffer = layer_.GetBuffer();
-  if (layer_buffer && layer_buffer->GetFb() == 0) {
+  if (!layer_buffer || layer_buffer->GetFb() == 0) {
     ETRACE("SetPlaneTarget unable to create framebuffer for nativesurface");
   }
 }
