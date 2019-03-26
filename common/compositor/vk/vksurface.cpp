@@ -35,8 +35,12 @@ VKSurface::~VKSurface() {
 bool VKSurface::InitializeGPUResources() {
   VkResult res;
 
-  const struct vk_import& import =
-      layer_.GetBuffer()->GetGpuResource(dev_, false);
+  OverlayBuffer* layer_buffer = layer_.GetBuffer();
+  if (!layer_buffer) {
+    ETRACE("layer_ buffer is null.\n");
+    return false;
+  }
+  const struct vk_import& import = layer_buffer->GetGpuResource(dev_, false);
   if (import.image_ == VK_NULL_HANDLE) {
     ETRACE("Failed to make import image\n");
     return false;

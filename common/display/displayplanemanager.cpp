@@ -739,7 +739,10 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     modifier = 0;
   for (auto &fb : surfaces_) {
     if (fb->GetSurfaceAge() == -1) {
-      uint32_t surface_format = fb->GetLayer()->GetBuffer()->GetFormat();
+      OverlayBuffer *layer_buffer = fb->GetLayer()->GetBuffer();
+      if (!layer_buffer)
+        continue;
+      uint32_t surface_format = layer_buffer->GetFormat();
       if ((preferred_format == surface_format) &&
           (fb->GetModifier() == modifier)) {
         surface = fb.get();
