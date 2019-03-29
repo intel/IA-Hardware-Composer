@@ -55,6 +55,7 @@ class DrmDisplayCompositor {
   int Composite();
   void Dump(std::ostringstream *out) const;
   void Vsync(int display, int64_t timestamp);
+  void ClearDisplay();
 
   std::tuple<uint32_t, uint32_t, int> GetActiveModeResolution();
 
@@ -82,7 +83,6 @@ class DrmDisplayCompositor {
   int ApplyDpms(DrmDisplayComposition *display_comp);
   int DisablePlanes(DrmDisplayComposition *display_comp);
 
-  void ClearDisplay();
   void ApplyFrame(std::unique_ptr<DrmDisplayComposition> composition,
                   int status, bool writeback = false);
   int FlattenActiveComposition();
