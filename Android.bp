@@ -47,6 +47,22 @@ cc_defaults {
 
     static_libs: ["libdrmhwc_utils"],
 
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+
+    cppflags: [
+        "-DHWC2_USE_CPP11",
+        "-DHWC2_INCLUDE_STRINGIFICATION",
+    ],
+
+    relative_install_path: "hw",
+    vendor: true,
+}
+cc_library_static {
+    name: "drm_hwcomposer",
+    defaults: ["hwcomposer.drm_defaults"],
     srcs: [
         "autolock.cpp",
         "resourcemanager.cpp",
@@ -63,50 +79,34 @@ cc_defaults {
         "drmproperty.cpp",
         "hwcutils.cpp",
         "platform.cpp",
-        "platformdrmgeneric.cpp",
         "vsyncworker.cpp",
     ],
-    cflags: [
-        "-Wall",
-        "-Werror",
-    ],
-
-    cppflags: [
-        "-DHWC2_USE_CPP11",
-        "-DHWC2_INCLUDE_STRINGIFICATION",
-    ],
-
-    relative_install_path: "hw",
-    vendor: true,
 }
 
 cc_library_shared {
     name: "hwcomposer.drm",
     defaults: ["hwcomposer.drm_defaults"],
+    whole_static_libs: ["drm_hwcomposer"],
+    srcs: ["platformdrmgeneric.cpp"],
     cppflags: ["-DUSE_DRM_GENERIC_IMPORTER"],
 }
 
 cc_library_shared {
-    name: "hwcomposer.drm_hikey",
-    defaults: ["hwcomposer.drm_defaults"],
-    cppflags: ["-DUSE_HISI_IMPORTER"],
-    srcs: ["platformhisi.cpp"],
-    include_dirs: ["device/linaro/hikey/gralloc"],
-}
-
-cc_library_shared {
-    name: "hwcomposer.drm_hikey960",
-    defaults: ["hwcomposer.drm_defaults"],
-    cppflags: ["-DUSE_HISI_IMPORTER"],
-    srcs: ["platformhisi.cpp"],
-    include_dirs: ["device/linaro/hikey/gralloc960"],
-}
-
-
-cc_library_shared {
     name: "hwcomposer.drm_minigbm",
     defaults: ["hwcomposer.drm_defaults"],
-    srcs: ["platformminigbm.cpp"],
+    whole_static_libs: ["drm_hwcomposer"],
+    srcs: [
+        "platformdrmgeneric.cpp",
+        "platformminigbm.cpp",
+    ],
     include_dirs: ["external/minigbm/cros_gralloc"],
 }
 
+// Used by hwcomposer.drm_hikey and hwcomposer.drm_hikey960
+filegroup {
+    name: "drm_hwcomposer_platformhisi",
+    srcs: [
+        "platformdrmgeneric.cpp",
+        "platformhisi.cpp",
+    ],
+}
