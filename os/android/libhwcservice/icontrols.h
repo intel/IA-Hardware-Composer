@@ -81,6 +81,8 @@ class IControls : public android::IInterface {
 
   virtual bool EnableDRMCommit(bool enable, uint32_t display_id) = 0;
 
+  virtual bool ResetDrmMaster(bool drop_master) = 0;
+
   virtual status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                                uint32_t instanceID) = 0;
   virtual status_t VideoDisableAllEncryptedSessions(uint32_t sessionID) = 0;

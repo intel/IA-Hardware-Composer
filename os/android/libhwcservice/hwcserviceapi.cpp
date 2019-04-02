@@ -315,6 +315,15 @@ status_t HwcService_EnableDRMCommit(HWCSHANDLE hwcs, uint32_t enable,
   return pContext->mControls->EnableDRMCommit(enable, display_id);
 }
 
+status_t HwcService_ResetDrmMaster(HWCSHANDLE hwcs, uint32_t drop_master) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+
+  return pContext->mControls->ResetDrmMaster(drop_master);
+}
+
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
   if (!pContext) {
