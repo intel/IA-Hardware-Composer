@@ -108,6 +108,7 @@ class HwcService : public BnService {
                                   uint32_t SRMLength);
     uint32_t GetDisplayIDFromConnectorID(uint32_t connector_id);
     bool EnableDRMCommit(bool enable, uint32_t display_id);
+    bool ResetDrmMaster(bool drop_master);
     status_t VideoEnableEncryptedSession(uint32_t sessionID,
                                          uint32_t instanceID);
     status_t VideoDisableAllEncryptedSessions(uint32_t sessionID);
