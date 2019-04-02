@@ -224,6 +224,8 @@ uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
 status_t HwcService_EnableDRMCommit(HWCSHANDLE hwcs, uint32_t enable,
                                     uint32_t display_id);
 
+status_t HwcService_ResetDrmMaster(HWCSHANDLE hwcs, uint32_t drop_master);
+
 // The control enables a the protected video subsystem to control when to
 // replace any
 // encrypted content with a default bitmap (usually black).
