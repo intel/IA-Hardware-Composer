@@ -1311,6 +1311,10 @@ bool IAHWC2::EnableDRMCommit(bool enable, uint32_t display_id) {
   return device_.EnableDRMCommit(enable, display_id);
 }
 
+bool IAHWC2::ResetDrmMaster(bool drop_master) {
+  return device_.ResetDrmMaster(drop_master);
+}
+
 void IAHWC2::SetHDCPSRMForDisplay(uint32_t connector, const int8_t *SRM,
                                   uint32_t SRMLength) {
   if (SRM == NULL) {
