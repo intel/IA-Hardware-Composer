@@ -74,6 +74,8 @@ class IAHWC2 : public hwc2_device_t {
 
   bool EnableDRMCommit(bool enable, uint32_t display_id);
 
+  bool ResetDrmMaster(bool drop_master);
+
  public:
   class Hwc2Layer {
    public:
