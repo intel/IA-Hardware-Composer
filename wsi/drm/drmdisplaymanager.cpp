@@ -45,6 +45,7 @@ DrmDisplayManager::DrmDisplayManager() : HWCThread(-8, "DisplayManager") {
 DrmDisplayManager::~DrmDisplayManager() {
   CTRACE();
   std::vector<std::unique_ptr<DrmDisplay>>().swap(displays_);
+
 #ifndef DISABLE_HOTPLUG_NOTIFICATION
   close(hotplug_fd_);
 #endif
@@ -112,6 +113,7 @@ bool DrmDisplayManager::Initialize() {
 
   fd_handler_.AddFd(hotplug_fd_);
 #endif
+
   IHOTPLUGEVENTTRACE("DisplayManager Initialization succeeded.");
   return true;
 }
@@ -442,15 +444,49 @@ void DrmDisplayManager::IgnoreUpdates() {
   }
 }
 
-void DrmDisplayManager::setDrmMaster() {
-  int ret = drmSetMaster(fd_);
-  while (ret) {
-    usleep(10000);
+void DrmDisplayManager::setDrmMaster(bool must_set) {
+  spin_lock_.lock();
+  if (drm_master_) {
+    spin_lock_.unlock();
+    return;
+  }
+  int ret = 0;
+  uint8_t retry_times = 0;
+  do {
     ret = drmSetMaster(fd_);
+    if (!must_set)
+      retry_times++;
     if (ret) {
       ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+      usleep(10000);
+    } else {
+      ITRACE("Successfully set as DRM master.");
+      drm_master_ = true;
     }
+  } while (ret && retry_times < 10);
+  spin_lock_.unlock();
+}
+
+void DrmDisplayManager::DropDrmMaster() {
+  spin_lock_.lock();
+  if (!drm_master_) {
+    spin_lock_.unlock();
+    return;
   }
+  int ret = 0;
+  uint8_t retry_times = 0;
+  do {
+    ret = drmDropMaster(fd_);
+    retry_times++;
+    if (ret) {
+      ETRACE("Failed to call drmDropMaster : %s", PRINTERROR());
+      usleep(10000);
+    } else {
+      ITRACE("Successfully drop DRM master.");
+      drm_master_ = false;
+    }
+  } while (ret && retry_times < 10);
+  spin_lock_.unlock();
 }
 
 void DrmDisplayManager::HandleLazyInitialization() {

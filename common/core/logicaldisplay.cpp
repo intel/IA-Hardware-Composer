@@ -51,6 +51,10 @@ int LogicalDisplay::GetDisplayPipe() {
   return physical_display_->GetDisplayPipe();
 }
 
+bool LogicalDisplay::EnableDRMCommit(bool enable) {
+  return physical_display_->EnableDRMCommit(enable);
+}
+
 bool LogicalDisplay::SetActiveConfig(uint32_t config) {
   bool success = physical_display_->SetActiveConfig(config);
   width_ = (physical_display_->Width()) / total_divisions_;
