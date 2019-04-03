@@ -552,10 +552,10 @@ void OverlayLayer::Dump() {
   DUMPTRACE("Source crop %s", StringifyRect(source_crop_).c_str());
   DUMPTRACE("Display frame %s", StringifyRect(display_frame_).c_str());
   DUMPTRACE("Surface Damage %s", StringifyRect(surface_damage_).c_str());
-  if (imported_buffer_)
+  if (imported_buffer_) {
     DUMPTRACE("AquireFence: %d", imported_buffer_->acquire_fence_);
-
-  imported_buffer_->buffer_->Dump();
+    imported_buffer_->buffer_->Dump();
+  }
 }
 
 }  // namespace hwcomposer
