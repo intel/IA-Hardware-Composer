@@ -103,6 +103,8 @@ class LogicalDisplay : public NativeDisplay {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
+  bool EnableDRMCommit(bool enable) override;
+
   uint32_t GetXTranslation() override {
     return (((physical_display_->Width()) / total_divisions_) * index_);
   }
