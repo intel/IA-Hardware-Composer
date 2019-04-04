@@ -202,6 +202,13 @@ status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
 // on all connected displays.
 status_t HwcService_Video_DisableHDCPSession_AllDisplays(HWCSHANDLE hwcs);
 
+#ifdef ENABLE_PANORAMA
+status_t HwcService_TriggerPanorama(HWCSHANDLE hwcs,
+                                    uint32_t hotplug_simulation);
+status_t HwcService_ShutdownPanorama(HWCSHANDLE hwcs,
+                                     uint32_t hotplug_simulation);
+#endif
+
 status_t HwcService_Video_SetHDCPSRM_ForDisplay(HWCSHANDLE hwcs,
                                                 uint32_t connector,
                                                 const int8_t *SRM,

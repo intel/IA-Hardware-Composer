@@ -40,7 +40,13 @@ static void usage() {
           "\t-c: Set Contrast\n"
           "\t-e: Set Sharpness\n"
           "\t-d: Set deinterlace\n"
-          "\t-r: Restore all default video colors/deinterlace \n";
+          "\t-r: Restore all default video colors/deinterlace \n"
+#ifdef ENABLE_PANORAMA
+          "\t-w: Trigger Panorama with option of hotplug simulation or not\n"
+          "\t-m: Shutdown Panorama with option of hotplug simulation or not\n";
+#else
+      ;
+#endif
   exit(-1);
 }
 
@@ -61,8 +67,16 @@ int main(int argc, char** argv) {
   bool disable_hdcp_for_display = false;
   bool disable_hdcp_for_all_display = false;
   bool restore = false;
+#ifdef ENABLE_PANORAMA
+  bool trigger_panorama = false;
+  bool shutdown_panorama = false;
+#endif
   int ch;
+#ifdef ENABLE_PANORAMA
+  while ((ch = getopt(argc, argv, "gsphijkurabcdemw")) != -1) {
+#else
   while ((ch = getopt(argc, argv, "gsphijkurabcde")) != -1) {
+#endif
     switch (ch) {
       case 'g':
         get_mode = true;
@@ -107,6 +121,14 @@ int main(int argc, char** argv) {
       case 'k':
         disable_hdcp_for_all_display = true;
         break;
+#ifdef ENABLE_PANORAMA
+      case 'w':
+        trigger_panorama = true;
+        break;
+      case 'm':
+        shutdown_panorama = true;
+        break;
+#endif
       default:
         usage();
     }
@@ -237,6 +259,29 @@ int main(int argc, char** argv) {
     aout << "Disabling HDCP For All Displays. " << endl;
     HwcService_Video_DisableHDCPSession_AllDisplays(hwcs);
   }
+
+#ifdef ENABLE_PANORAMA
+  if (trigger_panorama) {
+    int simulation_hotplug = 0;
+    if (argc >= 1) {
+      simulation_hotplug = atoi(argv[0]);
+    }
+    aout << "Trigger Panorama view mode, simulation hotplug: "
+         << simulation_hotplug << endl;
+
+    HwcService_TriggerPanorama(hwcs, simulation_hotplug);
+  }
+
+  if (shutdown_panorama) {
+    int simulation_hotplug = 0;
+    if (argc >= 1) {
+      simulation_hotplug = atoi(argv[0]);
+    }
+    aout << "Shutdown Panorama view mode, simulation hotplug: "
+         << simulation_hotplug << endl;
+    HwcService_ShutdownPanorama(hwcs, simulation_hotplug);
+  }
+#endif
 
   HwcService_Disconnect(hwcs);
   return 0;

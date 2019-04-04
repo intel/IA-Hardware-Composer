@@ -68,6 +68,10 @@ class BpControls : public BpInterface<IControls> {
     TRANSACT_MDS_UPDATE_INPUT_STATE,
     TRANSACT_WIDI_GET_SINGLE_DISPLAY,
     TRANSACT_WIDI_SET_SINGLE_DISPLAY,
+#ifdef ENABLE_PANORAMA
+    TRANSACT_TRIGGER_PANORAMA,
+    TRANSACT_SHUTDOWN_PANORAMA,
+#endif
   };
 
   status_t DisplaySetOverscan(uint32_t display, int32_t xoverscan,
@@ -109,6 +113,32 @@ class BpControls : public BpInterface<IControls> {
     *yoverscan = reply.readInt32();
     return OK;
   }
+
+#ifdef ENABLE_PANORAMA
+  status_t TriggerPanorama(uint32_t hotplug_simulation) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(hotplug_simulation);
+    status_t ret = remote()->transact(TRANSACT_TRIGGER_PANORAMA, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return reply.readInt32();
+  }
+
+  status_t ShutdownPanorama(uint32_t hotplug_simulation) override {
+    Parcel data;
+    Parcel reply;
+    data.writeInterfaceToken(IControls::getInterfaceDescriptor());
+    data.writeInt32(hotplug_simulation);
+    status_t ret = remote()->transact(TRANSACT_SHUTDOWN_PANORAMA, data, &reply);
+    if (ret != NO_ERROR) {
+      ALOGW("%s() transact failed: %d", __FUNCTION__, ret);
+    }
+    return reply.readInt32();
+  }
+#endif
 
   status_t DisplaySetScaling(uint32_t display,
                              EHwcsScalingMode eScalingMode) override {
@@ -792,6 +822,23 @@ status_t BnControls::onTransact(uint32_t code, const Parcel &data,
       reply->writeInt32(ret);
       return NO_ERROR;
     }
+#ifdef ENABLE_PANORAMA
+    case BpControls::TRANSACT_TRIGGER_PANORAMA: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t hotplug_simulation = data.readInt32();
+      status_t ret = this->TriggerPanorama(hotplug_simulation);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+
+    case BpControls::TRANSACT_SHUTDOWN_PANORAMA: {
+      CHECK_INTERFACE(IControls, data, reply);
+      uint32_t hotplug_simulation = data.readInt32();
+      status_t ret = this->ShutdownPanorama(hotplug_simulation);
+      reply->writeInt32(ret);
+      return NO_ERROR;
+    }
+#endif
     case BpControls::TRANSACT_VIDEO_IS_ENCRYPTED_SESSION_ENABLED: {
       CHECK_INTERFACE(IControls, data, reply);
       uint32_t sessionID = data.readInt32();

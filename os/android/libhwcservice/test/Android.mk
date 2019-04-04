@@ -25,4 +25,7 @@ LOCAL_PROPRIETARY_MODULE := true
 ifeq ($(shell test $(ANDROID_VERSION) -ge 8; echo $$?), 0)
 LOCAL_CFLAGS += -DUSE_PROCESS_STATE
 endif
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CFLAGS += -DENABLE_PANORAMA
+endif
 include $(BUILD_EXECUTABLE)

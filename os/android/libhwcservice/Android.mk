@@ -26,6 +26,9 @@ LOCAL_SRC_FILES += icontrols.cpp                \
 
 LOCAL_MODULE := libhwcservice
 LOCAL_CFLAGS += -fvisibility=default
+ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
+LOCAL_CFLAGS += -DENABLE_PANORAMA
+endif
 LOCAL_SHARED_LIBRARIES := libutils libbinder liblog
 LOCAL_MULTILIB := both
 LOCAL_EXPORT_C_INCLUDE_DIRS += $(LOCAL_PATH)

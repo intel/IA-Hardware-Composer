@@ -24,6 +24,11 @@
 
 #include "hwctrace.h"
 
+#ifdef ENABLE_PANORAMA
+#include "displaymanager.h"
+#include "virtualpanoramadisplay.h"
+#endif
+
 namespace hwcomposer {
 
 class MDVsyncCallback : public hwcomposer::VsyncCallback {
@@ -72,9 +77,30 @@ MosaicDisplay::MosaicDisplay(const std::vector<NativeDisplay *> &displays)
   for (uint32_t i = 0; i < size; i++) {
     physical_displays_.emplace_back(displays.at(i));
   }
+#ifdef ENABLE_PANORAMA
+  event_.Initialize();
+#endif
 }
 
 MosaicDisplay::~MosaicDisplay() {
+#ifdef ENABLE_PANORAMA
+  if (panorama_mode_) {
+    while (!virtual_panorama_displays_->empty()) {
+      NativeDisplay *ptr_display = virtual_panorama_displays_->back();
+      delete ptr_display;
+    }
+    while (!physical_panorama_displays_->empty()) {
+      NativeDisplay *ptr_display = physical_panorama_displays_->back();
+      delete ptr_display;
+    }
+  } else {
+    while (!physical_displays_.empty()) {
+      NativeDisplay *ptr_display = physical_displays_.back();
+      physical_displays_.pop_back();
+      delete ptr_display;
+    }
+  }
+#endif
 }
 
 bool MosaicDisplay::Initialize(NativeBufferHandler * /*buffer_handler*/) {
@@ -177,10 +203,33 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
                             int32_t *retire_fence,
                             PixelUploaderCallback *call_back,
                             bool /*handle_constraints*/) {
-  if (power_mode_ != kOn)
+  if (power_mode_ != kOn) {
+#ifdef ENALBE_PANORAMA
+    if (skip_update_) {
+      event_.Signal();
+    }
+#endif
     return true;
+  }
 
+#ifdef ENABLE_PANORAMA
+  if (skip_update_) {
+    return true;
+  }
+
+  under_present = true;
+#endif
   lock_.lock();
+
+#ifdef ENABLE_PANORAMA
+  uint32_t curr_displays_num = connected_displays_.size();
+  uint32_t physical_displays_num = physical_displays_.size();
+
+  if (curr_displays_num != physical_displays_num) {
+    update_connected_displays_ = true;
+  }
+#endif
+
   if (update_connected_displays_) {
     std::vector<NativeDisplay *>().swap(connected_displays_);
     uint32_t size = physical_displays_.size();
@@ -194,6 +243,11 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
   lock_.unlock();
   uint32_t size = connected_displays_.size();
   int32_t left_constraint = 0;
+#ifdef ENABLE_PANORAMA
+  if (panorama_mode_ && !panorama_enabling_state_) {
+    left_constraint += total_width_virtual_ / 2;
+  }
+#endif
   size_t total_layers = source_layers.size();
   int32_t fence = -1;
   *retire_fence = -1;
@@ -246,6 +300,13 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     left_constraint = right_constraint;
   }
+
+#ifdef ENABLE_PANORAMA
+  if (skip_update_) {
+    event_.Signal();
+  }
+  under_present = false;
+#endif
 
   return true;
 }
@@ -369,17 +430,34 @@ void MosaicDisplay::HotPlugUpdate(bool connected) {
   vsync_divisor_ = vsync_counter_;
 #endif
 
+#ifdef ENABLE_PANORAMA
+  if (!panorama_mode_) {
+    if (connected_ == connected) {
+      lock_.unlock();
+      return;
+    }
+  }
+#else
   if (connected_ == connected) {
     lock_.unlock();
     return;
   }
+#endif
 
   if (hotplug_callback_) {
+#ifdef ENABLE_PANORAMA
+    if (!panorama_mode_) {
+      if (!connected && connected_ && total_connected_displays) {
+        lock_.unlock();
+        return;
+      }
+    }
+#else
     if (!connected && connected_ && total_connected_displays) {
       lock_.unlock();
       return;
     }
-
+#endif
     connected_ = connected;
     hotplug_callback_->Callback(display_id_, connected);
   }
@@ -509,7 +587,15 @@ bool MosaicDisplay::GetDisplayConfigs(uint32_t *num_configs,
 
 bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   std::ostringstream stream;
+#ifdef ENABLE_PANORAMA
+  if (panorama_mode_) {
+    stream << "Panorama";
+  } else {
+    stream << "Mosaic";
+  }
+#else
   stream << "Mosaic";
+#endif
   std::string string = stream.str();
   size_t length = string.length();
   if (!name) {
@@ -517,7 +603,7 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
     return true;
   }
 
-  *size = std::min<uint32_t>(static_cast<uint32_t>(length - 1), *size);
+  *size = std::min<uint32_t>(static_cast<uint32_t>(length), *size);
   strncpy(name, string.c_str(), *size);
   return true;
 }
@@ -548,14 +634,126 @@ bool MosaicDisplay::ContainConnector(const uint32_t connector_id) {
 
 #ifdef ENABLE_PANORAMA
 void MosaicDisplay::SetPanoramaMode(bool mode) {
+  panorama_lock_.lock();
   panorama_mode_ = mode;
+  if (panorama_mode_)
+    panorama_enabling_state_ = true;
+  panorama_lock_.unlock();
 }
 
-void MosaicDisplay::SetExtraDispInfo(int num_physical_displays,
-                                     int num_virtual_displays) {
-  num_physical_displays_ = num_physical_displays;
-  num_virtual_displays_ = num_virtual_displays;
+void MosaicDisplay::SetExtraDispInfo(
+    std::vector<NativeDisplay *> *virtual_panorama_displays,
+    std::vector<NativeDisplay *> *physical_panorama_displays) {
+  virtual_panorama_displays_ = virtual_panorama_displays;
+  physical_panorama_displays_ = physical_panorama_displays;
+
+  num_physical_displays_ = physical_panorama_displays->size();
+
+  num_virtual_displays_ = virtual_panorama_displays->size();
+
+  for (uint32_t i = 0; i < physical_panorama_displays->size(); i++) {
+    real_physical_displays_.emplace_back(physical_panorama_displays->at(i));
+    total_width_physical_ += physical_panorama_displays->at(i)->Width();
+  }
+
+  for (uint32_t i = 0; i < virtual_panorama_displays->size(); i++) {
+    total_width_virtual_ += virtual_panorama_displays->at(i)->Width();
+  }
 }
+
+bool MosaicDisplay::TriggerPanorama(uint32_t hotplug_simulation) {
+  bool ret = true;
+
+  if (!panorama_mode_) {
+    ret = false;
+  } else {
+    panorama_lock_.lock();
+    if (!panorama_enabling_state_) {
+      panorama_enabling_state_ = true;
+    } else {
+      ETRACE("Panorama mode already enabled!");
+      ret = false;
+    }
+    panorama_lock_.unlock();
+  }
+
+  if (!ret) {
+    return ret;
+  }
+
+  skip_update_ = true;
+  if (under_present) {
+    event_.Wait();
+  }
+  lock_.lock();
+  physical_displays_.swap(real_physical_displays_);
+  lock_.unlock();
+
+  SetActiveConfig(0);
+
+  uint32_t size = virtual_panorama_displays_->size();
+  for (uint32_t i = 0; i < size; i++) {
+    VirtualPanoramaDisplay *ppdisplay =
+        (VirtualPanoramaDisplay *)virtual_panorama_displays_->at(i);
+    ppdisplay->SetHyperDmaBufMode(1);
+  }
+
+  update_connected_displays_ = true;
+  if (hotplug_simulation) {
+    HotPlugUpdate(false);
+    HotPlugUpdate(true);
+  }
+  skip_update_ = false;
+  return ret;
+}
+
+bool MosaicDisplay::ShutdownPanorama(uint32_t hotplug_simulation) {
+  bool ret = true;
+
+  if (!panorama_mode_) {
+    ret = false;
+  } else {
+    panorama_lock_.lock();
+    if (panorama_enabling_state_) {
+      panorama_enabling_state_ = false;
+    } else {
+      ETRACE("Panorama mode already disabled!");
+      ret = false;
+    }
+    panorama_lock_.unlock();
+  }
+
+  if (!ret) {
+    return ret;
+  }
+
+  skip_update_ = true;
+  if (under_present) {
+    event_.Wait();
+  }
+  lock_.lock();
+
+  uint32_t size = virtual_panorama_displays_->size();
+  for (uint32_t i = 0; i < size; i++) {
+    VirtualPanoramaDisplay *ppdisplay =
+        (VirtualPanoramaDisplay *)virtual_panorama_displays_->at(i);
+    ppdisplay->SetHyperDmaBufMode(0);
+  }
+
+  physical_displays_.swap(real_physical_displays_);
+  lock_.unlock();
+
+  SetActiveConfig(0);
+
+  update_connected_displays_ = true;
+  if (hotplug_simulation) {
+    HotPlugUpdate(false);
+    HotPlugUpdate(true);
+  }
+  skip_update_ = false;
+  return ret;
+}
+
 #endif
 
 }  // namespace hwcomposer
