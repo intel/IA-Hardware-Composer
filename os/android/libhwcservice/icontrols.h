@@ -65,6 +65,12 @@ class IControls : public android::IInterface {
 
   virtual status_t DisableHDCPSessionForAllDisplays() = 0;
 
+#ifdef ENABLE_PANORAMA
+  virtual status_t TriggerPanorama(uint32_t hotplug_simulation) = 0;
+
+  virtual status_t ShutdownPanorama(uint32_t hotplug_simulation) = 0;
+#endif
+
   virtual status_t SetHDCPSRMForAllDisplays(const int8_t *SRM,
                                             uint32_t SRMLength) = 0;
 

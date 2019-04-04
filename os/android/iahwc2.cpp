@@ -85,6 +85,23 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
 
   void Callback(uint32_t display, bool connected) {
     if (display == 0) {
+#ifdef ENABLE_PANORAMA
+      char dispname[128];
+      uint32_t size = sizeof(dispname);
+      memset(dispname, 0, sizeof(dispname));
+      display_->GetDisplayName(&size, dispname);
+      if (strstr(dispname, "Panorama")) {
+        // Allow the hotplug events to be emitted.
+      } else {
+        if (notified_) {
+          return;
+        }
+
+        if (connected) {
+          notified_ = true;
+        }
+      }
+#else
       // SF expects primary display to be always
       // connected. Let's notify it first time and ignore
       // any followup status changes.
@@ -94,6 +111,7 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
 
       if (connected)
         notified_ = true;
+#endif
     }
 
     auto hook = reinterpret_cast<HWC2_PFN_HOTPLUG>(hook_);
@@ -1261,6 +1279,16 @@ void IAHWC2::DisableHDCPSessionForDisplay(uint32_t connector) {
 void IAHWC2::DisableHDCPSessionForAllDisplays() {
   device_.DisableHDCPSessionForAllDisplays();
 }
+
+#ifdef ENABLE_PANORAMA
+void IAHWC2::TriggerPanorama(uint32_t hotplug_simulation) {
+  device_.TriggerPanorama(hotplug_simulation);
+}
+
+void IAHWC2::ShutdownPanorama(uint32_t hotplug_simulation) {
+  device_.ShutdownPanorama(hotplug_simulation);
+}
+#endif
 
 void IAHWC2::SetPAVPSessionStatus(bool enabled, uint32_t papv_session_id,
                                   uint32_t pavp_instance_id) {

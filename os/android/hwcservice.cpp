@@ -426,6 +426,18 @@ status_t HwcService::Controls::VideoDisableAllEncryptedSessions() {
   return OK;
 }
 
+#ifdef ENABLE_PANORAMA
+status_t HwcService::Controls::TriggerPanorama(uint32_t hotplug_simulation) {
+  mHwc.TriggerPanorama(hotplug_simulation);
+  return OK;
+}
+
+status_t HwcService::Controls::ShutdownPanorama(uint32_t hotplug_simulation) {
+  mHwc.ShutdownPanorama(hotplug_simulation);
+  return OK;
+}
+#endif
+
 bool HwcService::Controls::VideoIsEncryptedSessionEnabled(uint32_t sessionID,
                                                           uint32_t instanceID) {
   // TO DO

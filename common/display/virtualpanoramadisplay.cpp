@@ -77,8 +77,10 @@ void VirtualPanoramaDisplay::InitHyperDmaBuf() {
     } else
       ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_TX_CH_SETUP Done!\n");
   }
+  if (mHyperDmaBuf_Fd > 0) {
+    hyper_dmabuf_initialized = true;
+  }
 #endif
-  hyper_dmabuf_initialized = true;
 }
 
 VirtualPanoramaDisplay::~VirtualPanoramaDisplay() {
@@ -91,6 +93,7 @@ VirtualPanoramaDisplay::~VirtualPanoramaDisplay() {
     temp.handle_ = handle_;
     resource_manager_->MarkResourceForDeletion(temp, false);
   }
+
   if (output_handle_) {
     delete output_handle_;
   }
@@ -99,6 +102,13 @@ VirtualPanoramaDisplay::~VirtualPanoramaDisplay() {
   resource_manager_->PurgeBuffer();
   compositor_.Reset();
 #ifdef HYPER_DMABUF_SHARING
+  HyperDmaUnExport();
+#endif
+}
+
+#ifdef HYPER_DMABUF_SHARING
+void VirtualPanoramaDisplay::HyperDmaUnExport() {
+  HyperDmaExport(true);
   if (mHyperDmaBuf_Fd > 0) {
     auto it = mHyperDmaExportedBuffers.begin();
     for (; it != mHyperDmaExportedBuffers.end(); ++it) {
@@ -116,15 +126,17 @@ VirtualPanoramaDisplay::~VirtualPanoramaDisplay() {
       } else {
         ITRACE("Hyper DmaBuf: IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
                it->second.hyper_dmabuf_id.id);
-        mHyperDmaExportedBuffers.erase(it);
       }
     }
+
+    mHyperDmaExportedBuffers.clear();
 
     close(mHyperDmaBuf_Fd);
     mHyperDmaBuf_Fd = -1;
   }
-#endif
+  hyper_dmabuf_initialized = false;
 }
+#endif
 
 void VirtualPanoramaDisplay::InitVirtualDisplay(uint32_t width,
                                                 uint32_t height) {
@@ -145,7 +157,7 @@ bool VirtualPanoramaDisplay::SetActiveConfig(uint32_t /*config*/) {
   return true;
 }
 
-void VirtualPanoramaDisplay::HyperDmaExport() {
+void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
 #ifdef HYPER_DMABUF_SHARING
   int ret = 0;
   size_t buffer_number = 0;
@@ -196,11 +208,22 @@ void VirtualPanoramaDisplay::HyperDmaExport() {
       mHyperDmaExportedBuffers[imported_fd].rotation = 0;
       mHyperDmaExportedBuffers[imported_fd].status = 0;
       mHyperDmaExportedBuffers[imported_fd].counter = 0;
-      mHyperDmaExportedBuffers[imported_fd].surface_id = display_index_;
+      if (notify_stopping) {
+        // Send an invalid surface_id to let SOS daemon knowns guest is stopping
+        // sharing.
+        mHyperDmaExportedBuffers[imported_fd].surface_id = 0xff;
+      } else {
+        mHyperDmaExportedBuffers[imported_fd].surface_id = display_index_;
+      }
       mHyperDmaExportedBuffers[imported_fd].bbox[0] = 0;
       mHyperDmaExportedBuffers[imported_fd].bbox[1] = 0;
       mHyperDmaExportedBuffers[imported_fd].bbox[2] = buffer->GetWidth();
       mHyperDmaExportedBuffers[imported_fd].bbox[3] = buffer->GetHeight();
+    }
+  } else {
+    if (!notify_stopping) {
+      imported_fd = buffer->GetPrimeFD();
+      mHyperDmaExportedBuffers[imported_fd].surface_id = display_index_;
     }
   }
 
@@ -228,6 +251,8 @@ void VirtualPanoramaDisplay::HyperDmaExport() {
     ETRACE("Hyper DmaBuf: Exporting hyper_dmabuf failed with error %d\n", ret);
     return;
   }
+
+  mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id = msg.hid;
 
   resource_manager_->PreparePurgedResources();
 
@@ -281,6 +306,11 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
                                      PixelUploaderCallback * /*call_back*/,
                                      bool handle_constraints) {
   CTRACE();
+
+  if (!hyper_dmabuf_mode_) {
+    return true;
+  }
+
   if (!hyper_dmabuf_initialized) {
     InitHyperDmaBuf();
   }
@@ -374,7 +404,7 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
   }
 
 #ifdef HYPER_DMABUF_SHARING
-  HyperDmaExport();
+  HyperDmaExport(false);
 #endif
 
   return true;
@@ -491,6 +521,25 @@ bool VirtualPanoramaDisplay::GetDisplayName(uint32_t *size, char *name) {
 int VirtualPanoramaDisplay::GetDisplayPipe() {
   return -1;
 }
+
+#ifdef HYPER_DMABUF_SHARING
+bool VirtualPanoramaDisplay::SetHyperDmaBufMode(uint32_t mode) {
+  if (hyper_dmabuf_mode_ != mode) {
+    hyper_dmabuf_mode_ = mode;
+    if (hyper_dmabuf_mode_) {
+      // Trigger hyperdmabuf sharing
+      // Disable hyper dmabuf sharing to make sure the Present method has the
+      // chance to re-establish the new hyper dmabuf channel.
+      // The purpose is to workaround SOS vmdisplay-wayland's refresh issue
+      // after resumsing from latest hyper dmabuf sharing stopping.
+      HyperDmaUnExport();
+      resource_manager_->PurgeBuffer();
+    }
+  }
+
+  return true;
+}
+#endif
 
 bool VirtualPanoramaDisplay::SetPowerMode(uint32_t /*power_mode*/) {
   return true;
