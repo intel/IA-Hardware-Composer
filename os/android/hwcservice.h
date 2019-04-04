@@ -97,6 +97,11 @@ class HwcService : public BnService {
 
     status_t DisableHDCPSessionForAllDisplays();
 
+#ifdef ENABLE_PANORAMA
+    status_t TriggerPanorama(uint32_t hotplug_simulation);
+    status_t ShutdownPanorama(uint32_t hotplug_simulation);
+#endif
+
     status_t SetHDCPSRMForAllDisplays(const int8_t* SRM, uint32_t SRMLength);
 
     status_t SetHDCPSRMForDisplay(uint32_t connector, const int8_t* SRM,

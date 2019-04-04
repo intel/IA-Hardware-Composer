@@ -59,6 +59,10 @@ class IAHWC2 : public hwc2_device_t {
   void DisableHDCPSessionForDisplay(uint32_t connector);
 
   void DisableHDCPSessionForAllDisplays();
+#ifdef ENABLE_PANORAMA
+  void TriggerPanorama(uint32_t hotplug_simulation);
+  void ShutdownPanorama(uint32_t hotplug_simulation);
+#endif
 
   void SetPAVPSessionStatus(bool enabled, uint32_t pavp_session_id,
                             uint32_t pavp_instance_id);

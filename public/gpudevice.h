@@ -30,6 +30,9 @@
 
 namespace hwcomposer {
 
+#ifdef ENABLE_PANORAMA
+class MosaicDisplay;
+#endif
 class NativeDisplay;
 
 class GpuDevice : public HWCThread {
@@ -92,6 +95,10 @@ class GpuDevice : public HWCThread {
   void SetHDCPSRMForDisplay(uint32_t connector, const int8_t* SRM,
                             uint32_t SRMLength);
   uint32_t GetDisplayIDFromConnectorID(const uint32_t connector_id);
+#ifdef ENABLE_PANORAMA
+  bool TriggerPanorama(uint32_t hotplug_simulation);
+  bool ShutdownPanorama(uint32_t hotplug_simulation);
+#endif
 
   bool IsReservedDrmPlane();
 
@@ -129,6 +136,10 @@ class GpuDevice : public HWCThread {
       std::vector<std::vector<uint32_t>>& panorama_displays,
       std::vector<std::vector<uint32_t>>& panorama_sos_displays,
       std::vector<bool>& available_displays);
+
+  std::vector<NativeDisplay*> virtual_panorama_displays_;
+  std::vector<NativeDisplay*> physical_panorama_displays_;
+  MosaicDisplay* ptr_mosaicdisplay = NULL;
 #endif
   void ParseLogicalDisplaySetting(std::string& value,
                                   std::vector<uint32_t>& logical_displays);

@@ -24,8 +24,12 @@
 
 #include <nativedisplay.h>
 #include <spinlock.h>
+#include "hwcevent.h"
 
 namespace hwcomposer {
+#ifdef ENABLE_PANORAMA
+class DisplayManager;
+#endif
 
 class MosaicDisplay : public NativeDisplay {
  public:
@@ -116,7 +120,11 @@ class MosaicDisplay : public NativeDisplay {
 
 #ifdef ENABLE_PANORAMA
   void SetPanoramaMode(bool mode);
-  void SetExtraDispInfo(int num_physical_displays, int num_virtual_displays);
+  void SetExtraDispInfo(
+      std::vector<NativeDisplay *> *virtual_panorama_displays,
+      std::vector<NativeDisplay *> *physical_panorama_displays);
+  bool TriggerPanorama(uint32_t hotplug_simulation);
+  bool ShutdownPanorama(uint32_t hotplug_simulation);
 #endif
 
  private:
@@ -141,9 +149,19 @@ class MosaicDisplay : public NativeDisplay {
   bool pending_vsync_ = false;
   bool update_connected_displays_ = true;
 #ifdef ENABLE_PANORAMA
+  std::vector<NativeDisplay *> *virtual_panorama_displays_;
+  std::vector<NativeDisplay *> *physical_panorama_displays_;
+  std::vector<NativeDisplay *> real_physical_displays_;
+  SpinLock panorama_lock_;
   bool panorama_mode_ = false;
+  bool panorama_enabling_state_ = false;
+  bool skip_update_ = false;
+  bool under_present = false;
   int32_t num_physical_displays_ = 1;
+  int32_t total_width_physical_ = 0;
   int32_t num_virtual_displays_ = 1;
+  int32_t total_width_virtual_ = 0;
+  HWCEvent event_;
 #endif
   SpinLock lock_;
 };

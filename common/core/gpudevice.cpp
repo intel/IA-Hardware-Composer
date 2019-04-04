@@ -258,6 +258,7 @@ void GpuDevice::InitializePanorama(
         panorama_sos_displays.at(0).at(sos_it));
     virtualdisp->InitVirtualDisplay(1920, 1080);
     i_available_panorama_displays.emplace_back(virtualdisp);
+    virtual_panorama_displays_.emplace_back(virtualdisp);
   }
 
   // Add the native displays
@@ -281,6 +282,8 @@ void GpuDevice::InitializePanorama(
             // Skip the disconnected display here
             i_available_panorama_displays.emplace_back(
                 temp_displays.at(panorama_displays.at(m).at(l)));
+            physical_panorama_displays_.emplace_back(
+                temp_displays.at(panorama_displays.at(m).at(l)));
             // Add tag for panorama-ed displays
             available_displays.at(panorama_displays.at(m).at(l)) = false;
           }
@@ -297,12 +300,29 @@ void GpuDevice::InitializePanorama(
     std::unique_ptr<MosaicDisplay> panorama(
         new MosaicDisplay(i_available_panorama_displays));
     panorama->SetPanoramaMode(true);
-    panorama->SetExtraDispInfo((int)panorama_displays.size(),
-                               (int)panorama_sos_displays.size());
+    panorama->SetExtraDispInfo(&virtual_panorama_displays_,
+                               &physical_panorama_displays_);
+    ptr_mosaicdisplay = (MosaicDisplay *)panorama.get();
     panorama_displays_.emplace_back(std::move(panorama));
     // Save the panorama to the final displays list
     total_displays_.emplace_back(panorama_displays_.back().get());
   }
+}
+
+bool GpuDevice::TriggerPanorama(uint32_t hotplug_simulation) {
+  bool ret = false;
+  if (ptr_mosaicdisplay) {
+    ret = ptr_mosaicdisplay->TriggerPanorama(hotplug_simulation);
+  }
+  return ret;
+}
+
+bool GpuDevice::ShutdownPanorama(uint32_t hotplug_simulation) {
+  bool ret = false;
+  if (ptr_mosaicdisplay) {
+    ret = ptr_mosaicdisplay->ShutdownPanorama(hotplug_simulation);
+  }
+  return ret;
 }
 
 #endif

@@ -61,7 +61,7 @@ class VirtualPanoramaDisplay : public NativeDisplay {
 
   void CreateOutBuffer();
 
-  void HyperDmaExport();
+  void HyperDmaExport(bool notify_stopping);
 
   DisplayType Type() const override {
     return DisplayType::kVirtual;
@@ -87,6 +87,10 @@ class VirtualPanoramaDisplay : public NativeDisplay {
   int GetDisplayPipe() override;
 
   bool SetPowerMode(uint32_t power_mode) override;
+
+#ifdef HYPER_DMABUF_SHARING
+  bool SetHyperDmaBufMode(uint32_t mode);
+#endif
 
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
@@ -117,10 +121,12 @@ class VirtualPanoramaDisplay : public NativeDisplay {
   bool hyper_dmabuf_initialized = false;
 
 #ifdef HYPER_DMABUF_SHARING
+  void HyperDmaUnExport();
   int mHyperDmaBuf_Fd = -1;
   std::map<uint32_t, vm_buffer_info>
       mHyperDmaExportedBuffers;  // Track the hyper dmabuf metadata info mapping
   uint32_t frame_count_ = 0;
+  uint32_t hyper_dmabuf_mode_ = 1;
 #endif
 };
 

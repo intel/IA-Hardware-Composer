@@ -275,6 +275,26 @@ status_t HwcService_Video_DisableHDCPSession_ForDisplay(HWCSHANDLE hwcs,
   return pContext->mControls->DisableHDCPSessionForDisplay(connector);
 }
 
+#ifdef ENABLE_PANORAMA
+status_t HwcService_TriggerPanorama(HWCSHANDLE hwcs,
+                                    uint32_t hotplug_simulation) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+  return pContext->mControls->TriggerPanorama(hotplug_simulation);
+}
+
+status_t HwcService_ShutdownPanorama(HWCSHANDLE hwcs,
+                                     uint32_t hotplug_simulation) {
+  HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
+  if (!pContext) {
+    return android::BAD_VALUE;
+  }
+  return pContext->mControls->ShutdownPanorama(hotplug_simulation);
+}
+#endif
+
 uint32_t HwcService_GetDisplayIDFromConnectorID(HWCSHANDLE hwcs,
                                                 uint32_t connector_id) {
   HwcsContext* pContext = static_cast<HwcsContext*>(hwcs);
