@@ -35,3 +35,23 @@ LOCAL_EXPORT_C_INCLUDE_DIRS += $(LOCAL_PATH)
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_HEADER_LIBRARIES += libcutils_headers
 include $(BUILD_SHARED_LIBRARY)
+
+#static library for the device
+include $(CLEAR_VARS)
+
+# Obtain Android Version
+ANDROID_VERSION := $(word 1, $(subst ., , $(PLATFORM_VERSION)))
+
+LOCAL_SRC_FILES += icontrols.cpp                \
+                   idiagnostic.cpp              \
+                   iservice.cpp                 \
+                   hwcserviceapi.cpp
+
+LOCAL_MODULE := libhwcservice
+LOCAL_CFLAGS += -fvisibility=default
+LOCAL_SHARED_LIBRARIES :=  libbinder liblog libutils
+LOCAL_MULTILIB := both
+LOCAL_EXPORT_C_INCLUDE_DIRS += $(LOCAL_PATH)
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_HEADER_LIBRARIES += libcutils_headers
+include $(BUILD_STATIC_LIBRARY)
