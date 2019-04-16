@@ -187,7 +187,7 @@ class GpuDevice : public HWCThread {
   std::vector<NativeDisplay*> total_displays_;
 
   bool reserve_plane_ = false;
-  bool enable_all_display_ = true;
+  bool enable_all_display_ = false;
   std::map<uint8_t, std::vector<uint32_t>> reserved_drm_display_planes_map_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;
