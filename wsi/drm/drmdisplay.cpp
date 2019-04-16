@@ -493,6 +493,10 @@ bool DrmDisplay::Commit(
     const DisplayPlaneStateList &previous_composition_planes,
     bool disable_explicit_fence, int32_t previous_fence, int32_t *commit_fence,
     bool *previous_fence_released) {
+  if (!manager_->IsDrmMaster()) {
+    ETRACE("Failed to commit without DrmMaster");
+    return true;
+  }
   // Do the actual commit.
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   *previous_fence_released = false;
