@@ -72,8 +72,6 @@ bool GpuDevice::Initialize() {
     display_manager_->RemoveUnreservedPlanes();
   }
 
-  // Ignore all updates by default
-  ResetAllDisplayCommit(false);
   lock_fd_ = open(HWC_LOCK_FILE, O_RDONLY);
   if (-1 != lock_fd_) {
     if (!InitWorker()) {

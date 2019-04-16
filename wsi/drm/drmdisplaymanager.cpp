@@ -458,6 +458,7 @@ void DrmDisplayManager::setDrmMaster(bool must_set) {
       retry_times++;
     if (ret) {
       ETRACE("Failed to call drmSetMaster : %s", PRINTERROR());
+      drm_master_ = false;
       usleep(10000);
     } else {
       ITRACE("Successfully set as DRM master.");
