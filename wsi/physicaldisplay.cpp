@@ -287,6 +287,9 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                               PixelUploaderCallback *call_back,
                               bool handle_constraints) {
   CTRACE();
+
+  if (source_layers.empty()) return true;
+
   SPIN_LOCK(modeset_lock_);
 
   bool handle_hotplug_notifications = false;
