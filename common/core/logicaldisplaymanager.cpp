@@ -181,10 +181,7 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  uint32_t cursor_layers = cursor_layers_.size();
-  for (uint32_t j = 0; j < cursor_layers; j++) {
-    layers_.emplace_back(cursor_layers_.at(j));
-  }
+  layers_.insert(layers_.end(), cursor_layers_.begin(), cursor_layers_.end());
 
   bool success = physical_display_->Present(layers_, retire_fence, call_back,
                                             handle_constraints);
