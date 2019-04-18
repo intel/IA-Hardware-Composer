@@ -39,8 +39,6 @@
 extern "C" {
 #endif
 
-#define GRALLOC_USAGE_PRIVATE_INTERLACE GRALLOC_USAGE_PRIVATE_0
-
 // Conversion from HAL to fourcc-based DRM formats
 static uint32_t GetDrmFormatFromHALFormat(int format) {
   switch (format) {
@@ -221,7 +219,7 @@ static bool ImportGraphicsBuffer(HWCNativeHandle handle, int fd) {
   handle->meta_data_.height_ = gr_handle->height;
   handle->meta_data_.native_format_ = gr_handle->droid_format;
 
-  if (gr_handle->consumer_usage & GRALLOC_USAGE_PRIVATE_INTERLACE) {
+  if (gr_handle->is_interlaced > 0) {
     handle->meta_data_.is_interlaced_ = true;
   } else {
     handle->meta_data_.is_interlaced_ = false;
