@@ -283,26 +283,34 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   std::vector<ScopedVABufferID> pipeline_buffers(total_layers, va_display_);
 
   for (uint32_t i = 0; i < total_layers; i++) {
-    layer_in = state.layers_.at(i);
-    if (layer_in->IsSolidColor())
-      continue;
     ScopedVABufferID& pipeline_buffer = pipeline_buffers.at(i);
-    // Get Input Surface.
-    OverlayBuffer* buffer_in = layer_in->GetBuffer();
-    if (!buffer_in) {
-      ETRACE("Get DRM buffer failed for buffer_in.\n");
-      return false;
+    OverlayBuffer* buffer_in = NULL;
+    VASurfaceID surface_in = 0;
+    uint32_t bg_color = 0;
+    uint32_t dataspace = 0;
+    layer_in = state.layers_.at(i);
+    if (layer_in->IsSolidColor()) {
+      uint32_t color = layer_in->GetSolidColor();
+      // change form RGBA to ARGB
+      bg_color = ((color & 0xFFFFFF00) >> 8) | ((color & 0x000000FF) << 24);
+    } else {
+      ETRACE("layer with buffer");
+      // Get Input Surface.
+      buffer_in = layer_in->GetBuffer();
+      if (!buffer_in) {
+        ETRACE("Get DRM buffer failed for buffer_in.\n");
+        return false;
+      }
+      dataspace = buffer_in->GetDataSpace();
+      const MediaResourceHandle& resource = buffer_in->GetMediaResource(
+          va_display_, layer_in->GetSourceCropWidth(),
+          layer_in->GetSourceCropHeight());
+      surface_in = resource.surface_;
+      if (surface_in == VA_INVALID_ID) {
+        ETRACE("Failed to create Va Input Surface. \n");
+        return false;
+      }
     }
-    uint32_t dataspace = buffer_in->GetDataSpace();
-    const MediaResourceHandle& resource =
-        buffer_in->GetMediaResource(va_display_, layer_in->GetSourceCropWidth(),
-                                    layer_in->GetSourceCropHeight());
-    VASurfaceID surface_in = resource.surface_;
-    if (surface_in == VA_INVALID_ID) {
-      ETRACE("Failed to create Va Input Surface. \n");
-      return false;
-    }
-
     // Set the protected status to output layer if input layer is protected
     if (layer_in->IsProtected()) {
       layer_out->SetProtected(true);
@@ -322,13 +330,21 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     output_region.y = display_frame.top;
     output_region.width = layer_in->GetDisplayFrameWidth();
     output_region.height = layer_in->GetDisplayFrameHeight();
-
+    // if is solid color layer, set the output_region to 0, fill all the
+    // surface_region with background color.
+    if (layer_in->IsSolidColor()) {
+      output_region.x = 0;
+      output_region.y = 0;
+      output_region.width = 0;
+      output_region.height = 0;
+    }
     VAProcPipelineParameterBuffer pipe_param = {};
     pipe_param.surface = surface_in;
     pipe_param.surface_region = &surface_region;
     pipe_param.surface_color_standard = VAProcColorStandardBT601;
     pipe_param.output_region = &output_region;
     pipe_param.output_color_standard = VAProcColorStandardBT601;
+    pipe_param.output_background_color = bg_color;
 #ifdef VA_SUPPORT_COLOR_RANGE
     if ((dataspace & HAL_DATASPACE_RANGE_FULL) != 0) {
       pipe_param.input_color_properties.color_range = VA_SOURCE_RANGE_FULL;
@@ -356,8 +372,10 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
     for (auto itr = state.colors_.begin(); itr != state.colors_.end(); itr++) {
       SetVAProcFilterColorValue(itr->first, itr->second);
     }
-    SetVAProcFilterDeinterlaceMode(state.deinterlace_, buffer_in);
 
+    if (!layer_in->IsSolidColor()) {
+      SetVAProcFilterDeinterlaceMode(state.deinterlace_, buffer_in);
+    }
     if (!UpdateCaps()) {
       ETRACE("Failed to update capabailities. \n");
       return false;
@@ -382,9 +400,10 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
             sizeof(VAProcPipelineParameterBuffer), 1, &pipe_param)) {
       return false;
     }
-
-    ret |=
-        vaRenderPicture(va_display_, va_context_, &pipeline_buffer.buffer(), 1);
+    if (!layer_in->IsSolidColor()) {
+      ret |= vaRenderPicture(va_display_, va_context_,
+                             &pipeline_buffer.buffer(), 1);
+    }
   }
 
   ret |= vaEndPicture(va_display_, va_context_);
