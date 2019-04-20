@@ -682,7 +682,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     layers.emplace_back(l.second->GetLayer());
   }
 
-  if (layers.empty())
+  if (layers.empty() && display_->DisplayType() != DisplayType::kLogical)
     return HWC2::Error::None;
 
   IHOTPLUGEVENTTRACE("PhysicalDisplay called for Display: %p \n", display_);
