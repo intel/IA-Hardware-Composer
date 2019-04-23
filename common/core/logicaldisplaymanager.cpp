@@ -183,8 +183,10 @@ bool LogicalDisplayManager::Present(std::vector<HwcLayer*>& source_layers,
 
   layers_.insert(layers_.end(), cursor_layers_.begin(), cursor_layers_.end());
 
-  if (layers_.empty())
+  if (layers_.empty()) {
+    queued_displays_ = 0;
     return true;
+  }
 
   bool success = physical_display_->Present(layers_, retire_fence, call_back,
                                             handle_constraints);
