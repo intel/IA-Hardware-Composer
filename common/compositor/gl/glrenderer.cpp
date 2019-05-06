@@ -173,7 +173,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   glDisable(GL_SCISSOR_TEST);
 
   if (!disable_explicit_sync_)
-    surface->SetNativeFence(context_.GetSyncFD());
+    surface->SetNativeFence(context_.GetSyncFD(surface->IsOnScreen()));
 
   surface->ResetDamage();
 #ifdef COMPOSITOR_TRACING
