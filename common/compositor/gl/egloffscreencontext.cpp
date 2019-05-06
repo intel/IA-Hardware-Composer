@@ -87,23 +87,27 @@ bool EGLOffScreenContext::MakeCurrent() {
   return true;
 }
 
-EGLint EGLOffScreenContext::GetSyncFD() {
+EGLint EGLOffScreenContext::GetSyncFD(bool onScreen) {
   EGLint sync_fd = -1;
 
-  EGLSyncKHR egl_sync =
-      eglCreateSyncKHR(egl_display_, EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
-  if (egl_sync == EGL_NO_SYNC_KHR) {
-    ETRACE("Failed to make sync object.");
-    return -1;
-  }
+  if (onScreen)
+    glFlush();
+  else {
+    EGLSyncKHR egl_sync =
+        eglCreateSyncKHR(egl_display_, EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
+    if (egl_sync == EGL_NO_SYNC_KHR) {
+      ETRACE("Failed to make sync object.");
+      return -1;
+    }
 
-  sync_fd = eglDupNativeFenceFDANDROID(egl_display_, egl_sync);
-  if (sync_fd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
-    ETRACE("Failed to duplicate native fence object.");
-    sync_fd = -1;
-  }
+    sync_fd = eglDupNativeFenceFDANDROID(egl_display_, egl_sync);
+    if (sync_fd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
+      ETRACE("Failed to duplicate native fence object.");
+      sync_fd = -1;
+    }
 
-  eglDestroySyncKHR(egl_display_, egl_sync);
+    eglDestroySyncKHR(egl_display_, egl_sync);
+  }
 
   return sync_fd;
 }
