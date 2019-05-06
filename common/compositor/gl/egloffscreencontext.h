@@ -28,7 +28,7 @@ class EGLOffScreenContext {
 
   bool Init();
 
-  EGLint GetSyncFD();
+  EGLint GetSyncFD(bool onScreen);
 
   EGLDisplay GetDisplay() const {
     return egl_display_;
