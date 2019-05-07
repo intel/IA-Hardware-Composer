@@ -64,6 +64,12 @@ class GpuDevice : public HWCThread {
 
   void GetConnectedPhysicalDisplays(std::vector<NativeDisplay*>& displays);
 
+  bool IsSameResolutionForAllDisplay();
+
+  bool IsRotateMode() {
+    return rotate_mode_;
+  }
+
   const std::vector<NativeDisplay*>& GetAllDisplays();
 
   void RegisterHotPlugEventCallback(
@@ -188,6 +194,7 @@ class GpuDevice : public HWCThread {
 
   bool reserve_plane_ = false;
   bool enable_all_display_ = false;
+  bool rotate_mode_ = false;
   std::map<uint8_t, std::vector<uint32_t>> reserved_drm_display_planes_map_;
   uint32_t initialization_state_ = kUnInitialized;
   SpinLock initialization_state_lock_;

@@ -121,6 +121,30 @@ void GpuDevice::GetConnectedPhysicalDisplays(
   }
 }
 
+bool GpuDevice::IsSameResolutionForAllDisplay() {
+  bool same = true;
+  std::vector<NativeDisplay *> connected_displays;
+  GetConnectedPhysicalDisplays(connected_displays);
+  size_t size = connected_displays.size();
+  if (size == 1)
+    return same;
+  int display_width = 0;
+  int display_height = 0;
+  for (size_t i = 0; i < size; i++) {
+    if (i == 0) {
+      display_width = connected_displays.at(i)->Width();
+      display_height = connected_displays.at(i)->Height();
+      continue;
+    }
+    if (display_width != connected_displays.at(i)->Width() ||
+        display_height != connected_displays.at(i)->Height()) {
+      same = false;
+      break;
+    }
+  }
+  return same;
+}
+
 bool GpuDevice::EnableDRMCommit(bool enable, uint32_t display_id) {
   size_t size = total_displays_.size();
   bool ret = false;
@@ -944,6 +968,7 @@ void GpuDevice::HandleHWCSettings() {
   if (rotate_display) {
     InitializeDisplayRotation(display_rotation, rotation_display_index,
                               displays);
+    rotate_mode_ = true;
   }
 
   // Now, we should have all physical displays ordered as required.

@@ -113,15 +113,6 @@ struct HwcLayer {
   }
 
   /**
-   * API for querying damage region of this layer
-   * has changed from last Present call to
-   * NativeDisplay.
-   */
-  bool HasSurfaceDamageRegionChanged() const {
-    return state_ & kSurfaceDamageChanged;
-  }
-
-  /**
    * API for querying if content of layer has changed
    * for last Present call to NativeDisplay.
    */
@@ -307,13 +298,12 @@ struct HwcLayer {
 #endif
 
   enum LayerState {
-    kSurfaceDamageChanged = 1 << 0,
-    kLayerContentChanged = 1 << 1,
-    kVisibleRegionChanged = 1 << 2,
-    kVisible = 1 << 3,
-    kLayerValidated = 1 << 4,
-    kVisibleRegionSet = 1 << 5,
-    kZorderChanged = 1 << 6
+    kLayerContentChanged = 1 << 0,
+    kVisibleRegionChanged = 1 << 1,
+    kVisible = 1 << 2,
+    kLayerValidated = 1 << 3,
+    kVisibleRegionSet = 1 << 4,
+    kZorderChanged = 1 << 5
   };
 
   enum LayerCache {
@@ -344,8 +334,7 @@ struct HwcLayer {
   std::vector<int32_t> right_source_constraint_;
   int z_order_ = -1;
   uint32_t total_displays_ = 1;
-  int state_ =
-      kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
+  int state_ = kVisible | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
   uint32_t solid_color_ = 0;

@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include <hwcutils.h>
+#include "gpudevice.h"
 #include "hwctrace.h"
 
 namespace hwcomposer {
@@ -112,16 +113,12 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
-      state_ &= ~kSurfaceDamageChanged;
       UpdateRenderingDamage(rect, rect, true);
       surface_damage_.reset();
       return;
-    } else {
-      state_ |= kSurfaceDamageChanged;
     }
   } else if (rects == 0) {
     rect = display_frame_;
-    state_ &= ~kSurfaceDamageChanged;
   }
 
   if ((surface_damage_.left == rect.left) &&
@@ -130,7 +127,6 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       (surface_damage_.bottom == rect.bottom)) {
     return;
   }
-
   UpdateRenderingDamage(surface_damage_, rect, false);
   surface_damage_ = rect;
 }
@@ -317,6 +313,10 @@ void HwcLayer::SufaceDamageTransfrom() {
         (current_rendering_damage_.right - current_rendering_damage_.left),
         (current_rendering_damage_.bottom - current_rendering_damage_.top));
 #endif
+  } else {
+    GpuDevice& instance = GpuDevice::getInstance();
+    if (!instance.IsRotateMode() && instance.IsSameResolutionForAllDisplay())
+      current_rendering_damage_ = translated_damage;
   }
 }
 
@@ -329,10 +329,7 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kLayerAttributesChanged;
     layer_cache_ &= ~kDisplayFrameRectChanged;
     layer_cache_ &= ~kSourceRectChanged;
-    if (state_ & kSurfaceDamageChanged) {
-      SufaceDamageTransfrom();
-      state_ &= ~kSurfaceDamageChanged;
-    }
+    SufaceDamageTransfrom();
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
