@@ -293,7 +293,7 @@ struct OverlayLayer {
   uint8_t alpha_ = 0xff;
   uint32_t dataspace_ = 0;
 
-  uint32_t solid_color_ = 0;
+  uint32_t solid_color_ = 255;
 
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;
