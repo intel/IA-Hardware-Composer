@@ -184,18 +184,95 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   }
 }
 
+void OverlayLayer::TransformDamage(HwcLayer* layer, uint32_t max_height,
+                                   uint32_t max_width) {
+  const HwcRect<int>& surface_damage = layer->GetLayerDamage();
+  if (surface_damage.empty()) {
+    surface_damage_ = surface_damage;
+    return;
+  }
+  HwcRect<int> translated_damage = TranslateRect(surface_damage, 0, 0);
+#ifdef RECT_DAMAGE_TRACING
+  IRECTDAMAGETRACE("Calculating Overlaylayer Damage for layer[%d]", z_order_);
+  IRECTDAMAGETRACE("max_width: %d, max_height:%d", max_width, max_height);
+  IRECTDAMAGETRACE("Original Surface_damage (LTWH): %d, %d, %d, %d",
+                   surface_damage.left, surface_damage.top,
+                   (surface_damage.right - surface_damage.left),
+                   (surface_damage.bottom - surface_damage.top));
+  IRECTDAMAGETRACE("translated_damage (LTWH): %d, %d, %d, %d",
+                   translated_damage.left, translated_damage.top,
+                   (translated_damage.right - translated_damage.left),
+                   (translated_damage.bottom - translated_damage.top));
+  IRECTDAMAGETRACE("source_crop_ (LTWH): %f, %f, %f, %f", source_crop_.left,
+                   source_crop_.top, (source_crop_.right - source_crop_.left),
+                   (source_crop_.bottom - source_crop_.top));
+  IRECTDAMAGETRACE("display_frame_ (LTWH): %d, %d, %d, %d", display_frame_.left,
+                   display_frame_.top,
+                   (display_frame_.right - display_frame_.left),
+                   (display_frame_.bottom - display_frame_.top));
+#endif
+  float ratio_w_h = max_width * 1.0 / max_height;
+  float ratio_h_w = max_height * 1.0 / max_width;
+
+  int ox = 0, oy = 0;
+
+  if (plane_transform_ == kTransform270) {
+    oy = max_height;
+    surface_damage_.left = translated_damage.top * ratio_w_h + 0.5;
+    surface_damage_.top = oy - translated_damage.right * ratio_h_w + 0.5;
+    surface_damage_.right = translated_damage.bottom * ratio_w_h + 0.5;
+    surface_damage_.bottom = oy - translated_damage.left * ratio_h_w + 0.5;
+  } else if (plane_transform_ == kTransform180) {
+    surface_damage_ = translated_damage;
+  } else if (plane_transform_ & hwcomposer::HWCTransform::kTransform90) {
+    if (plane_transform_ & kReflectX) {
+      surface_damage_.left = translated_damage.top * ratio_w_h + 0.5;
+      surface_damage_.top = translated_damage.left * ratio_h_w + 0.5;
+      surface_damage_.right = translated_damage.bottom * ratio_w_h + 0.5;
+      surface_damage_.bottom = translated_damage.right * ratio_h_w + 0.5;
+    } else if (plane_transform_ & kReflectY) {
+      ox = max_width;
+      oy = max_height;
+      surface_damage_.left = ox - (translated_damage.bottom * ratio_w_h + 0.5);
+      surface_damage_.top = oy - (translated_damage.right * ratio_h_w + 0.5);
+      surface_damage_.right = ox - (translated_damage.top * ratio_w_h + 0.5);
+      surface_damage_.bottom = oy - (translated_damage.left * ratio_h_w + 0.5);
+    } else {
+      ox = max_width;
+      surface_damage_.left = ox - translated_damage.bottom * ratio_w_h + 0.5;
+      surface_damage_.top = translated_damage.left * ratio_h_w + 0.5;
+      surface_damage_.right = ox - translated_damage.top * ratio_w_h + 0.5;
+      surface_damage_.bottom = translated_damage.right * ratio_h_w + 0.5;
+    }
+  } else if (plane_transform_ == 0) {
+    surface_damage_.left = translated_damage.left;
+    surface_damage_.top = translated_damage.top;
+    surface_damage_.right = translated_damage.right;
+    surface_damage_.bottom = translated_damage.bottom;
+  }
+#ifdef RECT_DAMAGE_TRACING
+  IRECTDAMAGETRACE("Surface_damage (LTWH): %d, %d, %d, %d",
+                   surface_damage_.left, surface_damage_.top,
+                   (surface_damage_.right - surface_damage_.left),
+                   (surface_damage_.bottom - surface_damage_.top));
+#endif
+}
+
 void OverlayLayer::InitializeState(HwcLayer* layer,
                                    ResourceManager* resource_manager,
                                    OverlayLayer* previous_layer,
                                    uint32_t z_order, uint32_t layer_index,
-                                   uint32_t max_height, uint32_t rotation,
-                                   bool handle_constraints) {
+                                   uint32_t max_height, uint32_t max_width,
+                                   uint32_t rotation, bool handle_constraints) {
   transform_ = layer->GetTransform();
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
   } else {
     plane_transform_ = transform_;
   }
+#ifdef RECT_DAMAGE_TRACING
+  IRECTDAMAGETRACE("validated plane_transform_: %d", plane_transform_);
+#endif
 
   alpha_ = layer->GetAlpha();
   layer_index_ = layer_index;
@@ -205,9 +282,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   source_crop_ = layer->GetSourceCrop();
   dataspace_ = layer->GetDataSpace();
   blending_ = layer->GetBlending();
-  surface_damage_ = layer->GetLayerDamage();
-
   solid_color_ = layer->GetSolidColor();
+  TransformDamage(layer, max_height, max_width);
 
   if (previous_layer && layer->HasZorderChanged()) {
     if (previous_layer->actual_composition_ == kGpu) {
@@ -257,6 +333,12 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
     if (previous_layer) {
       ValidatePreviousFrameState(previous_layer, layer);
     }
+#ifdef RECT_DAMAGE_TRACING
+    IRECTDAMAGETRACE("Surface_damage after init (LTWH): %d, %d, %d, %d",
+                     surface_damage_.left, surface_damage_.top,
+                     (surface_damage_.right - surface_damage_.left),
+                     (surface_damage_.bottom - surface_damage_.top));
+#endif
     return;
   }
 
@@ -376,22 +458,23 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
 void OverlayLayer::InitializeFromHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    uint32_t max_height, uint32_t rotation, bool handle_constraints) {
+    uint32_t max_height, uint32_t max_width, uint32_t rotation,
+    bool handle_constraints) {
   display_frame_width_ = layer->GetDisplayFrameWidth();
   display_frame_height_ = layer->GetDisplayFrameHeight();
   display_frame_ = layer->GetDisplayFrame();
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, max_width, rotation, handle_constraints);
 }
 
 void OverlayLayer::InitializeFromScaledHwcLayer(
     HwcLayer* layer, ResourceManager* resource_manager,
     OverlayLayer* previous_layer, uint32_t z_order, uint32_t layer_index,
-    const HwcRect<int>& display_frame, uint32_t max_height, uint32_t rotation,
-    bool handle_constraints) {
+    const HwcRect<int>& display_frame, uint32_t max_height, uint32_t max_width,
+    uint32_t rotation, bool handle_constraints) {
   SetDisplayFrame(display_frame);
   InitializeState(layer, resource_manager, previous_layer, z_order, layer_index,
-                  max_height, rotation, handle_constraints);
+                  max_height, max_width, rotation, handle_constraints);
 }
 
 void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
