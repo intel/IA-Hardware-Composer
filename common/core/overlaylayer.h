@@ -49,15 +49,16 @@ struct OverlayLayer {
   void InitializeFromHwcLayer(HwcLayer* layer, ResourceManager* buffer_manager,
                               OverlayLayer* previous_layer, uint32_t z_order,
                               uint32_t layer_index, uint32_t max_height,
-                              uint32_t rotation, bool handle_constraints);
+                              uint32_t max_width, uint32_t rotation,
+                              bool handle_constraints);
 
   void InitializeFromScaledHwcLayer(HwcLayer* layer,
                                     ResourceManager* buffer_manager,
                                     OverlayLayer* previous_layer,
                                     uint32_t z_order, uint32_t layer_index,
                                     const HwcRect<int>& display_frame,
-                                    uint32_t max_height, uint32_t rotation,
-                                    bool handle_constraints);
+                                    uint32_t max_height, uint32_t max_width,
+                                    uint32_t rotation, bool handle_constraints);
   // Get z order of this layer.
   uint32_t GetZorder() const {
     return z_order_;
@@ -277,10 +278,14 @@ struct OverlayLayer {
 
   void ValidateTransform(uint32_t transform, uint32_t display_transform);
 
+  void TransformDamage(HwcLayer* layer, uint32_t max_height,
+                       uint32_t max_width);
+
   void InitializeState(HwcLayer* layer, ResourceManager* buffer_manager,
                        OverlayLayer* previous_layer, uint32_t z_order,
                        uint32_t layer_index, uint32_t max_height,
-                       uint32_t rotation, bool handle_constraints);
+                       uint32_t max_width, uint32_t rotation,
+                       bool handle_constraints);
 
   uint32_t transform_ = 0;
   uint32_t plane_transform_ = 0;

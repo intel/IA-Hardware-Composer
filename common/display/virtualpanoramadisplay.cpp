@@ -350,7 +350,7 @@ bool VirtualPanoramaDisplay::Present(std::vector<HwcLayer *> &source_layers,
 
     overlay_layer.InitializeFromHwcLayer(
         layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-        height_, kIdentity, handle_constraints);
+        height_, width_, kIdentity, handle_constraints);
     index.emplace_back(z_order);
     layers_rects.emplace_back(overlay_layer.GetDisplayFrame());
 
