@@ -568,12 +568,14 @@ void DisplayQueue::InitializeOverlayLayers(
 
       overlay_layer->InitializeFromScaledHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_frame, display_plane_manager_->GetHeight(), plane_transform_,
+          display_frame, display_plane_manager_->GetHeight(),
+          display_plane_manager_->GetWidth(), plane_transform_,
           handle_constraints);
     } else {
       overlay_layer->InitializeFromHwcLayer(
           layer, resource_manager_.get(), previous_layer, z_order, layer_index,
-          display_plane_manager_->GetHeight(), plane_transform_,
+          display_plane_manager_->GetHeight(),
+          display_plane_manager_->GetWidth(), plane_transform_,
           handle_constraints);
     }
 
