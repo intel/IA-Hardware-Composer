@@ -444,6 +444,28 @@ void DrmDisplayManager::IgnoreUpdates() {
   }
 }
 
+bool DrmDisplayManager::IsDrmMasterByDefault() {
+  spin_lock_.lock();
+  if (drm_master_) {
+    spin_lock_.unlock();
+    return drm_master_;
+  }
+  drm_magic_t magic = 0;
+  int ret = 0;
+  ret = drmGetMagic(fd_, &magic);
+  if (ret)
+    ETRACE("Failed to call drmGetMagic : %s", PRINTERROR());
+  else {
+    ret = drmAuthMagic(fd_, magic);
+    if (ret)
+      ETRACE("Failed to call drmAuthMagic : %s", PRINTERROR());
+    else
+      drm_master_ = true;
+  }
+  spin_lock_.unlock();
+  return drm_master_;
+}
+
 void DrmDisplayManager::setDrmMaster(bool must_set) {
   spin_lock_.lock();
   if (drm_master_) {

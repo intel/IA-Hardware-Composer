@@ -53,6 +53,8 @@ class DisplayManager {
   // manager until ForceRefresh is called.
   virtual void IgnoreUpdates() = 0;
 
+  virtual bool IsDrmMasterByDefault() = 0;
+
   virtual void setDrmMaster(bool must_set) = 0;
 
   virtual void DropDrmMaster() = 0;
