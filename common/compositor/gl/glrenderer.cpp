@@ -64,9 +64,11 @@ bool GLRenderer::Init() {
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-  std::unique_ptr<GLProgram> program(new GLProgram());
-  if (program->Init(1)) {
-    programs_.emplace_back(std::move(program));
+  for (int i = 1; i < 5; i++) {
+    std::unique_ptr<GLProgram> program(new GLProgram());
+    if (program->Init(i)) {
+      programs_.emplace_back(std::move(program));
+    }
   }
 
   glEnableVertexAttribArray(0);
