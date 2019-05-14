@@ -71,6 +71,8 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
 
   void IgnoreUpdates() override;
 
+  bool IsDrmMasterByDefault() override;
+
   void setDrmMaster(bool must_set) override;
 
   void DropDrmMaster() override;
