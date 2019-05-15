@@ -223,6 +223,12 @@ int32_t HwcLayer::GetAcquireFence() {
 
 void HwcLayer::SufaceDamageTransfrom() {
   int ox = 0, oy = 0;
+
+  if (surface_damage_ == display_frame_) {
+    current_rendering_damage_ = surface_damage_;
+    return;
+  }
+
   HwcRect<int> translated_damage =
       TranslateRect(surface_damage_, -source_crop_.left, -source_crop_.top);
 
