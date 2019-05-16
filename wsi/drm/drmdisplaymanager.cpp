@@ -75,7 +75,7 @@ bool DrmDisplayManager::Initialize() {
   }
 
   ScopedDrmResourcesPtr res(drmModeGetResources(fd_));
-  if (res->count_crtcs == 0)
+  if (res && res->count_crtcs == 0)
     return false;
 
   for (int32_t i = 0; i < res->count_crtcs; ++i) {
