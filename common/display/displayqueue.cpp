@@ -639,14 +639,6 @@ void DisplayQueue::InitializeOverlayLayers(
   }
 }
 
-void DisplayQueue::TraceFirstCommit() {
-  struct timeval te;
-  gettimeofday(&te, NULL);  // get current time
-  long long milliseconds =
-      te.tv_sec * 1000LL + te.tv_usec / 1000;  // calculate milliseconds
-  ITRACE("First frame is Committed at %lld.", milliseconds);
-}
-
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool* ignore_clone_update,
                                PixelUploaderCallback* call_back,
@@ -911,10 +903,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     composition_passed = display_->Commit(
         current_composition_planes, previous_plane_state_, disable_explictsync,
         kms_fence_, &fence, &fence_released);
-    if (first_commit_) {
-      TraceFirstCommit();
-      first_commit_ = false;
-    }
   }
 
   if (fence_released) {
@@ -1259,6 +1247,10 @@ void DisplayQueue::SetCloneMode(bool cloned) {
 
   clone_mode_ = cloned;
   clone_rendered_ = false;
+}
+
+void DisplayQueue::ResetPlanes(drmModeAtomicReqPtr pset) {
+  display_plane_manager_->ResetPlanes(pset);
 }
 
 void DisplayQueue::IgnoreUpdates() {

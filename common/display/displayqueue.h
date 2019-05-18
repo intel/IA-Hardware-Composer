@@ -104,15 +104,13 @@ class DisplayQueue {
   void UpdateScalingRatio(uint32_t primary_width, uint32_t primary_height,
                           uint32_t display_width, uint32_t display_height);
 
-  void MarkFirstCommit() {
-    first_commit_ = true;
-  }
-
   void SetCloneMode(bool cloned);
 
   void RotateDisplay(HWCRotation rotation);
 
   void IgnoreUpdates();
+
+  void ResetPlanes(drmModeAtomicReqPtr pset);
 
   void PresentClonedCommit(DisplayQueue* queue);
 
@@ -357,12 +355,9 @@ class DisplayQueue {
                                bool& has_video_layer, bool& has_cursor_layer,
                                bool& re_validate_commit, bool& idle_frame);
 
-  void TraceFirstCommit();
-
   Compositor compositor_;
   uint32_t gpu_fd_;
   uint32_t brightness_;
-  bool first_commit_ = false;
   float color_transform_matrix_[16];
   HWCColorTransform color_transform_hint_;
   uint32_t contrast_;

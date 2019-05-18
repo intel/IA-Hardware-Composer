@@ -122,6 +122,8 @@ class DisplayPlaneManager {
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t> &reserved_planes);
 
+  void ResetPlanes(drmModeAtomicReqPtr pset);
+
  private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
