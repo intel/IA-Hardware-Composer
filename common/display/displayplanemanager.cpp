@@ -19,6 +19,7 @@
 #include "displayplanemanager.h"
 
 #include "displayplane.h"
+#include "drm/drmplane.h"
 #include "factory.h"
 #include "hwctrace.h"
 #include "nativesurface.h"
@@ -65,6 +66,15 @@ bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
   bool status = plane_handler_->PopulatePlanes(overlay_planes_);
   ResizeOverlays();
   return status;
+}
+
+void DisplayPlaneManager::ResetPlanes(drmModeAtomicReqPtr pset) {
+  for (auto j = overlay_planes_.begin(); j < overlay_planes_.end(); j++) {
+    if (!j->get()->InUse()) {
+      DrmPlane *drmplane = (DrmPlane *)(j->get());
+      drmplane->Disable(pset);
+    }
+  }
 }
 
 bool DisplayPlaneManager::ValidateLayers(

@@ -22,12 +22,11 @@
 
 #include <xf86drmMode.h>
 
-#include <drmscopedtypes.h>
-
 #include <vector>
 
 #include "displayplane.h"
 #include "drmbuffer.h"
+#include "drmscopedtypes.h"
 
 namespace hwcomposer {
 

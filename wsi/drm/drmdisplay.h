@@ -129,7 +129,9 @@ class DrmDisplay : public PhysicalDisplay {
     return planes_updated_;
   }
 
-  void MarkFirstCommit() override;
+  void MarkFirstCommit() override {
+    first_commit_ = true;
+  }
 
  private:
   void ShutDownPipe();
@@ -164,6 +166,8 @@ class DrmDisplay : public PhysicalDisplay {
                                                   uint8_t block_tag);
   void DrmConnectorGetDCIP3Support(const ScopedDrmObjectPropertyPtr &props);
 
+  void TraceFirstCommit();
+
   uint32_t crtc_id_ = 0;
   uint32_t mmWidth_ = 0;
   uint32_t mmHeight_ = 0;
@@ -190,6 +194,7 @@ class DrmDisplay : public PhysicalDisplay {
   int64_t broadcastrgb_automatic_ = -1;
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
   bool planes_updated_ = false;
+  bool first_commit_ = false;
   HWCContentProtection current_protection_support_ =
       HWCContentProtection::kUnSupported;
   HWCContentProtection desired_protection_support_ =
