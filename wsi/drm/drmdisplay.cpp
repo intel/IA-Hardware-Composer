@@ -16,6 +16,7 @@
 
 #include "drmdisplay.h"
 
+#include <sys/time.h>
 #include <cmath>
 #include <limits>
 #include <set>
@@ -75,10 +76,6 @@ bool DrmDisplay::InitializeDisplay() {
   GetDrmObjectProperty("background_color", crtc_props, &canvas_color_prop_);
 
   return true;
-}
-
-void DrmDisplay::MarkFirstCommit() {
-  display_queue_->MarkFirstCommit();
 }
 
 std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
@@ -492,6 +489,14 @@ bool DrmDisplay::ContainConnector(const uint32_t connector_id) {
   return (connector_ == connector_id);
 }
 
+void DrmDisplay::TraceFirstCommit() {
+  struct timeval te;
+  gettimeofday(&te, NULL);  // get current time
+  long long milliseconds =
+      te.tv_sec * 1000LL + te.tv_usec / 1000;  // calculate milliseconds
+  ITRACE("First frame is Committed at %lld.", milliseconds);
+}
+
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,
@@ -509,6 +514,10 @@ bool DrmDisplay::Commit(
     ETRACE("Failed to allocate property set %d", -ENOMEM);
     return false;
   }
+
+  // Disable not-in-used plane once DRM master is reset
+  if (first_commit_)
+    display_queue_->ResetPlanes(pset.get());
 
   if (display_state_ & kNeedsModeset) {
     if (!ApplyPendingModeset(pset.get())) {
@@ -541,7 +550,10 @@ bool DrmDisplay::Commit(
     *commit_fence = 0;
   }
 #endif
-
+  if (first_commit_) {
+    TraceFirstCommit();
+    first_commit_ = false;
+  }
   return true;
 }
 
