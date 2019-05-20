@@ -19,7 +19,7 @@
 #include <hwcdefs.h>
 #include <hwclayer.h>
 #include <math.h>
-
+#include <sys/time.h>
 #include <vector>
 
 #include "displayplanemanager.h"
@@ -639,6 +639,14 @@ void DisplayQueue::InitializeOverlayLayers(
   }
 }
 
+void DisplayQueue::TraceFirstCommit() {
+  struct timeval te;
+  gettimeofday(&te, NULL);  // get current time
+  long long milliseconds =
+      te.tv_sec * 1000LL + te.tv_usec / 1000;  // calculate milliseconds
+  ITRACE("First frame is Committed at %lld.", milliseconds);
+}
+
 bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                int32_t* retire_fence, bool* ignore_clone_update,
                                PixelUploaderCallback* call_back,
@@ -899,10 +907,15 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   int32_t fence = 0;
   bool fence_released = false;
-  if (!IsIgnoreUpdates())
+  if (!IsIgnoreUpdates()) {
     composition_passed = display_->Commit(
         current_composition_planes, previous_plane_state_, disable_explictsync,
         kms_fence_, &fence, &fence_released);
+    if (first_commit_) {
+      TraceFirstCommit();
+      first_commit_ = false;
+    }
+  }
 
   if (fence_released) {
     kms_fence_ = 0;
