@@ -428,6 +428,9 @@ class NativeDisplay {
     return false;
   }
 
+  virtual void MarkFirstCommit() {
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;

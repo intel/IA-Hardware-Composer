@@ -129,6 +129,8 @@ class DrmDisplay : public PhysicalDisplay {
     return planes_updated_;
   }
 
+  void MarkFirstCommit() override;
+
  private:
   void ShutDownPipe();
   void GetDrmObjectPropertyValue(const char *name,

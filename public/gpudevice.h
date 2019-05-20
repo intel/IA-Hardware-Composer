@@ -117,6 +117,8 @@ class GpuDevice : public HWCThread {
 
   void ResetAllDisplayCommit(bool enable);
 
+  void MarkDisplayForFirstCommit();
+
   enum InitializationType {
     kUnInitialized = 0,    // Nothing Initialized.
     kInitialized = 1 << 1  // Everything Initialized

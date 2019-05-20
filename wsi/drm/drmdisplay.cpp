@@ -77,6 +77,10 @@ bool DrmDisplay::InitializeDisplay() {
   return true;
 }
 
+void DrmDisplay::MarkFirstCommit() {
+  display_queue_->MarkFirstCommit();
+}
+
 std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
                                                             uint8_t block_tag) {
   int current_block;
@@ -588,7 +592,6 @@ bool DrmDisplay::CommitFrame(
     DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
     if (plane->InUse())
       continue;
-
     plane->Disable(pset);
   }
 
