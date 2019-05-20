@@ -130,6 +130,15 @@ bool GpuDevice::EnableDRMCommit(bool enable, uint32_t display_id) {
   return ret;
 }
 
+void GpuDevice::MarkDisplayForFirstCommit() {
+  size_t size = total_displays_.size();
+  for (size_t i = 0; i < size; i++) {
+    if (total_displays_.at(i)->IsConnected()) {
+      total_displays_.at(i)->MarkFirstCommit();
+    }
+  }
+}
+
 bool GpuDevice::ResetDrmMaster(bool drop_master) {
   bool ret = true;
   if (drop_master) {
@@ -149,6 +158,7 @@ bool GpuDevice::ResetDrmMaster(bool drop_master) {
   // In case of setDrmMaster or the lock file is not exist.
   // Re-set DRM Master true.
   display_manager_->setDrmMaster(false);
+  MarkDisplayForFirstCommit();
   ResetAllDisplayCommit(true);
   DisableWatch();
 
