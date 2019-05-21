@@ -312,10 +312,25 @@ static std::vector<size_t> SetBitsToVector(
 
 void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
                                 const std::vector<size_t> &source_layers,
-                                const std::vector<HwcRect<int>> &display_frame,
+                                const std::vector<HwcRect<int>> &display_frames,
                                 const HwcRect<int> &damage_region,
                                 std::vector<CompositionRegion> &comp_regions) {
   CTRACE();
+
+#if 1
+  // we just need to return layers with damage region into com_regions
+  int index = 0;
+  while (index < source_layers.size()) {
+    CompositionRegion comp;
+    size_t layer_index = source_layers.at(index);
+    comp.frame = display_frames.at(layer_index);
+    comp.source_layers.emplace_back(layer_index);
+    index++;
+    comp_regions.emplace_back(comp);
+  }
+#else
+  // legacy seprate layers logic
+
   if (source_layers.size() > 64) {
     ETRACE("Failed to separate layers because there are more than 64");
     return;
@@ -381,6 +396,7 @@ void Compositor::SeparateLayers(const std::vector<size_t> &dedicated_layers,
         region.rect, SetBitsToVector(region.id_set.getBits() >> layer_offset,
                                      source_layers)});
   }
+#endif
 }
 
 }  // namespace hwcomposer

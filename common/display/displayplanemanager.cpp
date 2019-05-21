@@ -1248,7 +1248,8 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
     const HwcRect<int> &display_frame = scanout_plane.GetDisplayFrame();
     const HwcRect<int> &target_frame = last_plane.GetDisplayFrame();
     if (!scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane() &&
-        (AnalyseOverlap(display_frame, target_frame) != kOutside)) {
+        ((AnalyseOverlap(display_frame, target_frame) != kOutside) /*||
+         scanout_plane.NeedsOffScreenComposition()*/)) {
       if (!ForceSeparatePlane(layers, last_plane, NULL)) {
         ISURFACETRACE("Squasing planes. \n");
         const std::vector<size_t> &new_layers = last_plane.GetSourceLayers();

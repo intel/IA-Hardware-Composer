@@ -65,17 +65,15 @@ static std::string GenerateVertexShader(int layer_count) {
       << "#define LAYER_COUNT " << layer_count << "\n"
       << "precision mediump int;\n"
       << "uniform vec4 uViewport;\n"
-      << "uniform vec4 uLayerCrop[LAYER_COUNT];\n"
-      << "uniform mat2 uTexMatrix[LAYER_COUNT];\n"
+      << "uniform vec4 uLayerCrop;\n"
+      << "uniform mat2 uTexMatrix;\n"
       << "in vec2 vPosition;\n"
       << "in vec2 vTexCoords;\n"
-      << "out vec2 fTexCoords[LAYER_COUNT];\n"
+      << "out vec2 fTexCoords;\n"
       << "void main() {\n"
-      << "  for (int i = 0; i < LAYER_COUNT; i++) {\n"
-      << "    vec2 tempCoords = vTexCoords * uTexMatrix[i];\n"
-      << "    fTexCoords[i] =\n"
-      << "        uLayerCrop[i].xy + tempCoords * uLayerCrop[i].zw;\n"
-      << "  }\n"
+      << "    vec2 tempCoords = vTexCoords * uTexMatrix;\n"
+      << "    fTexCoords =\n"
+      << "        uLayerCrop.xy + tempCoords * uLayerCrop.zw;\n"
       << "  vec2 scaledPosition = uViewport.xy + vPosition * uViewport.zw;\n"
       << "  gl_Position =\n"
       << "      vec4(scaledPosition * vec2(2.0) - vec2(1.0), 0.0, 1.0);\n"
@@ -85,52 +83,38 @@ static std::string GenerateVertexShader(int layer_count) {
 
 static std::string GenerateFragmentShader(int layer_count) {
   std::ostringstream fragment_shader_stream;
-  fragment_shader_stream << "#version 300 es\n"
-                         << "#define LAYER_COUNT " << layer_count << "\n"
-                         << "#extension GL_OES_EGL_image_external : require\n"
-                         << "precision mediump float;\n";
-  for (int i = 0; i < layer_count; ++i) {
-    fragment_shader_stream << "uniform samplerExternalOES uLayerTexture" << i
-                           << ";\n";
-  }
-  fragment_shader_stream << "uniform float uLayerAlpha[LAYER_COUNT];\n"
-                         << "uniform float uLayerPremult[LAYER_COUNT];\n"
-                         << "uniform vec4 uLayerColor[LAYER_COUNT];\n"
-                         << "in vec2 fTexCoords[LAYER_COUNT];\n"
-                         << "out vec4 oFragColor;\n"
+  fragment_shader_stream
+      << "#version 300 es\n"
+      << "#define LAYER_COUNT " << 1 << "\n"
+      << "#extension GL_OES_EGL_image_external : require\n"
+      << "#extension GL_EXT_shader_framebuffer_fetch : require\n" 
+      << "precision mediump float;\n";
+  fragment_shader_stream << "uniform samplerExternalOES uLayerTexture;\n";
+
+  fragment_shader_stream << "uniform float uLayerAlpha;\n"
+                         << "uniform float uLayerPremult;\n"
+                         << "uniform vec4 uLayerColor;\n"
+                         << "in vec2 fTexCoords;\n"
+                         << "inout vec4 oFragColor;\n"
                          << "void main() {\n"
-                         << "  vec3 color = vec3(0.0, 0.0, 0.0);\n"
-                         << "  float alphaCover = 1.0;\n"
+                         << "  vec3 color = oFragColor.rgb;\n"
+                         << "  float alphaCover = 1.0 - oFragColor.a;\n"
                          << "  vec4 texSample;\n"
                          << "  vec3 multRgb;\n"
-                         << "  float tempAlpha;\n";
-  for (int i = 0; i < layer_count; ++i) {
-    if (i > 0)
-      fragment_shader_stream << "  if (alphaCover > 0.5/255.0) {\n";
-    // clang-format off
-    fragment_shader_stream << "  texSample = texture2D(uLayerTexture" << i
-                           << ",\n"
-                           << "                        fTexCoords[" << i
-                           << "]);\n"
-                           << "  texSample.rgb = texSample.rgb + uLayerColor[" << i
-                           << "].rgb;\n"
-                           << "  tempAlpha = min(texSample.a, uLayerColor[" << i
-                           << "].a);\n"
-                           << "  multRgb = texSample.rgb *\n"
-                           << "            max(tempAlpha, uLayerPremult[" << i
-                           << "]);\n"
-                           << "  color += multRgb * uLayerAlpha[" << i
-                           << "] * alphaCover;\n"
-                           << "  alphaCover *= 1.0 - texSample.a * uLayerAlpha["
-                           << i << "];\n";
-    // clang-format on
-  }
-  for (int i = 0; i < layer_count - 1; ++i)
-    fragment_shader_stream << "  }\n";
-  fragment_shader_stream << "  oFragColor = vec4(color, 1.0 - alphaCover);\n"
-                         << "}\n";
+                         << "  float tempAlpha;\n"
+                         << "  if (alphaCover > 0.5/255.0) { \n";
+  // clang-format off
+  fragment_shader_stream << "  texSample = texture2D(uLayerTexture, fTexCoords); \n"
+                         << "  texSample.rgb = texSample.rgb + uLayerColor.rgb; \n"
+                         << "  tempAlpha = min(texSample.a, uLayerColor.a); \n"
+                         << "  multRgb = texSample.rgb *max(tempAlpha, uLayerPremult); \n"
+                         << "  color += multRgb * uLayerAlpha * alphaCover; \n"
+                         << "  alphaCover *= (1.0 - texSample.a * uLayerAlpha);\n" 
+                         << "  oFragColor = vec4(color, 1.0 - alphaCover);\n"
+                         << " }}\n";
   return fragment_shader_stream.str();
 }
+
 
 #if defined(LOAD_PREBUILT_SHADER_FILE) || defined(USE_PREBUILT_SHADER_BIN_ARRAY)
 static GLint LoadPreBuiltBinary(GLint gl_program, void *binary, long size) {
@@ -311,7 +295,7 @@ GLProgram::~GLProgram() {
 
 bool GLProgram::Init(unsigned texture_count) {
   std::ostringstream shader_log;
-  program_ = GenerateProgram(texture_count, &shader_log);
+  program_ = GenerateProgram(1, &shader_log);
   if (!program_) {
     ETRACE("%s", shader_log.str().c_str());
     return false;
@@ -331,38 +315,35 @@ void GLProgram::UseProgram(const RenderState &state, GLuint viewport_width,
     premult_loc_ = glGetUniformLocation(program_, "uLayerPremult");
     tex_matrix_loc_ = glGetUniformLocation(program_, "uTexMatrix");
     solid_color_loc_ = glGetUniformLocation(program_, "uLayerColor");
-    for (unsigned src_index = 0; src_index < size; src_index++) {
-      std::ostringstream texture_name_formatter;
-      texture_name_formatter << "uLayerTexture" << src_index;
-      GLuint tex_loc =
+	
+    std::ostringstream texture_name_formatter;
+    texture_name_formatter << "uLayerTexture";
+    GLuint tex_loc =
           glGetUniformLocation(program_, texture_name_formatter.str().c_str());
-      glUniform1i(tex_loc, src_index);
-    }
+    glUniform1i(tex_loc, 0);
 
     initialized_ = true;
   }
 
-  glUniform4f(viewport_loc_, state.x_ / (float)viewport_width,
+    glUniform4f(viewport_loc_, state.x_ / (float)viewport_width,
               state.y_ / (float)viewport_height,
               (state.width_) / (float)viewport_width,
               (state.height_) / (float)viewport_height);
 
-  for (unsigned src_index = 0; src_index < size; src_index++) {
-    const RenderState::LayerState &src = state.layer_state_[src_index];
-    glUniform1f(alpha_loc_ + src_index, src.alpha_);
-    glUniform1f(premult_loc_ + src_index, src.premult_);
-    glUniform4f(crop_loc_ + src_index, src.crop_bounds_[0], src.crop_bounds_[1],
+    const RenderState::LayerState &src = state.layer_state_[0];
+    glUniform1f(alpha_loc_, src.alpha_);
+    glUniform1f(premult_loc_, src.premult_);
+    glUniform4f(crop_loc_, src.crop_bounds_[0], src.crop_bounds_[1],
                 src.crop_bounds_[2] - src.crop_bounds_[0],
                 src.crop_bounds_[3] - src.crop_bounds_[1]);
-    glUniformMatrix2fv(tex_matrix_loc_ + src_index, 1, GL_FALSE,
+    glUniformMatrix2fv(tex_matrix_loc_, 1, GL_FALSE,
                        src.texture_matrix_);
-    glActiveTexture(GL_TEXTURE0 + src_index);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, src.handle_);
-    glUniform4f(solid_color_loc_ + src_index, (float)src.solid_color_array_[3],
+    glUniform4f(solid_color_loc_, (float)src.solid_color_array_[3],
                 (float)src.solid_color_array_[2],
                 (float)src.solid_color_array_[1],
                 (float)src.solid_color_array_[0]);
-  }
 }
 
 }  // namespace hwcomposer

@@ -105,6 +105,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
   surface->SetClearSurface(NativeSurface::kNone);
 
   glViewport(left, top, frame_width, frame_height);
+  glClearColor(0.0, 0.0, 0.0, 0.0);
 
   if (clear_surface || partial_clear) {
     const HwcRect<int> &damage = surface->GetSurfaceDamage();
@@ -121,6 +122,7 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
     }
   } else {
     glEnable(GL_SCISSOR_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
   }
 
 #ifdef COMPOSITOR_TRACING
@@ -135,19 +137,24 @@ bool GLRenderer::Draw(const std::vector<RenderState> &render_states,
       damage.left, damage.top, damage.right - damage.left,
       damage.bottom - damage.top);
 #endif
-  for (const RenderState &state : render_states) {
+  int state_index = 0;
+  while (state_index < render_states.size()) {
+    const RenderState &state = render_states.at(state_index++);
     unsigned size = state.layer_state_.size();
-    GLProgram *program = GetProgram(size);
+    ETRACE("renderstate layer size %d, layer index %d", size,
+           state.layer_state_[0].layer_index_);
+    GLProgram *program = GetProgram(1);
     if (!program)
       continue;
 
     program->UseProgram(state, frame_width, frame_height);
 #ifdef COMPOSITOR_TRACING
-    ICOMPOSITORTRACE(
+    ETRACE(
         "scissor_x_: %d state.scissor_y_: %d scissor_width_: %d "
         "scissor_height_: %d \n",
         state.scissor_x_, state.scissor_y_, state.scissor_width_,
         state.scissor_height_);
+
     total_width += std::max(total_width, state.scissor_width_);
     total_height += state.scissor_height_;
     const HwcRect<int> &damage = surface->GetSurfaceDamage();
