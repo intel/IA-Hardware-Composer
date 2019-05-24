@@ -153,6 +153,12 @@ HWC2::Error IAHWC2::Init() {
   char value[PROPERTY_VALUE_MAX];
   property_get("board.disable.explicit.sync", value, "0");
   disable_explicit_sync_ = atoi(value);
+
+  /* Build wants to explicitly disable sync. */
+#ifdef DISABLE_EXPLICIT_SYNC
+  disable_explicit_sync_ = true;
+#endif
+
   if (disable_explicit_sync_)
     ALOGI("EXPLICIT SYNC support is disabled");
   else
