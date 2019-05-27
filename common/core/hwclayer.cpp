@@ -106,21 +106,20 @@ void HwcLayer::SetDisplayFrame(const HwcRect<int>& display_frame,
 void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
   uint32_t rects = surface_damage.size();
   state_ |= kLayerContentChanged;
+  state_ |= kSurfaceDamageChanged;
   HwcRect<int> rect;
   ResetRectToRegion(surface_damage, rect);
   if (rects == 1) {
     if ((rect.top == 0) && (rect.bottom == 0) && (rect.left == 0) &&
         (rect.right == 0)) {
       state_ &= ~kLayerContentChanged;
-      state_ &= ~kSurfaceDamageChanged;
       UpdateRenderingDamage(rect, rect, true);
       surface_damage_.reset();
       return;
-    } else {
-      state_ |= kSurfaceDamageChanged;
     }
   } else if (rects == 0) {
     rect = display_frame_;
+    // damage is assigned with display_frame, no need to transform
     state_ &= ~kSurfaceDamageChanged;
   }
 
@@ -265,51 +264,12 @@ void HwcLayer::SufaceDamageTransfrom() {
     translated_damage.top = translated_damage.top * ratioh + 0.5;
     translated_damage.bottom = translated_damage.bottom * ratioh + 0.5;
 
-    if (transform_ == hwcomposer::HWCTransform::kTransform270) {
-      ox = display_frame_.left;
-      oy = display_frame_.bottom;
-      current_rendering_damage_.left = ox + translated_damage.top;
-      current_rendering_damage_.top = oy - translated_damage.right;
-      current_rendering_damage_.right = ox + translated_damage.bottom;
-      current_rendering_damage_.bottom = oy - translated_damage.left;
-    } else if (transform_ == hwcomposer::HWCTransform::kTransform180) {
-      ox = display_frame_.right;
-      oy = display_frame_.bottom;
-      current_rendering_damage_.left = ox - translated_damage.right;
-      current_rendering_damage_.top = oy - translated_damage.bottom;
-      current_rendering_damage_.right = ox - translated_damage.left;
-      current_rendering_damage_.bottom = oy - translated_damage.top;
-    } else if (transform_ & hwcomposer::HWCTransform::kTransform90) {
-      if (transform_ & hwcomposer::HWCTransform::kReflectX) {
-        ox = display_frame_.left;
-        oy = display_frame_.top;
-        current_rendering_damage_.left = ox + translated_damage.top;
-        current_rendering_damage_.top = oy + translated_damage.left;
-        current_rendering_damage_.right = ox + translated_damage.bottom;
-        current_rendering_damage_.bottom = oy + translated_damage.right;
-      } else if (transform_ & hwcomposer::HWCTransform::kReflectY) {
-        ox = display_frame_.right;
-        oy = display_frame_.bottom;
-        current_rendering_damage_.left = ox - translated_damage.bottom;
-        current_rendering_damage_.top = oy - translated_damage.right;
-        current_rendering_damage_.right = ox - translated_damage.top;
-        current_rendering_damage_.bottom = oy - translated_damage.left;
-      } else {
-        ox = display_frame_.right;
-        oy = display_frame_.top;
-        current_rendering_damage_.left = ox - translated_damage.bottom;
-        current_rendering_damage_.top = oy + translated_damage.left;
-        current_rendering_damage_.right = ox - translated_damage.top;
-        current_rendering_damage_.bottom = oy + translated_damage.right;
-      }
-    } else if (transform_ == 0) {
-      ox = display_frame_.left;
-      oy = display_frame_.top;
-      current_rendering_damage_.left = ox + translated_damage.left;
-      current_rendering_damage_.top = oy + translated_damage.top;
-      current_rendering_damage_.right = ox + translated_damage.right;
-      current_rendering_damage_.bottom = oy + translated_damage.bottom;
-    }
+    ox = display_frame_.left;
+    oy = display_frame_.top;
+    current_rendering_damage_.left = ox + translated_damage.left;
+    current_rendering_damage_.top = oy + translated_damage.top;
+    current_rendering_damage_.right = ox + translated_damage.right;
+    current_rendering_damage_.bottom = oy + translated_damage.bottom;
 #ifdef RECT_DAMAGE_TRACING
     IRECTDAMAGETRACE(
         "Re-calucated current_rendering_damage_ (LTWH): %d, %d, %d, %d",
@@ -317,6 +277,8 @@ void HwcLayer::SufaceDamageTransfrom() {
         (current_rendering_damage_.right - current_rendering_damage_.left),
         (current_rendering_damage_.bottom - current_rendering_damage_.top));
 #endif
+  } else {
+    current_rendering_damage_ = translated_damage;
   }
 }
 
