@@ -97,8 +97,7 @@ class DrmDisplay : public PhysicalDisplay {
   void SetDisplayAttribute(const drmModeModeInfo &mode_info);
   void SetFakeAttribute(const drmModeModeInfo &mode_info);
 
-  bool TestCommit(
-      const std::vector<OverlayPlane> &commit_planes) const override;
+  bool TestCommit(const DisplayPlaneStateList &commit_planes) const override;
 
   bool PopulatePlanes(
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;

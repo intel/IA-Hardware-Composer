@@ -256,10 +256,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
           continue;
         }
 
-        std::vector<OverlayPlane> temp;
         while (display_plane_manager_->SquashPlanesAsNeeded(
-            layers, *composition, temp, surfaces_not_inuse_,
-            &plane_validation)) {
+            layers, *composition, surfaces_not_inuse_, &plane_validation)) {
           continue;
         }
         DisplayPlaneState& squashed_plane = composition->back();
@@ -383,10 +381,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         if (refresh_surfaces || reset_plane || update_rect) {
-          std::vector<OverlayPlane> temp;
           bool squashed = display_plane_manager_->SquashPlanesAsNeeded(
-              layers, *composition, temp, surfaces_not_inuse_,
-              &plane_validation);
+              layers, *composition, surfaces_not_inuse_, &plane_validation);
           if (squashed) {
             // We squashed planes and it's not the last one.
             // We might have messed up with plane order, let's
@@ -397,7 +393,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
               return;
             } else {
               while (display_plane_manager_->SquashPlanesAsNeeded(
-                  layers, *composition, temp, surfaces_not_inuse_,
+                  layers, *composition, surfaces_not_inuse_,
                   &plane_validation)) {
                 continue;
               }
