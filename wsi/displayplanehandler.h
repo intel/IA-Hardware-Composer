@@ -17,9 +17,9 @@
 #ifndef WSI_DISPLAYPLANEHANDLER_H_
 #define WSI_DISPLAYPLANEHANDLER_H_
 
+#include "displayplanestate.h"
 namespace hwcomposer {
 
-class DisplayPlane;
 struct OverlayLayer;
 
 struct OverlayPlane {
@@ -39,8 +39,7 @@ class DisplayPlaneHandler {
   virtual bool PopulatePlanes(
       std::vector<std::unique_ptr<DisplayPlane>>& overlay_planes) = 0;
 
-  virtual bool TestCommit(
-      const std::vector<OverlayPlane>& commit_planes) const = 0;
+  virtual bool TestCommit(const DisplayPlaneStateList& composition) const = 0;
 };
 
 }  // namespace hwcomposer

@@ -487,7 +487,7 @@ bool PhysicalDisplay::PopulatePlanes(
 }
 
 bool PhysicalDisplay::TestCommit(
-    const std::vector<OverlayPlane> & /*commit_planes*/) const {
+    const DisplayPlaneStateList & /*commit_planes*/) const {
   ETRACE("TestCommit unimplemented in PhysicalDisplay.");
   return false;
 }
