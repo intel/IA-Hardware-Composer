@@ -106,8 +106,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   bool IsConnected() const override;
 
-  bool TestCommit(
-      const std::vector<OverlayPlane> &commit_planes) const override;
+  bool TestCommit(const DisplayPlaneStateList &commit_planes) const override;
 
   bool PopulatePlanes(
       std::vector<std::unique_ptr<DisplayPlane>> &overlay_planes) override;
