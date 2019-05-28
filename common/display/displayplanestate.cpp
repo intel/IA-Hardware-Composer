@@ -37,10 +37,9 @@ DisplayPlaneState::DisplayPlanePrivateState::~DisplayPlanePrivateState() {
 }
 
 DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                                     DisplayPlaneManager *plane_manager,
-                                     uint32_t index, uint32_t plane_transform) {
+                                     DisplayPlaneManager *plane_manager) {
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
-  private_data_->source_layers_.emplace_back(index);
+  private_data_->source_layers_.emplace_back(layer->GetZorder());
   private_data_->display_frame_ = layer->GetDisplayFrame();
   private_data_->rect_updated_ = true;
   private_data_->source_crop_ = layer->GetSourceCrop();
@@ -52,8 +51,9 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
   plane->SetInUse(true);
   private_data_->plane_ = plane;
   private_data_->layer_ = layer;
-  private_data_->plane_transform_ = plane_transform;
-  if (!private_data_->plane_->IsSupportedTransform(plane_transform)) {
+  private_data_->plane_transform_ = plane_manager->GetDisplayTransform();
+  if (!private_data_->plane_->IsSupportedTransform(
+          private_data_->plane_transform_)) {
     private_data_->rotation_type_ =
         DisplayPlaneState::RotationType::kGPURotation;
     private_data_->unsupported_display_rotation_ = true;
