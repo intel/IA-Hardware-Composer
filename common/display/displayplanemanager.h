@@ -96,6 +96,10 @@ class DisplayPlaneManager {
   // with pipe of this displayplanemanager.
   void SetDisplayTransform(uint32_t transform);
 
+  uint32_t GetDisplayTransform() const {
+    return display_transform_;
+  }
+
   // If we have two planes as follows:
   // Plane N: Having top and bottom layer and needs 3d rendering.
   // Plane N-1 covering the middle layer of screen.

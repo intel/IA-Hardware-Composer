@@ -54,8 +54,7 @@ class DisplayPlaneState {
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
   DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                    DisplayPlaneManager *plane_manager, uint32_t index,
-                    uint32_t plane_transform);
+                    DisplayPlaneManager *plane_manager);
 
   // Copies plane state from state.
   void CopyState(DisplayPlaneState &state);
