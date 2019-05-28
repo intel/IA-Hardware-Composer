@@ -209,8 +209,7 @@ bool DisplayPlaneManager::ValidateLayers(
         // safely reset to current layer.
         previous_layer = layer;
 
-        composition.emplace_back(plane, layer, this, layer->GetZorder(),
-                                 display_transform_);
+        composition.emplace_back(plane, layer, this);
         // If we are able to composite buffer with the given plane, lets use
         // it.
         bool fall_back = FallbacktoGPU(plane, layer, composition);
@@ -473,8 +472,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
     }
 
     OverlayLayer *cursor_layer = cursor_layers.at(cursor_index);
-    composition.emplace_back(plane, cursor_layer, this,
-                             cursor_layer->GetZorder(), display_transform_);
+    composition.emplace_back(plane, cursor_layer, this);
     bool fall_back = FallbacktoGPU(plane, cursor_layer, composition);
     *test_commit_done = true;
 
@@ -859,8 +857,7 @@ void DisplayPlaneManager::ForceVppForAllLayers(
   auto layer_end = layers.end();
   OverlayLayer *primary_layer = &(*(layer_begin));
   DisplayPlane *current_plane = overlay_planes_.at(composition.size()).get();
-  composition.emplace_back(current_plane, primary_layer, this,
-                           primary_layer->GetZorder(), display_transform_);
+  composition.emplace_back(current_plane, primary_layer, this);
   DisplayPlaneState &last_plane = composition.back();
   last_plane.ForceGPURendering();
   layer_begin++;
@@ -906,8 +903,7 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
   OverlayLayer *primary_layer = &(*(layers.begin()));
   DisplayPlane *current_plane = overlay_planes_.at(0).get();
 
-  composition.emplace_back(current_plane, primary_layer, this,
-                           primary_layer->GetZorder(), display_transform_);
+  composition.emplace_back(current_plane, primary_layer, this);
   DisplayPlaneState &last_plane = composition.back();
   last_plane.ForceGPURendering();
   layer_begin++;
