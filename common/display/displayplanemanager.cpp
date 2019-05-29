@@ -772,14 +772,10 @@ bool DisplayPlaneManager::FallbacktoGPU(
     DisplayPlane *target_plane, OverlayLayer *layer,
     const DisplayPlaneStateList &composition) const {
   // SolidColor can't be scanout directly
+
+  layer->SupportedDisplayComposition(OverlayLayer::kGpu);
   if (layer->IsSolidColor())
     return true;
-  // For Video, we always want to support Display Composition.
-  if (layer->IsVideoLayer()) {
-    layer->SupportedDisplayComposition(OverlayLayer::kAll);
-  } else {
-    layer->SupportedDisplayComposition(OverlayLayer::kGpu);
-  }
 
   if (!target_plane->ValidateLayer(layer))
     return true;

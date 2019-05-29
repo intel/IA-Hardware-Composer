@@ -634,80 +634,68 @@ bool DisplayPlaneState::CanUseDisplayUpScaling() const {
     return private_data_->can_use_display_scalar_;
   }
 
-  bool value = true;
+  private_data_->can_use_display_scalar_ = false;
 
   // We cannot use plane scaling for Layers with different scaling ratio.
   if (private_data_->source_layers_.size() > 1) {
-    value = false;
+    return false;
   } else if (private_data_->use_plane_scalar_ &&
              !private_data_->can_use_downscaling_) {
-    value = false;
+    return false;
   }
 
-  if (value) {
-    const HwcRect<int> &target_display_frame = private_data_->display_frame_;
-    const HwcRect<float> &target_src_rect = private_data_->source_crop_;
-    uint32_t display_frame_width =
-        target_display_frame.right - target_display_frame.left;
-    uint32_t display_frame_height =
-        target_display_frame.bottom - target_display_frame.top;
-    uint32_t source_crop_width = static_cast<uint32_t>(
-        ceilf(target_src_rect.right - target_src_rect.left));
-    uint32_t source_crop_height = static_cast<uint32_t>(
-        ceilf(target_src_rect.bottom - target_src_rect.top));
+  const HwcRect<int> &target_display_frame = private_data_->display_frame_;
+  const HwcRect<float> &target_src_rect = private_data_->source_crop_;
+  uint32_t display_frame_width =
+      target_display_frame.right - target_display_frame.left;
+  uint32_t display_frame_height =
+      target_display_frame.bottom - target_display_frame.top;
+  uint32_t source_crop_width = static_cast<uint32_t>(
+      ceilf(target_src_rect.right - target_src_rect.left));
+  uint32_t source_crop_height = static_cast<uint32_t>(
+      ceilf(target_src_rect.bottom - target_src_rect.top));
 
-    if (value) {
-      // Source and Display frame width, height are same and scaling is not
-      // needed.
-      if ((display_frame_width == source_crop_width) &&
-          (display_frame_height == source_crop_height)) {
-        value = false;
-      }
+  // Source and Display frame width, height are same and scaling is not
+  // needed.
+  if ((display_frame_width == source_crop_width) &&
+      (display_frame_height == source_crop_height)) {
+    return false;
+  }
 
-      if (value) {
-        // Display frame width, height is lesser than Source. Let's downscale
-        // it with our compositor backend.
-        if ((display_frame_width < source_crop_width) &&
-            (display_frame_height < source_crop_height)) {
-          value = false;
-        }
-      }
-
-      if (value) {
-        // Display frame height is less. If the cost of upscaling width is less
-        // than downscaling height, than return.
-        if ((display_frame_width > source_crop_width) &&
-            (display_frame_height < source_crop_height)) {
-          uint32_t width_cost =
-              (display_frame_width - source_crop_width) * display_frame_height;
-          uint32_t height_cost =
-              (source_crop_height - display_frame_height) * display_frame_width;
-          if (height_cost > width_cost) {
-            value = false;
-          }
-        }
-      }
-
-      if (value) {
-        // Display frame width is less. If the cost of upscaling height is less
-        // than downscaling width, than return.
-        if ((display_frame_width < source_crop_width) &&
-            (display_frame_height > source_crop_height)) {
-          uint32_t width_cost =
-              (source_crop_width - display_frame_width) * display_frame_height;
-          uint32_t height_cost =
-              (display_frame_height - source_crop_height) * display_frame_width;
-          if (width_cost > height_cost) {
-            value = false;
-          }
-        }
-      }
+  // Display frame width, height is lesser than Source. Let's downscale
+  // it with our compositor backend.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    return false;
+  }
+  // Display frame height is less. If the cost of upscaling width is less
+  // than downscaling height, than return.
+  if ((display_frame_width > source_crop_width) &&
+      (display_frame_height < source_crop_height)) {
+    uint32_t width_cost =
+        (display_frame_width - source_crop_width) * display_frame_height;
+    uint32_t height_cost =
+        (source_crop_height - display_frame_height) * display_frame_width;
+    if (height_cost > width_cost) {
+      return false;
     }
   }
 
-  private_data_->can_use_display_scalar_ = value;
+  // Display frame width is less. If the cost of upscaling height is less
+  // than downscaling width, than return.
+  if ((display_frame_width < source_crop_width) &&
+      (display_frame_height > source_crop_height)) {
+    uint32_t width_cost =
+        (source_crop_width - display_frame_width) * display_frame_height;
+    uint32_t height_cost =
+        (display_frame_height - source_crop_height) * display_frame_width;
+    if (width_cost > height_cost) {
+      return false;
+    }
+  }
 
-  return private_data_->can_use_display_scalar_;
+  private_data_->can_use_display_scalar_ = true;
+  return true;
 }
 
 bool DisplayPlaneState::CanUseGPUDownScaling() const {
