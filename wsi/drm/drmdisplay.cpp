@@ -154,6 +154,66 @@ void DrmDisplay::DrmConnectorGetDCIP3Support(
   return;
 }
 
+void DrmDisplay::GetEDIDDisplayData(const ScopedDrmObjectPropertyPtr &props) {
+  uint8_t *edid = NULL;
+  uint64_t edid_blob_id;
+  struct edid_display_data display_data[4];
+  drmModePropertyBlobPtr blob;
+
+  GetDrmObjectPropertyValue("EDID", props, &edid_blob_id);
+  blob = drmModeGetPropertyBlob(gpu_fd_, edid_blob_id);
+  if (!blob) {
+    return;
+  }
+
+  edid = (uint8_t *)blob->data;
+  if (!edid) {
+    return;
+  }
+  std::memset(display_data, 0, sizeof(display_data));
+  std::memcpy((void *)display_data, (void *)(edid + 54),
+              sizeof(edid_display_data) * 4);
+
+  for (int i = 0; i < 4; i++) {
+    if (!(display_data[i].indicate == 0x0000 &&
+          display_data[i].reserved1 == 0x00 &&
+          display_data[i].reserved2 == 0x00))
+      continue;
+
+    if (display_data[i].tag_number == 0xfc) {
+      display_name_.clear();
+      size_t display_desc_size =
+          sizeof(((struct edid_display_data *)0)->desc_data);
+      size_t display_desc_str_size =
+          strchrnul((char *)display_data[i].desc_data, '\n') -
+          (char *)display_data[i].desc_data;
+      size_t display_desc_copy_size = display_desc_str_size > display_desc_size
+                                          ? display_desc_size
+                                          : display_desc_str_size;
+      display_name_.assign((char *)display_data[i].desc_data,
+                           display_desc_copy_size);
+    }
+  }
+
+  ITRACE("Got EDID display name \"%s\"\n", display_name_.c_str());
+}
+
+/*
+* Check limited monitors exposing some modes which not
+* be supported by monitor hardware actually. Limited monitors
+* be defined in HWC_LIMITED_MONITOR_LIST.
+*/
+bool DrmDisplay::CheckLimitedMonitor() {
+  for (unsigned int i = 0; i < HWC_LIMITED_MONITOR_LIST.size(); ++i) {
+    if (display_name_.compare(HWC_LIMITED_MONITOR_LIST[i]) == 0) {
+      ITRACE("Got a limited monitor: %s\n",
+             HWC_LIMITED_MONITOR_LIST[i].c_str());
+      return true;
+    }
+  }
+  return false;
+}
+
 bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
                                 const drmModeConnector *connector,
                                 uint32_t config) {
@@ -230,6 +290,8 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   } else {
     ITRACE("DCIP3 support not available");
   }
+
+  GetEDIDDisplayData(connector_props);
 
   PhysicalDisplay::Connect();
   SetHDCPState(desired_protection_support_, content_type_);
@@ -636,7 +698,6 @@ void DrmDisplay::SetDrmModeInfo(const std::vector<drmModeModeInfo> &mode_info) {
 #endif
       modes_.emplace_back(mode_info[i]);
   }
-
   SPIN_UNLOCK(display_lock_);
 }
 
