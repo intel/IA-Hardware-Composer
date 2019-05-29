@@ -253,11 +253,6 @@ bool VARenderer::Draw(const MediaState& state, NativeSurface* surface) {
   HwcRect<int> layer_out_disp_frame = layer_out->GetDisplayFrame();
   int xtranslation = layer_out_disp_frame.left;
   int ytranslation = layer_out_disp_frame.top;
-  HwcRect<float> source_rect;
-  source_rect.top = source_rect.left = 0.0;
-  source_rect.right = layer_out->GetDisplayFrameWidth();
-  source_rect.bottom = layer_out->GetDisplayFrameHeight();
-  layer_out->SetSourceCrop(source_rect);
 
   OverlayBuffer* layer_out_buffer = layer_out->GetBuffer();
   if (!layer_out_buffer) {
