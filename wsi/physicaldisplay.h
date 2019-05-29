@@ -306,5 +306,15 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   uint32_t config_ = DEFAULT_CONFIG_ID;
 };
 
+struct __attribute__((packed)) edid_display_data {
+  uint16_t indicate;
+  uint8_t reserved1;
+  uint8_t tag_number;
+  uint8_t reserved2;
+  uint8_t desc_data[13];
+};
+
+const std::vector<std::string> HWC_LIMITED_MONITOR_LIST{"TD2230 Series"};
+
 }  // namespace hwcomposer
 #endif  // WSI_PHYSICALDISPLAY_H_
