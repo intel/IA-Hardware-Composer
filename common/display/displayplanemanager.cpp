@@ -241,7 +241,11 @@ bool DisplayPlaneManager::ValidateLayers(
           } else {
             // Plane separation is needed
             if (!layer->IsSolidColor() && !layer->IsVideoLayer()) {
-              // Current plane is not the video layer and not the solid
+              // validate_final_layers needs to be updated to ensure
+              // plane squashing works as expected.
+              if (!validate_final_layers)
+                validate_final_layers = !(last_plane.GetOffScreenTarget());
+              // Current layer is not the video layer and not the solid
               // color layer as well. Initialize the DisplayPlaneState
               // object and link it with OverlayPlane object.
               ResetPlaneTarget(last_plane, commit_planes.back());
