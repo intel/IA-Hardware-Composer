@@ -231,16 +231,11 @@ bool DisplayPlaneManager::ValidateLayers(
               fall_back);
           plane->SetInUse(true);
           DisplayPlaneState &last_plane = composition.back();
-          if (layer->IsVideoLayer()) {
-            last_plane.SetVideoPlane(true);
-          }
           if (fall_back) {
             if (!validate_final_layers)
               validate_final_layers = !(last_plane.GetOffScreenTarget());
-
-            ResetPlaneTarget(last_plane);
+            last_plane.ForceGPURendering();
           }
-
           break;
         } else {
           if (composition.size() == 1) {
@@ -248,7 +243,6 @@ bool DisplayPlaneManager::ValidateLayers(
                           layer->GetZorder(), composition.size(),
                           validate_final_layers);
             DisplayPlaneState &last_plane = composition.back();
-            ResetPlaneTarget(last_plane);
             validate_final_layers = true;
             if (display_transform_ != kIdentity) {
               // If DisplayTransform is not supported, let's check if
@@ -351,6 +345,8 @@ bool DisplayPlaneManager::ValidateLayers(
         DisplayPlaneState &squashed_plane = composition.back();
         // In this case we need to fallback to 3Dcomposition till Media
         // backend adds support for multiple layers.
+
+        /*
         bool force_buffer = false;
         if (is_video && squashed_plane.GetSourceLayers().size() > 1 &&
             squashed_plane.GetOffScreenTarget()) {
@@ -362,6 +358,7 @@ bool DisplayPlaneManager::ValidateLayers(
           ResetPlaneTarget(squashed_plane);
           validate_final_layers = true;
         }
+        */
 
         if (previous_layer) {
           squashed_plane.UsePlaneScalar(false);
@@ -433,7 +430,7 @@ void DisplayPlaneManager::PreparePlaneForCursor(
   }
 
   if (!surface) {
-    SetOffScreenPlaneTarget(*plane);
+    plane->ForceGPURendering();
     *validate_final_layers = true;
   }
 }
@@ -505,7 +502,7 @@ void DisplayPlaneManager::ValidateCursorLayer(
       plane->SetInUse(true);
       if (fall_back) {
         DisplayPlaneState &temp = composition.back();
-        SetOffScreenPlaneTarget(temp);
+        temp.ForceGPURendering();
         cursor_layer->SetLayerComposition(OverlayLayer::kGpu);
         *validate_final_layers = true;
       } else {
@@ -653,12 +650,6 @@ void DisplayPlaneManager::ValidateForDisplayScaling(
   }
 }
 
-void DisplayPlaneManager::ResetPlaneTarget(DisplayPlaneState &plane) {
-  if (plane.NeedsSurfaceAllocation()) {
-    SetOffScreenPlaneTarget(plane);
-  }
-}
-
 void DisplayPlaneManager::ReleaseUnreservedPlanes(
     std::vector<uint32_t> &reserved_planes) {
   uint32_t plane_index = 0;
@@ -674,16 +665,6 @@ void DisplayPlaneManager::ReleaseUnreservedPlanes(
     plane_index++;
   }
   ResizeOverlays();
-}
-
-void DisplayPlaneManager::SetOffScreenPlaneTarget(DisplayPlaneState &plane) {
-  if (plane.NeedsSurfaceAllocation()) {
-    EnsureOffScreenTarget(plane);
-  }
-
-  // Case where we have just one layer which needs to be composited using
-  // GPU.
-  plane.ForceGPURendering();
 }
 
 void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
@@ -805,6 +786,10 @@ bool DisplayPlaneManager::FallbacktoGPU(
   layer->SupportedDisplayComposition(OverlayLayer::kGpu);
   if (layer->IsSolidColor())
     return true;
+  // We need video process to apply effects
+  // Such as deinterlace, so always fallback to GPU
+  if (layer->IsVideoLayer())
+    return true;
 
   if (!target_plane->ValidateLayer(layer))
     return true;
@@ -855,7 +840,6 @@ void DisplayPlaneManager::ForceVppForAllLayers(
   DisplayPlane *current_plane = overlay_planes_.at(composition.size()).get();
   composition.emplace_back(current_plane, primary_layer, this);
   DisplayPlaneState &last_plane = composition.back();
-  last_plane.ForceGPURendering();
   layer_begin++;
   ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
                 primary_layer->GetZorder());
@@ -901,7 +885,6 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
 
   composition.emplace_back(current_plane, primary_layer, this);
   DisplayPlaneState &last_plane = composition.back();
-  last_plane.ForceGPURendering();
   layer_begin++;
   ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
                 primary_layer->GetZorder());
@@ -1033,7 +1016,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
       // If this combination fails just fall back to original state.
       if (FallbacktoGPU(last_plane.GetDisplayPlane(), layer, composition)) {
         // Reset to old state.
-        last_plane.ForceGPURendering();
         layer->SetLayerComposition(OverlayLayer::kGpu);
         last_plane.SetOverlayLayer(current_layer);
         if (uses_scalar)
@@ -1167,8 +1149,9 @@ size_t DisplayPlaneManager::SquashNonVideoPlanes(
       }
       composition.erase(composition.begin() + composition_index);
       squashed_count++;
+
       if (scanout_plane.NeedsSurfaceAllocation()) {
-        SetOffScreenPlaneTarget(scanout_plane);
+        scanout_plane.ForceGPURendering();
         *validate_final_layers = true;
       }
     }
@@ -1232,7 +1215,7 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
 
         DisplayPlaneState &squashed_plane = composition.back();
         if (squashed_plane.NeedsSurfaceAllocation()) {
-          SetOffScreenPlaneTarget(squashed_plane);
+          squashed_plane.ForceGPURendering();
           *validate_final_layers = true;
         }
       }

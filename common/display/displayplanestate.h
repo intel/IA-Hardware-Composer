@@ -234,6 +234,7 @@ class DisplayPlaneState {
   void Dump();
 
  private:
+  void EnsureOffScreenPlaneTarget();
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
   class DisplayPlanePrivateState {
