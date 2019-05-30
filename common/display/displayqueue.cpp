@@ -368,9 +368,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       if (update_rect || refresh_surfaces || !surface_damage.empty() ||
           force_partial_clear) {
         needs_gpu_composition = true;
-        if (target_plane.NeedsSurfaceAllocation()) {
-          display_plane_manager_->SetOffScreenPlaneTarget(target_plane);
-        } else if (refresh_surfaces || reset_plane) {
+        target_plane.ForceGPURendering();
+        if (refresh_surfaces || reset_plane) {
           target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
         } else if (!update_rect && !surface_damage.empty()) {
           if (force_partial_clear) {
@@ -492,8 +491,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         }
 
         // Let's allocate an offscreen surface if needed.
-        display_plane_manager_->SetOffScreenPlaneTarget(old_plane);
-
         last_overlay.GetDisplayPlane()->SetInUse(false);
         composition->erase(composition->begin() + (total_planes - 1));
         *render_layers = true;
@@ -1290,9 +1287,7 @@ void DisplayQueue::SetMediaEffectsState(
     // Handle case where we enable effects but video plane is currently
     // scanned out directly. In this case we will need to ensure we
     // have a offscreen surface to render to.
-    if (apply_effects && surfaces.empty()) {
-      display_plane_manager_->SetOffScreenPlaneTarget(plane);
-    } else if (!apply_effects && !surfaces.empty() && plane.Scanout()) {
+    if (!apply_effects && !surfaces.empty() && plane.Scanout()) {
       // Handle case where we disable effects but video plane can be
       // scanned out directly. In this case we will need to delete all
       // offscreen surfaces and set the right overlayer layer to the

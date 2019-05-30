@@ -56,12 +56,17 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
           private_data_->plane_transform_)) {
     private_data_->rotation_type_ =
         DisplayPlaneState::RotationType::kGPURotation;
+    ForceGPURendering();
     private_data_->unsupported_display_rotation_ = true;
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
 
   private_data_->plane_manager_ = plane_manager;
+  if (layer->IsVideoLayer()) {
+    SetVideoPlane(true);
+    ForceGPURendering();
+  }
 
   recycled_surface_ = false;
 }
@@ -91,7 +96,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
 
-  private_data_->state_ = DisplayPlanePrivateState::State::kRender;
+  if(private_data_->source_layers_.size() > 1)
+  ForceGPURendering();
 
   // If layers are less than 2, we need to enforce rect checks as
   // we shouldn't have done them yet (i.e. Previous state could have
@@ -125,6 +131,9 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   // than one layer together.
   private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
   private_data_->apply_effects_ = false;
+
+  if (layer->IsVideoLayer())
+    SetVideoPlane(true);
 
   // Reset Validation state.
   if (re_validate_layer_ & ReValidationType::kScanout)
@@ -286,6 +295,14 @@ void DisplayPlaneState::RefreshLayerRects(
 void DisplayPlaneState::ForceGPURendering() {
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
   recycled_surface_ = false;
+  EnsureOffScreenPlaneTarget();
+}
+
+void DisplayPlaneState::EnsureOffScreenPlaneTarget() {
+  if (NeedsSurfaceAllocation() &&private_data_->state_ ==
+          DisplayPlanePrivateState::State::kRender) {
+    private_data_->plane_manager_->EnsureOffScreenTarget(*this);
+  }
 }
 
 void DisplayPlaneState::DisableGPURendering() {
@@ -526,9 +543,11 @@ void DisplayPlaneState::SetApplyEffects(bool apply_effects) {
     private_data_->apply_effects_ = apply_effects;
     // Doesn't have any impact on planes which
     // are not meant for video.
-    if (apply_effects &&
-        private_data_->type_ != DisplayPlanePrivateState::PlaneType::kVideo) {
-      private_data_->apply_effects_ = false;
+    if (apply_effects) {
+      if (private_data_->type_ != DisplayPlanePrivateState::PlaneType::kVideo) {
+        private_data_->apply_effects_ = false;
+      } else
+        ForceGPURendering();
     }
 
     ResetCompositionRegion();

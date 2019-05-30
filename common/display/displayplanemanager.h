@@ -70,8 +70,6 @@ class DisplayPlaneManager {
 
   bool CheckPlaneFormat(uint32_t format);
 
-  void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
-
   void ReleaseFreeOffScreenTargets(bool forced = false);
 
   void ReleaseAllOffScreenTargets();
@@ -126,6 +124,8 @@ class DisplayPlaneManager {
 
   void ResetPlanes(drmModeAtomicReqPtr pset);
 
+  void EnsureOffScreenTarget(DisplayPlaneState &plane);
+
  private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
@@ -135,10 +135,6 @@ class DisplayPlaneManager {
                            std::vector<OverlayLayer> &layers,
                            std::vector<NativeSurface *> &mark_later,
                            bool recycle_resources);
-
-  void ResetPlaneTarget(DisplayPlaneState &plane);
-
-  void EnsureOffScreenTarget(DisplayPlaneState &plane);
 
   void PreparePlaneForCursor(DisplayPlaneState *plane,
                              std::vector<NativeSurface *> &mark_later,
