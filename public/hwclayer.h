@@ -348,7 +348,7 @@ struct HwcLayer {
       kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
-  uint32_t solid_color_ = 0;
+  uint32_t solid_color_ = 0xff;
 
   HWCLayerCompositionType composition_type_ = Composition_Device;
 };
