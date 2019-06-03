@@ -612,7 +612,7 @@ void DisplayPlaneState::ValidateReValidation() {
   if (private_data_->source_layers_.size() == 1 &&
       !(private_data_->type_ == DisplayPlanePrivateState::PlaneType::kVideo)) {
     re_validate_layer_ |= ReValidationType::kScanout;
-  } else {
+  } else if (!IsVideoPlane()) {
     bool use_scalar = CanUseDisplayUpScaling();
     if (private_data_->use_plane_scalar_ != use_scalar) {
       re_validate_layer_ |= ReValidationType::kUpScalar;
