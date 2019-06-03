@@ -644,8 +644,14 @@ bool DrmDisplay::CommitFrame(
         comp_plane.GetRotationType();
     if ((plane_transform != kIdentity) &&
         (rotation_type == DisplayPlaneState::RotationType::kDisplayRotation)) {
-      HwcRect<int> rotated_rect =
-          RotateScaleRect(display_rect, width_, height_, plane_transform);
+      HwcRect<int> rotated_rect;
+      if (layer->IsVideoLayer()) {
+        rotated_rect =
+            RotateRect(display_rect, width_, height_, plane_transform);
+      } else {
+        rotated_rect =
+            RotateScaleRect(display_rect, width_, height_, plane_transform);
+      }
       layer->SetDisplayFrame(rotated_rect);
     }
 
