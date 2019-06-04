@@ -62,6 +62,13 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
 
+  if (private_data_->rotation_type_ = RotationType::kDisplayRotation) {
+    private_data_->rotated_display_frame_ = RotateScaleRect(
+        private_data_->display_frame_, plane_manager->GetWidth(),
+        plane_manager->GetHeight(), private_data_->plane_transform_);
+  } else
+    private_data_->rotated_display_frame_ = private_data_->display_frame_;
+
   private_data_->plane_manager_ = plane_manager;
   if (layer->IsVideoLayer()) {
     SetVideoPlane(true);
@@ -82,6 +89,10 @@ void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
 
 const HwcRect<int> &DisplayPlaneState::GetDisplayFrame() const {
   return private_data_->display_frame_;
+}
+
+const HwcRect<int> &DisplayPlaneState::GetRotatedDisplayFrame() const {
+  return private_data_->rotated_display_frame_;
 }
 
 const HwcRect<float> &DisplayPlaneState::GetSourceCrop() const {
@@ -130,7 +141,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   // Media backend can support compositing more
   // than one layer together.
   private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
-  private_data_->apply_effects_ = false;
+
+  // private_data_->apply_effects_ = false;
 
   if (layer->IsVideoLayer())
     SetVideoPlane(true);
