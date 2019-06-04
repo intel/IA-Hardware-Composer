@@ -187,7 +187,7 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
 void OverlayLayer::TransformDamage(HwcLayer* layer, uint32_t max_height,
                                    uint32_t max_width) {
   const HwcRect<int>& surface_damage = layer->GetLayerDamage();
-  if (surface_damage.empty()) {
+  if (surface_damage.empty() || !layer->HasSurfaceDamageRegionChanged()) {
     surface_damage_ = surface_damage;
     return;
   }
@@ -223,7 +223,12 @@ void OverlayLayer::TransformDamage(HwcLayer* layer, uint32_t max_height,
     surface_damage_.right = translated_damage.bottom * ratio_w_h + 0.5;
     surface_damage_.bottom = oy - translated_damage.left * ratio_h_w + 0.5;
   } else if (plane_transform_ == kTransform180) {
-    surface_damage_ = translated_damage;
+    ox = max_width;
+    oy = max_height;
+    surface_damage_.left = ox - translated_damage.right;
+    surface_damage_.top = oy - translated_damage.bottom;
+    surface_damage_.right = ox - translated_damage.left;
+    surface_damage_.bottom = oy - translated_damage.top;
   } else if (plane_transform_ & hwcomposer::HWCTransform::kTransform90) {
     if (plane_transform_ & kReflectX) {
       surface_damage_.left = translated_damage.top * ratio_w_h + 0.5;
