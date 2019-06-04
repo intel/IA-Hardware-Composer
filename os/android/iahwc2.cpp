@@ -1230,6 +1230,7 @@ int IAHWC2::HookDevOpen(const struct hw_module_t *module, const char *name,
   HWC2::Error err = ctx->Init();
   if (err != HWC2::Error::None) {
     ALOGE("Failed to initialize IAHWC2 err=%d\n", err);
+    ctx.reset();
     return -EINVAL;
   }
 
