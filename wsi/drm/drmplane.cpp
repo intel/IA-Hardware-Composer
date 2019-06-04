@@ -216,6 +216,7 @@ bool DrmPlane::Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats,
         drmModeGetPropertyBlob(gpu_fd, in_formats_prop_value);
     if (blob == nullptr || blob->data == nullptr) {
       ETRACE("Unable to get property data\n");
+      drmModeFreePropertyBlob(blob);
       return false;
     }
 

@@ -134,6 +134,7 @@ void DrmDisplay::DrmConnectorGetDCIP3Support(
 
   edid = (uint8_t *)blob->data;
   if (!edid) {
+    drmModeFreePropertyBlob(blob);
     return;
   }
 
@@ -736,8 +737,10 @@ void DrmDisplay::GetDrmObjectProperty(const char *name,
     ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
     if (property && !strcmp(property->name, name)) {
       *id = property->prop_id;
+      property.reset();
       break;
     }
+    property.reset();
   }
   if (!(*id))
     ETRACE("Could not find property %s", name);
@@ -765,8 +768,10 @@ void DrmDisplay::GetDrmHDCPObjectProperty(
           }
         }
       }
+      property.reset();
       break;
     }
+    property.reset();
   }
   if (!(*id))
     ETRACE("Could not find property %s", name);
@@ -780,8 +785,10 @@ void DrmDisplay::GetDrmObjectPropertyValue(
     ScopedDrmPropertyPtr property(drmModeGetProperty(gpu_fd_, props->props[i]));
     if (property && !strcmp(property->name, name)) {
       *value = props->prop_values[i];
+      property.reset();
       break;
     }
+    property.reset();
   }
   if (!(*value))
     ETRACE("Could not find property value %s", name);
@@ -1121,11 +1128,14 @@ bool DrmDisplay::PopulatePlanes(
         drmModeGetPlane(gpu_fd_, plane_resources->planes[i]));
     if (!drm_plane) {
       ETRACE("Failed to get plane ");
+      plane_resources.reset();
       return false;
     }
 
-    if (!(pipe_bit & drm_plane->possible_crtcs))
+    if (!(pipe_bit & drm_plane->possible_crtcs)) {
+      drm_plane.reset();
       continue;
+    }
 
     uint32_t formats_size = drm_plane->count_formats;
     plane_ids.insert(drm_plane->plane_id);
@@ -1148,10 +1158,13 @@ bool DrmDisplay::PopulatePlanes(
         overlay_planes.emplace_back(plane.release());
       }
     }
+
+    drm_plane.reset();
   }
 
   if (overlay_planes.empty()) {
     ETRACE("Failed to get primary plane for display %d", crtc_id_);
+    plane_resources.reset();
     return false;
   }
 
@@ -1165,6 +1178,7 @@ bool DrmDisplay::PopulatePlanes(
     overlay_planes.emplace_back(cursor_plane.release());
   }
 
+  plane_resources.reset();
   return true;
 }
 
