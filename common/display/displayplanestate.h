@@ -83,9 +83,13 @@ class DisplayPlaneState {
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
 
+  // Get display frame not counted in display rotation
   const HwcRect<int> &GetDisplayFrame() const;
 
   const HwcRect<float> &GetSourceCrop() const;
+
+  // Get display frame, with display rotation counted
+  const HwcRect<int> &GetRotatedDisplayFrame() const;
 
   const OverlayLayer *GetOverlayLayer() const;
 
@@ -257,6 +261,7 @@ class DisplayPlaneState {
     DisplayPlane *plane_ = NULL;
     const OverlayLayer *layer_ = NULL;
     HwcRect<int> display_frame_;
+    HwcRect<int> rotated_display_frame_;
     HwcRect<float> source_crop_;
     std::vector<size_t> source_layers_;
     std::vector<CompositionRegion> composition_region_;
