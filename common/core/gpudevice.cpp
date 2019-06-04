@@ -400,6 +400,8 @@ void GpuDevice::ParseLogicalDisplaySetting(
       logical_split_str.find_first_not_of("0123456789") != std::string::npos)
     return;
   uint32_t physical_index = atoi(physical_index_str.c_str());
+  if (physical_index < 0)
+    return;
   uint32_t logical_split_num = atoi(logical_split_str.c_str());
   if (logical_split_num <= 1)
     return;
