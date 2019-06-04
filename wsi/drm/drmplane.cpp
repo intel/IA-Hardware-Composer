@@ -268,16 +268,20 @@ bool DrmPlane::Initialize(uint32_t gpu_fd, const std::vector<uint32_t>& formats,
 }
 
 bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
-                                uint32_t crtc_id, const OverlayLayer* layer,
+                                uint32_t crtc_id,
+                                const DisplayPlaneState& plane,
                                 bool test_commit) const {
   uint32_t alpha = 0xFFFF;
+  OverlayLayer* layer = plane->GetOverlayLayer();
   OverlayBuffer* buffer = layer->GetBuffer();
   if (!buffer) {
     ETRACE("Fail to allocate buffer memory for layer!");
     return false;
   }
 
-  const HwcRect<int>& display_frame = layer->GetDisplayFrame();
+  // use RotatedDisplay Frame intead of layer displayFrame
+  const HwcRect<int>& display_frame = plane.GetRotatedDisplayFrame();
+
   const HwcRect<float>& source_crop = layer->GetSourceCrop();
   int fence = kms_fence_;
   if (test_commit) {

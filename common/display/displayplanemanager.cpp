@@ -229,7 +229,8 @@ bool DisplayPlaneManager::ValidateLayers(
               "validate_final_layers: %d force_separate: %d fall_back: %d \n",
               layer->GetZorder(), validate_final_layers, force_separate,
               fall_back);
-          plane->SetInUse(true);
+
+          // no rendertarget need to generate and make it validate_final
           DisplayPlaneState &last_plane = composition.back();
           if (fall_back) {
             if (!validate_final_layers)
@@ -244,6 +245,7 @@ bool DisplayPlaneManager::ValidateLayers(
                           validate_final_layers);
             DisplayPlaneState &last_plane = composition.back();
             validate_final_layers = true;
+
             if (display_transform_ != kIdentity) {
               // If DisplayTransform is not supported, let's check if
               // we can fallback to GPU rotation for this plane.
