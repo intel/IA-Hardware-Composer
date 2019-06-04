@@ -688,11 +688,6 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
   }
 
-  if (previous_size != size) {
-    // Validate layers if visible layers changed from last frame.
-    validate_layers = true;
-  }
-
   if (idle_frame) {
     if ((add_index != -1) || (remove_index != -1) || re_validate_commit) {
       idle_frame = false;
