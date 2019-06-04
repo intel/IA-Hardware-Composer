@@ -43,7 +43,7 @@ class DrmPlane : public DisplayPlane {
                   bool use_modifer);
 
   bool UpdateProperties(drmModeAtomicReqPtr property_set, uint32_t crtc_id,
-                        const OverlayLayer* layer,
+                        const DisplayPlaneState& plane,
                         bool test_commit = false) const;
 
   void SetNativeFence(int32_t fd);

@@ -572,19 +572,6 @@ bool DrmDisplay::CommitFrame(
     DrmPlane *plane = static_cast<DrmPlane *>(comp_plane.GetDisplayPlane());
 
     OverlayLayer *layer = (OverlayLayer *)comp_plane.GetOverlayLayer();
-    const HwcRect<int> &display_rect = layer->GetDisplayFrame();
-
-    // Recalculate the layer's display frame position before drm commit
-    // if there is plane transform with the type display rotation.
-    uint32_t plane_transform = layer->GetPlaneTransform();
-    hwcomposer::DisplayPlaneState::RotationType rotation_type =
-        comp_plane.GetRotationType();
-    if ((plane_transform != kIdentity) &&
-        (rotation_type == DisplayPlaneState::RotationType::kDisplayRotation)) {
-      HwcRect<int> rotated_rect =
-          RotateScaleRect(display_rect, width_, height_, plane_transform);
-      layer->SetDisplayFrame(rotated_rect);
-    }
 
     int32_t fence = layer->GetAcquireFence();
     if (fence > 0) {
@@ -596,7 +583,7 @@ bool DrmDisplay::CommitFrame(
     if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled())
       plane->SetBuffer(layer->GetSharedBuffer());
 
-    if (!plane->UpdateProperties(pset, crtc_id_, layer))
+    if (!plane->UpdateProperties(pset, crtc_id_, comp_plane))
       return false;
   }
 
@@ -1127,8 +1114,7 @@ bool DrmDisplay::TestCommit(const DisplayPlaneStateList &composition) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
   for (auto &plane_state : composition) {
     DrmPlane *plane = static_cast<DrmPlane *>(plane_state.GetDisplayPlane());
-    if (!(plane->UpdateProperties(pset.get(), crtc_id_,
-                                  plane_state.GetOverlayLayer(), true))) {
+    if (!(plane->UpdateProperties(pset.get(), crtc_id_, plane_state, true))) {
       return false;
     }
   }
