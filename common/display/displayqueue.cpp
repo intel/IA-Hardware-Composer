@@ -475,8 +475,7 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
             "Moving layer index %d from plane index: %d to plane idex: %d. \n",
             source_layers.at(0), total_planes - 1, total_planes - 2);
         const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
-        if (display_plane_manager_->ForceSeparatePlane(layers, old_plane,
-                                                       layer)) {
+        if (display_plane_manager_->ForceSeparatePlane(old_plane, layer)) {
           return;
         }
 
