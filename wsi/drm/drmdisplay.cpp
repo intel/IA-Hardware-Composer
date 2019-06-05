@@ -1147,7 +1147,7 @@ bool DrmDisplay::PopulatePlanes(
 
     bool use_modifier = true;
 #ifdef MODIFICATOR_WA
-    use_modifier = (manager_->GetConnectedPhysicalDisplayCount() < 3);
+    use_modifier = (manager_->GetConnectedPhysicalDisplayCount() < 2);
     if (i >= 2)
       use_modifier = false;
 #endif
