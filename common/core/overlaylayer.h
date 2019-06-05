@@ -88,12 +88,18 @@ struct OverlayLayer {
     return transform_;
   }
 
+  // This represents hwc transform setting for this
+  // display on which this layer is being shown.
+  uint32_t GetPlaneTransform() const {
+    return plane_transform_;
+  }
+
   // This represents any transform applied
   // to this layer(i.e. GetTransform()) + overall
   // rotation applied to the display on which this
   // layer is being shown.
-  uint32_t GetPlaneTransform() const {
-    return plane_transform_;
+  uint32_t GetMergedTransform() const {
+    return merged_transform_;
   }
 
   // Applies transform to this layer before scanout.
@@ -289,6 +295,7 @@ struct OverlayLayer {
 
   uint32_t transform_ = 0;
   uint32_t plane_transform_ = 0;
+  uint32_t merged_transform_ = 0;
   uint32_t z_order_ = 0;
   uint32_t layer_index_ = 0;
   uint32_t source_crop_width_ = 0;
