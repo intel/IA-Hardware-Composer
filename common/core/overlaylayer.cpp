@@ -138,8 +138,8 @@ void OverlayLayer::SetDisplayFrame(const HwcRect<int>& display_frame) {
 }
 
 void OverlayLayer::SetTransform(uint32_t transform) {
-  plane_transform_ = transform;
   transform_ = transform;
+  merged_transform_ = transform;
 }
 
 void OverlayLayer::ValidateTransform(uint32_t transform,
@@ -173,14 +173,14 @@ void OverlayLayer::ValidateTransform(uint32_t transform,
   // The elements {0, 1, 2, 3} form a circulant matrix under mod 4 arithmetic
   mtransform = (mtransform + mdisplay_transform) % 4;
   mtransform = inv_tmap[mtransform];
-  plane_transform_ = mtransform;
+  merged_transform_ = mtransform;
 
-  if (plane_transform_ & kTransform90) {
+  if (merged_transform_ & kTransform90) {
     if (transform & kReflectX)
-      plane_transform_ |= kReflectX;
+      merged_transform_ |= kReflectX;
 
     if (transform & kReflectY)
-      plane_transform_ |= kReflectY;
+      merged_transform_ |= kReflectY;
   }
 }
 
@@ -216,26 +216,26 @@ void OverlayLayer::TransformDamage(HwcLayer* layer, uint32_t max_height,
 
   int ox = 0, oy = 0;
 
-  if (plane_transform_ == kTransform270) {
+  if (merged_transform_ == kTransform270) {
     oy = max_height;
     surface_damage_.left = translated_damage.top * ratio_w_h + 0.5;
     surface_damage_.top = oy - translated_damage.right * ratio_h_w + 0.5;
     surface_damage_.right = translated_damage.bottom * ratio_w_h + 0.5;
     surface_damage_.bottom = oy - translated_damage.left * ratio_h_w + 0.5;
-  } else if (plane_transform_ == kTransform180) {
+  } else if (merged_transform_ == kTransform180) {
     ox = max_width;
     oy = max_height;
     surface_damage_.left = ox - translated_damage.right;
     surface_damage_.top = oy - translated_damage.bottom;
     surface_damage_.right = ox - translated_damage.left;
     surface_damage_.bottom = oy - translated_damage.top;
-  } else if (plane_transform_ & hwcomposer::HWCTransform::kTransform90) {
-    if (plane_transform_ & kReflectX) {
+  } else if (merged_transform_ & hwcomposer::HWCTransform::kTransform90) {
+    if (merged_transform_ & kReflectX) {
       surface_damage_.left = translated_damage.top * ratio_w_h + 0.5;
       surface_damage_.top = translated_damage.left * ratio_h_w + 0.5;
       surface_damage_.right = translated_damage.bottom * ratio_w_h + 0.5;
       surface_damage_.bottom = translated_damage.right * ratio_h_w + 0.5;
-    } else if (plane_transform_ & kReflectY) {
+    } else if (merged_transform_ & kReflectY) {
       ox = max_width;
       oy = max_height;
       surface_damage_.left = ox - (translated_damage.bottom * ratio_w_h + 0.5);
@@ -249,7 +249,7 @@ void OverlayLayer::TransformDamage(HwcLayer* layer, uint32_t max_height,
       surface_damage_.right = ox - translated_damage.top * ratio_w_h + 0.5;
       surface_damage_.bottom = translated_damage.right * ratio_h_w + 0.5;
     }
-  } else if (plane_transform_ == 0) {
+  } else if (merged_transform_ == 0) {
     surface_damage_.left = translated_damage.left;
     surface_damage_.top = translated_damage.top;
     surface_damage_.right = translated_damage.right;
@@ -270,10 +270,11 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
                                    uint32_t max_height, uint32_t max_width,
                                    uint32_t rotation, bool handle_constraints) {
   transform_ = layer->GetTransform();
+  plane_transform_ = rotation;
   if (rotation != kRotateNone) {
     ValidateTransform(layer->GetTransform(), rotation);
   } else {
-    plane_transform_ = transform_;
+    merged_transform_ = transform_;
   }
 #ifdef RECT_DAMAGE_TRACING
   IRECTDAMAGETRACE("validated plane_transform_: %d", plane_transform_);
@@ -600,6 +601,7 @@ void OverlayLayer::CloneLayer(const OverlayLayer* layer,
   surface_damage_ = layer->GetSurfaceDamage();
   transform_ = layer->transform_;
   plane_transform_ = layer->plane_transform_;
+  merged_transform_ = layer->merged_transform_;
   alpha_ = layer->alpha_;
   layer_index_ = z_order;
   z_order_ = z_order;
