@@ -116,8 +116,7 @@ class DisplayPlaneManager {
   // Returns true if we want to force target_layer to a separate plane than
   // adding it to
   // last_plane.
-  bool ForceSeparatePlane(const std::vector<OverlayLayer> &layers,
-                          const DisplayPlaneState &last_plane,
+  bool ForceSeparatePlane(const DisplayPlaneState &last_plane,
                           const OverlayLayer *target_layer);
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t> &reserved_planes);
