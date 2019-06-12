@@ -57,17 +57,18 @@ void Compositor::Reset() {
 }
 
 bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
-                      std::vector<OverlayLayer> &layers,
-                      const std::vector<HwcRect<int>> &display_frame) {
+                      std::vector<OverlayLayer> &layers) {
   CTRACE();
   const DisplayPlaneState *comp = NULL;
   std::vector<size_t> dedicated_layers;
   std::vector<DrawState> draw_state;
   std::vector<DrawState> media_state;
   std::vector<OverlayBuffer *> draw_buffers;
+  std::vector<HwcRect<int>> display_frame;
 
   for (auto &layer : layers) {
     draw_buffers.emplace_back(layer.GetBuffer());
+    display_frame.emplace_back(layer.GetDisplayFrame());
   }
 
   for (DisplayPlaneState &plane : comp_planes) {

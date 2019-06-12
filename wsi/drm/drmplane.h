@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "displayplane.h"
+#include "displayplanestate.h"
 #include "drmbuffer.h"
 #include "drmscopedtypes.h"
 
