@@ -62,7 +62,7 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
 
-  if (private_data_->rotation_type_ = RotationType::kDisplayRotation) {
+  if (private_data_->rotation_type_ == RotationType::kDisplayRotation) {
     private_data_->rotated_display_frame_ = RotateScaleRect(
         private_data_->display_frame_, plane_manager->GetWidth(),
         plane_manager->GetHeight(), private_data_->plane_transform_);

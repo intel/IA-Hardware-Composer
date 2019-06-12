@@ -163,364 +163,42 @@ void DisplayQueue::ReleaseUnreservedPlanes(
 }
 
 void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                                   int remove_index,
-                                   DisplayPlaneStateList* composition,
-                                   bool* render_layers, bool* can_ignore_commit,
-                                   bool* needs_plane_validation,
-                                   bool* force_full_validation,
-                                   int* add_index) {
+                                   int& re_validate_begin,
+                                   DisplayPlaneStateList& composition) {
   CTRACE();
-  bool needs_gpu_composition = false;
-  bool ignore_commit = true;
-  bool check_to_squash = false;
-  bool plane_validation = false;
-  // If Scanout layers DisplayFrame rect has changed, we need
-  // to re-calculate our Composition regions for planes using
-  // GPU Composition.
-  bool reset_composition_regions = false;
-  bool reset_plane = remove_index != -1 ? true : false;
-  bool removed_layers = false;
-  bool pop_plane = false;
   size_t previous_size = 0;
+  int new_re_validate = 0;
 
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
-    previous_size++;
-    // Mark surfaces of all planes to be released once they are
-    // offline.
-    if (removed_layers) {
+    previous_size += previous_plane.GetSourceLayers().size();
+    if ((int)previous_size > re_validate_begin) {
+      // Mark surfaces of all planes to be released once they are
+      // offline.
       if (previous_plane.NeedsOffScreenComposition()) {
         display_plane_manager_->MarkSurfacesForRecycling(
             &previous_plane, surfaces_not_inuse_, true);
       }
 
       previous_plane.GetDisplayPlane()->SetInUse(false);
-      continue;
-    }
-
-    composition->emplace_back();
-    DisplayPlaneState& last_plane = composition->back();
-    last_plane.CopyState(previous_plane);
-    if (reset_plane) {
-      const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-      size_t source_layers_size = source_layers.size();
-      size_t index = source_layers.at(source_layers_size - 1);
-      size_t threshold = static_cast<size_t>(remove_index);
-      bool needs_plane_validation = false;
-
-      if (index >= threshold) {
-        removed_layers = true;
-        size_t original_size = source_layers_size;
-        bool has_one_layer = source_layers_size == 1 ? true : false;
-        if (!has_one_layer) {
-          last_plane.ResetLayers(layers, threshold, &needs_plane_validation);
-        }
-
-        source_layers_size = source_layers.size();
-        ISURFACETRACE(
-            "Layers removed. Total old Layers: %d Total new Layers: %d "
-            "Threshold: "
-            "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
-            "%d \n",
-            original_size, source_layers_size, threshold, index,
-            composition->size(), previous_plane_state_.size());
-        // We need to force re-validation of commit to ensure we update any
-        // Scalar usage with the new combination of layers.
-        ignore_commit = false;
-
-        if (last_plane.GetSourceLayers().empty() || has_one_layer) {
-          display_plane_manager_->MarkSurfacesForRecycling(
-              &last_plane, surfaces_not_inuse_, true);
-
-          // On some platforms disabling primary disables
-          // the whole pipe. Let's revalidate the new layers
-          // and ensure primary has a buffer.
-          if (last_plane.GetDisplayPlane() ==
-              previous_plane_state_.begin()->GetDisplayPlane()) {
-            ISURFACETRACE("Primary plane is empty forcing full validation. \n");
-            *force_full_validation = true;
-            *can_ignore_commit = false;
-            return;
-          }
-
-          last_plane.GetDisplayPlane()->SetInUse(false);
-          composition->pop_back();
-          pop_plane = ForcePlaneValidation(*add_index, remove_index,
-                                           layers.size(), composition->size());
-          ISURFACETRACE(
-              "Plane removed. Total old Layers: %d Total new Layers: %d "
-              "Threshold: "
-              "%d Plane Layer Index: %d Total Planes: %d previous_plane_state_ "
-              "%d \n",
-              original_size, source_layers_size, threshold, index,
-              composition->size(), previous_plane_state_.size());
-          continue;
-        }
-
-        while (display_plane_manager_->SquashPlanesAsNeeded(
-            layers, *composition, surfaces_not_inuse_, &plane_validation)) {
-          continue;
-        }
-        DisplayPlaneState& squashed_plane = composition->back();
-
-        squashed_plane.ValidateReValidation();
-
-        if (squashed_plane.RevalidationType() &
-            DisplayPlaneState::ReValidationType::kScanout) {
-          const std::vector<size_t>& source_layers =
-              squashed_plane.GetSourceLayers();
-          const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
-          // Check if Actual & Supported Composition differ for this
-          // layer. If so than let' mark it for validation.
-          if (source_layers_size == 1) {
-            if (layer->CanScanOut() &&
-                squashed_plane.NeedsOffScreenComposition()) {
-              plane_validation = true;
-            } else {
-              check_to_squash = true;
-              squashed_plane.RevalidationDone(
-                  DisplayPlaneState::ReValidationType::kScanout);
-            }
-          }
-        }
-      }
-
-      if (needs_plane_validation)
-        plane_validation = true;
-
-      if (removed_layers) {
-        pop_plane = ForcePlaneValidation(*add_index, remove_index,
-                                         layers.size(), composition->size());
-        if (pop_plane)
-          continue;
-      }
-    }
-
-    DisplayPlaneState& target_plane = composition->back();
-    if (target_plane.NeedsOffScreenComposition()) {
-      HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-      bool update_rect = reset_plane;
-      bool refresh_surfaces = reset_composition_regions;
-      bool force_partial_clear = false;
-
-      const std::vector<size_t>& source_layers = target_plane.GetSourceLayers();
-      size_t layers_size = source_layers.size();
-      if (!removed_layers && !update_rect) {
-        for (size_t i = 0; i < layers_size; i++) {
-          const size_t& source_index = source_layers.at(i);
-          const OverlayLayer& layer = layers.at(source_index);
-          if (layer.HasDimensionsChanged()) {
-            update_rect = true;
-            break;
-          }
-
-          if (refresh_surfaces) {
-            continue;
-          }
-
-          if (layer.NeedsPartialClear()) {
-            force_partial_clear = true;
-          }
-
-          if (layer.HasLayerContentChanged()) {
-            CalculateRect(layer.GetSurfaceDamage(), surface_damage);
-          }
-        }
-      }
-
-      if (layers_size == 1) {
-        // If this is a video plane, ensure that buffer format
-        // is still related to Video/Camera. Handle buffer format
-        // changes in this case.
-        if (target_plane.IsVideoPlane()) {
-          const OverlayLayer& layer = layers.at(source_layers.at(0));
-          if (!layer.IsVideoLayer()) {
-            target_plane.SetVideoPlane(false);
-            display_plane_manager_->MarkSurfacesForRecycling(
-                &target_plane, surfaces_not_inuse_, true);
-            refresh_surfaces = true;
-          }
-        } else if (target_plane.CanSupportVideo() &&
-                   !target_plane.IsVideoPlane()) {
-          const OverlayLayer& layer = layers.at(source_layers.at(0));
-          if (layer.IsVideoLayer()) {
-            target_plane.SetVideoPlane(true);
-            display_plane_manager_->MarkSurfacesForRecycling(
-                &target_plane, surfaces_not_inuse_, true);
-            refresh_surfaces = true;
-          }
-        }
-      }
-
-      if (!removed_layers && update_rect) {
-        target_plane.RefreshLayerRects(layers);
-        surface_damage.reset();
-      }
-
-      // Let's check if we need to check this plane-layer combination.
-      if (update_rect) {
-        target_plane.ValidateReValidation();
-        if (target_plane.RevalidationType() !=
-            DisplayPlaneState::ReValidationType::kNone) {
-          plane_validation = true;
-        }
-      }
-
-      if (update_rect || refresh_surfaces || !surface_damage.empty() ||
-          force_partial_clear) {
-        needs_gpu_composition = true;
-        target_plane.ForceGPURendering();
-        if (refresh_surfaces || reset_plane) {
-          target_plane.RefreshSurfaces(NativeSurface::kFullClear, true);
-        } else if (!update_rect && !surface_damage.empty()) {
-          if (force_partial_clear) {
-            target_plane.RefreshSurfaces(NativeSurface::kPartialClear, true);
-          }
-
-          target_plane.UpdateDamage(surface_damage);
-        }
-
-        if (refresh_surfaces || reset_plane || update_rect) {
-          bool squashed = display_plane_manager_->SquashPlanesAsNeeded(
-              layers, *composition, surfaces_not_inuse_, &plane_validation);
-          if (squashed) {
-            // We squashed planes and it's not the last one.
-            // We might have messed up with plane order, let's
-            // force full validation.
-            if (previous_size != previous_plane_state_.size()) {
-              *force_full_validation = true;
-              *can_ignore_commit = false;
-              return;
-            } else {
-              while (display_plane_manager_->SquashPlanesAsNeeded(
-                  layers, *composition, surfaces_not_inuse_,
-                  &plane_validation)) {
-                continue;
-              }
-            }
-          }
-        }
-      } else {
-        target_plane.UpdateDamage(surface_damage);
-      }
-
-      DisplayPlaneState& squashed_plane = composition->back();
-      squashed_plane.RefreshSurfaces(NativeSurface::kFullClear);
-
-      if (!needs_gpu_composition)
-        needs_gpu_composition = !(squashed_plane.IsSurfaceRecycled());
-
-      reset_composition_regions = false;
     } else {
-      reset_composition_regions = false;
-      const OverlayLayer* layer =
-          &(layers.at(last_plane.GetSourceLayers().front()));
-
-      if (layer->IsSolidColor()) {
-        *force_full_validation = true;
-        *can_ignore_commit = false;
-        return;
-      }
-
-      OverlayBuffer* buffer = layer->GetBuffer();
-      bool isNewCreated = false;
-      if (!buffer || buffer->GetFb(&isNewCreated) == 0) {
-        *force_full_validation = true;
-        *can_ignore_commit = false;
-        return;
-      }
-      if (isNewCreated)
-        reset_composition_regions = true;
-
-      last_plane.SetOverlayLayer(layer);
-      if (layer->HasLayerContentChanged()) {
-        ignore_commit = false;
-      }
-
-      bool needs_revalidation = layer->NeedsRevalidation();
-      if (layer->HasDimensionsChanged() || needs_revalidation) {
-        ignore_commit = false;
-        reset_composition_regions = true;
-      }
-
-      if (needs_revalidation) {
-        plane_validation = true;
-      }
+      composition.emplace_back();
+      DisplayPlaneState& last_plane = composition.back();
+      last_plane.CopyState(previous_plane);
+      new_re_validate = previous_size;
     }
   }
-
-  *render_layers = needs_gpu_composition;
-  if (needs_gpu_composition)
-    ignore_commit = false;
-
-  *can_ignore_commit = ignore_commit;
-  *needs_plane_validation = plane_validation;
-  size_t total_planes = composition->size();
-  // Check if we can squash the last overlay (Before Cursor Plane).
-  // If we have freed planes, let's see if we can actually map
-  // layers to planes for direct scanout.
-  if (check_to_squash && !pop_plane) {
-    if (composition->back().IsCursorPlane()) {
-      // We cannot squash Cursor plane.
-      total_planes -= 1;
-    }
-
-    if (total_planes > 2) {
-      DisplayPlaneState& old_plane = composition->at(total_planes - 2);
-      DisplayPlaneState& last_overlay = composition->at(total_planes - 1);
-      const std::vector<size_t>& source_layers = last_overlay.GetSourceLayers();
-
-      if (old_plane.CanSquash() && last_overlay.CanSquash() &&
-          source_layers.size() == 1) {
-        ISURFACETRACE(
-            "Moving layer index %d from plane index: %d to plane idex: %d. \n",
-            source_layers.at(0), total_planes - 1, total_planes - 2);
-        const OverlayLayer* layer = &(layers.at(source_layers.at(0)));
-        if (display_plane_manager_->ForceSeparatePlane(old_plane, layer)) {
-          return;
-        }
-
-        old_plane.AddLayer(layer);
-        old_plane.ResetCompositionRegion();
-
-        // If overlay has offscreen surfaces, discard
-        // them.
-        if (last_overlay.GetOffScreenTarget()) {
-          display_plane_manager_->MarkSurfacesForRecycling(
-              &last_overlay, surfaces_not_inuse_, true);
-        }
-
-        // Let's allocate an offscreen surface if needed.
-        last_overlay.GetDisplayPlane()->SetInUse(false);
-        composition->erase(composition->begin() + (total_planes - 1));
-        *render_layers = true;
-        *can_ignore_commit = false;
-      }
-    }
-  } else if (pop_plane) {
-    DisplayPlaneState& last_plane = composition->back();
-    // Ignore in case we are already scanning out the layer.
-    if (!last_plane.NeedsOffScreenComposition()) {
-      return;
-    }
-
-    const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-    // Let's try to allocate more planes in case we have free planes and
-    // layers to map.
-    *add_index = source_layers.at(0);
-    display_plane_manager_->MarkSurfacesForRecycling(&last_plane,
-                                                     surfaces_not_inuse_, true);
-    composition->erase(composition->begin() + (total_planes - 1));
-  }
+  re_validate_begin = new_re_validate;
 }
 
 void DisplayQueue::InitializeOverlayLayers(
     std::vector<HwcLayer*>& source_layers, bool handle_constraints,
-    bool validate_layers, std::vector<OverlayLayer>& layers, int& remove_index,
-    int& add_index, bool& has_video_layer, bool& has_cursor_layer,
-    bool& re_validate_commit, bool& idle_frame) {
+    std::vector<OverlayLayer>& layers, bool& has_video_layer,
+    bool& has_cursor_layer, bool& re_validate_commit, int& re_validate_begin,
+    bool& idle_frame) {
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   uint32_t z_order = 0;
+  re_validate_begin = -1;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -540,8 +218,6 @@ void DisplayQueue::InitializeOverlayLayers(
     OverlayLayer* previous_layer = NULL;
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
-    } else if (add_index == -1) {
-      add_index = z_order;
     }
 
     if (scaling_tracker_.scaling_state_ == ScalingTracker::kNeedsScaling) {
@@ -580,8 +256,12 @@ void DisplayQueue::InitializeOverlayLayers(
       has_video_layer = true;
     }
 
-    if (overlay_layer->NeedsRevalidation()) {
+    // Does not need to re_validate
+    if (overlay_layer->NeedsRevalidation() && !overlay_layer->IsCursorLayer()) {
       re_validate_commit = true;
+      if (re_validate_begin == -1) {
+        re_validate_begin = layer_index;
+      }
     } else if (overlay_layer->HasLayerContentChanged()) {
       idle_frame = false;
     }
@@ -591,282 +271,60 @@ void DisplayQueue::InitializeOverlayLayers(
     }
 
     z_order++;
-
-    // Handle case where Media layer has been destroyed/created or has changed
-    // z-order.
-    if (add_index != 0 && overlay_layer->IsVideoLayer()) {
-      if ((previous_layer && !previous_layer->IsVideoLayer()) ||
-          !previous_layer) {
-        add_index = 0;
-        ISURFACETRACE(
-            "Video layer has changed between frames: remove_index: %d "
-            "add_index: "
-            "%d \n",
-            remove_index, add_index);
-        continue;
-      }
-    }
-
-    if (add_index == 0 || validate_layers ||
-        ((add_index != -1) && (remove_index != -1))) {
-      needs_clone_validation_ = true;
-      continue;
-    }
-
-    // Handle case where Cursor layer has been destroyed/created or has changed
-    // z-order.
-    if (previous_layer &&
-        previous_layer->IsCursorLayer() != overlay_layer->IsCursorLayer()) {
-      if (remove_index == -1)
-        remove_index = previous_layer->GetZorder();
-
-      // Treat this case as if a new layer has been created.
-      if (add_index == -1)
-        add_index = overlay_layer->GetZorder();
-
-      ISURFACETRACE(
-          "Cursor layer has changed between frames: remove_index: %d "
-          "add_index: "
-          "%d \n",
-          remove_index, add_index);
-    }
   }
 }
 
-bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
-                               int32_t* retire_fence, bool* ignore_clone_update,
-                               PixelUploaderCallback* call_back,
-                               bool handle_constraints) {
-  CTRACE();
-  ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
-                                 resource_manager_.get(), this);
-  if (tracker.IgnoreUpdate()) {
-    return true;
-  }
-  source_layers_ = &source_layers;
-
-  size_t previous_size = in_flight_layers_.size();
-  std::vector<OverlayLayer> layers;
-  int remove_index = -1;
-  int add_index = -1;
-  // If last commit failed, lets force full validation as
-  // state might be all wrong in our side.
-  bool idle_frame = tracker.RenderIdleMode();
-  bool validate_layers =
-      last_commit_failed_update_ || previous_plane_state_.empty();
-  *retire_fence = -1;
-
-  bool has_video_layer = false;
-  bool has_cursor_layer = false;
-  bool re_validate_commit = false;
-  needs_clone_validation_ = false;
-
-  InitializeOverlayLayers(source_layers, handle_constraints, validate_layers,
-                          layers, remove_index, add_index, has_video_layer,
-                          has_cursor_layer, re_validate_commit, idle_frame);
-  if (has_cursor_layer)
-    tracker.FrameHasCursor();
-
-  // We may have skipped layers which are not visible.
-  size_t size = layers.size();
-  if ((add_index == 0) || validate_layers) {
-    // If index is zero, no point trying for incremental validation.
-    validate_layers = true;
-  } else if (previous_size > size) {
-    if (remove_index == -1) {
-      remove_index = size;
-    } else if (add_index != -1) {
-      remove_index = std::min(add_index, remove_index);
-    }
-  }
-
-  if (idle_frame) {
-    if ((add_index != -1) || (remove_index != -1) || re_validate_commit) {
-      idle_frame = false;
-    }
-  }
-
-  if (!validate_layers)
-    validate_layers = idle_frame;
-  if ((remove_index != -1) || (add_index != -1)) {
-    ISURFACETRACE(
-        "Remove index For this Frame: %d Add index For this Frame: %d Total "
-        "Layers: %d previous_size %d size %d re_validate_commit %d \n",
-        remove_index, add_index, layers.size(), previous_size, size,
-        re_validate_commit);
-  }
-
-  if (validate_layers) {
-    ISURFACETRACE(
-        "Full Validation Forced: add_index: %d last_commit_failed_update_: %d "
-        "tracker.RevalidateLayers(): %d  previous_plane_state_.empty(): %d "
-        "tracker.RenderIdleMode():%d \n",
-        add_index, last_commit_failed_update_, tracker.RevalidateLayers(),
-        previous_plane_state_.empty(), tracker.RenderIdleMode());
-  }
-
+bool DisplayQueue::AssignAndCommitPlanes(
+    std::vector<OverlayLayer>& layers, std::vector<HwcLayer*>* source_layers,
+    bool validate_layers, int re_validate_begin, bool setMediaEffect,
+    int32_t* retire_fence, ScopedStateTracker* tracker) {
   DisplayPlaneStateList current_composition_planes;
-  bool render_layers;
-  bool force_media_composition = false;
-  bool requested_video_effect = false;
-  if (has_video_layer) {
-    video_lock_.lock();
-    if (video_effect_changed_) {
-      idle_frame = false;
-      video_effect_changed_ = false;
-      validate_layers = true;
-    }
-    if (requested_video_effect_) {
-      // Let's ensure Media planes take this into account.
-      force_media_composition = true;
-      requested_video_effect = requested_video_effect_;
-      idle_frame = false;
-    }
-    video_lock_.unlock();
-  }
-
+  bool render_layers = false;
   bool composition_passed = true;
-
   bool disable_overlays = state_ & kDisableOverlay;
   bool disable_explictsync = state_ & kDisableExplictSync;
 
-  if (!validate_layers && tracker.RevalidateLayers()) {
-    validate_layers = true;
+  if (!validate_layers) {
+    GetCachedLayers(layers, re_validate_begin, current_composition_planes);
+    // We need to verify the rest layers and planes
+    if (re_validate_begin < (int)layers.size())
+      validate_layers = true;
   }
 
-  // Validate Overlays and Layers usage.
-  if (!validate_layers) {
-    bool can_ignore_commit = false;
-    // Before forcing layer validation, check if content has changed
-    // if not continue showing the current buffer.
-    bool commit_checked = false;
-    bool needs_plane_validation = false;
-    GetCachedLayers(layers, remove_index, &current_composition_planes,
-                    &render_layers, &can_ignore_commit, &needs_plane_validation,
-                    &validate_layers, &add_index);
-    if (add_index == 0) {
-      validate_layers = true;
+  if (validate_layers) {
+    display_plane_manager_->ValidateLayers(
+        layers, re_validate_begin, disable_overlays, current_composition_planes,
+        previous_plane_state_, surfaces_not_inuse_);
+
+    if (setMediaEffect) {
+      SetMediaEffectsState(requested_video_effect_, layers,
+                           current_composition_planes);
     }
+    needs_clone_validation_ = true;
+  }
 
-    if (!validate_layers && add_index > 0) {
-      bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, disable_overlays, &commit_checked,
-          &needs_plane_validation, current_composition_planes,
-          previous_plane_state_, surfaces_not_inuse_);
-
-      if (!render_layers)
-        render_layers = render_cursor;
-      can_ignore_commit = false;
-      if (commit_checked) {
-        re_validate_commit = false;
-        needs_clone_validation_ = true;
-      }
-    }
-
-    if (!validate_layers && (re_validate_commit || needs_plane_validation)) {
-      bool render = display_plane_manager_->ReValidatePlanes(
-          current_composition_planes, layers, surfaces_not_inuse_,
-          &validate_layers, needs_plane_validation, re_validate_commit);
-      can_ignore_commit = false;
-      needs_clone_validation_ = true;
-      if (!render_layers)
-        render_layers = render;
-    }
-
-    if (!validate_layers) {
-      if (force_media_composition) {
-        SetMediaEffectsState(requested_video_effect, layers,
-                             current_composition_planes);
-        render_layers = true;
-        can_ignore_commit = false;
-      }
-
-      if (can_ignore_commit) {
-        *ignore_clone_update = true;
-        // Free any surfaces.
-        if (!mark_not_inuse_.empty()) {
-          size_t size = mark_not_inuse_.size();
-          for (uint32_t i = 0; i < size; i++) {
-            mark_not_inuse_.at(i)->SetSurfaceAge(-1);
-          }
-
-          std::vector<NativeSurface*>().swap(mark_not_inuse_);
-          tracker.ForceSurfaceRelease();
-        }
-
-        return true;
-      }
+  for (auto& composition : current_composition_planes) {
+    if (composition.NeedsOffScreenComposition()) {
+      render_layers = true;
+      break;
     }
   }
 
   // Reset last commit failure state.
   last_commit_failed_update_ = false;
 
-  if (validate_layers) {
-    if (!idle_frame)
-      tracker.ResetTrackerState();
-
-    needs_clone_validation_ = true;
-
-    // We are doing a full re-validation.
-    add_index = 0;
-    bool force_gpu = disable_overlays || idle_frame ||
-                     ((state_ & kConfigurationChanged) && (layers.size() > 1));
-    bool test_commit = false;
-    render_layers = display_plane_manager_->ValidateLayers(
-        layers, add_index, force_gpu, &test_commit, &test_commit,
-        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
-    // If Video effects need to be applied, let's make sure
-    // we go through the composition pass for Video Layers.
-    if (force_media_composition && requested_video_effect) {
-      SetMediaEffectsState(requested_video_effect, layers,
-                           current_composition_planes);
-      render_layers = true;
-    }
-    state_ &= ~kConfigurationChanged;
-  }
-
   DUMP_CURRENT_COMPOSITION_PLANES();
   DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
   DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
 
   // Ensure all pixel buffer uploads are done.
-  if (call_back) {
-    call_back->Synchronize();
-  }
+  bool compsition_passed = false;
+
   // Handle any 3D Composition.
   if (render_layers) {
     compositor_.BeginFrame(disable_explictsync);
-
-    // if the plane is to be composited by GPU and requires GPU rotation,
-    // its source layers should be re-calculated the display frame (position)
-    DisplayPlaneState& last_plane = current_composition_planes.back();
-    bool is_gpu_rotation = (last_plane.GetRotationType() ==
-                            DisplayPlaneState::RotationType::kGPURotation);
-    if (last_plane.NeedsOffScreenComposition() &&
-        (plane_transform_ != kIdentity)) {
-      if (is_gpu_rotation) {
-        const std::vector<size_t>& source_layers = last_plane.GetSourceLayers();
-        for (const size_t& index : source_layers) {
-          OverlayLayer& layer = layers.at(index);
-          int width = display_plane_manager_->GetWidth();
-          int height = display_plane_manager_->GetHeight();
-          uint32_t transform = layer.GetPlaneTransform();
-          HwcRect<int> rect = RotateScaleRect(layer.GetDisplayFrame(), width,
-                                              height, transform);
-          layer.SetDisplayFrame(rect);
-        }
-      }
-    }
-
-    std::vector<HwcRect<int>> layers_rects;
-    for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      const OverlayLayer& layer = layers.at(layer_index);
-      layers_rects.emplace_back(layer.GetDisplayFrame());
-    }
-
     // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
+    if (!compositor_.Draw(current_composition_planes, layers)) {
       ETRACE("Failed to prepare for the frame composition. ");
       composition_passed = false;
     }
@@ -921,7 +379,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
     }
 
     std::vector<NativeSurface*>().swap(mark_not_inuse_);
-    tracker.ForceSurfaceRelease();
+    if (tracker)
+      tracker->ForceSurfaceRelease();
   }
 
   in_flight_layers_.swap(layers);
@@ -952,10 +411,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   if (fence > 0) {
-    *retire_fence = dup(fence);
+    if (*retire_fence)
+      *retire_fence = dup(fence);
     kms_fence_ = fence;
-
-    SetReleaseFenceToLayers(fence, source_layers);
+    if (source_layers)
+      SetReleaseFenceToLayers(fence, *source_layers);
   }
 
   // Let Display handle any lazy initalizations.
@@ -965,6 +425,95 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   return true;
+}
+
+bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
+                               int32_t* retire_fence, bool* ignore_clone_update,
+                               PixelUploaderCallback* call_back,
+                               bool handle_constraints) {
+  CTRACE();
+  ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
+                                 resource_manager_.get(), this);
+  if (tracker.IgnoreUpdate()) {
+    return true;
+  }
+  source_layers_ = &source_layers;
+  std::vector<OverlayLayer> layers;
+  int re_validate_begin = -1;
+  bool idle_frame = true;
+  // If last commit failed, lets force full validation as
+  // state might be all wrong in our side.
+  bool validate_layers =
+      last_commit_failed_update_ || previous_plane_state_.empty();
+  *retire_fence = -1;
+
+  bool has_video_layer = false;
+  bool has_cursor_layer = false;
+  bool re_validate_commit = false;
+  needs_clone_validation_ = false;
+
+  InitializeOverlayLayers(source_layers, handle_constraints, layers,
+                          has_video_layer, has_cursor_layer, re_validate_commit,
+                          re_validate_begin, idle_frame);
+
+  if (validate_layers || re_validate_begin != -1) {
+    needs_clone_validation_ = true;
+  }
+
+  if (has_cursor_layer)
+    tracker.FrameHasCursor();
+
+  // We are going to force GPU and validate all
+  if (re_validate_begin == 0)
+    validate_layers = true;
+
+  bool force_media_composition = false;
+  bool requested_video_effect = false;
+
+  if (has_video_layer) {
+    video_lock_.lock();
+    if (video_effect_changed_) {
+      idle_frame = false;
+      video_effect_changed_ = false;
+      validate_layers = true;
+    }
+    if (requested_video_effect_) {
+      // Let's ensure Media planes take this into account.
+      force_media_composition = true;
+      requested_video_effect = requested_video_effect_;
+      idle_frame = false;
+    }
+    video_lock_.unlock();
+  }
+
+  if (!validate_layers && tracker.RevalidateLayers()) {
+    validate_layers = true;
+  }
+
+  // Validate Overlays and Layers usage.
+  bool can_ignore_commit = idle_frame && !validate_layers;
+
+  if (can_ignore_commit) {
+    *ignore_clone_update = true;
+    if (!mark_not_inuse_.empty()) {
+      size_t size = mark_not_inuse_.size();
+      for (size_t i = 0; i < size; i++) {
+        mark_not_inuse_[i]->SetSurfaceAge(-1);
+      }
+      std::vector<NativeSurface*>().swap(mark_not_inuse_);
+      tracker.ForceSurfaceRelease();
+    }
+    return true;
+  }
+
+  if (call_back) {
+    call_back->Synchronize();
+  }
+
+  return AssignAndCommitPlanes(
+      layers, &source_layers, validate_layers, re_validate_begin,
+      force_media_composition && requested_video_effect, retire_fence,
+      &tracker);
 }
 
 void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
@@ -992,7 +541,6 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
 
   std::vector<OverlayLayer> layers;
   int add_index = -1;
-  int remove_index = -1;
   size_t z_order = 0;
   size_t previous_size = in_flight_layers_.size();
   for (const DisplayPlaneState& previous_plane : source_planes) {
@@ -1036,183 +584,19 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
     if (previous_layer &&
         previous_layer->IsCursorLayer() != layer.IsCursorLayer()) {
-      if (remove_index == -1)
-        remove_index = previous_layer->GetZorder();
       if (add_index == -1)
         add_index = layer.GetZorder();
     }
   }
 
-  bool test_commit = false;
-  bool render_layers = false;
   bool validate_layers = last_commit_failed_update_ ||
                          queue->needs_clone_validation_ ||
                          previous_plane_state_.empty() || (add_index == 0);
   if (previous_plane_state_.size() != source_planes.size())
     validate_layers = true;
 
-  DisplayPlaneStateList current_composition_planes;
-  // Validate Overlays and Layers usage.
-  if (!validate_layers) {
-    bool can_ignore_commit = false;
-    // Before forcing layer validation, check if content has changed
-    // if not continue showing the current buffer.
-    bool commit_checked = false;
-    bool needs_plane_validation = false;
-    if (previous_size > layers.size()) {
-      if (remove_index == -1) {
-        remove_index = layers.size();
-      } else if (add_index != -1) {
-        remove_index = std::min(add_index, remove_index);
-      }
-    }
-
-    GetCachedLayers(layers, remove_index, &current_composition_planes,
-                    &render_layers, &can_ignore_commit, &needs_plane_validation,
-                    &validate_layers, &add_index);
-    if (add_index == 0) {
-      validate_layers = true;
-    }
-
-    if (!validate_layers && add_index > 0) {
-      bool render_cursor = display_plane_manager_->ValidateLayers(
-          layers, add_index, false, &commit_checked, &needs_plane_validation,
-          current_composition_planes, previous_plane_state_,
-          surfaces_not_inuse_);
-
-      if (!render_layers)
-        render_layers = render_cursor;
-      can_ignore_commit = false;
-    }
-
-    if (!validate_layers && needs_plane_validation) {
-      bool render = display_plane_manager_->ReValidatePlanes(
-          current_composition_planes, layers, surfaces_not_inuse_,
-          &validate_layers, needs_plane_validation, false);
-      can_ignore_commit = false;
-      if (!render_layers)
-        render_layers = render;
-    }
-
-    if (!validate_layers) {
-      if (can_ignore_commit) {
-        // Free any surfaces.
-        if (!mark_not_inuse_.empty()) {
-          size_t size = mark_not_inuse_.size();
-          for (uint32_t i = 0; i < size; i++) {
-            mark_not_inuse_.at(i)->SetSurfaceAge(-1);
-          }
-
-          std::vector<NativeSurface*>().swap(mark_not_inuse_);
-          tracker.ForceSurfaceRelease();
-        }
-
-        return;
-      }
-    }
-  }
-
-  // Reset last commit failure state.
-  last_commit_failed_update_ = false;
-
-  if (validate_layers) {
-    render_layers = display_plane_manager_->ValidateLayers(
-        layers, 0, false, &test_commit, &test_commit,
-        current_composition_planes, previous_plane_state_, surfaces_not_inuse_);
-  }
-
-  DUMP_CURRENT_COMPOSITION_PLANES();
-  DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
-  DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
-
-  bool composition_passed = true;
-  clone_rendered_ = false;
-  // Handle any 3D Composition.
-  if (render_layers) {
-    clone_rendered_ = true;
-    compositor_.BeginFrame(false);
-
-    std::vector<HwcRect<int>> layers_rects;
-    size_t size = layers.size();
-    for (size_t layer_index = 0; layer_index < size; layer_index++) {
-      const OverlayLayer& layer = layers.at(layer_index);
-      layers_rects.emplace_back(layer.GetDisplayFrame());
-    }
-
-    // Prepare for final composition.
-    if (!compositor_.Draw(current_composition_planes, layers, layers_rects)) {
-      ETRACE("Failed to prepare for the frame composition. ");
-      composition_passed = false;
-    }
-  }
-
-  if (!composition_passed) {
-    HandleCommitFailure(current_composition_planes);
-    last_commit_failed_update_ = true;
-    return;
-  }
-
-  int32_t fence = 0;
-  bool fence_released = false;
-  composition_passed =
-      display_->Commit(current_composition_planes, previous_plane_state_, false,
-                       kms_fence_, &fence, &fence_released);
-
-  if (fence_released) {
-    kms_fence_ = 0;
-  }
-
-  if (!composition_passed) {
-    last_commit_failed_update_ = true;
-    HandleCommitFailure(current_composition_planes);
-    return;
-  }
-
-  // Mark any surfaces as not in use. These surfaces
-  // where not marked earlier as they where onscreen.
-  // Doing it here also ensures that if this surface
-  // is still in use than it will be marked in use
-  // below.
-  if (!mark_not_inuse_.empty()) {
-    size_t size = mark_not_inuse_.size();
-    for (uint32_t i = 0; i < size; i++) {
-      mark_not_inuse_.at(i)->SetSurfaceAge(-1);
-    }
-
-    std::vector<NativeSurface*>().swap(mark_not_inuse_);
-  }
-
-  in_flight_layers_.swap(layers);
-  current_composition_planes.swap(previous_plane_state_);
-
-  // Set Age for all offscreen surfaces.
-  UpdateOnScreenSurfaces();
-
-  // Swap any surfaces which are to be marked as not in
-  // use next frame.
-  if (!surfaces_not_inuse_.empty()) {
-    size_t size = surfaces_not_inuse_.size();
-    std::vector<NativeSurface*> temp;
-    for (uint32_t i = 0; i < size; i++) {
-      NativeSurface* surface = surfaces_not_inuse_.at(i);
-      uint32_t age = surface->GetSurfaceAge();
-      if (age > 0) {
-        temp.emplace_back(surface);
-        surface->SetSurfaceAge(surface->GetSurfaceAge() - 1);
-      } else {
-        mark_not_inuse_.emplace_back(surface);
-      }
-    }
-
-    surfaces_not_inuse_.swap(temp);
-  }
-
-  if (fence > 0) {
-    kms_fence_ = fence;
-    std::vector<HwcLayer*>* source_layers = queue->GetSourceLayers();
-    if (source_layers != NULL)
-      SetReleaseFenceToLayers(kms_fence_, *source_layers);
-  }
+  AssignAndCommitPlanes(layers, queue->GetSourceLayers(), validate_layers,
+                        add_index, false, NULL, &tracker);
 }
 
 void DisplayQueue::SetCloneMode(bool cloned) {
