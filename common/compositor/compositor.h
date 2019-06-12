@@ -44,8 +44,7 @@ class Compositor {
   void Init(ResourceManager *buffer_manager, uint32_t gpu_fd);
   void Reset();
   void BeginFrame(bool disable_explicit_sync);
-  bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers,
-            const std::vector<HwcRect<int>> &display_frame);
+  bool Draw(DisplayPlaneStateList &planes, std::vector<OverlayLayer> &layers);
   bool DrawOffscreen(std::vector<OverlayLayer> &layers,
                      const std::vector<HwcRect<int>> &display_frame,
                      const std::vector<size_t> &source_layers,
