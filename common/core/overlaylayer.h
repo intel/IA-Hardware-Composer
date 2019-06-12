@@ -123,11 +123,17 @@ struct OverlayLayer {
   }
 
   const HwcRect<int>& GetSurfaceDamage() const {
-    return surface_damage_;
+    if (force_content_changed_)
+      return display_frame_;
+    else
+      return surface_damage_;
   }
 
   HwcRect<int>& GetSurfaceDamage() {
-    return surface_damage_;
+    if (force_content_changed_)
+      return display_frame_;
+    else
+      return surface_damage_;
   }
 
   uint32_t GetSourceCropWidth() const {
@@ -252,6 +258,10 @@ struct OverlayLayer {
   void CloneLayer(const OverlayLayer* layer, const HwcRect<int>& display_frame,
                   ResourceManager* resource_manager, uint32_t z_order);
 
+  void SetForceContentChanged() {
+    force_content_changed_ = true;
+  }
+
   void Dump();
 
  private:
@@ -306,6 +316,7 @@ struct OverlayLayer {
   uint32_t dataspace_ = 0;
 
   uint32_t solid_color_ = 0;
+  bool force_content_changed_ = false;
 
   HwcRect<float> source_crop_;
   HwcRect<int> display_frame_;

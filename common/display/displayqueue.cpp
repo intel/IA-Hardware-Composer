@@ -545,6 +545,8 @@ void DisplayQueue::InitializeOverlayLayers(
 
     layers.emplace_back();
     OverlayLayer* overlay_layer = &(layers.back());
+    if (refrsh_display_id_ > 0)
+      overlay_layer->SetForceContentChanged();
     OverlayLayer* previous_layer = NULL;
     if (previous_size > z_order) {
       previous_layer = &(in_flight_layers_.at(z_order));
