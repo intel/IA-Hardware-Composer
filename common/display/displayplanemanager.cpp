@@ -79,7 +79,6 @@ void DisplayPlaneManager::ResetPlanes(drmModeAtomicReqPtr pset) {
 
 bool DisplayPlaneManager::ValidateLayers(
     std::vector<OverlayLayer> &layers, int add_index, bool disable_overlay,
-    bool *commit_checked, bool *re_validation_needed,
     DisplayPlaneStateList &composition,
     DisplayPlaneStateList &previous_composition,
     std::vector<NativeSurface *> &mark_later) {
@@ -128,8 +127,6 @@ bool DisplayPlaneManager::ValidateLayers(
                            mark_later, false);
     }
 
-    *re_validation_needed = false;
-    *commit_checked = true;
     return true;
   }
 
@@ -151,8 +148,6 @@ bool DisplayPlaneManager::ValidateLayers(
   // cursor layer should not be handle by VPP
   if (video_layers >= avail_planes && video_layers > 0) {
     ForceVppForAllLayers(composition, layers, add_index, mark_later, false);
-    *re_validation_needed = false;
-    *commit_checked = true;
     return true;
   }
 
@@ -258,7 +253,7 @@ bool DisplayPlaneManager::ValidateLayers(
           } else if (composition.size() > 1) {
             // Add to the back instead of seprate plane
             composition.pop_back();
-            last_plane = composition.back();
+            DisplayPlaneState &last_plane = composition.back();
             ISURFACETRACE("Added Layer: %d %d validate_final_layers: %d  \n",
                           layer->GetZorder(), composition.size(),
                           validate_final_layers);
@@ -278,17 +273,18 @@ bool DisplayPlaneManager::ValidateLayers(
       }
     }
 
-    if (cursor_layers && cursor_plane_) {
+    if ((cursor_layers.size() > 0) && cursor_plane_) {
       if (cursor_layers.size() > 1) {
         ETRACE("More than 1 cursor layers found, we don't support it");
       }
       // Will only add one cursor layer, anyway
       composition.emplace_back(cursor_plane_, cursor_layers[0], this);
-      bool fall_back = FallbacktoGPU(plane, cursor_layers[0], composition);
+      bool fall_back =
+          FallbacktoGPU(cursor_plane_, cursor_layers[0], composition);
       if (fall_back) {
         composition.pop_back();
         // fallback to GPU compostion for cursor layers
-        composition.back().addLayer(cursor_layers[0]);
+        composition.back().AddLayer(cursor_layers[0]);
       }
     }
   }
@@ -521,30 +517,6 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   surface->SetPlaneTarget(plane);
   plane.SetOffScreenTarget(surface);
-}
-
-void DisplayPlaneManager::ValidateFinalLayers(
-    DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
-    std::vector<NativeSurface *> &mark_later, bool recycle_resources,
-    size_t add_index) {
-  bool has_video = false;
-  for (DisplayPlaneState &plane : composition) {
-    if (plane.NeedsOffScreenComposition() && !plane.GetOffScreenTarget()) {
-      EnsureOffScreenTarget(plane);
-    }
-    if (!has_video && plane.IsVideoPlane())
-      has_video = true;
-  }
-
-  // If this combination fails just fall back to 3D for all layers.
-  if (!plane_handler_->TestCommit(composition)) {
-    if (!has_video)
-      ForceGpuForAllLayers(composition, layers, mark_later,
-                           recycle_resources);
-    else
-      ForceVppForAllLayers(composition, layers, add_index,
-                           mark_later, false);
-  }
 }
 
 bool DisplayPlaneManager::FallbacktoGPU(
@@ -853,39 +825,6 @@ bool DisplayPlaneManager::ReValidatePlanes(
   }
 
   return render;
-}
-
-void DisplayPlaneManager::FinalizeValidation(DisplayPlaneStateList &composition,
-                                             bool *render_layers,
-                                             bool *re_validation_needed) {
-  bool re_validation = false;
-  bool needs_gpu = false;
-  for (DisplayPlaneState &plane : composition) {
-    if (plane.NeedsOffScreenComposition()) {
-      plane.RefreshSurfaces(NativeSurface::kFullClear);
-      plane.ValidateReValidation();
-      // Check for Any display transform to be applied.
-      ValidateForDisplayTransform(plane, composition);
-
-      // Check for Downscaling.
-      ValidateForDownScaling(plane, composition);
-
-      if (!needs_gpu) {
-        needs_gpu = !plane.IsSurfaceRecycled();
-      }
-
-      if (plane.RevalidationType() !=
-          DisplayPlaneState::ReValidationType::kNone) {
-        re_validation = true;
-      }
-    }
-  }
-
-  if (re_validation_needed)
-    *re_validation_needed = re_validation;
-
-  if (render_layers)
-    *render_layers = needs_gpu;
 }
 
 size_t DisplayPlaneManager::SquashNonVideoPlanes(
