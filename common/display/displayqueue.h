@@ -195,7 +195,15 @@ class DisplayQueue {
     size_t total_planes_ = 1;
   };
 
-  struct ScopedIdleStateTracker {
+  struct ScopedStateTracker {
+    void ForceSurfaceRelease() {
+      forced_ = true;
+    }
+
+    bool forced_ = false;
+  };
+
+  struct ScopedIdleStateTracker : public ScopedStateTracker {
     ScopedIdleStateTracker(struct FrameStateTracker& tracker,
                            Compositor& compositor,
                            ResourceManager* resource_manager,
@@ -250,10 +258,6 @@ class DisplayQueue {
       tracker_.has_cursor_layer_ = true;
     }
 
-    void ForceSurfaceRelease() {
-      forced_ = true;
-    }
-
     ~ScopedIdleStateTracker() {
       tracker_.idle_lock_.lock();
       // Reset idle frame count. We want that idle frames
@@ -289,7 +293,6 @@ class DisplayQueue {
     }
 
    private:
-    bool forced_ = false;
     struct FrameStateTracker& tracker_;
     Compositor& compositor_;
     ResourceManager* resource_manager_;
@@ -297,7 +300,7 @@ class DisplayQueue {
   };
 
   // State trackers for cloned display.
-  struct ScopedCloneStateTracker {
+  struct ScopedCloneStateTracker : public ScopedStateTracker {
     ScopedCloneStateTracker(Compositor& compositor,
                             ResourceManager* resource_manager,
                             DisplayQueue* queue)
@@ -305,10 +308,6 @@ class DisplayQueue {
           resource_manager_(resource_manager),
           queue_(queue) {
       resource_manager_->RefreshBufferCache();
-    }
-
-    void ForceSurfaceRelease() {
-      forced_ = true;
     }
 
     ~ScopedCloneStateTracker() {
@@ -320,7 +319,6 @@ class DisplayQueue {
     }
 
    private:
-    bool forced_ = false;
     Compositor& compositor_;
     ResourceManager* resource_manager_;
     DisplayQueue* queue_;
@@ -330,10 +328,9 @@ class DisplayQueue {
   bool ForcePlaneValidation(int add_index, int remove_index,
                             int total_layers_size, size_t total_planes);
   void GetCachedLayers(const std::vector<OverlayLayer>& layers,
-                       int remove_index, DisplayPlaneStateList* composition,
-                       bool* render_layers, bool* can_ignore_commit,
-                       bool* needs_plane_validation,
-                       bool* force_full_validation, int* add_index);
+                       int& re_validate_begin,
+                       DisplayPlaneStateList& composition);
+
   void SetReleaseFenceToLayers(int32_t fence,
                                std::vector<HwcLayer*>& source_layers);
 
@@ -348,12 +345,19 @@ class DisplayQueue {
   void ResetQueue();
 
   void HandleCommitFailure(DisplayPlaneStateList& current_composition_planes);
+
   void InitializeOverlayLayers(std::vector<HwcLayer*>& source_layers,
-                               bool handle_constraints, bool validate_layers,
+                               bool handle_constraints,
                                std::vector<OverlayLayer>& layers,
-                               int& remove_index, int& add_index,
                                bool& has_video_layer, bool& has_cursor_layer,
-                               bool& re_validate_commit, bool& idle_frame);
+                               bool& re_validate_commit, int& re_validate_begin,
+                               bool& idle_frame);
+
+  bool AssignAndCommitPlanes(std::vector<OverlayLayer>& layers,
+                             std::vector<HwcLayer*>* source_layers,
+                             bool validate_layers, int re_validate_begin,
+                             bool setMediaEffect, int32_t* retire_fence,
+                             ScopedStateTracker* tracker);
 
   Compositor compositor_;
   uint32_t gpu_fd_;

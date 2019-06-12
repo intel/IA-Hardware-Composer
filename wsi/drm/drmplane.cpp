@@ -271,7 +271,7 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
                                 const DisplayPlaneState& plane,
                                 bool test_commit) const {
   uint32_t alpha = 0xFFFF;
-  OverlayLayer* layer = plane->GetOverlayLayer();
+  const OverlayLayer* layer = plane.GetOverlayLayer();
   OverlayBuffer* buffer = layer->GetBuffer();
   if (!buffer) {
     ETRACE("Fail to allocate buffer memory for layer!");

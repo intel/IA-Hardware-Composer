@@ -44,9 +44,7 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
-                      bool disable_overlay, bool *commit_checked,
-                      bool *re_validation_needed,
-                      DisplayPlaneStateList &composition,
+                      bool disable_overlay, DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);
 
@@ -130,16 +128,6 @@ class DisplayPlaneManager {
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
                      const DisplayPlaneStateList &composition) const;
 
-  void ValidateFinalLayers(DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> &layers,
-                           std::vector<NativeSurface *> &mark_later,
-                           bool recycle_resources);
-
-  void PreparePlaneForCursor(DisplayPlaneState *plane,
-                             std::vector<NativeSurface *> &mark_later,
-                             bool *validate_final_layers, bool reset_buffer,
-                             bool recycle_resources);
-
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
                                  const DisplayPlaneStateList &composition);
 
@@ -161,20 +149,7 @@ class DisplayPlaneManager {
                             std::vector<NativeSurface *> &mark_later,
                             bool recycle_resources);
 
-  // This should be called only in case of a new cursor layer
-  // being added and all other layers are same as previous
-  // frame.
-  void ValidateCursorLayer(std::vector<OverlayLayer> &all_layers,
-                           std::vector<OverlayLayer *> &cursor_layers,
-                           std::vector<NativeSurface *> &mark_later,
-                           DisplayPlaneStateList &composition,
-                           bool *validate_final_layers, bool *test_commit_done,
-                           bool recycle_resources);
-
   bool CheckForDownScaling(DisplayPlaneStateList &composition);
-
-  void FinalizeValidation(DisplayPlaneStateList &composition,
-                          bool *render_layers, bool *re_validation_needed);
 
   void ResizeOverlays();
 
