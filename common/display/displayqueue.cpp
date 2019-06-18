@@ -437,7 +437,8 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         reset_composition_regions = true;
 
       last_plane.SetOverlayLayer(layer);
-      if (layer->HasLayerContentChanged()) {
+      if (layer->HasLayerContentChanged() ||
+          layer->GetSurfaceDamage().empty()) {
         ignore_commit = false;
       }
 
