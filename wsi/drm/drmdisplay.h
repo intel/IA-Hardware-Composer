@@ -198,7 +198,7 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t flags_ = DRM_MODE_ATOMIC_ALLOW_MODESET;
   bool planes_updated_ = false;
   bool first_commit_ = false;
-  std::string display_name_;
+  std::string display_name_ = "";
   HWCContentProtection current_protection_support_ =
       HWCContentProtection::kUnSupported;
   HWCContentProtection desired_protection_support_ =
