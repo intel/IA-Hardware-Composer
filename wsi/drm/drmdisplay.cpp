@@ -169,6 +169,7 @@ void DrmDisplay::GetEDIDDisplayData(const ScopedDrmObjectPropertyPtr &props) {
 
   edid = (uint8_t *)blob->data;
   if (!edid) {
+    drmModeFreePropertyBlob(blob);
     return;
   }
   std::memset(display_data, 0, sizeof(display_data));
@@ -196,6 +197,7 @@ void DrmDisplay::GetEDIDDisplayData(const ScopedDrmObjectPropertyPtr &props) {
     }
   }
 
+  drmModeFreePropertyBlob(blob);
   ITRACE("Got EDID display name \"%s\"\n", display_name_.c_str());
 }
 
