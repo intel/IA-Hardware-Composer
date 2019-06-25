@@ -301,6 +301,7 @@ GLProgram::GLProgram()
       alpha_loc_(0),
       premult_loc_(0),
       tex_matrix_loc_(0),
+      solid_color_loc_(0),
       initialized_(false) {
 }
 
