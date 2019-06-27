@@ -148,6 +148,7 @@ class DisplayQueue {
   }
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
+  void DumpCurrentDisplayPlaneList (DisplayPlaneStateList & composition);
 
  private:
   enum QueueState {
@@ -354,8 +355,7 @@ class DisplayQueue {
                                bool handle_constraints,
                                std::vector<OverlayLayer>& layers,
                                bool& has_video_layer, bool& has_cursor_layer,
-                               bool& re_validate_commit, int& re_validate_begin,
-                               bool& idle_frame);
+                               int& re_validate_begin, bool& idle_frame);
 
   bool AssignAndCommitPlanes(std::vector<OverlayLayer>& layers,
                              std::vector<HwcLayer*>* source_layers,
