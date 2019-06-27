@@ -667,7 +667,9 @@ bool DrmDisplay::CommitFrame(
     }
 
     if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled())
+    {
       plane->SetBuffer(layer->GetSharedBuffer());
+    }
 
     if (!plane->UpdateProperties(pset, crtc_id_, comp_plane))
       return false;

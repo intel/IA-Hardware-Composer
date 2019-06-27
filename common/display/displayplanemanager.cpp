@@ -84,26 +84,6 @@ bool DisplayPlaneManager::ValidateLayers(
     std::vector<NativeSurface *> &mark_later) {
   CTRACE();
 
-  if (add_index <= 0) {
-    if (!previous_composition.empty()) {
-      for (DisplayPlaneState &plane : previous_composition) {
-        MarkSurfacesForRecycling(&plane, mark_later, true);
-      }
-    }
-
-    if (!composition.empty()) {
-      for (DisplayPlaneState &plane : previous_composition) {
-        MarkSurfacesForRecycling(&plane, mark_later, true);
-      }
-
-      DisplayPlaneStateList().swap(composition);
-    }
-
-    if (add_index <= 0) {
-      ISURFACETRACE("Full validation being performed. \n");
-    }
-  }
-
   size_t video_layers = 0;
   for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
     if (layers[lindex].IsVideoLayer())
@@ -489,7 +469,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
       }
     }
   }
-
+  
   if (!surface) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
@@ -533,7 +513,9 @@ bool DisplayPlaneManager::FallbacktoGPU(
     return true;
 
   if (!target_plane->ValidateLayer(layer))
+  {
     return true;
+  }
 
   OverlayBuffer *layer_buffer = layer->GetBuffer();
   if (!layer_buffer)
@@ -548,7 +530,6 @@ bool DisplayPlaneManager::FallbacktoGPU(
   if (!plane_handler_->TestCommit(composition)) {
     return true;
   }
-
   layer->SupportedDisplayComposition(OverlayLayer::kAll);
   return false;
 }
