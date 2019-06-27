@@ -39,6 +39,7 @@ DisplayPlaneState::DisplayPlanePrivateState::~DisplayPlanePrivateState() {
 DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
                                      DisplayPlaneManager *plane_manager) {
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
+  private_data_->plane_manager_ = plane_manager;
   private_data_->source_layers_.emplace_back(layer->GetZorder());
   private_data_->display_frame_ = layer->GetDisplayFrame();
   private_data_->rect_updated_ = true;
@@ -62,20 +63,24 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
   }
 
-  if (private_data_->rotation_type_ == RotationType::kDisplayRotation) {
-    private_data_->rotated_display_frame_ = RotateScaleRect(
-        private_data_->display_frame_, plane_manager->GetWidth(),
-        plane_manager->GetHeight(), private_data_->plane_transform_);
-  } else
-    private_data_->rotated_display_frame_ = private_data_->display_frame_;
+  UpdateRotateFrame();
 
-  private_data_->plane_manager_ = plane_manager;
   if (layer->IsVideoLayer()) {
     SetVideoPlane(true);
     ForceGPURendering();
   }
 
   recycled_surface_ = false;
+}
+
+void DisplayPlaneState::UpdateRotateFrame() {
+  if (private_data_->rotation_type_ == RotationType::kDisplayRotation) {
+    private_data_->rotated_display_frame_ = RotateScaleRect(
+        private_data_->display_frame_, private_data_->plane_manager_->GetWidth(),
+        private_data_->plane_manager_->GetHeight(), private_data_->plane_transform_);
+  } else {
+    private_data_->rotated_display_frame_ = private_data_->display_frame_;
+  }
 }
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
@@ -158,7 +163,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
 }
 
 void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
-                                    size_t remove_index, bool *rects_updated) {
+                                    bool *rects_updated) {
   std::vector<size_t> current_layers = private_data_->source_layers_;
   std::vector<size_t>().swap(private_data_->source_layers_);
   std::vector<size_t> &new_layers = private_data_->source_layers_;
@@ -167,12 +172,12 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   bool has_video = false;
-  bool layer_removed = false;
+  size_t size = layers.size();
+
   for (const size_t &index : current_layers) {
-    if (index >= remove_index) {
-      ISURFACETRACE("Reset breaks index: %d remove_index %d \n", index,
-                    remove_index);
-      layer_removed = true;
+    if (index >= size) {
+      ISURFACETRACE("Reset breaks index: %d size %d \n", index,
+                    size);
       break;
     }
 
@@ -224,6 +229,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
     private_data_->rect_updated_ = rect_updated;
 
   *rects_updated = rect_updated;
+  UpdateRotateFrame();
 
   if (has_video)
     private_data_->type_ = DisplayPlanePrivateState::PlaneType::kVideo;
@@ -258,24 +264,16 @@ void DisplayPlaneState::RefreshLayerRects(
   HwcRect<int> target_display_frame;
   HwcRect<float> target_source_crop;
   HwcRect<int> surface_damage = HwcRect<int>(0, 0, 0, 0);
-  bool only_cursor_layer = true;
   for (const size_t &index : current_layers) {
     const OverlayLayer &layer = layers.at(index);
     const HwcRect<int> &df = layer.GetDisplayFrame();
     const HwcRect<float> &source_crop = layer.GetSourceCrop();
     CalculateRect(df, target_display_frame);
     CalculateSourceRect(source_crop, target_source_crop);
-    if (!layer.IsCursorLayer() && (layer.HasDimensionsChanged())) {
-      only_cursor_layer = false;
-    }
 
     if (layer.HasLayerContentChanged()) {
       CalculateRect(layer.GetSurfaceDamage(), surface_damage);
     }
-  }
-
-  if (!only_cursor_layer) {
-    CalculateRect(private_data_->display_frame_, surface_damage);
   }
 
   bool rect_updated = true;
@@ -285,16 +283,16 @@ void DisplayPlaneState::RefreshLayerRects(
   } else {
     private_data_->display_frame_ = target_display_frame;
     private_data_->source_crop_ = target_source_crop;
-    if (!only_cursor_layer) {
-      CalculateRect(private_data_->display_frame_, surface_damage);
-    }
   }
 
+  UpdateRotateFrame();
   if (!private_data_->rect_updated_)
     private_data_->rect_updated_ = rect_updated;
 
   private_data_->refresh_surface_ = true;
   recycled_surface_ = false;
+  
+  
   if (!surface_damage.empty()) {
     for (NativeSurface *surface : private_data_->surfaces_) {
       surface->UpdateSurfaceDamage(surface_damage, true);
@@ -308,6 +306,8 @@ void DisplayPlaneState::ForceGPURendering() {
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
   recycled_surface_ = false;
   EnsureOffScreenPlaneTarget();
+  if(private_data_->rotation_type_ == RotationType::kDisplayRotation)
+  	SetRotationType(RotationType::kGPURotation, true); 
 }
 
 void DisplayPlaneState::EnsureOffScreenPlaneTarget() {
@@ -841,15 +841,21 @@ void DisplayPlaneState::CalculateSourceCrop(HwcRect<float> &scaled_rect) const {
   }
 }
 
-void DisplayPlaneState::Dump() {
+void DisplayPlaneState::Dump() const{
   HwcRect<float> scaled_rect;
   CalculateSourceCrop(scaled_rect);
-  DUMPTRACE("SourceWidth: %f", scaled_rect.right - scaled_rect.left);
-  DUMPTRACE("SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
-  DUMPTRACE("DstWidth: %d", private_data_->display_frame_.right -
-                                private_data_->display_frame_.left);
-  DUMPTRACE("DstHeight: %d", private_data_->display_frame_.bottom -
-                                 private_data_->display_frame_.top);
+  ETRACE("DisplayPlaneState SourceWidth: %f", scaled_rect.right - scaled_rect.left);
+  ETRACE("DisplayPlaneState SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
+  ETRACE("DisplayPlaneState DisplayFrame: %d %d %d %d",   private_data_->display_frame_.top, private_data_->display_frame_.left, 
+  	                      private_data_->display_frame_.bottom, private_data_->display_frame_.right);
+  ETRACE("DisplayPlaneState RotatedFrame: %d %d %d %d", private_data_->rotated_display_frame_.top,  private_data_->rotated_display_frame_.left,
+                                 private_data_->rotated_display_frame_.bottom, private_data_->rotated_display_frame_.right);
+  ETRACE("DisplayPlaneState Scanout %d, videoplane %d, iscuror %d, use plane scalar %d, need composition %d, source layers %d, rotation %d, plane_id %d",
+         Scanout(), IsVideoPlane(), IsCursorPlane(), IsUsingPlaneScalar(), NeedsOffScreenComposition(),
+  	 GetSourceLayers().size(), GetOverlayLayer()->GetPlaneTransform(), private_data_->plane_->id());
+  if(GetOverlayLayer()->GetBuffer())
+  	ETRACE("DisplayPlaneState fb %d", GetOverlayLayer()->GetBuffer()->GetFb());
+  	
 }
 
 }  // namespace hwcomposer

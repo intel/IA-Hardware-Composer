@@ -63,8 +63,7 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers, size_t remove_index,
-                   bool *rects_updated);
+  void ResetLayers(const std::vector<OverlayLayer> &layers, bool *rects_updated);
 
   // Updates display frame and source rects combined region for
   // this plane.
@@ -235,10 +234,11 @@ class DisplayPlaneState {
     return private_data_->supports_video_;
   }
 
-  void Dump();
+  void Dump() const;
 
  private:
   void EnsureOffScreenPlaneTarget();
+  void UpdateRotateFrame();
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
   class DisplayPlanePrivateState {
