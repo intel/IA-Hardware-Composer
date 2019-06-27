@@ -168,7 +168,9 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   CTRACE();
   size_t previous_size = 0;
   int new_re_validate = 0;
+  bool rects_updated = false;
 
+  ETRACE("GetCachedLayers re_validate_begin %d", re_validate_begin);
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     previous_size += previous_plane.GetSourceLayers().size();
     if ((int)previous_size > re_validate_begin) {
@@ -184,6 +186,21 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
       composition.emplace_back();
       DisplayPlaneState& last_plane = composition.back();
       last_plane.CopyState(previous_plane);
+      last_plane.GetDisplayPlane()->SetInUse(true);
+      if (last_plane.NeedsOffScreenComposition()) {
+        if (last_plane.NeedsSurfaceAllocation()) {
+          last_plane.ForceGPURendering();
+          last_plane.ResetLayers(layers, &rects_updated);
+        } else
+          last_plane.RefreshLayerRects(layers);
+      } else {
+        const OverlayLayer* layer =
+            &(layers.at(last_plane.GetSourceLayers().front()));
+        last_plane.SetOverlayLayer(layer);
+        last_plane.RefreshLayerRects(layers);
+      }
+
+      // last_plane.ResetLayers(layers, &rects_updated);
       new_re_validate = previous_size;
     }
   }
@@ -193,12 +210,11 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
 void DisplayQueue::InitializeOverlayLayers(
     std::vector<HwcLayer*>& source_layers, bool handle_constraints,
     std::vector<OverlayLayer>& layers, bool& has_video_layer,
-    bool& has_cursor_layer, bool& re_validate_commit, int& re_validate_begin,
-    bool& idle_frame) {
+    bool& has_cursor_layer, int& re_validate_begin, bool& idle_frame) {
   size_t size = source_layers.size();
   size_t previous_size = in_flight_layers_.size();
   uint32_t z_order = 0;
-  re_validate_begin = -1;
+  re_validate_begin = size;
 
   for (size_t layer_index = 0; layer_index < size; layer_index++) {
     HwcLayer* layer = source_layers.at(layer_index);
@@ -257,9 +273,9 @@ void DisplayQueue::InitializeOverlayLayers(
     }
 
     // Does not need to re_validate
-    if (overlay_layer->NeedsRevalidation() && !overlay_layer->IsCursorLayer()) {
-      re_validate_commit = true;
-      if (re_validate_begin == -1) {
+    if (overlay_layer->NeedsRevalidation() &&
+        !(overlay_layer->IsCursorLayer() && previous_layer->IsCursorLayer())) {
+      if (re_validate_begin == size) {
         re_validate_begin = layer_index;
       }
     } else if (overlay_layer->HasLayerContentChanged()) {
@@ -274,6 +290,15 @@ void DisplayQueue::InitializeOverlayLayers(
   }
 }
 
+void DisplayQueue::DumpCurrentDisplayPlaneList(
+    DisplayPlaneStateList& composition) {
+  ETRACE("Dumping DisplayPlaneState size %d", composition.size());
+  for (auto& state : composition) {
+    state.Dump();
+  }
+  ETRACE("End DisplayPlaneState Dump");
+}
+
 bool DisplayQueue::AssignAndCommitPlanes(
     std::vector<OverlayLayer>& layers, std::vector<HwcLayer*>* source_layers,
     bool validate_layers, int re_validate_begin, bool setMediaEffect,
@@ -284,11 +309,13 @@ bool DisplayQueue::AssignAndCommitPlanes(
   bool disable_overlays = state_ & kDisableOverlay;
   bool disable_explictsync = state_ & kDisableExplictSync;
 
-  if (!validate_layers) {
-    GetCachedLayers(layers, re_validate_begin, current_composition_planes);
-    // We need to verify the rest layers and planes
-    if (re_validate_begin < (int)layers.size())
-      validate_layers = true;
+  // re_validate_begin = 0;
+  GetCachedLayers(layers, re_validate_begin, current_composition_planes);
+  // We need to verify the rest layers and planes
+  if (re_validate_begin < (int)layers.size()) {
+    ETRACE("re_validate_begin less than layer size %d %d", re_validate_begin,
+           layers.size());
+    validate_layers = true;
   }
 
   if (validate_layers) {
@@ -313,9 +340,11 @@ bool DisplayQueue::AssignAndCommitPlanes(
   // Reset last commit failure state.
   last_commit_failed_update_ = false;
 
-  DUMP_CURRENT_COMPOSITION_PLANES();
-  DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
-  DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
+
+  //DumpCurrentDisplayPlaneList(current_composition_planes);
+  //DUMP_CURRENT_COMPOSITION_PLANES();
+  //DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
+  //DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
 
   // Ensure all pixel buffer uploads are done.
   bool compsition_passed = false;
@@ -449,14 +478,13 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
 
   bool has_video_layer = false;
   bool has_cursor_layer = false;
-  bool re_validate_commit = false;
   needs_clone_validation_ = false;
 
   InitializeOverlayLayers(source_layers, handle_constraints, layers,
-                          has_video_layer, has_cursor_layer, re_validate_commit,
-                          re_validate_begin, idle_frame);
+                          has_video_layer, has_cursor_layer, re_validate_begin,
+                          idle_frame);
 
-  if (validate_layers || re_validate_begin != -1) {
+  if (validate_layers || re_validate_begin != source_layers.size()) {
     needs_clone_validation_ = true;
   }
 
@@ -466,6 +494,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   // We are going to force GPU and validate all
   if (re_validate_begin == 0)
     validate_layers = true;
+  if (validate_layers)
+    re_validate_begin = 0;
 
   bool force_media_composition = false;
   bool requested_video_effect = false;

@@ -305,7 +305,7 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
       if (force_partial_clear) {
         state_ |= kForcePartialClear;
       }
-    } else if (!layer->IsCursorLayer()) {
+    } else {
       state_ |= kNeedsReValidation;
     }
   }
