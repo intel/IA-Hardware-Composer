@@ -652,4 +652,11 @@ bool PhysicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   strncpy(name, string.c_str(), *size);
   return true;
 }
+
+int PhysicalDisplay::GetTotalOverlays() const {
+  if (display_queue_)
+    return display_queue_->GetTotalOverlays();
+  else
+    return 0;
+}
 }  // namespace hwcomposer

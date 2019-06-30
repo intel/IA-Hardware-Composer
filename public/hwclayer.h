@@ -279,6 +279,9 @@ struct HwcLayer {
   void MarkAsCursorLayer();
   bool IsCursorLayer() const;
 
+  void MarkAsVideoLayer();
+  bool IsVideoLayer() const;
+
   /**
    * API for getting damage area caused by this layer for current
    * frame update.
@@ -348,6 +351,7 @@ struct HwcLayer {
       kVisible | kSurfaceDamageChanged | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
+  bool is_video_layer_ = false;
   uint32_t solid_color_ = 0xff;
 
   HWCLayerCompositionType composition_type_ = Composition_Device;

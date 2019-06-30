@@ -815,29 +815,85 @@ HWC2::Error IAHWC2::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 
 HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
                                                 uint32_t *num_requests) {
+  std::map<uint32_t, hwc2_layer_t> z_map;
+  int layer_id = 1;
+  int Display_Composite_layers;
+  int avail_planes = display_->GetTotalOverlays();
+  bool include_video_layer = false;
+  bool force_all_device_type = false;
+
   supported(__func__);
   *num_types = 0;
   *num_requests = 0;
-  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-    IAHWC2::Hwc2Layer &layer = l.second;
 
-    switch (layer.sf_type()) {
-      case HWC2::Composition::Sideband:
+  /*
+   * If any video layer exist then all layers should set to DEVICE type.
+   * The HWC will try to separate planes or use VPP for video.
+   */
+  for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+    if (l.second.IsVideoLayer()) {
+      include_video_layer = true;
+      ALOGI("layers: %d is video layer\n", l.first);
+      break;
+    }
+  }
+
+#ifdef FORCE_ALL_DEVICE_TYPE
+  force_all_device_type = true;
+#endif
+  if (include_video_layer || force_all_device_type) {
+    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+      IAHWC2::Hwc2Layer &layer = l.second;
+
+      switch (layer.sf_type()) {
+        case HWC2::Composition::Sideband:
+          layer.set_validated_type(HWC2::Composition::Client);
+          ++*num_types;
+          break;
+        case HWC2::Composition::Cursor:
+          layer.set_validated_type(HWC2::Composition::Device);
+          ++*num_types;
+          break;
+        default:
+          if (disable_explicit_sync_ ||
+              display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
+            layer.set_validated_type(HWC2::Composition::Client);
+          } else {
+            layer.set_validated_type(layer.sf_type());
+          }
+          break;
+      }
+    }
+  } else {
+    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_)
+      l.second.set_validated_type(HWC2::Composition::Invalid);
+
+    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+      if (l.second.sf_type() == HWC2::Composition::Device)
+        z_map.emplace(std::make_pair(l.second.z_order(), l.first));
+    }
+
+    /*
+     * If more layers then planes, save one plane
+     * for client composited layers
+     */
+    if (avail_planes < layers_.size())
+      avail_planes--;
+
+    for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
+      if (!avail_planes--)
+        break;
+      layers_[l.second].set_validated_type(HWC2::Composition::Device);
+    }
+
+    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+      IAHWC2::Hwc2Layer &layer = l.second;
+      // We can only handle layers of Device type, send everything else to SF
+      if (layer.sf_type() != HWC2::Composition::Device ||
+          layer.validated_type() != HWC2::Composition::Device) {
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
-        break;
-      case HWC2::Composition::Cursor:
-        layer.set_validated_type(HWC2::Composition::Device);
-        ++*num_types;
-        break;
-      default:
-        if (disable_explicit_sync_ ||
-            display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND) {
-          layer.set_validated_type(HWC2::Composition::Client);
-        } else {
-          layer.set_validated_type(layer.sf_type());
-        }
-        break;
+      }
     }
   }
 
@@ -873,7 +929,6 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBlendMode(int32_t mode) {
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
                                               int32_t acquire_fence) {
   supported(__func__);
-
   // The buffer and acquire_fence are handled elsewhere
   if (sf_type_ == HWC2::Composition::Client ||
       sf_type_ == HWC2::Composition::Sideband)
@@ -881,6 +936,13 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
 
   native_handle_.handle_ = buffer;
   hwc_layer_.SetNativeHandle(&native_handle_);
+
+  auto gr_handle = (struct cros_gralloc_handle *)buffer;
+  if ((gr_handle->consumer_usage & GRALLOC1_PRODUCER_USAGE_PROTECTED) ||
+      hwcomposer::IsSupportedMediaFormat(gr_handle->format)) {
+    hwc_layer_.MarkAsVideoLayer();
+  }
+
   if (acquire_fence > 0)
     hwc_layer_.SetAcquireFence(acquire_fence);
   return HWC2::Error::None;

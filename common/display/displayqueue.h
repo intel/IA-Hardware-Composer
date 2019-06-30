@@ -143,6 +143,10 @@ class DisplayQueue {
     }
   }
 
+  int GetTotalOverlays() const {
+    return display_plane_manager_->GetTotalOverlays();
+  }
+
   void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
 
  private:
