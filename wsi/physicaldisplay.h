@@ -257,6 +257,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
     return connection_state_ & kFakeConnected;
   }
 
+  int GetTotalOverlays() const override;
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();

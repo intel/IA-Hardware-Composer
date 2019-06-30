@@ -125,6 +125,10 @@ class IAHWC2 : public hwc2_device_t {
       return hwc_layer_.IsCursorLayer();
     }
 
+    bool IsVideoLayer() const {
+      return hwc_layer_.IsVideoLayer();
+    }
+
     // Layer hooks
     HWC2::Error SetCursorPosition(int32_t x, int32_t y);
     HWC2::Error SetLayerBlendMode(int32_t mode);
@@ -231,6 +235,7 @@ class IAHWC2 : public hwc2_device_t {
     bool disable_explicit_sync_;
     bool enable_nested_display_compose_;
     uint32_t scaling_mode_;
+    uint32_t planes_;
   };
 
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {

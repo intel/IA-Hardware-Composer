@@ -422,6 +422,14 @@ bool HwcLayer::IsCursorLayer() const {
   return is_cursor_layer_;
 }
 
+void HwcLayer::MarkAsVideoLayer() {
+  is_video_layer_ = true;
+}
+
+bool HwcLayer::IsVideoLayer() const {
+  return is_video_layer_;
+}
+
 void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
                                      const HwcRect<int>& newrect,
                                      bool same_rect) {
