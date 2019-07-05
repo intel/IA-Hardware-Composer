@@ -237,10 +237,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
   if (private_data_->source_layers_.size() == 1) {
     if (private_data_->has_cursor_layer_) {
       private_data_->type_ = DisplayPlanePrivateState::PlaneType::kCursor;
-    } else {
-      private_data_->type_ = DisplayPlanePrivateState::PlaneType::kNormal;
     }
-
     if (!has_video) {
       re_validate_layer_ |= ReValidationType::kScanout;
     } else {
@@ -841,21 +838,38 @@ void DisplayPlaneState::CalculateSourceCrop(HwcRect<float> &scaled_rect) const {
   }
 }
 
-void DisplayPlaneState::Dump() const{
+void DisplayPlaneState::Dump() const {
   HwcRect<float> scaled_rect;
   CalculateSourceCrop(scaled_rect);
-  ETRACE("DisplayPlaneState SourceWidth: %f", scaled_rect.right - scaled_rect.left);
+  ETRACE("DisplayPlaneState SourceWidth: %f",
+         scaled_rect.right - scaled_rect.left);
   ETRACE("DisplayPlaneState SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
   ETRACE("DisplayPlaneState DisplayFrame: %d %d %d %d",   private_data_->display_frame_.top, private_data_->display_frame_.left, 
   	                      private_data_->display_frame_.bottom, private_data_->display_frame_.right);
   ETRACE("DisplayPlaneState RotatedFrame: %d %d %d %d", private_data_->rotated_display_frame_.top,  private_data_->rotated_display_frame_.left,
                                  private_data_->rotated_display_frame_.bottom, private_data_->rotated_display_frame_.right);
-  ETRACE("DisplayPlaneState Scanout %d, videoplane %d, iscuror %d, use plane scalar %d, need composition %d, source layers %d, rotation %d, plane_id %d",
-         Scanout(), IsVideoPlane(), IsCursorPlane(), IsUsingPlaneScalar(), NeedsOffScreenComposition(),
-  	 GetSourceLayers().size(), GetOverlayLayer()->GetPlaneTransform(), private_data_->plane_->id());
-  if(GetOverlayLayer()->GetBuffer())
-  	ETRACE("DisplayPlaneState fb %d", GetOverlayLayer()->GetBuffer()->GetFb());
-  	
+  ETRACE(
+      "DisplayPlaneState Scanout %d, videoplane %d, iscuror %d, use plane "
+      "scalar %d, need composition %d, source layers %d, rotation %d, plane_id "
+      "%d",
+      Scanout(), IsVideoPlane(), IsCursorPlane(), IsUsingPlaneScalar(),
+      NeedsOffScreenComposition(), GetSourceLayers().size(),
+      GetOverlayLayer()->GetPlaneTransform(), private_data_->plane_->id());
+
+  if (GetOverlayLayer()->GetBuffer())
+    ETRACE("DisplayPlaneState framebuffer %d Scanout %d",
+           GetOverlayLayer()->GetBuffer()->GetFb(), Scanout());
+  ETRACE("DisplayPlaneState need surface allocation %d",
+         NeedsSurfaceAllocation());
+  const std::vector<size_t> &source_layers = GetSourceLayers();
+  for (auto &index : source_layers) {
+    ETRACE("DisplayPlaneState source layers %d", index);
+  }
+  const std::vector<NativeSurface *> &surfaces = GetSurfaces();
+  for (auto &surface : surfaces) {
+    ETRACE("DisplayPlaneState surface %p format %d", surface,
+           surface->GetLayer()->GetBuffer()->GetFormat());
+  }
 }
 
 }  // namespace hwcomposer
