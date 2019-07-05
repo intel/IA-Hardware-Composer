@@ -170,7 +170,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
   int new_re_validate = 0;
   bool rects_updated = false;
 
-  ETRACE("GetCachedLayers re_validate_begin %d", re_validate_begin);
   for (DisplayPlaneState& previous_plane : previous_plane_state_) {
     previous_size += previous_plane.GetSourceLayers().size();
     if ((int)previous_size > re_validate_begin) {
@@ -180,7 +179,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         display_plane_manager_->MarkSurfacesForRecycling(
             &previous_plane, surfaces_not_inuse_, true);
       }
-
       previous_plane.GetDisplayPlane()->SetInUse(false);
     } else {
       composition.emplace_back();
@@ -199,7 +197,6 @@ void DisplayQueue::GetCachedLayers(const std::vector<OverlayLayer>& layers,
         last_plane.SetOverlayLayer(layer);
         last_plane.RefreshLayerRects(layers);
       }
-
       // last_plane.ResetLayers(layers, &rects_updated);
       new_re_validate = previous_size;
     }
@@ -271,14 +268,23 @@ void DisplayQueue::InitializeOverlayLayers(
     if (overlay_layer->IsVideoLayer()) {
       has_video_layer = true;
     }
-
-    // Does not need to re_validate
-    if (overlay_layer->NeedsRevalidation() &&
-        !(overlay_layer->IsCursorLayer() && previous_layer->IsCursorLayer())) {
-      if (re_validate_begin == size) {
-        re_validate_begin = layer_index;
+    if (previous_layer) {
+      if ((overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer())) {
+        re_validate_begin = 0;
       }
-    } else if (overlay_layer->HasLayerContentChanged()) {
+      // Does not need to re_validate
+      if (overlay_layer->NeedsRevalidation() &&
+          !(overlay_layer->IsCursorLayer() &&
+            previous_layer->IsCursorLayer())) {
+        if (re_validate_begin == size) {
+          re_validate_begin = layer_index;
+        }
+      }
+    } else if (re_validate_begin == size) {
+      re_validate_begin = layer_index;
+    }
+
+    if (overlay_layer->HasLayerContentChanged()) {
       idle_frame = false;
     }
 
@@ -309,12 +315,9 @@ bool DisplayQueue::AssignAndCommitPlanes(
   bool disable_overlays = state_ & kDisableOverlay;
   bool disable_explictsync = state_ & kDisableExplictSync;
 
-  // re_validate_begin = 0;
   GetCachedLayers(layers, re_validate_begin, current_composition_planes);
   // We need to verify the rest layers and planes
   if (re_validate_begin < (int)layers.size()) {
-    ETRACE("re_validate_begin less than layer size %d %d", re_validate_begin,
-           layers.size());
     validate_layers = true;
   }
 
@@ -340,11 +343,9 @@ bool DisplayQueue::AssignAndCommitPlanes(
   // Reset last commit failure state.
   last_commit_failed_update_ = false;
 
-
-  //DumpCurrentDisplayPlaneList(current_composition_planes);
-  //DUMP_CURRENT_COMPOSITION_PLANES();
-  //DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
-  //DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
+  // DUMP_CURRENT_COMPOSITION_PLANES();
+  // DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
+  // DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
 
   // Ensure all pixel buffer uploads are done.
   bool compsition_passed = false;
@@ -391,6 +392,7 @@ bool DisplayQueue::AssignAndCommitPlanes(
   }
 
   if (!composition_passed) {
+    DumpCurrentDisplayPlaneList(current_composition_planes);
     last_commit_failed_update_ = true;
     HandleCommitFailure(current_composition_planes);
     return false;
@@ -440,7 +442,7 @@ bool DisplayQueue::AssignAndCommitPlanes(
   }
 
   if (fence > 0) {
-    if (*retire_fence)
+    if (retire_fence)
       *retire_fence = dup(fence);
     kms_fence_ = fence;
     if (source_layers)
@@ -570,7 +572,8 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
   }
 
   std::vector<OverlayLayer> layers;
-  int add_index = -1;
+  size_t layers_size = layers.size();
+  int add_index = layers_size;
   size_t z_order = 0;
   size_t previous_size = in_flight_layers_.size();
   for (const DisplayPlaneState& previous_plane : source_planes) {
@@ -605,6 +608,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame,
                      resource_manager_.get(), layers.size() - 1);
 
+    // force full validate when video layer changes
     if (add_index != 0 && layer.IsVideoLayer()) {
       if ((previous_layer && !previous_layer->IsVideoLayer()) ||
           !previous_layer) {
@@ -614,7 +618,7 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
     }
     if (previous_layer &&
         previous_layer->IsCursorLayer() != layer.IsCursorLayer()) {
-      if (add_index == -1)
+      if (add_index == layers_size)
         add_index = layer.GetZorder();
     }
   }

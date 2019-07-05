@@ -213,7 +213,8 @@ class DisplayPlaneState {
   // Helper to check if we need to allocate
   // an offscreen surface for this plane.
   bool NeedsSurfaceAllocation() const {
-    return needs_surface_allocation_;
+    return NeedsOffScreenComposition() && (private_data_->surfaces_.size() < 3);
+    // return needs_surface_allocation_;
   }
 
   // Put's current OffscreenSurface to back in the
