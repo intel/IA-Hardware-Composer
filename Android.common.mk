@@ -140,8 +140,7 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../mesa/include
 else
 LOCAL_CPPFLAGS += \
-	-DUSE_GL \
-	-DENABLE_RBC
+	-DUSE_GL
 endif
 
 ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
