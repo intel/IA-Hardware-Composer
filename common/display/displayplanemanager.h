@@ -133,7 +133,7 @@ class DisplayPlaneManager {
                            DisplayPlaneStateList &list,
                            std::vector<OverlayLayer> &layers,
                            std::vector<NativeSurface *> &mark_later,
-                           bool recycle_resources);
+                           bool recycle_resources, size_t add_index);
 
   void ResetPlaneTarget(DisplayPlaneState &plane, OverlayPlane &overlay_plane);
 
