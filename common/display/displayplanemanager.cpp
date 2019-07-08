@@ -112,12 +112,28 @@ bool DisplayPlaneManager::ValidateLayers(
         OverlayPlane(temp.GetDisplayPlane(), temp.GetOverlayLayer()));
   }
 
+  size_t video_layers = 0;
+  for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
+    if (layers[lindex].IsVideoLayer())
+      video_layers++;
+  }
+
   // In case we are forcing GPU composition for all layers and using a single
   // plane.
   if (disable_overlay) {
-    ISURFACETRACE("Forcing GPU For all layers %d %d %d %d \n", disable_overlay,
-                  composition.empty(), add_index <= 0, layers.size());
-    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later, false);
+    if (!video_layers) {
+      ISURFACETRACE("Forcing GPU For all layers %d %d %d %d \n",
+                    disable_overlay, composition.empty(), add_index <= 0,
+                    layers.size());
+      ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
+                           false);
+    } else {
+      ISURFACETRACE("Forcing VPP For all layers %d %d %d %d \n",
+                    disable_overlay, composition.empty(), add_index <= 0,
+                    layers.size());
+      ForceVppForAllLayers(commit_planes, composition, layers, add_index,
+                           mark_later, false);
+    }
 
     *re_validation_needed = false;
     *commit_checked = true;
@@ -134,11 +150,6 @@ bool DisplayPlaneManager::ValidateLayers(
     j->get()->SetInUse(false);
   }
 
-  size_t video_layers = 0;
-  for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
-    if (layers[lindex].IsVideoLayer())
-      video_layers++;
-  }
   size_t avail_planes = overlay_planes_.size() - composition.size();
   if (!(overlay_planes_[overlay_planes_.size() - 1]->IsUniversal()))
     avail_planes--;
@@ -393,7 +404,8 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   if (validate_final_layers) {
-    ValidateFinalLayers(commit_planes, composition, layers, mark_later, false);
+    ValidateFinalLayers(commit_planes, composition, layers, mark_later, false,
+                        add_index);
     test_commit_done = true;
   }
 
@@ -797,17 +809,25 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 void DisplayPlaneManager::ValidateFinalLayers(
     std::vector<OverlayPlane> &commit_planes,
     DisplayPlaneStateList &composition, std::vector<OverlayLayer> &layers,
-    std::vector<NativeSurface *> &mark_later, bool recycle_resources) {
+    std::vector<NativeSurface *> &mark_later, bool recycle_resources,
+    size_t add_index) {
+  bool has_video = false;
   for (DisplayPlaneState &plane : composition) {
     if (plane.NeedsOffScreenComposition() && !plane.GetOffScreenTarget()) {
       EnsureOffScreenTarget(plane);
     }
+    if (!has_video && plane.IsVideoPlane())
+      has_video = true;
   }
 
   // If this combination fails just fall back to 3D for all layers.
   if (!plane_handler_->TestCommit(commit_planes)) {
-    ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
-                         recycle_resources);
+    if (!has_video)
+      ForceGpuForAllLayers(commit_planes, composition, layers, mark_later,
+                           recycle_resources);
+    else
+      ForceVppForAllLayers(commit_planes, composition, layers, add_index,
+                           mark_later, false);
   }
 }
 
