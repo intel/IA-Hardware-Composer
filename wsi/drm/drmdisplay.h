@@ -133,8 +133,6 @@ class DrmDisplay : public PhysicalDisplay {
     first_commit_ = true;
   }
 
-  bool CheckLimitedMonitor();
-
  private:
   void ShutDownPipe();
   void GetDrmObjectPropertyValue(const char *name,
@@ -167,7 +165,6 @@ class DrmDisplay : public PhysicalDisplay {
   std::vector<uint8_t *> FindExtendedBlocksForTag(uint8_t *edid,
                                                   uint8_t block_tag);
   void DrmConnectorGetDCIP3Support(const ScopedDrmObjectPropertyPtr &props);
-  void GetEDIDDisplayData(const ScopedDrmObjectPropertyPtr &props);
 
   void TraceFirstCommit();
 
