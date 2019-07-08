@@ -306,14 +306,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
                              encoder->crtc_id, display->CrtcId(),
                              display->GetDisplayPipe());
           // Set the modes supported for each display
-          if (display->CheckLimitedMonitor()) {
-            // only expose the preferred mode for limited monitor
-            std::vector<drmModeModeInfo> limited_mode(
-                1, connector->modes[preferred_mode]);
-            display->SetDrmModeInfo(limited_mode);
-          } else {
-            display->SetDrmModeInfo(mode);
-          }
+          display->SetDrmModeInfo(mode);
           break;
         }
       }
@@ -361,14 +354,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
           IHOTPLUGEVENTTRACE("Connected with crtc: %d pipe:%d \n",
                              display->CrtcId(), display->GetDisplayPipe());
           // Set the modes supported for each display
-          if (display->CheckLimitedMonitor()) {
-            // only expose the preferred mode for limited monitor
-            std::vector<drmModeModeInfo> limited_mode(
-                1, connector->modes[preferred_mode]);
-            display->SetDrmModeInfo(limited_mode);
-          } else {
-            display->SetDrmModeInfo(mode);
-          }
+          display->SetDrmModeInfo(mode);
           break;
         }
       }
