@@ -152,6 +152,10 @@ void PhysicalDisplay::Connect() {
 
   SPIN_LOCK(modeset_lock_);
   if (connection_state_ & kConnected) {
+    IHOTPLUGEVENTTRACE(
+        "PhysicalDisplay::Connect connected already, return with power mode "
+        "update.");
+    UpdatePowerMode();
     SPIN_UNLOCK(modeset_lock_);
     return;
   }
