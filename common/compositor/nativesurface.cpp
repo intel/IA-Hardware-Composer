@@ -53,7 +53,8 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
   *modifier_succeeded = false;
   bool modifier_used = false;
 
-  if (usage == hwcomposer::kLayerVideo) {
+  if (usage == hwcomposer::kLayerVideo ||
+      usage == hwcomposer::kLayerProtected) {
     modifier = 0;
   }
 

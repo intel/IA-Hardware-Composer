@@ -109,6 +109,9 @@ void DrmBuffer::InitializeFromNativeHandle(HWCNativeHandle handle,
   }
 
   media_image_.handle_ = image_.handle_;
+  if (handle->meta_data_.usage_ == kLayerProtected) {
+    image_.handle_->meta_data_.usage_ = handle->meta_data_.usage_;
+  }
   Initialize(image_.handle_->meta_data_);
   original_handle_ = handle;
 }

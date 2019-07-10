@@ -779,14 +779,15 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   if (!surface) {
     NativeSurface *new_surface = NULL;
-    if (video_separate) {
+    if (plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1)) {
       new_surface = CreateVideoSurface(width_, height_);
+      if (plane.GetOverlayLayer()->IsProtected())
+        usage = hwcomposer::kLayerProtected;
+      else
+        usage = hwcomposer::kLayerVideo;
     } else {
       new_surface = Create3DSurface(width_, height_);
     }
-
-    if (plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1))
-      usage = hwcomposer::kLayerVideo;
 
     bool modifer_succeeded = false;
     new_surface->Init(resource_manager_, preferred_format, usage, modifier,
