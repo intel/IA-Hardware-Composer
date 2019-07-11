@@ -749,12 +749,11 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
   int dest_x = plane.GetDisplayFrame().left;
   int dest_w = plane.GetDisplayFrame().right - dest_x;
 
-  bool video_separate = plane.IsVideoPlane() &&
-                        (plane.GetSourceLayers().size() == 1) &&
-                        !(dest_w % 2 || dest_x % 2);
+  bool video_separate =
+      plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1);
   uint32_t preferred_format = 0;
   uint32_t usage = hwcomposer::kLayerNormal;
-  if (video_separate) {
+  if (video_separate && !(dest_w % 2 || dest_x % 2)) {
     preferred_format = plane.GetDisplayPlane()->GetPreferredVideoFormat();
   } else {
     preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
@@ -781,16 +780,16 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
       new_surface = CreateVideoSurface(width_, height_);
+      usage = hwcomposer::kLayerVideo;
     } else {
       new_surface = Create3DSurface(width_, height_);
     }
 
-    if (plane.IsVideoPlane() && (plane.GetSourceLayers().size() == 1))
-      usage = hwcomposer::kLayerVideo;
-
     bool modifer_succeeded = false;
     new_surface->Init(resource_manager_, preferred_format, usage, modifier,
                       &modifer_succeeded);
+    if (video_separate)
+      new_surface->GetLayer()->SetVideoLayer(true);
 
     if (modifer_succeeded) {
       plane.GetDisplayPlane()->PreferredFormatModifierValidated();

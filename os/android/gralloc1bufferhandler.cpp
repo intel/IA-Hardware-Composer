@@ -149,16 +149,21 @@ bool Gralloc1BufferHandler::CreateBuffer(uint32_t w, uint32_t h, int format,
 
   set_format_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, pixel_format);
 #ifdef ENABLE_RBC
-  uint64_t modifier = 0;
-  if (set_modifier_) {
-    if (preferred_modifier != -1) {
-      modifier = preferred_modifier;
+  if (preferred_modifier != 0) {
+    uint64_t modifier = 0;
+    if (set_modifier_) {
+      if (preferred_modifier != -1) {
+        modifier = preferred_modifier;
+      }
+      set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_,
+                    modifier);
     }
-    set_modifier_(gralloc1_dvc, temp->gralloc1_buffer_descriptor_t_, modifier);
-  }
 
-  if (modifier_used && modifier != DRM_FORMAT_MOD_NONE) {
-    *modifier_used = true;
+    if (modifier_used && modifier != DRM_FORMAT_MOD_NONE) {
+      *modifier_used = true;
+    }
+  } else {
+    *modifier_used = false;
   }
 #else
   if (modifier_used) {
