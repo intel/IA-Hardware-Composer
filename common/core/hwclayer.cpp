@@ -277,8 +277,6 @@ void HwcLayer::SufaceDamageTransfrom() {
         (current_rendering_damage_.right - current_rendering_damage_.left),
         (current_rendering_damage_.bottom - current_rendering_damage_.top));
 #endif
-  } else if (surface_damage_.empty()) {
-    current_rendering_damage_ = surface_damage_;
   } else {
     current_rendering_damage_ = translated_damage;
   }
@@ -295,6 +293,7 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kSourceRectChanged;
     if (state_ & kSurfaceDamageChanged) {
       SufaceDamageTransfrom();
+      state_ &= ~kSurfaceDamageChanged;
     }
   }
 
