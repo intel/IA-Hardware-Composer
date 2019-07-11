@@ -288,6 +288,8 @@ bool DisplayPlaneManager::ValidateLayers(
             ISURFACETRACE("Added Layer: %d %d validate_final_layers: %d  \n",
                           layer->GetZorder(), composition.size(),
                           validate_final_layers);
+            j--;
+            plane = j->get();
             composition.back().AddLayer(layer);
             while (SquashPlanesAsNeeded(layers, composition, commit_planes,
                                         mark_later, &validate_final_layers)) {
@@ -299,6 +301,7 @@ bool DisplayPlaneManager::ValidateLayers(
             if (!validate_final_layers)
               validate_final_layers = !(last_plane.GetOffScreenTarget());
             ResetPlaneTarget(last_plane, commit_planes.back());
+            break;
           }
         }
       }
