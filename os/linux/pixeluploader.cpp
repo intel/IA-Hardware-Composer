@@ -110,7 +110,7 @@ void PixelUploader::HandleRoutine() {
 
 void PixelUploader::Wait() {
   if (fd_chandler_.Poll(-1) <= 0) {
-    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+    ETRACE("Poll Failed in PixelUploader %s", PRINTERROR());
     return;
   }
 

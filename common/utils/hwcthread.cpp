@@ -72,7 +72,7 @@ void HWCThread::HandleExit() {
 
 void HWCThread::HandleWait() {
   if (fd_handler_.Poll(-1) <= 0) {
-    ETRACE("Poll Failed in DisplayManager %s", PRINTERROR());
+    ETRACE("Poll Failed in HWCThread HandleWait %s", PRINTERROR());
     return;
   }
 
