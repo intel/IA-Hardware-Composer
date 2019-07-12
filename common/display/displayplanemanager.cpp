@@ -762,18 +762,19 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     preferred_format = plane.GetDisplayPlane()->GetPreferredFormat();
   }
 
-  uint64_t modifier = plane.GetDisplayPlane()->GetPreferredFormatModifier();
+  uint64_t preferred_modifier =
+      plane.GetDisplayPlane()->GetPreferredFormatModifier();
   if (plane.IsVideoPlane())
-    modifier = 0;
-  for (auto &fb : surfaces_) {
-    if (fb->GetSurfaceAge() == -1) {
-      OverlayBuffer *layer_buffer = fb->GetLayer()->GetBuffer();
+    preferred_modifier = 0;
+  for (auto &srf : surfaces_) {
+    if (srf->GetSurfaceAge() == -1) {
+      OverlayBuffer *layer_buffer = srf->GetLayer()->GetBuffer();
       if (!layer_buffer)
         continue;
       uint32_t surface_format = layer_buffer->GetFormat();
       if ((preferred_format == surface_format) &&
-          (fb->GetModifier() == modifier)) {
-        surface = fb.get();
+          (preferred_modifier == srf->GetModifier())) {
+        surface = srf.get();
         break;
       }
     }
@@ -789,8 +790,8 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     }
 
     bool modifer_succeeded = false;
-    new_surface->Init(resource_manager_, preferred_format, usage, modifier,
-                      &modifer_succeeded);
+    new_surface->Init(resource_manager_, preferred_format, usage,
+                      preferred_modifier, &modifer_succeeded);
     if (video_separate)
       new_surface->GetLayer()->SetVideoLayer(true);
 
