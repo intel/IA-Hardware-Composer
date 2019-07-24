@@ -118,9 +118,7 @@ void HwcLayer::SetSurfaceDamage(const HwcRegion& surface_damage) {
       return;
     }
   } else if (rects == 0) {
-    rect = display_frame_;
-    // damage is assigned with display_frame, no need to transform
-    state_ &= ~kSurfaceDamageChanged;
+    rect = source_crop_;
   }
 
   if ((surface_damage_.left == rect.left) &&
@@ -280,7 +278,7 @@ void HwcLayer::SufaceDamageTransfrom() {
   } else if (surface_damage_.empty()) {
     current_rendering_damage_ = surface_damage_;
   } else {
-    current_rendering_damage_ = translated_damage;
+    current_rendering_damage_ = display_frame_;
   }
 }
 
@@ -295,6 +293,8 @@ void HwcLayer::Validate() {
     layer_cache_ &= ~kSourceRectChanged;
     if (state_ & kSurfaceDamageChanged) {
       SufaceDamageTransfrom();
+    } else {
+      current_rendering_damage_ = display_frame_;
     }
   }
 
