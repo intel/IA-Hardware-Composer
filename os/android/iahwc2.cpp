@@ -637,6 +637,14 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       cursor_z_order = l.second.z_order();
       continue;
     }
+#ifndef FORCE_ALL_DEVICE_TYPE
+    if ((l.second.validated_type() == HWC2::Composition::Client) &&
+        (l.second.GetLayer()->GetNativeHandle() == NULL)) {
+      ICOMPOSITORTRACE(
+          "Skip clinet layer without buffer which composed by SurfaceFlinger");
+      continue;
+    }
+#endif
 
     if ((l.second.validated_type() != HWC2::Composition::SolidColor) &&
         (l.second.GetLayer()->GetNativeHandle() == NULL)) {
