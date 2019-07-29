@@ -281,9 +281,9 @@ bool DrmPlane::UpdateProperties(drmModeAtomicReqPtr property_set,
 
   // use RotatedDisplay Frame intead of layer displayFrame
   HwcRect<int> display_frame = plane.GetRotatedDisplayFrame();
-  if(plane.GetRotationType() != DisplayPlaneState::RotationType::kDisplayRotation)
-  {
-     display_frame = plane.GetDisplayFrame();
+  if (plane.GetRotationType() !=
+      DisplayPlaneState::RotationType::kDisplayRotation) {
+    display_frame = plane.GetDisplayFrame();
   }
 
   const HwcRect<float>& source_crop = layer->GetSourceCrop();
@@ -396,7 +396,6 @@ void DrmPlane::SetNativeFence(int32_t fd) {
   kms_fence_ = fd;
 }
 
-
 void DrmPlane::SetBuffer(std::shared_ptr<OverlayBuffer>& buffer) {
   buffer_ = buffer;
 }
@@ -502,7 +501,7 @@ bool DrmPlane::IsSupportedFormat(uint32_t format) {
       return true;
     }
   }
- 
+
   return false;
 }
 

@@ -75,9 +75,11 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
 
 void DisplayPlaneState::UpdateRotateFrame() {
   if (private_data_->rotation_type_ == RotationType::kDisplayRotation) {
-    private_data_->rotated_display_frame_ = RotateScaleRect(
-        private_data_->display_frame_, private_data_->plane_manager_->GetWidth(),
-        private_data_->plane_manager_->GetHeight(), private_data_->plane_transform_);
+    private_data_->rotated_display_frame_ =
+        RotateScaleRect(private_data_->display_frame_,
+                        private_data_->plane_manager_->GetWidth(),
+                        private_data_->plane_manager_->GetHeight(),
+                        private_data_->plane_transform_);
   } else {
     private_data_->rotated_display_frame_ = private_data_->display_frame_;
   }
@@ -176,8 +178,7 @@ void DisplayPlaneState::ResetLayers(const std::vector<OverlayLayer> &layers,
 
   for (const size_t &index : current_layers) {
     if (index >= size) {
-      ISURFACETRACE("Reset breaks index: %d size %d \n", index,
-                    size);
+      ISURFACETRACE("Reset breaks index: %d size %d \n", index, size);
       break;
     }
 
@@ -288,8 +289,7 @@ void DisplayPlaneState::RefreshLayerRects(
 
   private_data_->refresh_surface_ = true;
   recycled_surface_ = false;
-  
-  
+
   if (!surface_damage.empty()) {
     for (NativeSurface *surface : private_data_->surfaces_) {
       surface->UpdateSurfaceDamage(surface_damage, true);
@@ -303,13 +303,13 @@ void DisplayPlaneState::ForceGPURendering() {
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
   recycled_surface_ = false;
   EnsureOffScreenPlaneTarget();
-  if(private_data_->rotation_type_ == RotationType::kDisplayRotation)
-  	SetRotationType(RotationType::kGPURotation, true); 
+  if (private_data_->rotation_type_ == RotationType::kDisplayRotation)
+    SetRotationType(RotationType::kGPURotation, true);
 }
 
 void DisplayPlaneState::EnsureOffScreenPlaneTarget() {
-  if (NeedsSurfaceAllocation() &&private_data_->state_ ==
-          DisplayPlanePrivateState::State::kRender) {
+  if (NeedsSurfaceAllocation() &&
+      private_data_->state_ == DisplayPlanePrivateState::State::kRender) {
     private_data_->plane_manager_->EnsureOffScreenTarget(*this);
   }
 }
@@ -843,11 +843,17 @@ void DisplayPlaneState::Dump() const {
   CalculateSourceCrop(scaled_rect);
   ETRACE("DisplayPlaneState SourceWidth: %f",
          scaled_rect.right - scaled_rect.left);
-  ETRACE("DisplayPlaneState SourceHeight: %f", scaled_rect.bottom - scaled_rect.top);
-  ETRACE("DisplayPlaneState DisplayFrame: %d %d %d %d",   private_data_->display_frame_.top, private_data_->display_frame_.left, 
-  	                      private_data_->display_frame_.bottom, private_data_->display_frame_.right);
-  ETRACE("DisplayPlaneState RotatedFrame: %d %d %d %d", private_data_->rotated_display_frame_.top,  private_data_->rotated_display_frame_.left,
-                                 private_data_->rotated_display_frame_.bottom, private_data_->rotated_display_frame_.right);
+  ETRACE("DisplayPlaneState SourceHeight: %f",
+         scaled_rect.bottom - scaled_rect.top);
+  ETRACE("DisplayPlaneState DisplayFrame: %d %d %d %d",
+         private_data_->display_frame_.top, private_data_->display_frame_.left,
+         private_data_->display_frame_.bottom,
+         private_data_->display_frame_.right);
+  ETRACE("DisplayPlaneState RotatedFrame: %d %d %d %d",
+         private_data_->rotated_display_frame_.top,
+         private_data_->rotated_display_frame_.left,
+         private_data_->rotated_display_frame_.bottom,
+         private_data_->rotated_display_frame_.right);
   ETRACE(
       "DisplayPlaneState Scanout %d, videoplane %d, iscuror %d, use plane "
       "scalar %d, need composition %d, source layers %d, rotation %d, plane_id "
