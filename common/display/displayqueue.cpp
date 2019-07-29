@@ -343,9 +343,9 @@ bool DisplayQueue::AssignAndCommitPlanes(
   // Reset last commit failure state.
   last_commit_failed_update_ = false;
 
-  // DUMP_CURRENT_COMPOSITION_PLANES();
-  // DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
-  // DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
+  DUMP_CURRENT_COMPOSITION_PLANES();
+  DUMP_CURRENT_LAYER_PLANE_COMBINATIONS();
+  DUMP_CURRENT_DUPLICATE_LAYER_COMBINATIONS();
 
   // Ensure all pixel buffer uploads are done.
   bool compsition_passed = false;
