@@ -63,7 +63,8 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers, bool *rects_updated);
+  void ResetLayers(const std::vector<OverlayLayer> &layers,
+                   bool *rects_updated);
 
   // Updates display frame and source rects combined region for
   // this plane.

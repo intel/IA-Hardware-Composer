@@ -666,8 +666,7 @@ bool DrmDisplay::CommitFrame(
       plane->SetNativeFence(-1);
     }
 
-    if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled())
-    {
+    if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled()) {
       plane->SetBuffer(layer->GetSharedBuffer());
     }
 

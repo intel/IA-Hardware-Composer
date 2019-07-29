@@ -148,7 +148,7 @@ class DisplayQueue {
   }
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
-  void DumpCurrentDisplayPlaneList (DisplayPlaneStateList & composition);
+  void DumpCurrentDisplayPlaneList(DisplayPlaneStateList& composition);
 
  private:
   enum QueueState {
