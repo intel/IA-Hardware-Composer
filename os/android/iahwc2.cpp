@@ -630,6 +630,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // update from the client
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
+  size_t max_z_order = 0;
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     if (l.second.IsCursorLayer()) {
       use_cursor_layer = true;
@@ -652,11 +653,18 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
           "HWC don't support layer without buffer if not in type SolidColor");
       continue;
     }
-
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
       case HWC2::Composition::SolidColor:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
+        ICOMPOSITORTRACE(
+            "Add Device/SolidColor HWC2Layer[%d], displayFrame: %d, %d, %d, %d",
+            l.second.z_order(), l.second.GetLayer()->GetDisplayFrame().left,
+            l.second.GetLayer()->GetDisplayFrame().top,
+            l.second.GetLayer()->GetDisplayFrame().right,
+            l.second.GetLayer()->GetDisplayFrame().bottom);
+        if (l.second.z_order() > max_z_order)
+          max_z_order = l.second.z_order();
         break;
       case HWC2::Composition::Client:
         // Place it at the z_order of the highest client layer
@@ -671,23 +679,38 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       client_layer_.GetLayer()->GetNativeHandle() &&
       client_layer_.GetLayer()->GetNativeHandle()->handle_) {
     z_map.emplace(std::make_pair(client_z_order, &client_layer_));
+    client_layer_.SetLayerZOrder(client_z_order);
+    ICOMPOSITORTRACE("Add Client HWC2Layer[%d], displayFrame: %d, %d, %d, %d",
+                     client_z_order,
+                     client_layer_.GetLayer()->GetDisplayFrame().left,
+                     client_layer_.GetLayer()->GetDisplayFrame().top,
+                     client_layer_.GetLayer()->GetDisplayFrame().right,
+                     client_layer_.GetLayer()->GetDisplayFrame().bottom);
+    if (client_z_order > max_z_order)
+      max_z_order = client_z_order;
   }
 
   // Place the cursor at the highest z-order
   if (use_cursor_layer) {
-    if (z_map.size()) {
-      if (z_map.rbegin()->second->z_order() > cursor_z_order)
-        cursor_z_order = z_map.rbegin()->second->z_order() + 1;
-      else if (client_z_order > cursor_z_order)
-        cursor_z_order = client_z_order + 1;
+    if (max_z_order > cursor_z_order) {
+      cursor_z_order = max_z_order + 1;
+    } else if (client_z_order > cursor_z_order) {
+      cursor_z_order = client_z_order + 1;
     }
     z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
+    ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d]", cursor_z_order);
   }
 
   std::vector<hwcomposer::HwcLayer *> layers;
   // now that they're ordered by z, add them to the composition
   for (std::pair<const uint32_t, IAHWC2::Hwc2Layer *> &l : z_map) {
     layers.emplace_back(l.second->GetLayer());
+    ICOMPOSITORTRACE("Add HwcLayer[%d][%d], displayFrame: %d, %d, %d, %d",
+                     l.second->z_order(), l.second->validated_type(),
+                     l.second->GetLayer()->GetDisplayFrame().left,
+                     l.second->GetLayer()->GetDisplayFrame().top,
+                     l.second->GetLayer()->GetDisplayFrame().right,
+                     l.second->GetLayer()->GetDisplayFrame().bottom);
   }
 
   if (layers.empty() && display_->Type() != DisplayType::kLogical)
