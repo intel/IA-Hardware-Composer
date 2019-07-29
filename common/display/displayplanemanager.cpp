@@ -103,8 +103,7 @@ bool DisplayPlaneManager::ValidateLayers(
       ISURFACETRACE("Forcing VPP For all layers %d %d %d %d \n",
                     disable_overlay, composition.empty(), add_index <= 0,
                     layers.size());
-      ForceVppForAllLayers(composition, layers, add_index,
-                           mark_later, false);
+      ForceVppForAllLayers(composition, layers, add_index, mark_later, false);
     }
 
     return true;
@@ -506,8 +505,7 @@ bool DisplayPlaneManager::FallbacktoGPU(
   if (layer->IsVideoLayer())
     return true;
 
-  if (!target_plane->ValidateLayer(layer))
-  {
+  if (!target_plane->ValidateLayer(layer)) {
     return true;
   }
 
