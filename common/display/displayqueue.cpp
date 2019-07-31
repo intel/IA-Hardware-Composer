@@ -607,6 +607,12 @@ void DisplayQueue::PresentClonedCommit(DisplayQueue* queue) {
 
     layer.CloneLayer(previous_plane.GetOverlayLayer(), display_frame,
                      resource_manager_.get(), layers.size() - 1);
+#ifndef FORCE_ALL_DEVICE_TYPE
+    // the blending of Client layer is None. need to set as Premult for
+    // composing
+    if (display_->GetTotalOverlays() < z_order)
+      layer.SetBlending(hwcomposer::HWCBlending::kBlendingPremult);
+#endif
 
     // force full validate when video layer changes
     if (add_index != 0 && layer.IsVideoLayer()) {
