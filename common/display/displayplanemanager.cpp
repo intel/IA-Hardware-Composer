@@ -206,7 +206,8 @@ bool DisplayPlaneManager::ValidateLayers(
             size_t squashed_planes = SquashNonVideoPlanes(
                 layers, composition, mark_later, &validate_final_layers);
             j -= squashed_planes;
-            plane = j->get();
+            if (squashed_planes && j > overlay_begin)
+              plane = (j - 1)->get();
           }
         }
 
@@ -239,7 +240,6 @@ bool DisplayPlaneManager::ValidateLayers(
             while (SquashPlanesAsNeeded(layers, composition, mark_later,
                                         &validate_final_layers)) {
               j--;
-              plane = j->get();
             }
           }
         }
@@ -856,10 +856,10 @@ bool DisplayPlaneManager::SquashPlanesAsNeeded(
         scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
 
     ISURFACETRACE(
-        "ANALAYZE last_plane: scanout_plane.NeedsOffScreenComposition() %d "
-        "scanout_plane.IsCursorPlane() %d scanout_plane.IsVideoPlane() %d  \n",
-        scanout_plane.NeedsOffScreenComposition(),
-        scanout_plane.IsCursorPlane(), scanout_plane.IsVideoPlane());
+        "ANALAYZE last_plane: last_plane.NeedsOffScreenComposition() %d "
+        "last_plane.IsCursorPlane() %d last_plane.IsVideoPlane() %d  \n",
+        last_plane.NeedsOffScreenComposition(), last_plane.IsCursorPlane(),
+        last_plane.IsVideoPlane());
 
     if (!scanout_plane.IsCursorPlane() && !scanout_plane.IsVideoPlane()) {
       ISURFACETRACE("ANALAYZE AnalyseOverlap: %d \n",
