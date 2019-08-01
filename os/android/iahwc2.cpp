@@ -705,12 +705,14 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   // now that they're ordered by z, add them to the composition
   for (std::pair<const uint32_t, IAHWC2::Hwc2Layer *> &l : z_map) {
     layers.emplace_back(l.second->GetLayer());
-    ICOMPOSITORTRACE("Add HwcLayer[%d][%d], displayFrame: %d, %d, %d, %d",
-                     l.second->z_order(), l.second->validated_type(),
-                     l.second->GetLayer()->GetDisplayFrame().left,
-                     l.second->GetLayer()->GetDisplayFrame().top,
-                     l.second->GetLayer()->GetDisplayFrame().right,
-                     l.second->GetLayer()->GetDisplayFrame().bottom);
+    ICOMPOSITORTRACE(
+        "Add HwcLayer[%d][%d], displayFrame: %d, %d, %d, %d.  Blending: %d",
+        l.second->z_order(), l.second->validated_type(),
+        l.second->GetLayer()->GetDisplayFrame().left,
+        l.second->GetLayer()->GetDisplayFrame().top,
+        l.second->GetLayer()->GetDisplayFrame().right,
+        l.second->GetLayer()->GetDisplayFrame().bottom,
+        l.second->GetLayer()->GetBlending());
   }
 
   if (layers.empty() && display_->Type() != DisplayType::kLogical)
@@ -900,7 +902,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       l.second.set_validated_type(HWC2::Composition::Invalid);
 
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-      if (l.second.sf_type() == HWC2::Composition::Device)
+      if (l.second.sf_type() == HWC2::Composition::Device ||
+          l.second.sf_type() == HWC2::Composition::SolidColor)
         z_map.emplace(std::make_pair(l.second.z_order(), l.first));
     }
 
@@ -914,14 +917,18 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
       if (!avail_planes--)
         break;
-      layers_[l.second].set_validated_type(HWC2::Composition::Device);
+      if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
+        layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
+      } else {
+        layers_[l.second].set_validated_type(HWC2::Composition::Device);
+      }
     }
 
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
       IAHWC2::Hwc2Layer &layer = l.second;
       // We can only handle layers of Device type, send everything else to SF
-      if (layer.sf_type() != HWC2::Composition::Device ||
-          layer.validated_type() != HWC2::Composition::Device) {
+      if (layer.validated_type() != HWC2::Composition::Device &&
+          layer.validated_type() != HWC2::Composition::SolidColor) {
         layer.set_validated_type(HWC2::Composition::Client);
         ++*num_types;
       }
