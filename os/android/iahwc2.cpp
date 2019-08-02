@@ -242,6 +242,10 @@ HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
     return HWC2::Error::BadDisplay;
   }
 
+  if (~((uint32_t)display) == 0) {
+    return HWC2::Error::BadDisplay;
+  }
+
   device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
   virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
       .reset(nullptr);
@@ -412,6 +416,7 @@ HWC2::Error IAHWC2::HwcDisplay::AcceptDisplayChanges() {
 
 HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
   supported(__func__);
+
   uint64_t id = display_->AcquireId();
   layers_.emplace(static_cast<hwc2_layer_t>(id), IAHWC2::Hwc2Layer());
   layers_.at(id).XTranslateCoordinates(display_->GetXTranslation());
@@ -422,6 +427,9 @@ HWC2::Error IAHWC2::HwcDisplay::CreateLayer(hwc2_layer_t *layer) {
 
 HWC2::Error IAHWC2::HwcDisplay::DestroyLayer(hwc2_layer_t layer) {
   supported(__func__);
+  if (layers_.empty() && layer > 0)
+    return HWC2::Error::BadLayer;
+
   if (layers_.empty())
     return HWC2::Error::None;
 
@@ -768,6 +776,9 @@ HWC2::Error IAHWC2::HwcDisplay::SetClientTarget(buffer_handle_t target,
 
 HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   supported(__func__);
+  if (mode < 0)
+    return HWC2::Error::BadParameter;
+
   // TODO: Use the parameter mode to set the color mode for the display to be
   // used.
 
@@ -805,6 +816,8 @@ HWC2::Error IAHWC2::HwcDisplay::SetOutputBuffer(buffer_handle_t buffer,
 
 HWC2::Error IAHWC2::HwcDisplay::SetPowerMode(int32_t mode_in) {
   supported(__func__);
+  if (mode_in < 0)
+    return HWC2::Error::BadParameter;
   uint32_t power_mode = 0;
   auto mode = static_cast<HWC2::PowerMode>(mode_in);
   switch (mode) {
@@ -1083,8 +1096,12 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerTransform(int32_t transform) {
 }
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerVisibleRegion(hwc_region_t visible) {
+  supported(__func__);
   uint32_t num_rects = visible.numRects;
   hwcomposer::HwcRegion hwc_region;
+
+  if (!visible.rects)
+    return HWC2::Error::None;
 
   for (size_t rect = 0; rect < num_rects; ++rect) {
     hwc_region.emplace_back(visible.rects[rect].left, visible.rects[rect].top,

@@ -238,6 +238,10 @@ class IAHWC2 : public hwc2_device_t {
     uint32_t planes_;
   };
 
+  HWC2::Error BadDisplay() {
+    return HWC2::Error::BadDisplay;
+  }
+
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
     return static_cast<IAHWC2 *>(dev);
   }
@@ -258,6 +262,11 @@ class IAHWC2 : public hwc2_device_t {
   static int32_t DisplayHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                              Args... args) {
     IAHWC2 *hwc = toIAHWC2(dev);
+
+    if (~(uint32_t)display_handle == 0) {
+      return static_cast<int32_t>(hwc->BadDisplay());
+    }
+
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
       return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
@@ -287,6 +296,7 @@ class IAHWC2 : public hwc2_device_t {
   static int32_t LayerHook(hwc2_device_t *dev, hwc2_display_t display_handle,
                            hwc2_layer_t layer_handle, Args... args) {
     IAHWC2 *hwc = toIAHWC2(dev);
+
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
       Hwc2Layer &layer = display.get_layer(layer_handle);
