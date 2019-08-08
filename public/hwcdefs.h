@@ -141,6 +141,13 @@ enum class HWCScalingRunTimeSetting : int32_t {
   kScalingModeHighQuality = 2  // use high quality scaling mode.
 };
 
+enum class HWCDisplayCapability : uint32_t
+{
+  kDisplayCapabilityInvalid = 0,
+  kDisplayCapabilitySkipClientColorTransform = 1,
+  kDisplayCapabilityDoze = 2
+};
+
 struct EnumClassHash {
   template <typename T>
   std::size_t operator()(T t) const {
