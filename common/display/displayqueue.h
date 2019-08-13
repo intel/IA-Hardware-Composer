@@ -144,7 +144,10 @@ class DisplayQueue {
   }
 
   int GetTotalOverlays() const {
-    return display_plane_manager_->GetTotalOverlays();
+    if (display_plane_manager_)
+      return display_plane_manager_->GetTotalOverlays();
+    else
+      return 0;
   }
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
