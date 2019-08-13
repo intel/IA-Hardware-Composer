@@ -44,9 +44,7 @@ class DisplayPlaneManager {
   bool Initialize(uint32_t width, uint32_t height);
 
   bool ValidateLayers(std::vector<OverlayLayer> &layers, int add_index,
-                      bool disable_overlay, bool *commit_checked,
-                      bool *re_validation_needed,
-                      DisplayPlaneStateList &composition,
+                      bool disable_overlay, DisplayPlaneStateList &composition,
                       DisplayPlaneStateList &previous_composition,
                       std::vector<NativeSurface *> &mark_later);
 
@@ -69,8 +67,6 @@ class DisplayPlaneManager {
                         bool re_validate_commit);
 
   bool CheckPlaneFormat(uint32_t format);
-
-  void SetOffScreenPlaneTarget(DisplayPlaneState &plane);
 
   void ReleaseFreeOffScreenTargets(bool forced = false);
 
@@ -96,6 +92,10 @@ class DisplayPlaneManager {
   // with pipe of this displayplanemanager.
   void SetDisplayTransform(uint32_t transform);
 
+  uint32_t GetDisplayTransform() const {
+    return display_transform_;
+  }
+
   // If we have two planes as follows:
   // Plane N: Having top and bottom layer and needs 3d rendering.
   // Plane N-1 covering the middle layer of screen.
@@ -103,88 +103,53 @@ class DisplayPlaneManager {
   // one, otherwise we will scanout garbage with plane N.
   bool SquashPlanesAsNeeded(const std::vector<OverlayLayer> &layers,
                             DisplayPlaneStateList &composition,
-                            std::vector<OverlayPlane> &commit_planes,
                             std::vector<NativeSurface *> &mark_later,
                             bool *validate_final_layers);
 
   size_t SquashNonVideoPlanes(const std::vector<OverlayLayer> &layers,
                               DisplayPlaneStateList &composition,
-                              std::vector<OverlayPlane> &commit_planes,
                               std::vector<NativeSurface *> &mark_later,
                               bool *validate_final_layers);
 
   // Returns true if we want to force target_layer to a separate plane than
   // adding it to
   // last_plane.
-  bool ForceSeparatePlane(const std::vector<OverlayLayer> &layers,
-                          const DisplayPlaneState &last_plane,
+  bool ForceSeparatePlane(const DisplayPlaneState &last_plane,
                           const OverlayLayer *target_layer);
 
   void ReleaseUnreservedPlanes(std::vector<uint32_t> &reserved_planes);
 
   void ResetPlanes(drmModeAtomicReqPtr pset);
 
+  void EnsureOffScreenTarget(DisplayPlaneState &plane);
+
  private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
   bool FallbacktoGPU(DisplayPlane *target_plane, OverlayLayer *layer,
-                     const std::vector<OverlayPlane> &commit_planes) const;
-
-  void ValidateFinalLayers(std::vector<OverlayPlane> &commit_planes,
-                           DisplayPlaneStateList &list,
-                           std::vector<OverlayLayer> &layers,
-                           std::vector<NativeSurface *> &mark_later,
-                           bool recycle_resources, size_t add_index);
-
-  void ResetPlaneTarget(DisplayPlaneState &plane, OverlayPlane &overlay_plane);
-
-  void EnsureOffScreenTarget(DisplayPlaneState &plane);
-
-  void PreparePlaneForCursor(DisplayPlaneState *plane,
-                             std::vector<NativeSurface *> &mark_later,
-                             bool *validate_final_layers, bool reset_buffer,
-                             bool recycle_resources);
+                     const DisplayPlaneStateList &composition) const;
 
   void ValidateForDisplayScaling(DisplayPlaneState &last_plane,
-                                 std::vector<OverlayPlane> &commit_planes);
+                                 const DisplayPlaneStateList &composition);
 
   // Checks if we can benefit using display plane rotation.
-  void ValidateForDisplayTransform(
-      DisplayPlaneState &last_plane,
-      const std::vector<OverlayPlane> &commit_planes);
+  void ValidateForDisplayTransform(DisplayPlaneState &last_plane,
+                                   const DisplayPlaneStateList &composition);
 
   // Checks if we can benefit by downscaling layer of this plane.
   void ValidateForDownScaling(DisplayPlaneState &last_plane,
-                              const std::vector<OverlayPlane> &commit_planes);
+                              const DisplayPlaneStateList &composition);
 
-  void ForceGpuForAllLayers(std::vector<OverlayPlane> &commit_planes,
-                            DisplayPlaneStateList &composition,
+  void ForceGpuForAllLayers(DisplayPlaneStateList &composition,
                             std::vector<OverlayLayer> &layers,
                             std::vector<NativeSurface *> &mark_later,
                             bool recycle_resources);
 
-  void ForceVppForAllLayers(std::vector<OverlayPlane> &commit_planes,
-                            DisplayPlaneStateList &composition,
+  void ForceVppForAllLayers(DisplayPlaneStateList &composition,
                             std::vector<OverlayLayer> &layers, size_t add_index,
                             std::vector<NativeSurface *> &mark_later,
                             bool recycle_resources);
 
-  // This should be called only in case of a new cursor layer
-  // being added and all other layers are same as previous
-  // frame.
-  void ValidateCursorLayer(std::vector<OverlayLayer> &all_layers,
-                           std::vector<OverlayPlane> &commit_planes,
-                           std::vector<OverlayLayer *> &cursor_layers,
-                           std::vector<NativeSurface *> &mark_later,
-                           DisplayPlaneStateList &composition,
-                           bool *validate_final_layers, bool *test_commit_done,
-                           bool recycle_resources);
-
-  bool CheckForDownScaling(DisplayPlaneStateList &composition,
-                           std::vector<OverlayPlane> &commit_planes);
-
-  void FinalizeValidation(DisplayPlaneStateList &composition,
-                          std::vector<OverlayPlane> &commit_planes,
-                          bool *render_layers, bool *re_validation_needed);
+  bool CheckForDownScaling(DisplayPlaneStateList &composition);
 
   void ResizeOverlays();
 

@@ -54,8 +54,7 @@ class DisplayPlaneState {
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
   DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                    DisplayPlaneManager *plane_manager, uint32_t index,
-                    uint32_t plane_transform);
+                    DisplayPlaneManager *plane_manager);
 
   // Copies plane state from state.
   void CopyState(DisplayPlaneState &state);
@@ -64,7 +63,7 @@ class DisplayPlaneState {
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
-  void ResetLayers(const std::vector<OverlayLayer> &layers, size_t remove_index,
+  void ResetLayers(const std::vector<OverlayLayer> &layers,
                    bool *rects_updated);
 
   // Updates display frame and source rects combined region for
@@ -84,9 +83,13 @@ class DisplayPlaneState {
   // SetOffcreen Surface for this plane.
   void SetOffScreenTarget(NativeSurface *target);
 
+  // Get display frame not counted in display rotation
   const HwcRect<int> &GetDisplayFrame() const;
 
   const HwcRect<float> &GetSourceCrop() const;
+
+  // Get display frame, with display rotation counted
+  const HwcRect<int> &GetRotatedDisplayFrame() const;
 
   const OverlayLayer *GetOverlayLayer() const;
 
@@ -211,7 +214,8 @@ class DisplayPlaneState {
   // Helper to check if we need to allocate
   // an offscreen surface for this plane.
   bool NeedsSurfaceAllocation() const {
-    return needs_surface_allocation_;
+    return NeedsOffScreenComposition() && (private_data_->surfaces_.size() < 3);
+    // return needs_surface_allocation_;
   }
 
   // Put's current OffscreenSurface to back in the
@@ -232,9 +236,11 @@ class DisplayPlaneState {
     return private_data_->supports_video_;
   }
 
-  void Dump();
+  void Dump() const;
 
  private:
+  void EnsureOffScreenPlaneTarget();
+  void UpdateRotateFrame();
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
   class DisplayPlanePrivateState {
@@ -257,6 +263,7 @@ class DisplayPlaneState {
     DisplayPlane *plane_ = NULL;
     const OverlayLayer *layer_ = NULL;
     HwcRect<int> display_frame_;
+    HwcRect<int> rotated_display_frame_;
     HwcRect<float> source_crop_;
     std::vector<size_t> source_layers_;
     std::vector<CompositionRegion> composition_region_;

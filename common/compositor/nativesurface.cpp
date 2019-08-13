@@ -91,6 +91,13 @@ bool NativeSurface::Init(ResourceManager *resource_manager, uint32_t format,
   modifier_ = modifier;
   native_handle_ = native_handle;
 
+  // Ensure a correct status of the destination layer
+  HwcRect<float> source_crop;
+  source_crop.top = source_crop.left = 0;
+  source_crop.right = width_;
+  source_crop.bottom = height_;
+  ResetSourceCrop(source_crop);
+
   return true;
 }
 

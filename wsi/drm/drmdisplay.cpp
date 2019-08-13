@@ -666,10 +666,11 @@ bool DrmDisplay::CommitFrame(
       plane->SetNativeFence(-1);
     }
 
-    if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled())
+    if (comp_plane.Scanout() && !comp_plane.IsSurfaceRecycled()) {
       plane->SetBuffer(layer->GetSharedBuffer());
+    }
 
-    if (!plane->UpdateProperties(pset, crtc_id_, layer))
+    if (!plane->UpdateProperties(pset, crtc_id_, comp_plane))
       return false;
   }
 
@@ -1209,12 +1210,11 @@ void DrmDisplay::NotifyClientsOfDisplayChangeStatus() {
   manager_->NotifyClientsOfDisplayChangeStatus();
 }
 
-bool DrmDisplay::TestCommit(
-    const std::vector<OverlayPlane> &commit_planes) const {
+bool DrmDisplay::TestCommit(const DisplayPlaneStateList &composition) const {
   ScopedDrmAtomicReqPtr pset(drmModeAtomicAlloc());
-  for (auto i = commit_planes.begin(); i != commit_planes.end(); i++) {
-    DrmPlane *plane = static_cast<DrmPlane *>(i->plane);
-    if (!(plane->UpdateProperties(pset.get(), crtc_id_, i->layer, true))) {
+  for (auto &plane_state : composition) {
+    DrmPlane *plane = static_cast<DrmPlane *>(plane_state.GetDisplayPlane());
+    if (!(plane->UpdateProperties(pset.get(), crtc_id_, plane_state, true))) {
       return false;
     }
   }
