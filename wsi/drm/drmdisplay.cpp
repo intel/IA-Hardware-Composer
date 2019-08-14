@@ -417,29 +417,55 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
 
   uint32_t prefer_display_mode = prefer_display_mode_;
   uint32_t perf_display_mode = perf_display_mode_;
+  int32_t prefer_width = 0, prefer_height = 0;
+  prefer_display_mode = FindPreferedDisplayMode(modes_size);
+  perf_display_mode = FindPerformaceDisplayMode(modes_size);
+  GetDisplayAttribute(prefer_display_mode, HWCDisplayAttribute::kWidth,
+                      &prefer_width);
+  GetDisplayAttribute(prefer_display_mode, HWCDisplayAttribute::kHeight,
+                      &prefer_height);
 
   if (!configs) {
-    prefer_display_mode = FindPreferedDisplayMode(modes_size);
-    perf_display_mode = FindPerformaceDisplayMode(modes_size);
-    if (prefer_display_mode == perf_display_mode)
-      *num_configs = 1;
-    else
-      *num_configs = 2;
-    IHOTPLUGEVENTTRACE(
-        "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
-        *num_configs, pipe_, this);
-    return true;
+    *num_configs = modes_size;
+
+    GetDisplayAttribute(prefer_display_mode, HWCDisplayAttribute::kWidth,
+                        &prefer_width);
+    GetDisplayAttribute(prefer_display_mode, HWCDisplayAttribute::kHeight,
+                        &prefer_height);
+
+    if (prefer_width == 3840 && prefer_height == 2160) {
+      IHOTPLUGEVENTTRACE(
+          "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
+          *num_configs, pipe_, this);
+      return true;
+    } else {
+      if (prefer_display_mode == perf_display_mode)
+        *num_configs = 1;
+
+      else
+        *num_configs = 2;
+      IHOTPLUGEVENTTRACE(
+          "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
+          *num_configs, pipe_, this);
+      return true;
+    }
   }
 
   IHOTPLUGEVENTTRACE(
       "GetDisplayConfigs: Populating Configs: %d pipe: %d display: %p",
       *num_configs, pipe_, this);
 
-  configs[0] = prefer_display_mode;
-  if (prefer_display_mode != perf_display_mode)
-    configs[1] = perf_display_mode;
-
-  return true;
+  if (prefer_width == 3840 && prefer_height == 2160) {
+    uint32_t size = *num_configs > modes_size ? modes_size : *num_configs;
+    for (uint32_t i = 0; i < size; i++)
+      configs[i] = i;
+    return true;
+  } else {
+    configs[0] = prefer_display_mode;
+    if (prefer_display_mode != perf_display_mode)
+      configs[1] = perf_display_mode;
+    return true;
+  }
 }
 
 bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
