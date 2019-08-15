@@ -139,8 +139,19 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/common/compositor/vk \
 	$(LOCAL_PATH)/../mesa/include
 else
+
+# iris driver flags
+ifneq ($(filter iris, $(BOARD_GPU_DRIVERS)),)
+$(warning "Iris driver not fully supported, instability or lower performance may occur!")
+LOCAL_CPPFLAGS += \
+	-DUSE_GL \
+	-DDISABLE_EXPLICIT_SYNC
+else
+# i965 driver flags
 LOCAL_CPPFLAGS += \
 	-DUSE_GL
+endif
+
 endif
 
 ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
