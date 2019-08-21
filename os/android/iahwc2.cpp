@@ -118,6 +118,11 @@ class IAHotPlugEventCallback : public hwcomposer::HotPlugCallback {
     int32_t status = static_cast<int32_t>(HWC2::Connection::Connected);
     if (!connected) {
       status = static_cast<int32_t>(HWC2::Connection::Disconnected);
+    } else {
+      hwc2_config_t default_config;
+      uint32_t num_configs = 1;
+      display_->GetDisplayConfigs(&num_configs, &default_config);
+      display_->SetActiveConfig(default_config);
     }
 
     IHOTPLUGEVENTTRACE(
@@ -752,16 +757,21 @@ HWC2::Error IAHWC2::HwcDisplay::SetActiveConfig(hwc2_config_t config) {
     return HWC2::Error::BadConfig;
   }
 
+  int display_width = 0;
+  int display_height = 0;
+  display_->GetDisplayAttribute(config, HWCDisplayAttribute::kWidth,
+                                &display_width);
+  display_->GetDisplayAttribute(config, HWCDisplayAttribute::kHeight,
+                                &display_height);
+
   // Setup the client layer's dimensions
-  hwc_rect_t display_frame = {.left = 0,
-                              .top = 0,
-                              .right = static_cast<int>(display_->Width()),
-                              .bottom = static_cast<int>(display_->Height())};
+  hwc_rect_t display_frame = {
+      .left = 0, .top = 0, .right = display_width, .bottom = display_height};
   client_layer_.SetLayerDisplayFrame(display_frame);
   hwc_frect_t source_crop = {.left = 0.0f,
                              .top = 0.0f,
-                             .right = display_->Width() + 0.0f,
-                             .bottom = display_->Height() + 0.0f};
+                             .right = display_width + 0.0f,
+                             .bottom = display_height + 0.0f};
   client_layer_.SetLayerSourceCrop(source_crop);
 
   return HWC2::Error::None;
