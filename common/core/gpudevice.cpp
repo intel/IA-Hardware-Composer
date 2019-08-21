@@ -82,8 +82,10 @@ bool GpuDevice::Initialize() {
     ETRACE("Failed to open %s", HWC_LOCK_FILE);
     // HWC should become drm master and start to commit.
     // if hwc.lock is not available
+#ifdef DRM_MASTER_SUPPORTED
     if (!display_manager_->IsDrmMasterByDefault())
       display_manager_->setDrmMaster(true);
+#endif
     ResetAllDisplayCommit(true);
   }
 
@@ -1074,9 +1076,11 @@ void GpuDevice::HandleRoutine() {
       ITRACE("Fail to grab the hwc lock.");
     } else {
       ITRACE("Successfully grabbed the hwc lock.");
+#ifdef DRM_MASTER_SUPPORTED
       // Set DRM master
       if (!display_manager_->IsDrmMaster())
         display_manager_->setDrmMaster(true);
+#endif
       // stop ignoring and force refresh
       ResetAllDisplayCommit(true);
       flock(lock_fd_, LOCK_UN);
