@@ -58,6 +58,10 @@ void DisplayPlaneManager::ResizeOverlays() {
       }
     }
   }
+  IPLANERESERVEDTRACE(
+      "ResizeOverlays, overlay_planes_.size: %d, total_overlays_: %d, "
+      "cursor_plane_ is NULL?: %d",
+      overlay_planes_.size(), total_overlays_, cursor_plane_ == NULL);
 }
 
 bool DisplayPlaneManager::Initialize(uint32_t width, uint32_t height) {
@@ -91,14 +95,13 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   // In case we are forcing GPU composition for all layers and using a single
-  // plane.
-  if (disable_overlay) {
+  // plane. or only 1 plane is available for more than 1 layers
+  if (disable_overlay || (total_overlays_ == 1 && layers.size() > 1)) {
     if (!video_layers) {
       ISURFACETRACE("Forcing GPU For all layers %d %d %d %d \n",
                     disable_overlay, composition.empty(), add_index <= 0,
                     layers.size());
-      ForceGpuForAllLayers(composition, layers, mark_later,
-                           false);
+      ForceGpuForAllLayers(composition, layers, mark_later, false);
     } else {
       ISURFACETRACE("Forcing VPP For all layers %d %d %d %d \n",
                     disable_overlay, composition.empty(), add_index <= 0,
@@ -143,7 +146,7 @@ bool DisplayPlaneManager::ValidateLayers(
 
   if (layer_begin != layer_end) {
     auto overlay_end = overlay_planes_.end();
-    if (cursor_plane_) {
+    if (cursor_plane_ && overlay_planes_.size() > 1) {
       overlay_end = overlay_planes_.end() - 1;
     }
 
@@ -187,7 +190,8 @@ bool DisplayPlaneManager::ValidateLayers(
         previous_layer = layer;
 
         // No planes, need to Squash non video planes
-        if (j == overlay_end) {
+        // No need to do squash, if only 1 overlay is available.
+        if (j == overlay_end && total_overlays_ > 1) {
           bool needsquash =
               composition.back().IsVideoPlane() && (layer_begin != layer_end);
           if (!needsquash) {
@@ -395,9 +399,11 @@ void DisplayPlaneManager::ReleaseUnreservedPlanes(
            overlay_planes_.begin();
        iter != overlay_planes_.end();) {
     if (std::find(reserved_planes.begin(), reserved_planes.end(),
-                  plane_index) != reserved_planes.end())
+                  plane_index) != reserved_planes.end()) {
+      IPLANERESERVEDTRACE("Remaining Plane[%d]", plane_index);
       iter++;
-    else {
+    } else {
+      IPLANERESERVEDTRACE("Erasing Plane[%d]", plane_index);
       iter = overlay_planes_.erase(iter);
     }
     plane_index++;

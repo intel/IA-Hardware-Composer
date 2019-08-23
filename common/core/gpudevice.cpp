@@ -228,6 +228,9 @@ void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
       if (skip_duplicate_plane) {
         continue;
       }
+      IPLANERESERVEDTRACE(
+          "Parsing configure for reserving display[%d], plane[%d]",
+          display_index, reserved_plane_index_num);
       reserved_drm_planes_.emplace_back(reserved_plane_index_num);
     }
     reserved_drm_display_planes_map_[display_index] = reserved_drm_planes_;
@@ -819,6 +822,8 @@ void GpuDevice::InitializeFloatDisplay(
 void GpuDevice::HandleHWCSettings() {
   // Handle config file reading
   const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
+  // TODO Get Kvm property to decide if need to load KVM config
+  // KVM_HWC_DISPLAY_INI_PATH
   ITRACE("Hwc display config file is %s", hwc_dp_cfg_path);
 
   bool use_logical = false;
