@@ -17,6 +17,9 @@
 #ifndef COMMON_UTILS_HWCUTILS_H_
 #define COMMON_UTILS_HWCUTILS_H_
 
+#ifdef USE_ANDROID_PROPERTIES
+#include <cutils/properties.h>
+#endif
 #include <hwcdefs.h>
 #include <sstream>
 
@@ -80,6 +83,15 @@ bool IsSupportedMediaFormat(uint32_t format);
  * @return The number of planes for a given format
  */
 uint32_t GetTotalPlanesForFormat(uint32_t format);
+
+#ifdef KVM_HWC_PROPERTY
+/**
+ * Check if running on KVM
+ *
+ * @return True when running on KVM/QEMU
+ */
+bool IsKvmPlatform();
+#endif
 
 /**
  * Check if two rectangles overlap
