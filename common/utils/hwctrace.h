@@ -45,6 +45,7 @@ extern "C" {
 // #define COMPOSITOR_TRACING 1
 // #define RECT_DAMAGE_TRACING 1
 // #define PLANE_RESERVED_TRACING 1
+// #define SURFACE_RECYCLE_TRACING 1
 
 // Function call tracing
 #ifdef FUNCTION_CALL_TRACING
@@ -130,6 +131,12 @@ class TraceFunc {
 #define IPLANERESERVEDTRACE ITRACE
 #else
 #define IPLANERESERVEDTRACE(fmt, ...) ((void)0)
+#endif
+
+#ifdef SURFACE_RECYCLE_TRACING
+#define ISURFACERECYCLETRACE ITRACE
+#else
+#define ISURFACERECYCLETRACE(fmt, ...) ((void)0)
 #endif
 
 #ifdef RESOURCE_CACHE_TRACING
