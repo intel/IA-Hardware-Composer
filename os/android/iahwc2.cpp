@@ -895,7 +895,6 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     if (l.second.IsVideoLayer()) {
       include_video_layer = true;
-      ALOGI("layers: %d is video layer\n", l.first);
       break;
     }
   }
