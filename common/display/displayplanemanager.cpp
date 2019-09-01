@@ -195,7 +195,7 @@ bool DisplayPlaneManager::ValidateLayers(
           bool needsquash =
               composition.back().IsVideoPlane() && (layer_begin != layer_end);
           if (!needsquash) {
-            auto temp_iter = layer_begin;
+            auto temp_iter = layer_begin - 1;
             while (temp_iter != layer_end) {
               if ((*temp_iter).IsVideoLayer()) {
                 needsquash = true;
