@@ -492,6 +492,12 @@ bool VirtualDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+bool VirtualDisplay::GetDisplayIdentificationData(uint8_t *outPort,
+                                                  uint32_t *outDataSize,
+                                                  uint8_t *outData) {
+  return true;
+}
+
 void VirtualDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
                                             uint32_t *capabilities) {
 }

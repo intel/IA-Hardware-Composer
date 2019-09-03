@@ -125,7 +125,7 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
-  bool IsBypassClientCTM() const override;
+  bool IsBypassClientCTM() const;
   void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                               uint32_t *outCapabilities) override;
 
