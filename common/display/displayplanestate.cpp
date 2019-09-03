@@ -87,7 +87,7 @@ void DisplayPlaneState::UpdateRotateFrame() {
 
 void DisplayPlaneState::CopyState(DisplayPlaneState &state) {
   private_data_ = state.private_data_;
-  if (private_data_->surfaces_.size() == 3)
+  if (private_data_->surfaces_.size() >= 3)
     needs_surface_allocation_ = false;
 
   // We don't copy recycled_surface_ state as this
@@ -113,9 +113,8 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   HwcRect<float> target_source_crop = private_data_->source_crop_;
   CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
-
-  if(private_data_->source_layers_.size() > 1)
-  ForceGPURendering();
+  if (private_data_->source_layers_.size() > 1)
+    ForceGPURendering();
 
   // If layers are less than 2, we need to enforce rect checks as
   // we shouldn't have done them yet (i.e. Previous state could have
@@ -348,6 +347,11 @@ void DisplayPlaneState::SetOffScreenTarget(NativeSurface *target) {
 
   target->SetTransform(rotation);
   private_data_->surfaces_.emplace(private_data_->surfaces_.begin(), target);
+#ifdef SURFACE_RECYCLE_TRACING
+  ISURFACERECYCLETRACE("Add surface on the top of plane[%d].surfaces(size: %d)",
+                       GetDisplayPlane()->id(),
+                       private_data_->surfaces_.size());
+#endif
   recycled_surface_ = false;
   surface_swapped_ = true;
   private_data_->refresh_surface_ = true;
@@ -359,7 +363,10 @@ NativeSurface *DisplayPlaneState::GetOffScreenTarget() const {
   if (private_data_->surfaces_.size() == 0) {
     return NULL;
   }
-
+#ifdef SURFACE_RECYCLE_TRACING
+  ISURFACERECYCLETRACE("Get the top surface as offscreen target for plane[%d].",
+                       GetDisplayPlane()->id());
+#endif
   return private_data_->surfaces_.at(0);
 }
 
@@ -380,10 +387,16 @@ void DisplayPlaneState::SwapSurfaceIfNeeded() {
     temp.emplace_back(private_data_->surfaces_.at(0));
     temp.emplace_back(private_data_->surfaces_.at(1));
     private_data_->surfaces_.swap(temp);
+#ifdef SURFACE_RECYCLE_TRACING
+    ISURFACERECYCLETRACE("Re-order surfaces in 2-0-1");
+#endif
   }
 
   surface_swapped_ = true;
   recycled_surface_ = false;
+#ifdef SURFACE_RECYCLE_TRACING
+  ISURFACERECYCLETRACE("Assign the plane's layer with top (original 2)");
+#endif
   NativeSurface *surface = private_data_->surfaces_.at(0);
   private_data_->layer_ = surface->GetLayer();
 }
@@ -401,6 +414,9 @@ void DisplayPlaneState::HandleCommitFailure() {
       temp.emplace_back(private_data_->surfaces_.at(1));
       temp.emplace_back(private_data_->surfaces_.at(2));
       temp.emplace_back(private_data_->surfaces_.at(0));
+#ifdef SURFACE_RECYCLE_TRACING
+      ISURFACERECYCLETRACE("Re-order surfaces in 1-2-0");
+#endif
       private_data_->surfaces_.swap(temp);
     }
 
@@ -421,6 +437,9 @@ const std::vector<NativeSurface *> &DisplayPlaneState::GetSurfaces() const {
 
 void DisplayPlaneState::ReleaseSurfaces() {
   if (!private_data_->surfaces_.empty()) {
+#ifdef SURFACE_RECYCLE_TRACING
+    ISURFACERECYCLETRACE("Release all Surfaces in private_data_");
+#endif
     std::vector<NativeSurface *>().swap(private_data_->surfaces_);
     private_data_->layer_ = NULL;
   }

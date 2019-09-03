@@ -89,7 +89,7 @@ bool DisplayPlaneManager::ValidateLayers(
   CTRACE();
 
   size_t video_layers = 0;
-  for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
+  for (size_t lindex = 0; lindex < layers.size(); lindex++) {
     if (layers[lindex].IsVideoLayer())
       video_layers++;
   }
@@ -419,7 +419,12 @@ void DisplayPlaneManager::ReleaseAllOffScreenTargets() {
 void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
   if (!release_surfaces_ && !forced)
     return;
-
+#ifdef SURFACE_RECYCLE_TRACING
+  ISURFACERECYCLETRACE(
+      "invoking ReleaseFreeOffScreenTargets --forced:%d, "
+      "--release_surfaces_:%d, surfaces_.size() = %d",
+      forced, release_surfaces_, surfaces_.size());
+#endif
   std::vector<std::unique_ptr<NativeSurface>> surfaces;
   for (auto &fb : surfaces_) {
     if (fb->IsOnScreen()) {
@@ -428,6 +433,11 @@ void DisplayPlaneManager::ReleaseFreeOffScreenTargets(bool forced) {
   }
 
   surfaces.swap(surfaces_);
+#ifdef SURFACE_RECYCLE_TRACING
+  ISURFACERECYCLETRACE(
+      "After ReleaseFreeOffScreenTargets surfaces_.size() = %d",
+      surfaces_.size());
+#endif
   release_surfaces_ = false;
 }
 
@@ -455,26 +465,47 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
       plane.GetDisplayPlane()->GetPreferredFormatModifier();
   if (plane.IsVideoPlane())
     preferred_modifier = 0;
+  size_t surface_index = 0;
   for (auto &srf : surfaces_) {
     if (srf->GetSurfaceAge() == -1) {
       OverlayBuffer *layer_buffer = srf->GetLayer()->GetBuffer();
-      if (!layer_buffer)
+      if (!layer_buffer) {
+#ifdef SURFACE_RECYCLE_TRACING
+        ISURFACERECYCLETRACE(
+            "Layer buffer is null, skip surface[%d] for plane[%d]/layer",
+            surface_index, plane.GetDisplayPlane()->id());
+#endif
+        surface_index++;
         continue;
+      }
       uint32_t surface_format = layer_buffer->GetFormat();
       if ((preferred_format == surface_format) &&
           (preferred_modifier == srf->GetModifier())) {
+#ifdef SURFACE_RECYCLE_TRACING
+        ISURFACERECYCLETRACE("Reuse surface[%d] for the plane[%d].",
+                             surface_index, plane.GetDisplayPlane()->id());
+#endif
         surface = srf.get();
         break;
       }
     }
+    surface_index++;
   }
-  
+
   if (!surface) {
     NativeSurface *new_surface = NULL;
     if (video_separate) {
+#ifdef SURFACE_RECYCLE_TRACING
+      ISURFACERECYCLETRACE("CreateVideoSurface for plane[%d]",
+                           plane.GetDisplayPlane()->id());
+#endif
       new_surface = CreateVideoSurface(width_, height_);
       usage = hwcomposer::kLayerVideo;
     } else {
+#ifdef SURFACE_RECYCLE_TRACING
+      ISURFACERECYCLETRACE("Create3DSurface for plane[%d]",
+                           plane.GetDisplayPlane()->id());
+#endif
       new_surface = Create3DSurface(width_, height_);
     }
 
@@ -491,6 +522,10 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
     }
 
     surfaces_.emplace_back(std::move(new_surface));
+#ifdef SURFACE_RECYCLE_TRACING
+    ISURFACERECYCLETRACE("Add new surface into surfaces_[%d]",
+                         surfaces_.size());
+#endif
     surface = surfaces_.back().get();
   }
 
@@ -561,16 +596,17 @@ void DisplayPlaneManager::ForceVppForAllLayers(
   composition.emplace_back(current_plane, primary_layer, this);
   DisplayPlaneState &last_plane = composition.back();
   layer_begin++;
-  ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n",
+  ISURFACETRACE("Added layer in ForceVPPForAllLayers: %d \n",
                 primary_layer->GetZorder());
 
   for (auto i = layer_begin; i != layer_end; ++i) {
-    ISURFACETRACE("Added layer in ForceGpuForAllLayers: %d \n", i->GetZorder());
+    ISURFACETRACE("Added layer in ForceVPPForAllLayers: %d \n", i->GetZorder());
     last_plane.AddLayer(&(*(i)));
     i->SetLayerComposition(OverlayLayer::kGpu);
   }
   last_plane.SetVideoPlane(true);
-  EnsureOffScreenTarget(last_plane);
+  if (last_plane.NeedsSurfaceAllocation())
+    EnsureOffScreenTarget(last_plane);
   current_plane->SetInUse(true);
   // Check for Any display transform to be applied.
   ValidateForDisplayTransform(last_plane, composition);
@@ -615,7 +651,8 @@ void DisplayPlaneManager::ForceGpuForAllLayers(
     i->SetLayerComposition(OverlayLayer::kGpu);
   }
 
-  EnsureOffScreenTarget(last_plane);
+  if (last_plane.NeedsSurfaceAllocation())
+    EnsureOffScreenTarget(last_plane);
   current_plane->SetInUse(true);
   // Check for Any display transform to be applied.
   ValidateForDisplayTransform(last_plane, composition);
@@ -646,14 +683,29 @@ void DisplayPlaneManager::MarkSurfacesForRecycling(
       for (uint32_t i = 0; i < size; i++) {
         NativeSurface *surface = surfaces.at(i);
         if (surface->GetSurfaceAge() >= 0 && surface->IsOnScreen()) {
+#ifdef SURFACE_RECYCLE_TRACING
+          ISURFACERECYCLETRACE(
+              "MarkSurfacesForRecycling Reuse/Later surface[%d] plane[%d]", i,
+              plane->GetDisplayPlane()->id());
+#endif
           mark_later.emplace_back(surface);
         } else {
+#ifdef SURFACE_RECYCLE_TRACING
+          ISURFACERECYCLETRACE(
+              "MarkSurfaces for recycling/SurfaceAge(-1) surface[%d] plane[%d]",
+              i, plane->GetDisplayPlane()->id());
+#endif
           surface->SetSurfaceAge(-1);
         }
       }
     } else {
       for (uint32_t i = 0; i < size; i++) {
         NativeSurface *surface = surfaces.at(i);
+#ifdef SURFACE_RECYCLE_TRACING
+        ISURFACERECYCLETRACE(
+            "Recycle_resources is false SurfaceAge(-1) surface[%d] plane[%d]",
+            i, plane->GetDisplayPlane()->id());
+#endif
         surface->SetSurfaceAge(-1);
       }
     }
@@ -772,7 +824,9 @@ bool DisplayPlaneManager::ReValidatePlanes(
       }
 
       // Check if we can rotate using Display plane.
-      EnsureOffScreenTarget(last_plane);
+      if (last_plane.NeedsSurfaceAllocation()) {
+        EnsureOffScreenTarget(last_plane);
+      }
       if (FallbacktoGPU(last_plane.GetDisplayPlane(),
                         last_plane.GetOffScreenTarget()->GetLayer(),
                         composition)) {
