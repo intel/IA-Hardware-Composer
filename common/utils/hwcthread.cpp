@@ -64,7 +64,9 @@ void HWCThread::Exit() {
   exit_ = true;
   IHOTPLUGEVENTTRACE("HWCThread::Exit recieved.");
   event_.Signal();
-  thread_->join();
+  if (thread_->joinable()) {
+    thread_->join();
+  }
 }
 
 void HWCThread::HandleExit() {
