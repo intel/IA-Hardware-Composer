@@ -463,6 +463,85 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+bool DrmDisplay::GetDisplayIdentificationData(uint8_t *outPort,
+                                              uint32_t *outDataSize,
+                                              uint8_t *outData) {
+  uint8_t *edid = NULL;
+  uint8_t numBlocks = 0;
+  uint32_t size = 0;
+  uint64_t edid_blob_id;
+  drmModePropertyBlobPtr blob;
+
+  ITRACE("Invoked DrmDisplay::GetDisplayIdentificationData()");
+
+  (outData == NULL) ?
+    ITRACE("gpu_fd_:%d, connector_:%d, outData=NULL", gpu_fd_, connector_) :
+    ITRACE("gpu_fd_:%d, connector_:%d, outData:%p", gpu_fd_, connector_, outData);
+
+  ScopedDrmObjectPropertyPtr connector_props(drmModeObjectGetProperties(
+                             gpu_fd_, connector_, DRM_MODE_OBJECT_CONNECTOR));
+
+  if (!gpu_fd_ || !connector_ || !connector_props) {
+    if (connector_props) {
+      connector_props.release();
+    }
+    ETRACE("Invalid connector possibly due to no connected display.");
+    return false;
+  }
+
+  GetDrmObjectPropertyValue("EDID", connector_props, &edid_blob_id);
+  blob = drmModeGetPropertyBlob(gpu_fd_, edid_blob_id);
+  if (!blob) {
+    ETRACE("Invalid EDID blob");
+    connector_props.release();
+    return false;
+  }
+
+  edid = (uint8_t *)blob->data;
+  if (!edid) {
+    drmModeFreePropertyBlob(blob);
+    connector_props.release();
+    ETRACE("Invalid EDID data");
+    return false;
+  }
+
+  /* if outData == NULL, estimate the size in bytes of the data which would
+     have been returned before this function was called */
+  if (outData == NULL) {
+    numBlocks = edid[126];
+    *outDataSize = 128 + 128 * 4;
+    ITRACE("Estimate of EDID data size: %d", *outDataSize);
+
+    drmModeFreePropertyBlob(blob);
+    connector_props.release();
+    return true;
+  }
+
+  /* Retrieve total EDID size, data and number of extension blocks */
+  size = blob->length;
+  if (!size) {
+    drmModeFreePropertyBlob(blob);
+    connector_props.release();
+    ETRACE("Invalid EDID size");
+    return false;
+  }
+
+  /* if outData != NULL, the size of outData, which must not exceed the value
+     stored in outDataSize prior to the call */
+  if (outData != NULL) {
+    *outDataSize = size;
+    std::memcpy(outData, (uint8_t *)edid, size);
+  }
+
+  drmModeFreePropertyBlob(blob);
+  connector_props.release();
+
+  *outPort = CrtcId();
+  ITRACE("CRTC id: %d", *outPort);
+
+  return true;
+}
+
 void DrmDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
                                         uint32_t *capabilities) {
   if (ctm_id_prop_) {

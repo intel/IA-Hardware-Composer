@@ -89,6 +89,9 @@ class NativeDisplay {
   virtual bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) = 0;
   virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
 
+  virtual bool GetDisplayIdentificationData(uint8_t *outPort, uint32_t *outDataSize,
+                                            uint8_t *outData) = 0;
+
   virtual void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                                       uint32_t *outCapabilities) = 0;
 

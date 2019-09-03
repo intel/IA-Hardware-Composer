@@ -238,6 +238,12 @@ bool LogicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+bool LogicalDisplay::GetDisplayIdentificationData(uint8_t *outPort,
+                                                  uint32_t *outDataSize,
+                                                  uint8_t *outData) {
+  return true;
+}
+
 void LogicalDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
                                             uint32_t *capabilities) {
   physical_display_->GetDisplayCapabilities(numCapabilities, capabilities);
