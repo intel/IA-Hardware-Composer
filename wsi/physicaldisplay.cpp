@@ -659,4 +659,13 @@ int PhysicalDisplay::GetTotalOverlays() const {
   else
     return 0;
 }
+
+bool PhysicalDisplay::IsBypassClientCTM() const {
+  return bypassClientCTM_;
+}
+
+void PhysicalDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
+                                             uint32_t *capabilities) {
+}
+
 }  // namespace hwcomposer
