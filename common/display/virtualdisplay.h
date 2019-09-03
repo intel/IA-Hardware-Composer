@@ -77,6 +77,9 @@ class VirtualDisplay : public NativeDisplay {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
+  bool GetDisplayIdentificationData(uint8_t *outPort, uint32_t *outDataSize,
+                                    uint8_t *outData) override;
+
   void GetDisplayCapabilities(uint32_t *numCapabilities,
                               uint32_t *capabilities) override;
 

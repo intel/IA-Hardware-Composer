@@ -969,8 +969,26 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayIdentificationData(
     uint8_t *outPort, uint32_t *outDataSize, uint8_t *outData) {
-  unsupported(__func__);
-  return HWC2::Error::None;
+  supported(__func__);
+  ITRACE("Invoked IAHWC2::HwcDisplay::GetDisplayIdentificationData()");
+  if (outPort == NULL || outDataSize == NULL) {
+    ETRACE("Return BadParameter");
+    return HWC2::Error::BadParameter;
+  }
+
+  if (display_) {
+    if (display_->GetDisplayIdentificationData(outPort, outDataSize, outData)) {
+      (outData == NULL) ? ITRACE("outPort=%x, outDataSize=%x, outData=NULL",
+                                 outPort, outDataSize)
+                        : ITRACE("outPort=%x, outDataSize=%x, outData=%x",
+                                 outPort, outDataSize, outData);
+
+      return HWC2::Error::None;
+    }
+  }
+
+  ETRACE("Return BadDisplay");
+  return HWC2::Error::BadDisplay;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayCapabilities(
