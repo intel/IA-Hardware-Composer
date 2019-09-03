@@ -463,6 +463,19 @@ bool DrmDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
+void DrmDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
+                                        uint32_t *capabilities) {
+  if (ctm_id_prop_) {
+    PhysicalDisplay::GetDisplayCapabilities(numCapabilities, capabilities);
+
+    if (PhysicalDisplay::IsBypassClientCTM() == true) {
+      ++*numCapabilities;
+      *capabilities |= static_cast<uint32_t>(
+          HWCDisplayCapability::kDisplayCapabilitySkipClientColorTransform);
+    }
+  }
+}
+
 void DrmDisplay::UpdateDisplayConfig() {
   // update the activeConfig
   SPIN_LOCK(display_lock_);

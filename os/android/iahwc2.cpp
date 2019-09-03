@@ -895,6 +895,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     if (l.second.IsVideoLayer()) {
       include_video_layer = true;
+      ALOGI("layers: %d is video layer\n", l.first);
       break;
     }
   }
@@ -964,6 +965,73 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   }
 
   check_validate_display_ = true;
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayIdentificationData(
+    uint8_t *outPort, uint32_t *outDataSize, uint8_t *outData) {
+  unsupported(__func__);
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayCapabilities(
+    uint32_t *outNumCapabilities, uint32_t *outCapabilities) {
+  supported(__func__);
+
+  if (!outNumCapabilities) {
+    ALOGE("BadParameter");
+    return HWC2::Error::BadParameter;
+  }
+
+  /* Return number of display capabilities only */
+  if (outCapabilities == NULL) {
+    *outNumCapabilities = getNumCapabilities();
+    return HWC2::Error::None;
+  }
+
+  *outCapabilities = 0;
+  *outNumCapabilities = 0;
+
+  /* Record miscellaneous display capabilities */
+  display_->GetDisplayCapabilities(outNumCapabilities, outCapabilities);
+  setNumCapabilities(*outNumCapabilities);
+
+  /* Record doze suspend display capability */
+  int32_t doze = 0;
+  GetDozeSupport(&doze);
+  if (doze == true) {
+    ++*outNumCapabilities;
+    setNumCapabilities(*outNumCapabilities);
+    *outCapabilities |= HWC2_DISPLAY_CAPABILITY_DOZE;
+  }
+
+  if (numCap_ == maxNumCap_) {
+    ALOGI("Maximum number of display capabilities reached");
+  }
+
+  ALOGI("outCapabilities=%d, outNumCapabilities=%d", *outCapabilities,
+        *outNumCapabilities);
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayedContentSamplingAttributes(
+    int32_t *format, int32_t *dataspace, uint8_t *supported_components) {
+  unsupported(__func__);
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::SetDisplayedContentSamplingEnabled(
+    int32_t enabled, uint8_t component_mask, uint64_t max_frames) {
+  unsupported(__func__);
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayedContentSample(uint64_t max_frames,
+                                                          uint64_t timestamp,
+                                                          uint64_t *frame_count,
+                                                          int32_t *samples_size,
+                                                          uint64_t **samples) {
+  unsupported(__func__);
   return HWC2::Error::None;
 }
 
@@ -1135,6 +1203,18 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerZOrder(uint32_t order) {
   return HWC2::Error::None;
 }
 
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerColorTransform(const float *matrix) {
+  unsupported(__func__);
+  return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerPerFrameMetadataBlobs(
+    uint32_t numElements, const int32_t *keys, const uint32_t *sizes,
+    const uint8_t *metadata) {
+  unsupported(__func__);
+  return HWC2::Error::None;
+}
+
 // static
 int IAHWC2::HookDevClose(hw_device_t * /*dev*/) {
   unsupported(__func__);
@@ -1280,6 +1360,32 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
       return ToHook<HWC2_PFN_VALIDATE_DISPLAY>(
           DisplayHook<decltype(&HwcDisplay::ValidateDisplay),
                       &HwcDisplay::ValidateDisplay, uint32_t *, uint32_t *>);
+    case HWC2::FunctionDescriptor::GetDisplayIdentificationData:
+      return ToHook<HWC2_PFN_GET_DISPLAY_IDENTIFICATION_DATA>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayIdentificationData),
+                      &HwcDisplay::GetDisplayIdentificationData, uint8_t *,
+                      uint32_t *, uint8_t *>);
+    case HWC2::FunctionDescriptor::GetDisplayCapabilities:
+      return ToHook<HWC2_PFN_GET_DISPLAY_CAPABILITIES>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayCapabilities),
+                      &HwcDisplay::GetDisplayCapabilities, uint32_t *,
+                      uint32_t *>);
+    case HWC2::FunctionDescriptor::GetDisplayedContentSamplingAttributes:
+      return ToHook<HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES>(
+          DisplayHook<decltype(
+                          &HwcDisplay::GetDisplayedContentSamplingAttributes),
+                      &HwcDisplay::GetDisplayedContentSamplingAttributes,
+                      int32_t *, int32_t *, uint8_t *>);
+    case HWC2::FunctionDescriptor::SetDisplayedContentSamplingEnabled:
+      return ToHook<HWC2_PFN_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED>(
+          DisplayHook<decltype(&HwcDisplay::SetDisplayedContentSamplingEnabled),
+                      &HwcDisplay::SetDisplayedContentSamplingEnabled, int32_t,
+                      uint8_t, uint64_t>);
+    case HWC2::FunctionDescriptor::GetDisplayedContentSample:
+      return ToHook<HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLE>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayedContentSample),
+                      &HwcDisplay::GetDisplayedContentSample, uint64_t,
+                      uint64_t, uint64_t *, int32_t *, uint64_t **>);
 
     // Layer functions
     case HWC2::FunctionDescriptor::SetCursorPosition:
@@ -1338,6 +1444,15 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
       return ToHook<HWC2_PFN_SET_LAYER_Z_ORDER>(
           LayerHook<decltype(&Hwc2Layer::SetLayerZOrder),
                     &Hwc2Layer::SetLayerZOrder, uint32_t>);
+    case HWC2::FunctionDescriptor::SetLayerColorTransform:
+      return ToHook<HWC2_PFN_SET_LAYER_COLOR_TRANSFORM>(
+          LayerHook<decltype(&Hwc2Layer::SetLayerColorTransform),
+                    &Hwc2Layer::SetLayerColorTransform, const float *>);
+    case HWC2::FunctionDescriptor::SetLayerPerFrameMetadataBlobs:
+      return ToHook<HWC2_PFN_SET_LAYER_PER_FRAME_METADATA_BLOBS>(
+          LayerHook<decltype(&Hwc2Layer::SetLayerPerFrameMetadataBlobs),
+                    &Hwc2Layer::SetLayerPerFrameMetadataBlobs, uint32_t,
+                    const int32_t *, const uint32_t *, const uint8_t *>);
     case HWC2::FunctionDescriptor::Invalid:
     default:
       return NULL;
