@@ -131,6 +131,9 @@ LOCAL_CPPFLAGS += \
         -Wcast-qual -Wcast-align \
 	-DLOCK_DIR_PREFIX='"/vendor/etc"' \
         -DHWC_DISPLAY_INI_PATH='"/vendor/etc/hwc_display.ini"' \
+        -DKVM_HWC_DISPLAY_INI_PATH='"/vendor/etc/hwc_display.kvm.ini"' \
+        -DKVM_HWC_PROPERTY='"ro.graphics.hwcomposer.kvm"' \
+        -DUSE_ANDROID_PROPERTIES \
         -D_GNU_SOURCE=1 -D_FILE_OFFSET_BITS=64 \
         -Wno-unused-parameter \
         -O3

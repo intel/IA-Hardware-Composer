@@ -144,6 +144,20 @@ uint32_t GetTotalPlanesForFormat(uint32_t format) {
   return 1;
 }
 
+#ifdef KVM_HWC_PROPERTY
+bool IsKvmPlatform() {
+  const char* key = KVM_HWC_PROPERTY;
+  char* value = new char[20];
+  const char* property_true = "true";
+  int len = property_get(key, value, "");
+  if (len > 0 && strcmp(value, property_true) == 0) {
+    return true;
+  } else {
+    return false;
+  }
+}
+#endif
+
 std::string StringifyRect(HwcRect<int> rect) {
   std::stringstream ss;
   ss << "{(" << rect.left << "," << rect.top << ") "

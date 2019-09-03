@@ -21,6 +21,7 @@
 #include "mosaicdisplay.h"
 
 #include "hwctrace.h"
+#include "hwcutils.h"
 
 namespace hwcomposer {
 
@@ -228,6 +229,9 @@ void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
       if (skip_duplicate_plane) {
         continue;
       }
+      IPLANERESERVEDTRACE(
+          "Parsing configure for reserving display[%d], plane[%d]",
+          display_index, reserved_plane_index_num);
       reserved_drm_planes_.emplace_back(reserved_plane_index_num);
     }
     reserved_drm_display_planes_map_[display_index] = reserved_drm_planes_;
@@ -817,8 +821,18 @@ void GpuDevice::InitializeFloatDisplay(
 }
 
 void GpuDevice::HandleHWCSettings() {
-  // Handle config file reading
+// Handle config file reading
+#ifndef KVM_HWC_PROPERTY
   const char *hwc_dp_cfg_path = HWC_DISPLAY_INI_PATH;
+#else
+  // Get Kvm property to decide if need to load KVM config
+  std::string hwc_dp_cfg_path_str;
+  if (IsKvmPlatform())
+    hwc_dp_cfg_path_str = KVM_HWC_DISPLAY_INI_PATH;
+  else
+    hwc_dp_cfg_path_str = HWC_DISPLAY_INI_PATH;
+  const char *hwc_dp_cfg_path = hwc_dp_cfg_path_str.c_str();
+#endif
   ITRACE("Hwc display config file is %s", hwc_dp_cfg_path);
 
   bool use_logical = false;
