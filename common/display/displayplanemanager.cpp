@@ -170,13 +170,22 @@ bool DisplayPlaneManager::ValidateLayers(
       for (auto i = layer_begin; i != layer_end; ++i) {
         OverlayLayer *layer = &(*(i));
         ++layer_begin;
-        DisplayPlane *plane = j->get();
-        j++;
+        DisplayPlane *plane = NULL;
+        bool plane_index_moved = false;
+        if (j < overlay_end) {
+          plane = j->get();
+          j++;
+          plane_index_moved = true;
+        } else if (j > overlay_begin) {
+          plane = (j - 1)->get();
+        }
         // Ignore cursor layer as it will handled separately.
         if (layer->IsCursorLayer() && cursor_plane_ != NULL) {
           cursor_layers.emplace_back(layer);
-          j--;
-          plane = j->get();
+          if (plane_index_moved) {
+            j--;
+            plane = j->get();
+          }
           continue;
         }
 
@@ -215,7 +224,7 @@ bool DisplayPlaneManager::ValidateLayers(
           }
         }
 
-        if (j <= overlay_end) {
+        if (j < overlay_end || plane_index_moved) {
           // Separate plane added
           composition.emplace_back(plane, layer, this);
           DisplayPlaneState &last_plane = composition.back();
@@ -237,7 +246,7 @@ bool DisplayPlaneManager::ValidateLayers(
           last_plane.AddLayer(layer);
         }
 
-        if (j >= overlay_end) {
+        if (j == overlay_end) {
           bool needsquash =
               composition.back().IsVideoPlane() && (layer_begin != layer_end);
           if (needsquash) {
