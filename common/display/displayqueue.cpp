@@ -269,7 +269,13 @@ void DisplayQueue::InitializeOverlayLayers(
       has_video_layer = true;
     }
     if (previous_layer) {
-      if ((overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer())) {
+#ifndef FORCE_ALL_DEVICE_TYPE
+      if ((overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer()) ||
+          (overlay_layer->IsSolidColor() != previous_layer->IsSolidColor()) ||
+          (overlay_layer->GetAlpha() != previous_layer->GetAlpha())) {
+#else
+      if (overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer()) {
+#endif
         re_validate_begin = 0;
       }
       // Does not need to re_validate
