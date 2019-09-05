@@ -46,6 +46,7 @@ testlayers_SOURCES = \
     ./common/layerrenderer.cpp \
     ./common/gllayerrenderer.cpp \
     ./common/glcubelayerrenderer.cpp \
+	./common/videolayerrenderer.cpp \
     ./common/esTransform.cpp \
     ./common/jsonhandlers.cpp \
     ./apps/jsonlayerstest.cpp
