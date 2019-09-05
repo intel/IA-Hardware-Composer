@@ -89,7 +89,9 @@ bool DisplayPlaneManager::ValidateLayers(
   CTRACE();
 
   size_t video_layers = 0;
-  for (size_t lindex = 0; lindex < layers.size(); lindex++) {
+  if (total_overlays_ == 1)
+    add_index = 0;
+  for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
     if (layers[lindex].IsVideoLayer())
       video_layers++;
   }
