@@ -608,12 +608,6 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-bool MosaicDisplay::GetDisplayIdentificationData(uint8_t *outPort,
-                                                 uint32_t *outDataSize,
-                                                 uint8_t *outData) {
-  return true;
-}
-
 bool MosaicDisplay::IsBypassClientCTM() const {
   uint32_t size = physical_displays_.size();
   for (uint32_t i = 0; i < size; i++) {
