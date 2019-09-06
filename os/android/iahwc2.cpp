@@ -660,6 +660,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
 #ifndef FORCE_ALL_DEVICE_TYPE
     if ((l.second.validated_type() == HWC2::Composition::Client) &&
         (l.second.GetLayer()->GetNativeHandle() == NULL)) {
+      use_client_layer = true;
       ICOMPOSITORTRACE(
           "Skip clinet layer without buffer which composed by SurfaceFlinger");
       continue;
