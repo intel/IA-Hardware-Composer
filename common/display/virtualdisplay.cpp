@@ -502,10 +502,6 @@ bool VirtualDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-void VirtualDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
-                                            uint32_t *capabilities) {
-}
-
 int VirtualDisplay::GetDisplayPipe() {
   return -1;
 }

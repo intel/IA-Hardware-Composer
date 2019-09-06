@@ -88,10 +88,6 @@ class NativeDisplay {
 
   virtual bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) = 0;
   virtual bool GetDisplayName(uint32_t *size, char *name) = 0;
-
-  virtual void GetDisplayCapabilities(uint32_t *outNumCapabilities,
-                                      uint32_t *outCapabilities) = 0;
-
   /**
    * API for getting connected display's pipe id.
    * @return "-1" for unconnected display, valid values are 0 ~ 2.
@@ -313,11 +309,6 @@ class NativeDisplay {
    * API to check if display is connected.
    */
   virtual bool IsConnected() const {
-    return false;
-  }
-
-  /* Returns capability to bypass client-enabled CTM for this display */
-  virtual bool IsBypassClientCTM() const {
     return false;
   }
 

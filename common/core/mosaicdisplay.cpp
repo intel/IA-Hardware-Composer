@@ -608,25 +608,6 @@ bool MosaicDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-bool MosaicDisplay::IsBypassClientCTM() const {
-  uint32_t size = physical_displays_.size();
-  for (uint32_t i = 0; i < size; i++) {
-    if (!physical_displays_.at(i)->IsBypassClientCTM()) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void MosaicDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
-                                           uint32_t *capabilities) {
-  if (IsBypassClientCTM()) {
-    ++*numCapabilities;
-    *capabilities |= static_cast<uint32_t>(
-        HWCDisplayCapability::kDisplayCapabilitySkipClientColorTransform);
-  }
-}
-
 void MosaicDisplay::SetHDCPState(HWCContentProtection state,
                                  HWCContentType content_type) {
   uint32_t size = physical_displays_.size();
