@@ -144,11 +144,6 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error SetLayerTransform(int32_t transform);
     HWC2::Error SetLayerVisibleRegion(hwc_region_t visible);
     HWC2::Error SetLayerZOrder(uint32_t z);
-    HWC2::Error SetLayerColorTransform(const float *matrix);
-    HWC2::Error SetLayerPerFrameMetadataBlobs(uint32_t numElements,
-                                              const int32_t *keys,
-                                              const uint32_t *sizes,
-                                              const uint8_t *metadata);
 
    private:
     // sf_type_ stores the initial type given to us by surfaceflinger,
@@ -167,18 +162,6 @@ class IAHWC2 : public hwc2_device_t {
     HwcDisplay();
     HwcDisplay(const HwcDisplay &) = delete;
     HwcDisplay &operator=(const HwcDisplay &) = delete;
-
-    uint32_t numCap_ = 0;
-    uint32_t maxNumCap_ = HWC2_DISPLAY_CAPABILITY_DOZE -
-                          HWC2_DISPLAY_CAPABILITY_INVALID; /* last - first */
-
-    uint32_t getNumCapabilities() {
-      return numCap_;
-    }
-
-    void setNumCapabilities(uint32_t num) {
-      numCap_ = num;
-    }
 
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
                      bool disable_explicit_sync, uint32_t scaling_mode);
@@ -234,22 +217,6 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error SetPowerMode(int32_t mode);
     HWC2::Error SetVsyncEnabled(int32_t enabled);
     HWC2::Error ValidateDisplay(uint32_t *num_types, uint32_t *num_requests);
-    HWC2::Error GetDisplayIdentificationData(uint8_t *outPort,
-                                             uint32_t *outDataSize,
-                                             uint8_t *outData);
-    HWC2::Error GetDisplayCapabilities(uint32_t *outNumCapabilities,
-                                       uint32_t *outCapabilities);
-    HWC2::Error GetDisplayedContentSamplingAttributes(
-        int32_t *format, int32_t *dataspace, uint8_t *supported_components);
-    HWC2::Error SetDisplayedContentSamplingEnabled(int32_t enabled,
-                                                   uint8_t component_mask,
-                                                   uint64_t max_frames);
-    HWC2::Error GetDisplayedContentSample(uint64_t max_frames,
-                                          uint64_t timestamp,
-                                          uint64_t *frame_count,
-                                          int32_t *samples_size,
-                                          uint64_t **samples);
-
     Hwc2Layer &get_layer(hwc2_layer_t layer) {
       return layers_.at(layer);
     }
