@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "displayplanemanager.h"
+#include "gpudevice.h"
 #include "hwctrace.h"
 #include "hwcutils.h"
 #include "nativesurface.h"
@@ -469,6 +470,11 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
                                PixelUploaderCallback* call_back,
                                bool handle_constraints) {
   CTRACE();
+  if (!GpuDevice::getInstance().IsDrmMaster()) {
+    ITRACE("DRM master is not set, ignore queue update.");
+    return true;
+  }
+
   ScopedIdleStateTracker tracker(idle_tracker_, compositor_,
                                  resource_manager_.get(), this);
   if (tracker.IgnoreUpdate()) {
