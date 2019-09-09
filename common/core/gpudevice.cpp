@@ -170,6 +170,10 @@ bool GpuDevice::ResetDrmMaster(bool drop_master) {
   return ret;
 }
 
+bool GpuDevice::IsDrmMaster() {
+  return display_manager_->IsDrmMaster();
+}
+
 const std::vector<NativeDisplay *> &GpuDevice::GetAllDisplays() {
   return total_displays_;
 }

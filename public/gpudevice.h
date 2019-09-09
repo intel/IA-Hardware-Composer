@@ -110,6 +110,8 @@ class GpuDevice : public HWCThread {
 
   bool ResetDrmMaster(bool drop_master);
 
+  bool IsDrmMaster();
+
   std::vector<uint32_t> GetDisplayReservedPlanes(uint32_t display_id);
 
  private:
