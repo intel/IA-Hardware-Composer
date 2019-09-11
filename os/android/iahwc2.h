@@ -168,7 +168,7 @@ class IAHWC2 : public hwc2_device_t {
     HwcDisplay(const HwcDisplay &) = delete;
     HwcDisplay &operator=(const HwcDisplay &) = delete;
 
-    uint32_t numCap_ = 1;  // at least support the doze
+    uint32_t numCap_ = 0;
     uint32_t maxNumCap_ = HWC2_DISPLAY_CAPABILITY_DOZE -
                           HWC2_DISPLAY_CAPABILITY_INVALID; /* last - first */
 
@@ -178,11 +178,6 @@ class IAHWC2 : public hwc2_device_t {
 
     void setNumCapabilities(uint32_t num) {
       numCap_ = num;
-    }
-
-    uint32_t num_intents_ = 1;  // at least support the COLORIMETRIC
-    uint32_t GetNumRenderIntents() {
-      return num_intents_;
     }
 
     HWC2::Error Init(hwcomposer::NativeDisplay *display, int display_index,
@@ -234,10 +229,6 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error SetClientTarget(buffer_handle_t target, int32_t acquire_fence,
                                 int32_t dataspace, hwc_region_t damage);
     HWC2::Error SetColorMode(int32_t mode);
-    HWC2::Error SetColorModeWithRenderIntent(int32_t mode, int32_t intent);
-    HWC2::Error GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
-                                 int32_t *outIntents);
-
     HWC2::Error SetColorTransform(const float *matrix, int32_t hint);
     HWC2::Error SetOutputBuffer(buffer_handle_t buffer, int32_t release_fence);
     HWC2::Error SetPowerMode(int32_t mode);
