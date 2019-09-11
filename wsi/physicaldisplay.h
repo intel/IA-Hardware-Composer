@@ -125,10 +125,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
-  bool IsBypassClientCTM() const override;
-  void GetDisplayCapabilities(uint32_t *outNumCapabilities,
-                              uint32_t *outCapabilities) override;
-
   bool EnableDRMCommit(bool enable) override;
 
   /**
@@ -309,7 +305,6 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   std::vector<NativeDisplay *> cloned_displays_;
   std::vector<NativeDisplay *> clones_;
   uint32_t config_ = DEFAULT_CONFIG_ID;
-  bool bypassClientCTM_ = false;
 };
 
 }  // namespace hwcomposer
