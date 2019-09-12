@@ -86,7 +86,7 @@ bool Compositor::Draw(DisplayPlaneStateList &comp_planes,
           draw_buffers[index] = NULL;
         }
       }
-    } else if (plane.IsVideoPlane()) {
+    } else if (false && plane.IsVideoPlane()) {
       dedicated_layers.insert(dedicated_layers.end(),
                               plane.GetSourceLayers().begin(),
                               plane.GetSourceLayers().end());

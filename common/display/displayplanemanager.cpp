@@ -505,6 +505,7 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 
   if (!surface) {
     NativeSurface *new_surface = NULL;
+#ifndef DISABLE_VA
     if (video_separate) {
 #ifdef SURFACE_RECYCLE_TRACING
       ISURFACERECYCLETRACE("CreateVideoSurface for plane[%d]",
@@ -519,12 +520,17 @@ void DisplayPlaneManager::EnsureOffScreenTarget(DisplayPlaneState &plane) {
 #endif
       new_surface = Create3DSurface(width_, height_);
     }
+#else
+    new_surface = Create3DSurface(width_, height_);
+#endif
 
     bool modifer_succeeded = false;
     new_surface->Init(resource_manager_, preferred_format, usage,
                       preferred_modifier, &modifer_succeeded);
+#ifndef DISABLE_VA
     if (video_separate)
       new_surface->GetLayer()->SetVideoLayer(true);
+#endif
 
     if (modifer_succeeded) {
       plane.GetDisplayPlane()->PreferredFormatModifierValidated();

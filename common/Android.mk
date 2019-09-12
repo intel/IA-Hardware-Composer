@@ -86,22 +86,24 @@ LOCAL_CPPFLAGS += -DENABLE_PANORAMA
 LOCAL_SRC_FILES += display/virtualpanoramadisplay.cpp
 endif
 
-ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
-LOCAL_SHARED_LIBRARIES += \
-	libva \
-	libva-android
+#ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
+#LOCAL_SHARED_LIBRARIES += \
+#	libva \
+#	libva-android
 
-LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
+#LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libva
 
-LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
-	           compositor/va/vautils.cpp
+#LOCAL_SRC_FILES += compositor/va/varenderer.cpp \
+#	           compositor/va/vautils.cpp
 
-LOCAL_CPPFLAGS += \
-	-DVA_WITH_PAVP \
-	-DVA_WITH_VPP
-else
+#LOCAL_CPPFLAGS += \
+#	-DVA_WITH_PAVP \
+#	-DVA_WITH_VPP
+#else
+#LOCAL_CPPFLAGS += -DDISABLE_VA
+#endif
+
 LOCAL_CPPFLAGS += -DDISABLE_VA
-endif
 
 ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
 LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING

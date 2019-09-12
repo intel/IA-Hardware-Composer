@@ -154,19 +154,21 @@ endif
 
 endif
 
-ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
-LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/common/compositor/va
+#ifneq ($(strip $(HWC_DISABLE_VA_DRIVER)), true)
+#LOCAL_C_INCLUDES += \
+#	$(LOCAL_PATH)/common/compositor/va
 
-LOCAL_SHARED_LIBRARIES += \
-	libva \
-	libva-android
-LOCAL_CPPFLAGS += \
-	-DVA_WITH_PAVP \
-        -DVA_WITH_VPP
-else
+#LOCAL_SHARED_LIBRARIES += \
+#	libva \
+#	libva-android
+#LOCAL_CPPFLAGS += \
+#	-DVA_WITH_PAVP \
+#        -DVA_WITH_VPP
+#else
+#LOCAL_CPPFLAGS += -DDISABLE_VA
+#endif
+
 LOCAL_CPPFLAGS += -DDISABLE_VA
-endif
 
 LOCAL_C_INCLUDES += \
 	$(INTEL_MINIGBM)/cros_gralloc/
