@@ -230,14 +230,42 @@ static inline void supported(char const *func) {
 HWC2::Error IAHWC2::CreateVirtualDisplay(uint32_t width, uint32_t height,
                                          int32_t *format,
                                          hwc2_display_t *display) {
-  *display = (hwc2_display_t)(virtual_display_index_ + HWC_DISPLAY_VIRTUAL +
-                              VDS_OFFSET);
+  if (NULL == display) {
+    ALOGE("Pointer of display is NULL");
+    return HWC2::Error::BadDisplay;
+  }
+
+  if (NULL == format) {
+    ALOGE("Pointer of format is NULL");
+    return HWC2::Error::BadParameter;
+  }
+
+  uint32_t free_display_index = 0;
+
+  spin_lock_.lock();
+
+  for (uint32_t disp_index = 0; disp_index < virtual_display_index_;
+       disp_index++) {
+    auto it = virtual_displays_.find(disp_index);
+    if (it == virtual_displays_.end()) {
+      free_display_index = disp_index;
+      break;
+    }
+  }
+  if (!free_display_index) {
+    free_display_index = virtual_display_index_;
+    virtual_display_index_++;
+  }
+
+  *display =
+      (hwc2_display_t)(free_display_index + HWC_DISPLAY_VIRTUAL + VDS_OFFSET);
   std::unique_ptr<HwcDisplay> temp(new HwcDisplay());
-  temp->InitVirtualDisplay(device_.CreateVirtualDisplay(virtual_display_index_),
-                           width, height, virtual_display_index_,
+  temp->InitVirtualDisplay(device_.CreateVirtualDisplay(free_display_index),
+                           width, height, free_display_index,
                            disable_explicit_sync_);
-  virtual_displays_.emplace(virtual_display_index_, std::move(temp));
-  virtual_display_index_++;
+  virtual_displays_.emplace(free_display_index, std::move(temp));
+
+  spin_lock_.unlock();
 
   if (*format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
     // fallback to RGBA_8888, align with framework requirement
@@ -257,11 +285,16 @@ HWC2::Error IAHWC2::DestroyVirtualDisplay(hwc2_display_t display) {
     return HWC2::Error::BadDisplay;
   }
 
-  device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
-  virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
-      .reset(nullptr);
-  virtual_displays_.erase(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
-  virtual_display_index_--;
+  uint32_t display_id = (uint32_t)display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET;
+  spin_lock_.lock();
+  auto it = virtual_displays_.find(display_id);
+  if (it != virtual_displays_.end()) {
+    device_.DestroyVirtualDisplay(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
+    virtual_displays_.at(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET)
+        .reset(nullptr);
+    virtual_displays_.erase(display - HWC_DISPLAY_VIRTUAL - VDS_OFFSET);
+  }
+  spin_lock_.unlock();
 
   return HWC2::Error::None;
 }
