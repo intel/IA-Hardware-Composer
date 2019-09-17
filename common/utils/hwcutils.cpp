@@ -37,6 +37,18 @@ int HWCPoll(int fd, int timeout) {
   return ret;
 }
 
+bool IsLayerAlphaBlendingCommitted(OverlayLayer* layer) {
+  uint64_t alpha = 0xFF;
+
+  if (layer->GetBlending() == HWCBlending::kBlendingPremult)
+    alpha = layer->GetAlpha();
+
+  if (layer->GetZorder() > 0 && alpha != 0xFF) {
+    return false;
+  }
+  return true;
+}
+
 void ResetRectToRegion(const HwcRegion& hwc_region, HwcRect<int>& rect) {
   size_t total_rects = hwc_region.size();
   if (total_rects == 0) {

@@ -270,22 +270,26 @@ void DisplayQueue::InitializeOverlayLayers(
       has_video_layer = true;
     }
     if (previous_layer) {
-#ifndef FORCE_ALL_DEVICE_TYPE
-      if ((overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer()) ||
-          (overlay_layer->IsSolidColor() != previous_layer->IsSolidColor()) ||
-          (overlay_layer->GetAlpha() != previous_layer->GetAlpha())) {
-#else
       if (overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer()) {
-#endif
         re_validate_begin = 0;
       }
-      // Does not need to re_validate
-      if (overlay_layer->NeedsRevalidation() &&
-          !(overlay_layer->IsCursorLayer() &&
-            previous_layer->IsCursorLayer())) {
-        if (re_validate_begin == size) {
-          re_validate_begin = layer_index;
+      if (re_validate_begin == size) {
+        bool need_revalidate =
+            overlay_layer->IsSolidColor() != previous_layer->IsSolidColor();
+        if (!need_revalidate) {
+          if (!(overlay_layer->IsCursorLayer() &&
+                previous_layer->IsCursorLayer())) {
+            if (IsLayerAlphaBlendingCommitted(overlay_layer) ^
+                IsLayerAlphaBlendingCommitted(previous_layer))
+              need_revalidate = true;
+            if (!need_revalidate) {
+              if (overlay_layer->NeedsRevalidation())
+                need_revalidate = true;
+            }
+          }
         }
+        if (need_revalidate)
+          re_validate_begin = layer_index;
       }
     } else if (re_validate_begin == size) {
       re_validate_begin = layer_index;
