@@ -27,6 +27,7 @@
 #include <utility>
 
 #include "hwcservice.h"
+#include "spinlock.h"
 
 /*we have two extend displays,the seconde one's take over virtual
 display ID slot.to simplify ID management,start the virtual display
@@ -386,6 +387,7 @@ class IAHWC2 : public hwc2_device_t {
   HwcDisplay primary_display_;
   std::map<uint32_t, std::unique_ptr<HwcDisplay>> virtual_displays_;
   uint32_t virtual_display_index_ = 0;
+  SpinLock spin_lock_;
 
   bool disable_explicit_sync_ = false;
   android::HwcService hwcService_;
