@@ -230,12 +230,23 @@ bool DisplayPlaneManager::ValidateLayers(
           // Separate plane added
           composition.emplace_back(plane, layer, this);
           DisplayPlaneState &last_plane = composition.back();
+          ISURFACETRACE(
+              "Added Layer[%d] into separate plane[%d](NotInUse): %d %d "
+              "validate_final_layers: %d  \n",
+              layer->GetZorder(), last_plane.GetDisplayPlane()->id(),
+              layer->GetZorder(), composition.size(), validate_final_layers);
 
           // If we are able to composite buffer with the given plane, lets use
           // it.
           bool fall_back = FallbacktoGPU(plane, layer, composition);
           test_commit_done = true;
           if (fall_back) {
+            ISURFACETRACE(
+                "Force GPU rander the plane[%d], for the layer[%d] isVideo: "
+                "%d, isSolidColor: %d, alpha: %d",
+                last_plane.GetDisplayPlane()->id(), layer->GetZorder(),
+                layer->IsVideoLayer(), layer->IsSolidColor(),
+                layer->GetAlpha());
             last_plane.ForceGPURendering();
           }
         } else {
