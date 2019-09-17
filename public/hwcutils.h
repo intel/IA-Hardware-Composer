@@ -20,8 +20,10 @@
 #ifdef USE_ANDROID_PROPERTIES
 #include <cutils/properties.h>
 #endif
+
 #include <hwcdefs.h>
 #include <sstream>
+#include "overlaylayer.h"
 
 namespace hwcomposer {
 
@@ -36,6 +38,8 @@ namespace hwcomposer {
  * @return -1 on error
  */
 int HWCPoll(int fd, int timeout);
+
+bool IsLayerAlphaBlendingCommitted(OverlayLayer* layer);
 
 /**
  * Reset the bounds of a rectangle to enclose all rectangles in a region
