@@ -27,6 +27,7 @@
 #include "hwctrace.h"
 #include "overlaylayer.h"
 
+#include "gpudevice.h"
 #include "hwcutils.h"
 
 namespace hwcomposer {
@@ -294,6 +295,15 @@ void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
         }
         mHyperDmaExportedBuffers.erase(search);
       }
+
+      FrameBufferManager *fb_manager =
+          GpuDevice::getInstance().GetFrameBufferManager();
+
+      if (fb_manager) {
+        fb_manager->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                             handle.handle_->meta_data_.gem_handles_);
+      }
+
       handler->ReleaseBuffer(handle.handle_);
       handler->DestroyHandle(handle.handle_);
     }

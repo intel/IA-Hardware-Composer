@@ -27,6 +27,7 @@
 #include "hwctrace.h"
 #include "overlaylayer.h"
 
+#include "gpudevice.h"
 #include "hwcutils.h"
 
 namespace hwcomposer {
@@ -308,6 +309,15 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
           }
           mHyperDmaExportedBuffers.erase(search);
         }
+
+        FrameBufferManager *fb_manager =
+            GpuDevice::getInstance().GetFrameBufferManager();
+
+        if (fb_manager) {
+          fb_manager->RemoveFB(handle.handle_->meta_data_.num_planes_,
+                               handle.handle_->meta_data_.gem_handles_);
+        }
+
         handler->ReleaseBuffer(handle.handle_);
         handler->DestroyHandle(handle.handle_);
       }
