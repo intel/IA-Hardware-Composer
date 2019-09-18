@@ -163,8 +163,10 @@ bool IsKvmPlatform() {
   const char* property_true = "true";
   int len = property_get(key, value, "");
   if (len > 0 && strcmp(value, property_true) == 0) {
+    delete[] value;
     return true;
   } else {
+    delete[] value;
     return false;
   }
 }
