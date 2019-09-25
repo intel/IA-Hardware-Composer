@@ -284,7 +284,6 @@ void HwcLayer::SufaceDamageTransfrom() {
 
 void HwcLayer::Validate() {
   if (total_displays_ == 1) {
-    state_ &= ~kVisibleRegionChanged;
     state_ |= kLayerValidated;
     state_ &= ~kLayerContentChanged;
     state_ &= ~kZorderChanged;
