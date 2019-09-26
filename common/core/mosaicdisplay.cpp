@@ -270,11 +270,11 @@ bool MosaicDisplay::Present(std::vector<HwcLayer *> &source_layers,
         continue;
       }
 
+      layer->SetUseForMosaic(true);
       layer->SetLeftConstraint(dlconstraint);
       layer->SetRightConstraint(drconstraint);
       layer->SetLeftSourceConstraint(left_constraint);
       layer->SetRightSourceConstraint(right_constraint);
-      layer->SetTotalDisplays(size - i);
 
       layers.emplace_back(layer);
     }
