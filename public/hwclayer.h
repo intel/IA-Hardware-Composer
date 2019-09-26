@@ -273,6 +273,9 @@ struct HwcLayer {
   void MarkAsVideoLayer();
   bool IsVideoLayer() const;
 
+  void SetUseForMosaic(bool use_for_mosaic);
+  bool GetUseForMosaic() const;
+
   /**
    * API for getting damage area caused by this layer for current
    * frame update.
@@ -337,12 +340,12 @@ struct HwcLayer {
   std::vector<int32_t> left_source_constraint_;
   std::vector<int32_t> right_source_constraint_;
   int z_order_ = -1;
-  uint32_t total_displays_ = 1;
   int state_ = kVisible | kVisibleRegionChanged | kZorderChanged;
   int layer_cache_ = kLayerAttributesChanged | kDisplayFrameRectChanged;
   bool is_cursor_layer_ = false;
   bool is_video_layer_ = false;
   uint32_t solid_color_ = 0xff;
+  bool use_for_mosaic_ = false;
 
   HWCLayerCompositionType composition_type_ = Composition_Device;
 };
