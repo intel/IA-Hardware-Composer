@@ -283,19 +283,17 @@ void HwcLayer::SufaceDamageTransfrom() {
 }
 
 void HwcLayer::Validate() {
-  if (total_displays_ == 1) {
-    state_ &= ~kVisibleRegionChanged;
-    state_ |= kLayerValidated;
-    state_ &= ~kLayerContentChanged;
-    state_ &= ~kZorderChanged;
-    layer_cache_ &= ~kLayerAttributesChanged;
-    layer_cache_ &= ~kDisplayFrameRectChanged;
-    layer_cache_ &= ~kSourceRectChanged;
-    if (state_ & kSurfaceDamageChanged) {
-      SufaceDamageTransfrom();
-    } else {
-      current_rendering_damage_ = display_frame_;
-    }
+  state_ &= ~kVisibleRegionChanged;
+  state_ |= kLayerValidated;
+  state_ &= ~kLayerContentChanged;
+  state_ &= ~kZorderChanged;
+  layer_cache_ &= ~kLayerAttributesChanged;
+  layer_cache_ &= ~kDisplayFrameRectChanged;
+  layer_cache_ &= ~kSourceRectChanged;
+  if (state_ & kSurfaceDamageChanged) {
+    SufaceDamageTransfrom();
+  } else {
+    current_rendering_damage_ = display_frame_;
   }
 
   if (left_constraint_.empty() && left_source_constraint_.empty())
@@ -430,6 +428,14 @@ bool HwcLayer::IsVideoLayer() const {
   return is_video_layer_;
 }
 
+void HwcLayer::SetUseForMosaic(bool use_for_mosaic) {
+  use_for_mosaic_ = use_for_mosaic;
+}
+
+bool HwcLayer::GetUseForMosaic() const {
+  return use_for_mosaic_;
+}
+
 void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
                                      const HwcRect<int>& newrect,
                                      bool same_rect) {
@@ -447,10 +453,6 @@ void HwcLayer::UpdateRenderingDamage(const HwcRect<int>& old_rect,
 
 const HwcRect<int>& HwcLayer::GetLayerDamage() {
   return current_rendering_damage_;
-}
-
-void HwcLayer::SetTotalDisplays(uint32_t total_displays) {
-  total_displays_ = total_displays;
 }
 
 }  // namespace hwcomposer
