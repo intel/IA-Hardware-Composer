@@ -105,9 +105,6 @@ class LogicalDisplay : public NativeDisplay {
 
   bool EnableDRMCommit(bool enable) override;
 
-  void GetDisplayCapabilities(uint32_t *numCapabilities,
-                              uint32_t *capabilities) override;
-
   uint32_t GetXTranslation() override {
     return (((physical_display_->Width()) / total_divisions_) * index_);
   }

@@ -238,9 +238,4 @@ bool LogicalDisplay::GetDisplayName(uint32_t *size, char *name) {
   return true;
 }
 
-void LogicalDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
-                                            uint32_t *capabilities) {
-  physical_display_->GetDisplayCapabilities(numCapabilities, capabilities);
-}
-
 }  // namespace hwcomposer
