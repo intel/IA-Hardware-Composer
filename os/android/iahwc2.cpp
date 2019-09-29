@@ -835,44 +835,6 @@ HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcDisplay::SetColorModeWithRenderIntent(int32_t mode,
-                                                             int32_t intent) {
-  supported(__func__);
-  if (mode < 0)
-    return HWC2::Error::BadParameter;
-  if (intent < 0)
-    return HWC2::Error::BadParameter;
-
-  // TODO: Use the parameter mode to set the color mode for the display to be
-  // used.
-
-  return HWC2::Error::None;
-}
-
-HWC2::Error IAHWC2::HwcDisplay::GetRenderIntents(int32_t mode,
-                                                 uint32_t *outNumIntents,
-                                                 int32_t *outIntents) {
-  supported(__func__);
-  if (mode < 0) {
-    return HWC2::Error::BadParameter;
-  }
-
-  if (!outNumIntents) {
-    return HWC2::Error::BadParameter;
-  }
-
-  if (outIntents == NULL) {
-    *outNumIntents = GetNumRenderIntents();
-    return HWC2::Error::None;
-  }
-
-  if (mode == HAL_COLOR_MODE_NATIVE) {
-    *outIntents = HAL_RENDER_INTENT_COLORIMETRIC;
-  }
-
-  return HWC2::Error::None;
-}
-
 HWC2::Error IAHWC2::HwcDisplay::SetColorTransform(const float *matrix,
                                                   int32_t hint) {
   supported(__func__);
@@ -1121,7 +1083,6 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayedContentSample(uint64_t max_frames,
                                                           int32_t *samples_size,
                                                           uint64_t **samples) {
   unsupported(__func__);
-  *frame_count = 0;
   return HWC2::Error::None;
 }
 
@@ -1430,16 +1391,6 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
       return ToHook<HWC2_PFN_SET_COLOR_MODE>(
           DisplayHook<decltype(&HwcDisplay::SetColorMode),
                       &HwcDisplay::SetColorMode, int32_t>);
-    case HWC2::FunctionDescriptor::GetRenderIntents:
-      return ToHook<HWC2_PFN_GET_RENDER_INTENTS>(
-          DisplayHook<decltype(&HwcDisplay::GetRenderIntents),
-                      &HwcDisplay::GetRenderIntents, int32_t, uint32_t *,
-                      int32_t *>);
-    case HWC2::FunctionDescriptor::SetColorModeWithRenderIntent:
-      return ToHook<HWC2_PFN_SET_COLOR_MODE_WITH_RENDER_INTENT>(
-          DisplayHook<decltype(&HwcDisplay::SetColorModeWithRenderIntent),
-                      &HwcDisplay::SetColorModeWithRenderIntent, int32_t,
-                      int32_t>);
     case HWC2::FunctionDescriptor::SetColorTransform:
       return ToHook<HWC2_PFN_SET_COLOR_TRANSFORM>(
           DisplayHook<decltype(&HwcDisplay::SetColorTransform),
