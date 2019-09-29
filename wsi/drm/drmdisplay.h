@@ -61,12 +61,6 @@ class DrmDisplay : public PhysicalDisplay {
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
-  void GetDisplayCapabilities(uint32_t *numCapabilities,
-                              uint32_t *capabilities) override;
-
-  bool GetDisplayIdentificationData(uint8_t *outPort, uint32_t *outDataSize,
-                                    uint8_t *outData) override;
-
   bool SetBroadcastRGB(const char *range_property) override;
 
   void SetHDCPState(HWCContentProtection state,
@@ -175,6 +169,9 @@ class DrmDisplay : public PhysicalDisplay {
 
   uint32_t FindPreferedDisplayMode(size_t modes_size);
   uint32_t FindPerformaceDisplayMode(size_t modes_size);
+
+  void GetDisplayCapabilities(uint32_t *numCapabilities,
+                              uint32_t *capabilities);
 
   uint32_t crtc_id_ = 0;
   uint32_t mmWidth_ = 0;
