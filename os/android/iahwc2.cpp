@@ -683,6 +683,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   if (display_->PowerMode() == HWC2_POWER_MODE_DOZE_SUSPEND)
     return HWC2::Error::None;
   size_t max_z_order = 0;
+
   for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
     if (l.second.IsCursorLayer()) {
       use_cursor_layer = true;
@@ -936,6 +937,11 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 #ifdef FORCE_ALL_DEVICE_TYPE
   force_all_device_type = true;
 #endif
+  hwcomposer::GpuDevice &device = GpuDevice::getInstance();
+  const std::vector<NativeDisplay *> &displays = device.GetAllDisplays();
+  if (displays.size() > 1)
+    force_all_device_type = true;
+
   if (include_video_layer || force_all_device_type) {
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
       IAHWC2::Hwc2Layer &layer = l.second;
