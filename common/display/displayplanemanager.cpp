@@ -240,6 +240,13 @@ bool DisplayPlaneManager::ValidateLayers(
           // it.
           bool fall_back = FallbacktoGPU(plane, layer, composition);
           test_commit_done = true;
+          bool force_separate = false;
+          size_t composition_size = composition.size();
+
+          if (fall_back && !prefer_seperate_plane && composition_size > 1) {
+            force_separate =
+                ForceSeparatePlane(composition.at(composition_size - 1), layer);
+          }
           if (fall_back) {
             ISURFACETRACE(
                 "Force GPU rander the plane[%d], for the layer[%d] isVideo: "
@@ -248,6 +255,18 @@ bool DisplayPlaneManager::ValidateLayers(
                 layer->IsVideoLayer(), layer->IsSolidColor(),
                 layer->GetAlpha());
             last_plane.ForceGPURendering();
+          }
+          if (!fall_back || prefer_seperate_plane || force_separate ||
+              composition.size() == 1) {
+            // Separate plane added
+          } else if (composition.size() > 1) {
+            // Add to the back instead of seprate plane
+            composition.pop_back();
+            DisplayPlaneState &last_plane = composition.back();
+            ISURFACETRACE("Added Layer: %d %d validate_final_layers: %d  \n",
+                          layer->GetZorder(), composition.size(),
+                          validate_final_layers);
+            last_plane.AddLayer(layer);
           }
         } else {
           // Add to last plane when plane has been used up
