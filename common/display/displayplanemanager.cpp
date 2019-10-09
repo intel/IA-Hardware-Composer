@@ -120,7 +120,7 @@ bool DisplayPlaneManager::ValidateLayers(
   }
 
   // Let's mark all planes as free to be used.
-  for (auto j = overlay_begin; j != overlay_planes_.end(); ++j) {
+  for (auto j = overlay_begin; j < overlay_planes_.end(); ++j) {
     j->get()->SetInUse(false);
   }
 
