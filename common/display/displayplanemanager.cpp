@@ -238,7 +238,9 @@ bool DisplayPlaneManager::ValidateLayers(
 
           // If we are able to composite buffer with the given plane, lets use
           // it.
-          bool fall_back = FallbacktoGPU(plane, layer, composition);
+          bool fall_back = false;
+          if (plane)
+            fall_back = FallbacktoGPU(plane, layer, composition);
           test_commit_done = true;
           if (fall_back) {
             ISURFACETRACE(
