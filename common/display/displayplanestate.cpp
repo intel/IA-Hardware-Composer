@@ -37,7 +37,8 @@ DisplayPlaneState::DisplayPlanePrivateState::~DisplayPlanePrivateState() {
 }
 
 DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                                     DisplayPlaneManager *plane_manager) {
+                                     DisplayPlaneManager *plane_manager,
+                                     bool force_normal_surface) {
   private_data_ = std::make_shared<DisplayPlanePrivateState>();
   private_data_->plane_manager_ = plane_manager;
   private_data_->source_layers_.emplace_back(layer->GetZorder());
@@ -57,7 +58,7 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
           private_data_->plane_transform_)) {
     private_data_->rotation_type_ =
         DisplayPlaneState::RotationType::kGPURotation;
-    ForceGPURendering();
+    ForceGPURendering(force_normal_surface);
     private_data_->unsupported_display_rotation_ = true;
   } else {
     private_data_->rotation_type_ = RotationType::kDisplayRotation;
@@ -67,7 +68,7 @@ DisplayPlaneState::DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
 
   if (layer->IsVideoLayer()) {
     SetVideoPlane(true);
-    ForceGPURendering();
+    ForceGPURendering(force_normal_surface);
   }
 
   recycled_surface_ = false;
@@ -106,7 +107,8 @@ const HwcRect<float> &DisplayPlaneState::GetSourceCrop() const {
   return private_data_->source_crop_;
 }
 
-void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
+void DisplayPlaneState::AddLayer(const OverlayLayer *layer,
+                                 bool force_normal_surface) {
   const HwcRect<int> &display_frame = layer->GetDisplayFrame();
   HwcRect<int> target_display_frame = private_data_->display_frame_;
   CalculateRect(display_frame, target_display_frame);
@@ -114,7 +116,7 @@ void DisplayPlaneState::AddLayer(const OverlayLayer *layer) {
   CalculateSourceRect(layer->GetSourceCrop(), target_source_crop);
   private_data_->source_layers_.emplace_back(layer->GetZorder());
   if (private_data_->source_layers_.size() > 1)
-    ForceGPURendering();
+    ForceGPURendering(force_normal_surface);
 
   // If layers are less than 2, we need to enforce rect checks as
   // we shouldn't have done them yet (i.e. Previous state could have
@@ -298,18 +300,19 @@ void DisplayPlaneState::RefreshLayerRects(
   }
 }
 
-void DisplayPlaneState::ForceGPURendering() {
+void DisplayPlaneState::ForceGPURendering(bool force_normal_surface) {
   private_data_->state_ = DisplayPlanePrivateState::State::kRender;
   recycled_surface_ = false;
-  EnsureOffScreenPlaneTarget();
+  EnsureOffScreenPlaneTarget(force_normal_surface);
   if (private_data_->rotation_type_ == RotationType::kDisplayRotation)
     SetRotationType(RotationType::kGPURotation, true);
 }
 
-void DisplayPlaneState::EnsureOffScreenPlaneTarget() {
+void DisplayPlaneState::EnsureOffScreenPlaneTarget(bool force_normal_surface) {
   if (NeedsSurfaceAllocation() &&
       private_data_->state_ == DisplayPlanePrivateState::State::kRender) {
-    private_data_->plane_manager_->EnsureOffScreenTarget(*this);
+    private_data_->plane_manager_->EnsureOffScreenTarget(*this,
+                                                         force_normal_surface);
   }
 }
 

@@ -54,12 +54,13 @@ class DisplayPlaneState {
   DisplayPlaneState(DisplayPlaneState &&rhs) = default;
   DisplayPlaneState &operator=(DisplayPlaneState &&other) = default;
   DisplayPlaneState(DisplayPlane *plane, OverlayLayer *layer,
-                    DisplayPlaneManager *plane_manager);
+                    DisplayPlaneManager *plane_manager,
+                    bool force_normal_surface = false);
 
   // Copies plane state from state.
   void CopyState(DisplayPlaneState &state);
 
-  void AddLayer(const OverlayLayer *layer);
+  void AddLayer(const OverlayLayer *layer, bool force_normal_surface = false);
 
   // This API should be called only when source_layers being
   // shown by this plane might be removed in this frame.
@@ -71,7 +72,7 @@ class DisplayPlaneState {
   void RefreshLayerRects(const std::vector<OverlayLayer> &layers);
 
   // Forces GPU Rendering of content for this plane.
-  void ForceGPURendering();
+  void ForceGPURendering(bool force_normal_surface = false);
 
   void DisableGPURendering();
 
@@ -239,7 +240,7 @@ class DisplayPlaneState {
   void Dump() const;
 
  private:
-  void EnsureOffScreenPlaneTarget();
+  void EnsureOffScreenPlaneTarget(bool force_normal_surface = false);
   void UpdateRotateFrame();
   void CalculateSourceCrop(HwcRect<float> &source_crop) const;
 
