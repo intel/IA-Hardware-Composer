@@ -121,7 +121,8 @@ class DisplayPlaneManager {
 
   void ResetPlanes(drmModeAtomicReqPtr pset);
 
-  void EnsureOffScreenTarget(DisplayPlaneState &plane);
+  void EnsureOffScreenTarget(DisplayPlaneState &plane,
+                             bool force_normal_surface = false);
 
  private:
   DisplayPlaneState *GetLastUsedOverlay(DisplayPlaneStateList &composition);
