@@ -52,7 +52,7 @@ void RenderState::ConstructState(std::vector<OverlayLayer> &layers,
     bool flip_xy[2] = {false, false};
     uint32_t transform = layer.GetTransform();
     if (use_plane_transform) {
-      transform = layer.GetPlaneTransform();
+      transform = layer.GetMergedTransform();
     }
 
     switch (transform) {
