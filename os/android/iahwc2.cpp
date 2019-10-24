@@ -723,7 +723,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       case HWC2::Composition::Client:
         // Place it at the z_order of the highest client layer
         use_client_layer = true;
-        client_z_order = std::max(client_z_order, l.second.z_order());
+        client_z_order = std::min(client_z_order, l.second.z_order());
         break;
       default:
         continue;
@@ -981,24 +981,35 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
      */
     if (avail_planes < layers_.size())
       avail_planes--;
-
-    for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
-      if (!avail_planes--)
-        break;
-      if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
-        layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
-      } else {
-        layers_[l.second].set_validated_type(HWC2::Composition::Device);
+    if (layers_.size() > avail_planes) {
+      size_t lay_index = 0;
+      for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
+        if (lay_index == (layers_.size() - avail_planes)) {
+          avail_planes--;
+          if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
+            layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
+          } else {
+            layers_[l.second].set_validated_type(HWC2::Composition::Device);
+          }
+        }
+        lay_index++;
       }
-    }
 
-    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-      IAHWC2::Hwc2Layer &layer = l.second;
-      // We can only handle layers of Device type, send everything else to SF
-      if (layer.validated_type() != HWC2::Composition::Device &&
-          layer.validated_type() != HWC2::Composition::SolidColor) {
-        layer.set_validated_type(HWC2::Composition::Client);
-        ++*num_types;
+      for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+        IAHWC2::Hwc2Layer &layer = l.second;
+        // We can only handle layers of Device type, send everything else to SF
+        if (layer.validated_type() != HWC2::Composition::Device &&
+            layer.validated_type() != HWC2::Composition::SolidColor) {
+          layer.set_validated_type(HWC2::Composition::Client);
+          ++*num_types;
+        }
+      }
+    } else {
+      for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
+        if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor)
+          layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
+        else
+          layers_[l.second].set_validated_type(HWC2::Composition::Device);
       }
     }
   }
