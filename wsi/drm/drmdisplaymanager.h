@@ -121,7 +121,11 @@ class DrmDisplayManager : public HWCThread, public DisplayManager {
   int hotplug_fd_ = -1;
   bool notify_client_ = false;
   bool release_lock_ = false;
+#ifdef USE_MUTEX
+  std::mutex mLock;
+#else
   SpinLock spin_lock_;
+#endif
   int connected_display_count_ = 0;
   bool drm_master_ = false;
 };

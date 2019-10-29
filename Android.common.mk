@@ -123,7 +123,8 @@ LOCAL_CPPFLAGS += \
 	-Wno-unused-private-field \
 	-Wno-unused-function \
 	-Wno-unused-parameter \
-	-Wno-unused-variable
+	-Wno-unused-variable \
+	-DUSE_MUTEX
 
 LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
 
