@@ -938,8 +938,9 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   force_all_device_type = true;
 #endif
   hwcomposer::GpuDevice &device = GpuDevice::getInstance();
-  const std::vector<NativeDisplay *> &displays = device.GetAllDisplays();
-  if (displays.size() > 1)
+  std::vector<NativeDisplay *> connected_displays;
+  device.GetConnectedPhysicalDisplays(connected_displays);
+  if (connected_displays.size() > 1)
     force_all_device_type = true;
 
   if (include_video_layer || force_all_device_type) {
