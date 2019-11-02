@@ -18,8 +18,10 @@
 #define PUBLIC_HWCLAYER_H_
 
 #include <hwcdefs.h>
-
 #include <platformdefines.h>
+#include "hdr_metadata_defs.h"
+
+#define STATIC_METADATA(x) hdr_mdata.metadata.static_metadata.x
 
 namespace hwcomposer {
 
@@ -70,8 +72,98 @@ struct HwcLayer {
   void SetDisplayFrame(const HwcRect<int>& display_frame, int translate_x_pos,
                        int translate_y_pos);
 
+  void SetColorSpace(int clrspace) {
+    colorspace = clrspace;
+  }
+
+  void SetHdrMetadata(double primary_r_x, double primary_r_y,
+                      double primary_g_x, double primary_g_y,
+                      double primary_b_x, double primary_b_y,
+                      double white_point_x, double white_point_y,
+                      double max_luminance, double min_luminance, int max_cll,
+                      int max_fall) {
+    STATIC_METADATA(primaries.r.x) = primary_r_x;
+    STATIC_METADATA(primaries.r.y) = primary_r_y;
+    STATIC_METADATA(primaries.g.x) = primary_g_x;
+    STATIC_METADATA(primaries.g.y) = primary_g_y;
+    STATIC_METADATA(primaries.b.x) = primary_b_x;
+    STATIC_METADATA(primaries.b.y) = primary_b_y;
+    STATIC_METADATA(primaries.white_point.x) = white_point_x;
+    STATIC_METADATA(primaries.white_point.y) = white_point_y;
+    STATIC_METADATA(max_luminance) = max_luminance;
+    STATIC_METADATA(min_luminance) = min_luminance;
+    STATIC_METADATA(max_cll) = max_cll;
+    STATIC_METADATA(max_fall) = max_fall;
+  }
+
+  void SetHdrEotf(int internal_eotf) {
+    hdr_mdata.metadata_type = HDR_METADATA_TYPE1;
+    STATIC_METADATA(eotf) = internal_eotf;
+  }
+
   uint32_t GetDataSpace() const {
     return dataspace_;
+  }
+
+  bool SetLayerPerFrameMetadata(uint32_t numElements, const int32_t* keys,
+                                const float* metadata) {
+    if (0 == numElements || NULL == keys || NULL == metadata) {
+      ALOGE("Bad parameters!");
+      return false;
+    }
+
+    for (uint32_t i = 0; i < numElements; i++) {
+      int32_t key = *(keys + i);
+      float keyvalue = *(metadata + i);
+      switch (key) {
+        case KEY_DISPLAY_RED_PRIMARY_X:
+          STATIC_METADATA(primaries.r.x) = keyvalue;
+          break;
+        case KEY_DISPLAY_RED_PRIMARY_Y:
+          STATIC_METADATA(primaries.r.y) = keyvalue;
+          break;
+        case KEY_DISPLAY_GREEN_PRIMARY_X:
+          STATIC_METADATA(primaries.g.x) = keyvalue;
+          break;
+        case KEY_DISPLAY_GREEN_PRIMARY_Y:
+          STATIC_METADATA(primaries.g.y) = keyvalue;
+          break;
+        case KEY_DISPLAY_BLUE_PRIMARY_X:
+          STATIC_METADATA(primaries.b.x) = keyvalue;
+          break;
+        case KEY_DISPLAY_BLUE_PRIMARY_Y:
+          STATIC_METADATA(primaries.b.y) = keyvalue;
+          break;
+        case KEY_WHITE_POINT_X:
+          STATIC_METADATA(primaries.white_point.x) = keyvalue;
+          break;
+        case KEY_WHITE_POINT_Y:
+          STATIC_METADATA(primaries.white_point.y) = keyvalue;
+          break;
+        case KEY_MAX_LUMINANCE:
+          STATIC_METADATA(max_luminance) = keyvalue;
+          break;
+        case KEY_MIN_LUMINANCE:
+          STATIC_METADATA(min_luminance) = keyvalue;
+          break;
+        case KEY_MAX_CONTENT_LIGHT_LEVEL:
+          STATIC_METADATA(max_cll) = keyvalue;
+          break;
+        case KEY_MAX_FRAME_AVERAGE_LIGHT_LEVEL:
+          STATIC_METADATA(max_fall) = keyvalue;
+          break;
+        default:
+          ALOGE("Unkonwn HDR metda key: %u, value: %f", key, keyvalue);
+          break;
+      }
+    }
+
+    return true;
+  }
+
+  bool SetLayerColorTransform(const float *matrix) {
+    memcpy(layer_color_transform_, matrix, sizeof(layer_color_transform_));
+    return true;
   }
 
   const HwcRect<int>& GetDisplayFrame() const {
@@ -243,6 +335,14 @@ struct HwcLayer {
     return solid_color_;
   }
 
+  uint32_t GetColorSpace() {
+    return colorspace;
+  }
+
+  struct hdr_metadata GetHdrMetadata() {
+    return hdr_mdata;
+  }
+
   bool HasZorderChanged() const {
     return state_ & kZorderChanged;
   }
@@ -317,6 +417,7 @@ struct HwcLayer {
   };
 
   int32_t transform_ = 0;
+  float layer_color_transform_[16];
   uint32_t source_crop_width_ = 0;
   uint32_t source_crop_height_ = 0;
   uint32_t display_frame_width_ = 0;
@@ -343,6 +444,9 @@ struct HwcLayer {
   bool is_cursor_layer_ = false;
   bool is_video_layer_ = false;
   uint32_t solid_color_ = 0xff;
+
+  struct hdr_metadata hdr_mdata;
+  uint32_t colorspace;
 
   HWCLayerCompositionType composition_type_ = Composition_Device;
 };

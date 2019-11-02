@@ -502,6 +502,34 @@ bool VirtualPanoramaDisplay::GetDisplayAttribute(uint32_t /*config*/,
   return true;
 }
 
+bool VirtualPanoramaDisplay::GetHdrCapabilities(uint32_t *outNumTypes,
+                                                int32_t *outTypes,
+                                                float *outMaxLuminance,
+                                                float *outMaxAverageLuminance,
+                                                float *outMinLuminance) {
+  return true;
+}
+
+bool VirtualPanoramaDisplay::GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                                     int32_t *outKeys) {
+  return true;
+}
+
+bool VirtualPanoramaDisplay::GetRenderIntents(int32_t mode,
+                                              uint32_t *outNumIntents,
+                                              int32_t *outIntents) {
+  return true;
+}
+
+bool VirtualPanoramaDisplay::SetColorMode(int32_t mode) {
+  return true;
+}
+
+bool VirtualPanoramaDisplay::GetColorModes(uint32_t *num_modes,
+                                           int32_t *modes) {
+  return true;
+}
+
 bool VirtualPanoramaDisplay::GetDisplayConfigs(uint32_t *num_configs,
                                                uint32_t *configs) {
   if (!num_configs)

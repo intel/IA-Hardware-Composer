@@ -289,6 +289,8 @@ void OverlayLayer::InitializeState(HwcLayer* layer,
   dataspace_ = layer->GetDataSpace();
   blending_ = layer->GetBlending();
   solid_color_ = layer->GetSolidColor();
+  hdrmetadata = layer->GetHdrMetadata();
+  color_space = layer->GetColorSpace();
   TransformDamage(layer, max_height, max_width);
 
   if (previous_layer && layer->HasZorderChanged()) {

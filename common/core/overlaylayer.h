@@ -18,10 +18,10 @@
 #define COMMON_CORE_OVERLAYLAYER_H_
 
 #include <hwcdefs.h>
-#include <platformdefines.h>
-
 #include <hwclayer.h>
+#include <platformdefines.h>
 #include <memory>
+#include "hdr_metadata_defs.h"
 
 #include "overlaybuffer.h"
 
@@ -241,6 +241,14 @@ struct OverlayLayer {
     return state_ & kForcePartialClear;
   }
 
+  struct hdr_metadata GetHdrMetadata() {
+    return hdrmetadata;
+  }
+
+  uint32_t GetColorSpace() {
+    return color_space;
+  }
+
   uint32_t GetSolidColor() {
     return solid_color_;
   }
@@ -316,6 +324,9 @@ struct OverlayLayer {
   LayerComposition supported_composition_ = kAll;
   LayerComposition actual_composition_ = kAll;
   HWCLayerType type_ = kLayerNormal;
+
+  struct hdr_metadata hdrmetadata;
+  uint32_t color_space;
 };
 
 }  // namespace hwcomposer

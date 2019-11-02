@@ -151,6 +151,10 @@ class IAHWC2 : public hwc2_device_t {
                                               const uint32_t *sizes,
                                               const uint8_t *metadata);
 
+    HWC2::Error SetLayerPerFrameMetadata(uint32_t numElements,
+                                         const int32_t *keys,
+                                         const float *metadata);
+
    private:
     // sf_type_ stores the initial type given to us by surfaceflinger,
     // validated_type_ stores the type after running ValidateDisplay
@@ -228,6 +232,11 @@ class IAHWC2 : public hwc2_device_t {
                                    float *max_luminance,
                                    float *max_average_luminance,
                                    float *min_luminance);
+    HWC2::Error GetPerFrameMetadataKeys(uint32_t *outNumKeys, int32_t *outKeys);
+
+    HWC2::Error GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                                 int32_t *outIntents);
+
     HWC2::Error GetReleaseFences(uint32_t *num_elements, hwc2_layer_t *layers,
                                  int32_t *fences);
     HWC2::Error PresentDisplay(int32_t *retire_fence);

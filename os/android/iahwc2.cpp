@@ -546,12 +546,17 @@ HWC2::Error IAHWC2::HwcDisplay::GetClientTargetSupport(uint32_t width,
 HWC2::Error IAHWC2::HwcDisplay::GetColorModes(uint32_t *num_modes,
                                               int32_t *modes) {
   supported(__func__);
-  if (!modes)
-    *num_modes = 1;
+  if (!modes) {
+    display_->GetColorModes(num_modes, NULL);
+  }
 
-  if (modes)
-    *modes = HAL_COLOR_MODE_NATIVE;
-
+  if (modes) {
+    if (display_->GetColorModes(num_modes, modes)) {
+      return HWC2::Error::None;
+    } else {
+      return HWC2::Error::Unsupported;
+    }
+  }
   return HWC2::Error::None;
 }
 
@@ -632,12 +637,58 @@ HWC2::Error IAHWC2::HwcDisplay::GetDozeSupport(int32_t *support) {
   return HWC2::Error::None;
 }
 
-HWC2::Error IAHWC2::HwcDisplay::GetHdrCapabilities(
-    uint32_t *num_types, int32_t * /*types*/, float * /*max_luminance*/,
-    float * /*max_average_luminance*/, float * /*min_luminance*/) {
+HWC2::Error IAHWC2::HwcDisplay::GetHdrCapabilities(uint32_t *num_types,
+                                                   int32_t *types,
+                                                   float *max_luminance,
+                                                   float *max_average_luminance,
+                                                   float *min_luminance) {
   supported(__func__);
   *num_types = 0;
-  return HWC2::Error::None;
+
+  if (display_->GetHdrCapabilities(num_types, types, max_luminance,
+                                   max_average_luminance, min_luminance)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::Unsupported;
+  }
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                                        int32_t *outKeys) {
+  supported(__func__);
+
+  if (NULL == outNumKeys || NULL == outKeys) {
+    return HWC2::Error::BadParameter;
+  }
+
+  *outNumKeys = 0;
+  if (display_->GetPerFrameMetadataKeys(outNumKeys, outKeys)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::Unsupported;
+  }
+}
+
+HWC2::Error IAHWC2::HwcDisplay::GetRenderIntents(int32_t mode,
+                                                 uint32_t *outNumIntents,
+                                                 int32_t *outIntents) {
+  supported(__func__);
+
+  if (NULL == outNumIntents || NULL == outIntents) {
+    ALOGE("Null pointer error, outNumIntents: %p, outIntents: %p",
+          outNumIntents, outIntents);
+    return HWC2::Error::BadParameter;
+  }
+
+  // Add the SDR render intents by default.
+  *outNumIntents = 2;
+  *(outIntents) = HAL_RENDER_INTENT_COLORIMETRIC;
+  *(outIntents + 1) = HAL_RENDER_INTENT_ENHANCE;
+  if (display_->GetRenderIntents(mode, outNumIntents, outIntents)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::BadParameter;
+  }
 }
 
 HWC2::Error IAHWC2::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
@@ -832,7 +883,15 @@ HWC2::Error IAHWC2::HwcDisplay::SetColorMode(int32_t mode) {
   // TODO: Use the parameter mode to set the color mode for the display to be
   // used.
 
-  return HWC2::Error::None;
+   if (mode < HAL_COLOR_MODE_NATIVE || mode > HAL_COLOR_MODE_DISPLAY_P3)
+     return HWC2::Error::BadParameter;
+
+   if (display_->SetColorMode(mode)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::Unsupported;
+  }
+
 }
 
 HWC2::Error IAHWC2::HwcDisplay::SetColorModeWithRenderIntent(int32_t mode,
@@ -878,13 +937,8 @@ HWC2::Error IAHWC2::HwcDisplay::SetColorTransform(const float *matrix,
   supported(__func__);
   // TODO: Force client composition if we get this
 
-  if (hint != HAL_COLOR_TRANSFORM_IDENTITY &&
-      hint != HAL_COLOR_TRANSFORM_ARBITRARY_MATRIX &&
-      hint != HAL_COLOR_TRANSFORM_VALUE_INVERSE &&
-      hint != HAL_COLOR_TRANSFORM_GRAYSCALE &&
-      hint != HAL_COLOR_TRANSFORM_CORRECT_PROTANOPIA &&
-      hint != HAL_COLOR_TRANSFORM_CORRECT_DEUTERANOPIA &&
-      hint != HAL_COLOR_TRANSFORM_CORRECT_TRITANOPIA)
+  if (!matrix || (hint < HAL_COLOR_TRANSFORM_IDENTITY ||
+       hint > HAL_COLOR_TRANSFORM_CORRECT_TRITANOPIA))
     return HWC2::Error::BadParameter;
 
   display_->SetColorTransform(matrix, (HWCColorTransform)hint);
@@ -1295,7 +1349,12 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerZOrder(uint32_t order) {
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerColorTransform(const float *matrix) {
   unsupported(__func__);
-  return HWC2::Error::None;
+
+  if (hwc_layer_.SetLayerColorTransform(matrix)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::Unsupported;
+  }
 }
 
 HWC2::Error IAHWC2::Hwc2Layer::SetLayerPerFrameMetadataBlobs(
@@ -1303,6 +1362,16 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerPerFrameMetadataBlobs(
     const uint8_t *metadata) {
   unsupported(__func__);
   return HWC2::Error::None;
+}
+
+HWC2::Error IAHWC2::Hwc2Layer::SetLayerPerFrameMetadata(uint32_t numElements,
+                                                        const int32_t *keys,
+                                                        const float *metadata) {
+  if (hwc_layer_.SetLayerPerFrameMetadata(numElements, keys, metadata)) {
+    return HWC2::Error::None;
+  } else {
+    return HWC2::Error::BadParameter;
+  }
 }
 
 // static
@@ -1409,6 +1478,16 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           DisplayHook<decltype(&HwcDisplay::GetHdrCapabilities),
                       &HwcDisplay::GetHdrCapabilities, uint32_t *, int32_t *,
                       float *, float *, float *>);
+    case HWC2::FunctionDescriptor::GetPerFrameMetadataKeys:
+      return ToHook<HWC2_PFN_GET_PER_FRAME_METADATA_KEYS>(
+          DisplayHook<decltype(&HwcDisplay::GetPerFrameMetadataKeys),
+                      &HwcDisplay::GetPerFrameMetadataKeys, uint32_t *,
+                      int32_t *>);
+    case HWC2::FunctionDescriptor::GetRenderIntents:
+      return ToHook<HWC2_PFN_GET_RENDER_INTENTS>(
+          DisplayHook<decltype(&HwcDisplay::GetRenderIntents),
+                      &HwcDisplay::GetRenderIntents, int32_t, uint32_t *,
+                      int32_t *>);
     case HWC2::FunctionDescriptor::GetReleaseFences:
       return ToHook<HWC2_PFN_GET_RELEASE_FENCES>(
           DisplayHook<decltype(&HwcDisplay::GetReleaseFences),
@@ -1553,6 +1632,11 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           LayerHook<decltype(&Hwc2Layer::SetLayerPerFrameMetadataBlobs),
                     &Hwc2Layer::SetLayerPerFrameMetadataBlobs, uint32_t,
                     const int32_t *, const uint32_t *, const uint8_t *>);
+    case HWC2::FunctionDescriptor::SetLayerPerFrameMetadata:
+      return ToHook<HWC2_PFN_SET_LAYER_PER_FRAME_METADATA>(
+          LayerHook<decltype(&Hwc2Layer::SetLayerPerFrameMetadata),
+                    &Hwc2Layer::SetLayerPerFrameMetadata, uint32_t,
+                    const int32_t *, const float *>);
     case HWC2::FunctionDescriptor::Invalid:
     default:
       return NULL;

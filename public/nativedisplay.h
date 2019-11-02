@@ -96,6 +96,16 @@ class NativeDisplay {
   virtual void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                                       uint32_t *outCapabilities) = 0;
 
+  virtual bool GetHdrCapabilities(uint32_t *outNumTypes, int32_t *outTypes,
+                                  float *outMaxLuminance,
+                                  float *outMaxAverageLuminance,
+                                  float *outMinLuminance) = 0;
+
+  virtual bool GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                       int32_t *outKeys) = 0;
+
+  virtual bool GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                                int32_t *outIntents) = 0;
   /**
    * API for getting connected display's pipe id.
    * @return "-1" for unconnected display, valid values are 0 ~ 2.
@@ -169,6 +179,41 @@ class NativeDisplay {
    */
   virtual void SetGamma(float /*red*/, float /*green*/, float /*blue*/) {
   }
+
+  /**
+  * Sets the color mode of the given display.
+  *
+  * This must be called outside of validateDisplay/presentDisplay, and it takes
+  * effect on next presentDisplay.
+  *
+  * The valid color modes can be found in android_color_mode_t in
+  * <system/graphics.h>. All HWC2 devices must support at least
+  * HAL_COLOR_MODE_NATIVE, and displays are assumed to be in this mode upon
+  * hotplug.
+  *
+  * Parameters:
+  *   mode - the mode to set
+  */
+  virtual bool SetColorMode(int32_t mode) = 0;
+
+  /**
+  * Gets the color modes supported on this display.
+  *
+  * The valid color modes can be found in android_color_mode_t in
+  * <system/graphics.h>. All HWC2 devices must support at least
+  * HAL_COLOR_MODE_NATIVE.
+  *
+  * outNumModes may be NULL to retrieve the number of modes which will be
+  * returned.
+  *
+  * Parameters:
+  *   outNumModes - if outModes was NULL, the number of modes which would have
+  *       been returned; if outModes was not NULL, the number of modes returned,
+  *       which must not exceed the value stored in outNumModes prior to the
+  *       call; pointer will be non-NULL
+  *   outModes - an array of color modes
+  */
+  virtual bool GetColorModes(uint32_t *num_modes, int32_t *modes) = 0;
 
   /**
    * API for setting a color transform which will be applied after composition.

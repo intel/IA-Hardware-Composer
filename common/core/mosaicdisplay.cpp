@@ -633,6 +633,31 @@ void MosaicDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
   }
 }
 
+bool MosaicDisplay::GetHdrCapabilities(uint32_t *outNumTypes, int32_t *outTypes,
+                                       float *outMaxLuminance,
+                                       float *outMaxAverageLuminance,
+                                       float *outMinLuminance) {
+  return true;
+}
+
+bool MosaicDisplay::SetColorMode(int32_t mode) {
+  return true;
+}
+
+bool MosaicDisplay::GetColorModes(uint32_t *num_modes, int32_t *modes) {
+  return true;
+}
+
+bool MosaicDisplay::GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                            int32_t *outKeys) {
+  return true;
+}
+
+bool MosaicDisplay::GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                                     int32_t *outIntents) {
+  return true;
+}
+
 void MosaicDisplay::SetHDCPState(HWCContentProtection state,
                                  HWCContentType content_type) {
   uint32_t size = physical_displays_.size();
