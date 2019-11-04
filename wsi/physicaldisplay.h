@@ -88,6 +88,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool CheckPlaneFormat(uint32_t format) override;
   void SetGamma(float red, float green, float blue) override;
   void SetContrast(uint32_t red, uint32_t green, uint32_t blue) override;
+  bool SetColorMode(int32_t mode) = 0;
+  bool GetColorModes(uint32_t *num_modes, int32_t *modes) = 0;
   void SetColorTransform(const float *matrix, HWCColorTransform hint) override;
   void SetBrightness(uint32_t red, uint32_t green, uint32_t blue) override;
   void SetDisableExplicitSync(bool disable_explicit_sync) override;
@@ -128,6 +130,15 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   bool IsBypassClientCTM() const;
   void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                               uint32_t *outCapabilities) override;
+
+  bool GetHdrCapabilities(uint32_t *outNumTypes, int32_t *outTypes,
+                          float *outMaxLuminance, float *outMaxAverageLuminance,
+                          float *outMinLuminance) = 0;
+
+  bool GetPerFrameMetadataKeys(uint32_t *outNumKeys, int32_t *outKeys) = 0;
+
+  bool GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                        int32_t *outIntents) = 0;
 
   bool EnableDRMCommit(bool enable) override;
 

@@ -15,6 +15,7 @@
 */
 
 #include "drmdisplay.h"
+#include "hdr_metadata_defs.h"
 
 #include <sys/time.h>
 #include <cmath>
@@ -26,6 +27,7 @@
 #include <hwctrace.h>
 #include <hwcutils.h>
 
+#include <system/graphics.h>
 #include <algorithm>
 #include <sstream>
 #include <string>
@@ -33,11 +35,13 @@
 #include "displayplanemanager.h"
 #include "displayqueue.h"
 #include "drmdisplaymanager.h"
+#include "hdr_metadata_defs.h"
 #include "wsi_utils.h"
 
 #define CTA_EXTENSION_TAG 0x02
-#define CTA_EXTENDED_TAG_CODE 0x07
 #define CTA_COLORIMETRY_CODE 0x05
+#define CTA_HDR_STATIC_METADATA 0x06
+#define CTA_EXTENDED_TAG_CODE 0x07
 
 namespace hwcomposer {
 
@@ -78,8 +82,112 @@ bool DrmDisplay::InitializeDisplay() {
   return true;
 }
 
-std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
-                                                            uint8_t block_tag) {
+void DrmDisplay::DrmConnectorGetDCIP3Support(uint8_t *b, uint8_t length) {
+  dcip3_ = false;
+  if (b && length >= 2) {
+    dcip3_ = !!(b[1] & 0x80);
+    clrspaces = ((!!(b[1] & 0x80)) << 8) | (b[0]);
+  }
+  return;
+}
+
+uint16_t DrmDisplay::DrmConnectorColorPrimary(short val) {
+  short temp = val & 0x3FF;
+  short count = 1;
+  float result = 0;
+  uint16_t output;
+
+  /* Primary values in EDID are ecoded in 10 bit format, where every bit
+   * represents 2 pow negative bit position, ex 0.500 = 1/2 = 2 ^ -1 = (1 << 9)
+   */
+  while (temp) {
+    result += ((!!(temp & (1 << 9))) * pow(2, -count));
+    count++;
+    temp <<= 1;
+  }
+
+  /* Primaries are to represented in uint16 format, in power of 0.00002,
+   *     * max allowed value is 500,00 */
+  output = result * 50000;
+  if (output > 50000)
+    output = 50000;
+
+  return output;
+}
+
+void DrmDisplay::DrmConnectorGetHDRStaticMetadata(uint8_t *b, uint8_t length) {
+  uint8_t i;
+
+  if (length < 2) {
+    ITRACE("Invalid metadata input to static parser\n");
+    return;
+  }
+
+  display_hdrMd = (struct drm_edid_hdr_metadata_static *)malloc(
+      sizeof(struct drm_edid_hdr_metadata_static));
+  if (!display_hdrMd) {
+    ITRACE("OOM while parsing static metadata\n");
+    return;
+  }
+  memset(display_hdrMd, 0, sizeof(struct drm_edid_hdr_metadata_static));
+
+  display_hdrMd->eotf = b[0] & 0x3F;
+  display_hdrMd->metadata_type = b[1];
+
+  if (length > 2 && length < 6) {
+    display_hdrMd->desired_max_ll = b[2];
+    display_hdrMd->desired_max_fall = b[3];
+    display_hdrMd->desired_min_ll = b[4];
+
+    if (!display_hdrMd->desired_max_ll)
+      display_hdrMd->desired_max_ll = 0xFF;
+  }
+  return;
+}
+
+#define HIGH_X(val) (val >> 6)
+#define HIGH_Y(val) ((val >> 4) & 0x3)
+#define LOW_X(val) ((val >> 2) & 0x3)
+#define LOW_Y(val) ((val >> 4) & 0x3)
+
+void DrmDisplay::DrmConnectorGetcolorPrimaries(
+    uint8_t *b, struct drm_display_color_primaries *p) {
+  uint8_t rxrygxgy_0_1;
+  uint8_t bxbywxwy_0_1;
+  uint8_t count = 0x19; /* base of chromaticity block values */
+  uint16_t val;
+
+  if (!b || !p)
+    return;
+
+  rxrygxgy_0_1 = b[count++];
+  bxbywxwy_0_1 = b[count++];
+
+  val = (b[count++] << 2) | HIGH_X(rxrygxgy_0_1);
+  p->display_primary_r_x = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | HIGH_Y(rxrygxgy_0_1);
+  p->display_primary_r_y = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | LOW_X(rxrygxgy_0_1);
+  p->display_primary_g_x = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | LOW_Y(rxrygxgy_0_1);
+  p->display_primary_g_y = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | HIGH_X(bxbywxwy_0_1);
+  p->display_primary_b_x = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | HIGH_Y(bxbywxwy_0_1);
+  p->display_primary_b_y = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | LOW_X(bxbywxwy_0_1);
+  p->white_point_x = DrmConnectorColorPrimary(val);
+
+  val = (b[count++] << 2) | LOW_X(bxbywxwy_0_1);
+  p->white_point_y = DrmConnectorColorPrimary(val);
+}
+void DrmDisplay::ParseCTAFromExtensionBlock(uint8_t *edid) {
   int current_block;
   uint8_t *cta_ext_blk;
   uint8_t dblen;
@@ -88,11 +196,10 @@ std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
   uint8_t *cta_db_end;
   uint8_t *dbptr;
   uint8_t tag;
-  std::vector<uint8_t *> addrs;
 
   int num_blocks = edid[126];
   if (!num_blocks) {
-    return addrs;
+    return;
   }
 
   for (current_block = 1; current_block <= num_blocks; current_block++) {
@@ -108,51 +215,23 @@ std::vector<uint8_t *> DrmDisplay::FindExtendedBlocksForTag(uint8_t *edid,
       dblen = dbptr[0] & 0x1F;
 
       // Check if the extension has an extended block
-      if (tag == block_tag)
-        addrs.emplace_back(dbptr);
+      if (tag == CTA_EXTENDED_TAG_CODE) {
+        switch (dbptr[1]) {
+          case CTA_COLORIMETRY_CODE:
+            ITRACE(" Colorimetry Data block\n");
+            DrmConnectorGetDCIP3Support(dbptr + 2, dblen - 1);
+            break;
+          case CTA_HDR_STATIC_METADATA:
+            ITRACE(" HDR STATICMETADATA block\n");
+            DrmConnectorGetHDRStaticMetadata(dbptr + 2, dblen - 1);
+            break;
+          default:
+            ITRACE(" Unknown tag/Parsing option\n");
+        }
+        DrmConnectorGetcolorPrimaries(dbptr + 2, &primaries);
+      }
     }
   }
-
-  return addrs;
-}
-
-void DrmDisplay::DrmConnectorGetDCIP3Support(
-    const ScopedDrmObjectPropertyPtr &props) {
-  uint8_t *edid = NULL;
-  uint64_t edid_blob_id;
-  drmModePropertyBlobPtr blob;
-  uint8_t block_tag;
-  std::vector<uint8_t *> blocks;
-
-  dcip3_ = false;
-
-  GetDrmObjectPropertyValue("EDID", props, &edid_blob_id);
-  blob = drmModeGetPropertyBlob(gpu_fd_, edid_blob_id);
-  if (!blob) {
-    return;
-  }
-
-  edid = (uint8_t *)blob->data;
-  if (!edid) {
-    drmModeFreePropertyBlob(blob);
-    return;
-  }
-
-  blocks = FindExtendedBlocksForTag(edid, CTA_EXTENDED_TAG_CODE);
-
-  for (uint8_t *ext_block : blocks) {
-    block_tag = ext_block[1];
-
-    if (block_tag == CTA_COLORIMETRY_CODE) {
-      dcip3_ = !!(ext_block[3] & 0x80);
-      if (dcip3_)
-        break;
-    }
-  }
-
-  drmModeFreePropertyBlob(blob);
-
-  return;
 }
 
 bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
@@ -222,8 +301,23 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
   GetDrmObjectProperty("Broadcast RGB", connector_props, &broadcastrgb_id_);
   GetDrmObjectProperty("DPMS", connector_props, &dpms_prop_);
   GetDrmObjectProperty("max bpc", connector_props, &max_bpc_prop_);
+  GetDrmObjectProperty("HDR_OUTPUT_METADATA", connector_props,
+                       &hdr_op_metadata_prop_);
+  GetDrmObjectProperty("Colorspace", connector_props, &colorspace_op_prop_);
 
-  DrmConnectorGetDCIP3Support(connector_props);
+  uint8_t *edid = NULL;
+  uint64_t edid_blob_id;
+  drmModePropertyBlobPtr blob;
+
+  GetDrmObjectPropertyValue("EDID", connector_props, &edid_blob_id);
+  blob = drmModeGetPropertyBlob(gpu_fd_, edid_blob_id);
+  if (blob == nullptr || blob->data == nullptr) {
+    ETRACE("Failed to get EDID blob data\n");
+    return false;
+  }
+
+  edid = (uint8_t *)blob->data;
+  ParseCTAFromExtensionBlock(edid);
   if (dcip3_) {
     ITRACE("DCIP3 support available");
     if (!SetPipeMaxBpc(PIPE_BPC_TWELVE))
@@ -232,6 +326,7 @@ bool DrmDisplay::ConnectDisplay(const drmModeModeInfo &mode_info,
     ITRACE("DCIP3 support not available");
   }
 
+  drmModeFreePropertyBlob(blob);
   PhysicalDisplay::Connect();
   SetHDCPState(desired_protection_support_, content_type_);
 
@@ -556,6 +651,86 @@ void DrmDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
   }
 }
 
+bool DrmDisplay::GetHdrCapabilities(uint32_t *outNumTypes, int32_t *outTypes,
+                                    float *outMaxLuminance,
+                                    float *outMaxAverageLuminance,
+                                    float *outMinLuminance) {
+  if (NULL == outNumTypes) {
+    ALOGE("outNumTypes couldn't be NULL!");
+    return false;
+  }
+
+  if (NULL == outTypes) {
+    ALOGE("outTypes couldn't be NULL!");
+    return false;
+  }
+
+  if (NULL == outMaxLuminance) {
+    ALOGE("outMaxLuminance couldn't be NULL!");
+    return false;
+  }
+
+  if (NULL == outMaxAverageLuminance) {
+    ALOGE("outMaxAverageLuminance couldn't be NULL!");
+    return false;
+  }
+
+  if (NULL == outMinLuminance) {
+    ALOGE("outMinLuminance couldn't be NULL!");
+    return false;
+  }
+
+  if (display_hdrMd) {
+    // HDR meta block bit 3 of byte 3: STPTE ST 2084
+    if (display_hdrMd->eotf & 0x04) {
+      *(outTypes + *outNumTypes) = (uint32_t)EOTF_ST2084;
+      *outNumTypes++;
+    }
+    // HDR meta block bit 4 of byte 3: HLG
+    if (display_hdrMd->eotf & 0x08) {
+      *(outTypes + *outNumTypes) = (uint32_t)EOTF_HLG;
+      *outNumTypes++;
+    }
+    double outmaxluminance, outmaxaverageluminance, outminluminance;
+    // Luminance value = 50 * POW(2, coded value / 32)
+    // Desired Content Min Luminance = Desired Content Max Luminance * POW(2,
+    // coded value/255) / 100
+    outmaxluminance = pow(2.0, display_hdrMd->desired_max_ll / 32.0) * 50.0;
+    *outMaxLuminance = float(outmaxluminance);
+    outmaxaverageluminance =
+        pow(2.0, display_hdrMd->desired_max_fall / 32.0) * 50.0;
+    *outMaxAverageLuminance = float(outmaxaverageluminance);
+    outminluminance = display_hdrMd->desired_max_ll *
+                      pow(2.0, display_hdrMd->desired_min_ll / 255.0) / 100;
+    *outMinLuminance = float(outminluminance);
+  }
+
+  return true;
+}
+
+bool DrmDisplay::GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                         int32_t *outKeys) {
+  *outNumKeys = KEY_NUM_PER_FRAME_METADATA_KEYS;
+
+  for (int i = 0; i < KEY_NUM_PER_FRAME_METADATA_KEYS; i++) {
+    *(outKeys + i) = i;
+  }
+  return true;
+}
+
+bool DrmDisplay::GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                                  int32_t *outIntents) {
+  // If HDR is supported, adds HDR render intents accordingly.
+  if (display_hdrMd && display_hdrMd->eotf & 0x0C) {
+    *(outIntents + *outNumIntents) = HAL_RENDER_INTENT_TONE_MAP_COLORIMETRIC;
+    *(outNumIntents)++;
+    *(outIntents + *outNumIntents) = HAL_RENDER_INTENT_TONE_MAP_ENHANCE;
+    *(outNumIntents)++;
+  }
+
+  return true;
+}
+
 void DrmDisplay::UpdateDisplayConfig() {
   // update the activeConfig
   SPIN_LOCK(display_lock_);
@@ -657,11 +832,89 @@ void DrmDisplay::TraceFirstCommit() {
   ITRACE("First frame is Committed at %lld.", milliseconds);
 }
 
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MIN_IF_NT_ZERO(c, d) (c ? MIN(c, d) : d)
+
+void DrmDisplay::Accumulated_HdrMetadata(struct hdr_metadata *hdr_mdata1,
+                                         struct hdr_metadata *hdr_mdata2) {
+  struct hdr_metadata_static *l1_md = &hdr_mdata1->metadata.static_metadata;
+  struct hdr_metadata_static *l2_md = &hdr_mdata2->metadata.static_metadata;
+
+  hdr_mdata1->metadata_type =
+      MIN_IF_NT_ZERO(hdr_mdata1->metadata_type, hdr_mdata2->metadata_type);
+  l1_md->primaries.r.x =
+      MIN_IF_NT_ZERO(l1_md->primaries.r.x, l2_md->primaries.r.x);
+  l1_md->primaries.r.y =
+      MIN_IF_NT_ZERO(l1_md->primaries.r.y, l2_md->primaries.r.y);
+  l1_md->primaries.g.x =
+      MIN_IF_NT_ZERO(l1_md->primaries.g.x, l2_md->primaries.g.x);
+  l1_md->primaries.g.y =
+      MIN_IF_NT_ZERO(l1_md->primaries.g.y, l2_md->primaries.g.y);
+  l1_md->primaries.b.x =
+      MIN_IF_NT_ZERO(l1_md->primaries.b.x, l2_md->primaries.b.x);
+  l1_md->primaries.b.y =
+      MIN_IF_NT_ZERO(l1_md->primaries.b.y, l2_md->primaries.b.y);
+  l1_md->primaries.white_point.x = MIN_IF_NT_ZERO(
+      l1_md->primaries.white_point.x, l2_md->primaries.white_point.x);
+  l1_md->primaries.white_point.y = MIN_IF_NT_ZERO(
+      l1_md->primaries.white_point.y, l2_md->primaries.white_point.y);
+  l1_md->max_luminance =
+      MIN_IF_NT_ZERO(l1_md->max_luminance, l2_md->max_luminance);
+  l1_md->min_luminance =
+      MIN_IF_NT_ZERO(l1_md->min_luminance, l2_md->min_luminance);
+  l1_md->max_cll = MIN_IF_NT_ZERO(l1_md->max_cll, l2_md->max_cll);
+  l1_md->max_fall = MIN_IF_NT_ZERO(l1_md->max_fall, l2_md->max_fall);
+  l1_md->eotf = MIN_IF_NT_ZERO(l1_md->eotf, l2_md->eotf);
+}
+
+void DrmDisplay::PrepareHdrMetadata(struct hdr_metadata *l_hdr_mdata,
+                                    struct drm_hdr_metadata *out_md) {
+  struct hdr_metadata_static *l_md = &l_hdr_mdata->metadata.static_metadata;
+  struct drm_hdr_metadata_static *out_static_md =
+      &out_md->drm_hdr_static_metadata;
+
+  out_static_md->max_cll = l_md->max_cll;
+  out_static_md->max_fall = l_md->max_fall;
+  out_static_md->max_mastering_luminance = l_md->max_luminance;
+  out_static_md->min_mastering_luminance = l_md->min_luminance;
+  out_static_md->primaries[0].x =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.r.x),
+                     primaries.display_primary_r_x);
+  out_static_md->primaries[0].y =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.r.y),
+                     primaries.display_primary_r_y);
+  out_static_md->primaries[1].x =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.g.x),
+                     primaries.display_primary_g_x);
+  out_static_md->primaries[1].y =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.g.y),
+                     primaries.display_primary_g_y);
+  out_static_md->primaries[2].x =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.g.x),
+                     primaries.display_primary_b_x);
+  out_static_md->primaries[2].y =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.g.y),
+                     primaries.display_primary_b_y);
+  out_static_md->white_point.x =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.white_point.x),
+                     primaries.white_point_x);
+  out_static_md->white_point.y =
+      MIN_IF_NT_ZERO(DrmConnectorColorPrimary(l_md->primaries.white_point.y),
+                     primaries.white_point_y);
+  out_static_md->eotf = DRM_EOTF_HDR_ST2084;
+  out_static_md->metadata_type = 1;
+}
+
 bool DrmDisplay::Commit(
     const DisplayPlaneStateList &composition_planes,
     const DisplayPlaneStateList &previous_composition_planes,
     bool disable_explicit_fence, int32_t previous_fence, int32_t *commit_fence,
     bool *previous_fence_released) {
+  struct hdr_metadata final_hdr_metadata, layer_metadata;
+  int layer_colorspace;
+
+  memset(&final_hdr_metadata, 0, sizeof(struct hdr_metadata));
+
   if (!manager_->IsDrmMaster()) {
     ETRACE("Failed to commit without DrmMaster");
     return true;
@@ -680,10 +933,29 @@ bool DrmDisplay::Commit(
     display_queue_->ResetPlanes(pset.get());
 
   if (display_state_ & kNeedsModeset) {
+    /* KK: Put to check only if input layer is a hdr */
+    for (const DisplayPlaneState &comp_plane : composition_planes) {
+      OverlayLayer *layer = (OverlayLayer *)comp_plane.GetOverlayLayer();
+      layer_metadata = layer->GetHdrMetadata();
+      layer_colorspace = layer->GetColorSpace();
+
+      Accumulated_HdrMetadata(&final_hdr_metadata, &layer_metadata);
+    }
+
+    PrepareHdrMetadata(&final_hdr_metadata, &color_state.o_md);
+
+    /*KK: end */
+
     if (!ApplyPendingModeset(pset.get())) {
       ETRACE("Failed to Modeset.");
       return false;
     }
+
+    if (!ApplyPendingHdr(pset.get(), &color_state)) {
+      ETRACE("Failed updating Hdr prop.");
+      return false;
+    }
+
   } else if (!disable_explicit_fence && out_fence_ptr_prop_) {
     GetFence(pset.get(), commit_fence);
   }
@@ -1038,6 +1310,29 @@ float DrmDisplay::TransformGamma(float value, float gamma) const {
   return result;
 }
 
+bool DrmDisplay::SetColorMode(int32_t mode) {
+  auto it =
+      std::find(current_color_mode_.begin(), current_color_mode_.end(), mode);
+  if (it == current_color_mode_.end()) {
+    current_color_mode_.push_back(mode);
+  }
+  return true;
+}
+
+bool DrmDisplay::GetColorModes(uint32_t *num_modes, int32_t *modes) {
+  if (!modes) {
+    *num_modes = current_color_mode_.size();
+    return true;
+  }
+
+  *num_modes = current_color_mode_.size();
+  for (int i = 0; i < current_color_mode_.size(); i++) {
+    *(modes + i) == current_color_mode_[i];
+  }
+
+  return true;
+}
+
 void DrmDisplay::SetColorTransformMatrix(
     const float *color_transform_matrix,
     HWCColorTransform color_transform_hint) const {
@@ -1156,6 +1451,19 @@ void DrmDisplay::SetColorCorrection(struct gamma_colors gamma,
   free(lut);
 }
 
+/* Return the colorspace values to be going to AVI infoframe */
+static inline uint32_t to_kernel_colorspace(uint8_t colorspace) {
+  switch (colorspace) {
+    case DRM_COLORSPACE_DCIP3:
+      return DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65;
+    case DRM_COLORSPACE_REC2020:
+      return DRM_MODE_COLORIMETRY_BT2020_RGB;
+    case DRM_COLORSPACE_REC709:
+    default:
+      return DRM_MODE_COLORIMETRY_DEFAULT;
+  }
+}
+
 bool DrmDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
   if (old_blob_id_) {
     drmModeDestroyPropertyBlob(gpu_fd_, old_blob_id_);
@@ -1175,6 +1483,7 @@ bool DrmDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
                                      crtc_id_) < 0 ||
             drmModeAtomicAddProperty(property_set, crtc_id_, active_prop_,
                                      active) < 0;
+
   if (ret) {
     ETRACE("Failed to add blob %d to pset", blob_id_);
     return false;
@@ -1182,6 +1491,28 @@ bool DrmDisplay::ApplyPendingModeset(drmModeAtomicReqPtr property_set) {
 
   old_blob_id_ = blob_id_;
   blob_id_ = 0;
+
+  return true;
+}
+
+bool DrmDisplay::ApplyPendingHdr(drmModeAtomicReqPtr property_set,
+                                 struct drm_conn_color_state *target) {
+  /* KK : TODO: set old_blob */
+  drmModeCreatePropertyBlob(gpu_fd_, (void *)&target->o_md,
+                            sizeof(target->o_md),
+                            (uint32_t *)&target->hdr_md_blob_id);
+  if (target->hdr_md_blob_id == 0)
+    return false;
+
+  int ret =
+      drmModeAtomicAddProperty(property_set, connector_, hdr_op_metadata_prop_,
+                               target->hdr_md_blob_id) < 0 ||
+      drmModeAtomicAddProperty(property_set, connector_, colorspace_op_prop_,
+                               to_kernel_colorspace(color_state.o_cs)) < 0;
+  if (ret) {
+    ETRACE("Failed to add blob %d to pset", target->hdr_md_blob_id);
+    return false;
+  }
 
   return true;
 }

@@ -24,6 +24,7 @@
 #include <drmscopedtypes.h>
 
 #include "drmplane.h"
+#include "hdr_metadata_defs.h"
 #include "physicaldisplay.h"
 
 #ifndef DRM_RGBA8888
@@ -40,6 +41,85 @@ enum pipe_bpc {
   PIPE_BPC_TEN = 10,
   PIPE_BPC_TWELVE = 12,
   PIPE_BPC_SIXTEEN = 16
+};
+
+/* CTA-861-G: HDR Metadata names and types */
+enum drm_hdr_eotf_type {
+  DRM_EOTF_SDR_TRADITIONAL = 0,
+  DRM_EOTF_HDR_TRADITIONAL,
+  DRM_EOTF_HDR_ST2084,
+  DRM_EOTF_HLG_BT2100,
+  DRM_EOTF_MAX
+};
+
+#define DRM_MODE_COLORIMETRY_DEFAULT 0
+#define DRM_MODE_COLORIMETRY_BT2020_RGB 9
+#define DRM_MODE_COLORIMETRY_BT2020_YCC 10
+#define DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65 11
+#define DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER 12
+
+enum drm_colorspace {
+  DRM_COLORSPACE_INVALID,
+  DRM_COLORSPACE_REC709,
+  DRM_COLORSPACE_DCIP3,
+  DRM_COLORSPACE_REC2020,
+  DRM_COLORSPACE_MAX,
+};
+
+/* Monitors HDR Metadata */
+struct drm_edid_hdr_metadata_static {
+  uint8_t eotf;
+  uint8_t metadata_type;
+  uint8_t desired_max_ll;
+  uint8_t desired_max_fall;
+  uint8_t desired_min_ll;
+};
+
+/* Monitor's color primaries */
+struct drm_display_color_primaries {
+  uint16_t display_primary_r_x;
+  uint16_t display_primary_r_y;
+  uint16_t display_primary_g_x;
+  uint16_t display_primary_g_y;
+  uint16_t display_primary_b_x;
+  uint16_t display_primary_b_y;
+  uint16_t white_point_x;
+  uint16_t white_point_y;
+};
+
+/* Static HDR metadata to be sent to kernel, matches kernel structure */
+struct drm_hdr_metadata_static {
+  uint8_t eotf;
+  uint8_t metadata_type;
+  struct {
+    uint16_t x, y;
+  } primaries[3];
+  struct {
+    uint16_t x, y;
+  } white_point;
+  uint16_t max_mastering_luminance;
+  uint16_t min_mastering_luminance;
+  uint16_t max_cll;
+  uint16_t max_fall;
+};
+
+struct drm_hdr_metadata {
+  uint32_t metadata_type;
+  union {
+    struct drm_hdr_metadata_static drm_hdr_static_metadata;
+  };
+};
+
+/* Connector's color correction status */
+struct drm_conn_color_state {
+  bool changed;
+  bool can_handle_hdr;
+  bool output_is_hdr;
+
+  uint8_t o_cs;
+  uint8_t o_eotf;
+  uint32_t hdr_md_blob_id;
+  struct drm_hdr_metadata o_md;
 };
 
 class DrmDisplayManager;
@@ -64,8 +144,16 @@ class DrmDisplay : public PhysicalDisplay {
   void GetDisplayCapabilities(uint32_t *numCapabilities,
                               uint32_t *capabilities) override;
 
+  bool GetHdrCapabilities(uint32_t *outNumTypes, int32_t *outTypes,
+                          float *outMaxLuminance, float *outMaxAverageLuminance,
+                          float *outMinLuminance) override;
+
+  bool GetPerFrameMetadataKeys(uint32_t *outNumKeys, int32_t *outKeys) override;
+
   bool GetDisplayIdentificationData(uint8_t *outPort, uint32_t *outDataSize,
                                     uint8_t *outData) override;
+  bool GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                        int32_t *outIntents) override;
 
   bool SetBroadcastRGB(const char *range_property) override;
 
@@ -83,6 +171,8 @@ class DrmDisplay : public PhysicalDisplay {
   void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
                           uint16_t blue, uint16_t alpha) const override;
   bool SetPipeMaxBpc(uint16_t max_bpc) const override;
+  bool SetColorMode(int32_t mode) override;
+  bool GetColorModes(uint32_t *num_modes, int32_t *modes) override;
   void SetColorTransformMatrix(
       const float *color_transform_matrix,
       HWCColorTransform color_transform_hint) const override;
@@ -158,6 +248,12 @@ class DrmDisplay : public PhysicalDisplay {
                        struct drm_color_ctm_post_offset *ctm_post_offset) const;
   void ApplyPendingLUT(struct drm_color_lut *lut) const;
   bool ApplyPendingModeset(drmModeAtomicReqPtr property_set);
+  bool ApplyPendingHdr(drmModeAtomicReqPtr property_set,
+                       struct drm_conn_color_state *target);
+  void Accumulated_HdrMetadata(struct hdr_metadata *hdr_mdata1,
+                               struct hdr_metadata *hdr_mdata2);
+  void PrepareHdrMetadata(struct hdr_metadata *l_hdr_mdata,
+                          struct drm_hdr_metadata *out_metadata);
   bool GetFence(drmModeAtomicReqPtr property_set, int32_t *out_fence);
   bool CommitFrame(const DisplayPlaneStateList &comp_planes,
                    const DisplayPlaneStateList &previous_composition_planes,
@@ -169,8 +265,12 @@ class DrmDisplay : public PhysicalDisplay {
                                         uint32_t possible_crtcs);
   std::vector<uint8_t *> FindExtendedBlocksForTag(uint8_t *edid,
                                                   uint8_t block_tag);
-  void DrmConnectorGetDCIP3Support(const ScopedDrmObjectPropertyPtr &props);
-
+  void ParseCTAFromExtensionBlock(uint8_t *edid);
+  void DrmConnectorGetDCIP3Support(uint8_t *b, uint8_t length);
+  void DrmConnectorGetHDRStaticMetadata(uint8_t *b, uint8_t length);
+  uint16_t DrmConnectorColorPrimary(short val);
+  void DrmConnectorGetcolorPrimaries(
+      uint8_t *b, struct drm_display_color_primaries *primaries);
   void TraceFirstCommit();
 
   uint32_t FindPreferedDisplayMode(size_t modes_size);
@@ -197,6 +297,8 @@ class DrmDisplay : public PhysicalDisplay {
   uint32_t connector_ = 0;
   bool dcip3_ = false;
   uint32_t max_bpc_prop_ = 0;
+  uint32_t hdr_op_metadata_prop_ = 0;
+  uint32_t colorspace_op_prop_ = 0;
   uint64_t lut_size_ = 0;
   int64_t broadcastrgb_full_ = -1;
   int64_t broadcastrgb_automatic_ = -1;
@@ -205,7 +307,18 @@ class DrmDisplay : public PhysicalDisplay {
   bool first_commit_ = false;
   uint32_t prefer_display_mode_ = 0;
   uint32_t perf_display_mode_ = 0;
-  std::string display_name_ = "";
+  std::string display_name_;
+  std::vector<int32_t> current_color_mode_ = {HAL_COLOR_MODE_NATIVE};
+
+  /* Display's static HDR metadata */
+  struct drm_edid_hdr_metadata_static *display_hdrMd;
+  /* Display's color primaries */
+  struct drm_display_color_primaries primaries;
+  /* Display's supported color spaces */
+  uint32_t clrspaces;
+  /* Connector's color correction status */
+  struct drm_conn_color_state color_state;
+
   HWCContentProtection current_protection_support_ =
       HWCContentProtection::kUnSupported;
   HWCContentProtection desired_protection_support_ =

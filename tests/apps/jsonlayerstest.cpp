@@ -702,7 +702,6 @@ static void init_frames(int32_t width, int32_t height) {
           printf("un-recognized layer type!\n");
           exit(-1);
       }
-
       if (!renderer->Init(layer_parameter.source_width,
                           layer_parameter.source_height, gbm_format,
                           usage_format, usage, &gl,

@@ -512,6 +512,32 @@ void VirtualDisplay::GetDisplayCapabilities(uint32_t *numCapabilities,
                                             uint32_t *capabilities) {
 }
 
+bool VirtualDisplay::GetHdrCapabilities(uint32_t *outNumTypes,
+                                        int32_t *outTypes,
+                                        float *outMaxLuminance,
+                                        float *outMaxAverageLuminance,
+                                        float *outMinLuminance) {
+  return true;
+}
+
+bool VirtualDisplay::GetPerFrameMetadataKeys(uint32_t *outNumKeys,
+                                             int32_t *outKeys) {
+  return true;
+}
+
+bool VirtualDisplay::GetRenderIntents(int32_t mode, uint32_t *outNumIntents,
+                                      int32_t *outIntents) {
+  return true;
+}
+
+bool VirtualDisplay::SetColorMode(int32_t mode) {
+  return true;
+}
+
+bool VirtualDisplay::GetColorModes(uint32_t *num_modes, int32_t *modes) {
+  return true;
+}
+
 int VirtualDisplay::GetDisplayPipe() {
   return -1;
 }

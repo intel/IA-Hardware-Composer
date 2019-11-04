@@ -213,6 +213,7 @@ AX_COMPILE_CHECK_SIZEOF(size_t, [#include <stdint.h>])
 #######################################################################
 
 PKG_CHECK_MODULES(DRM, [libdrm])
+PKG_CHECK_MODULES(DRM_INTEL, [libdrm_intel])
 PKG_CHECK_MODULES(GBM, [gbm])
 PKG_CHECK_MODULES(EGL, [egl])
 PKG_CHECK_MODULES(GLES2, [glesv2])
