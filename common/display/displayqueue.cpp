@@ -295,6 +295,8 @@ void DisplayQueue::InitializeOverlayLayers(
         if (need_revalidate)
           re_validate_begin = layer_index;
       }
+    } else if (overlay_layer->IsVideoLayer()) {
+      re_validate_begin = 0;
     } else if (re_validate_begin == size) {
       re_validate_begin = layer_index;
     }
