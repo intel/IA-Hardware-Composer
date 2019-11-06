@@ -273,10 +273,6 @@ void DisplayQueue::InitializeOverlayLayers(
       if (overlay_layer->IsVideoLayer() != previous_layer->IsVideoLayer()) {
         re_validate_begin = 0;
       }
-      if ((!previous_layer->IsVideoLayer()) && overlay_layer->IsVideoLayer())
-        video_first_frame_ = true;
-      if (previous_layer->IsVideoLayer() && overlay_layer->IsVideoLayer())
-        video_first_frame_ = false;
       if (re_validate_begin == size) {
         bool need_revalidate =
             overlay_layer->IsSolidColor() != previous_layer->IsSolidColor();
@@ -812,11 +808,8 @@ void DisplayQueue::SetReleaseFenceToLayers(
           if (temp > 0) {
             layer->SetReleaseFence(dup(temp));
           } else {
-            if (layer->IsVideoLayer() && video_first_frame_) {
-              ITRACE(
-                  "set commit fence[%d] for first video buffer as release "
-                  "fence",
-                  fence);
+            // [WA] set commit fence for video buffer as release fence
+            if (layer->IsVideoLayer()) {
               layer->SetReleaseFence(dup(fence));
             }
           }
