@@ -403,7 +403,6 @@ class DisplayQueue {
   bool clone_mode_ = false;
   // Set to true if this queue needs to render the offscreen surfaces.
   bool clone_rendered_ = false;
-  bool video_first_frame_ = false;
   // Surfaces to be marked as not in use. These
   // are surfaces which are added to surfaces_not_inuse_
   // below.
