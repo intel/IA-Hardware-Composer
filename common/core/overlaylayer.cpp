@@ -571,7 +571,7 @@ void OverlayLayer::ValidatePreviousFrameState(OverlayLayer* rhs,
 
   if (!layer->HasVisibleRegionChanged() && !content_changed &&
       surface_damage_.empty() && !layer->HasLayerContentChanged() &&
-      !(state_ & kNeedsReValidation)) {
+      !(state_ & kNeedsReValidation) && !layer->GetUseForMosaic()) {
     state_ &= ~kLayerContentChanged;
   }
 }
