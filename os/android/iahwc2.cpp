@@ -999,11 +999,14 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
         }
       }
     } else {
-      for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
-        if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor)
-          layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
+      for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
+        IAHWC2::Hwc2Layer &layer = l.second;
+        if (layer.sf_type() == HWC2::Composition::SolidColor)
+          layer.set_validated_type(HWC2::Composition::SolidColor);
+        else if (layer.sf_type() != HWC2::Composition::Client)
+          layer.set_validated_type(HWC2::Composition::Device);
         else
-          layers_[l.second].set_validated_type(HWC2::Composition::Device);
+          layer.set_validated_type(HWC2::Composition::Client);
       }
     }
   }
