@@ -1,6 +1,0 @@
-BasedOnStyle: Google
-AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
-# Pointer alignment works for clang version 5.0 and up.
-PointerAlignment: Right
