@@ -1,7 +1,7 @@
 
 
 cc_test {
-    name: "hwc-drm-tests",
+    name: "hwc-drm-tests01",
 
     srcs: ["worker_test.cpp"],
 
