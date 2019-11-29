@@ -276,15 +276,10 @@ bool DisplayPlaneManager::ValidateLayers(
       if (cursor_layers.size() > 1) {
         ETRACE("More than 1 cursor layers found, we don't support it");
       }
-      // Will only add one cursor layer, anyway
-      composition.emplace_back(cursor_plane_, cursor_layers[0], this);
-      bool fall_back =
-          FallbacktoGPU(cursor_plane_, cursor_layers[0], composition);
-      if (fall_back) {
-        composition.pop_back();
-        // fallback to GPU compostion for cursor layers
-        composition.back().AddLayer(cursor_layers[0]);
-      }
+      // WA for Android O developer mode. Cursor plane didn't work fallback to
+      // GPU
+      // compostion for cursor layers
+      composition.back().AddLayer(cursor_layers[0]);
     }
   }
 

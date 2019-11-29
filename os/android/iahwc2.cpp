@@ -751,7 +751,12 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
       cursor_z_order = client_z_order + 1;
     }
     z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
-    ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d]", cursor_z_order);
+    ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d], displayFrame: %d, %d, %d, %d",
+                     cursor_z_order,
+                     cursor_layer->GetLayer()->GetDisplayFrame().left,
+                     cursor_layer->GetLayer()->GetDisplayFrame().top,
+                     cursor_layer->GetLayer()->GetDisplayFrame().right,
+                     cursor_layer->GetLayer()->GetDisplayFrame().bottom);
   }
 
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -960,25 +965,29 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       }
     }
   } else {
-    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_)
-      l.second.set_validated_type(HWC2::Composition::Invalid);
-
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
       if (l.second.sf_type() == HWC2::Composition::Device ||
           l.second.sf_type() == HWC2::Composition::SolidColor)
         z_map.emplace(std::make_pair(l.second.z_order(), l.first));
+      // Set cursor as Device
+      else if (l.second.sf_type() == HWC2::Composition::Cursor) {
+        l.second.set_validated_type(HWC2::Composition::Device);
+      }
     }
+
+    for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map)
+      layers_[l.second].set_validated_type(HWC2::Composition::Invalid);
 
     /*
      * If more layers then planes, save one plane
      * for client composited layers
      */
-    if (avail_planes < layers_.size())
+    if (avail_planes < z_map.size())
       avail_planes--;
-    if (layers_.size() > avail_planes) {
+    if (z_map.size() > avail_planes) {
       size_t lay_index = 0;
       for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
-        if (lay_index == (layers_.size() - avail_planes)) {
+        if (lay_index == (z_map.size() - avail_planes)) {
           avail_planes--;
           if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
             layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
@@ -989,8 +998,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
         lay_index++;
       }
 
-      for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-        IAHWC2::Hwc2Layer &layer = l.second;
+      for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
+        IAHWC2::Hwc2Layer &layer = layers_[l.second];
         // We can only handle layers of Device type, send everything else to SF
         if (layer.validated_type() != HWC2::Composition::Device &&
             layer.validated_type() != HWC2::Composition::SolidColor) {
