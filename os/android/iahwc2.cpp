@@ -671,6 +671,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   bool use_client_layer = false;
   uint32_t client_z_order = 0;
   bool use_cursor_layer = false;
+  bool use_overlay_compose = false;
   uint32_t cursor_z_order = 0;
   IAHWC2::Hwc2Layer *cursor_layer;
   *retire_fence = -1;
@@ -709,6 +710,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     switch (l.second.validated_type()) {
       case HWC2::Composition::Device:
       case HWC2::Composition::SolidColor:
+        use_overlay_compose = true;
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
         ICOMPOSITORTRACE(
             "Add Device/SolidColor HWC2Layer[%d], displayFrame: %d, %d, %d, %d",
@@ -750,8 +752,10 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     } else if (client_z_order > cursor_z_order) {
       cursor_z_order = client_z_order + 1;
     }
-    z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
-    ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d]", cursor_z_order);
+    if (use_overlay_compose) {
+      z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
+      ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d]", cursor_z_order);
+    }
   }
 
   std::vector<hwcomposer::HwcLayer *> layers;
@@ -1005,6 +1009,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       if (l.second.sf_type() == HWC2::Composition::Device ||
           l.second.sf_type() == HWC2::Composition::SolidColor)
         z_map.emplace(std::make_pair(l.second.z_order(), l.first));
+      else
+        l.second.set_validated_type(HWC2::Composition::Client);
     }
 
     /*
@@ -1024,8 +1030,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       }
     }
 
-    for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-      IAHWC2::Hwc2Layer &layer = l.second;
+    for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
+      IAHWC2::Hwc2Layer &layer = layers_[l.second];
       // We can only handle layers of Device type, send everything else to SF
       if (layer.validated_type() != HWC2::Composition::Device &&
           layer.validated_type() != HWC2::Composition::SolidColor) {

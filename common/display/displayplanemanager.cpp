@@ -56,6 +56,8 @@ void DisplayPlaneManager::ResizeOverlays() {
       } else {
         total_overlays_--;
       }
+    } else {
+      cursor_plane_ = NULL;
     }
   }
   IPLANERESERVEDTRACE(
@@ -110,7 +112,6 @@ bool DisplayPlaneManager::ValidateLayers(
                     layers.size());
       ForceVppForAllLayers(composition, layers, add_index, mark_later, false);
     }
-
     return true;
   }
 
