@@ -1017,6 +1017,10 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
       if (!avail_planes--)
         break;
+#ifdef KVM_HWC_PROPERTY
+      if (IsKvmPlatform())
+        break;
+#endif
       if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
         layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
       } else {
