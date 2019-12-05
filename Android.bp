@@ -13,10 +13,10 @@
 // limitations under the License.
 
 // =====================
-// libdrmhwc_utils.a
+// libdrmhwc_utils_pri.a
 // =====================
 cc_library_static {
-    name: "libdrmhwc_utils",
+    name: "libdrmhwc_utils_pri",
 
     srcs: ["worker.cpp"],
 
@@ -33,7 +33,7 @@ cc_library_static {
 // hwcomposer.drm.so
 // =====================
 cc_defaults {
-    name: "hwcomposer.drm_defaults",
+    name: "hwcomposer.drm_defaults_pri",
 
     shared_libs: [
         "libcutils",
@@ -45,7 +45,7 @@ cc_defaults {
         "libutils",
     ],
 
-    static_libs: ["libdrmhwc_utils"],
+    static_libs: ["libdrmhwc_utils_pri"],
 
     cflags: [
         "-Wall",
@@ -61,8 +61,8 @@ cc_defaults {
     vendor: true,
 }
 cc_library_static {
-    name: "drm_hwcomposer",
-    defaults: ["hwcomposer.drm_defaults"],
+    name: "drm_hwcomposer_pri",
+    defaults: ["hwcomposer.drm_defaults_pri"],
     srcs: [
         "autolock.cpp",
         "resourcemanager.cpp",
@@ -84,29 +84,20 @@ cc_library_static {
 }
 
 cc_library_shared {
-    name: "hwcomposer.drm",
-    defaults: ["hwcomposer.drm_defaults"],
-    whole_static_libs: ["drm_hwcomposer"],
+    name: "hwcomposer.drm.pri",
+    defaults: ["hwcomposer.drm_defaults_pri"],
+    whole_static_libs: ["drm_hwcomposer_pri"],
     srcs: ["platformdrmgeneric.cpp"],
     cppflags: ["-DUSE_DRM_GENERIC_IMPORTER"],
 }
 
 cc_library_shared {
-    name: "hwcomposer.drm_minigbm",
-    defaults: ["hwcomposer.drm_defaults"],
-    whole_static_libs: ["drm_hwcomposer"],
+    name: "hwcomposer.intel",
+    defaults: ["hwcomposer.drm_defaults_pri"],
+    whole_static_libs: ["drm_hwcomposer_pri"],
     srcs: [
         "platformdrmgeneric.cpp",
         "platformminigbm.cpp",
     ],
     include_dirs: ["external/minigbm/cros_gralloc"],
-}
-
-// Used by hwcomposer.drm_hikey and hwcomposer.drm_hikey960
-filegroup {
-    name: "drm_hwcomposer_platformhisi",
-    srcs: [
-        "platformdrmgeneric.cpp",
-        "platformhisi.cpp",
-    ],
 }
