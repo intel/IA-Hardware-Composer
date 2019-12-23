@@ -30,6 +30,8 @@
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
 #include <log/log.h>
+#include "cros_gralloc_handle.h"
+#include "vautils.h"
 
 namespace android {
 
@@ -468,7 +470,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
                                                     int32_t *fences) {
   supported(__func__);
   uint32_t num_layers = 0;
-
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     ++num_layers;
     if (layers == NULL || fences == NULL) {
@@ -477,7 +478,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
       ALOGW("Overflow num_elements %d/%d", num_layers, *num_elements);
       return HWC2::Error::None;
     }
-
     layers[num_layers - 1] = l.first;
     fences[num_layers - 1] = l.second.take_release_fence();
   }
@@ -502,14 +502,14 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
   std::vector<DrmCompositionDisplayLayersMap> layers_map;
   layers_map.emplace_back();
   DrmCompositionDisplayLayersMap &map = layers_map.back();
-
+  int ret = 0;
   map.display = static_cast<int>(handle_);
   map.geometry_changed = true;  // TODO: Fix this
-
   // order the layers by z-order
   bool use_client_layer = false;
   uint32_t client_z_order = UINT32_MAX;
   std::map<uint32_t, DrmHwcTwo::HwcLayer *> z_map;
+  bool includeVideoFlag = false;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     HWC2::Composition comp_type;
     if (test) {
@@ -520,7 +520,8 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
       }
     } else
       comp_type = l.second.validated_type();
-
+    if (l.second.IsVideoLayer())
+      includeVideoFlag= true;
     switch (comp_type) {
       case HWC2::Composition::Device:
         z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
@@ -531,6 +532,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
         client_z_order = std::min(client_z_order, l.second.z_order());
         break;
       default:
+        z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
         continue;
     }
   }
@@ -539,30 +541,52 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
 
   if (z_map.empty())
     return HWC2::Error::BadLayer;
-
   // now that they're ordered by z, add them to the composition
-  for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
-    DrmHwcLayer layer;
-    l.second->PopulateDrmLayer(&layer);
-    int ret = layer.ImportBuffer(importer_.get());
-    if (ret) {
-      ALOGE("Failed to import layer, ret=%d", ret);
-      return HWC2::Error::NoResources;
+  if(includeVideoFlag && (!use_client_layer)){
+    for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
+      if (l.second->IsVideoLayer()) {
+        DrmHwcLayer layer;
+        DrmHwcLayer layera[z_map.size()];
+        l.second->PopulateDrmLayer(&layer);
+        int index =0;
+        for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &a : z_map) {
+          a.second->PopulateDrmLayer(&layera[index]);
+          layer.addVaLayerMapData(a.first, &layera[index]);
+          index++;
+        }
+        ret = layer.ImportBuffer(importer_.get());
+        map.layers.emplace_back(std::move(layer));
+        break;
+      }
     }
-    map.layers.emplace_back(std::move(layer));
+  }else{
+    for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
+      DrmHwcLayer layer;
+      l.second->PopulateDrmLayer(&layer);
+      int ret = layer.ImportBuffer(importer_.get());
+      if (ret) {
+        ALOGE("Failed to import layer, ret=%d", ret);
+        return HWC2::Error::NoResources;
+        //  continue;
+      }
+      if (test && includeVideoFlag) {
+        if (l.second->IsVideoLayer()) {
+          map.layers.emplace_back(std::move(layer));
+          break;
+        }
+      }else
+        map.layers.emplace_back(std::move(layer));
+    }
   }
-
   std::unique_ptr<DrmDisplayComposition> composition = compositor_
                                                            .CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
-
   // TODO: Don't always assume geometry changed
-  int ret = composition->SetLayers(map.layers.data(), map.layers.size(), true);
+  ret = composition->SetLayers(map.layers.data(), map.layers.size(), true);
   if (ret) {
     ALOGE("Failed to set layers in the composition ret=%d", ret);
     return HWC2::Error::BadLayer;
   }
-
   std::vector<DrmPlane *> primary_planes(primary_planes_);
   std::vector<DrmPlane *> overlay_planes(overlay_planes_);
   ret = composition->Plan(&primary_planes, &overlay_planes);
@@ -570,7 +594,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     ALOGE("Failed to plan the composition ret=%d", ret);
     return HWC2::Error::BadConfig;
   }
-
   // Disable the planes we're not using
   for (auto i = primary_planes.begin(); i != primary_planes.end();) {
     composition->AddPlaneDisable(*i);
@@ -580,7 +603,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     composition->AddPlaneDisable(*i);
     i = overlay_planes.erase(i);
   }
-
   if (test) {
     ret = compositor_.TestComposition(composition.get());
   } else {
@@ -598,7 +620,6 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
 HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   supported(__func__);
   HWC2::Error ret;
-
   ret = CreateComposition(false);
   if (ret == HWC2::Error::BadLayer) {
     // Can we really have no client or device layers?
@@ -607,12 +628,10 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   }
   if (ret != HWC2::Error::None)
     return ret;
-
   // The retire fence returned here is for the last frame, so return it and
   // promote the next retire fence
   *retire_fence = retire_fence_.Release();
   retire_fence_ = std::move(next_retire_fence_);
-
   ++frame_no_;
   return HWC2::Error::None;
 }
@@ -727,6 +746,21 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
   return HWC2::Error::None;
 }
 
+//check whether the layer with the lease two zorder is the video layer
+bool DrmHwcTwo::HwcDisplay::WhetherVideoLayer(std::map< uint32_t,
+                                               DrmHwcTwo::HwcLayer *,
+                                               std::greater<int>> zmap) {
+  int i = 0;
+  if (zmap.empty())
+    return false;
+  for (std::map<uint32_t, DrmHwcTwo::HwcLayer *>::reverse_iterator rit = zmap.rbegin(); rit != zmap.rend() && i < 2; rit++, i++) {
+    if (rit->second->IsVideoLayer())
+      return true;
+  }
+  return false;
+}
+
+
 HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
                                                    uint32_t *num_requests) {
   supported(__func__);
@@ -734,43 +768,60 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   *num_requests = 0;
   size_t avail_planes = primary_planes_.size() + overlay_planes_.size();
   bool comp_failed = false;
-
+  bool video_flag = false;
   HWC2::Error ret;
-
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_)
     l.second.set_validated_type(HWC2::Composition::Invalid);
 
   ret = CreateComposition(true);
   if (ret != HWC2::Error::None)
     comp_failed = true;
-
   std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
-    if (l.second.sf_type() == HWC2::Composition::Device)
-      z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
+    //if enable the condition, it would filter the sprite layer
+    //if (l.second.sf_type() == HWC2::Composition::Device){
+    z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
+    //}
   }
-
+  video_flag = WhetherVideoLayer(z_map);
   /*
    * If more layers then planes, save one plane
    * for client composited layers
    */
   if (avail_planes < layers_.size())
     avail_planes--;
-
-  for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
-    if (comp_failed || !avail_planes--)
-      break;
-    if (importer_->CanImportBuffer(l.second->buffer()))
-      l.second->set_validated_type(HWC2::Composition::Device);
+  if (video_flag) {
+    for (std::map<uint32_t, DrmHwcTwo::HwcLayer *>::reverse_iterator rit = z_map.rbegin(); rit != z_map.rend(); rit++) {
+      //if (comp_failed || !avail_planes--)
+      if (comp_failed )
+        break;
+      //if the layers include video,set all the layers Device mode
+      if (importer_->CanImportBuffer(rit->second->buffer()))
+        rit->second->set_validated_type(HWC2::Composition::Device);
+    }
+  } else {
+    for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
+      if (comp_failed || !avail_planes--)
+        break;
+      if (importer_->CanImportBuffer(l.second->buffer())){
+        l.second->set_validated_type(HWC2::Composition::Device);
+      }
+    }
   }
-
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     DrmHwcTwo::HwcLayer &layer = l.second;
     // We can only handle layers of Device type, send everything else to SF
-    if (layer.sf_type() != HWC2::Composition::Device ||
+    if (video_flag) {
+        if (layer.validated_type() != HWC2::Composition::Device) {
+          layer.set_validated_type(HWC2::Composition::Client);
+          ++*num_types;
+        }
+    } else {
+      if (layer.sf_type() != HWC2::Composition::Device ||
         layer.validated_type() != HWC2::Composition::Device) {
-      layer.set_validated_type(HWC2::Composition::Client);
-      ++*num_types;
+        layer.set_validated_type(HWC2::Composition::Client);
+        ++*num_types;
+      }
     }
   }
   return *num_types ? HWC2::Error::HasChanges : HWC2::Error::None;
@@ -799,9 +850,13 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
       sf_type_ == HWC2::Composition::Sideband ||
       sf_type_ == HWC2::Composition::SolidColor)
     return HWC2::Error::None;
-
   set_buffer(buffer);
   set_acquire_fence(uf.get());
+  if (NULL != buffer) {
+    cros_gralloc_handle *gr_handle = (cros_gralloc_handle *)(buffer);
+    if ((NULL != gr_handle) && (IsSupportedMediaFormat(gr_handle->format)))
+      layer_type_ = kLayerVideo;
+  }
   return HWC2::Error::None;
 }
 
@@ -893,12 +948,14 @@ void DrmHwcTwo::HwcLayer::PopulateDrmLayer(DrmHwcLayer *layer) {
   OutputFd release_fence = release_fence_output();
 
   layer->sf_handle = buffer_;
+  layer->dataspace = dataspace_;
   layer->acquire_fence = acquire_fence_.Release();
   layer->release_fence = std::move(release_fence);
   layer->SetDisplayFrame(display_frame_);
   layer->alpha = static_cast<uint16_t>(65535.0f * alpha_ + 0.5f);
   layer->SetSourceCrop(source_crop_);
   layer->SetTransform(static_cast<int32_t>(transform_));
+  layer->SetVideoLayer(IsVideoLayer());
 }
 
 void DrmHwcTwo::HandleDisplayHotplug(hwc2_display_t displayid, int state) {

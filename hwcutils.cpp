@@ -22,6 +22,7 @@
 
 #include <log/log.h>
 #include <ui/GraphicBufferMapper.h>
+#include "cros_gralloc_handle.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -43,10 +44,9 @@ void DrmHwcBuffer::Clear() {
   }
 }
 
-int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
+int DrmHwcBuffer::ImportBuffer(DrmHwcLayer* layer, Importer *importer) {
   hwc_drm_bo tmp_bo;
-
-  int ret = importer->ImportBuffer(handle, &tmp_bo);
+  int ret = importer->ImportBuffer(layer, &tmp_bo);
   if (ret)
     return ret;
 
@@ -108,7 +108,7 @@ void DrmHwcNativeHandle::Clear() {
 }
 
 int DrmHwcLayer::ImportBuffer(Importer *importer) {
-  int ret = buffer.ImportBuffer(sf_handle, importer);
+  int ret = buffer.ImportBuffer(this, importer);
   if (ret)
     return ret;
 

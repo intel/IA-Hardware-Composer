@@ -52,6 +52,7 @@ class DrmDisplayCompositor {
   std::unique_ptr<DrmDisplayComposition> CreateInitializedComposition() const;
   int ApplyComposition(std::unique_ptr<DrmDisplayComposition> composition);
   int TestComposition(DrmDisplayComposition *composition);
+
   int Composite();
   void Dump(std::ostringstream *out) const;
   void Vsync(int display, int64_t timestamp);
