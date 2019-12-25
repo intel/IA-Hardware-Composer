@@ -22,6 +22,7 @@
 #include "platformdrmgeneric.h"
 
 #include <hardware/gralloc.h>
+#include "varenderer.h"
 
 namespace android {
 
@@ -32,11 +33,13 @@ class DrmMinigbmImporter : public DrmGenericImporter {
 
   int Init();
 
-  int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
+  int ImportBuffer(DrmHwcLayer* layer, hwc_drm_bo_t *bo) override;
+  void EnableVaRender();
 
  private:
   DrmDevice *drm_;
-
+  uint32_t bak_transform = 0;
+  std::unique_ptr<VARenderer> media_renderer_;
   const gralloc_module_t *gralloc_;
 };
 

@@ -381,15 +381,27 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         rotation |= DRM_MODE_REFLECT_X;
       if (layer.transform & DrmHwcTransform::kFlipV)
         rotation |= DRM_MODE_REFLECT_Y;
-      if (layer.transform & DrmHwcTransform::kRotate90)
-        rotation |= DRM_MODE_ROTATE_90;
-      else if (layer.transform & DrmHwcTransform::kRotate180)
-        rotation |= DRM_MODE_ROTATE_180;
-      else if (layer.transform & DrmHwcTransform::kRotate270)
-        rotation |= DRM_MODE_ROTATE_270;
-      else
+      if (layer.IsVideoLayer()) {
         rotation |= DRM_MODE_ROTATE_0;
+        source_crop.left = 0;
+        source_crop.top = 0;
+        source_crop.bottom = 1080;
+        source_crop.right = 1920;
 
+        display_frame.left = 0;
+        display_frame.top = 0;
+        display_frame.bottom = 1080;
+        display_frame.right = 1920;
+      }else{
+        if (layer.transform & DrmHwcTransform::kRotate90)
+          rotation |= DRM_MODE_ROTATE_90;
+        else if (layer.transform & DrmHwcTransform::kRotate180)
+          rotation |= DRM_MODE_ROTATE_180;
+        else if (layer.transform & DrmHwcTransform::kRotate270)
+          rotation |= DRM_MODE_ROTATE_270;
+        else
+          rotation |= DRM_MODE_ROTATE_0;
+       }
       if (fence_fd >= 0) {
         int prop_id = plane->in_fence_fd_property().id();
         if (prop_id == 0) {

@@ -101,8 +101,9 @@ uint32_t DrmGenericImporter::DrmFormatToBitsPerPixel(uint32_t drm_format) {
   }
 }
 
-int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
-  gralloc_handle_t *gr_handle = gralloc_handle(handle);
+//int DrmGenericImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
+int DrmGenericImporter::ImportBuffer(DrmHwcLayer* layer, hwc_drm_bo_t *bo){
+    gralloc_handle_t *gr_handle = gralloc_handle(layer->get_usable_handle());
   if (!gr_handle)
     return -EINVAL;
 
