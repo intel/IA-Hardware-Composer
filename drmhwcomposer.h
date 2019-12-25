@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include <vector>
+
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include "autofd.h"
@@ -140,7 +141,6 @@ enum class DrmHwcBlending : int32_t {
 
 struct DrmHwcLayer {
   buffer_handle_t sf_handle = NULL;
-  buffer_handle_t sf_va_handle = NULL;
   std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_z_map;
   int gralloc_buffer_usage = 0;
   DrmHwcBuffer buffer;
@@ -161,12 +161,6 @@ struct DrmHwcLayer {
   std::map<uint32_t, DrmHwcLayer *, std::greater<int>> getVaLayerMapData(){
     return va_z_map;
   }
-  void SetVaLayerData(buffer_handle_t handle){
-    sf_va_handle = handle;
-  }
-  buffer_handle_t get_valayer_handle() const {
-    return sf_va_handle;
-  }
   int ImportBuffer(Importer *importer);
   int InitFromDrmHwcLayer(DrmHwcLayer *layer, Importer *importer);
 
@@ -174,7 +168,7 @@ struct DrmHwcLayer {
   void SetSourceCrop(hwc_frect_t const &crop);
   void SetDisplayFrame(hwc_rect_t const &frame);
 
-  void SetVideoLayer (bool isVideo) {
+  void SetVideoLayer(bool isVideo) {
     if (isVideo)
       type_ = kLayerVideo;
     else

@@ -46,6 +46,7 @@ void DrmHwcBuffer::Clear() {
 
 int DrmHwcBuffer::ImportBuffer(DrmHwcLayer* layer, Importer *importer) {
   hwc_drm_bo tmp_bo;
+
   int ret = importer->ImportBuffer(layer, &tmp_bo);
   if (ret)
     return ret;

@@ -470,6 +470,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
                                                     int32_t *fences) {
   supported(__func__);
   uint32_t num_layers = 0;
+
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     ++num_layers;
     if (layers == NULL || fences == NULL) {
@@ -478,6 +479,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::GetReleaseFences(uint32_t *num_elements,
       ALOGW("Overflow num_elements %d/%d", num_layers, *num_elements);
       return HWC2::Error::None;
     }
+
     layers[num_layers - 1] = l.first;
     fences[num_layers - 1] = l.second.take_release_fence();
   }
@@ -541,6 +543,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
 
   if (z_map.empty())
     return HWC2::Error::BadLayer;
+
   // now that they're ordered by z, add them to the composition
   if(includeVideoFlag && (!use_client_layer)){
     for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
@@ -581,6 +584,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
   std::unique_ptr<DrmDisplayComposition> composition = compositor_
                                                            .CreateComposition();
   composition->Init(drm_, crtc_, importer_.get(), planner_.get(), frame_no_);
+
   // TODO: Don't always assume geometry changed
   ret = composition->SetLayers(map.layers.data(), map.layers.size(), true);
   if (ret) {
@@ -594,6 +598,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     ALOGE("Failed to plan the composition ret=%d", ret);
     return HWC2::Error::BadConfig;
   }
+
   // Disable the planes we're not using
   for (auto i = primary_planes.begin(); i != primary_planes.end();) {
     composition->AddPlaneDisable(*i);
@@ -603,6 +608,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
     composition->AddPlaneDisable(*i);
     i = overlay_planes.erase(i);
   }
+
   if (test) {
     ret = compositor_.TestComposition(composition.get());
   } else {
@@ -620,6 +626,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
 HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   supported(__func__);
   HWC2::Error ret;
+
   ret = CreateComposition(false);
   if (ret == HWC2::Error::BadLayer) {
     // Can we really have no client or device layers?
@@ -628,10 +635,12 @@ HWC2::Error DrmHwcTwo::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   }
   if (ret != HWC2::Error::None)
     return ret;
+
   // The retire fence returned here is for the last frame, so return it and
   // promote the next retire fence
   *retire_fence = retire_fence_.Release();
   retire_fence_ = std::move(next_retire_fence_);
+
   ++frame_no_;
   return HWC2::Error::None;
 }
@@ -747,7 +756,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 }
 
 //check whether the layer with the lease two zorder is the video layer
-bool DrmHwcTwo::HwcDisplay::WhetherVideoLayer(std::map< uint32_t,
+bool DrmHwcTwo::HwcDisplay::ContainVideoLayer(std::map< uint32_t,
                                                DrmHwcTwo::HwcLayer *,
                                                std::greater<int>> zmap) {
   int i = 0;
@@ -776,6 +785,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   ret = CreateComposition(true);
   if (ret != HWC2::Error::None)
     comp_failed = true;
+
   std::map<uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> z_map;
   for (std::pair<const hwc2_layer_t, DrmHwcTwo::HwcLayer> &l : layers_) {
     //if enable the condition, it would filter the sprite layer
@@ -783,7 +793,7 @@ HWC2::Error DrmHwcTwo::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     z_map.emplace(std::make_pair(l.second.z_order(), &l.second));
     //}
   }
-  video_flag = WhetherVideoLayer(z_map);
+  video_flag = ContainVideoLayer(z_map);
   /*
    * If more layers then planes, save one plane
    * for client composited layers
@@ -850,6 +860,7 @@ HWC2::Error DrmHwcTwo::HwcLayer::SetLayerBuffer(buffer_handle_t buffer,
       sf_type_ == HWC2::Composition::Sideband ||
       sf_type_ == HWC2::Composition::SolidColor)
     return HWC2::Error::None;
+
   set_buffer(buffer);
   set_acquire_fence(uf.get());
   if (NULL != buffer) {

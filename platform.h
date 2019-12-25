@@ -44,6 +44,7 @@ class Importer {
   //       implementation is responsible for ensuring thread safety.
   //virtual int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) = 0;
   virtual int ImportBuffer(DrmHwcLayer* layer, hwc_drm_bo_t *bo) = 0;
+
   // Releases the buffer object (ie: does the inverse of ImportBuffer)
   //
   // Note: This can be called from a different thread than ImportBuffer. The

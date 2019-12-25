@@ -83,6 +83,7 @@ DrmDisplayCompositor::~DrmDisplayCompositor() {
     drm->DestroyPropertyBlob(mode_.blob_id);
   if (mode_.old_blob_id)
     drm->DestroyPropertyBlob(mode_.old_blob_id);
+
   active_composition_.reset();
 
   ret = pthread_mutex_unlock(&lock_);
@@ -236,11 +237,13 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
   ATRACE_CALL();
 
   int ret = 0;
+
   std::vector<DrmHwcLayer> &layers = display_comp->layers();
   std::vector<DrmCompositionPlane> &comp_planes = display_comp
                                                       ->composition_planes();
   DrmDevice *drm = resource_manager_->GetDrmDevice(display_);
   uint64_t out_fences[drm->crtcs().size()];
+
   DrmConnector *connector = drm->GetConnectorForDisplay(display_);
   if (!connector) {
     ALOGE("Could not locate connector for display %d", display_);
@@ -251,11 +254,13 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
     ALOGE("Could not locate crtc for display %d", display_);
     return -ENODEV;
   }
+
   drmModeAtomicReqPtr pset = drmModeAtomicAlloc();
   if (!pset) {
     ALOGE("Failed to allocate property set");
     return -ENOMEM;
   }
+
   if (writeback_buffer != NULL) {
     if (writeback_conn == NULL) {
       ALOGE("Invalid arguments requested writeback without writeback conn");
@@ -278,6 +283,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       return ret;
     }
   }
+
   if (mode_.needs_modeset) {
     ret = drmModeAtomicAddProperty(pset, crtc->id(),
                                    crtc->active_property().id(), 1);
@@ -286,6 +292,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       drmModeAtomicFree(pset);
       return ret;
     }
+
     ret = drmModeAtomicAddProperty(pset, crtc->id(), crtc->mode_property().id(),
                                    mode_.blob_id) < 0 ||
           drmModeAtomicAddProperty(pset, connector->id(),
@@ -297,10 +304,12 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       return ret;
     }
   }
+
   for (DrmCompositionPlane &comp_plane : comp_planes) {
     DrmPlane *plane = comp_plane.plane();
     DrmCrtc *crtc = comp_plane.crtc();
     std::vector<size_t> &source_layers = comp_plane.source_layers();
+
     int fb_id = -1;
     int fence_fd = -1;
     hwc_rect_t display_frame;
@@ -315,6 +324,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
               source_layers.size(), comp_plane.type());
         continue;
       }
+
       if (source_layers.empty() || source_layers.front() >= layers.size()) {
         ALOGE("Source layer index %zu out of bounds %zu type=%d",
               source_layers.front(), layers.size(), comp_plane.type());
@@ -330,6 +340,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       display_frame = layer.display_frame;
       source_crop = layer.source_crop;
       alpha = layer.alpha;
+
       if (plane->blend_property().id()) {
         switch (layer.blending) {
           case DrmHwcBlending::kPreMult:
@@ -347,12 +358,14 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
             break;
         }
       }
+
       if (plane->zpos_property().id() &&
           !plane->zpos_property().is_immutable()) {
         uint64_t min_zpos = 0;
 
         // Ignore ret and use min_zpos as 0 by default
         std::tie(std::ignore, min_zpos) = plane->zpos_property().range_min();
+
         ret = drmModeAtomicAddProperty(pset, plane->id(),
                                        plane->zpos_property().id(),
                                        source_layers.front() + min_zpos) < 0;
@@ -362,6 +375,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
           break;
         }
       }
+
       rotation = 0;
       if (layer.transform & DrmHwcTransform::kFlipH)
         rotation |= DRM_MODE_REFLECT_X;
@@ -401,6 +415,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         }
       }
     }
+
     // Disable the plane if there's no framebuffer
     if (fb_id < 0) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
@@ -413,6 +428,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       }
       continue;
     }
+
     ret = drmModeAtomicAddProperty(pset, plane->id(),
                                    plane->crtc_property().id(), crtc->id()) < 0;
     ret |= drmModeAtomicAddProperty(pset, plane->id(),
@@ -449,6 +465,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       ALOGE("Failed to add plane %d to set", plane->id());
       break;
     }
+
     if (plane->rotation_property().id()) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
                                      plane->rotation_property().id(),
@@ -459,6 +476,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         break;
       }
     }
+
     if (plane->alpha_property().id()) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
                                      plane->alpha_property().id(), alpha) < 0;
@@ -468,6 +486,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         break;
       }
     }
+
     if (plane->blend_property().id()) {
       ret = drmModeAtomicAddProperty(pset, plane->id(),
                                      plane->blend_property().id(), blend) < 0;
@@ -478,6 +497,7 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
       }
     }
   }
+
   if (!ret) {
     uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
     if (test_only)
@@ -564,6 +584,7 @@ void DrmDisplayCompositor::ClearDisplay() {
 
   if (DisablePlanes(active_composition_.get()))
     return;
+
   active_composition_.reset(NULL);
   vsync_worker_.VSyncControl(false);
 }
@@ -592,6 +613,7 @@ void DrmDisplayCompositor::ApplyFrame(
     return;
   }
   ++dump_frames_composited_;
+
   active_composition_.swap(composition);
 
   flatten_countdown_ = FLATTEN_COUNTDOWN_INIT;
@@ -612,6 +634,7 @@ int DrmDisplayCompositor::ApplyComposition(
           return ret;
         }
       }
+
       ApplyFrame(std::move(composition), ret);
       break;
     case DRM_COMPOSITION_TYPE_DPMS:

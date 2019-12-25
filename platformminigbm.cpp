@@ -92,11 +92,11 @@ int DrmMinigbmImporter::Init() {
 }
 
 #ifdef ENABLE_DUMP_YUV_DATA
-#define DUMP_DATA_FILE "/data/temp"
 
 static void DumpData(buffer_handle_t handle){
   if (NULL == handle)
     return;
+  char dump_file[200];
   cros_gralloc_handle *gr_handle = (cros_gralloc_handle *)handle;
   native_handle_t *handle_copy;
   uint8_t* pixels;
@@ -109,8 +109,12 @@ static void DumpData(buffer_handle_t handle){
                      Rect(gr_handle->width, gr_handle->height), reinterpret_cast<void**>(&pixels));
     if (ret != 0)
       ALOGE("in platformminigbm.cpp function %s,line %d ret=%d::fail to lock buffer\n",__FUNCTION__,__LINE__,ret);
+    char ctime[32];
+    time_t t = time(0);
+    strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&t));
+    sprintf(dump_file, "/data/dump_%d*%d_0x%x_%s", gr_handle->width, gr_handle->height, gr_handle->format, ctime);
     int file_fd = 0;
-    file_fd = open(DUMP_DATA_FILE, O_RDWR|O_CREAT|O_APPEND, 0666);
+    file_fd = open(dump_file, O_RDWR|O_CREAT|O_APPEND, 0666);
     if (file_fd == -1) {
       ALOGE("in platformminigbm.cpp function %s,line %d::fail to open file\n",__FUNCTION__,__LINE__);
       return;
@@ -184,6 +188,7 @@ int DrmMinigbmImporter::ImportBuffer(DrmHwcLayer* layer, hwc_drm_bo_t *bo){
     ALOGE("could not create drm fb %d", ret);
     return ret;
   }
+
   return ret;
 }
 

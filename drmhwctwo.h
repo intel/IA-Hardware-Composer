@@ -186,7 +186,7 @@ class DrmHwcTwo : public hwc2_device_t {
     HWC2::Error SetPowerMode(int32_t mode);
     HWC2::Error SetVsyncEnabled(int32_t enabled);
     HWC2::Error ValidateDisplay(uint32_t *num_types, uint32_t *num_requests);
-    bool WhetherVideoLayer(std::map< uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> zmap);
+    bool ContainVideoLayer(std::map< uint32_t, DrmHwcTwo::HwcLayer *, std::greater<int>> zmap);
     HwcLayer &get_layer(hwc2_layer_t layer) {
       return layers_.at(layer);
     }
