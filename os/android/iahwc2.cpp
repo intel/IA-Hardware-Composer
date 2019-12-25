@@ -1024,7 +1024,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       if (!avail_planes--)
         break;
 #ifdef KVM_HWC_PROPERTY
-      if (IsKvmPlatform())
+      if (IsKvmPlatform() && GpuDevice::getInstance().IsReservedDrmPlane())
         break;
 #endif
       if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
