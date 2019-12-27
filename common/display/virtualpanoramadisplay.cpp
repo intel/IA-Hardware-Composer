@@ -160,8 +160,12 @@ bool VirtualPanoramaDisplay::SetActiveConfig(uint32_t /*config*/) {
 
 void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
 #ifdef HYPER_DMABUF_SHARING
+  if (mHyperDmaBuf_Fd <= 0) {
+    ETRACE("Hyper DmaBuf: Device is not ready\n");
+    return;
+  }
+
   int ret = 0;
-  size_t buffer_number = 0;
   uint32_t surf_index = display_index_;
   size_t info_size = sizeof(vm_buffer_info);
   size_t header_size = sizeof(vm_header);
@@ -171,7 +175,6 @@ void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
   memset(&info, 0, info_size);
   struct ioctl_hyper_dmabuf_export_remote msg;
   char meta_data[header_size + info_size];
-  uint32_t imported_fd = 0;
 
   header.n_buffers = 1;
   header.version = 3;
@@ -186,45 +189,47 @@ void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
   buffer = resource_manager_->FindCachedBuffer(id);
   const uint32_t *pitches;
   const uint32_t *offsets;
+  int32_t fd = 0;
 
   if (buffer == NULL) {
     buffer = OverlayBuffer::CreateOverlayBuffer();
     buffer->InitializeFromNativeHandle(output_handle_, resource_manager_.get());
     resource_manager_->RegisterBuffer(id, buffer);
-    imported_fd = buffer->GetPrimeFD();
-    if (mHyperDmaBuf_Fd > 0 && imported_fd > 0) {
-      mHyperDmaExportedBuffers[imported_fd].width = buffer->GetWidth();
-      mHyperDmaExportedBuffers[imported_fd].height = buffer->GetHeight();
-      mHyperDmaExportedBuffers[imported_fd].format = buffer->GetFormat();
+    fd = buffer->GetPrimeFD();
+    if (fd > 0) {
+      mHyperDmaExportedBuffers[fd].hyper_dmabuf_id =
+          (hyper_dmabuf_id_t){-1, {-1, -1, -1}};
+      mHyperDmaExportedBuffers[fd].width = buffer->GetWidth();
+      mHyperDmaExportedBuffers[fd].height = buffer->GetHeight();
+      mHyperDmaExportedBuffers[fd].format = buffer->GetFormat();
       pitches = buffer->GetPitches();
       offsets = buffer->GetOffsets();
-      mHyperDmaExportedBuffers[imported_fd].pitch[0] = pitches[0];
-      mHyperDmaExportedBuffers[imported_fd].pitch[1] = pitches[1];
-      mHyperDmaExportedBuffers[imported_fd].pitch[2] = pitches[2];
-      mHyperDmaExportedBuffers[imported_fd].offset[0] = offsets[0];
-      mHyperDmaExportedBuffers[imported_fd].offset[1] = offsets[1];
-      mHyperDmaExportedBuffers[imported_fd].offset[2] = offsets[2];
-      mHyperDmaExportedBuffers[imported_fd].tile_format =
-          buffer->GetTilingMode();
-      mHyperDmaExportedBuffers[imported_fd].rotation = 0;
-      mHyperDmaExportedBuffers[imported_fd].status = 0;
-      mHyperDmaExportedBuffers[imported_fd].counter = 0;
+      mHyperDmaExportedBuffers[fd].pitch[0] = pitches[0];
+      mHyperDmaExportedBuffers[fd].pitch[1] = pitches[1];
+      mHyperDmaExportedBuffers[fd].pitch[2] = pitches[2];
+      mHyperDmaExportedBuffers[fd].offset[0] = offsets[0];
+      mHyperDmaExportedBuffers[fd].offset[1] = offsets[1];
+      mHyperDmaExportedBuffers[fd].offset[2] = offsets[2];
+      mHyperDmaExportedBuffers[fd].tile_format = buffer->GetTilingMode();
+      mHyperDmaExportedBuffers[fd].rotation = 0;
+      mHyperDmaExportedBuffers[fd].status = 0;
+      mHyperDmaExportedBuffers[fd].counter = 0;
       if (notify_stopping) {
         // Send an invalid surface_id to let SOS daemon knowns guest is stopping
         // sharing.
-        mHyperDmaExportedBuffers[imported_fd].surface_id = 0xff;
+        mHyperDmaExportedBuffers[fd].surface_id = 0xff;
       } else {
-        mHyperDmaExportedBuffers[imported_fd].surface_id = display_index_;
+        mHyperDmaExportedBuffers[fd].surface_id = display_index_;
       }
-      mHyperDmaExportedBuffers[imported_fd].bbox[0] = 0;
-      mHyperDmaExportedBuffers[imported_fd].bbox[1] = 0;
-      mHyperDmaExportedBuffers[imported_fd].bbox[2] = buffer->GetWidth();
-      mHyperDmaExportedBuffers[imported_fd].bbox[3] = buffer->GetHeight();
+      mHyperDmaExportedBuffers[fd].bbox[0] = 0;
+      mHyperDmaExportedBuffers[fd].bbox[1] = 0;
+      mHyperDmaExportedBuffers[fd].bbox[2] = buffer->GetWidth();
+      mHyperDmaExportedBuffers[fd].bbox[3] = buffer->GetHeight();
     }
   } else {
     if (!notify_stopping) {
-      imported_fd = buffer->GetPrimeFD();
-      mHyperDmaExportedBuffers[imported_fd].surface_id = display_index_;
+      fd = buffer->GetPrimeFD();
+      mHyperDmaExportedBuffers[fd].surface_id = display_index_;
     }
   }
 
@@ -236,16 +241,14 @@ void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
   msg.dmabuf_fd = buffer->GetPrimeFD();
 
   char index[15];
-  mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
+  mHyperDmaExportedBuffers[msg.dmabuf_fd].surf_index = surf_index;
   memset(index, 0, sizeof(index));
   snprintf(index, sizeof(index), "Cluster_%d", surf_index);
-  strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name, index,
+  strncpy(mHyperDmaExportedBuffers[msg.dmabuf_fd].surface_name, index,
           SURFACE_NAME_LENGTH);
-  mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =
-      (hyper_dmabuf_id_t){-1, {-1, -1, -1}};
   memcpy(meta_data, &header, header_size);
-  memcpy(meta_data + header_size,
-         &mHyperDmaExportedBuffers[buffer->GetPrimeFD()], info_size);
+  memcpy(meta_data + header_size, &mHyperDmaExportedBuffers[msg.dmabuf_fd],
+         info_size);
 
   ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_EXPORT_REMOTE, &msg);
   if (ret) {
@@ -253,7 +256,30 @@ void VirtualPanoramaDisplay::HyperDmaExport(bool notify_stopping) {
     return;
   }
 
-  mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id = msg.hid;
+  // unexporting previous hyper_dmabuf_id for the gem object
+  if (mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id.id != -1 &&
+      memcmp(&mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id, &msg.hid,
+             sizeof(hyper_dmabuf_id_t))) {
+    struct ioctl_hyper_dmabuf_unexport unexport_msg;
+    int ret;
+    unexport_msg.hid = mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id;
+    unexport_msg.delay_ms = 100; /* 100ms would be enough */
+
+    ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_UNEXPORT, &unexport_msg);
+    if (ret) {
+      ETRACE(
+          "Hyper DmaBuf:"
+          "IOCTL_HYPER_DMABUF_UNEXPORT ioctl failed %d [0x%x]\n",
+          ret, unexport_msg.hid.id);
+    } else {
+      ITRACE(
+          "Hyper DmaBuf:"
+          "IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
+          unexport_msg.hid.id);
+    }
+  }
+
+  mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id = msg.hid;
 
   resource_manager_->PreparePurgedResources();
 
