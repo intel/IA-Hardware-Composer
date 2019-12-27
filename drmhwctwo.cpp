@@ -548,17 +548,21 @@ HWC2::Error DrmHwcTwo::HwcDisplay::CreateComposition(bool test) {
   if(includeVideoFlag && (!use_client_layer)){
     for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &l : z_map) {
       if (l.second->IsVideoLayer()) {
-        DrmHwcLayer layer;
+        DrmVaComposeHwcLayer va_compose_layer;
+        DrmHwcLayer clientlayer;
         DrmHwcLayer layera[z_map.size()];
-        l.second->PopulateDrmLayer(&layer);
+        l.second->PopulateDrmLayer(&va_compose_layer);
+        client_layer_.PopulateDrmLayer(&clientlayer);
+        va_compose_layer.SetDisplayFrame(clientlayer.display_frame);
+        va_compose_layer.SetSourceCrop(clientlayer.source_crop);
         int index =0;
         for (std::pair<const uint32_t, DrmHwcTwo::HwcLayer *> &a : z_map) {
           a.second->PopulateDrmLayer(&layera[index]);
-          layer.addVaLayerMapData(a.first, &layera[index]);
+          va_compose_layer.addVaLayerMapData(a.first, &layera[index]);
           index++;
         }
-        ret = layer.ImportBuffer(importer_.get());
-        map.layers.emplace_back(std::move(layer));
+        ret = va_compose_layer.ImportBuffer(importer_.get());
+        map.layers.emplace_back(std::move(va_compose_layer));
         break;
       }
     }

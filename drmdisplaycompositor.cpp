@@ -383,15 +383,15 @@ int DrmDisplayCompositor::CommitFrame(DrmDisplayComposition *display_comp,
         rotation |= DRM_MODE_REFLECT_Y;
       if (layer.IsVideoLayer()) {
         rotation |= DRM_MODE_ROTATE_0;
-        source_crop.left = 0;
-        source_crop.top = 0;
-        source_crop.bottom = 1080;
-        source_crop.right = 1920;
+        source_crop.left = layer.source_crop.left;
+        source_crop.top = layer.source_crop.top;
+        source_crop.bottom = layer.source_crop.bottom;
+        source_crop.right = layer.source_crop.right;
 
-        display_frame.left = 0;
-        display_frame.top = 0;
-        display_frame.bottom = 1080;
-        display_frame.right = 1920;
+        display_frame.left = layer.display_frame.left;
+        display_frame.top = layer.display_frame.top;
+        display_frame.bottom = layer.display_frame.bottom;
+        display_frame.right = layer.display_frame.right;
       }else{
         if (layer.transform & DrmHwcTransform::kRotate90)
           rotation |= DRM_MODE_ROTATE_90;

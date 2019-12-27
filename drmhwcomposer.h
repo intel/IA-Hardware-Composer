@@ -141,7 +141,6 @@ enum class DrmHwcBlending : int32_t {
 
 struct DrmHwcLayer {
   buffer_handle_t sf_handle = NULL;
-  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_z_map;
   int gralloc_buffer_usage = 0;
   DrmHwcBuffer buffer;
   DrmHwcNativeHandle handle;
@@ -155,12 +154,6 @@ struct DrmHwcLayer {
   android_dataspace_t dataspace = HAL_DATASPACE_UNKNOWN;
   UniqueFd acquire_fence;
   OutputFd release_fence;
-  void addVaLayerMapData(int zorder, DrmHwcLayer* layer){
-    va_z_map.emplace(std::make_pair(zorder, layer));
-  }
-  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> getVaLayerMapData(){
-    return va_z_map;
-  }
   int ImportBuffer(Importer *importer);
   int InitFromDrmHwcLayer(DrmHwcLayer *layer, Importer *importer);
 
@@ -186,6 +179,16 @@ struct DrmHwcLayer {
   bool protected_usage() const {
     return (gralloc_buffer_usage & GRALLOC_USAGE_PROTECTED) ==
            GRALLOC_USAGE_PROTECTED;
+  }
+};
+
+struct DrmVaComposeHwcLayer : DrmHwcLayer{
+  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_z_map;
+  void addVaLayerMapData(int zorder, DrmHwcLayer* layer){
+    va_z_map.emplace(std::make_pair(zorder, layer));
+  }
+  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> getVaLayerMapData(){
+    return va_z_map;
   }
 };
 

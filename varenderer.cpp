@@ -276,9 +276,11 @@ bool VARenderer::startRender(DrmHwcLayer* layer,uint32_t format){
   bool modifer_succeeded = false;
   DRMHwcNativeHandle temp_handle = 0;
   uint32_t input_layer_numer = 1;
-  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_layer_map = layer->getVaLayerMapData();
+  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_layer_map = ((DrmVaComposeHwcLayer *)layer)->getVaLayerMapData();
   input_layer_numer = va_layer_map.size();
   //format = DRM_FORMAT_ABGR8888;
+  int connector_widht = layer->display_frame.right - layer->display_frame.left;
+  int connector_height = layer->display_frame.bottom - layer->display_frame.top;
   int rt_format = DrmFormatToRTFormat(format);
   if(render_target_format_ != rt_format)
     render_target_format_ = rt_format;
@@ -296,7 +298,7 @@ bool VARenderer::startRender(DrmHwcLayer* layer,uint32_t format){
       return false;
     }
     for( int32_t i=0; i<NATIVE_BUFFER_VECTOR_SIZE; i++ ) {
-      buffer_handler_->CreateBuffer(/*gr_handle->width, gr_handle->height,*/1920,1080,format,//2560*1440
+      buffer_handler_->CreateBuffer(connector_widht,connector_height,format,//2560*1440
                                    &temp_handle,usage,&modifer_succeeded,modifier);
       if (modifier == 0) {
         native_handles.push_back(temp_handle);
@@ -313,7 +315,7 @@ bool VARenderer::startRender(DrmHwcLayer* layer,uint32_t format){
     if (modifier == I915_FORMAT_MOD_Y_TILED) {
       if (native_rotation_handles.size() == 0) {
         for( int32_t i=0; i<NATIVE_BUFFER_VECTOR_SIZE; i++ ) {
-          buffer_handler_->CreateBuffer(/*gr_handle->width, gr_handle->height,*/1920,1080,format,
+          buffer_handler_->CreateBuffer(connector_widht,connector_height,format,
                                        &temp_handle,usage,&modifer_succeeded,modifier);
           native_rotation_handles.push_back(temp_handle);
         }
@@ -323,7 +325,7 @@ bool VARenderer::startRender(DrmHwcLayer* layer,uint32_t format){
     } else {
       if (native_handles.size() == 0) {
         for( int32_t i=0; i<NATIVE_BUFFER_VECTOR_SIZE; i++ ) {
-          buffer_handler_->CreateBuffer(/*gr_handle->width, gr_handle->height,*/1920,1080,format,//2560*1440
+          buffer_handler_->CreateBuffer(connector_widht,connector_height,format,//2560*1440
                                        &temp_handle,usage,&modifer_succeeded,modifier);
           native_handles.push_back(temp_handle);
         }
