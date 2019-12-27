@@ -31,7 +31,7 @@ class DrmGenericImporter : public Importer {
 
   int Init();
 
-  int ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) override;
+  int ImportBuffer(DrmHwcLayer* layer, hwc_drm_bo_t *bo) override;
   int ReleaseBuffer(hwc_drm_bo_t *bo) override;
   bool CanImportBuffer(buffer_handle_t handle) override;
 

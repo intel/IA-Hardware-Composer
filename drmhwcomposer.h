@@ -26,6 +26,8 @@
 #include <hardware/hwcomposer.h>
 #include "autofd.h"
 #include "drmhwcgralloc.h"
+#include <map>
+#include <log/log.h>
 
 struct hwc_import_context;
 
@@ -40,6 +42,8 @@ bool hwc_import_bo_release(int fd, struct hwc_import_context *ctx,
 namespace android {
 
 class Importer;
+
+struct DrmHwcLayer;
 
 class DrmHwcBuffer {
  public:
@@ -71,7 +75,7 @@ class DrmHwcBuffer {
 
   void Clear();
 
-  int ImportBuffer(buffer_handle_t handle, Importer *importer);
+  int ImportBuffer(DrmHwcLayer* layer, Importer *importer);
 
  private:
   hwc_drm_bo bo_;
@@ -121,6 +125,14 @@ enum DrmHwcTransform {
   kRotate270 = 1 << 4,
 };
 
+enum DrmHwcLayerType {
+  kLayerNormal = 0,
+  kLayerCursor = 1,
+  kLayerProtected = 2,
+  kLayerVideo = 3,
+  kLayerSolidColor = 4,
+};
+
 enum class DrmHwcBlending : int32_t {
   kNone = HWC_BLENDING_NONE,
   kPreMult = HWC_BLENDING_PREMULT,
@@ -137,16 +149,28 @@ struct DrmHwcLayer {
   uint16_t alpha = 0xffff;
   hwc_frect_t source_crop;
   hwc_rect_t display_frame;
+  DrmHwcLayerType type_ = kLayerNormal;
 
+  android_dataspace_t dataspace = HAL_DATASPACE_UNKNOWN;
   UniqueFd acquire_fence;
   OutputFd release_fence;
-
   int ImportBuffer(Importer *importer);
   int InitFromDrmHwcLayer(DrmHwcLayer *layer, Importer *importer);
 
   void SetTransform(int32_t sf_transform);
   void SetSourceCrop(hwc_frect_t const &crop);
   void SetDisplayFrame(hwc_rect_t const &frame);
+
+  void SetVideoLayer(bool isVideo) {
+    if (isVideo)
+      type_ = kLayerVideo;
+    else
+      type_ = kLayerNormal;
+  }
+
+  bool IsVideoLayer() const {
+    return type_ == kLayerVideo;
+  }
 
   buffer_handle_t get_usable_handle() const {
     return handle.get() != NULL ? handle.get() : sf_handle;
@@ -155,6 +179,16 @@ struct DrmHwcLayer {
   bool protected_usage() const {
     return (gralloc_buffer_usage & GRALLOC_USAGE_PROTECTED) ==
            GRALLOC_USAGE_PROTECTED;
+  }
+};
+
+struct DrmVaComposeHwcLayer : DrmHwcLayer{
+  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> va_z_map;
+  void addVaLayerMapData(int zorder, DrmHwcLayer* layer){
+    va_z_map.emplace(std::make_pair(zorder, layer));
+  }
+  std::map<uint32_t, DrmHwcLayer *, std::greater<int>> getVaLayerMapData(){
+    return va_z_map;
   }
 };
 
