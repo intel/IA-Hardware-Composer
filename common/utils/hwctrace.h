@@ -37,7 +37,7 @@ extern "C" {
 // #define ENABLE_PAGE_FLIP_EVENT_TRACING 1
 // #define ENABLE_HOT_PLUG_EVENT_TRACING 1
 // #define ENABLE_MOSAIC_DISPLAY_TRACING 1
-// #define FUNCTION_CALL_TRACING 1
+#define FUNCTION_CALL_TRACING 1
 // #define RESOURCE_CACHE_TRACING 1
 // #define SURFACE_PLANE_LAYER_MAP_TRACING 1
 // #define SURFACE_DUPLICATE_LAYER_TRACING 1
@@ -60,7 +60,13 @@ class TraceFunc {
   ~TraceFunc() {
     std::chrono::high_resolution_clock::time_point t2 =
         std::chrono::high_resolution_clock::now();
-    ITRACE(
+    std::string va_fname = "varenderer.cpp";
+    if (file_name_.compare(file_name_.size() - va_fname.size(), va_fname.size(), va_fname) == 0)
+      ITRACE(
+        "Total time spent in --- VA %s Time(msec): %lld", func_name_.c_str(),
+        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t_).count());
+    else
+      ITRACE(
         "Total time spent in --- %s Time(msec): %lld", func_name_.c_str(),
         std::chrono::duration_cast<std::chrono::microseconds>(t2 - t_).count());
     ITRACE("Leaving --- %s: %s", file_name_.c_str(), func_name_.c_str());
