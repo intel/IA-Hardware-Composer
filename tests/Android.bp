@@ -1,0 +1,13 @@
+
+
+cc_test {
+    name: "hwc-drm-tests-intel",
+
+    srcs: ["worker_test.cpp"],
+
+    vendor: true,
+    header_libs: ["libhardware_headers"],
+    static_libs: ["libdrmhwc_utils_intel"],
+    shared_libs: ["hwcomposer.drm.intel"],
+    include_dirs: ["external/drm_hwcomposer"],
+}

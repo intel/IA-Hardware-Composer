@@ -1,6 +1,0 @@
-hwc_SOURCES =              \
-    os/platformcommondrmdefines.cpp \
-    os/linux/gbmbufferhandler.cpp \
-    os/linux/pixeluploader.cpp \
-    os/linux/platformdefines.cpp \
-	$(NULL)

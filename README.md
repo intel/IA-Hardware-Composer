@@ -1,13 +1,19 @@
-Any security related issues should be reported by following the instructions here:
-https://01.org/security
+drm_hwcomposer
+======
 
-Please check the following Android documentation related to HWC2 API:
-https://android.googlesource.com/platform/hardware/libhardware/+/master/include/hardware/hwcomposer2.h  
+Patches to drm_hwcomposer are very much welcome, we really want this to be the
+universal HW composer implementation for Android and similar platforms
+So please bring on porting patches, bugfixes, improvements for documentation
+and new features.
 
-## Information
+A short list of contribution guidelines:
+* Submit changes via gitlab merge requests on gitlab.freedesktop.org
+* drm_hwcomposer is Apache 2.0 Licensed and we require contributions to follow the developer's certificate of origin: http://developercertificate.org/
+* When submitting new code please follow the naming conventions documented in the generated documentation. Also please make full use of all the helpers and convenience macros provided by drm_hwcomposer. The below command can help you with formatting of your patches:
+  
+      `git diff | clang-format-diff-5.0 -p 1 -style=file`
+* Hardware specific changes should be tested on relevant platforms before committing.
 
-See our wiki pages for more information on:
-* [Building the project locally](https://github.com/intel/IA-Hardware-Composer/wiki/Build)
-* [Conformance](https://github.com/intel/IA-Hardware-Composer/wiki/Conformance)
-* [Contribution guidelines](https://github.com/intel/IA-Hardware-Composer/wiki/Contributions)
-* [Viewing and adding to the Documentation](https://github.com/intel/IA-Hardware-Composer/wiki/Documentation)
+If you need inspiration, please checkout our [TODO issues](https://gitlab.freedesktop.org/drm-hwcomposer/drm-hwcomposer/issues?label_name%5B%5D=TODO)
+
+Happy hacking!

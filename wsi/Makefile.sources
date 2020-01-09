@@ -1,8 +1,0 @@
-wsi_SOURCES =              \
-    physicaldisplay.cpp \
-    drm/drmdisplay.cpp \
-    drm/drmbuffer.cpp \
-    drm/drmplane.cpp \
-    drm/drmdisplaymanager.cpp \
-    drm/drmscopedtypes.cpp \
-	$(NULL)
