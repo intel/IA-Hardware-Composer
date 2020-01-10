@@ -50,9 +50,8 @@ int DrmHwcBuffer::ImportBuffer(buffer_handle_t handle, Importer *importer) {
   if (ret)
     return ret;
 
-  if (importer_ != NULL) {
+  if (importer_ != NULL)
     importer_->ReleaseBuffer(&bo_);
-  }
 
   importer_ = importer;
 
