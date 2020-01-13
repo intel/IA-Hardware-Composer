@@ -142,6 +142,11 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                              PixelUploaderCallback * /*call_back*/,
                              bool handle_constraints) {
 #ifdef HYPER_DMABUF_SHARING
+  if (mHyperDmaBuf_Fd <= 0) {
+    ETRACE("Hyper DmaBuf: Device is not ready\n");
+    goto no_hyper_dmabuf;
+  }
+
   if (display_index_ == 0) {
     int ret = 0;
     size_t size = source_layers.size();
@@ -158,7 +163,6 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     memset(&info, 0, info_size);
     struct ioctl_hyper_dmabuf_export_remote msg;
     char meta_data[header_size + info_size];
-    uint32_t imported_fd = 0;
 
     resource_manager_->RefreshBufferCache();
     for (size_t layer_index = 0; layer_index < size; layer_index++) {
@@ -209,34 +213,35 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       uint32_t id = GetNativeBuffer(gpu_fd, sf_handle);
       buffer = resource_manager_->FindCachedBuffer(id);
       if (buffer == NULL) {
+        int32_t fd;
         buffer = OverlayBuffer::CreateOverlayBuffer();
         buffer->InitializeFromNativeHandle(sf_handle, resource_manager_.get());
         resource_manager_->RegisterBuffer(id, buffer);
-        imported_fd = buffer->GetPrimeFD();
+        fd = buffer->GetPrimeFD();
 
-        if (mHyperDmaBuf_Fd > 0 && imported_fd > 0) {
-          mHyperDmaExportedBuffers[imported_fd].width = buffer->GetWidth();
-          mHyperDmaExportedBuffers[imported_fd].height = buffer->GetHeight();
-          mHyperDmaExportedBuffers[imported_fd].format = buffer->GetFormat();
+        if (fd > 0) {
+          mHyperDmaExportedBuffers[fd].hyper_dmabuf_id =
+              (hyper_dmabuf_id_t){-1, {-1, -1, -1}};
+          mHyperDmaExportedBuffers[fd].width = buffer->GetWidth();
+          mHyperDmaExportedBuffers[fd].height = buffer->GetHeight();
+          mHyperDmaExportedBuffers[fd].format = buffer->GetFormat();
           pitches = buffer->GetPitches();
           offsets = buffer->GetOffsets();
-          mHyperDmaExportedBuffers[imported_fd].pitch[0] = pitches[0];
-          mHyperDmaExportedBuffers[imported_fd].pitch[1] = pitches[1];
-          mHyperDmaExportedBuffers[imported_fd].pitch[2] = pitches[2];
-          mHyperDmaExportedBuffers[imported_fd].offset[0] = offsets[0];
-          mHyperDmaExportedBuffers[imported_fd].offset[1] = offsets[1];
-          mHyperDmaExportedBuffers[imported_fd].offset[2] = offsets[2];
-          mHyperDmaExportedBuffers[imported_fd].tile_format =
-              buffer->GetTilingMode();
-          mHyperDmaExportedBuffers[imported_fd].rotation = 0;
-          mHyperDmaExportedBuffers[imported_fd].status = 0;
-          mHyperDmaExportedBuffers[imported_fd].counter = 0;
-          mHyperDmaExportedBuffers[imported_fd].surface_id =
-              (uint64_t)sf_handle;
-          mHyperDmaExportedBuffers[imported_fd].bbox[0] = display_frame.left;
-          mHyperDmaExportedBuffers[imported_fd].bbox[1] = display_frame.top;
-          mHyperDmaExportedBuffers[imported_fd].bbox[2] = buffer->GetWidth();
-          mHyperDmaExportedBuffers[imported_fd].bbox[3] = buffer->GetHeight();
+          mHyperDmaExportedBuffers[fd].pitch[0] = pitches[0];
+          mHyperDmaExportedBuffers[fd].pitch[1] = pitches[1];
+          mHyperDmaExportedBuffers[fd].pitch[2] = pitches[2];
+          mHyperDmaExportedBuffers[fd].offset[0] = offsets[0];
+          mHyperDmaExportedBuffers[fd].offset[1] = offsets[1];
+          mHyperDmaExportedBuffers[fd].offset[2] = offsets[2];
+          mHyperDmaExportedBuffers[fd].tile_format = buffer->GetTilingMode();
+          mHyperDmaExportedBuffers[fd].rotation = 0;
+          mHyperDmaExportedBuffers[fd].status = 0;
+          mHyperDmaExportedBuffers[fd].counter = 0;
+          mHyperDmaExportedBuffers[fd].surface_id = (uint64_t)sf_handle;
+          mHyperDmaExportedBuffers[fd].bbox[0] = display_frame.left;
+          mHyperDmaExportedBuffers[fd].bbox[1] = display_frame.top;
+          mHyperDmaExportedBuffers[fd].bbox[2] = buffer->GetWidth();
+          mHyperDmaExportedBuffers[fd].bbox[3] = buffer->GetHeight();
         }
       }
 
@@ -248,16 +253,14 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
       msg.dmabuf_fd = buffer->GetPrimeFD();
 
       char index[15];
-      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surf_index = surf_index;
+      mHyperDmaExportedBuffers[msg.dmabuf_fd].surf_index = surf_index;
       memset(index, 0, sizeof(index));
       snprintf(index, sizeof(index), "Cluster_%d", surf_index);
-      strncpy(mHyperDmaExportedBuffers[buffer->GetPrimeFD()].surface_name,
-              index, SURFACE_NAME_LENGTH);
-      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id =
-          (hyper_dmabuf_id_t){-1, {-1, -1, -1}};
+      strncpy(mHyperDmaExportedBuffers[msg.dmabuf_fd].surface_name, index,
+              SURFACE_NAME_LENGTH);
       memcpy(meta_data, &header, header_size);
-      memcpy(meta_data + header_size,
-             &mHyperDmaExportedBuffers[buffer->GetPrimeFD()], info_size);
+      memcpy(meta_data + header_size, &mHyperDmaExportedBuffers[msg.dmabuf_fd],
+             info_size);
 
       ret = ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_EXPORT_REMOTE, &msg);
       if (ret) {
@@ -265,7 +268,33 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
                ret);
         return false;
       }
-      mHyperDmaExportedBuffers[buffer->GetPrimeFD()].hyper_dmabuf_id = msg.hid;
+
+      // unexporting previous hyper_dmabuf_id for the gem object
+      if (mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id.id != -1 &&
+          memcmp(&mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id,
+                 &msg.hid, sizeof(hyper_dmabuf_id_t))) {
+        struct ioctl_hyper_dmabuf_unexport unexport_msg;
+        int ret;
+        unexport_msg.hid =
+            mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id;
+        unexport_msg.delay_ms = 100; /* 100ms would be enough */
+
+        ret =
+            ioctl(mHyperDmaBuf_Fd, IOCTL_HYPER_DMABUF_UNEXPORT, &unexport_msg);
+        if (ret) {
+          ETRACE(
+              "Hyper DmaBuf:"
+              "IOCTL_HYPER_DMABUF_UNEXPORT ioctl failed %d [0x%x]\n",
+              ret, unexport_msg.hid.id);
+        } else {
+          ITRACE(
+              "Hyper DmaBuf:"
+              "IOCTL_HYPER_DMABUF_UNEXPORT ioctl Done [0x%x]!\n",
+              unexport_msg.hid.id);
+        }
+      }
+
+      mHyperDmaExportedBuffers[msg.dmabuf_fd].hyper_dmabuf_id = msg.hid;
       surf_index++;
     }
 
@@ -325,6 +354,7 @@ bool VirtualDisplay::Present(std::vector<HwcLayer *> &source_layers,
     return true;
   }
 #endif
+no_hyper_dmabuf:
   CTRACE();
   std::vector<OverlayLayer> layers;
   std::vector<HwcRect<int>> layers_rects;
