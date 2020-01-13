@@ -52,6 +52,8 @@ LOCAL_C_INCLUDES += \
 LOCAL_CPPFLAGS += -DVA_WITH_PAVP
 endif
 
+LOCAL_CPPFLAGS += -DKVM_HWC_PROPERTY='"ro.graphics.hwcomposer.kvm"'
+
 LOCAL_SRC_FILES := \
         physicaldisplay.cpp \
         drm/drmdisplay.cpp \

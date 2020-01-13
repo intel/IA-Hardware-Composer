@@ -364,6 +364,24 @@ uint32_t DrmDisplay::FindPreferedDisplayMode(size_t modes_size) {
   return prefer_display_mode;
 }
 
+#ifdef KVM_HWC_PROPERTY
+uint32_t DrmDisplay::Find1080DisplayMode(size_t modes_size) {
+  uint32_t display_mode_1080p = 0;
+  if (modes_size >= prefer_display_mode_) {
+    int32_t p_width = 0, p_height = 0;
+    for (size_t i = 0; i < modes_size; i++) {
+      GetDisplayAttribute(i, HWCDisplayAttribute::kWidth, &p_width);
+      GetDisplayAttribute(i, HWCDisplayAttribute::kHeight, &p_height);
+      if (p_width == 1920 && p_height == 1080) {
+        display_mode_1080p = i;
+        break;
+      }
+    }
+  }
+  return display_mode_1080p;
+}
+#endif
+
 uint32_t DrmDisplay::FindPerformaceDisplayMode(size_t modes_size) {
   uint32_t perf_display_mode;
   perf_display_mode = prefer_display_mode_;
@@ -421,6 +439,13 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   if (!configs) {
     prefer_display_mode = FindPreferedDisplayMode(modes_size);
     perf_display_mode = FindPerformaceDisplayMode(modes_size);
+#ifdef KVM_HWC_PROPERTY
+    if (IsKvmPlatform()) {
+      prefer_display_mode_ = Find1080DisplayMode(modes_size);
+      perf_display_mode_ = prefer_display_mode_;
+      perf_display_mode = prefer_display_mode;
+    }
+#endif
     if (prefer_display_mode == perf_display_mode)
       *num_configs = 1;
     else
