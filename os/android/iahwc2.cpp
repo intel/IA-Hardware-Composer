@@ -980,9 +980,9 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
      * If more layers then planes, save one plane
      * for client composited layers
      */
-    if (avail_planes < layers_.size())
+    if (avail_planes <= layers_.size())
       avail_planes--;
-    if (layers_.size() > avail_planes) {
+    if (layers_.size() >= avail_planes) {
       size_t lay_index = 0;
       for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
         if (lay_index == (layers_.size() - avail_planes)) {
