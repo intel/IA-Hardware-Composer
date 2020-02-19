@@ -17,6 +17,7 @@
 #define LOG_TAG "hwc-platform-drm-minigbm"
 
 #include "platformminigbm.h"
+#include "i915_private_types.h"
 #include "drmdevice.h"
 #include "platform.h"
 
@@ -72,6 +73,10 @@ int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   if (!gr_handle)
     return -EINVAL;
 
+  bool need_modifier = false;
+  if (gr_handle->format == DRM_FORMAT_NV12_Y_TILED_INTEL)
+    need_modifier = true;
+
   uint32_t gem_handle;
   int ret = drmPrimeFDToHandle(drm_->fd(), gr_handle->fds[0], &gem_handle);
   if (ret) {
@@ -83,19 +88,42 @@ int DrmMinigbmImporter::ImportBuffer(buffer_handle_t handle, hwc_drm_bo_t *bo) {
   bo->width = gr_handle->width;
   bo->height = gr_handle->height;
   bo->hal_format = gr_handle->droid_format;
-  bo->format = gr_handle->format;
   bo->usage = gr_handle->usage;
   bo->pixel_stride = gr_handle->pixel_stride;
-  bo->pitches[0] = gr_handle->strides[0];
-  bo->offsets[0] = gr_handle->offsets[0];
-  bo->gem_handles[0] = gem_handle;
 
-  ret = drmModeAddFB2(drm_->fd(), bo->width, bo->height, bo->format,
-                      bo->gem_handles, bo->pitches, bo->offsets, &bo->fb_id, 0);
-  if (ret) {
-    ALOGE("could not create drm fb %d", ret);
-    return ret;
+  uint32_t numPlanes = gr_handle->base.numFds;
+  for (uint32_t i = 0; i < numPlanes; ++i) {
+    bo->pitches[i] = gr_handle->strides[i];
+    bo->offsets[i] = gr_handle->offsets[i];
+    bo->gem_handles[i] = gem_handle;
   }
+
+  if (need_modifier == false) {
+    bo->format = gr_handle->format;
+    ret = drmModeAddFB2(drm_->fd(), bo->width, bo->height, bo->format,
+                        bo->gem_handles, bo->pitches, bo->offsets, &bo->fb_id, 0);
+  } else {
+    // only support DRM_FORMAT_NV12_Y_TILED_INTEL format so far
+    assert(gr_handle->format == DRM_FORMAT_NV12_Y_TILED_INTEL);
+
+    uint32_t flag = DRM_MODE_FB_MODIFIERS;
+    uint64_t modifiers[HWC_DRM_BO_MAX_PLANES];
+    uint32_t numPlanes = gr_handle->base.numFds;
+
+    for (uint32_t i = 0; i < numPlanes; i++)
+      modifiers[i] = I915_FORMAT_MOD_Y_TILED;
+    for (uint32_t i = numPlanes; i < HWC_DRM_BO_MAX_PLANES; i++)
+      modifiers[i] = DRM_FORMAT_MOD_NONE;
+
+    bo->format = DRM_FORMAT_NV12;
+
+    ret = drmModeAddFB2WithModifiers(drm_->fd(), bo->width, bo->height, bo->format,
+                                     bo->gem_handles, bo->pitches, bo->offsets, modifiers,
+                                     &bo->fb_id, flag);
+  }
+
+  if (ret)
+    ALOGE("could not create drm fb %d", ret);
 
   return ret;
 }
