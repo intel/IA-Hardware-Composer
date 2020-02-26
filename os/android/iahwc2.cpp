@@ -978,6 +978,25 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 #ifdef FORCE_ALL_DEVICE_TYPE
   force_all_device_type = true;
 #endif
+
+#ifdef KVM_HWC_PROPERTY
+  /*
+   * On KVM + 4K display case, almost 30% frames are missed during video
+   * playback with VA-VPP composing and default CPU frequency setting.
+   * For optimizing video playback, disabling VA-VPP. and all layers will
+   * be composed in Cilent layer by SF (Only 1 plane is available on KVM)
+   */
+  if (include_video_layer && IsKvmPlatform()) {
+    uint32_t kvm_config = 0;
+    display_->GetActiveConfig(&kvm_config);
+    int32_t height = 0;
+    display_->GetDisplayAttribute(
+        kvm_config, hwcomposer::HWCDisplayAttribute::kHeight, &height);
+    if (height > 1080) {
+      include_video_layer = false;
+    }
+  }
+#endif
   if (include_video_layer || force_all_device_type) {
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
       IAHWC2::Hwc2Layer &layer = l.second;
@@ -1024,7 +1043,7 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
       if (!avail_planes--)
         break;
 #ifdef KVM_HWC_PROPERTY
-      if (IsKvmPlatform())
+      if (IsKvmPlatform() && GpuDevice::getInstance().IsReservedDrmPlane())
         break;
 #endif
       if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
