@@ -541,7 +541,8 @@ bool DisplayQueue::QueueUpdate(std::vector<HwcLayer*>& source_layers,
   }
 
   // Validate Overlays and Layers usage.
-  bool can_ignore_commit = idle_frame && !validate_layers;
+  bool can_ignore_commit = idle_frame && !validate_layers &&
+                           source_layers_->size() == in_flight_layers_.size();
 
   if (can_ignore_commit) {
     *ignore_clone_update = true;
