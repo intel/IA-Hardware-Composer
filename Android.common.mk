@@ -128,7 +128,7 @@ LOCAL_CPPFLAGS += \
 
 LOCAL_CPPFLAGS += -DVA_SUPPORT_COLOR_RANGE
 
-LOCAL_CPPFLAGS += -DKVM_HWC_PROPERTY='"ro.graphics.hwcomposer.kvm"'
+#LOCAL_CPPFLAGS += -DKVM_HWC_PROPERTY='"ro.graphics.hwcomposer.kvm"'
 
 ifeq ($(strip $(BOARD_USES_VULKAN)), true)
 LOCAL_SHARED_LIBRARIES += \
