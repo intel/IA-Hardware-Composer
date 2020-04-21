@@ -981,20 +981,11 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
 
 #ifdef KVM_HWC_PROPERTY
   /*
-   * On KVM + 4K display case, almost 30% frames are missed during video
-   * playback with VA-VPP composing and default CPU frequency setting.
-   * For optimizing video playback, disabling VA-VPP. and all layers will
-   * be composed in Cilent layer by SF (Only 1 plane is available on KVM)
+   * On KVM, only 1 plane is avaialble for committing, so skip VA-VPP
+   * composing. On KVM, all layers are composed by SF Client.
    */
   if (include_video_layer && IsKvmPlatform()) {
-    uint32_t kvm_config = 0;
-    display_->GetActiveConfig(&kvm_config);
-    int32_t height = 0;
-    display_->GetDisplayAttribute(
-        kvm_config, hwcomposer::HWCDisplayAttribute::kHeight, &height);
-    if (height > 1080) {
-      include_video_layer = false;
-    }
+    include_video_layer = false;
   }
 #endif
   if (include_video_layer || force_all_device_type) {
