@@ -270,10 +270,10 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
                                      HWCDisplayAttribute attribute,
                                      int32_t *value) {
   SPIN_LOCK(display_lock_);
-  if (modes_.empty()) {
+  //if (modes_.empty()) {
     SPIN_UNLOCK(display_lock_);
     return PhysicalDisplay::GetDisplayAttribute(config, attribute, value);
-  }
+  //}
 
   float refresh;
   bool status = true;
