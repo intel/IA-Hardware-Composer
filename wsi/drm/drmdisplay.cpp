@@ -345,6 +345,64 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
   return status;
 }
 
+uint32_t DrmDisplay::FindPreferedDisplayMode(size_t modes_size) {
+  uint32_t prefer_display_mode = 0;
+  if (modes_size > 1) {
+    SPIN_LOCK(display_lock_);
+    for (size_t i = 0; i < modes_size; i++) {
+      // There is only one preferred mode per connector.
+      if (modes_[i].type & DRM_MODE_TYPE_PREFERRED) {
+        prefer_display_mode = i;
+        IHOTPLUGEVENTTRACE("Preferred display config is found. index: %d", i);
+        break;
+      }
+    }
+    SPIN_UNLOCK(display_lock_);
+  }
+  if (prefer_display_mode_ != prefer_display_mode)
+    prefer_display_mode_ = prefer_display_mode;
+  return prefer_display_mode;
+}
+
+uint32_t DrmDisplay::FindPerformaceDisplayMode(size_t modes_size) {
+  uint32_t perf_display_mode;
+  perf_display_mode = prefer_display_mode_;
+  if (modes_size >= prefer_display_mode_) {
+    int32_t prefer_width = 0, prefer_height = 0, prefer_interval = 0;
+    int32_t perf_width = 0, perf_height = 0, perf_interval = 0,
+            previous_perf_interval = 0;
+    GetDisplayAttribute(prefer_display_mode_, HWCDisplayAttribute::kWidth,
+                        &prefer_width);
+    GetDisplayAttribute(prefer_display_mode_, HWCDisplayAttribute::kHeight,
+                        &prefer_height);
+    GetDisplayAttribute(prefer_display_mode_, HWCDisplayAttribute::kRefreshRate,
+                        &prefer_interval);
+    previous_perf_interval = prefer_interval;
+    IHOTPLUGEVENTTRACE("Preferred width:%d, height:%d, interval:%d",
+                       prefer_width, prefer_height, prefer_interval);
+    for (size_t i = 0; i < modes_size; i++) {
+      if (i != prefer_display_mode_) {
+        GetDisplayAttribute(i, HWCDisplayAttribute::kWidth, &perf_width);
+        GetDisplayAttribute(i, HWCDisplayAttribute::kHeight, &perf_height);
+        GetDisplayAttribute(i, HWCDisplayAttribute::kRefreshRate,
+                            &perf_interval);
+        IHOTPLUGEVENTTRACE("EDIP item width:%d, height:%d, rate:%d", perf_width,
+                           perf_height, perf_interval);
+        if (prefer_width == perf_width && prefer_height == perf_height &&
+            prefer_interval > perf_interval &&
+            previous_perf_interval > perf_interval) {
+          perf_display_mode = i;
+          previous_perf_interval = perf_interval;
+        }
+      }
+    }
+  }
+  if (perf_display_mode_ != perf_display_mode)
+    perf_display_mode_ = perf_display_mode;
+  IHOTPLUGEVENTTRACE("PerformaceDisplayMode: %d", perf_display_mode_);
+  return perf_display_mode;
+}
+
 bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   if (!num_configs)
     return false;
@@ -357,8 +415,16 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
     return PhysicalDisplay::GetDisplayConfigs(num_configs, configs);
   }
 
+  uint32_t prefer_display_mode = prefer_display_mode_;
+  uint32_t perf_display_mode = perf_display_mode_;
+
   if (!configs) {
-    *num_configs = modes_size;
+    prefer_display_mode = FindPreferedDisplayMode(modes_size);
+    perf_display_mode = FindPerformaceDisplayMode(modes_size);
+    if (prefer_display_mode == perf_display_mode)
+      *num_configs = 1;
+    else
+      *num_configs = 2;
     IHOTPLUGEVENTTRACE(
         "GetDisplayConfigs: Total Configs: %d pipe: %d display: %p",
         *num_configs, pipe_, this);
@@ -369,9 +435,9 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
       "GetDisplayConfigs: Populating Configs: %d pipe: %d display: %p",
       *num_configs, pipe_, this);
 
-  uint32_t size = *num_configs > modes_size ? modes_size : *num_configs;
-  for (uint32_t i = 0; i < size; i++)
-    configs[i] = i;
+  configs[0] = prefer_display_mode;
+  if (prefer_display_mode != perf_display_mode)
+    configs[1] = perf_display_mode;
 
   return true;
 }
