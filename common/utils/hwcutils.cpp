@@ -172,6 +172,20 @@ bool IsKvmPlatform() {
 }
 #endif
 
+bool IsEdidFilting() {
+  const char* key = ALL_EDID_FLAG_PROPERTY;
+  char* value = new char[20];
+  const char* property_true = "1";
+  int len = property_get(key, value, "0");
+  if (len > 0 && strcmp(value, property_true) == 0) {
+    delete[] value;
+    return false;
+  } else {
+    delete[] value;
+    return true;
+  }
+}
+
 std::string StringifyRect(HwcRect<int> rect) {
   std::stringstream ss;
   ss << "{(" << rect.left << "," << rect.top << ") "

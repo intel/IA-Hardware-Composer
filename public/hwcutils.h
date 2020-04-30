@@ -25,6 +25,8 @@
 #include <sstream>
 #include "overlaylayer.h"
 
+#define ALL_EDID_FLAG_PROPERTY "vendor.hwcomposer.edid.all"
+
 namespace hwcomposer {
 
 /**
@@ -96,6 +98,11 @@ uint32_t GetTotalPlanesForFormat(uint32_t format);
  */
 bool IsKvmPlatform();
 #endif
+
+/**
+ * Check if need to send all EDID, or only preferred and perf
+ */
+bool IsEdidFilting();
 
 /**
  * Check if two rectangles overlap
