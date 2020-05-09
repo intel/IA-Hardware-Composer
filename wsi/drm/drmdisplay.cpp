@@ -411,9 +411,9 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
   size_t modes_size = modes_.size();
   SPIN_UNLOCK(display_lock_);
 
-  if (modes_size == 0) {
+  //if (modes_size == 0) {
     return PhysicalDisplay::GetDisplayConfigs(num_configs, configs);
-  }
+  //}
 
   uint32_t prefer_display_mode = prefer_display_mode_;
   uint32_t perf_display_mode = perf_display_mode_;

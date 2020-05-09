@@ -94,8 +94,20 @@ void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
   spin_lock_.lock();
   if (enabled_ && callback_) {
     callback_->Callback(display_, timestamp);
+    callbacked_vsync_++;
+  } else {
+    IPAGEFLIPEVENTTRACE("1 VSYNC is skipped at %d because VSYNC is disabled by SF.", timestamp);
+    missed_vsync_++;
   }
   spin_lock_.unlock();
+
+  if (timestamp - sec_start_ >= 1000000000) {
+    IPAGEFLIPEVENTTRACE("Missed VSYNC: %d, Frame rate: %d",
+                    missed_vsync_, callbacked_vsync_); 
+    sec_start_ = timestamp;
+    callbacked_vsync_ = 0;
+    missed_vsync_ = 0;
+  }
 }
 
 void VblankEventHandler::HandleWait() {

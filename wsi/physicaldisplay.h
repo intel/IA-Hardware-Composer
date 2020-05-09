@@ -310,6 +310,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   std::vector<NativeDisplay *> clones_;
   uint32_t config_ = DEFAULT_CONFIG_ID;
   bool bypassClientCTM_ = false;
+  long long last_timestamp_ = 0;
+  size_t frame_rate_ = 0;
 };
 
 }  // namespace hwcomposer
