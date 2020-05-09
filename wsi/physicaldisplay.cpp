@@ -17,6 +17,8 @@
 #include "physicaldisplay.h"
 
 #include <cmath>
+#include <stdlib.h>
+#include <time.h>
 
 #include <hwcdefs.h>
 #include <hwclayer.h>
@@ -292,6 +294,19 @@ bool PhysicalDisplay::Present(std::vector<HwcLayer *> &source_layers,
                               bool handle_constraints) {
   CTRACE();
   SPIN_LOCK(modeset_lock_);
+
+  struct timeval te;
+  gettimeofday(&te, NULL);  // get current time
+  long long milliseconds =
+      te.tv_sec * 1000LL + te.tv_usec / 1000;  // calculate milliseconds
+  frame_rate_++;
+  IPAGEFLIPEVENTTRACE("Present at %lld", milliseconds);
+  if (milliseconds - last_timestamp_ - 1000ll >=0) {
+    IPAGEFLIPEVENTTRACE("Frame rate: %d, frame duration: %f", frame_rate_,
+                      static_cast<float>(milliseconds - last_timestamp_));
+    last_timestamp_ = milliseconds;
+    frame_rate_ = 0;
+  }
 
   bool handle_hotplug_notifications = false;
   if (display_state_ & kHandlePendingHotPlugNotifications) {

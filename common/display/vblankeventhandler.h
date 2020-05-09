@@ -62,6 +62,9 @@ class VblankEventHandler : public HWCThread {
 
   int fd_;
   int64_t last_timestamp_;
+  int64_t sec_start_ = 0;
+  size_t  callbacked_vsync_ = 0;
+  size_t  missed_vsync_ = 0;
   drmVBlankSeqType type_;
   DisplayQueue* queue_;
 };
