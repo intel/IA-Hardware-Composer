@@ -156,22 +156,6 @@ uint32_t GetTotalPlanesForFormat(uint32_t format) {
   return 1;
 }
 
-#ifdef KVM_HWC_PROPERTY
-bool IsKvmPlatform() {
-  const char* key = KVM_HWC_PROPERTY;
-  char* value = new char[20];
-  const char* property_true = "true";
-  int len = property_get(key, value, "");
-  if (len > 0 && strcmp(value, property_true) == 0) {
-    delete[] value;
-    return true;
-  } else {
-    delete[] value;
-    return false;
-  }
-}
-#endif
-
 bool IsEdidFilting() {
   const char* key = ALL_EDID_FLAG_PROPERTY;
   char* value = new char[20];
