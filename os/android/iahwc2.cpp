@@ -979,15 +979,13 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   force_all_device_type = true;
 #endif
 
-#ifdef KVM_HWC_PROPERTY
   /*
    * On KVM, only 1 plane is avaialble for committing, so skip VA-VPP
    * composing. On KVM, all layers are composed by SF Client.
    */
-  if (include_video_layer && IsKvmPlatform()) {
+  if (include_video_layer && GpuDevice::getInstance().IsGvtActive()) {
     include_video_layer = false;
   }
-#endif
   if (include_video_layer || force_all_device_type) {
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
       IAHWC2::Hwc2Layer &layer = l.second;
@@ -1033,10 +1031,9 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     for (std::pair<const uint32_t, hwc2_layer_t> &l : z_map) {
       if (!avail_planes--)
         break;
-#ifdef KVM_HWC_PROPERTY
-      if (IsKvmPlatform() && GpuDevice::getInstance().IsReservedDrmPlane())
+      if (GpuDevice::getInstance().IsGvtActive() &&
+          GpuDevice::getInstance().IsReservedDrmPlane())
         break;
-#endif
       if (layers_[l.second].sf_type() == HWC2::Composition::SolidColor) {
         layers_[l.second].set_validated_type(HWC2::Composition::SolidColor);
       } else {
