@@ -210,7 +210,7 @@ void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
   // Get each display setting
   while (std::getline(i_value, display_line_str, ';')) {
     if (display_line_str.empty() ||
-        display_line_str.find_first_not_of("0123:+") != std::string::npos)
+        display_line_str.find_first_not_of("0123456789:+") != std::string::npos)
       continue;
     std::string display_index_str =
         display_line_str.substr(0, display_line_str.find(":"));
@@ -222,7 +222,7 @@ void GpuDevice::ParsePlaneReserveSettings(std::string &value) {
     // Get reversed drm plane index
     while (std::getline(planes_index_value, reserved_plane_index_str, '+')) {
       if (reserved_plane_index_str.empty() ||
-          reserved_plane_index_str.find_first_not_of("0123") !=
+          reserved_plane_index_str.find_first_not_of("0123456789") !=
               std::string::npos)
         continue;
       uint32_t reserved_plane_index_num =
