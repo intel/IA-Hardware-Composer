@@ -345,6 +345,24 @@ bool DrmDisplay::GetDisplayAttribute(uint32_t config /*config*/,
   return status;
 }
 
+uint32_t DrmDisplay::Find4KDisplayMode(size_t modes_size) {
+  uint32_t fourk_mode = 0;
+  int32_t perf_width = 0, perf_height = 0, perf_interval = 0;
+  for (size_t i = 0; i < modes_size; i++) {
+    GetDisplayAttribute(i, HWCDisplayAttribute::kWidth, &perf_width);
+    GetDisplayAttribute(i, HWCDisplayAttribute::kHeight, &perf_height);
+    GetDisplayAttribute(i, HWCDisplayAttribute::kRefreshRate,
+                        &perf_interval);
+    IHOTPLUGEVENTTRACE("EDIP item width:%d, height:%d, rate:%d", perf_width,
+                       perf_height, perf_interval);
+    if (3840 <= perf_width && 2160 <= perf_height) {
+      fourk_mode = i;
+      break;
+    }
+  }
+  return fourk_mode;
+}
+
 uint32_t DrmDisplay::FindPreferedDisplayMode(size_t modes_size) {
   uint32_t prefer_display_mode = 0;
   if (modes_size > 1) {
@@ -417,6 +435,7 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
 
   uint32_t prefer_display_mode = prefer_display_mode_;
   uint32_t perf_display_mode = perf_display_mode_;
+  uint32_t fourk_mode = 0;
 
   bool need_filter = IsEdidFilting();
 
@@ -424,6 +443,11 @@ bool DrmDisplay::GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) {
     if (need_filter) {
       prefer_display_mode = FindPreferedDisplayMode(modes_size);
       perf_display_mode = FindPerformaceDisplayMode(modes_size);
+      fourk_mode = Find4KDisplayMode(modes_size);
+      if (fourk_mode) {
+        prefer_display_mode = fourk_mode;
+        perf_display_mode = fourk_mode;
+      }
       if (prefer_display_mode == perf_display_mode)
         *num_configs = 1;
       else

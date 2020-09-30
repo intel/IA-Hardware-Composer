@@ -175,6 +175,7 @@ class DrmDisplay : public PhysicalDisplay {
 
   uint32_t FindPreferedDisplayMode(size_t modes_size);
   uint32_t FindPerformaceDisplayMode(size_t modes_size);
+  uint32_t Find4KDisplayMode(size_t modes_size);
 
   uint32_t crtc_id_ = 0;
   uint32_t mmWidth_ = 0;
