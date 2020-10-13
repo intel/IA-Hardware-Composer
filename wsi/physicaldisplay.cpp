@@ -379,6 +379,11 @@ int PhysicalDisplay::RegisterVsyncCallback(
   return display_queue_->RegisterVsyncCallback(callback, display_id);
 }
 
+int PhysicalDisplay::RegisterVsyncPeriodCallback(
+    std::shared_ptr<VsyncPeriodCallback> callback, uint32_t display_id) {
+  return display_queue_->RegisterVsyncPeriodCallback(callback, display_id);
+}
+
 void PhysicalDisplay::RegisterRefreshCallback(
     std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
   display_queue_->RegisterRefreshCallback(callback, display_id);
