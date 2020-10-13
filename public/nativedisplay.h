@@ -41,6 +41,14 @@ class VsyncCallback {
   virtual void Callback(uint32_t display, int64_t timestamp) = 0;
 };
 
+class VsyncPeriodCallback {
+ public:
+  virtual ~VsyncPeriodCallback() {
+  }
+  virtual void Callback(uint32_t display, int64_t timestamp,
+                        uint32_t vsyncPeriodNanos) = 0;
+};
+
 class RefreshCallback {
  public:
   virtual ~RefreshCallback() {
@@ -95,6 +103,9 @@ class NativeDisplay {
 
   virtual void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                                       uint32_t *outCapabilities) = 0;
+  virtual bool GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) {
+    return false;
+  };
 
   /**
    * API for getting connected display's pipe id.
@@ -132,6 +143,12 @@ class NativeDisplay {
 
   virtual int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                                     uint32_t display_id) = 0;
+
+  virtual int RegisterVsyncPeriodCallback(
+      std::shared_ptr<VsyncPeriodCallback> callback, uint32_t display_id) {
+    return false;
+  };
+
   virtual void VSyncControl(bool enabled) = 0;
 
   /**

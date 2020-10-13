@@ -575,7 +575,13 @@ void DrmDisplay::UpdateDisplayConfig() {
   }
   flags_ |= DRM_MODE_ATOMIC_ALLOW_MODESET;
   SetDisplayAttribute(modes_[config_]);
+  vsync_period_ = modes_[config_].vrefresh;
   SPIN_UNLOCK(display_lock_);
+}
+
+bool DrmDisplay::GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) {
+  return GetDisplayAttribute(config_, HWCDisplayAttribute::kRefreshRate,
+                             reinterpret_cast<int32_t *>(outVsyncPeriod));
 }
 
 void DrmDisplay::PowerOn() {
