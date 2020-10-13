@@ -78,6 +78,8 @@ class DrmDisplay : public PhysicalDisplay {
   bool InitializeDisplay() override;
   void PowerOn() override;
   void UpdateDisplayConfig() override;
+  bool GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) override;
+
   void SetColorCorrection(struct gamma_colors gamma, uint32_t contrast,
                           uint32_t brightness) const override;
   void SetPipeCanvasColor(uint16_t bpc, uint16_t red, uint16_t green,
@@ -215,6 +217,7 @@ class DrmDisplay : public PhysicalDisplay {
   std::vector<drmModeModeInfo> modes_;
   SpinLock display_lock_;
   DrmDisplayManager *manager_;
+  uint32_t vsync_period_ = 0;
 };
 
 }  // namespace hwcomposer

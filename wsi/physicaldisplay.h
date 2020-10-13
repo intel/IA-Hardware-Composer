@@ -78,6 +78,9 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
 
+  int RegisterVsyncPeriodCallback(std::shared_ptr<VsyncPeriodCallback> callback,
+                                  uint32_t display_id) override;
+
   void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
                                uint32_t display_id) override;
 
@@ -200,6 +203,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
    * Implementations need to reset any state in this case.
    */
   virtual void UpdateDisplayConfig() = 0;
+
+  virtual bool GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) = 0;
 
   /**
    * API for powering on the display

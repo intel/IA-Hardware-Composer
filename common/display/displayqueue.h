@@ -85,7 +85,8 @@ class DisplayQueue {
   void RestoreVideoDefaultDeinterlace();
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id);
-
+  int RegisterVsyncPeriodCallback(std::shared_ptr<VsyncPeriodCallback> callback,
+                                  uint32_t display_id);
   void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
                                uint32_t display_id);
 

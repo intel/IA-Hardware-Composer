@@ -957,6 +957,11 @@ int DisplayQueue::RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
   return vblank_handler_->RegisterCallback(callback, display_id);
 }
 
+int DisplayQueue::RegisterVsyncPeriodCallback(
+    std::shared_ptr<VsyncPeriodCallback> callback, uint32_t display_id) {
+  return vblank_handler_->RegisterCallback(callback, display_id);
+}
+
 void DisplayQueue::RegisterRefreshCallback(
     std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
   idle_tracker_.idle_lock_.lock();

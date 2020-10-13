@@ -196,6 +196,9 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error RegisterVsyncCallback(hwc2_callback_data_t data,
                                       hwc2_function_pointer_t func);
 
+    HWC2::Error RegisterVsyncPeriodCallback(hwc2_callback_data_t data,
+                                            hwc2_function_pointer_t func);
+
     HWC2::Error RegisterRefreshCallback(hwc2_callback_data_t data,
                                         hwc2_function_pointer_t func);
 
@@ -232,6 +235,11 @@ class IAHWC2 : public hwc2_device_t {
                                  int32_t *fences);
     HWC2::Error PresentDisplay(int32_t *retire_fence);
     HWC2::Error SetActiveConfig(hwc2_config_t config);
+    HWC2::Error SetActiveConfigWithConstraints(
+        hwc2_config_t config,
+        hwc_vsync_period_change_constraints_t *vsyncPeriodChangeConstraints,
+        hwc_vsync_period_change_timeline_t *outTimeline);
+    HWC2::Error GetDisplayVsyncPeriod(hwc2_vsync_period_t *outVsyncPeriod);
     HWC2::Error SetClientTarget(buffer_handle_t target, int32_t acquire_fence,
                                 int32_t dataspace, hwc_region_t damage);
     HWC2::Error SetColorMode(int32_t mode);
@@ -243,6 +251,7 @@ class IAHWC2 : public hwc2_device_t {
     HWC2::Error SetOutputBuffer(buffer_handle_t buffer, int32_t release_fence);
     HWC2::Error SetPowerMode(int32_t mode);
     HWC2::Error SetVsyncEnabled(int32_t enabled);
+    HWC2::Error SetDisplayBrightness(float brightness);
     HWC2::Error ValidateDisplay(uint32_t *num_types, uint32_t *num_requests);
     HWC2::Error GetDisplayIdentificationData(uint8_t *outPort,
                                              uint32_t *outDataSize,
