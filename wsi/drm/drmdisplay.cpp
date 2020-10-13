@@ -725,15 +725,6 @@ bool DrmDisplay::Commit(
     close(fence);
     *commit_fence = 0;
   }
-#else
-  if (GpuDevice::getInstance().IsGvtActive()) {
-    int32_t fence = *commit_fence;
-    if (fence > 0) {
-      HWCPoll(fence, -1);
-      close(fence);
-      *commit_fence = 0;
-    }
-  }
 #endif
   if (first_commit_) {
     TraceFirstCommit();
@@ -800,12 +791,10 @@ bool DrmDisplay::CommitFrame(
   }
 
 #ifndef ENABLE_DOUBLE_BUFFERING
-  if (!GpuDevice::getInstance().IsGvtActive()) {
-    if (previous_fence > 0) {
-      HWCPoll(previous_fence, -1);
-      close(previous_fence);
-      *previous_fence_released = true;
-    }
+  if (previous_fence > 0) {
+    HWCPoll(previous_fence, -1);
+    close(previous_fence);
+    *previous_fence_released = true;
   }
 #endif
 
