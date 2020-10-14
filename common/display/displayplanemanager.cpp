@@ -91,11 +91,15 @@ bool DisplayPlaneManager::ValidateLayers(
   CTRACE();
 
   size_t video_layers = 0;
+  bool middle_video = false;
   if (total_overlays_ == 1)
     add_index = 0;
   for (size_t lindex = add_index; lindex < layers.size(); lindex++) {
-    if (layers[lindex].IsVideoLayer())
+    if (layers[lindex].IsVideoLayer()) {
       video_layers++;
+      if (lindex > 0 && lindex < (layers.size() - 1))
+        middle_video = true;
+    }
   }
 
   // In case we are forcing GPU composition for all layers and using a single
@@ -131,7 +135,9 @@ bool DisplayPlaneManager::ValidateLayers(
   // If video layers is more than available planes
   // We are going to force all the layers bo be composited by VA path
   // cursor layer should not be handle by VPP
-  if (video_layers >= avail_planes && video_layers > 0) {
+  if ((video_layers >= avail_planes ||
+       (middle_video && video_layers > avail_planes - 2)) &&
+      video_layers > 0) {
     ForceVppForAllLayers(composition, layers, add_index, mark_later, false);
     return true;
   }
