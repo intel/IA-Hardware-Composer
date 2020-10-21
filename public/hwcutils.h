@@ -25,7 +25,7 @@
 #include <sstream>
 #include "overlaylayer.h"
 
-#define ALL_EDID_FLAG_PROPERTY "vendor.hwcomposer.edid.all"
+#define ALL_EDID_FLAG_PROPERTY "1"
 
 namespace hwcomposer {
 
