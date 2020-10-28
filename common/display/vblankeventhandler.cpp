@@ -26,9 +26,6 @@ namespace hwcomposer {
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
 
-#define VPERIOD75HZ 13333333
-#define VPERIOD90HZ 11111111
-
 VblankEventHandler::VblankEventHandler(DisplayQueue* queue)
     : HWCThread(-8, "VblankEventHandler"),
       display_(0),
@@ -114,10 +111,14 @@ void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
                       timestamp);
   spin_lock_.lock();
   if (enabled_ && callback_) {
-    if ((abs(vperiod - vperiod_) > (VPERIOD75HZ - VPERIOD90HZ)) &&
-        previous_timestamp_ != -1)
+    if ((abs(vperiod - vperiod_) > VBLANK_THRESHHOLD) &&
+        previous_timestamp_ != -1 && NULL != callback_2_4_) {
+      ITRACE(
+          "Invoking 2.4 new Vsync API, because vsnc blank is changed from %ld "
+          "to %ld",
+          vperiod_, vperiod);
       callback_2_4_->Callback(display_, timestamp, vperiod);
-    else
+    } else
       callback_->Callback(display_, timestamp);
   }
   vperiod_ = vperiod;
