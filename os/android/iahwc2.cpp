@@ -1238,6 +1238,10 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
       sf_type_ == HWC2::Composition::Sideband)
     return HWC2::Error::None;
 
+  if (!(sf_type_ == HWC2::Composition::SolidColor || buffer)) {
+    return HWC2::Error::None;
+  }
+
   native_handle_.handle_ = buffer;
   hwc_layer_.SetNativeHandle(&native_handle_);
 
