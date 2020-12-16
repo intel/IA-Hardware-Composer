@@ -665,6 +665,10 @@ int PhysicalDisplay::GetTotalOverlays() const {
     return 0;
 }
 
+bool PhysicalDisplay::HasCursorPlane() const {
+  return display_queue_->HasCursorPlane();
+}
+
 bool PhysicalDisplay::IsBypassClientCTM() const {
   return bypassClientCTM_;
 }

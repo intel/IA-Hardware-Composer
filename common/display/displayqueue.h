@@ -151,6 +151,13 @@ class DisplayQueue {
       return 0;
   }
 
+  bool HasCursorPlane() const {
+    if (display_plane_manager_)
+      return display_plane_manager_->HasCursorPlane();
+    else
+      return false;
+  }
+
   void ReleaseUnreservedPlanes(std::vector<uint32_t>& reserved_planes);
   void DumpCurrentDisplayPlaneList(DisplayPlaneStateList& composition);
 

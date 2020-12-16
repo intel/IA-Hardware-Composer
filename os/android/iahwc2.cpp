@@ -713,6 +713,8 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
   uint32_t client_z_order = 0;
   bool use_cursor_layer = false;
   bool use_overlay_compose = false;
+  bool has_cursor_plane =
+      display_->HasCursorPlane() && (!(GpuDevice::getInstance().IsGvtActive()));
   uint32_t cursor_z_order = 0;
   IAHWC2::Hwc2Layer *cursor_layer;
   *retire_fence = -1;
@@ -793,7 +795,7 @@ HWC2::Error IAHWC2::HwcDisplay::PresentDisplay(int32_t *retire_fence) {
     } else if (client_z_order > cursor_z_order) {
       cursor_z_order = client_z_order + 1;
     }
-    if (use_overlay_compose) {
+    if (use_overlay_compose && has_cursor_plane) {
       z_map.emplace(std::make_pair(cursor_z_order, cursor_layer));
       ICOMPOSITORTRACE("Add Cursor HWC2Layer[%d]", cursor_z_order);
     }
@@ -1020,6 +1022,8 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
   int layer_id = 1;
   int Display_Composite_layers;
   int avail_planes = display_->GetTotalOverlays();
+  bool has_cursor_plane =
+      display_->HasCursorPlane() && (!(GpuDevice::getInstance().IsGvtActive()));
   bool include_video_layer = false;
   bool force_all_device_type = false;
 
@@ -1074,14 +1078,17 @@ HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
     }
   } else {
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_)
-      l.second.set_validated_type(HWC2::Composition::Invalid);
+      if (!(has_cursor_plane && l.second.IsCursorLayer()))
+        l.second.set_validated_type(HWC2::Composition::Invalid);
 
     for (std::pair<const hwc2_layer_t, IAHWC2::Hwc2Layer> &l : layers_) {
-      if (l.second.sf_type() == HWC2::Composition::Device ||
-          l.second.sf_type() == HWC2::Composition::SolidColor)
-        z_map.emplace(std::make_pair(l.second.z_order(), l.first));
-      else
-        l.second.set_validated_type(HWC2::Composition::Client);
+      if (!(has_cursor_plane && l.second.IsCursorLayer())) {
+        if (l.second.sf_type() == HWC2::Composition::Device ||
+            l.second.sf_type() == HWC2::Composition::SolidColor)
+          z_map.emplace(std::make_pair(l.second.z_order(), l.first));
+        else
+          l.second.set_validated_type(HWC2::Composition::Client);
+      }
     }
 
     /*

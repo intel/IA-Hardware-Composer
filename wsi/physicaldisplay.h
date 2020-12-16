@@ -267,6 +267,8 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   int GetTotalOverlays() const override;
 
+  bool HasCursorPlane() const override;
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();
