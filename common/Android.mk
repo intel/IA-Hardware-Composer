@@ -81,6 +81,8 @@ LOCAL_SRC_FILES := \
         utils/hwcutils.cpp \
         utils/disjoint_layers.cpp
 
+LOCAL_CPPFLAGS += -DUSE_GRALLOC1
+
 ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
 LOCAL_CPPFLAGS += -DENABLE_PANORAMA
 LOCAL_SRC_FILES += display/virtualpanoramadisplay.cpp
