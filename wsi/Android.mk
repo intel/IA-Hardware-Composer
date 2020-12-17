@@ -60,6 +60,8 @@ LOCAL_SRC_FILES := \
         drm/drmdisplaymanager.cpp \
 	drm/drmscopedtypes.cpp
 
+LOCAL_CPPFLAGS += -DUSE_GRALLOC1
+
 ifeq ($(strip $(ENABLE_HYPER_DMABUF_SHARING)), true)
 LOCAL_CPPFLAGS += -DHYPER_DMABUF_SHARING
 endif
