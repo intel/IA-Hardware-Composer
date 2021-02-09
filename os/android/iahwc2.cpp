@@ -619,6 +619,9 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayAttribute(hwc2_config_t config,
       display_->GetDisplayAttribute(
           config, hwcomposer::HWCDisplayAttribute::kDpiY, value);
       break;
+    case HWC2::Attribute::ConfigGroup:
+      *value = 0;
+      break;
     default:
       *value = -1;
       return HWC2::Error::BadConfig;
@@ -857,7 +860,14 @@ HWC2::Error IAHWC2::HwcDisplay::SetActiveConfigWithConstraints(
     hwc_vsync_period_change_constraints_t *vsyncPeriodChangeConstraints,
     hwc_vsync_period_change_timeline_t *outTimeline) {
   supported(__func__);
-  return SetActiveConfig(config);
+  uint32_t num_configs;
+  HWC2::Error err = GetDisplayConfigs(&num_configs, NULL);
+  if (err != HWC2::Error::None || !num_configs)
+    return err;
+  if (num_configs < config)
+    return HWC2::Error::BadConfig;
+  else
+    return SetActiveConfig(config);
 }
 
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
@@ -867,6 +877,54 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
     return HWC2::Error::None;
   else
     return HWC2::Error::BadConfig;
+}
+
+/**
+ * A dummy API
+ * TODO need to get the type from drm.
+ */
+#define HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL 0
+#define HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL 1
+HWC2::Error IAHWC2::HwcDisplay::GetDisplayConnectionType(uint32_t *outType) {
+  supported(__func__);
+  *outType = HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL;
+  return HWC2::Error::None;
+}
+
+/**
+ * A dummy API for SetAutoLowLatencyMode
+ * TODO need to check if this one can be set in DRM
+ */
+HWC2::Error IAHWC2::HwcDisplay::SetAutoLowLatencyMode(bool on) {
+  supported(__func__);
+  return HWC2::Error::Unsupported;
+}
+
+/**
+ * A dummy API
+ * TODO need to the list of supported Content_Types.
+ */
+HWC2::Error IAHWC2::HwcDisplay::GetSupportedContentTypes(
+    uint32_t *type_num, uint32_t *content_types) {
+  supported(__func__);
+  if (content_types == NULL)
+    *type_num = 4;
+  else {
+    content_types[0] = DRM_MODE_CONTENT_TYPE_GRAPHICS;
+    content_types[1] = DRM_MODE_CONTENT_TYPE_PHOTO;
+    content_types[2] = DRM_MODE_CONTENT_TYPE_CINEMA;
+    content_types[3] = DRM_MODE_CONTENT_TYPE_GAME;
+  }
+  return HWC2::Error::None;
+}
+
+/**
+ * A dummy API
+ * TODO need to set the Content_Type
+ */
+HWC2::Error IAHWC2::HwcDisplay::SetContentType(int32_t content_type) {
+  supported(__func__);
+  return HWC2::Error::None;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::SetClientTarget(buffer_handle_t target,
@@ -1518,6 +1576,23 @@ hwc2_function_pointer_t IAHWC2::HookDevGetFunction(struct hwc2_device * /*dev*/,
           DisplayHook<decltype(&HwcDisplay::GetDisplayVsyncPeriod),
                       &HwcDisplay::GetDisplayVsyncPeriod,
                       hwc2_vsync_period_t *>);
+    case HWC2::FunctionDescriptor::GetDisplayConnectionType:
+      return ToHook<HWC2_PFN_GET_DISPLAY_CONNECTION_TYPE>(
+          DisplayHook<decltype(&HwcDisplay::GetDisplayConnectionType),
+                      &HwcDisplay::GetDisplayConnectionType, uint32_t *>);
+    case HWC2::FunctionDescriptor::SetAutoLowLatencyMode:
+      return ToHook<HWC2_PFN_SET_AUTO_LOW_LATENCY_MODE>(
+          DisplayHook<decltype(&HwcDisplay::SetAutoLowLatencyMode),
+                      &HwcDisplay::SetAutoLowLatencyMode, bool>);
+    case HWC2::FunctionDescriptor::GetSupportedContentTypes:
+      return ToHook<HWC2_PFN_GET_SUPPORTED_CONTENT_TYPES>(
+          DisplayHook<decltype(&HwcDisplay::GetSupportedContentTypes),
+                      &HwcDisplay::GetSupportedContentTypes, uint32_t *,
+                      uint32_t *>);
+    case HWC2::FunctionDescriptor::SetContentType:
+      return ToHook<HWC2_PFN_SET_CONTENT_TYPE>(
+          DisplayHook<decltype(&HwcDisplay::SetContentType),
+                      &HwcDisplay::SetContentType, int32_t>);
     case HWC2::FunctionDescriptor::SetClientTarget:
       return ToHook<HWC2_PFN_SET_CLIENT_TARGET>(
           DisplayHook<decltype(&HwcDisplay::SetClientTarget),
