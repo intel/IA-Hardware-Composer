@@ -235,11 +235,21 @@ class IAHWC2 : public hwc2_device_t {
                                  int32_t *fences);
     HWC2::Error PresentDisplay(int32_t *retire_fence);
     HWC2::Error SetActiveConfig(hwc2_config_t config);
+
+    /* Composer 2.4 additions */
     HWC2::Error SetActiveConfigWithConstraints(
         hwc2_config_t config,
         hwc_vsync_period_change_constraints_t *vsyncPeriodChangeConstraints,
         hwc_vsync_period_change_timeline_t *outTimeline);
     HWC2::Error GetDisplayVsyncPeriod(hwc2_vsync_period_t *outVsyncPeriod);
+
+    /* Composer 2.4 optional */
+    HWC2::Error GetDisplayConnectionType(uint32_t *connection_types);
+    HWC2::Error SetAutoLowLatencyMode(bool on);
+    HWC2::Error GetSupportedContentTypes(uint32_t *type_num,
+                                         uint32_t *content_types);
+    HWC2::Error SetContentType(int32_t content_type);
+
     HWC2::Error SetClientTarget(buffer_handle_t target, int32_t acquire_fence,
                                 int32_t dataspace, hwc_region_t damage);
     HWC2::Error SetColorMode(int32_t mode);
