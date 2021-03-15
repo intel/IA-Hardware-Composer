@@ -27,8 +27,6 @@
 
 #include "hwcthread.h"
 
-#define VBLANK_THRESHHOLD 2777777
-
 namespace hwcomposer {
 
 class DisplayQueue;

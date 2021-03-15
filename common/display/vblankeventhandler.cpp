@@ -110,9 +110,8 @@ void VblankEventHandler::HandlePageFlipEvent(unsigned int sec,
   IPAGEFLIPEVENTTRACE("Callback called from HandlePageFlipEvent. %lu",
                       timestamp);
   spin_lock_.lock();
-  if (enabled_ && callback_) {
-    if ((abs(vperiod - vperiod_) > VBLANK_THRESHHOLD) &&
-        previous_timestamp_ != -1 && NULL != callback_2_4_) {
+  if (enabled_ && (callback_ || callback_2_4_)) {
+    if (NULL != callback_2_4_) {
       ITRACE(
           "Invoking 2.4 new Vsync API, because vsnc blank is changed from %ld "
           "to %ld",
