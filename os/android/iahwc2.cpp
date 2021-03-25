@@ -883,11 +883,15 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
  * A dummy API
  * TODO need to get the type from drm.
  */
-#define HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL 0
-#define HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL 1
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayConnectionType(uint32_t *outType) {
   supported(__func__);
-  *outType = HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL;
+  if (display_->IsInternalConnection())
+    *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::Internal);
+  else if (display_->IsExternalConnection())
+    *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::External);
+  else
+    return HWC2::Error::BadConfig;
+
   return HWC2::Error::None;
 }
 

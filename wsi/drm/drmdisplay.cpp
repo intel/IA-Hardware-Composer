@@ -1342,4 +1342,20 @@ std::unique_ptr<DrmPlane> DrmDisplay::CreatePlane(uint32_t plane_id,
   return std::unique_ptr<DrmPlane>(new DrmPlane(plane_id, possible_crtcs));
 }
 
+bool DrmDisplay::IsInternalConnection() const {
+  return connection_type_ == DRM_MODE_CONNECTOR_LVDS ||
+         connection_type_ == DRM_MODE_CONNECTOR_eDP ||
+         connection_type_ == DRM_MODE_CONNECTOR_DSI ||
+         connection_type_ == DRM_MODE_CONNECTOR_VIRTUAL ||
+         connection_type_ == DRM_MODE_CONNECTOR_DPI;
+}
+
+bool DrmDisplay::IsExternalConnection() const {
+  return connection_type_ == DRM_MODE_CONNECTOR_HDMIA ||
+         connection_type_ == DRM_MODE_CONNECTOR_DisplayPort ||
+         connection_type_ == DRM_MODE_CONNECTOR_DVID ||
+         connection_type_ == DRM_MODE_CONNECTOR_DVII ||
+         connection_type_ == DRM_MODE_CONNECTOR_VGA;
+}
+
 }  // namespace hwcomposer

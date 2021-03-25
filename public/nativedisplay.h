@@ -469,6 +469,14 @@ class NativeDisplay {
     return false;
   }
 
+  virtual bool IsInternalConnection() const {
+    return true;
+  }
+
+  virtual bool IsExternalConnection() const {
+    return false;
+  }
+
  protected:
   friend class PhysicalDisplay;
   friend class GpuDevice;
