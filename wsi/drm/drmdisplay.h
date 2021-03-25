@@ -140,6 +140,14 @@ class DrmDisplay : public PhysicalDisplay {
     first_commit_ = true;
   }
 
+  bool IsInternalConnection() const override;
+
+  bool IsExternalConnection() const override;
+
+  void SetConnectorType(uint32_t type) {
+    connection_type_ = type;
+  }
+
  private:
   void ShutDownPipe();
   void GetDrmObjectPropertyValue(const char *name,
@@ -218,6 +226,7 @@ class DrmDisplay : public PhysicalDisplay {
   SpinLock display_lock_;
   DrmDisplayManager *manager_;
   uint32_t vsync_period_ = 0;
+  uint32_t connection_type_ = 0;
 };
 
 }  // namespace hwcomposer

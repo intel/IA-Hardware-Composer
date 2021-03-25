@@ -269,6 +269,14 @@ class PhysicalDisplay : public NativeDisplay, public DisplayPlaneHandler {
 
   bool HasCursorPlane() const override;
 
+  virtual bool IsInternalConnection() const {
+    return true;
+  }
+
+  virtual bool IsExternalConnection() const {
+    return false;
+  }
+
  private:
   bool UpdatePowerMode();
   void RefreshClones();

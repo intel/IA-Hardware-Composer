@@ -286,6 +286,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
     std::vector<drmModeModeInfo> mode;
     uint32_t preferred_mode = 0;
     uint32_t size = connector->count_modes;
+    uint32_t connector_type = connector->connector_type;
     mode.resize(size);
     for (uint32_t i = 0; i < size; ++i) {
       mode[i] = connector->modes[i];
@@ -311,6 +312,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
                              display->GetDisplayPipe());
           // Set the modes supported for each display
           display->SetDrmModeInfo(mode);
+          display->SetConnectorType(connector_type);
           break;
         }
       }
@@ -333,6 +335,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
     std::vector<drmModeModeInfo> mode;
     uint32_t preferred_mode = 0;
     uint32_t size = connector->count_modes;
+    uint32_t connector_type = connector->connector_type;
     mode.resize(size);
     for (uint32_t i = 0; i < size; ++i) {
       mode[i] = connector->modes[i];
@@ -359,6 +362,7 @@ bool DrmDisplayManager::UpdateDisplayState() {
                              display->CrtcId(), display->GetDisplayPipe());
           // Set the modes supported for each display
           display->SetDrmModeInfo(mode);
+          display->SetConnectorType(connector_type);
           break;
         }
       }
