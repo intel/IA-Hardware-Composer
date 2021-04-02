@@ -1298,10 +1298,15 @@ HWC2::Error IAHWC2::Hwc2Layer::SetLayerBuffer(buffer_handle_t buffer,
   supported(__func__);
   // The buffer and acquire_fence are handled elsewhere
   if (sf_type_ == HWC2::Composition::Client ||
-      sf_type_ == HWC2::Composition::Sideband)
+      sf_type_ == HWC2::Composition::Sideband) {
+    ALOGD("Skip composition for Client or Sideband layer");
+    close(acquire_fence);
     return HWC2::Error::None;
+  }
 
   if (!(sf_type_ == HWC2::Composition::SolidColor || buffer)) {
+    ALOGD("Skip composition for SolideColor or empty buffer layer.");
+    close(acquire_fence);
     return HWC2::Error::None;
   }
 
