@@ -61,6 +61,9 @@ class MosaicDisplay : public NativeDisplay {
   int RegisterVsyncCallback(std::shared_ptr<VsyncCallback> callback,
                             uint32_t display_id) override;
 
+  int RegisterVsyncPeriodCallback(std::shared_ptr<VsyncPeriodCallback> callback,
+                                  uint32_t display_id) override;
+
   void RegisterRefreshCallback(std::shared_ptr<RefreshCallback> callback,
                                uint32_t display_id) override;
 
@@ -95,6 +98,8 @@ class MosaicDisplay : public NativeDisplay {
   bool GetDisplayAttribute(uint32_t /*config*/, HWCDisplayAttribute attribute,
                            int32_t *value) override;
 
+  bool GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) override;
+
   bool GetDisplayConfigs(uint32_t *num_configs, uint32_t *configs) override;
   bool GetDisplayName(uint32_t *size, char *name) override;
 
@@ -116,6 +121,8 @@ class MosaicDisplay : public NativeDisplay {
   }
 
   void VSyncUpdate(int64_t timestamp);
+
+  void VSyncPeriodUpdate(int64_t timestamp, uint32_t vsyncPeriodNanos);
 
   void RefreshUpdate();
 
@@ -141,6 +148,7 @@ class MosaicDisplay : public NativeDisplay {
   std::vector<NativeDisplay *> connected_displays_;
   std::shared_ptr<RefreshCallback> refresh_callback_ = NULL;
   std::shared_ptr<VsyncCallback> vsync_callback_ = NULL;
+  std::shared_ptr<VsyncPeriodCallback> vsync_period_callback_ = NULL;
   std::shared_ptr<HotPlugCallback> hotplug_callback_ = NULL;
   int32_t dpix_;
   int32_t dpiy_;

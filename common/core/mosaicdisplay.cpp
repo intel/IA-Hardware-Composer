@@ -44,6 +44,20 @@ class MDVsyncCallback : public hwcomposer::VsyncCallback {
   MosaicDisplay *display_;
 };
 
+class MDVsyncPeriodCallback : public hwcomposer::VsyncPeriodCallback {
+ public:
+  MDVsyncPeriodCallback(MosaicDisplay *display) : display_(display) {
+  }
+
+  void Callback(uint32_t display, int64_t timestamp,
+                uint32_t vsyncPeriodNanos) {
+    display_->VSyncPeriodUpdate(timestamp, vsyncPeriodNanos);
+  }
+
+ private:
+  MosaicDisplay *display_;
+};
+
 class MDRefreshCallback : public hwcomposer::RefreshCallback {
  public:
   MDRefreshCallback(MosaicDisplay *display) : display_(display) {
@@ -330,6 +344,21 @@ int MosaicDisplay::RegisterVsyncCallback(
   return 0;
 }
 
+int MosaicDisplay::RegisterVsyncPeriodCallback(
+    std::shared_ptr<VsyncPeriodCallback> callback, uint32_t display_id) {
+  display_id_ = display_id;
+  vsync_period_callback_ = callback;
+
+  uint32_t size = physical_displays_.size();
+  auto v_callback = std::make_shared<MDVsyncPeriodCallback>(this);
+  for (uint32_t i = 0; i < size; i++) {
+    physical_displays_.at(i)->RegisterVsyncPeriodCallback(
+        v_callback, physical_displays_.at(i)->GetDisplayPipe());
+  }
+
+  return 0;
+}
+
 void MosaicDisplay::RegisterRefreshCallback(
     std::shared_ptr<RefreshCallback> callback, uint32_t display_id) {
   display_id_ = display_id;
@@ -378,6 +407,27 @@ void MosaicDisplay::VSyncUpdate(int64_t timestamp) {
     if (vsync_counter_ == 0) {
       vsync_timestamp_ /= vsync_divisor_;
       vsync_callback_->Callback(display_id_, vsync_timestamp_);
+      vsync_counter_ = vsync_divisor_;
+      vsync_timestamp_ = 0;
+      pending_vsync_ = false;
+    } else {
+      pending_vsync_ = true;
+    }
+  }
+
+  lock_.unlock();
+}
+
+void MosaicDisplay::VSyncPeriodUpdate(int64_t timestamp,
+                                      uint32_t vsyncPeriodNanos) {
+  lock_.lock();
+  if (vsync_period_callback_ && enable_vsync_ && vsync_divisor_ > 0) {
+    vsync_counter_--;
+    vsync_timestamp_ += timestamp;
+    if (vsync_counter_ == 0) {
+      vsync_timestamp_ /= vsync_divisor_;
+      vsync_period_callback_->Callback(display_id_, vsync_timestamp_,
+                                       vsyncPeriodNanos);
       vsync_counter_ = vsync_divisor_;
       vsync_timestamp_ = 0;
       pending_vsync_ = false;
@@ -572,6 +622,11 @@ bool MosaicDisplay::GetDisplayAttribute(uint32_t /*config*/,
   }
 
   return status;
+}
+
+bool MosaicDisplay::GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) {
+  return GetDisplayAttribute(config_, HWCDisplayAttribute::kRefreshRate,
+                             reinterpret_cast<int32_t *>(outVsyncPeriod));
 }
 
 bool MosaicDisplay::GetDisplayConfigs(uint32_t *num_configs,
