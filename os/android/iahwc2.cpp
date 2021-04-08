@@ -1069,7 +1069,7 @@ HWC2::Error IAHWC2::HwcDisplay::SetVsyncEnabled(int32_t enabled) {
 
 HWC2::Error IAHWC2::HwcDisplay::SetDisplayBrightness(float brightness) {
   supported(__func__);
-  return HWC2::Error::None;
+  return HWC2::Error::Unsupported;
 }
 
 HWC2::Error IAHWC2::HwcDisplay::ValidateDisplay(uint32_t *num_types,
