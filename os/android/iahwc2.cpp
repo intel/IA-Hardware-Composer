@@ -1237,6 +1237,10 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayCapabilities(
     *outCapabilities |= HWC2_DISPLAY_CAPABILITY_DOZE;
   }
 
+  ++*outNumCapabilities;
+  setNumCapabilities(*outNumCapabilities);
+  *outCapabilities |= HWC2_DISPLAY_CAPABILITY_BRIGHTNESS;
+
   if (numCap_ == maxNumCap_) {
     ALOGI("Maximum number of display capabilities reached");
   }

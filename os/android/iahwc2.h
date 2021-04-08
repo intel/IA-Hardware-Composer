@@ -169,7 +169,7 @@ class IAHWC2 : public hwc2_device_t {
     HwcDisplay(const HwcDisplay &) = delete;
     HwcDisplay &operator=(const HwcDisplay &) = delete;
 
-    uint32_t numCap_ = 1;  // at least support the doze
+    uint32_t numCap_ = 2;  // at least support the doze and brightness chaning
     uint32_t maxNumCap_ = HWC2_DISPLAY_CAPABILITY_DOZE -
                           HWC2_DISPLAY_CAPABILITY_INVALID; /* last - first */
 
