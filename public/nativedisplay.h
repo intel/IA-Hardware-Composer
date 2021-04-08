@@ -104,7 +104,10 @@ class NativeDisplay {
   virtual void GetDisplayCapabilities(uint32_t *outNumCapabilities,
                                       uint32_t *outCapabilities) = 0;
   virtual bool GetDisplayVsyncPeriod(uint32_t *outVsyncPeriod) {
-    return false;
+    // TODO implement this method in all displays
+    // FTB, return 16ms by default.
+    *outVsyncPeriod = 16666666;
+    return true;
   };
 
   /**
