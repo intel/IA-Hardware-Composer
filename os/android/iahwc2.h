@@ -304,6 +304,17 @@ class IAHWC2 : public hwc2_device_t {
     return HWC2::Error::BadDisplay;
   }
 
+  bool IsValidDisplay(HwcDisplay *display) {
+    if (!display) {
+      return false;
+    }
+    hwcomposer::NativeDisplay *native_display = display->GetDisplay();
+    if (!(native_display && native_display->IsConnected())) {
+      return false;
+    }
+    return true;
+  }
+
   static IAHWC2 *toIAHWC2(hwc2_device_t *dev) {
     return static_cast<IAHWC2 *>(dev);
   }
@@ -346,12 +357,19 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
-      return static_cast<int32_t>(
-          (display->*func)(std::forward<Args>(args)...));
+      if (!hwc->IsValidDisplay(display))
+        return static_cast<int32_t>(hwc->BadDisplay());
+      else
+        return static_cast<int32_t>(
+            (display->*func)(std::forward<Args>(args)...));
     }
 
     HwcDisplay *display = hwc->extended_displays_.at(1).get();
-    return static_cast<int32_t>((display->*func)(std::forward<Args>(args)...));
+    if (!hwc->IsValidDisplay(display))
+      return static_cast<int32_t>(hwc->BadDisplay());
+    else
+      return static_cast<int32_t>(
+          (display->*func)(std::forward<Args>(args)...));
   }
 
   template <typename HookType, HookType func, typename... Args>
@@ -376,13 +394,21 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_EXTERNAL) {
       HwcDisplay *display = hwc->extended_displays_.at(0).get();
-      Hwc2Layer &layer = display->get_layer(layer_handle);
-      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+      if (!hwc->IsValidDisplay(display)) {
+        return static_cast<int32_t>(hwc->BadDisplay());
+      } else {
+        Hwc2Layer &layer = display->get_layer(layer_handle);
+        return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+      }
     }
 
     HwcDisplay *display = hwc->extended_displays_.at(1).get();
-    Hwc2Layer &layer = display->get_layer(layer_handle);
-    return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+    if (!hwc->IsValidDisplay(display)) {
+      return static_cast<int32_t>(hwc->BadDisplay());
+    } else {
+      Hwc2Layer &layer = display->get_layer(layer_handle);
+      return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
+    }
   }
 
   // hwc2_device_t hooks
