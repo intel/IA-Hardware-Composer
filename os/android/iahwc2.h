@@ -181,6 +181,7 @@ class IAHWC2 : public hwc2_device_t {
       numCap_ = num;
     }
 
+    bool primary_display_ = false;
     uint32_t num_intents_ = 1;  // at least support the COLORIMETRIC
     uint32_t GetNumRenderIntents() {
       return num_intents_;
@@ -342,6 +343,7 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
+      display.primary_display_ = true;
       return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
     }
 
@@ -379,6 +381,7 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
+      display.primary_display_ = true;
       Hwc2Layer &layer = display.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
