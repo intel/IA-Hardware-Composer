@@ -173,6 +173,9 @@ IAHWC2::IAHWC2() {
   getFunction = HookDevGetFunction;
 }
 
+bool IAHWC2::is_primary_display = false;
+size_t IAHWC2::connector_num = 0;
+
 HWC2::Error IAHWC2::Init() {
   char value[PROPERTY_VALUE_MAX];
   property_get("board.disable.explicit.sync", value, "0");
@@ -207,6 +210,7 @@ HWC2::Error IAHWC2::Init() {
   primary_display_.Init(primary_display, 0, disable_explicit_sync_,
                         scaling_mode_);
   size_t size = displays.size();
+  connector_num = size;
 
   for (size_t i = 0; i < size; ++i) {
     hwcomposer::NativeDisplay *display = displays.at(i);
@@ -885,7 +889,8 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
  */
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayConnectionType(uint32_t *outType) {
   supported(__func__);
-  if (display_->IsInternalConnection())
+  if (display_->IsInternalConnection() || is_primary_display == true ||
+      connector_num == 1)
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::Internal);
   else if (display_->IsExternalConnection())
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::External);

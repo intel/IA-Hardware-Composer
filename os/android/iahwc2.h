@@ -342,6 +342,7 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
+      is_primary_display = true;
       return static_cast<int32_t>((display.*func)(std::forward<Args>(args)...));
     }
 
@@ -379,6 +380,7 @@ class IAHWC2 : public hwc2_device_t {
 
     if (display_handle == HWC_DISPLAY_PRIMARY) {
       HwcDisplay &display = hwc->primary_display_;
+      is_primary_display = true;
       Hwc2Layer &layer = display.get_layer(layer_handle);
       return static_cast<int32_t>((layer.*func)(std::forward<Args>(args)...));
     }
@@ -430,6 +432,8 @@ class IAHWC2 : public hwc2_device_t {
   hwcomposer::GpuDevice &device_ = GpuDevice::getInstance();
   std::vector<std::unique_ptr<HwcDisplay>> extended_displays_;
   HwcDisplay primary_display_;
+  static bool is_primary_display;
+  static size_t connector_num;
   std::map<uint32_t, std::unique_ptr<HwcDisplay>> virtual_displays_;
   uint32_t virtual_display_index_ = 0;
   SpinLock spin_lock_;
