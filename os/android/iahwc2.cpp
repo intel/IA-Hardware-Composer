@@ -879,13 +879,17 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
     return HWC2::Error::BadConfig;
 }
 
-/**
- * A dummy API
- * TODO need to get the type from drm.
+/*
+ * After AOSP rebase to Beta 1 on Android S, the gvt-d couldn't
+ * boot up as couldn't find the DefaultDisplay.
+ * The Android by defualt assume there is one internal display,
+ * but in our scenario, we connected to hdmi,
+ * hwc set the display as extended display.
+ * This WA deem the primary display as internal display.
  */
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayConnectionType(uint32_t *outType) {
   supported(__func__);
-  if (display_->IsInternalConnection())
+  if (display_->IsInternalConnection() || primary_display_)
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::Internal);
   else if (display_->IsExternalConnection())
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::External);
