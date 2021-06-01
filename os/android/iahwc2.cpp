@@ -889,10 +889,14 @@ HWC2::Error IAHWC2::HwcDisplay::GetDisplayVsyncPeriod(
  */
 HWC2::Error IAHWC2::HwcDisplay::GetDisplayConnectionType(uint32_t *outType) {
   supported(__func__);
-  if (display_->IsInternalConnection() || primary_display_)
+  if (display_->IsInternalConnection() || primary_display_) {
+    ALOGI("---yue--- deem as internal display");
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::Internal);
-  else if (display_->IsExternalConnection())
+  }
+  else if (display_->IsExternalConnection()) {
+    ALOGI("---yue--- external display");
     *outType = static_cast<uint32_t>(HWC2::DisplayConnectionType::External);
+  }
   else
     return HWC2::Error::BadConfig;
 
