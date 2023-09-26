@@ -74,6 +74,18 @@ struct DrawState {
     }
   }
 
+  DrawState() = default;
+
+  DrawState(DrawState &&other) {
+    surface_ = other.surface_;
+    destroy_surface_ = other.destroy_surface_;
+    retire_fence_ = other.retire_fence_;
+
+    states_.swap(other.states_);
+    acquire_fences_.swap(other.acquire_fences_);
+    media_state_ = std::move(other.media_state_);
+  }
+
   std::vector<RenderState> states_;
   MediaState media_state_;
   NativeSurface *surface_;
