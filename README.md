@@ -6,8 +6,8 @@ https://android.googlesource.com/platform/hardware/libhardware/+/master/include/
 
 ## Information
 
-See our wiki pages for more information on:
-* [Building the project](https://github.com/intel/IA-Hardware-Composer/wiki/Build)
+For more information please refer to our wiki page on:
+* [Building the project on local](https://github.com/intel/IA-Hardware-Composer/wiki/Build)
 * [Conformance](https://github.com/intel/IA-Hardware-Composer/wiki/Conformance)
 * [Contribution guidelines](https://github.com/intel/IA-Hardware-Composer/wiki/Contributions)
 * [Viewing the Documentation](https://github.com/intel/IA-Hardware-Composer/wiki/Documentation)
