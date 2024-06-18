@@ -11,3 +11,5 @@ For more information please refer to our wiki page on:
 * [Conformance](https://github.com/intel/IA-Hardware-Composer/wiki/Conformance)
 * [Contribution guidelines](https://github.com/intel/IA-Hardware-Composer/wiki/Contributions)
 * [Viewing the Documentation](https://github.com/intel/IA-Hardware-Composer/wiki/Documentation)
+
+Extend maintain
