@@ -66,7 +66,7 @@ bool GpuDevice::Initialize() {
   }
 
   display_manager_->InitializeDisplayResources();
-  display_manager_->StartHotPlugMonitor();
+  //display_manager_->StartHotPlugMonitor();
 
   CheckGvtActive();
   HandleHWCSettings();
